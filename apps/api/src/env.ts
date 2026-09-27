@@ -39,11 +39,9 @@ const EnvSchema = z.object({
     csv,
   ),
 
-  ADMIN_EMAIL: z.preprocess(emptyToUndefined, z.email().optional()),
-  ADMIN_SETUP_TOKEN: z.preprocess(
-    emptyToUndefined,
-    z.string().min(32, 'ADMIN_SETUP_TOKEN en az 32 karakter olmalı').optional(),
-  ),
+  // Yönetici ayarları şemada serbest; kurala uymazsa API açılır, yalnızca giriş kapanır (adminSettings).
+  ADMIN_EMAIL: optionalString,
+  ADMIN_SETUP_TOKEN: z.preprocess(emptyToUndefined, z.string().optional()),
 
   TRUSTED_PROXY_CIDRS: z.preprocess(
     splitCsv,
@@ -52,11 +50,18 @@ const EnvSchema = z.object({
   EDGE_PROXY: z.preprocess(emptyToUndefined, z.enum(['cloudflare']).optional()),
 })
 
+/** Yönetici kurulum anahtarının en kısa uzunluğu; giriş denemeleri ziyaretçi başına sınırlıdır (D-069). */
+export const ADMIN_SETUP_TOKEN_MIN_LENGTH = 12
+
 /** Konteyner içi üretim portu 4000; yerel geliştirmede 4100 (3000–3003 bu makinede dolu). */
 export const DEFAULT_API_PORT = { production: 4000, local: 4100 } as const
 
 type ParsedEnv = z.infer<typeof EnvSchema>
-export type Env = Omit<ParsedEnv, 'API_PORT'> & { API_PORT: number }
+export type Env = Omit<ParsedEnv, 'API_PORT'> & {
+  API_PORT: number
+  /** Yönetici ayarı hatalıysa nedeni; giriş kapalıdır ama API çalışır. Ayar yoksa null. */
+  ADMIN_DISABLED_REASON: string | null
+}
 
 export class EnvError extends Error {
   constructor(issues: string[]) {
@@ -103,13 +108,41 @@ export function parseEnv(source: NodeJS.ProcessEnv): Env {
       )
     }
   }
-  if (Boolean(data.ADMIN_EMAIL) !== Boolean(data.ADMIN_SETUP_TOKEN)) {
-    issues.push('ADMIN_EMAIL ve ADMIN_SETUP_TOKEN birlikte tanımlanmalı (ya da ikisi de boş)')
-  }
   if (issues.length > 0) throw new EnvError(issues)
   const fallbackPort =
     data.APP_ENV === 'production' ? DEFAULT_API_PORT.production : DEFAULT_API_PORT.local
-  return { ...data, API_PORT: data.API_PORT ?? fallbackPort }
+  return { ...data, ...adminSettings(data), API_PORT: data.API_PORT ?? fallbackPort }
+}
+
+/**
+ * Yönetici girişi ayarları. Hatalı bir yönetici ayarı bütün API'yi (dolayısıyla siteyi) kapatmaz:
+ * giriş kapatılır ve nedeni döner, çağıran loglar (D-069). İkisi de boşsa giriş bilerek kapalıdır.
+ */
+function adminSettings(data: ParsedEnv): {
+  ADMIN_EMAIL: string | undefined
+  ADMIN_SETUP_TOKEN: string | undefined
+  ADMIN_DISABLED_REASON: string | null
+} {
+  const email = data.ADMIN_EMAIL
+  const token = data.ADMIN_SETUP_TOKEN
+  const disabled = (reason: string) => ({
+    ADMIN_EMAIL: undefined,
+    ADMIN_SETUP_TOKEN: undefined,
+    ADMIN_DISABLED_REASON: reason,
+  })
+  if (!email && !token) {
+    return { ADMIN_EMAIL: undefined, ADMIN_SETUP_TOKEN: undefined, ADMIN_DISABLED_REASON: null }
+  }
+  if (!email || !token) {
+    return disabled('ADMIN_EMAIL ve ADMIN_SETUP_TOKEN birlikte tanımlanmalı (ya da ikisi de boş)')
+  }
+  if (!z.email().safeParse(email).success) return disabled('ADMIN_EMAIL geçerli bir e-posta değil')
+  if (token.length < ADMIN_SETUP_TOKEN_MIN_LENGTH) {
+    return disabled(
+      `ADMIN_SETUP_TOKEN en az ${ADMIN_SETUP_TOKEN_MIN_LENGTH} karakter olmalı (şu an ${token.length})`,
+    )
+  }
+  return { ADMIN_EMAIL: email, ADMIN_SETUP_TOKEN: token, ADMIN_DISABLED_REASON: null }
 }
 
 /**

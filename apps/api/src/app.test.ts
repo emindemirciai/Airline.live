@@ -107,7 +107,7 @@ describe('env', () => {
     const parsed = parseEnv({
       EDGE_PROXY: '#boş bırak; Cloudflare açılırsa cloudflare yaz#',
       ADMIN_EMAIL: '#yönetici e-postanı yaz#',
-      ADMIN_SETUP_TOKEN: '#parola üret (en az 32 karakter)#',
+      ADMIN_SETUP_TOKEN: '#parola üret (en az 12 karakter)#',
       TRUSTED_PROXY_CIDRS: '10.0.0.0/8',
     })
     expect(parsed.EDGE_PROXY).toBeUndefined()
@@ -129,9 +129,29 @@ describe('env', () => {
     expect(parseEnv({ GIT_SHA: '  ' }).GIT_SHA).toBe('dev')
   })
 
-  it('yönetici bilgileri birlikte tanımlanmalı ve anahtar en az 32 karakter olmalı', () => {
-    expect(() => parseEnv({ ADMIN_EMAIL: 'a@b.co' })).toThrow(EnvError)
-    expect(() => parseEnv({ ADMIN_EMAIL: 'a@b.co', ADMIN_SETUP_TOKEN: 'kisa' })).toThrow(/32/)
+  it("hatalı yönetici ayarı API'yi kapatmaz: giriş kapanır ve nedeni döner", () => {
+    const ok = parseEnv({ ADMIN_EMAIL: 'a@b.co', ADMIN_SETUP_TOKEN: 'on-iki-harf' + 'x' })
+    expect(ok).toMatchObject({ ADMIN_EMAIL: 'a@b.co', ADMIN_DISABLED_REASON: null })
+    expect(ok.ADMIN_SETUP_TOKEN).toHaveLength(12)
+    const cases = [
+      [{ ADMIN_EMAIL: 'a@b.co' }, /birlikte/],
+      [{ ADMIN_SETUP_TOKEN: 'yeterince-uzun-anahtar' }, /birlikte/],
+      [
+        { ADMIN_EMAIL: 'a@b.co', ADMIN_SETUP_TOKEN: 'kisa' },
+        /en az 12 karakter olmalı \(şu an 4\)/,
+      ],
+      [{ ADMIN_EMAIL: 'eposta-degil', ADMIN_SETUP_TOKEN: 'yeterince-uzun-anahtar' }, /e-posta/],
+    ] as const
+    for (const [vars, reason] of cases) {
+      const parsed = parseEnv(vars)
+      expect(parsed.ADMIN_DISABLED_REASON).toMatch(reason)
+      expect(parsed.ADMIN_EMAIL).toBeUndefined()
+      expect(parsed.ADMIN_SETUP_TOKEN).toBeUndefined()
+    }
+    expect(parseEnv({}).ADMIN_DISABLED_REASON).toBeNull()
+  })
+
+  it('geçersiz genel ayarlar açılışı durdurur', () => {
     expect(() => parseEnv({ API_PORT: 'abc' })).toThrow(EnvError)
     expect(() => parseEnv({ APP_ENV: 'staging' })).toThrow(/APP_ENV/)
   })

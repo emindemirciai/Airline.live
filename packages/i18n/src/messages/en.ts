@@ -55,7 +55,7 @@ export const en: Messages = {
     loginFailed: 'Wrong email or setup key.',
     loginRateLimited: 'Too many attempts. Try again in a minute.',
     loginDisabled:
-      'Admin sign-in is disabled on this server. ADMIN_EMAIL, ADMIN_SETUP_TOKEN and REDIS_QUEUE_URL must be set.',
+      'Admin sign-in is disabled on this server. ADMIN_EMAIL and ADMIN_SETUP_TOKEN (at least 12 characters) must both be set and REDIS_QUEUE_URL must be reachable. The API logs say why.',
     loginUnavailable: 'Could not reach the server. Check that the API is running.',
     servicesTitle: 'Services',
     servicesIntro: 'Live status of every service. The page checks again each time it opens.',

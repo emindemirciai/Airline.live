@@ -8,6 +8,22 @@
 
 ---
 
+## v0.5.1 — 2026-09-27
+
+### Türkçe
+**Yönetici anahtarı kuralı ve daha dayanıklı sunucu**
+
+- Yönetici giriş anahtarı artık en az 12 karakter olabilir (önceden 32); 16 ve üzeri önerilir.
+- Yönetici ayarı hatalı girildiğinde site artık kapanmıyor: yalnızca yönetici girişi kapanıyor ve nedeni sunucu kaydına yazılıyor.
+
+### English
+**Admin key rule and a sturdier server**
+
+- The admin sign-in key can now be as short as 12 characters (previously 32); 16 or more is recommended.
+- A wrong admin setting no longer takes the site down: only admin sign-in is turned off, and the reason is written to the server log.
+
+---
+
 ## v0.5.0 — 2026-09-27
 
 ### Türkçe

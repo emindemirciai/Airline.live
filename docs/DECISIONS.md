@@ -2,6 +2,12 @@
 
 Her karar tarih, gerekçe ve varsa alternatifiyle yazılır. En yeni karar en üsttedir.
 
+## 2026-09-27 — Üretimde ilk günün düzeltmeleri (v0.5.1)
+- **D-069 Yönetici anahtarı en az 12 karakter; hatalı yönetici ayarı API'yi kapatmaz (kullanıcı talebi).** Kullanıcı Dokploy'da 32 karakterden kısa bir `ADMIN_SETUP_TOKEN` girdi; API her açılışta env hatasıyla çıktı ve site (web'in API'ye bağlı bölümleri, `api.havayolu.live`) kapandı. Kullanıcı 32 karakteri fazla buldu.
+  - Alt sınır 12'dir; 16 ve üzeri önerilir, yalnızca `[A-Za-z0-9_-]` (D-063). Gerekçe: anahtar yalnızca bu yönetici girişini açar ve giriş denemeleri ziyaretçi başına sınırlıdır (D-060). Parça 2B'de gerçek yönetici hesabı gelince anahtar devreden çıkar.
+  - Yönetici ayarı hatalıysa (biri boş, e-posta geçersiz, anahtar kısa) API açılır, yalnızca yönetici girişi kapanır ve nedeni hata seviyesinde loglanır. Genel ayar hataları (veritabanı, Redis, proxy ağları) açılışı durdurmaya devam eder: onlar olmadan API zaten çalışamaz.
+  - Aynı gün paketler gizli yapıldı ve Dokploy'a `read:packages` PAT'li GHCR Registry kaydı eklendi; yayın bununla imaj çekiyor (D-068).
+
 ## 2026-09-27 — Parça 1 M2 veritabanı ve referans verisi
 - **D-068 Repo yeniden gizli (kullanıcı kararı; D-061'in yerini alır).** Kullanıcı 2026-09-27'de repoyu gizli yaptı.
   - Etkiler (GitHub Free): `main-koruma` kural seti kayıtlı ama uygulanmıyor (API 403 "Upgrade to GitHub Pro or make this repository public"). Gizli bilgi taraması ve push koruması yok. Actions ayda 2.000 dakika. Releases yalnızca repo erişimi olanlara görünür.

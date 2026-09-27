@@ -54,7 +54,7 @@ export const tr = {
     loginFailed: 'E-posta ya da kurulum anahtarı hatalı.',
     loginRateLimited: 'Çok fazla deneme yapıldı. Bir dakika sonra yeniden dene.',
     loginDisabled:
-      'Yönetici girişi bu sunucuda kapalı. ADMIN_EMAIL, ADMIN_SETUP_TOKEN ve REDIS_QUEUE_URL tanımlı olmalı.',
+      'Yönetici girişi bu sunucuda kapalı. ADMIN_EMAIL ve ADMIN_SETUP_TOKEN (en az 12 karakter) birlikte tanımlı olmalı, REDIS_QUEUE_URL erişilebilir olmalı. Nedeni API loglarında yazar.',
     loginUnavailable: 'Sunucuya ulaşılamadı. API’nin çalıştığını kontrol et.',
     servicesTitle: 'Servisler',
     servicesIntro: 'Bütün servislerin anlık durumu. Sayfa her açılışta yeniden kontrol eder.',
