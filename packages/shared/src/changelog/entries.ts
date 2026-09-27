@@ -7,6 +7,20 @@ import type { ChangelogEntry } from './types'
  */
 export const CHANGELOG: readonly ChangelogEntry[] = [
   {
+    version: '0.5.2',
+    date: '2026-09-27',
+    title: {
+      tr: 'Onaylanan her değişiklik kendiliğinden yayında',
+      en: 'Every approved change goes live on its own',
+    },
+    items: [
+      {
+        tr: 'Yeni sürüm hazırlanır hazırlanmaz Dokploy’un otomatik yayını tetikleniyor; önceki sürümün yanlışlıkla yeniden yayınlanması bitti. Yayından sonra sitenin yeni sürümle açıldığı yine kontrol ediliyor.',
+        en: 'Dokploy’s automatic deploy now starts as soon as the new version is ready, so the previous version is no longer redeployed by mistake. After each release the site is still checked to be running the new version.',
+      },
+    ],
+  },
+  {
     version: '0.5.1',
     date: '2026-09-27',
     title: {

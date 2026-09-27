@@ -1,7 +1,8 @@
 name: Rollback
 
-# Seçilen commit'in imajlarını (sha-<7>) :main olarak yeniden etiketler, Dokploy'u tetikler ve
-# deploy.yml ile aynı doğrulamayı yapar (infra.md → rollback.yml, D-064). Sonraki birleştirme (belge
+# Seçilen commit'in imajlarını (sha-<7>) :main olarak yeniden etiketler, release dalına o commit'in
+# ağacıyla bir commit gönderir (Dokploy Autodeploy; force push yok) ve deploy.yml ile aynı doğrulamayı
+# yapar (infra.md → rollback.yml, D-064, D-070). Sonraki birleştirme (belge
 # değişikliği bile) canlıdan farkı yayınlayarak main'i yeniden ileri alır; sorunlu değişiklik önce bir
 # PR ile geri alınmalıdır. Migration'lar geri alınmaz: şema değişiklikleri geriye uyumludur.
 on:
@@ -13,7 +14,7 @@ on:
         type: string
 
 permissions:
-  contents: read
+  contents: write
   packages: write
 
 env:
@@ -40,7 +41,10 @@ jobs:
           fi
           echo "full=${sha}" >> "$GITHUB_OUTPUT"
           echo "short=${sha:0:7}" >> "$GITHUB_OUTPUT"
+      # Tam geçmiş: yayın commit'i seçilen (eski) commit'in ağacından kurulur.
       - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
       - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
       - uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
         with:
@@ -69,14 +73,16 @@ jobs:
           node-version-file: .nvmrc
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - name: Deploy to Dokploy and verify
+      - name: Deploy (release branch → Dokploy Autodeploy) and verify
         env:
           DEPLOY_ENABLED: ${{ vars.DEPLOY_ENABLED }}
+          DEPLOY_TRIGGER: ${{ vars.DEPLOY_TRIGGER }}
+          DEPLOY_BRANCH: ${{ vars.DEPLOY_BRANCH }}
           DOKPLOY_URL: ${{ secrets.DOKPLOY_URL }}
           DOKPLOY_API_TOKEN: ${{ secrets.DOKPLOY_API_TOKEN }}
           DOKPLOY_COMPOSE_ID: ${{ secrets.DOKPLOY_COMPOSE_ID }}
           API_URL: ${{ vars.API_URL }}
           WEB_URL: ${{ vars.WEB_URL }}
           EXPECTED_SHA: ${{ steps.sha.outputs.full }}
-          DEPLOY_TITLE: gh-rollback-${{ steps.sha.outputs.short }}-${{ github.run_id }}
+          DEPLOY_TITLE: rollback ${{ steps.sha.outputs.short }} (run ${{ github.run_id }})
         run: pnpm run deploy:dokploy

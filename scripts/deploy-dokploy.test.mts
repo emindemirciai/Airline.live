@@ -1,10 +1,15 @@
 // Deploy script'inin stub testleri: sahte Dokploy + sahte /version ve /ready sunucusu (yerel HTTP),
-// sahte saat (bekleme anında geçer). Canlı servise istek atılmaz.
+// sahte saat (bekleme anında geçer), sahte git gönderimi (dal tetiği). Canlı servise istek atılmaz.
+import { execFileSync } from 'node:child_process'
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { createServer, type IncomingMessage, type Server } from 'node:http'
 import type { AddressInfo } from 'node:net'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
 import {
   deployRequestBody,
+  gitPushDeployCommit,
   isNonDeployPath,
   planFromEnv,
   runDeploy,
@@ -108,11 +113,18 @@ async function startStub(scenario: Scenario) {
   servers.push(server)
   await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve))
   const { port } = server.address() as AddressInfo
-  return { base: `http://127.0.0.1:${port}`, requests }
+  // Dal tetiği: Dokploy Autodeploy'u taklit eder (yayın hemen biter, SHA sonra döner).
+  const autodeploy = () => {
+    deployed = true
+    doneServed = true
+  }
+  return { base: `http://127.0.0.1:${port}`, requests, autodeploy }
 }
 
 function configFor(base: string, overrides: Partial<DeployConfig> = {}): DeployConfig {
   return {
+    trigger: 'api',
+    deployBranch: 'release',
     dokployUrl: base,
     apiToken: TOKEN,
     composeId: 'cmp-1',
@@ -128,22 +140,36 @@ function configFor(base: string, overrides: Partial<DeployConfig> = {}): DeployC
   }
 }
 
+interface Push {
+  branch: string
+  sha: string
+  message: string
+}
+
 async function deploy(
   scenario: Scenario,
   overrides: Partial<DeployConfig> = {},
   changedFiles: DeployDeps['changedFiles'] = () => ['apps/api/src/app.ts'],
+  push: 'ok' | 'fail' = 'ok',
 ) {
   const stub = await startStub(scenario)
   const clock = new FakeClock()
   const lines: string[] = []
+  const pushes: Push[] = []
   const result = await runDeploy(configFor(stub.base, overrides), {
     fetch: globalThis.fetch,
     clock,
     log: (line) => lines.push(line),
     changedFiles,
+    pushDeployCommit: (branch, sha, message) => {
+      if (push === 'fail') throw new Error('rejected (fetch first)')
+      pushes.push({ branch, sha, message })
+      stub.autodeploy()
+      return 'feedfacefeedfacefeedfacefeedfacefeedface'
+    },
   })
   const posts = stub.requests.filter((r) => r.method === 'POST')
-  return { result, requests: stub.requests, posts, clock, lines }
+  return { result, requests: stub.requests, posts, clock, lines, pushes }
 }
 
 const happy: Scenario = {
@@ -249,6 +275,46 @@ describe('deploy-dokploy', () => {
   })
 })
 
+describe('dal tetiği (Dokploy Autodeploy, D-070)', () => {
+  const branch = { trigger: 'branch' as const, title: 'deploy 1234567 (run 99)' }
+
+  it("release dalına yayın commit'i gönderir, Dokploy API'sine istek atmaz ve sürümü doğrular", async () => {
+    const { result, requests, pushes, lines } = await deploy(happy, branch)
+    expect(result.ok).toBe(true)
+    expect(result.summary).toMatch(/^YAYINLANDI: 1234567 .*release dalı → Autodeploy/)
+    expect(pushes).toEqual([
+      { branch: 'release', sha: NEW_SHA, message: 'deploy 1234567 (run 99)' },
+    ])
+    expect(
+      requests.some(
+        (r) => r.path.startsWith('/api/deployment') || r.path.startsWith('/api/compose'),
+      ),
+    ).toBe(false)
+    expect(lines.join('\n')).toMatch(/release ← feedfac/)
+  })
+
+  it('gönderim başarısızsa → 1 ve doğrulama beklenmez', async () => {
+    const { result, clock } = await deploy(happy, branch, undefined, 'fail')
+    expect(result.ok).toBe(false)
+    expect(result.summary).toMatch(/release dalına yayın commit'i gönderilemedi: rejected/)
+    expect(clock.current).toBe(0)
+  })
+
+  it('Autodeploy yeni sürümü 15 dk içinde açmazsa → 1', async () => {
+    const { result } = await deploy({ ...happy, shaAfterProbes: Number.POSITIVE_INFINITY }, branch)
+    expect(result.ok).toBe(false)
+    expect(result.summary).toMatch(/doğrulanamadı.*eski SHA abcdefa/)
+  })
+
+  it('yalnızca belge değiştiyse dala hiçbir şey gönderilmez', async () => {
+    const { result, pushes } = await deploy(happy, { ...branch, skipUnchanged: true }, () => [
+      'docs/DECISIONS.md',
+    ])
+    expect(result.summary).toMatch(/^YAYIN GEREKMEDİ/)
+    expect(pushes).toEqual([])
+  })
+})
+
 describe('canlı sürüme göre yayın kararı (skipUnchanged)', () => {
   const docsOnly = () => ['docs/plans/parca-1.md', 'apps/mobile/app.json']
 
@@ -309,7 +375,35 @@ describe('yardımcılar', () => {
 })
 
 describe('planFromEnv', () => {
+  const branchMode = {
+    DEPLOY_ENABLED: 'true',
+    API_URL: 'https://api.example.test',
+    WEB_URL: 'https://example.test',
+    EXPECTED_SHA: NEW_SHA,
+    GITHUB_RUN_ID: '42',
+  }
+
+  it('varsayılan tetik dal: Dokploy sırrı gerekmez, dal release, başlık İngilizce commit mesajı', () => {
+    const plan = planFromEnv(branchMode)
+    expect(plan.kind).toBe('run')
+    if (plan.kind !== 'run') return
+    expect(plan.config).toMatchObject({
+      trigger: 'branch',
+      deployBranch: 'release',
+      title: 'deploy 1234567 (run 42)',
+    })
+  })
+
+  it('dal adı doğrulanır; main ve bilinmeyen tetik reddedilir', () => {
+    expect(planFromEnv({ ...branchMode, DEPLOY_BRANCH: 'main' }).kind).toBe('error')
+    expect(planFromEnv({ ...branchMode, DEPLOY_BRANCH: 'a b' }).kind).toBe('error')
+    expect(planFromEnv({ ...branchMode, DEPLOY_BRANCH: 'deploy/prod' }).kind).toBe('run')
+    expect(planFromEnv({ ...branchMode, DEPLOY_TRIGGER: 'webhook' }).kind).toBe('error')
+    expect(planFromEnv({ ...branchMode, API_URL: 'http://api.example.test' }).kind).toBe('error')
+  })
+
   const complete = {
+    DEPLOY_TRIGGER: 'api',
     DEPLOY_ENABLED: 'true',
     DOKPLOY_URL: 'https://panel.example.test',
     DOKPLOY_API_TOKEN: TOKEN,
@@ -347,5 +441,67 @@ describe('planFromEnv', () => {
     expect(plan.kind === 'run' && plan.config.skipUnchanged).toBe(false)
     const release = planFromEnv({ ...complete, SKIP_UNCHANGED: 'true' })
     expect(release.kind === 'run' && release.config.skipUnchanged).toBe(true)
+  })
+})
+
+describe('gitPushDeployCommit (gerçek git, geçici yerel depo; ağa çıkmaz)', () => {
+  const dirs: string[] = []
+  afterEach(() => {
+    for (const dir of dirs.splice(0)) rmSync(dir, { recursive: true, force: true })
+  })
+
+  function repo() {
+    const root = mkdtempSync(join(tmpdir(), 'hy-deploy-'))
+    dirs.push(root)
+    const origin = join(root, 'origin.git')
+    const work = join(root, 'work')
+    const git = (cwd: string, ...args: string[]) =>
+      execFileSync('git', args, { cwd, encoding: 'utf8' }).trim()
+    git(root, 'init', '--bare', '--initial-branch=main', origin)
+    git(root, 'init', '--initial-branch=main', work)
+    git(work, 'config', 'user.name', 'test')
+    git(work, 'config', 'user.email', 'test@example.test')
+    git(work, 'remote', 'add', 'origin', origin)
+    const commit = (file: string, text: string) => {
+      writeFileSync(join(work, file), text)
+      git(work, 'add', file)
+      git(work, 'commit', '-m', `edit ${file}`)
+      git(work, 'push', '-q', 'origin', 'main')
+      return git(work, 'rev-parse', 'HEAD')
+    }
+    return { origin, work, git, commit }
+  }
+
+  it('ilk yayında dalı açar, sonrakilerde fast-forward ekler; ağaç hedef commit ile aynıdır', () => {
+    const { origin, work, git, commit } = repo()
+    const first = commit('a.txt', '1')
+    const second = commit('a.txt', '2')
+
+    const d1 = gitPushDeployCommit('release', first, 'deploy 1 (run 1)', work)
+    expect(git(origin, 'rev-parse', 'refs/heads/release')).toBe(d1)
+    expect(git(origin, 'rev-parse', `${d1}^{tree}`)).toBe(git(work, 'rev-parse', `${first}^{tree}`))
+
+    const d2 = gitPushDeployCommit('release', second, 'deploy 2 (run 2)', work)
+    expect(git(origin, 'rev-parse', `${d2}^`)).toBe(d1)
+    expect(git(origin, 'rev-parse', `${d2}^{tree}`)).toBe(
+      git(work, 'rev-parse', `${second}^{tree}`),
+    )
+
+    // Geri alma: eski commit'in ağacı yeni bir commit olarak eklenir; force push gerekmez.
+    const d3 = gitPushDeployCommit('release', first.slice(0, 7), 'rollback 1 (run 3)', work)
+    expect(git(origin, 'rev-parse', `${d3}^`)).toBe(d2)
+    expect(git(origin, 'rev-parse', `${d3}^{tree}`)).toBe(git(work, 'rev-parse', `${first}^{tree}`))
+    expect(git(origin, 'log', '-1', '--format=%an|%s', 'release')).toBe(
+      'github-actions[bot]|rollback 1 (run 3)',
+    )
+    // main'e dokunulmaz.
+    expect(git(origin, 'rev-parse', 'refs/heads/main')).toBe(second)
+  })
+
+  it('bilinmeyen commit hata verir ve dala hiçbir şey yazılmaz', () => {
+    const { origin, work, git, commit } = repo()
+    commit('a.txt', '1')
+    expect(() => gitPushDeployCommit('release', 'deadbee', 'deploy x', work)).toThrow()
+    expect(git(origin, 'ls-remote', '--heads', origin, 'release')).toBe('')
   })
 })
