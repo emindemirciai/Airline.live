@@ -8,6 +8,26 @@
 
 ---
 
+## v0.6.0 — 2026-09-27
+
+### Türkçe
+**Canlı uçuş verisinin altyapısı**
+
+- Canlı uçuş verisi kaynağı (ADSB.lol) ve ileride kurulabilecek kendi ADS-B alıcımız için bağlantılar hazır. Veri bir sonraki sürümde akmaya başlayacak.
+- Gelen veri temizleniyor: konumu olmayan, bir dakikadan eski ya da imkânsız hız ve tırmanış değerleri taşıyan kayıtlar kullanılmıyor.
+- Gizlilik kuralları uygulanıyor: askeri uçaklar varsayılan olarak gösterilmeyecek; gizlilik programındaki (PIA, LADD) uçakların tescili gizlenecek.
+- Onaylanan her değişiklik artık birleştiği anda, elle müdahale gerekmeden yayına çıkıyor.
+
+### English
+**Groundwork for live flight data**
+
+- Connections to the live flight data source (ADSB.lol) and to our own ADS-B receiver, should we set one up, are ready. Data will start flowing in the next version.
+- Incoming data is cleaned: records with no position, older than a minute, or with impossible speed or climb values are not used.
+- Privacy rules are in place: military aircraft will be hidden by default, and the registration of aircraft in privacy programmes (PIA, LADD) will be hidden.
+- Every approved change now goes live on its own once it is merged, with no manual step.
+
+---
+
 ## v0.5.2 — 2026-09-27
 
 ### Türkçe

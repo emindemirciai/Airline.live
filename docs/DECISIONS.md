@@ -2,6 +2,32 @@
 
 Her karar tarih, gerekçe ve varsa alternatifiyle yazılır. En yeni karar en üsttedir.
 
+## 2026-09-27 — Parça 1 M3 sağlayıcılar
+- **D-071 Canlı sağlayıcı katmanının kuralları.**
+  - **Model:** `AircraftState` (packages/providers). Bilinmeyen değer `null`dır, hiçbir alan uydurulmaz. `emergency: 'none'` null olur. Konumu yalnızca `lat`/`lon` verir: `lastPosition` ve `rr_lat`/`rr_lon` kullanılmaz, yalnızca bayat konumu olan uçak "konum yok" nedeniyle atılır.
+  - **Temizlik** yanıtın ölçüm anına (`now`) göre yapılır: `seen_pos` > 60 sn, hız > 800 kt, |dikey hız| > 10.000 fpm, geçersiz koordinat atılır; neden (`RejectReason`) döner. Zamanın birimi `now > 1e12` ile ayrılır (adsb.lol ms, readsb saniye). Zarfta `ac` (adsb.lol) ya da `aircraft` (readsb) kabul edilir.
+  - **Gizlilik** yardımcıları modeldedir (`isHiddenByDefault`, `withPrivacy`). Uygulama yeri API/WS/aramadır (M5); ayrıştırıcı askeri uçağı atmaz, çünkü motor ve saklama kuralları ayrı karar verir.
+  - **İstemci** her çağrıda tek istek atar; hız sınırı (AIMD) çağıranın kovasındadır (M4). 500'den fazla hex için istemci gizlice birden çok istek atmaz: çağıran `chunkHexes` ile böler. ICAO dışı (`~`) adresler sorgulanamaz, atlanır. Hata türleri: `config` (401/403, yeniden denenmez), `rate_limit` (429/420; Retry-After yalnızca varsa), `server` (5xx), `network`, `response`, `request`. Gövde, durum kodu 200 değilse JSON olarak okunmaz.
+  - **User-Agent** tek üreticiden gelir (`providerUserAgent`): `havayolu/<sürüm> (+https://<WEB_HOST>; <CONTACT_EMAIL>)`, WEB_HOST boşsa `(+mailto:…)`. Referans indirmeleri de bunu kullanır. `CONTACT_EMAIL` yoksa adsb.lol istemcisi kurulmaz (ingest başlamaz).
+  - **API anahtarı:** `ADSBLOL_API_KEY` verilirse başlık adı da (`ADSBLOL_API_KEY_HEADER`) zorunludur. adsb.lol'ün gelecekteki başlık adı bilinmediği için varsayılan uydurulmaz.
+  - **Yerel alıcı:** `LOCAL_RECEIVER_URLS` = `url[|token]` listesi (Bearer). Adreste kullanıcı adı ve parola reddedilir; sağlık kaydı token taşımaz. Alıcılar paralel okunur, biri düşse de diğerleri döner.
+  - **Birleştirme öncesi inceleme** (3 açı + çürütmeye çalışan doğrulayıcılar): 23 bulgu, 2'si çürütüldü. Düzeltilenler:
+    - **Gizlilik:** Tescilini çağrı kodu olarak yayınlayan PIA/LADD uçağında tescil gizlense de çağrı kodunda açıkta kalıyordu. Fixture'daki TC-OIL uçağı, LADD bayraklı ve çağrı kodu "TCOIL", bunu gösterdi. Artık tescile eşit çağrı kodu da gizlenir; havayolu çağrı kodları görünür kalır.
+    - **Bilinmeyen bayrak kapalı varsayılır:** \`dbFlags\` artık \`number | null\`. Veritabanısız yerel alıcı bayrak göndermez; bu \`null\` olur ve gizli sayılır. M4 aynı hex'in bilinen bayraklarını taşır. Alan var ama bozuksa kayıt reddedilir.
+    - **Konum kaynağı:** readsb'nin \`mlat\`/\`tisb\` alan listeleri konumun oradan geldiğini söylüyorsa \`type\` adsb_icao olsa da kaynak \`mlat\`/\`tisb_other\` olur. GPS karıştırmada bu gerçekten yaşanıyor; fixture'da da görüldü.
+    - **Saat:** Yanıtın saati alınma anından 60 sn'den fazla saparsa (donmuş aircraft.json, saati kaymış alıcı) yanıt reddedilir. Negatif \`seen_pos\` 0'a çekilir.
+    - **İstemci:**
+      - Gövde okunurken kopan bağlantı artık \`network\` hatasıdır.
+      - Yönlendirme izlenmez; anahtar ya da token başka adrese gitmez.
+      - Gövde boyutu sınırlıdır: adsb.lol 32 MB, alıcı 8 MB.
+      - \`Retry-After\` HTTP tarihi biçiminde de okunur ve en fazla 300 sn kabul edilir.
+      - Geçersiz başlık, istemci kurulurken yapılandırma hatası verir.
+      - Bozuk hex bütün çağrıyı düşürmez.
+      - Alıcı hata ve sağlık metinleri sabit bir sözlükten gelir; token ya da ham hata metni taşımaz.
+    - **Kayıt betiği:** 200 dışı ilk yanıtta durur.
+    - **Bilinçli olarak bırakılan:** İmkânsız hız ya da dikey hız bütün örneği düşürür. M3 kuralı böyle; yalnızca o alanı boşaltmak, bozuk konumun motora girmesine izin verirdi.
+  - **Kapsama gözlemi:** Fixture anında (2026-09-27 08:49 UTC, İstanbul'da yoğun saat) LTFM'nin 40 NM çevresinde adsb.lol yalnızca 18 uçak gösterdi, hiçbiri yerde değildi. Ücretsiz kaynağın bölgedeki alçak irtifa ve yer kapsaması sınırlı görünüyor. D-006'daki "iniş çoğunlukla muhtemel iniş olarak bildirilir" beklentisiyle tutarlı; M7'deki kapsama raporu ölçecek.
+
 ## 2026-09-27 — Üretimde ilk günün düzeltmeleri (v0.5.1–v0.5.2)
 - **D-070 Yayın, Dokploy Autodeploy ile `release` dalından tetiklenir (kullanıcı kararı; D-064'ün tetik kısmını değiştirir).** Kullanıcı Autodeploy'un açık kalmasını istedi. Autodeploy `main`'i izleseydi push anında, imajlar henüz derlenmemişken tetiklenir ve her seferinde bir önceki sürümü yayınlardı (2026-09-27'de görüldü: #8 birleşince Dokploy v0.5.0'ı yeniden çekti).
   - Dokploy `release` dalını izler (Autodeploy açık). CI'nın `release` işi `:main`'i taşıdıktan sonra `release` dalına, ağacı bu commit'inkiyle aynı yeni bir commit gönderir (`git commit-tree` + fast-forward push; force push yok, `main`'e dokunulmaz, commit yazarı `github-actions[bot]`). Geri alma aynı yolu eski commit'in ağacıyla izler. Dal, yayın geçmişinin kaydı olur.
