@@ -70,15 +70,15 @@ Kurulum bitene kadar CI yeşil kalır: imajlar derlenir, yayın adımı "YAYINLA
 1. **Proje ve servis:** Projects → Create Project `havayolu` → Create Service → **Compose**, ad `havayolu`.
 2. **Kaynak:** GitHub sağlayıcısı (Settings → Git → GitHub; yoksa bağla).
    - repo `emindemirciai/havayolu`
-   - dal `main`
+   - dal **`release`** (`main` değil; D-070)
    - compose dosyası `./docker-compose.yml`
 3. **General:**
-   - **Autodeploy'u KAPAT.** Varsayılanı açıktır. Açık kalırsa CI'ı beklemeden her push'ta yayına çıkar.
+   - **Autodeploy AÇIK** kalır; Trigger Type "On Push".
+   - Neden `release`: `main`'e push geldiğinde yeni imajlar henüz yoktur (CI onları ~15 dk sonra hazırlar). Dokploy `main`'i izleseydi her seferinde bir önceki sürümü yayınlardı. CI, imajları hazırlayıp `:main` etiketini taşıdıktan sonra `release` dalına bir yayın commit'i gönderir; Autodeploy tam o anda doğru imajla çalışır.
+   - `release` dalına yalnızca CI yazar; elle push yapma.
    - Advanced → Isolated Deployments kapalı kalır.
    - "Create env file" açık kalır.
-4. **composeId'yi not al:** Servis sayfasının adresindeki son parça.
-   - Adres biçimi: `/dashboard/project/<projectId>/environment/<environmentId>/services/compose/<composeId>`
-   - Bu değer GitHub'daki `DOKPLOY_COMPOSE_ID` olacak.
+4. **composeId (yalnızca API tetiği için):** Servis sayfasının adresindeki son parça: `/dashboard/project/<projectId>/environment/<environmentId>/services/compose/<composeId>`. Dal tetiğinde (varsayılan) gerekmez.
 
 ## 4. GHCR erişimi (Registry) — şu an gerekmiyor
 GHCR paketleri şu an herkese açıktır ve Dokploy onları girişsiz çeker (2026-09-27 doğrulandı). Paket görünürlüğü repodan bağımsızdır: repo gizli yapıldığında paketler herkese açık kaldı. İmajlar derlenmiş kodu ve kaynak haritalarını içerir; kodu gizlemek istersen paketleri gizli yap (github.com → Packages → paket → Package settings → Change visibility) ve **aynı anda** bu adımı uygula, yoksa Dokploy imaj çekemez (D-068):
@@ -128,7 +128,9 @@ Compose servisinin Domains sekmesinde her satır için HTTPS açık, sertifika L
 4. **Not:** Bu uygulama kendi modelinde sunucuda derlenir. Derleme sırasında kısa bir CPU/RAM artışı olur.
 5. **Giriş:** havayolu API'si ayakta olmalı; analiz paneline girişi o doğrular.
 
-## 8. Dokploy API anahtarı
+## 8. Dokploy API anahtarı (isteğe bağlı; yalnızca `DEPLOY_TRIGGER=api`)
+Varsayılan yayın yolu dal tetiğidir (D-070) ve Dokploy API anahtarı gerektirmez. Bu bölüm ve §9'daki üç secret yalnızca Autodeploy kapatılıp yayının Dokploy API'siyle tetiklenmesi istenirse gerekir; o durumda panelin HTTPS adresi de şarttır (§1).
+
 1. **Anahtarı oluştur:** Settings → Profile → API/CLI → Generate.
    - ad `github-actions`
    - süre **90 gün**
@@ -139,20 +141,8 @@ Compose servisinin Domains sekmesinde her satır için HTTPS açık, sertifika L
    - Kapsamı dene: anahtarla başka bir projenin servisini okumaya çalış, 401/403 beklenir.
    - 200 dönerse anahtarı kullanma, bana haber ver.
 
-## 9. GitHub secrets ve variables
-Aşağıdaki komutlar değeri sorar; değer komut geçmişine yazılmaz. Aynısı GitHub'da Settings → Secrets and variables → Actions'tan da yapılabilir.
-
-```bash
-gh secret set DOKPLOY_URL --repo emindemirciai/havayolu
-```
-
-```bash
-gh secret set DOKPLOY_API_TOKEN --repo emindemirciai/havayolu
-```
-
-```bash
-gh secret set DOKPLOY_COMPOSE_ID --repo emindemirciai/havayolu
-```
+## 9. GitHub variables (ve API tetiği için secrets)
+Dal tetiğinde (varsayılan) yalnızca şu variables gerekir; secret gerekmez:
 
 ```bash
 gh variable set WEB_URL --repo emindemirciai/havayolu --body https://havayolu.live
@@ -164,6 +154,20 @@ gh variable set API_URL --repo emindemirciai/havayolu --body https://api.havayol
 
 ```bash
 gh variable set DEPLOY_ENABLED --repo emindemirciai/havayolu --body false
+```
+
+İsteğe bağlı: `DEPLOY_BRANCH` (varsayılan `release`), `DEPLOY_TRIGGER` (`branch` varsayılan, `api`). `api` seçilirse şu üç secret da girilir; komutlar değeri kendisi sorar, değer komut geçmişine yazılmaz:
+
+```bash
+gh secret set DOKPLOY_URL --repo emindemirciai/havayolu
+```
+
+```bash
+gh secret set DOKPLOY_API_TOKEN --repo emindemirciai/havayolu
+```
+
+```bash
+gh secret set DOKPLOY_COMPOSE_ID --repo emindemirciai/havayolu
 ```
 
 Repo gizlidir (D-068); secrets yalnızca bu repodaki iş akışlarına verilir, yayın yalnızca `main`'de çalışır.
@@ -181,7 +185,7 @@ Repo gizlidir (D-068); secrets yalnızca bu repodaki iş akışlarına verilir, 
    gh variable set DEPLOY_ENABLED --repo emindemirciai/havayolu --body true
    ```
 
-3. **İlk yayın:** `release` işi `:main` etiketini taşır, Dokploy'u tetikler; `/version`, `/api/version` ve `/ready` doğrulanana kadar bekler (en fazla ~30 dk).
+3. **İlk yayın:** `release` işi `:main` etiketini taşır, `release` dalına yayın commit'ini gönderir (Dokploy Autodeploy başlar); `/version`, `/api/version` ve `/ready` doğrulanana kadar bekler (en fazla ~15 dk).
 
    ```bash
    gh workflow run deploy.yml --repo emindemirciai/havayolu --ref main -f dry_run=false

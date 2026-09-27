@@ -1,19 +1,29 @@
-// Dokploy'a yayın ve doğrulama (docs/spec/infra.md → Deploy sözleşmesi, D-064). CI'daki release
-// ve rollback işleri çalıştırır; yerelde çalıştırılmaz (canlı çağrı, CLAUDE.md DUR-SOR 6).
+// Dokploy'a yayın ve doğrulama (docs/spec/infra.md → Deploy sözleşmesi, D-064, D-070). CI'daki
+// release ve rollback işleri çalıştırır; yerelde çalıştırılmaz (canlı çağrı, CLAUDE.md DUR-SOR 6).
 // 0. (release) Canlıdaki sürümden bu commit'e yalnızca docs/ ya da apps/mobile/ değiştiyse yayın
 //    gerekmez: imajlar aynıdır, gereksiz kesinti yaşanmaz.
-// 1. Mevcut deployment kimlikleri kaydedilir.
-// 2. compose.deploy ile yayın kuyruğa alınır. Gövde yalnızca composeId ve title taşır;
-//    freshVolumes (volume'ları siler) ASLA gönderilmez, compose.redeploy kullanılmaz.
-// 3. Listede ilk görünen yeni deployment 10 sn arayla en fazla 15 dk izlenir (kuyrukta bekleme dahil).
-//    Ağ hatası, 5xx ve 429 geçici sayılır; süre dolana kadar beklenir.
-// 4. API /version ve web /api/version yeni GIT_SHA'yı, API /ready 200'ü verene kadar yoklanır.
+// Tetik (DEPLOY_TRIGGER):
+// - branch (varsayılan, D-070): Dokploy'un Autodeploy'u `release` dalını izler. Dala, ağacı bu
+//   commit'inkiyle aynı yeni bir commit gönderilir (fast-forward; force push yok). Dokploy o an
+//   yayını başlatır; imajlar bu noktada hazırdır, `:main` zaten bu derlemeyi gösterir.
+// - api: Dokploy API'si. Mevcut deployment kimlikleri kaydedilir, compose.deploy ile yayın kuyruğa
+//   alınır (gövde yalnızca composeId ve title; freshVolumes ASLA gönderilmez, compose.redeploy
+//   kullanılmaz), yeni deployment 10 sn arayla en fazla 15 dk izlenir (ağ hatası, 5xx, 429 geçici).
+// Ardından API /version ve web /api/version yeni GIT_SHA'yı, API /ready 200'ü verene kadar yoklanır.
 // Çıkış: 0 = yayınlandı, gerekmedi ya da bilerek atlandı; 1 = başarısız.
 import { execFileSync } from 'node:child_process'
 import { appendFileSync } from 'node:fs'
 import { pathToFileURL } from 'node:url'
 
+export type DeployTrigger = 'branch' | 'api'
+
+/** Varsayılan yayın dalı; Dokploy'un Autodeploy'u bu dalı izler (D-070). */
+export const DEFAULT_DEPLOY_BRANCH = 'release'
+
 export interface DeployConfig {
+  trigger: DeployTrigger
+  /** trigger=branch: yayın commit'inin gönderileceği dal. */
+  deployBranch: string
   dokployUrl: string
   apiToken: string
   composeId: string
@@ -40,6 +50,11 @@ export interface DeployDeps {
   log: (line: string) => void
   /** İki commit arasında değişen dosyalar; bilinmiyorsa (commit yok, git hatası) null. */
   changedFiles: (from: string, to: string) => string[] | null
+  /**
+   * trigger=branch: `branch`'e, ağacı `sha`'nınkiyle aynı yeni bir commit gönderir; gönderilen
+   * commit'i döndürür. Başarısızsa fırlatır.
+   */
+  pushDeployCommit: (branch: string, sha: string, message: string) => string
 }
 
 export interface Deployment {
@@ -268,19 +283,35 @@ export async function runDeploy(config: DeployConfig, deps: DeployDeps): Promise
   try {
     const unchanged = await unchangedSummary(config, deps)
     if (unchanged) return { ok: true, summary: unchanged }
-    const before = new Set((await listDeployments(config, deps)).map((d) => d.deploymentId))
-    deps.log(`mevcut deployment sayısı: ${before.size}; yayın kuyruğa alınıyor (${config.title})`)
-    await dokploy(config, deps, 'compose.deploy', {
-      method: 'POST',
-      body: deployRequestBody(config),
-    })
-    const deployment = await waitForDeployment(config, deps, before)
-    deps.log(`Dokploy deployment tamam: ${deployment.deploymentId}`)
+    if (config.trigger === 'branch') {
+      let commit: string
+      try {
+        commit = deps.pushDeployCommit(config.deployBranch, config.expectedSha, config.title)
+      } catch (error) {
+        throw new DeployError(
+          `${config.deployBranch} dalına yayın commit'i gönderilemedi: ${(error as Error).message}`,
+        )
+      }
+      deps.log(
+        `${config.deployBranch} ← ${commit.slice(0, 7)} (${config.title}); Dokploy Autodeploy yayını başlatır`,
+      )
+    } else {
+      const before = new Set((await listDeployments(config, deps)).map((d) => d.deploymentId))
+      deps.log(`mevcut deployment sayısı: ${before.size}; yayın kuyruğa alınıyor (${config.title})`)
+      await dokploy(config, deps, 'compose.deploy', {
+        method: 'POST',
+        body: deployRequestBody(config),
+      })
+      const deployment = await waitForDeployment(config, deps, before)
+      deps.log(`Dokploy deployment tamam: ${deployment.deploymentId}`)
+    }
     await verifyRelease(config, deps)
     const minutes = ((deps.clock.now() - started) / 60_000).toFixed(1)
+    const via =
+      config.trigger === 'branch' ? `${config.deployBranch} dalı → Autodeploy` : 'Dokploy API'
     return {
       ok: true,
-      summary: `YAYINLANDI: ${config.expectedSha.slice(0, 7)} (${minutes} dk). /version, /api/version ve /ready doğrulandı.`,
+      summary: `YAYINLANDI: ${config.expectedSha.slice(0, 7)} (${minutes} dk, ${via}). /version, /api/version ve /ready doğrulandı.`,
     }
   } catch (error) {
     if (error instanceof DeployError)
@@ -306,10 +337,21 @@ export function planFromEnv(env: Record<string, string | undefined>): Plan {
         'YAYINLANMADI: Dokploy kurulumu tamamlanmadı (DEPLOY_ENABLED=true değil). Bkz. docs/DEPLOY_DOKPLOY.md.',
     }
   }
+  const trigger = (env.DEPLOY_TRIGGER?.trim() || 'branch') as DeployTrigger
+  if (trigger !== 'branch' && trigger !== 'api') {
+    return { kind: 'error', summary: 'YAYIN BAŞARISIZ: DEPLOY_TRIGGER branch ya da api olmalı' }
+  }
+  const deployBranch = env.DEPLOY_BRANCH?.trim() || DEFAULT_DEPLOY_BRANCH
+  if (!/^[A-Za-z0-9._-]+(\/[A-Za-z0-9._-]+)*$/.test(deployBranch) || deployBranch === 'main') {
+    return {
+      kind: 'error',
+      summary: 'YAYIN BAŞARISIZ: DEPLOY_BRANCH geçerli bir dal adı olmalı ve main olamaz',
+    }
+  }
   const required = [
-    'DOKPLOY_URL',
-    'DOKPLOY_API_TOKEN',
-    'DOKPLOY_COMPOSE_ID',
+    ...(trigger === 'api'
+      ? (['DOKPLOY_URL', 'DOKPLOY_API_TOKEN', 'DOKPLOY_COMPOSE_ID'] as const)
+      : ([] as const)),
     'API_URL',
     'WEB_URL',
     'EXPECTED_SHA',
@@ -321,14 +363,15 @@ export function planFromEnv(env: Record<string, string | undefined>): Plan {
       summary: `YAYIN BAŞARISIZ: DEPLOY_ENABLED=true ama şunlar tanımlı değil: ${missing.join(', ')}`,
     }
   }
-  const value = (key: (typeof required)[number]) => (env[key] ?? '').trim()
-  for (const key of ['DOKPLOY_URL', 'API_URL', 'WEB_URL'] as const) {
+  const value = (key: string) => (env[key] ?? '').trim()
+  const urls = trigger === 'api' ? ['DOKPLOY_URL', 'API_URL', 'WEB_URL'] : ['API_URL', 'WEB_URL']
+  for (const key of urls) {
     if (!value(key).startsWith('https://')) {
       return { kind: 'error', summary: `YAYIN BAŞARISIZ: ${key} https:// ile başlamalı` }
     }
   }
   // Başlık değeri doğrulanır ama hiçbir mesaja yazılmaz.
-  if (!/^[\x21-\x7e]+$/.test(value('DOKPLOY_API_TOKEN'))) {
+  if (trigger === 'api' && !/^[\x21-\x7e]+$/.test(value('DOKPLOY_API_TOKEN'))) {
     return {
       kind: 'error',
       summary: 'YAYIN BAŞARISIZ: DOKPLOY_API_TOKEN yazdırılabilir tek satırlık bir değer olmalı',
@@ -341,16 +384,22 @@ export function planFromEnv(env: Record<string, string | undefined>): Plan {
     }
   }
   const sha7 = value('EXPECTED_SHA').slice(0, 7).toLowerCase()
+  const runId = env.GITHUB_RUN_ID ?? 'yerel'
+  // Dal tetiğinde başlık commit mesajıdır (İngilizce, ASCII; CLAUDE.md → Adlandırma).
+  const defaultTitle =
+    trigger === 'branch' ? `deploy ${sha7} (run ${runId})` : `gh-${sha7}-${runId}`
   return {
     kind: 'run',
     config: {
+      trigger,
+      deployBranch,
       dokployUrl: value('DOKPLOY_URL'),
       apiToken: value('DOKPLOY_API_TOKEN'),
       composeId: value('DOKPLOY_COMPOSE_ID'),
       apiUrl: value('API_URL'),
       webUrl: value('WEB_URL'),
       expectedSha: value('EXPECTED_SHA'),
-      title: env.DEPLOY_TITLE?.trim() || `gh-${sha7}-${env.GITHUB_RUN_ID ?? 'yerel'}`,
+      title: env.DEPLOY_TITLE?.trim() || defaultTitle,
       skipUnchanged: env.SKIP_UNCHANGED === 'true',
       ...DEFAULT_TIMING,
     },
@@ -375,6 +424,44 @@ function gitChangedFiles(from: string, to: string): string[] | null {
   }
 }
 
+const BOT = {
+  name: 'github-actions[bot]',
+  email: '41898282+github-actions[bot]@users.noreply.github.com',
+}
+
+/**
+ * `branch`'in ucunun üstüne, ağacı `sha`'nınkiyle aynı bir commit yazar ve gönderir (fast-forward).
+ * Dal yoksa ilk commit ebeveynsiz olur. Kimlik bilgisi actions/checkout'un sakladığı GITHUB_TOKEN'dır
+ * (işte `contents: write` gerekir).
+ */
+export function gitPushDeployCommit(
+  branch: string,
+  sha: string,
+  message: string,
+  cwd: string = process.cwd(),
+): string {
+  const git = (args: string[], extraEnv: Record<string, string> = {}) =>
+    execFileSync('git', args, {
+      cwd,
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'pipe'],
+      env: { ...process.env, ...extraEnv },
+    }).trim()
+  const remoteRef = `refs/remotes/origin/${branch}`
+  const exists = git(['ls-remote', '--heads', 'origin', `refs/heads/${branch}`]) !== ''
+  if (exists) git(['fetch', '--no-tags', 'origin', `+refs/heads/${branch}:${remoteRef}`])
+  const tree = git(['rev-parse', `${sha}^{tree}`])
+  const parent = exists ? ['-p', git(['rev-parse', remoteRef])] : []
+  const commit = git(['commit-tree', tree, ...parent, '-m', message], {
+    GIT_AUTHOR_NAME: BOT.name,
+    GIT_AUTHOR_EMAIL: BOT.email,
+    GIT_COMMITTER_NAME: BOT.name,
+    GIT_COMMITTER_EMAIL: BOT.email,
+  })
+  git(['push', 'origin', `${commit}:refs/heads/${branch}`])
+  return commit
+}
+
 function writeSummary(summary: string): void {
   const file = process.env.GITHUB_STEP_SUMMARY
   if (file) appendFileSync(file, `### Dokploy yayını\n\n${summary}\n`)
@@ -392,6 +479,7 @@ async function main(): Promise<number> {
     clock: realClock,
     log: (line) => console.log(line),
     changedFiles: gitChangedFiles,
+    pushDeployCommit: (branch, sha, message) => gitPushDeployCommit(branch, sha, message),
   })
   console.log(result.summary)
   writeSummary(result.summary)

@@ -2,7 +2,12 @@
 
 Her karar tarih, gerekçe ve varsa alternatifiyle yazılır. En yeni karar en üsttedir.
 
-## 2026-09-27 — Üretimde ilk günün düzeltmeleri (v0.5.1)
+## 2026-09-27 — Üretimde ilk günün düzeltmeleri (v0.5.1–v0.5.2)
+- **D-070 Yayın, Dokploy Autodeploy ile `release` dalından tetiklenir (kullanıcı kararı; D-064'ün tetik kısmını değiştirir).** Kullanıcı Autodeploy'un açık kalmasını istedi. Autodeploy `main`'i izleseydi push anında, imajlar henüz derlenmemişken tetiklenir ve her seferinde bir önceki sürümü yayınlardı (2026-09-27'de görüldü: #8 birleşince Dokploy v0.5.0'ı yeniden çekti).
+  - Dokploy `release` dalını izler (Autodeploy açık). CI'nın `release` işi `:main`'i taşıdıktan sonra `release` dalına, ağacı bu commit'inkiyle aynı yeni bir commit gönderir (`git commit-tree` + fast-forward push; force push yok, `main`'e dokunulmaz, commit yazarı `github-actions[bot]`). Geri alma aynı yolu eski commit'in ağacıyla izler. Dal, yayın geçmişinin kaydı olur.
+  - Doğrulama değişmedi: `/version`, `/api/version` yeni SHA'yı, `/ready` 200'ü verene kadar en fazla 15 dk. "Yalnızca belge değişti" kararı da aynı; o durumda dala bir şey gönderilmez.
+  - Dokploy API anahtarı ve üç secret gerekmez (`DEPLOY_TRIGGER=api` seçeneği korunur, stub testleri geçer). CI'nın `deploy` ve rollback işleri `contents: write` taşır.
+  - Kullanıcının Dokploy paneli şu an `http://IP:3000`'de açık; bu tetik için HTTPS panel adresi gerekmez, ama panel parolası şifresiz gittiği için bir panel alan adı önerilir (ACTIVATION).
 - **D-069 Yönetici anahtarı en az 12 karakter; hatalı yönetici ayarı API'yi kapatmaz (kullanıcı talebi).** Kullanıcı Dokploy'da 32 karakterden kısa bir `ADMIN_SETUP_TOKEN` girdi; API her açılışta env hatasıyla çıktı ve site (web'in API'ye bağlı bölümleri, `api.havayolu.live`) kapandı. Kullanıcı 32 karakteri fazla buldu.
   - Alt sınır 12'dir; 16 ve üzeri önerilir, yalnızca `[A-Za-z0-9_-]` (D-063). Gerekçe: anahtar yalnızca bu yönetici girişini açar ve giriş denemeleri ziyaretçi başına sınırlıdır (D-060). Parça 2B'de gerçek yönetici hesabı gelince anahtar devreden çıkar.
   - Yönetici ayarı hatalıysa (biri boş, e-posta geçersiz, anahtar kısa) API açılır, yalnızca yönetici girişi kapanır ve nedeni hata seviyesinde loglanır. Genel ayar hataları (veritabanı, Redis, proxy ağları) açılışı durdurmaya devam eder: onlar olmadan API zaten çalışamaz.
