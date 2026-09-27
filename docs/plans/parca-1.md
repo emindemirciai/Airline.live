@@ -12,7 +12,7 @@ Durumlar: `[ ]` başlamadı, `[~]` sürüyor, `[k]` kod bitti ve kullanıcı do�
 | M1a | İmajlar, bütün servisler, yönetici oturumu, admin Servisler paneli | `p1/m1a-images` | [k] birleşti; üretimde çalıştığının doğrulanması M1b yayınıyla | #2 |
 | — | Marka geçişi: havayolu · havayolu.live (D-059) | `chore/havayolu-marka` | [x] | #3 |
 | — | Birleştirme öncesi inceleme düzeltmeleri, açık repo ve `main` koruması (D-060…D-063) | `p1/m1a-hardening` | [x] | #4 |
-| M1b | Yayın hattı (CI, deploy, rollback, DEPLOY_DOKPLOY.md) | `p1/m1b-deploy` | [~] sürüyor | — |
+| M1b | Yayın hattı (CI, deploy, rollback, DEPLOY_DOKPLOY.md) | `p1/m1b-deploy` | [k] kod bitti; ilk gerçek yayın kullanıcının Dokploy kurulumuna bağlı (ACTIVATION) | #6 |
 | M2 | Veritabanı ve referans verisi | `p1/m2-db` | [ ] | — |
 | M3 | Sağlayıcılar | `p1/m3-providers` | [ ] | — |
 | M4 | Ingest, replay ve senaryo araçları | `p1/m4-ingest` | [ ] | — |
