@@ -41,7 +41,7 @@ export const ROADMAP: readonly Milestone[] = [
   {
     id: 'p1-m1b',
     part: '1',
-    status: 'in_progress',
+    status: 'done',
     title: { tr: 'Otomatik yayın: GitHub → Dokploy', en: 'Automatic release: GitHub → Dokploy' },
   },
   {
@@ -53,7 +53,7 @@ export const ROADMAP: readonly Milestone[] = [
   {
     id: 'p1-m3',
     part: '1',
-    status: 'planned',
+    status: 'done',
     title: { tr: 'Canlı uçuş verisi bağlantısı', en: 'Live flight data connection' },
   },
   {

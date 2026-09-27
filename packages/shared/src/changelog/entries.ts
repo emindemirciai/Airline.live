@@ -7,6 +7,32 @@ import type { ChangelogEntry } from './types'
  */
 export const CHANGELOG: readonly ChangelogEntry[] = [
   {
+    version: '0.6.0',
+    date: '2026-09-27',
+    title: {
+      tr: 'Canlı uçuş verisinin altyapısı',
+      en: 'Groundwork for live flight data',
+    },
+    items: [
+      {
+        tr: 'Canlı uçuş verisi kaynağı (ADSB.lol) ve ileride kurulabilecek kendi ADS-B alıcımız için bağlantılar hazır. Veri bir sonraki sürümde akmaya başlayacak.',
+        en: 'Connections to the live flight data source (ADSB.lol) and to our own ADS-B receiver, should we set one up, are ready. Data will start flowing in the next version.',
+      },
+      {
+        tr: 'Gelen veri temizleniyor: konumu olmayan, bir dakikadan eski ya da imkânsız hız ve tırmanış değerleri taşıyan kayıtlar kullanılmıyor.',
+        en: 'Incoming data is cleaned: records with no position, older than a minute, or with impossible speed or climb values are not used.',
+      },
+      {
+        tr: 'Gizlilik kuralları uygulanıyor: askeri uçaklar varsayılan olarak gösterilmeyecek; gizlilik programındaki (PIA, LADD) uçakların tescili gizlenecek.',
+        en: 'Privacy rules are in place: military aircraft will be hidden by default, and the registration of aircraft in privacy programmes (PIA, LADD) will be hidden.',
+      },
+      {
+        tr: 'Onaylanan her değişiklik artık birleştiği anda, elle müdahale gerekmeden yayına çıkıyor.',
+        en: 'Every approved change now goes live on its own once it is merged, with no manual step.',
+      },
+    ],
+  },
+  {
     version: '0.5.2',
     date: '2026-09-27',
     title: {

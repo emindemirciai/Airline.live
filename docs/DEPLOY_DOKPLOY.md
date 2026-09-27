@@ -19,7 +19,8 @@ Kurulum bitene kadar CI yeşil kalır: imajlar derlenir, yayın adımı "YAYINLA
 2. **Panel alan adı:** Panel HTTPS bir alan adında açılmalı. `http://IP:3000` kullanılmaz.
    - Zaten bir alan adı varsa onu kullan.
    - Yoksa DNS'e örneğin `panel.havayolu.live` için A kaydı ekle ve Settings → Web Server → Domain'e gir.
-   - Bu adres GitHub'daki `DOKPLOY_URL` olacak.
+   - Bu adres GitHub'daki `DOKPLOY_URL` olacak (yalnızca API tetiği için).
+   - **Panel adresini sonradan değiştirirsen** Dokploy'un GitHub App'lerinin bildirim adresi eski adreste kalır. Dokploy eski adresin yönlendirmesini kaldırdığı için bildirimler Traefik'ten 404 alır ve Autodeploy sessizce durur (2026-09-27'de yaşandı, D-070). Her uygulamada GitHub → Settings → Developer settings → GitHub Apps → uygulama → General → Webhook URL alanını `https://<yeni panel adresi>/api/deploy/github` yap. Sonra Advanced → Recent Deliveries'ten son push'u Redeliver ile dene; yanıt 200 olmalı. Aynı Dokploy'daki diğer projelerin uygulamaları da etkilenir.
 3. **Let's Encrypt e-postası:** Settings → Web Server'da gir. Varsayılan `test@localhost.com`'dur, değiştir.
 4. **Güvenlik duvarı (SSH):** Docker, yayınladığı portlarda ufw'yi atladığı için `ufw-docker` gerekir. Sonuçta dışarıya yalnızca 22, 80 ve 443 açık kalır; Dokploy paneli (3000) kapanır.
    - **Önemli:** `ufw-docker` kurulunca konteynerlerin yayınladığı **bütün** portlar dışarıya kapanır, Traefik'in 80/443'ü dahil. `ufw allow 80/443` yalnızca sunucunun kendi portlarını açar, Traefik konteynerine ulaşmaz. Bu yüzden aşağıdaki `ufw route allow` satırları şarttır; atlanırsa VPS'teki **bütün siteler** (diğer projeler ve panel dahil) erişilemez olur.

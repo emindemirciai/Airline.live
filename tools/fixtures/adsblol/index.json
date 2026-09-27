@@ -1,0 +1,34 @@
+{
+  "source": "https://api.adsb.lol",
+  "license": "ODbL-1.0",
+  "requests": [
+    {
+      "name": "point-ltfm-40nm",
+      "path": "/v2/point/41.2749/28.7321/40",
+      "status": 200,
+      "fetchedAt": "2026-09-27T08:49:11.602Z",
+      "aircraft": 18
+    },
+    {
+      "name": "hex-mixed",
+      "path": "/v2/hex/4b8750,4bb872,4bb263",
+      "status": 200,
+      "fetchedAt": "2026-09-27T08:49:23.746Z",
+      "aircraft": 3
+    },
+    {
+      "name": "callsign",
+      "path": "/v2/callsign/PGT4XF",
+      "status": 200,
+      "fetchedAt": "2026-09-27T08:49:35.879Z",
+      "aircraft": 1
+    },
+    {
+      "name": "reg",
+      "path": "/v2/reg/TC-AZP",
+      "status": 200,
+      "fetchedAt": "2026-09-27T08:49:48.030Z",
+      "aircraft": 1
+    }
+  ]
+}

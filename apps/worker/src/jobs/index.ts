@@ -5,7 +5,7 @@ import {
   type Database,
   type ReferenceOrigin,
 } from '@havayolu/db'
-import { assertProvidersAllowed, PROVIDER_LICENSES } from '@havayolu/providers'
+import { assertProvidersAllowed, PROVIDER_LICENSES, providerUserAgent } from '@havayolu/providers'
 import { Queue, Worker, type Job, type JobSchedulerTemplateOptions } from 'bullmq'
 import type { Logger } from 'pino'
 import type { Env } from '../env'
@@ -109,10 +109,12 @@ export function userAgent(
   env: Pick<Env, 'APP_NAME' | 'WEB_HOST' | 'CONTACT_EMAIL'>,
   version: string,
 ) {
-  const contact = [env.WEB_HOST ? `+https://${env.WEB_HOST}` : null, env.CONTACT_EMAIL ?? null]
-    .filter(Boolean)
-    .join('; ')
-  return `${env.APP_NAME}/${version}${contact ? ` (${contact})` : ''}`
+  return providerUserAgent({
+    appName: env.APP_NAME,
+    version,
+    webHost: env.WEB_HOST,
+    contactEmail: env.CONTACT_EMAIL,
+  })
 }
 
 /** PostgreSQL "tablo yok" hatası: yerelde migration çalıştırılmamış. */
