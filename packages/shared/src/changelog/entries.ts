@@ -39,6 +39,10 @@ export const CHANGELOG: readonly ChangelogEntry[] = [
         en: 'The Services page in the admin panel (admin.havayolu.live) now also shows the status of the reference data and the track tables.',
       },
       {
+        tr: 'Yönetim panelinin adresi (admin.havayolu.live) doğrudan açıldığında hata veriyordu; artık giriş sayfasına yönlendiriyor.',
+        en: 'Opening the admin panel address (admin.havayolu.live) directly showed an error; it now redirects to the sign-in page.',
+      },
+      {
         tr: 'Her sürüm artık GitHub’daki Releases bölümünde de sürüm notlarıyla yayımlanıyor; önceki sürümler de eklendi.',
         en: 'Every version is now also published with its release notes under Releases on GitHub; earlier versions were added too.',
       },

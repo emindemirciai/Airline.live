@@ -1,8 +1,9 @@
 /**
  * Admin alan adı yönlendirme kararı (proxy.ts kullanır; saf fonksiyon, test edilebilir).
  * - ADMIN_HOST tanımlı değilse (yerel geliştirme) hiçbir şey yapılmaz; /admin aynı host'ta açılır.
- * - ADMIN_HOST'tan gelen /admin dışı sayfa istekleri /admin'e yönlenir (API, Next varlıkları ve
- *   dil değiştirme yolu /dil hariç).
+ * - ADMIN_HOST'tan gelen /admin dışı sayfa istekleri https://<ADMIN_HOST>/admin'e yönlenir (API, Next
+ *   varlıkları ve dil değiştirme yolu /dil hariç). Adres mutlaktır: Next.js proxy'si göreli
+ *   `Location` ile yanıtı reddeder ve 500 döner (üretimde admin kök adresinde görüldü).
  * - Başka host'tan /admin istekleri 404 alır: yönetim yalnızca kendi alan adında açılır.
  */
 export type AdminRouting =
@@ -30,7 +31,7 @@ export function adminRouting(
     ) {
       return { action: 'next' }
     }
-    return { action: 'redirect', location: '/admin' }
+    return { action: 'redirect', location: `https://${configured}/admin` }
   }
   return isAdminPath(pathname) ? { action: 'not_found' } : { action: 'next' }
 }

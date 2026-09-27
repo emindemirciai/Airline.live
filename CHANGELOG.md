@@ -19,6 +19,7 @@
 - Veriler her gün kendiliğinden güncelleniyor ve yalnızca değişen kayıtlar yazılıyor. Kaynak bozuk ya da yarım gelirse eldeki veri korunuyor.
 - Uçuş izlerinin saklanacağı yer hazır: 30 saniyelik iz 7 gün, tam çözünürlüklü iz 30 gün tutulacak. Süresi dolan günler her gece kendiliğinden siliniyor.
 - Yönetim panelindeki Servisler sayfası (admin.havayolu.live) artık referans verisinin ve iz tablolarının durumunu da gösteriyor.
+- Yönetim panelinin adresi (admin.havayolu.live) doğrudan açıldığında hata veriyordu; artık giriş sayfasına yönlendiriyor.
 - Her sürüm artık GitHub’daki Releases bölümünde de sürüm notlarıyla yayımlanıyor; önceki sürümler de eklendi.
 
 ### English
@@ -30,6 +31,7 @@
 - The data updates itself every day and only changed records are written. If a source arrives broken or incomplete, the existing data is kept.
 - Storage for flight tracks is ready: the 30-second track will be kept for 7 days and the full-resolution track for 30 days. Expired days are deleted automatically every night.
 - The Services page in the admin panel (admin.havayolu.live) now also shows the status of the reference data and the track tables.
+- Opening the admin panel address (admin.havayolu.live) directly showed an error; it now redirects to the sign-in page.
 - Every version is now also published with its release notes under Releases on GitHub; earlier versions were added too.
 
 ---
