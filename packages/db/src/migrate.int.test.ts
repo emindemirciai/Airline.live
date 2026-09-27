@@ -23,7 +23,7 @@ afterAll(async () => {
 })
 
 describe('runMigrations', () => {
-  it('temiz veritabanında PostGIS eklentisini kurar ve ikinci çalışmada bir şey değiştirmez', async () => {
+  it("temiz veritabanında bütün migration'ları uygular (PostGIS dahil), ikinci çalışmada bir şey değiştirmez", async () => {
     const log: string[] = []
     await runMigrations({ databaseUrl: testUrl, migrationsFolder, log: (m) => log.push(m) })
     await runMigrations({ databaseUrl: testUrl, migrationsFolder })
@@ -33,7 +33,7 @@ describe('runMigrations', () => {
       const [ext] = await sql`select extversion from pg_extension where extname = 'postgis'`
       expect(ext?.extversion).toMatch(/^3\./)
       const applied = await sql`select count(*)::int as n from drizzle.__drizzle_migrations`
-      expect(applied[0]?.n).toBe(1)
+      expect(applied[0]?.n).toBe(3)
     } finally {
       await sql.end({ timeout: 5 })
     }

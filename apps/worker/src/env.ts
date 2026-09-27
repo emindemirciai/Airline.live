@@ -5,6 +5,16 @@ import { z } from 'zod'
 
 const emptyToUndefined = (value: unknown) =>
   typeof value === 'string' && value.trim() === '' ? undefined : value
+const booleanFlag = (fallback: boolean) =>
+  z.preprocess(
+    (value) => (typeof value === 'string' ? value.trim().toLowerCase() || undefined : value),
+    z
+      .enum(['true', 'false', '1', '0'])
+      .optional()
+      .transform((value) => (value === undefined ? fallback : value === 'true' || value === '1')),
+  )
+const retentionDays = (fallback: number) =>
+  z.preprocess(emptyToUndefined, z.coerce.number().int().min(1).max(3650).default(fallback))
 
 const EnvSchema = z.object({
   APP_ENV: z.enum(['development', 'test', 'production']).default('development'),
@@ -26,6 +36,19 @@ const EnvSchema = z.object({
   ),
   REDIS_QUEUE_URL: z.preprocess(emptyToUndefined, z.url().optional()),
   DATABASE_URL: z.preprocess(emptyToUndefined, z.url().optional()),
+
+  APP_NAME: z.preprocess(emptyToUndefined, z.string().trim().min(1).default('havayolu')),
+  /** Referans indirmelerinin User-Agent'ındaki site adresi (şemasız host). */
+  WEB_HOST: z.preprocess(emptyToUndefined, z.string().trim().optional()),
+  CONTACT_EMAIL: z.preprocess(emptyToUndefined, z.email().optional()),
+  DATA_USAGE_MODE: z.enum(['commercial', 'noncommercial']).default('commercial'),
+  /**
+   * true: dış servislere istek atılmaz; referans verisi yerelde commit'li fixture'dan gelir.
+   * Tanımsızsa true (güvenli taraf): üretim şablonu false'u açıkça verir; unutulursa panel uyarır.
+   */
+  EXTERNAL_PROVIDERS_DISABLED: booleanFlag(true),
+  TRACK_SAMPLED_RETENTION_DAYS: retentionDays(7),
+  TRACK_FINE_RETENTION_DAYS: retentionDays(30),
 })
 
 export type Env = z.infer<typeof EnvSchema>
@@ -39,7 +62,20 @@ export class EnvError extends Error {
   }
 }
 
+/** Compose'un parolalardan kurduğu bağlantı adresleri ve parolanın geldiği değişken (D-063). */
+const PASSWORD_URLS = {
+  DATABASE_URL: 'POSTGRES_PASSWORD',
+  REDIS_QUEUE_URL: 'REDIS_QUEUE_PASSWORD',
+} as const
+
 export function parseEnv(source: NodeJS.ProcessEnv): Env {
+  // "#parola üret#" doldurulmadan kalırsa compose onu parola olarak adrese yazar; üretilen sırlarda
+  // "#" olmadığı için adresteki "#" doldurulmamış talimattır.
+  const unfilled = Object.entries(PASSWORD_URLS)
+    .filter(([key]) => source[key]?.includes('#'))
+    .map(([key, secret]) => `${key}: ${secret} doldurulmamış (#…# talimatı duruyor); parolayı gir`)
+  if (unfilled.length > 0) throw new EnvError(unfilled)
+
   // Şablondaki "#…#" talimatları tanımsız sayılır (D-063).
   const result = EnvSchema.safeParse(withoutEnvPlaceholders(source))
   if (!result.success) {
@@ -47,8 +83,9 @@ export function parseEnv(source: NodeJS.ProcessEnv): Env {
       result.error.issues.map((i) => `${i.path.join('.') || '(kök)'}: ${i.message}`),
     )
   }
-  if (result.data.APP_ENV === 'production' && !result.data.REDIS_QUEUE_URL) {
-    throw new EnvError(['REDIS_QUEUE_URL: üretimde zorunlu'])
+  if (result.data.APP_ENV === 'production') {
+    const missing = (['REDIS_QUEUE_URL', 'DATABASE_URL'] as const).filter((k) => !result.data[k])
+    if (missing.length > 0) throw new EnvError(missing.map((k) => `${k}: üretimde zorunlu`))
   }
   return result.data
 }

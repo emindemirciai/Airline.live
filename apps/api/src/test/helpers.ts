@@ -1,4 +1,5 @@
 // Yalnızca testlerde kullanılan yardımcılar (üretim kodu bunları import edemez).
+import { REFERENCE_SOURCES, TRACK_TABLES } from '@havayolu/db'
 import { buildApp, type AppDeps } from '../app'
 import type { ServiceProbes } from '../admin/services'
 import { hashToken, newToken, type AdminSession, type SessionStore } from '../auth/session-store'
@@ -75,6 +76,37 @@ export function fakeProbes(overrides: Partial<Omit<ServiceProbes, 'api'>> = {}) 
         at: '2026-09-25T11:59:55Z',
       },
     ],
+    referenceData: async () => ({
+      airports: 6347,
+      runways: 7977,
+      airlines: 5964,
+      sources: REFERENCE_SOURCES.map((source) => ({
+        source,
+        origin: 'remote',
+        etag: '"etag"',
+        lastModified: null,
+        checkedAt: new Date('2026-09-25T04:40:00Z'),
+        importedAt: new Date('2026-09-25T04:40:00Z'),
+        rowCount: 1,
+        skippedCount: 0,
+        lastError: null,
+        lastErrorAt: null,
+        updatedAt: new Date('2026-09-25T04:40:00Z'),
+      })),
+    }),
+    trackPartitions: async () =>
+      Object.fromEntries(
+        TRACK_TABLES.map((table) => [
+          table,
+          {
+            partitions: 9,
+            oldestDay: '2026-09-24',
+            newestDay: '2026-10-02',
+            daysAhead: 7,
+            defaultRows: 0,
+          },
+        ]),
+      ),
     http: async (url: string) => ({
       status: 200,
       body: url.includes('health') ? { status: 'ok' } : { version: '0.3.0' },

@@ -35,14 +35,42 @@ function serviceLabel(id: string, t: AdminMessages): string {
       return t.services.redisLive
     case 'analytics':
       return t.services.analytics
+    case 'reference-data':
+      return t.services.referenceData
+    case 'track-partitions':
+      return t.services.trackPartitions
     default:
       return id.startsWith('worker:') ? `${t.services.workerOther} (${id.slice(7)})` : id
   }
 }
 
-function detailItems(service: ServiceStatus, t: AdminMessages): string[] {
+function detailItems(service: ServiceStatus, t: AdminMessages, locale: Locale): string[] {
   const d = service.detail
   const items: string[] = []
+  const count = (value: unknown) =>
+    typeof value === 'number' ? value.toLocaleString(locale === 'tr' ? 'tr-TR' : 'en-GB') : '?'
+  if (typeof d.airports === 'number') {
+    items.push(
+      format(t.detail.counts, {
+        airports: count(d.airports),
+        runways: count(d.runways),
+        airlines: count(d.airlines),
+      }),
+    )
+  }
+  if (typeof d.lastCheckAgeH === 'number') {
+    items.push(`${t.detail.lastCheck}: ${format(t.detail.hoursAgo, { n: d.lastCheckAgeH })}`)
+  }
+  if (d.origin === 'remote' || d.origin === 'fixture') {
+    items.push(
+      `${t.detail.origin}: ${d.origin === 'remote' ? t.detail.originRemote : t.detail.originFixture}`,
+    )
+  }
+  if (typeof d.daysAhead === 'number') items.push(`${t.detail.daysAhead}: ${d.daysAhead}`)
+  if (typeof d.oldestDay === 'string') items.push(`${t.detail.oldestDay}: ${d.oldestDay}`)
+  if (typeof d.defaultRows === 'number') {
+    items.push(`${t.detail.defaultRows}: ${count(d.defaultRows)}`)
+  }
   if (typeof d.memoryUsedMb === 'number') {
     items.push(
       `${t.detail.memory}: ${format(t.detail.megabytes, { used: d.memoryUsedMb, max: d.memoryMaxMb ?? '∞' })}`,
@@ -144,7 +172,7 @@ export default async function AdminServicesPage() {
                     </td>
                     <td>
                       <ul className="detail-list">
-                        {detailItems(service, t).map((item) => (
+                        {detailItems(service, t, locale).map((item) => (
                           <li key={item}>{item}</li>
                         ))}
                       </ul>

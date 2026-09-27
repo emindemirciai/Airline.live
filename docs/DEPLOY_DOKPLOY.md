@@ -80,7 +80,9 @@ Kurulum bitene kadar CI yeşil kalır: imajlar derlenir, yayın adımı "YAYINLA
    - Adres biçimi: `/dashboard/project/<projectId>/environment/<environmentId>/services/compose/<composeId>`
    - Bu değer GitHub'daki `DOKPLOY_COMPOSE_ID` olacak.
 
-## 4. GHCR erişimi (Registry)
+## 4. GHCR erişimi (Registry) — şu an gerekmiyor
+Repo herkese açık olduğu için GHCR imajları da herkese açıktır ve Dokploy onları girişsiz çeker (2026-09-27 doğrulandı, D-066). Bu adım yalnızca paketler ileride gizliye çevrilirse uygulanır:
+
 1. **PAT oluştur:** github.com → Settings → Developer settings → Personal access tokens → **Tokens (classic)**.
    - Yalnızca `read:packages` yetkisi yeterli.
    - Süre ver, örneğin 1 yıl, ve bitiş tarihini ACTIVATION'a yaz.

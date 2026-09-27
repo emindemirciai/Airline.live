@@ -8,5 +8,7 @@ shellEmulator: true
 # Kurulum sırasında derleme script'i çalıştırmasına izin verilen paketler (pnpm 11+).
 allowBuilds:
   esbuild: true
+  # BullMQ'nun msgpackr'ı için isteğe bağlı yerel hızlandırıcı; saf JS yolu yeterli (D-066).
+  msgpackr-extract: false
   sharp: true
   unrs-resolver: true

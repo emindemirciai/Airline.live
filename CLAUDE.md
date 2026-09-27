@@ -122,7 +122,7 @@ Sıra: 1–4 commit'ten önce yapılır ve aynı commit'e girer. 5 commit'ten so
 3. **Satır sayısı:** `pnpm stats` çalıştırılır (lockfile ve `docs/research/` hariç). Toplam ve dağılım kullanıcıya bildirilir.
 4. **Yerel test:** `pnpm dev` arka planda başlatılır ve uygulama tarayıcı önizlemesinde (`.claude/launch.json`) kullanıcıya gösterilir.
 5. **Yedek:** `pnpm backup` → `git archive` zip'i masaüstünde `havayolu-yedek\havayolu-v<sürüm>-<tarih>-<commit>.zip` olarak üretilir ve kullanıcıya gönderilir (D-059).
-6. **CI ve yayın:** CI yeşil ve Dokploy deploy'u hatasız olmalıdır. Kırmızıysa iş bitmiş sayılmaz.
+6. **CI ve yayın:** CI yeşil ve Dokploy deploy'u hatasız olmalıdır. Kırmızıysa iş bitmiş sayılmaz. Birleşmeden sonra `v<sürüm>` GitHub Release'i CI'da kendiliğinden oluşur (`github-release` işi, D-067); oluştuğu doğrulanır.
 
 ## Kalite çıtası
 - **Üretim kodu** = üretim imajına giren her şey (`apps/*/src`, `packages/*/src`). Üretim kodunda TODO/FIXME, "sonra yapılacak" notu, sahte buton, placeholder sayfa, mock veri ve mock API yoktur (`no-warning-comments: error`, `--max-warnings 0`).
@@ -172,12 +172,15 @@ Sıra: 1–4 commit'ten önce yapılır ve aynı commit'e girer. 5 commit'ten so
 | `pnpm install` | Bağımlılıkları kurar |
 | `pnpm dev` | Web (3100) + API (4100) geliştirme sunucuları |
 | `pnpm ci:local` | format + lint + typecheck + test + build |
-| `pnpm ci:full` | `ci:local` + `test:integration` + `test:e2e` (ilgili testler eklendikçe; Docker gerekir) |
+| `pnpm ci:full` | `ci:local` + `compose:guard` + `test:integration` + `test:migration-upgrade` (+ `test:e2e` eklenince; Docker gerekir) |
 | `pnpm lint` · `pnpm typecheck` · `pnpm test` · `pnpm build` | Tekil kontroller |
 | `pnpm check:eol` | Depoda CRLF'li metin dosyası olmadığını doğrular |
 | `pnpm typecheck:scripts` | `scripts/*.mts` tip denetimi |
 | `pnpm dev:infra` · `pnpm dev:infra:down` | Yerel PostGIS, iki Redis ve Mailpit (Docker) |
 | `pnpm test:integration` | Gerçek PostgreSQL/Redis testleri (önce `dev:infra`) |
+| `pnpm db:migrate` | Yerel veritabanına migration'ları uygular, günlük iz partition'larını açar, tohum istasyonlarını ekler (idempotent) |
+| `pnpm db:check` | Şema ile migration'lar tutarlı mı (`drizzle-kit check` + boş `generate`; veritabanı gerekmez) |
+| `pnpm test:migration-upgrade` | `origin/main`'deki migration'lar, üstüne dalınkiler; yayınlanmış migration değişmemiş olmalı (önce `dev:infra` ve `git fetch`) |
 | `pnpm compose:guard` | Üretim compose kurallarını denetler (Docker gerekir) |
 | `pnpm format` | Prettier ile biçimlendirir |
 | `pnpm changelog` · `pnpm changelog:check` | CHANGELOG.md üretir · sürüm ve changelog tutarlılığını denetler |
@@ -190,4 +193,4 @@ Yerel üretim denemesi: `docker compose -p hy-localprod -f docker-compose.yml -f
 
 Yayın ve geri alma: `docs/DEPLOY_DOKPLOY.md` (kurulum bir kez), `gh workflow run rollback.yml -f sha=<7>` (geri alma).
 
-Sonraki kilometre taşları bu tabloya kendi komutlarını ekler: `dev:replay`, `test:e2e`, `db:migrate`, `db:seed`, `smoke:live`, `record`, `coverage:report`, `coverage:probe`.
+Sonraki kilometre taşları bu tabloya kendi komutlarını ekler: `dev:replay`, `test:e2e`, `smoke:live`, `record`, `coverage:report`, `coverage:probe`. Ayrı bir `db:seed` yoktur; tohum verisi `db:migrate`'in parçasıdır.

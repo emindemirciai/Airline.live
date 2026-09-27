@@ -9,6 +9,11 @@ export interface MigrateOptions {
   databaseUrl: string
   migrationsFolder: string
   log?: (message: string) => void
+  /**
+   * Migration'lardan sonra aynı bağlantıda ve kilit hâlâ tutulurken çalışır: partition açma ve
+   * tohum verisi gibi idempotent adımlar (CLI). Hata fırlatırsa migrate başarısız sayılır.
+   */
+  afterMigrate?: (sql: postgres.Sql) => Promise<void>
 }
 
 /**
@@ -20,6 +25,7 @@ export async function runMigrations({
   databaseUrl,
   migrationsFolder,
   log = () => undefined,
+  afterMigrate,
 }: MigrateOptions) {
   const sql = postgres(databaseUrl, {
     max: 1,
@@ -36,6 +42,7 @@ export async function runMigrations({
       log(`migration'lar uygulanıyor: ${migrationsFolder}`)
       await migrate(drizzle(sql), { migrationsFolder })
       log("migration'lar tamamlandı")
+      if (afterMigrate) await afterMigrate(sql)
     } finally {
       await sql`select pg_advisory_unlock(${MIGRATION_LOCK_KEY})`
     }
