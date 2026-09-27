@@ -7,6 +7,24 @@ import type { ChangelogEntry } from './types'
  */
 export const CHANGELOG: readonly ChangelogEntry[] = [
   {
+    version: '0.5.1',
+    date: '2026-09-27',
+    title: {
+      tr: 'Yönetici anahtarı kuralı ve daha dayanıklı sunucu',
+      en: 'Admin key rule and a sturdier server',
+    },
+    items: [
+      {
+        tr: 'Yönetici giriş anahtarı artık en az 12 karakter olabilir (önceden 32); 16 ve üzeri önerilir.',
+        en: 'The admin sign-in key can now be as short as 12 characters (previously 32); 16 or more is recommended.',
+      },
+      {
+        tr: 'Yönetici ayarı hatalı girildiğinde site artık kapanmıyor: yalnızca yönetici girişi kapanıyor ve nedeni sunucu kaydına yazılıyor.',
+        en: 'A wrong admin setting no longer takes the site down: only admin sign-in is turned off, and the reason is written to the server log.',
+      },
+    ],
+  },
+  {
     version: '0.5.0',
     date: '2026-09-27',
     title: {

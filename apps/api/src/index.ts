@@ -73,7 +73,12 @@ const app = await buildApp(env, {
   rateLimitRedis: redisQueue,
 })
 
-if (!env.ADMIN_EMAIL || !redisQueue) {
+if (env.ADMIN_DISABLED_REASON) {
+  app.log.error(
+    { reason: env.ADMIN_DISABLED_REASON },
+    'yönetici girişi kapalı: yönetici ayarı hatalı (Dokploy Environment)',
+  )
+} else if (!env.ADMIN_EMAIL || !redisQueue) {
   app.log.warn('yönetici girişi kapalı: ADMIN_EMAIL/ADMIN_SETUP_TOKEN ya da REDIS_QUEUE_URL eksik')
 }
 
