@@ -9,7 +9,7 @@ Durum işaretleri: `[ ]` bekliyor, `[x]` tamam, `[-]` bilinçli olarak yapılmı
 |---|---|---|
 | Hostinger KVM 2 | zaten ödeniyor | Ek gider yok. Bellek eşiği aşılırsa KVM 4: 12,99 $/ay (kampanya), yenilemede 28,99 $/ay |
 | Domain | kalıcı domain seçilince (geçici host ücretsiz) | ~10–20 $/yıl |
-| GitHub (herkese açık repo, Free) | başlangıç | 0; Actions dakikası sınırsız, dal koruması ücretsiz |
+| GitHub (gizli repo, Free) | başlangıç | 0; Actions ayda 2.000 dakika; dal koruması ve gizli bilgi taraması yok (Pro: 4 $/ay) |
 | GHCR, adsb.lol, OpenFreeMap, OurAirports, VRS, aviationweather | — | 0 |
 | Analiz (kendi uygulaman) | Parça 1 | 0 (aynı VPS'te ~150–250 MB) |
 | SMTP (doğrulama/şifre e-postaları) | Parça 2B | ücretsiz katman yeter |
@@ -26,7 +26,7 @@ Web sürümü (Parça 1–3) için zorunlu tek ek gider kalıcı domain'dir. İk
 ## Adımlar
 | Durum | Adım | Env / secret | Nerede | Neyi açar |
 |---|---|---|---|---|
-| [x] | GitHub repo `emindemirciai/havayolu` (2026-09-25). Kullanıcı kararıyla **herkese açık** yapıldı; `main` kural seti, gizli bilgi taraması ve push koruması açık (D-061) | — | github.com | İlk push, dal koruması |
+| [x] | GitHub repo `emindemirciai/havayolu` (2026-09-25). 2026-09-27'de kullanıcı kararıyla yeniden **gizli** yapıldı (D-068); GitHub Free'de kural seti ve gizli bilgi taraması bu yüzden devre dışı, kurallar süreçle uygulanıyor | — | github.com | İlk push, dal koruması |
 | [x] | `gh auth login` (2026-09-25) | — | Terminal | CI izleme, PR ve birleştirme |
 | [x] | DNS kayıtları (2026-09-25): A `@`, `api`, `admin`, `analiz` → `72.62.53.122` (TTL 60); CNAME `www` → `havayolu.live` (TTL 300). Hostinger DNS'inde girildi; yeni kayıtlı alan adı olduğu için dünya genelinde görünmesi birkaç saat sürebilir. Dokploy'da alan adı eklemeden önce `nslookup havayolu.live 1.1.1.1` ile doğrulanır | `WEB_HOST=havayolu.live`, `API_HOST=api.havayolu.live`, `ADMIN_HOST=admin.havayolu.live`, `ANALYZE_URL=https://analiz.havayolu.live` | Hostinger DNS | Yayın |
 | [x] | Ad ve alan adı: **havayolu** · **havayolu.live** (kayıt 2026-09-25, bitiş 2027-09-25). Domain değişirse web push abonelikleri, ana ekran kurulumları, uygulama bağlantıları, Play'deki `/hesap-silme` adresi ve User-Agent değişir | `APP_NAME=havayolu` | — | Kalıcı yayın |
@@ -40,14 +40,15 @@ Web sürümü (Parça 1–3) için zorunlu tek ek gider kalıcı domain'dir. İk
 ### Parça 1
 | Durum | Adım | Env / secret | Nerede | Neyi açar |
 |---|---|---|---|---|
-| [ ] | `docs/DEPLOY_DOKPLOY.md` adımları: Dokploy ≥ v0.30.7, panel domain + `ufw-docker` ile 3000 kapalı, Let's Encrypt e-postası, Compose servisi (Autodeploy KAPALI), GHCR registry, Environment (`deploy/dokploy.env.example` bloğu; `.env.example` olduğu gibi kopyalanmaz, `GIT_SHA`/`BUILD_TIME` girilmez), domain'ler | `deploy/dokploy.env.example` (D-060) | Dokploy | Yayın |
+| [ ] | `docs/DEPLOY_DOKPLOY.md` adımları: Dokploy ≥ v0.30.7, panel domain + `ufw-docker` ile 3000 kapalı, Let's Encrypt e-postası, Compose servisi (compose yolu `./docker-compose.yml`, Autodeploy KAPALI), Environment (`deploy/dokploy.env.example` bloğu; `.env.example` olduğu gibi kopyalanmaz, `GIT_SHA`/`BUILD_TIME` girilmez), domain'ler. **2026-09-27:** Compose servisi, Environment ve dört alan adı girildi; site Dokploy'dan elle deploy ile yayında (v0.4.0; web, API `/ready`, www → kök 308, HTTP → HTTPS, Let's Encrypt doğrulandı). Autodeploy'un kapalı olduğunu kontrol et | `deploy/dokploy.env.example` (D-060) | Dokploy | Yayın |
 | [ ] | Sırları **ilk deploy'dan önce** üret ve Dokploy'da `#parola üret#` yazan yerlere gir (yalnızca `[A-Za-z0-9_-]`, her biri farklı; D-063). Parola yöneticisi ya da PowerShell'de güvenli üretici: `$b = New-Object byte[] 36; [Security.Cryptography.RandomNumberGenerator]::Create().GetBytes($b); [Convert]::ToBase64String($b).Replace('+','-').Replace('/','_').TrimEnd('=')` (48 karakter). Değerleri parola yöneticisine de kaydet | `ADMIN_SETUP_TOKEN`, `POSTGRES_PASSWORD`, `REDIS_QUEUE_PASSWORD`, `REDIS_LIVE_PASSWORD` | Parola yöneticisi → Dokploy | Admin girişi, veritabanları |
 | [ ] | VPS: 2 GB swap + `vm.overcommit_memory=1` (tüm projeleri etkiler; bilinçli uygula) | — | VPS (SSH) | Bellek güvenliği |
-| [ ] | GitHub secrets ve variables | `DOKPLOY_URL`, `DOKPLOY_API_TOKEN`, `DOKPLOY_COMPOSE_ID`; `WEB_URL`, `API_URL`, `DEPLOY_ENABLED` | GitHub → Settings → Secrets and variables | Otomatik yayın |
+| [ ] | GitHub secrets ve variables. **2026-09-27:** variables girildi (`WEB_URL`, `API_URL`, `DEPLOY_ENABLED=false`); üç secret kullanıcıda (`gh secret set` değeri kendisi sorar) | `DOKPLOY_URL`, `DOKPLOY_API_TOKEN`, `DOKPLOY_COMPOSE_ID`; `WEB_URL`, `API_URL`, `DEPLOY_ENABLED` | GitHub → Settings → Secrets and variables | Otomatik yayın |
 | [ ] | Deploy-bot API token'ının kapsamını doğrula; bitiş tarihini buraya yaz | — | Dokploy | Güvenlik |
-| [ ] | GHCR için classic PAT (`read:packages`), Dokploy → Settings → Registry'ye `ghcr.io` olarak ekle; bitiş tarihini buraya yaz | — | github.com → Tokens (classic) → Dokploy | İmaj çekme |
-| [ ] | İlk yayın (M1b kabulü): `deploy.yml` deneme (`dry_run=true`) → `DEPLOY_ENABLED=true` → `deploy.yml` `dry_run=false`; ardından bir PR birleşince deploy işi yeşil biter ve `https://havayolu.live/api/version` yeni `gitSha`'yı gösterir. Toplam süreyi buraya yaz (hedef ≤ 20 dk) | `DEPLOY_ENABLED` | GitHub Actions | Otomatik yayının kanıtı |
-| [ ] | Analiz uygulamasını ayrı Dokploy Compose uygulaması olarak kur (repo `emindemirciai/Analyze.Your.Site-Siteni-Analiz-Et-`, env bloğu `deploy/analiz.env.example`, `ANALYZE_GEO_LOOKUP=false`) | `ANALYZE_URL`, `ANALYZE_SITE_ID` | Dokploy | Ziyaretçi analizi |
+| [ ] | **Karar senin:** GHCR paketleri herkese açık (repo gizli olsa da); imajlar derlenmiş kodu ve kaynak haritalarını içerir. Kodu gizlemek istersen paketleri gizli yap ve aynı anda classic PAT (`read:packages`) ile Dokploy Registry kaydını ekle (DEPLOY_DOKPLOY.md §4); yoksa yayın imaj çekemez (D-068) | — | — | İmaj çekme |
+| [ ] | CI'dan otomatik yayın (M1b kabulü): üç GitHub secret'ı girilince `deploy.yml` deneme (`dry_run=true`) → `DEPLOY_ENABLED=true` → `deploy.yml` `dry_run=false`; ardından bir PR birleşince deploy işi yeşil biter ve `https://havayolu.live/api/version` yeni `gitSha`'yı gösterir. Toplam süreyi buraya yaz (hedef ≤ 20 dk). İlk yayın 2026-09-27'de Dokploy'dan elle yapıldı | `DEPLOY_ENABLED` | GitHub Actions | Otomatik yayının kanıtı |
+| [ ] | İlk yayından sonra (M2): admin → Servisler'de "Referans verisi" Çalışıyor (~6.350 havalimanı, ~8.000 pist, ~6.000 havayolu; kaynak OurAirports ve VRS) ve "İz tabloları" 7 gün ileri açık, DEFAULT'ta 0 satır. İlk içe aktarım worker-bg açılınca kendiliğinden başlar (birkaç saniye) | — | admin.havayolu.live | Referans verisinin üretimde doğrulanması |
+| [x] | 2026-09-27: `analiz.havayolu.live` yayında (`/api/health` 200). Analiz uygulamasını ayrı Dokploy Compose uygulaması olarak kur (repo `emindemirciai/Analyze.Your.Site-Siteni-Analiz-Et-`, env bloğu `deploy/analiz.env.example`, `ANALYZE_GEO_LOOKUP=false`) | `ANALYZE_URL`, `ANALYZE_SITE_ID` | Dokploy | Ziyaretçi analizi |
 | [ ] | 24 saatlik kapsama raporu: admin panelinden `coverage:report` (üretim yoksa `pnpm coverage:probe --hours 24`, bilgisayar uyku moduna geçmeden) | — | Admin / bilgisayar | Parça 2 kararları |
 
 ### Parça 2

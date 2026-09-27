@@ -66,23 +66,24 @@ Sunucu: Hostinger **KVM 2** (2 vCPU, 8 GB RAM, 100 GB NVMe). Üzerinde Dokploy �
 - **Partition'lı tablolar:**
   - `track_points_sampled` ve `track_points_fine` parent tabloları tip güvenliği için Drizzle şemasında `pgTable` olarak tanımlanır.
   - `drizzle-kit generate`'in ürettiği `CREATE TABLE` SQL'i elle düzenlenerek `PARTITION BY RANGE (ts)` eklenir. Snapshot tabloyu içerdiği için sonraki `generate` boş fark verir.
-  - Partition çocukları, DEFAULT partition ve bakım DDL'i şemada yer almaz; `packages/db/sql/` altında idempotent SQL olarak (`drizzle-kit generate --custom`) eklenir.
+  - Partition çocukları, DEFAULT partition ve bakım DDL'i şemada yer almaz. DEFAULT partition, `packages/db/drizzle/` altında idempotent özel migration'dır (`drizzle-kit generate --custom`; migrator yalnızca bu klasörü okur, D-066). Günlük partition'ları `packages/db/src/partitions.ts` açar: `hy-migrate` migration'lardan sonra aynı kilit altında ve `jobs` rolündeki günlük iş.
   - `drizzle-kit push` ve `pull` bu projede **kullanılmaz** (`pull` partitioned parent'ları düşürür, drizzle-orm #6093). `tablesFilter` ve `extensionsFilters` yalnızca push/pull'u etkiler.
 - **Partition bakımı:**
   - migrate ve günlük job partition'ları 7 gün ileriye açar.
   - Bir DEFAULT partition bulunur ve her zaman boş tutulur; DEFAULT'a satır düşerse admin uyarısı verilir.
   - DEFAULT varken `DETACH … CONCURRENTLY` kullanılamaz. Süresi dolan partition'lar gece, `lock_timeout=5s` ile `DETACH PARTITION` (CONCURRENTLY olmadan) + `DROP TABLE` komutlarıyla silinir. Kilit alınamazsa jitter'lı yeniden deneme yapılır.
-- **CI testleri:** Temiz DB'de baştan sona migration. Yükseltme testi: `origin/main`'deki migration'lar temiz DB'ye, üstüne dalın migration'ları uygulanır; main'de migration yoksa iş başarılı sayılır.
+- **CI testleri:** Temiz DB'de baştan sona migration. Yükseltme testi (`pnpm test:migration-upgrade`): temel commit'teki migration'lar temiz DB'ye, üstüne test edilen commit'inkiler uygulanır; temelde migration yoksa iş başarılı sayılır. Temel CI'da `HEAD^1`'dir (PR'da `main`'in ucu, `main` push'unda bir önceki `main`; checkout `fetch-depth: 2`), yerelde `origin/main`. `main`'de yayınlanmış bir migration'ın içeriği ya da sırası değişmişse test kırmızıdır. Şema ile migration'lar arasında fark olmamalıdır (`pnpm db:check`: `drizzle-kit check` + boş `generate`).
 
-## CI/CD (herkese açık repo, GitHub Free)
-**Kısıtlar ve korumalar (D-061)**
-- Repo herkese açıktır. `main` bir kural setiyle (`main-koruma`) korunur ve kimse bu kuralları atlayamaz:
-  - silme ve force push yasaktır
+## CI/CD (gizli repo, GitHub Free)
+**Kısıtlar ve korumalar (D-068; D-061'in yerini alır)**
+- Repo gizlidir. GitHub Free'de gizli repoda kural seti, dal koruması ve gizli bilgi taraması yoktur (`main-koruma` kural seti kayıtlı ama uygulanmıyor, API 403). Aynı kurallar süreçle uygulanır:
+  - silme ve force push yasaktır; `main`'e doğrudan push yapılmaz
   - değişiklik yalnızca PR ile ve yalnızca merge commit olarak girer
-  - zorunlu kontroller `checks` ve `test-integration` yeşil olmalıdır
-- Gizli bilgi taraması ve push koruması açıktır: sır içeren bir push GitHub'da reddedilir. Bağımlılık güvenlik uyarıları açıktır.
+  - `checks` ve `test-integration` yeşil olmadan birleştirme yapılmaz
+  - commit'ten önce değişiklik sır ve kişisel veri açısından taranır (GitHub push koruması yok)
+- Repo yeniden herkese açılırsa ya da plan Pro'ya çıkarsa kural seti kendiliğinden yeniden devreye girer.
 - Secrets repo düzeyinde tutulur (Settings → Secrets and variables → Actions). Fork'tan gelen PR'lara secrets verilmez; deploy yalnızca `main` push'unda çalışır.
-- Herkese açık repoda Actions dakikası sınırsızdır. Yine de gereksiz iş yapılmaz:
+- Gizli repoda Actions ayda 2.000 dakikadır (Linux). Bir PR + birleşme yaklaşık 40–60 dakika harcar. Gereksiz iş yapılmaz:
   - PR çalışmaları iptal edilebilir
   - imajlar yalnızca `main`'de derlenir
   - e2e yalnızca ilgili dosyalar değişince çalışır
@@ -95,6 +96,7 @@ Sunucu: Hostinger **KVM 2** (2 vCPU, 8 GB RAM, 100 GB NVMe). Üzerinde Dokploy �
   3. `e2e`: Playwright; ilgili testler eklendikçe açılır.
   4. `actionlint`.
   5. `deploy`: `uses: ./.github/workflows/deploy.yml`, `secrets: inherit`, `permissions: {contents: read, packages: write}` (çağrılan workflow izin yükseltemez), `needs: [tüm kontroller]`. Koşul: `if: github.event_name=='push' && github.ref=='refs/heads/main'`. **`main`'e her push'ta çalışır.** "Yalnızca belge değişti" kararı yol filtresiyle (son push'a göre) değil, `release` işinde canlıdaki sürüme göre verilir. Aksi hâlde bir kod birleşmesinin arkasından belge birleşmesi geldiğinde kod hiç yayınlanmazdı (D-064).
+  6. `github-release`: `deploy`'dan sonra, yalnızca `main` push'unda. Kök sürüm için `v<sürüm>` GitHub Release'i yoksa changelog'dan (TR + EN) oluşturur (`contents: write`, D-067).
 - Workflow düzeyinde `paths-ignore` ve `workflow_run` kullanılmaz.
 
 **`.github/workflows/deploy.yml`** (`on: workflow_call` + `workflow_dispatch` [girdi `dry_run`, elle varsayılan `true`]; D-064)

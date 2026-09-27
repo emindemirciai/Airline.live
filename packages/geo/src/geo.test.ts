@@ -7,7 +7,27 @@ import {
   kmToNm,
   nmToKm,
   normalizeBearing,
+  runwayThreshold,
 } from './index'
+
+describe('runwayThreshold', () => {
+  const end = { lat: 41.25, lon: 28.72 }
+  const arp = { lat: 41.2753, lon: 28.7519 }
+
+  it('kaydırma varsa ucu pist yönünde displaced × 0,3048 m taşır', () => {
+    const { point, source } = runwayThreshold(end, 350, 1000, arp)
+    expect(source).toBe('displaced_threshold')
+    expect(distanceKm(end, point) * 1000).toBeCloseTo(304.8, 3)
+    expect(bearingDifference(initialBearing(end, point), 350)).toBeLessThan(0.01)
+  })
+
+  it('kaydırma yoksa ya da yön bilinmiyorsa ucun kendisi; uç yoksa havalimanı merkezi', () => {
+    expect(runwayThreshold(end, 350, 0, arp)).toEqual({ point: end, source: 'runway_end' })
+    expect(runwayThreshold(end, 350, null, arp)).toEqual({ point: end, source: 'runway_end' })
+    expect(runwayThreshold(end, null, 500, arp)).toEqual({ point: end, source: 'runway_end' })
+    expect(runwayThreshold(null, 350, 500, arp)).toEqual({ point: arp, source: 'arp_fallback' })
+  })
+})
 
 // OurAirports ARP koordinatları (yaklaşık)
 const LTFM = { lat: 41.2753, lon: 28.7519 }

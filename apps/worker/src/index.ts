@@ -1,8 +1,9 @@
-import { createRedis, writeHeartbeat } from '@havayolu/db'
+import { createDb, createRedis, writeHeartbeat } from '@havayolu/db'
 import { currentVersion } from '@havayolu/shared'
 import { pino } from 'pino'
 import { EnvError, loadDotEnvForDevelopment, parseEnv, type Env } from './env'
 import { startHealthServer, type HealthState } from './health'
+import { startJobs, type JobsHandle } from './jobs'
 import { parseRoles, RoleError, type WorkerRole } from './roles'
 
 /** Heartbeat aralığı; kayıt 60 sn TTL ile yazılır (packages/db → HEARTBEAT_TTL_SECONDS). */
@@ -32,6 +33,11 @@ const startedAt = new Date().toISOString()
 // kuyrukta beklemesin diye sonlu yeniden deneme (varsayılan 2) kullanılır.
 const redis = env.REDIS_QUEUE_URL
   ? createRedis(env.REDIS_QUEUE_URL, { name: env.WORKER_SERVICE_NAME })
+  : null
+
+// Worker havuzu küçük tutulur: api ve worker havuzlarının toplamı ≤ 30 (infra.md).
+const database = env.DATABASE_URL
+  ? createDb(env.DATABASE_URL, { max: 3, applicationName: `havayolu-${env.WORKER_SERVICE_NAME}` })
   : null
 
 const state: HealthState = {
@@ -84,13 +90,31 @@ if (!redis)
 void beat()
 const timer = setInterval(() => void beat(), HEARTBEAT_INTERVAL_MS)
 
+let jobs: JobsHandle | null = null
+
 const shutdown = async (signal: string) => {
   log.info({ signal }, 'kapanıyor')
   clearInterval(timer)
   health.close()
+  await jobs?.close().catch((error: unknown) => log.warn({ err: error }, 'bakım işleri kapanamadı'))
+  await database?.sql.end({ timeout: 5 }).catch(() => undefined)
   await closeRedis()
   process.exit(0)
 }
 process.once('SIGTERM', () => void shutdown('SIGTERM'))
 process.once('SIGINT', () => void shutdown('SIGINT'))
 log.info({ roles, version, healthPort: env.WORKER_HEALTH_PORT }, 'worker başladı')
+
+if (roles.includes('jobs')) {
+  if (!env.REDIS_QUEUE_URL || !database) {
+    log.warn('jobs rolü için REDIS_QUEUE_URL ve DATABASE_URL gerekli: bakım işleri başlamadı')
+  } else {
+    try {
+      jobs = await startJobs({ env, redisUrl: env.REDIS_QUEUE_URL, database, log, version })
+    } catch (error) {
+      // Zamanlayıcı kaydedilemezse süreç çıkar; Docker yeniden başlatır.
+      log.fatal({ err: error }, 'bakım işleri başlatılamadı')
+      process.exit(1)
+    }
+  }
+}

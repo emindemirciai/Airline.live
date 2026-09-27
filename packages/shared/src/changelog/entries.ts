@@ -7,6 +7,48 @@ import type { ChangelogEntry } from './types'
  */
 export const CHANGELOG: readonly ChangelogEntry[] = [
   {
+    version: '0.5.0',
+    date: '2026-09-27',
+    title: {
+      tr: 'Havalimanı, pist ve havayolu verisi',
+      en: 'Airport, runway and airline data',
+    },
+    items: [
+      {
+        tr: 'Türkiye’deki ve dünyadaki büyük ve orta havalimanlarının, tarifeli sefer alan diğer alanların konumları ve pistleri artık sistemde. Pist eşikleri, kaydırılmış eşikler dahil hesaplanıyor; yaklaşma ve iniş bildirimleri bu verinin üstüne kurulacak.',
+        en: 'Locations and runways of large and medium airports, and of other airfields with scheduled service, in Türkiye and worldwide are now in the system. Runway thresholds are calculated, displaced thresholds included; approach and landing alerts will be built on this data.',
+      },
+      {
+        tr: 'Kaynak veride yanlış yazılmış pist yönleri pist uçlarının koordinatlarından düzeltiliyor. Örneğin İstanbul Havalimanı’ndaki dört pistin yönü kayıtta 5° kaymış.',
+        en: 'Runway headings recorded wrongly in the source data are corrected from the coordinates of the runway ends. For example, four runways at Istanbul Airport are off by 5° in the record.',
+      },
+      {
+        tr: 'Havayolu listesi, AJet dahil güncel ICAO ve IATA kodlarıyla, sefer numarasıyla arama için hazır.',
+        en: 'The airline list, with current ICAO and IATA codes including AJet, is ready for flight number search.',
+      },
+      {
+        tr: 'Veriler her gün kendiliğinden güncelleniyor ve yalnızca değişen kayıtlar yazılıyor. Kaynak bozuk ya da yarım gelirse eldeki veri korunuyor.',
+        en: 'The data updates itself every day and only changed records are written. If a source arrives broken or incomplete, the existing data is kept.',
+      },
+      {
+        tr: 'Uçuş izlerinin saklanacağı yer hazır: 30 saniyelik iz 7 gün, tam çözünürlüklü iz 30 gün tutulacak. Süresi dolan günler her gece kendiliğinden siliniyor.',
+        en: 'Storage for flight tracks is ready: the 30-second track will be kept for 7 days and the full-resolution track for 30 days. Expired days are deleted automatically every night.',
+      },
+      {
+        tr: 'Yönetim panelindeki Servisler sayfası (admin.havayolu.live) artık referans verisinin ve iz tablolarının durumunu da gösteriyor.',
+        en: 'The Services page in the admin panel (admin.havayolu.live) now also shows the status of the reference data and the track tables.',
+      },
+      {
+        tr: 'Yönetim panelinin adresi (admin.havayolu.live) doğrudan açıldığında hata veriyordu; artık giriş sayfasına yönlendiriyor.',
+        en: 'Opening the admin panel address (admin.havayolu.live) directly showed an error; it now redirects to the sign-in page.',
+      },
+      {
+        tr: 'Her sürüm artık GitHub’daki Releases bölümünde de sürüm notlarıyla yayımlanıyor; önceki sürümler de eklendi.',
+        en: 'Every version is now also published with its release notes under Releases on GitHub; earlier versions were added too.',
+      },
+    ],
+  },
+  {
     version: '0.4.0',
     date: '2026-09-26',
     title: {

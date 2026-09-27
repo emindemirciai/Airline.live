@@ -8,6 +8,34 @@
 
 ---
 
+## v0.5.0 — 2026-09-27
+
+### Türkçe
+**Havalimanı, pist ve havayolu verisi**
+
+- Türkiye’deki ve dünyadaki büyük ve orta havalimanlarının, tarifeli sefer alan diğer alanların konumları ve pistleri artık sistemde. Pist eşikleri, kaydırılmış eşikler dahil hesaplanıyor; yaklaşma ve iniş bildirimleri bu verinin üstüne kurulacak.
+- Kaynak veride yanlış yazılmış pist yönleri pist uçlarının koordinatlarından düzeltiliyor. Örneğin İstanbul Havalimanı’ndaki dört pistin yönü kayıtta 5° kaymış.
+- Havayolu listesi, AJet dahil güncel ICAO ve IATA kodlarıyla, sefer numarasıyla arama için hazır.
+- Veriler her gün kendiliğinden güncelleniyor ve yalnızca değişen kayıtlar yazılıyor. Kaynak bozuk ya da yarım gelirse eldeki veri korunuyor.
+- Uçuş izlerinin saklanacağı yer hazır: 30 saniyelik iz 7 gün, tam çözünürlüklü iz 30 gün tutulacak. Süresi dolan günler her gece kendiliğinden siliniyor.
+- Yönetim panelindeki Servisler sayfası (admin.havayolu.live) artık referans verisinin ve iz tablolarının durumunu da gösteriyor.
+- Yönetim panelinin adresi (admin.havayolu.live) doğrudan açıldığında hata veriyordu; artık giriş sayfasına yönlendiriyor.
+- Her sürüm artık GitHub’daki Releases bölümünde de sürüm notlarıyla yayımlanıyor; önceki sürümler de eklendi.
+
+### English
+**Airport, runway and airline data**
+
+- Locations and runways of large and medium airports, and of other airfields with scheduled service, in Türkiye and worldwide are now in the system. Runway thresholds are calculated, displaced thresholds included; approach and landing alerts will be built on this data.
+- Runway headings recorded wrongly in the source data are corrected from the coordinates of the runway ends. For example, four runways at Istanbul Airport are off by 5° in the record.
+- The airline list, with current ICAO and IATA codes including AJet, is ready for flight number search.
+- The data updates itself every day and only changed records are written. If a source arrives broken or incomplete, the existing data is kept.
+- Storage for flight tracks is ready: the 30-second track will be kept for 7 days and the full-resolution track for 30 days. Expired days are deleted automatically every night.
+- The Services page in the admin panel (admin.havayolu.live) now also shows the status of the reference data and the track tables.
+- Opening the admin panel address (admin.havayolu.live) directly showed an error; it now redirects to the sign-in page.
+- Every version is now also published with its release notes under Releases on GitHub; earlier versions were added too.
+
+---
+
 ## v0.4.0 — 2026-09-26
 
 ### Türkçe

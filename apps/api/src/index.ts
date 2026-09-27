@@ -1,4 +1,13 @@
-import { createDb, createRedis, pingDb, pingRedis, readHeartbeats, redisMemory } from '@havayolu/db'
+import {
+  createDb,
+  createRedis,
+  pingDb,
+  pingRedis,
+  readHeartbeats,
+  redisMemory,
+  referenceStatus,
+  trackPartitionStatus,
+} from '@havayolu/db'
 import type { Redis } from 'ioredis'
 import { buildApp } from './app'
 import { RedisSessionStore } from './auth/session-store'
@@ -53,6 +62,8 @@ const app = await buildApp(env, {
     redisQueue: redisProbe(redisQueue),
     redisLive: redisProbe(redisLive),
     heartbeats: redisQueue ? () => readHeartbeats(redisQueue) : null,
+    referenceData: database ? () => referenceStatus(database.db) : null,
+    trackPartitions: database ? () => trackPartitionStatus(database.sql, new Date()) : null,
     http: httpJson,
     webUrl: new URL('/api/version', env.WEB_INTERNAL_URL).toString(),
     analyticsUrl: env.ANALYZE_URL ? new URL('/api/health', env.ANALYZE_URL).toString() : null,

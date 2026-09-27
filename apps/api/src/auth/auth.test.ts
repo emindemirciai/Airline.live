@@ -186,6 +186,8 @@ describe('/v1/admin/services', () => {
       'postgres',
       'redis-queue',
       'redis-live',
+      'reference-data',
+      'track-partitions',
       'analytics',
     ])
   })

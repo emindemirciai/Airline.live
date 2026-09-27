@@ -9,10 +9,13 @@ describe('adminRouting', () => {
 
   it("admin host'unda /admin dışı sayfalar /admin'e yönlenir; API ve varlıklar geçer", () => {
     const host = 'admin.havayolu.live'
-    expect(adminRouting(host, host, '/')).toEqual({ action: 'redirect', location: '/admin' })
+    expect(adminRouting(host, host, '/')).toEqual({
+      action: 'redirect',
+      location: 'https://admin.havayolu.live/admin',
+    })
     expect(adminRouting(host, 'ADMIN.havayolu.live', '/durum')).toEqual({
       action: 'redirect',
-      location: '/admin',
+      location: 'https://admin.havayolu.live/admin',
     })
     expect(adminRouting(host, host, '/admin/giris')).toEqual({ action: 'next' })
     expect(adminRouting(host, host, '/api/version')).toEqual({ action: 'next' })
@@ -22,7 +25,10 @@ describe('adminRouting', () => {
   it("admin host'unda dil değiştirme (/dil) çalışır, benzer yollar yönlenir", () => {
     const host = 'admin.havayolu.live'
     expect(adminRouting(host, host, '/dil')).toEqual({ action: 'next' })
-    expect(adminRouting(host, host, '/dilek')).toEqual({ action: 'redirect', location: '/admin' })
+    expect(adminRouting(host, host, '/dilek')).toEqual({
+      action: 'redirect',
+      location: 'https://admin.havayolu.live/admin',
+    })
   })
 
   it("başka host'tan /admin 404 alır, diğer sayfalar geçer", () => {

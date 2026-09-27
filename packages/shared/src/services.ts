@@ -2,10 +2,13 @@
 
 export type ServiceState = 'ok' | 'degraded' | 'down' | 'not_configured'
 
-export type ServiceKind = 'web' | 'api' | 'worker' | 'postgres' | 'redis' | 'analytics'
+export type ServiceKind = 'web' | 'api' | 'worker' | 'postgres' | 'redis' | 'analytics' | 'data'
 
 export interface ServiceStatus {
-  /** Kararlı kimlik: web, api, worker:worker-rt, postgres, redis-queue, redis-live, analytics. */
+  /**
+   * Kararlı kimlik: web, api, worker:worker-rt, postgres, redis-queue, redis-live, analytics,
+   * reference-data, track-partitions.
+   */
   id: string
   kind: ServiceKind
   state: ServiceState

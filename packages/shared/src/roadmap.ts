@@ -47,7 +47,7 @@ export const ROADMAP: readonly Milestone[] = [
   {
     id: 'p1-m2',
     part: '1',
-    status: 'planned',
+    status: 'done',
     title: { tr: 'Veritabanı, havalimanı ve pist verisi', en: 'Database, airport and runway data' },
   },
   {

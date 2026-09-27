@@ -69,3 +69,26 @@ export function destinationPoint(
     )
   return { lat: toDeg(phi2), lon: ((toDeg(lambda2) + 540) % 360) - 180 }
 }
+
+/** Pist eşiğinin nereden geldiği (domain.md → Pist eşiği). */
+export type ThresholdSource = 'runway_end' | 'displaced_threshold' | 'arp_fallback'
+
+export const M_PER_FT = 0.3048
+
+/**
+ * Pist eşiği: pist ucu koordinatı `displacedFt × 0,3048` m pist yönünde (bu uçtan karşı uca)
+ * kaydırılır. Uç koordinatı yoksa havalimanı merkezi (ARP) kullanılır.
+ */
+export function runwayThreshold(
+  end: LatLon | null,
+  runwayBearingDeg: number | null,
+  displacedFt: number | null,
+  arp: LatLon,
+): { point: LatLon; source: ThresholdSource } {
+  if (!end) return { point: arp, source: 'arp_fallback' }
+  if (!displacedFt || displacedFt <= 0 || runwayBearingDeg === null) {
+    return { point: end, source: 'runway_end' }
+  }
+  const point = destinationPoint(end, runwayBearingDeg, (displacedFt * M_PER_FT) / 1000)
+  return { point, source: 'displaced_threshold' }
+}

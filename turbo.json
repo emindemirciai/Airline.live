@@ -2,7 +2,7 @@
   "$schema": "https://turborepo.com/schema.json",
   "ui": "stream",
   "envMode": "loose",
-  "globalDependencies": ["tsconfig.base.json", "eslint.config.mjs"],
+  "globalDependencies": ["tsconfig.base.json", "eslint.config.mjs", "tools/fixtures/**"],
   "tasks": {
     "build": {
       "dependsOn": ["^build"],

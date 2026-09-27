@@ -1,3 +1,7 @@
 export * from './client'
 export * from './migrate'
+export * from './partitions'
 export * from './redis'
+export * from './reference'
+export * from './schema'
+export * from './seed'

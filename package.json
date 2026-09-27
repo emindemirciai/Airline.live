@@ -1,6 +1,6 @@
 {
   "name": "havayolu",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "private": true,
   "license": "MIT",
   "type": "module",
@@ -16,7 +16,7 @@
     "test": "turbo run test",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "ci:local": "pnpm run format:check && pnpm run check:eol && pnpm run changelog:check && pnpm run typecheck:scripts && pnpm run test:scripts && turbo run lint typecheck test build",
+    "ci:local": "pnpm run format:check && pnpm run check:eol && pnpm run changelog:check && pnpm run typecheck:scripts && pnpm run db:check && pnpm run test:scripts && turbo run lint typecheck test build",
     "test:scripts": "vitest run --config scripts/vitest.config.mts",
     "deploy:dokploy": "tsx scripts/deploy-dokploy.mts",
     "changelog": "tsx scripts/changelog.mts",
@@ -24,11 +24,14 @@
     "stats": "tsx scripts/stats.mts",
     "backup": "tsx scripts/backup.mts",
     "check:eol": "tsx scripts/check-eol.mts",
-    "ci:full": "pnpm run ci:local && pnpm run compose:guard && pnpm run test:integration",
+    "ci:full": "pnpm run ci:local && pnpm run compose:guard && pnpm run test:integration && pnpm run test:migration-upgrade",
     "typecheck:scripts": "tsc -p scripts/tsconfig.json",
     "test:integration": "turbo run test:integration --concurrency=1",
     "dev:infra": "docker compose -f docker-compose.dev.yml up -d --wait --wait-timeout 300",
     "dev:infra:down": "docker compose -f docker-compose.dev.yml down",
+    "db:migrate": "pnpm --filter @havayolu/db db:migrate",
+    "db:check": "tsx scripts/check-migrations.mts",
+    "test:migration-upgrade": "tsx scripts/test-migration-upgrade.mts",
     "compose:guard": "tsx scripts/compose-guard.mts"
   },
   "devDependencies": {

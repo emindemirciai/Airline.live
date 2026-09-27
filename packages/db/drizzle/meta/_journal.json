@@ -8,6 +8,20 @@
       "when": 1790351794471,
       "tag": "0000_postgis",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1790492562042,
+      "tag": "0001_reference_and_tracks",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1790492563776,
+      "tag": "0002_track_default_partitions",
+      "breakpoints": true
     }
   ]
 }
