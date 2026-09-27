@@ -45,6 +45,8 @@ Web sürümü (Parça 1–3) için zorunlu tek ek gider kalıcı domain'dir. İk
 | [ ] | VPS: 2 GB swap + `vm.overcommit_memory=1` (tüm projeleri etkiler; bilinçli uygula) | — | VPS (SSH) | Bellek güvenliği |
 | [ ] | GitHub secrets ve variables | `DOKPLOY_URL`, `DOKPLOY_API_TOKEN`, `DOKPLOY_COMPOSE_ID`; `WEB_URL`, `API_URL`, `DEPLOY_ENABLED` | GitHub → Settings → Secrets and variables | Otomatik yayın |
 | [ ] | Deploy-bot API token'ının kapsamını doğrula; bitiş tarihini buraya yaz | — | Dokploy | Güvenlik |
+| [ ] | GHCR için classic PAT (`read:packages`), Dokploy → Settings → Registry'ye `ghcr.io` olarak ekle; bitiş tarihini buraya yaz | — | github.com → Tokens (classic) → Dokploy | İmaj çekme |
+| [ ] | İlk yayın (M1b kabulü): `deploy.yml` deneme (`dry_run=true`) → `DEPLOY_ENABLED=true` → `deploy.yml` `dry_run=false`; ardından bir PR birleşince deploy işi yeşil biter ve `https://havayolu.live/api/version` yeni `gitSha`'yı gösterir. Toplam süreyi buraya yaz (hedef ≤ 20 dk) | `DEPLOY_ENABLED` | GitHub Actions | Otomatik yayının kanıtı |
 | [ ] | Analiz uygulamasını ayrı Dokploy Compose uygulaması olarak kur (repo `emindemirciai/Analyze.Your.Site-Siteni-Analiz-Et-`, env bloğu `deploy/analiz.env.example`, `ANALYZE_GEO_LOOKUP=false`) | `ANALYZE_URL`, `ANALYZE_SITE_ID` | Dokploy | Ziyaretçi analizi |
 | [ ] | 24 saatlik kapsama raporu: admin panelinden `coverage:report` (üretim yoksa `pnpm coverage:probe --hours 24`, bilgisayar uyku moduna geçmeden) | — | Admin / bilgisayar | Parça 2 kararları |
 

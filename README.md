@@ -2,7 +2,7 @@
 
 **[Türkçe](#türkçe) · [English](#english)**
 
-![sürüm](https://img.shields.io/badge/s%C3%BCr%C3%BCm-v0.3.2-blue) ![lisans](https://img.shields.io/badge/lisans-MIT-green) ![durum](https://img.shields.io/badge/durum-geli%C5%9Ftirme-yellow)
+![sürüm](https://img.shields.io/badge/s%C3%BCr%C3%BCm-v0.4.0-blue) ![lisans](https://img.shields.io/badge/lisans-MIT-green) ![durum](https://img.shields.io/badge/durum-geli%C5%9Ftirme-yellow)
 
 ---
 
@@ -14,7 +14,7 @@ Türkiye odaklı sivil havacılık uçuş takip platformu. Canlı harita, uçuş
 
 > **Bilinen sınır:** Kendi ADS-B alıcımız olmadığı için İstanbul Havalimanı'nda iniş anı çoğunlukla doğrudan görülmez. İniş bildirimi çoğu uçuşta "muhtemelen indi (tahmini saat)" olarak ve son sinyalden 1–1,5 dk sonra gelir. Bazı uçuşlarda yalnızca "iniş verisi alınamadı" denebilir.
 
-### Durum — v0.3.2
+### Durum — v0.4.0
 | Alan | Durum |
 |---|---|
 | Yol haritası, veri kaynakları, mimari | ✅ Hazır ve doğrulandı |
@@ -22,7 +22,7 @@ Türkiye odaklı sivil havacılık uçuş takip platformu. Canlı harita, uçuş
 | Bütün servisler, yönetim paneli (Servisler ekranı), onaylı analiz | ✅ Parça 1 · M1a |
 | Marka ve alan adı: havayolu · havayolu.live (DNS kayıtları girildi) | ✅ v0.3.1 |
 | Güvenlik sertleştirmesi (ziyaretçi başına giriş sınırı, Redis kesintisine dayanıklılık), açık kaynak repo, korumalı `main` | ✅ v0.3.2 |
-| Otomatik yayın hattı (GitHub Actions → GHCR → Dokploy) | ⏳ Parça 1 · M1b |
+| Otomatik yayın hattı (GitHub Actions → GHCR → Dokploy), doğrulama ve geri alma | ✅ Parça 1 · M1b, sunucu kurulumu bekliyor ([rehber](docs/DEPLOY_DOKPLOY.md)) |
 | Canlı harita ve arama | ⏳ Parça 1 · M6 |
 | 10 km ve iniş bildirimi (web push) | ⏳ Parça 2 · M4 |
 | Hesaplar, takip listesi, istasyon operasyon panosu | ⏳ Parça 2B / 3 |
@@ -50,24 +50,25 @@ pnpm dev
 - `docs/prompts/README.md`: başlamadan önce yapılacaklar ve parçaların Claude Code ile nasıl çalıştırılacağı
 - `CLAUDE.md`: proje kuralları · `docs/spec/`: alan, veri kaynakları, altyapı
 - `docs/ACTIVATION.md`: elle yapılacak dış adımlar ve **maliyet özeti**
+- `docs/DEPLOY_DOKPLOY.md`: sunucu (Dokploy) kurulumu, bir kez
 - `docs/DECISIONS.md`: kararlar ve gerekçeleri
 
-### İstatistik (v0.3.2)
-Git'te 159 dosya, **9.269 satır**. Bunun 5.495 satırı kod (TypeScript, TSX, CSS, JS), 2.260 satırı belgedir. Lockfile ve `docs/research/` hariç tutulur. Güncel değer için `pnpm stats` çalıştır.
+### İstatistik (v0.4.0)
+Git'te 165 dosya, **10.615 satır**. Bunun 6.280 satırı kod (TypeScript, TSX, CSS, JS), 2.561 satırı belgedir. Lockfile ve `docs/research/` hariç tutulur. Güncel değer için `pnpm stats` çalıştır.
 
 | Alan | Satır |
 |---|---|
+| docs | 2.013 |
 | apps/web | 1.741 |
-| docs | 1.737 |
 | apps/api | 1.723 |
-| packages/shared | 582 |
+| scripts | 1.096 |
+| packages/shared | 604 |
 | apps/worker | 411 |
 | packages/db | 372 |
 | packages/i18n | 359 |
-| scripts | 333 |
 | packages/providers | 197 |
 | packages/geo | 152 |
-| diğer (kök, deploy, .claude, .github) | 1.662 |
+| diğer (kök, deploy, .claude, .github) | 1.947 |
 
 ### Lisans, veri ve atıflar
 - Kod [MIT lisansı](LICENSE) ile lisanslanmıştır: © 2026 [emindemirciai](https://github.com/emindemirciai). Kodun tüm kopyaları ya da önemli bölümleri telif bildirimini ve lisans metnini içermek zorundadır; bunlar olmadan kopyalamak ya da dağıtmak lisans ve telif hakkı ihlalidir. **havayolu** adı ve logosu MIT kapsamında değildir, hakları saklıdır. Aynı bildirim sitenin sayfa kaynağında da yer alır.
@@ -86,7 +87,7 @@ A Türkiye-focused civil aviation flight tracker. It offers a live map and lets 
 
 > **Known limitation:** Without our own ADS-B receiver, the moment of touchdown at Istanbul Airport is usually not observed directly. For most flights the landing alert says "probably landed (estimated time)" and arrives 1–1.5 minutes after the last signal. For some flights it can only say "landing data unavailable".
 
-### Status — v0.3.2
+### Status — v0.4.0
 | Area | Status |
 |---|---|
 | Roadmap, data sources, architecture | ✅ Done and verified |
@@ -94,7 +95,7 @@ A Türkiye-focused civil aviation flight tracker. It offers a live map and lets 
 | All services, admin panel (Services screen), consent-based analytics | ✅ Part 1 · M1a |
 | Brand and domain: havayolu · havayolu.live (DNS records added) | ✅ v0.3.1 |
 | Security hardening (per-visitor sign-in limit, resilience to Redis outages), public repo, protected `main` | ✅ v0.3.2 |
-| Automatic release pipeline (GitHub Actions → GHCR → Dokploy) | ⏳ Part 1 · M1b |
+| Automatic release pipeline (GitHub Actions → GHCR → Dokploy), verification and rollback | ✅ Part 1 · M1b, server setup pending ([guide](docs/DEPLOY_DOKPLOY.md)) |
 | Live map and search | ⏳ Part 1 · M6 |
 | 10 km and landing alerts (web push) | ⏳ Part 2 · M4 |
 | Accounts, watchlist, station operations board | ⏳ Part 2B / 3 |
@@ -122,10 +123,11 @@ Then open `http://localhost:3100/durum` and `http://localhost:3100/yenilikler`. 
 - `docs/prompts/README.md`: one-time setup and how to run each part with Claude Code
 - `CLAUDE.md`: project rules · `docs/spec/`: domain, data sources, infrastructure
 - `docs/ACTIVATION.md`: manual external steps and the **cost summary**
+- `docs/DEPLOY_DOKPLOY.md`: one-time server (Dokploy) setup
 - `docs/DECISIONS.md`: decisions and rationale
 
-### Stats (v0.3.2)
-159 files and **9,269 lines** in git: 5,495 lines of code (TypeScript, TSX, CSS, JS) and 2,260 lines of documentation. The lockfile and `docs/research/` are excluded. Run `pnpm stats` for current numbers.
+### Stats (v0.4.0)
+165 files and **10,615 lines** in git: 6,280 lines of code (TypeScript, TSX, CSS, JS) and 2,561 lines of documentation. The lockfile and `docs/research/` are excluded. Run `pnpm stats` for current numbers.
 
 ### License, data and attribution
 - Code is licensed under the [MIT License](LICENSE): © 2026 [emindemirciai](https://github.com/emindemirciai). All copies or substantial portions of the code must include the copyright notice and license text; copying or distributing without them infringes the license and the copyright. The **havayolu** name and logo are not covered by the MIT License; rights reserved. The same notice appears in the page source of the site.

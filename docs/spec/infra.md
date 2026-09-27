@@ -90,34 +90,39 @@ Sunucu: Hostinger **KVM 2** (2 vCPU, 8 GB RAM, 100 GB NVMe). Üzerinde Dokploy �
 **`.github/workflows/ci.yml`** (`pull_request` ve `push: main`)
 - `concurrency: {group: ci-${{ github.ref }}, cancel-in-progress: ${{ github.event_name == 'pull_request' }}}`. `main` çalışmaları iptal edilmez; aksi hâlde çağrılan deploy işi yarıda kesilir.
 - İşler:
-  1. `changes`: `dorny/paths-filter@v4`, `predicate-quantifier: 'every'`. Filtreler: `deploy: ['**', '!apps/mobile/**', '!docs/**']` ve e2e için web/api/worker/packages.
-  2. `checks`: format, lint, typecheck, unit test, build, `changelog:check`, `check:eol`.
-  3. `test-integration`: PostGIS ve Redis servis konteynerleri; ilgili testler eklendikçe açılır.
-  4. `e2e`: Playwright; ilgili testler eklendikçe açılır.
-  5. `compose-guard` ve `actionlint`.
-  6. `deploy`: `uses: ./.github/workflows/deploy.yml`, `secrets: inherit`, `permissions: {contents: read, packages: write}` (çağrılan workflow izin yükseltemez), `needs: [changes, …tüm kontroller]`. Koşul: `if: github.event_name=='push' && github.ref=='refs/heads/main' && needs.changes.outputs.deploy=='true'`.
+  1. `checks`: format, lint, typecheck, unit test, build, `changelog:check`, `check:eol`, `compose:guard`, `test:scripts`.
+  2. `test-integration`: dev compose'daki PostGIS, iki Redis ve Mailpit; gerçek veritabanı testleri.
+  3. `e2e`: Playwright; ilgili testler eklendikçe açılır.
+  4. `actionlint`.
+  5. `deploy`: `uses: ./.github/workflows/deploy.yml`, `secrets: inherit`, `permissions: {contents: read, packages: write}` (çağrılan workflow izin yükseltemez), `needs: [tüm kontroller]`. Koşul: `if: github.event_name=='push' && github.ref=='refs/heads/main'`. **`main`'e her push'ta çalışır.** "Yalnızca belge değişti" kararı yol filtresiyle (son push'a göre) değil, `release` işinde canlıdaki sürüme göre verilir. Aksi hâlde bir kod birleşmesinin arkasından belge birleşmesi geldiğinde kod hiç yayınlanmazdı (D-064).
 - Workflow düzeyinde `paths-ignore` ve `workflow_run` kullanılmaz.
 
-**`.github/workflows/deploy.yml`** (`on: workflow_call` + `workflow_dispatch` [girdi `dry_run`, varsayılan `true`])
-- `concurrency: {group: deploy-prod, cancel-in-progress: false}`.
-- **Build:** GHCR'a `GITHUB_TOKEN` ile giriş yapılır. 3 imaj `docker/build-push-action` ile derlenir: `linux/amd64`, `cache-from/to: type=gha`, etiketler `sha-<7>` ve `main`.
-- **Deploy koşulu:** `vars.DEPLOY_ENABLED == 'true'` ve secrets tanımlı değilse deploy adımı atlanır.
-  - İş yeşil kalır, iş özetine (`$GITHUB_STEP_SUMMARY`) "YAYINLANMADI: Dokploy kurulumu tamamlanmadı" yazılır.
-  - Kurulum bitince kullanıcı `DEPLOY_ENABLED=true` yapar. Secrets tanımlıyken deploy başarısız olursa iş kırmızıya döner.
+**`.github/workflows/deploy.yml`** (`on: workflow_call` + `workflow_dispatch` [girdi `dry_run`, elle varsayılan `true`]; D-064)
+- **`build` (matris: web, api, worker):** GHCR'a `GITHUB_TOKEN` ile giriş yapılır. İmajlar `docker/build-push-action` ile derlenir: `linux/amd64`, `cache-from/to: type=gha` (uygulama başına scope), build-arg `GIT_SHA=<tam sha>` ve `BUILD_TIME`. **Yalnızca `sha-<7>` etiketi** gönderilir.
+- **`release`** (`dry_run` değilse; `concurrency: {group: deploy-prod, cancel-in-progress: false}`, rollback ile ortak):
+  1. Commit hâlâ `main`'in ucunda mı bakılır (`git ls-remote`, `pipefail`; uç okunamazsa iş kırmızı). Değilse iş özetine "ATLANDI: daha yeni commit" yazılır. Her push kendi yayın işini çalıştırdığı için yeni ucun işi bu commit'i de kapsar. Böylece geç biten eski bir derleme yenisinin üstüne yazamaz.
+  2. `docker buildx imagetools create` ile üç imajın `:main` etiketi `sha-<7>`'ye taşınır (yeniden derleme yok).
+  3. `pnpm run deploy:dokploy` (`SKIP_UNCHANGED=true`, aşağıdaki sözleşme). Canlıdaki `/version` ve `/api/version` aynı commit'i gösteriyorsa ve o commit ile bu commit arasında yalnızca `docs/` ya da `apps/mobile/` değiştiyse Dokploy tetiklenmez ("YAYIN GEREKMEDİ"). Canlı sürüm okunamazsa ya da fark hesaplanamazsa yayın yapılır. Checkout tam geçmişle yapılır.
+- **Deploy koşulu:** `vars.DEPLOY_ENABLED` `true` değilse script yayını atlar. İş yeşil kalır, iş özetine (`$GITHUB_STEP_SUMMARY`) "YAYINLANMADI: Dokploy kurulumu tamamlanmadı" yazılır; `:main` yine de taşınır.
+  - Kurulum bitince kullanıcı `DEPLOY_ENABLED=true` yapar. `DEPLOY_ENABLED=true` iken secret ya da variable eksikse, adresler `https://` değilse ya da deploy başarısız olursa iş kırmızıya döner. Eksik ayarların yalnızca adları yazılır.
 - **Deploy sözleşmesi** (`scripts/deploy-dokploy.mts`):
   1. Tetiklemeden önce `GET $DOKPLOY_URL/api/deployment.allByCompose?composeId=…` ile mevcut deployment id'leri kaydedilir.
   2. `POST $DOKPLOY_URL/api/compose.deploy` çağrılır. Başlıklar: `x-api-key: $DOKPLOY_API_TOKEN`, `Content-Type: application/json`. Gövde: `{"composeId":"…","title":"gh-<sha7>-<run_id>"}`.
   3. **`freshVolumes` asla gönderilmez** (volume'ları siler); bunu doğrulayan bir unit test vardır. `compose.redeploy` kullanılmaz.
   4. Çağrı asenkrondur ("Deployment queued"). Listede ilk görünen yeni id 10 sn arayla en fazla 15 dk izlenir; kuyrukta bekleme süresine izin verilir.
+     - Beklerken ağ hatası, zaman aşımı, 5xx ve 429 geçicidir: süre dolana kadar beklenir, dolarsa son hata yazılır. 401/403/404 ve bozuk yanıt hemen çıkış 1'dir. İlk liste ve `compose.deploy` çağrısında hata hemen çıkış 1'dir; yayının kuyruğa girip girmediği bilinmediği için yeniden denenmez.
      - Dokploy son 10 kaydı tutar.
      - Başlık commit mesajıyla, `description` klonlama anındaki HEAD'in `Commit: <SHA>` değeriyle değişir; yalnızca bilgi olarak loglanır.
      - `error` ya da `cancelled` → çıkış 1. `errorMessage` çoğu zaman boştur.
-  5. Ardından `${API_URL}/version` ve `${WEB_URL}/api/version` yeni `GIT_SHA`'yı döndürene ve `/ready` 200 verene kadar yoklanır. Olmazsa çıkış 1.
-  6. Hata yolları (error, eski SHA, 503) stub Dokploy + stub `/version` sunucusuna karşı sahte saatle test edilir. Üretimde bilerek bozuk imaj yayınlanmaz.
+  5. Ardından `${API_URL}/version` ve `${WEB_URL}/api/version` yeni `GIT_SHA`'yı döndürene ve `/ready` 200 verene kadar 10 sn arayla en fazla 15 dk yoklanır. Yayın sırasında ulaşılamamak bekleme sebebidir. Olmazsa çıkış 1.
+  6. Hata yolları (error, cancelled, kuyrukta zaman aşımı, geçici ve kalıcı Dokploy hataları, eski SHA, 503, 401) ve "yayın gerekmedi" kararı stub Dokploy + stub `/version` sunucusuna karşı sahte saatle test edilir (`pnpm test:scripts`, CI `checks`). Üretimde bilerek bozuk imaj yayınlanmaz.
+  7. Deploy API anahtarı hiçbir çıktıya yazılmaz; yazdırılabilir tek satırlık bir değer olduğu doğrulanır. İstek gövdesi yalnızca `composeId` ve `title` taşır.
 - **GitHub secrets:** `DOKPLOY_URL` (HTTPS panel adresi; `http://IP:3000` değil), `DOKPLOY_API_TOKEN`, `DOKPLOY_COMPOSE_ID`. **GitHub variables:** `WEB_URL`, `API_URL`, `DEPLOY_ENABLED`.
-- **Action sürümleri (node24):** `actions/checkout@v7`, `actions/setup-node@v7`, `pnpm/action-setup@v6`, `docker/setup-buildx-action@v4`, `docker/login-action@v4`, `docker/metadata-action@v6`, `docker/build-push-action@v7`, `dorny/paths-filter@v4`. Üçüncü taraf action'lar commit SHA ile sabitlenir.
+- **Action sürümleri (node24):** `actions/checkout@v7`, `actions/setup-node@v7`, `pnpm/action-setup@v6`, `docker/setup-buildx-action@v4`, `docker/login-action@v4`, `docker/metadata-action@v6`, `docker/build-push-action@v7`. Üçüncü taraf action'lar commit SHA ile sabitlenir.
 
-**`rollback.yml`** (`workflow_dispatch`, girdi `sha`): seçilen `sha-…` imajlarını `docker buildx imagetools create` ile `:main` olarak yeniden etiketler, ardından aynı deploy ve doğrulama adımlarını çalıştırır.
+**`rollback.yml`** (`workflow_dispatch`, girdi `sha`, 7–40 onaltılık karakter; girdi kabuğa yalnızca env ile geçer): önce üç `sha-<7>` imajının da var olduğunu doğrular (biri yoksa hiçbir etiket taşınmaz), sonra `docker buildx imagetools create` ile `:main` olarak yeniden etiketler ve aynı deploy ve doğrulama adımlarını her zaman yayın yaparak çalıştırır (`deploy-prod` sırasında; `SKIP_UNCHANGED` yok). Sonraki birleşme canlıdan farkı yayınlar; sorunlu değişiklik önce bir PR ile geri alınmalıdır. Beklenen SHA kısa verilebilir; doğrulama baş eşleşmesiyle yapılır. Migration'lar geri alınmaz. Dokploy compose dosyasını `main`'in ucundan klonlar, yani eski imajlar güncel compose ile çalışır.
+
+**`actionlint`** (CI işi): `rhysd/actionlint:1.7.12` imajı digest'iyle sabitlenerek çalıştırılır; `run:` betikleri shellcheck'ten de geçer.
 
 ## Yayın davranışı ve kesinti
 - Compose deploy'u **sıfır kesintili değildir.** web ve api için birkaç saniyelik kesinti kabul edilir ve DEPLOY_DOKPLOY.md'de açıkça yazılır.
@@ -166,8 +171,9 @@ Sunucu: Hostinger **KVM 2** (2 vCPU, 8 GB RAM, 100 GB NVMe). Üzerinde Dokploy �
 - **Dokploy sürümü:** ≥ v0.30.7; eski sürümlerde komut enjeksiyonu açıkları vardır.
 - **Panel ve port 3000:**
   - Panel HTTPS domain'e bağlanır ve 3000 portu dışarıya kapatılır.
-  - Docker yayınladığı portlar için iptables kurallarını ufw'nin önüne eklediğinden ufw tek başına yetmez; `ufw-docker` kurulur. ufw'de yalnızca 22, 80 ve 443 açıktır.
-  - Doğrulama: başka bir ağdan `curl -m 5 http://<VPS_IP>:3000` zaman aşımına uğramalıdır.
+  - Docker yayınladığı portlar için iptables kurallarını ufw'nin önüne eklediğinden ufw tek başına yetmez; `ufw-docker` kurulur (sürüm 251123, commit ve SHA-256 ile sabitlenmiş indirme; DEPLOY_DOKPLOY.md). ufw'de yalnızca 22, 80 ve 443 açıktır.
+  - `ufw-docker` konteyner portlarının hepsini kapatır; `ufw allow 80/443` Traefik konteynerine ulaşmaz. Traefik için `ufw route allow proto tcp from any to any port 80` ve `443` (HTTP/3 için `proto udp … port 443`) zorunludur, yoksa paylaşılan VPS'teki bütün siteler düşer. Diğer projelerin doğrudan yayınladığı portlara `ufw-docker allow <konteyner> <port>` ile tek tek izin verilir.
+  - Doğrulama (başka bir ağdan): panel ve diğer sitelerin alan adları yanıt vermeye devam eder; `curl -m 5 http://<VPS_IP>:3000` zaman aşımına uğrar. SSH oturumu açık tutulur, geri dönüş `sudo ufw disable`'dır.
 - **Let's Encrypt e-postası** Web Server ayarlarında girilir (varsayılan `test@localhost.com`'dur). Cloudflare proxy kullanılırsa SSL modu "Full (Strict)" olur ve `EDGE_PROXY=cloudflare` girilir.
 - **Deploy API anahtarı:**
   - Mümkünse yalnızca bu projeye erişimi olan bir "deploy-bot" üyesiyle, 90 gün süreli üretilir.

@@ -1,7 +1,8 @@
 # Yerel geliştirme altyapısı. Uygulamalar `pnpm dev` ile makinede çalışır.
 #   docker compose -f docker-compose.dev.yml up -d --wait --wait-timeout 300
-# Portlar bu makinedeki diğer projelerle çakışmasın diye 55xxx/56xxx/58xxx aralığındadır
-# (3000–3003 başka projenin). Değerler .env.example'daki geliştirme varsayılanlarıyla aynıdır.
+# Portlar 41xxx–49xxx aralığındadır: Windows'un dinamik port bölgesinin (49152+) altında kalır,
+# böylece Hyper-V/WinNAT'ın açılışta ayırdığı aralıklarla çakışmaz (D-065). 3000–3003 başka
+# projenindir. Değerler .env.example'daki geliştirme varsayılanlarıyla aynıdır.
 name: havayolu-dev
 
 services:
@@ -12,7 +13,7 @@ services:
       POSTGRES_PASSWORD: havayolu_dev_only
       POSTGRES_DB: app_dev
     ports:
-      - '127.0.0.1:55432:5432'
+      - '127.0.0.1:45432:5432'
     volumes:
       - dev_pgdata:/var/lib/postgresql
     # TCP üzerinden denenir: PostGIS ilk kurulumunda geçici sunucu yalnızca unix soketini dinler.
@@ -39,7 +40,7 @@ services:
     environment:
       REDISCLI_AUTH: queue_dev_only
     ports:
-      - '127.0.0.1:56379:6379'
+      - '127.0.0.1:46379:6379'
     healthcheck:
       test: ['CMD', 'redis-cli', 'ping']
       interval: 3s
@@ -65,7 +66,7 @@ services:
     environment:
       REDISCLI_AUTH: live_dev_only
     ports:
-      - '127.0.0.1:56380:6379'
+      - '127.0.0.1:46380:6379'
     healthcheck:
       test: ['CMD', 'redis-cli', 'ping']
       interval: 3s
@@ -75,8 +76,8 @@ services:
   mailpit:
     image: axllent/mailpit:v1.31.2
     ports:
-      - '127.0.0.1:58025:8025'
-      - '127.0.0.1:51025:1025'
+      - '127.0.0.1:48025:8025'
+      - '127.0.0.1:41025:1025'
 
 volumes:
   dev_pgdata:

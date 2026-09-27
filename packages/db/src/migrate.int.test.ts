@@ -5,7 +5,7 @@ import { runMigrations } from './migrate'
 
 const adminUrl =
   process.env.TEST_DATABASE_ADMIN_URL ??
-  'postgres://havayolu:havayolu_dev_only@localhost:55432/postgres'
+  'postgres://havayolu:havayolu_dev_only@localhost:45432/postgres'
 const testDbName = 'app_test_db_pkg'
 const testUrl = adminUrl.replace(/\/[^/]*$/, `/${testDbName}`)
 const migrationsFolder = fileURLToPath(new URL('../drizzle', import.meta.url))

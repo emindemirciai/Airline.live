@@ -8,6 +8,24 @@
 
 ---
 
+## v0.4.0 — 2026-09-26
+
+### Türkçe
+**Otomatik ve doğrulanan yayın hattı**
+
+- Onaylanan her değişiklik testlerden geçtikten sonra kendiliğinden yayına çıkacak: uygulama derlenir, sunucuya gönderilir ve yeni sürümün gerçekten açıldığı kontrol edilir. Açılmazsa yayın başarısız sayılır ve haber verilir.
+- Bir sorun olursa önceki sürüme tek komutla dönülebiliyor; veriler korunuyor.
+- Sunucu kurulum rehberi hazır. Kurulum tamamlanınca havayolu.live yayına açılacak.
+
+### English
+**Automatic, verified release pipeline**
+
+- Every approved change will go live on its own once the tests pass: the app is built, sent to the server, and the new version is checked to be actually running. If it is not, the release is marked failed and reported.
+- If something goes wrong, the previous version can be restored with a single command; data is kept.
+- The server setup guide is ready. havayolu.live goes live once the setup is done.
+
+---
+
 ## v0.3.2 — 2026-09-25
 
 ### Türkçe

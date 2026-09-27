@@ -2,6 +2,21 @@
 
 Her karar tarih, gerekçe ve varsa alternatifiyle yazılır. En yeni karar en üsttedir.
 
+## 2026-09-26 — Parça 1 M1b yayın hattı
+- **D-065 Yerel altyapı portları 41xxx–49xxx aralığına taşındı.** Postgres 55432 → 45432, redis-queue 56379 → 46379, redis-live 56380 → 46380, Mailpit 58025/51025 → 48025/41025, MinIO 59000/59001 → 49000/49001.
+  - Gerekçe: 2026-09-26 açılışında Windows 56336–56435 aralığını ayırdı (`excludedportrange`), iki Redis portu bağlanamadı ve dev altyapısı açılmadı. Bu ayrılmış aralıklar her açılışta Windows'un dinamik port bölgesinden (49152–65535) rastgele seçilir. O bölgenin altındaki portlar etkilenmez.
+  - Alternatif `winnat` servisini yeniden başlatmaktı; sistem ayarı değiştirmek olduğu ve her açılışta yinelenebileceği için seçilmedi. Uygulama portları (3100, 4100, 4200) zaten bu bölgenin altındadır.
+- **D-064 İmaj derleme ile `:main`'in taşınması ayrı işlerdir.**
+  - Matris `build` işi yalnızca `sha-<7>` etiketini gönderir. `:main`, seri çalışan `release` işinde (`deploy-prod`) ve yalnızca commit hâlâ `main`'in ucundaysa `docker buildx imagetools create` ile taşınır.
+  - Gerekçe: GitHub aynı eşzamanlılık grubunda bekleyen eski çalışmayı iptal eder ama paralel derlemeler farklı sürelerde biter. `:main`'i derleme işinde göndermek, geç biten eski bir derlemenin yenisinin üstüne yazmasına izin verirdi. Dokploy compose dosyasını da `main`'in ucundan klonladığı için imaj ile compose tutarlı kalır. Rollback aynı yeniden etiketleme yöntemini kullanır; yeniden derleme yoktur.
+  - `main`'e her push yayın işini çalıştırır; "yalnızca belge ya da mobil değişti" kararı **canlıdaki sürüme** göre verilir (canlı `/version` ile bu commit arasındaki `git diff`). İlk tasarımda bu karar `dorny/paths-filter` ile son push'a göre veriliyordu. Birleştirme öncesi inceleme şu hatayı gösterdi: kod birleşmesi X'in arkasından belge birleşmesi Y gelirse X'in `release`'i daha yeni uç (Y) yüzünden atlanıyor, Y'nin CI'ı da "yalnızca belge" diye yayın yapmıyordu; X hiç yayınlanmıyor ve her şey yeşil görünüyordu. Canlı sürüm okunamazsa ya da fark hesaplanamazsa yayın yapılır.
+  - `DEPLOY_ENABLED` `true` değilse yayın özetle atlanır, iş yeşildir. `true` iken eksik ayar ya da başarısız yayın işi kırmızıya çevirir; sessizce atlamak yanlış bir güven verirdi.
+  - Deploy script'i (`scripts/deploy-dokploy.mts`) yeni deployment'ı "önceki listede olmayan ilk kimlik" olarak bulur. Başlık, git kaynaklarında Dokploy tarafından commit mesajıyla ezilir; kuyruk süresine izin verilir (Dokploy v0.30.7 doğrulaması, research/2026-09-25).
+  - GitHub environment kullanılmaz: secrets repo düzeyindedir, yayın yalnızca `main` push'unda ve `release` işinin uç kontrolünden sonra çalışır.
+  - Dokploy'un geçici hataları (ağ, zaman aşımı, 5xx, 429) deployment beklenirken tolere edilir: yayın sürerken tek bir 502 işi kırmızıya çevirip gereksiz ikinci bir yayına yol açmamalı.
+  - `actionlint` Docker imajı digest'iyle sabitlenir. Üçüncü taraf action'lar commit SHA'sıyla sabitlenir (docker/*, pnpm/action-setup).
+  - Kurulum rehberindeki güvenlik duvarı adımı Traefik için `ufw route allow` kurallarını içerir. İlk taslakta bunlar yoktu ve rehber izlenseydi paylaşılan VPS'teki bütün siteler düşerdi; bunu da inceleme yakaladı.
+
 ## 2026-09-25 — Birleştirme öncesi inceleme ve repo koruması (v0.3.2)
 - **D-063 Dokploy şablonunda boş alanlar `ANAHTAR=#talimat#` biçimindedir (kullanıcı talebi).** Docker Compose bu metni yorum değil değer olarak okur; `ANAHTAR= #talimat#` de aynıdır (Docker 29 ile ölçüldü). Yalnızca bir değerden sonra gelen `#` yorumdur. Bu yüzden:
   - api, worker ve web `#…#` biçimindeki değeri tanımsız sayar (`packages/shared` → `withoutEnvPlaceholders`). "Boş bırak" satırları olduğu gibi kalabilir.

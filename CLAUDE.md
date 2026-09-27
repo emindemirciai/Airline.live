@@ -151,8 +151,9 @@ Sıra: 1–4 commit'ten önce yapılır ve aynı commit'e girer. 5 commit'ten so
 - **Script'ler:** `pnpm-workspace.yaml` içinde `shellEmulator: true`. package.json script'lerinde `rm -rf`, `export`, `VAR=x cmd` ve tek tırnak yasaktır; karmaşık işler `scripts/*.mts` olarak yazılır. `.sh` dosyaları yalnızca Linux konteynerinde çalışır.
 - **Yerel portlar sabittir, env'den gelir.** Bu makinede 3000–3003 başka bir projenin konteynerlerindedir.
   - web 3100 · api 4100 · worker sağlık 4200
-  - Postgres 55432 · redis-queue 56379 · redis-live 56380
-  - Mailpit 58025/51025 · MinIO 59000/59001
+  - Postgres 45432 · redis-queue 46379 · redis-live 46380
+  - Mailpit 48025/41025 · MinIO 49000/49001
+  - Altyapı portları Windows'un dinamik port bölgesinin (49152+) altındadır; Hyper-V/WinNAT açılışta bu bölgeden rastgele aralık ayırır (`netsh interface ipv4 show excludedportrange protocol=tcp`, D-065).
 
   Konteyner içi portlar üretimde web 3000, api 4000'dir.
 - **Uzun komutlar:** 2 dk'dan uzun sürebilecek her komut arka planda çalıştırılır: `pnpm dev`, `gh pr checks --watch --interval 30`, `gh run watch`, `pnpm record`, yük testi.
@@ -182,7 +183,11 @@ Sıra: 1–4 commit'ten önce yapılır ve aynı commit'e girer. 5 commit'ten so
 | `pnpm changelog` · `pnpm changelog:check` | CHANGELOG.md üretir · sürüm ve changelog tutarlılığını denetler |
 | `pnpm stats` | Satır sayısı |
 | `pnpm backup` | Temiz zip yedek |
+| `pnpm test:scripts` | Script testleri (deploy script'i: stub Dokploy, sahte saat) |
+| `pnpm deploy:dokploy` | Yalnızca CI (`release`/`rollback` işleri) çalıştırır; yerelde çalıştırılmaz (canlı çağrı) |
 
 Yerel üretim denemesi: `docker compose -p hy-localprod -f docker-compose.yml -f docker-compose.build.yml --env-file .env.example up -d --build --wait --wait-timeout 300` (sonra aynı komutla `down -v`).
+
+Yayın ve geri alma: `docs/DEPLOY_DOKPLOY.md` (kurulum bir kez), `gh workflow run rollback.yml -f sha=<7>` (geri alma).
 
 Sonraki kilometre taşları bu tabloya kendi komutlarını ekler: `dev:replay`, `test:e2e`, `db:migrate`, `db:seed`, `smoke:live`, `record`, `coverage:report`, `coverage:probe`.

@@ -6,7 +6,7 @@ on:
     branches: [main]
 
 # PR çalışmaları yeni commit gelince iptal edilir; main çalışmaları iptal edilmez
-# (M1b'de buradan çağrılacak deploy işi yarıda kesilmesin diye).
+# (buradan çağrılan deploy işi yarıda kesilmesin diye).
 concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
@@ -18,6 +18,18 @@ env:
   EXTERNAL_PROVIDERS_DISABLED: 'true'
 
 jobs:
+  actionlint:
+    name: actionlint
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+      - name: Lint workflows
+        run: >-
+          docker run --rm -v "$PWD:/repo" -w /repo
+          rhysd/actionlint:1.7.12@sha256:b1934ee5f1c509618f2508e6eb47ee0d3520686341fec936f3b79331f9315667
+          -color
+
   checks:
     name: checks
     runs-on: ubuntu-latest
@@ -42,6 +54,8 @@ jobs:
         run: pnpm run typecheck:scripts
       - name: Compose guard
         run: pnpm run compose:guard
+      - name: Deploy script tests (stub Dokploy, fake clock)
+        run: pnpm run test:scripts
       - name: Lint, typecheck, test, build
         run: pnpm exec turbo run lint typecheck test build
 
@@ -64,3 +78,17 @@ jobs:
       - name: Service logs on failure
         if: failure()
         run: docker compose -f docker-compose.dev.yml logs --tail 200
+
+  # main'e her push'ta ve bütün kontroller yeşilken. "Yalnızca belge değişti" kararı burada değil,
+  # release işinde canlıdaki sürüme göre verilir; son push'a göre verilseydi, arkasından belge
+  # birleşmesi gelen bir kod birleşmesi hiç yayınlanmazdı (D-064). Dokploy kurulumu bitene kadar
+  # (DEPLOY_ENABLED) imajlar derlenir, yayın adımı özetle atlanır.
+  deploy:
+    name: deploy
+    needs: [checks, test-integration, actionlint]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    permissions:
+      contents: read
+      packages: write
+    uses: ./.github/workflows/deploy.yml
+    secrets: inherit

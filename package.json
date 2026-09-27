@@ -1,6 +1,6 @@
 {
   "name": "havayolu",
-  "version": "0.3.2",
+  "version": "0.4.0",
   "private": true,
   "license": "MIT",
   "type": "module",
@@ -16,7 +16,9 @@
     "test": "turbo run test",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "ci:local": "pnpm run format:check && pnpm run check:eol && pnpm run changelog:check && pnpm run typecheck:scripts && turbo run lint typecheck test build",
+    "ci:local": "pnpm run format:check && pnpm run check:eol && pnpm run changelog:check && pnpm run typecheck:scripts && pnpm run test:scripts && turbo run lint typecheck test build",
+    "test:scripts": "vitest run --config scripts/vitest.config.mts",
+    "deploy:dokploy": "tsx scripts/deploy-dokploy.mts",
     "changelog": "tsx scripts/changelog.mts",
     "changelog:check": "tsx scripts/changelog.mts --check",
     "stats": "tsx scripts/stats.mts",
@@ -39,6 +41,7 @@
     "tsx": "4.23.15",
     "turbo": "2.11.3",
     "typescript": "6.0.3",
-    "typescript-eslint": "8.70.1"
+    "typescript-eslint": "8.70.1",
+    "vitest": "5.0.1"
   }
 }

@@ -11,12 +11,12 @@ import { buildApp } from './app'
 import { RedisSessionStore, SESSION_TTL_SECONDS } from './auth/session-store'
 import { ADMIN_EMAIL, ADMIN_SETUP_TOKEN, fakeProbes, testEnv } from './test/helpers'
 
-// Yerelde docker-compose.dev.yml (55432, 56379, 56380), CI'da servis konteynerleri.
+// Yerelde docker-compose.dev.yml (45432, 46379, 46380), CI'da servis konteynerleri.
 const DATABASE_URL =
-  process.env.TEST_DATABASE_URL ?? 'postgres://havayolu:havayolu_dev_only@localhost:55432/postgres'
+  process.env.TEST_DATABASE_URL ?? 'postgres://havayolu:havayolu_dev_only@localhost:45432/postgres'
 const REDIS_QUEUE_URL =
-  process.env.TEST_REDIS_QUEUE_URL ?? 'redis://:queue_dev_only@localhost:56379/1'
-const REDIS_LIVE_URL = process.env.TEST_REDIS_LIVE_URL ?? 'redis://:live_dev_only@localhost:56380/1'
+  process.env.TEST_REDIS_QUEUE_URL ?? 'redis://:queue_dev_only@localhost:46379/1'
+const REDIS_LIVE_URL = process.env.TEST_REDIS_LIVE_URL ?? 'redis://:live_dev_only@localhost:46380/1'
 
 const database = createDb(DATABASE_URL, { max: 2 })
 const redisQueue = createRedis(REDIS_QUEUE_URL, { name: 'test-queue' })

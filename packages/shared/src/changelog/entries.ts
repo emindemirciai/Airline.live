@@ -7,6 +7,28 @@ import type { ChangelogEntry } from './types'
  */
 export const CHANGELOG: readonly ChangelogEntry[] = [
   {
+    version: '0.4.0',
+    date: '2026-09-26',
+    title: {
+      tr: 'Otomatik ve doğrulanan yayın hattı',
+      en: 'Automatic, verified release pipeline',
+    },
+    items: [
+      {
+        tr: 'Onaylanan her değişiklik testlerden geçtikten sonra kendiliğinden yayına çıkacak: uygulama derlenir, sunucuya gönderilir ve yeni sürümün gerçekten açıldığı kontrol edilir. Açılmazsa yayın başarısız sayılır ve haber verilir.',
+        en: 'Every approved change will go live on its own once the tests pass: the app is built, sent to the server, and the new version is checked to be actually running. If it is not, the release is marked failed and reported.',
+      },
+      {
+        tr: 'Bir sorun olursa önceki sürüme tek komutla dönülebiliyor; veriler korunuyor.',
+        en: 'If something goes wrong, the previous version can be restored with a single command; data is kept.',
+      },
+      {
+        tr: 'Sunucu kurulum rehberi hazır. Kurulum tamamlanınca havayolu.live yayına açılacak.',
+        en: 'The server setup guide is ready. havayolu.live goes live once the setup is done.',
+      },
+    ],
+  },
+  {
     version: '0.3.2',
     date: '2026-09-25',
     title: {
