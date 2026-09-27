@@ -8,6 +8,20 @@
 
 ---
 
+## v0.5.2 — 2026-09-27
+
+### Türkçe
+**Onaylanan her değişiklik kendiliğinden yayında**
+
+- Yeni sürüm hazırlanır hazırlanmaz Dokploy’un otomatik yayını tetikleniyor; önceki sürümün yanlışlıkla yeniden yayınlanması bitti. Yayından sonra sitenin yeni sürümle açıldığı yine kontrol ediliyor.
+
+### English
+**Every approved change goes live on its own**
+
+- Dokploy’s automatic deploy now starts as soon as the new version is ready, so the previous version is no longer redeployed by mistake. After each release the site is still checked to be running the new version.
+
+---
+
 ## v0.5.1 — 2026-09-27
 
 ### Türkçe

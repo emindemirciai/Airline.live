@@ -4,9 +4,10 @@ name: Deploy
 # Sözleşme: docs/spec/infra.md → deploy.yml ve D-064.
 # - build: üç imaj paralel derlenir ve yalnızca sha-<7> etiketiyle GHCR'a gönderilir.
 # - release: seri çalışır (deploy-prod). Commit hâlâ main'in ucundaysa :main etiketini bu derlemeye
-#   taşır, Dokploy'u tetikler ve /version + /ready ile doğrular. Canlıdan bu yana yalnızca belge ya
-#   da mobil uygulama değiştiyse Dokploy tetiklenmez. DEPLOY_ENABLED=true olana kadar yayın adımı
-#   özetle atlanır ve iş yeşil kalır.
+#   taşır, sonra release dalına bu commit'in ağacıyla bir yayın commit'i gönderir; Dokploy'un
+#   Autodeploy'u o dalı izler ve yayını başlatır (D-070). Ardından /version + /ready ile doğrular.
+#   Canlıdan bu yana yalnızca belge ya da mobil uygulama değiştiyse dala bir şey gönderilmez.
+#   DEPLOY_ENABLED=true olana kadar yayın adımı özetle atlanır ve iş yeşil kalır.
 on:
   workflow_call:
     inputs:
@@ -32,6 +33,9 @@ jobs:
   build:
     name: build (${{ matrix.app }})
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
     timeout-minutes: 30
     strategy:
       fail-fast: true
@@ -74,6 +78,10 @@ jobs:
     needs: build
     if: ${{ !inputs.dry_run }}
     runs-on: ubuntu-latest
+    # contents: write: release dalına yayın commit'i gönderilir (main'e dokunulmaz).
+    permissions:
+      contents: write
+      packages: write
     timeout-minutes: 40
     # Yayınlar (ve rollback.yml) sırayla çalışır; yarıda kesilmez.
     concurrency:
@@ -131,10 +139,13 @@ jobs:
           cache: pnpm
       - if: steps.head.outputs.latest == 'true'
         run: pnpm install --frozen-lockfile
-      - name: Deploy to Dokploy and verify
+      - name: Deploy (release branch → Dokploy Autodeploy) and verify
         if: steps.head.outputs.latest == 'true'
         env:
           DEPLOY_ENABLED: ${{ vars.DEPLOY_ENABLED }}
+          # Boşsa: dal tetiği, dal adı release (D-070). api seçilirse aşağıdaki Dokploy sırları gerekir.
+          DEPLOY_TRIGGER: ${{ vars.DEPLOY_TRIGGER }}
+          DEPLOY_BRANCH: ${{ vars.DEPLOY_BRANCH }}
           DOKPLOY_URL: ${{ secrets.DOKPLOY_URL }}
           DOKPLOY_API_TOKEN: ${{ secrets.DOKPLOY_API_TOKEN }}
           DOKPLOY_COMPOSE_ID: ${{ secrets.DOKPLOY_COMPOSE_ID }}

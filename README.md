@@ -2,7 +2,7 @@
 
 **[Türkçe](#türkçe) · [English](#english)**
 
-![sürüm](https://img.shields.io/badge/s%C3%BCr%C3%BCm-v0.5.1-blue) ![lisans](https://img.shields.io/badge/lisans-MIT-green) ![durum](https://img.shields.io/badge/durum-geli%C5%9Ftirme-yellow)
+![sürüm](https://img.shields.io/badge/s%C3%BCr%C3%BCm-v0.5.2-blue) ![lisans](https://img.shields.io/badge/lisans-MIT-green) ![durum](https://img.shields.io/badge/durum-geli%C5%9Ftirme-yellow)
 
 ---
 
@@ -14,7 +14,7 @@ Türkiye odaklı sivil havacılık uçuş takip platformu. Canlı harita, uçuş
 
 > **Bilinen sınır:** Kendi ADS-B alıcımız olmadığı için İstanbul Havalimanı'nda iniş anı çoğunlukla doğrudan görülmez. İniş bildirimi çoğu uçuşta "muhtemelen indi (tahmini saat)" olarak ve son sinyalden 1–1,5 dk sonra gelir. Bazı uçuşlarda yalnızca "iniş verisi alınamadı" denebilir.
 
-### Durum — v0.5.1
+### Durum — v0.5.2
 | Alan | Durum |
 |---|---|
 | Yol haritası, veri kaynakları, mimari | ✅ Hazır ve doğrulandı |
@@ -89,7 +89,7 @@ A Türkiye-focused civil aviation flight tracker. It offers a live map and lets 
 
 > **Known limitation:** Without our own ADS-B receiver, the moment of touchdown at Istanbul Airport is usually not observed directly. For most flights the landing alert says "probably landed (estimated time)" and arrives 1–1.5 minutes after the last signal. For some flights it can only say "landing data unavailable".
 
-### Status — v0.5.1
+### Status — v0.5.2
 | Area | Status |
 |---|---|
 | Roadmap, data sources, architecture | ✅ Done and verified |
