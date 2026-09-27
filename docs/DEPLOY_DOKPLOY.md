@@ -81,7 +81,7 @@ Kurulum bitene kadar CI yeşil kalır: imajlar derlenir, yayın adımı "YAYINLA
    - Bu değer GitHub'daki `DOKPLOY_COMPOSE_ID` olacak.
 
 ## 4. GHCR erişimi (Registry) — şu an gerekmiyor
-Repo herkese açık olduğu için GHCR imajları da herkese açıktır ve Dokploy onları girişsiz çeker (2026-09-27 doğrulandı, D-066). Bu adım yalnızca paketler ileride gizliye çevrilirse uygulanır:
+GHCR paketleri şu an herkese açıktır ve Dokploy onları girişsiz çeker (2026-09-27 doğrulandı). Paket görünürlüğü repodan bağımsızdır: repo gizli yapıldığında paketler herkese açık kaldı. İmajlar derlenmiş kodu ve kaynak haritalarını içerir; kodu gizlemek istersen paketleri gizli yap (github.com → Packages → paket → Package settings → Change visibility) ve **aynı anda** bu adımı uygula, yoksa Dokploy imaj çekemez (D-068):
 
 1. **PAT oluştur:** github.com → Settings → Developer settings → Personal access tokens → **Tokens (classic)**.
    - Yalnızca `read:packages` yetkisi yeterli.
@@ -166,7 +166,7 @@ gh variable set API_URL --repo emindemirciai/havayolu --body https://api.havayol
 gh variable set DEPLOY_ENABLED --repo emindemirciai/havayolu --body false
 ```
 
-Repo herkese açıktır; fork'tan gelen PR'lara secrets verilmez, yayın yalnızca `main`'de çalışır (D-061).
+Repo gizlidir (D-068); secrets yalnızca bu repodaki iş akışlarına verilir, yayın yalnızca `main`'de çalışır.
 
 ## 10. Deneme ve ilk yayın
 1. **Deneme derlemesi:** Yalnızca `sha-<7>` etiketli imajları derler ve gönderir, yayınlamaz:

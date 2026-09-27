@@ -10,7 +10,7 @@
 
 Türkiye odaklı sivil havacılık uçuş takip platformu. Canlı harita, uçuş, uçak ve istasyon takibi sunar. Uçak istasyona yaklaşınca (varsayılan 10 km) ve indiğinde bildirim gönderir. Önce web (PWA) gelir, ardından iOS ve Android uygulaması (Expo).
 
-> **havayolu** · [havayolu.live](https://havayolu.live) — yönetim: `admin.havayolu.live`, API: `api.havayolu.live`, analiz: `analiz.havayolu.live` (yayın Parça 1 · M1b ile başlıyor).
+> **havayolu** · [havayolu.live](https://havayolu.live) — yönetim: `admin.havayolu.live`, API: `api.havayolu.live`, analiz: `analiz.havayolu.live` (yayında, 2026-09-27).
 
 > **Bilinen sınır:** Kendi ADS-B alıcımız olmadığı için İstanbul Havalimanı'nda iniş anı çoğunlukla doğrudan görülmez. İniş bildirimi çoğu uçuşta "muhtemelen indi (tahmini saat)" olarak ve son sinyalden 1–1,5 dk sonra gelir. Bazı uçuşlarda yalnızca "iniş verisi alınamadı" denebilir.
 
@@ -21,7 +21,8 @@ Türkiye odaklı sivil havacılık uçuş takip platformu. Canlı harita, uçuş
 | Yerel test ortamı, Durum ve Yenilikler sayfaları | ✅ Parça 1 · M0 |
 | Bütün servisler, yönetim paneli (Servisler ekranı), onaylı analiz | ✅ Parça 1 · M1a |
 | Marka ve alan adı: havayolu · havayolu.live (DNS kayıtları girildi) | ✅ v0.3.1 |
-| Güvenlik sertleştirmesi (ziyaretçi başına giriş sınırı, Redis kesintisine dayanıklılık), açık kaynak repo, korumalı `main` | ✅ v0.3.2 |
+| Güvenlik sertleştirmesi (ziyaretçi başına giriş sınırı, Redis kesintisine dayanıklılık) | ✅ v0.3.2 |
+| Canlı yayın: havayolu.live, api., admin. (Dokploy, Let's Encrypt) | ✅ 2026-09-27 |
 | Otomatik yayın hattı (GitHub Actions → GHCR → Dokploy), doğrulama ve geri alma | ✅ Parça 1 · M1b, sunucu kurulumu sürüyor ([rehber](docs/DEPLOY_DOKPLOY.md)) |
 | Veritabanı: havalimanı, pist (eşikler dahil) ve havayolu verisi, günlük güncelleme, iz tabloları ve bakım işleri | ✅ Parça 1 · M2 |
 | Canlı harita ve arama | ⏳ Parça 1 · M6 |
@@ -84,7 +85,7 @@ Git'te 185 dosya, **14.716 satır**. Bunun 10.032 satırı kod (TypeScript, TSX,
 
 A Türkiye-focused civil aviation flight tracker. It offers a live map and lets you follow flights, aircraft and stations. You get an alert when an aircraft approaches a station (10 km by default) and when it lands. The web app (PWA) comes first, then iOS and Android apps (Expo).
 
-> **havayolu** · [havayolu.live](https://havayolu.live) — admin: `admin.havayolu.live`, API: `api.havayolu.live`, analytics: `analiz.havayolu.live` (going live with Part 1 · M1b).
+> **havayolu** · [havayolu.live](https://havayolu.live) — admin: `admin.havayolu.live`, API: `api.havayolu.live`, analytics: `analiz.havayolu.live` (live since 2026-09-27).
 
 > **Known limitation:** Without our own ADS-B receiver, the moment of touchdown at Istanbul Airport is usually not observed directly. For most flights the landing alert says "probably landed (estimated time)" and arrives 1–1.5 minutes after the last signal. For some flights it can only say "landing data unavailable".
 
@@ -95,7 +96,8 @@ A Türkiye-focused civil aviation flight tracker. It offers a live map and lets 
 | Local test environment, Status and What's new pages | ✅ Part 1 · M0 |
 | All services, admin panel (Services screen), consent-based analytics | ✅ Part 1 · M1a |
 | Brand and domain: havayolu · havayolu.live (DNS records added) | ✅ v0.3.1 |
-| Security hardening (per-visitor sign-in limit, resilience to Redis outages), public repo, protected `main` | ✅ v0.3.2 |
+| Security hardening (per-visitor sign-in limit, resilience to Redis outages) | ✅ v0.3.2 |
+| Live: havayolu.live, api., admin. (Dokploy, Let's Encrypt) | ✅ 2026-09-27 |
 | Automatic release pipeline (GitHub Actions → GHCR → Dokploy), verification and rollback | ✅ Part 1 · M1b, server setup in progress ([guide](docs/DEPLOY_DOKPLOY.md)) |
 | Database: airport, runway (thresholds included) and airline data, daily updates, track tables and maintenance jobs | ✅ Part 1 · M2 |
 | Live map and search | ⏳ Part 1 · M6 |

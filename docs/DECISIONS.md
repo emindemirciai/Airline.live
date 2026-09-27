@@ -3,6 +3,11 @@
 Her karar tarih, gerekçe ve varsa alternatifiyle yazılır. En yeni karar en üsttedir.
 
 ## 2026-09-27 — Parça 1 M2 veritabanı ve referans verisi
+- **D-068 Repo yeniden gizli (kullanıcı kararı; D-061'in yerini alır).** Kullanıcı 2026-09-27'de repoyu gizli yaptı.
+  - Etkiler (GitHub Free): `main-koruma` kural seti kayıtlı ama uygulanmıyor (API 403 "Upgrade to GitHub Pro or make this repository public"). Gizli bilgi taraması ve push koruması yok. Actions ayda 2.000 dakika. Releases yalnızca repo erişimi olanlara görünür.
+  - Kurallar süreçle uygulanır (CLAUDE.md): `main`'e doğrudan push, force push ve dal silme yok; yalnızca PR + merge commit; `checks` ve `test-integration` yeşil olmadan birleştirme yok; commit'ten önce değişiklik sır ve kişisel veri açısından taranır.
+  - GHCR paketleri herkese açık kaldı (paket görünürlüğü repodan bağımsız; 2026-09-27 anonim çekme 200). Dokploy bu yüzden PAT'siz çekiyor. İmajlar derlenmiş kodu ve kaynak haritalarını taşıdığı için kod bu yolla okunabilir. Paketleri gizlemek kullanıcının kararıdır; gizlenirse aynı anda Dokploy'a `read:packages` PAT'li Registry kaydı eklenmelidir (DEPLOY_DOKPLOY.md §4, ACTIVATION).
+  - Alternatifler: GitHub Pro (4 $/ay; gizli repoda kural seti ve dal koruması gelir) ya da yeniden herkese açık repo.
 - **D-067 Her sürüm GitHub Releases'ta yayımlanır (kullanıcı talebi).** Kullanıcı "GitHub'a push'larken sürümü GitHub'a da ver" dedi; repo sayfası "No releases published" gösteriyordu.
   - CI'daki `github-release` işi `main`'e her push'ta, `deploy` işi yeşil bittikten sonra çalışır. Kök `package.json` sürümü için `v<sürüm>` release'i yoksa, o commit'i hedefleyen etiketi ve release'i oluşturur, "latest" yapar. Varsa (ör. sürüm artırmayan belge birleşmesi) bir şey yapmaz.
   - Başlık ve not `packages/shared/src/changelog/entries.ts`'ten gelir (`tsx scripts/changelog.mts --release <sürüm>`; TR + EN). "Dene" bağlantıları `WEB_URL` variable'ıyla mutlak adrese çevrilir; alan adı koda gömülmez.

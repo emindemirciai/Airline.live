@@ -9,7 +9,7 @@ Bu dosya her oturumda otomatik yüklenir; yalnızca her zaman geçerli kurallar�
   - API ve WS `https://api.havayolu.live` (`API_HOST`)
   - admin `https://admin.havayolu.live` (`ADMIN_HOST`)
   - analiz `https://analiz.havayolu.live` (`ANALYZE_URL`; kullanıcının Siteni Analiz Et uygulaması)
-- **GITHUB_REPO:** `emindemirciai/havayolu`. Repo **herkese açık** (kullanıcı kararı, D-061), plan GitHub Free. `main` kural setiyle korunur: silme ve force push yasak, yalnızca PR + merge commit, `checks` ve `test-integration` yeşil olmalı. Gizli bilgi taraması ve push koruması açık. GHCR imaj adları küçük harflidir: `ghcr.io/emindemirciai/havayolu-{web,api,worker}`.
+- **GITHUB_REPO:** `emindemirciai/havayolu`. Repo **gizli** (kullanıcı kararı 2026-09-27, D-068), plan GitHub Free. Bu planda gizli repoda kural seti, dal koruması ve gizli bilgi taraması çalışmaz; aynı kurallar süreçle uygulanır: `main`'e doğrudan push, silme ve force push yok; yalnızca PR + merge commit; `checks` ve `test-integration` yeşil olmadan birleştirme yok; commit'ten önce sır ve kişisel veri taranır. Actions ayda 2.000 dakikadır. GHCR imaj adları küçük harflidir: `ghcr.io/emindemirciai/havayolu-{web,api,worker}`; paketler şu an herkese açıktır (D-068).
 - **Birincil istasyon:** IST (LTFM). Tohum istasyonlar: IST, SAW, ESB, ADB, AYT.
 - **URL şeması:**
   - canlı uçak `/?hex=<hex>`

@@ -74,15 +74,16 @@ Sunucu: Hostinger **KVM 2** (2 vCPU, 8 GB RAM, 100 GB NVMe). Üzerinde Dokploy �
   - DEFAULT varken `DETACH … CONCURRENTLY` kullanılamaz. Süresi dolan partition'lar gece, `lock_timeout=5s` ile `DETACH PARTITION` (CONCURRENTLY olmadan) + `DROP TABLE` komutlarıyla silinir. Kilit alınamazsa jitter'lı yeniden deneme yapılır.
 - **CI testleri:** Temiz DB'de baştan sona migration. Yükseltme testi (`pnpm test:migration-upgrade`): temel commit'teki migration'lar temiz DB'ye, üstüne test edilen commit'inkiler uygulanır; temelde migration yoksa iş başarılı sayılır. Temel CI'da `HEAD^1`'dir (PR'da `main`'in ucu, `main` push'unda bir önceki `main`; checkout `fetch-depth: 2`), yerelde `origin/main`. `main`'de yayınlanmış bir migration'ın içeriği ya da sırası değişmişse test kırmızıdır. Şema ile migration'lar arasında fark olmamalıdır (`pnpm db:check`: `drizzle-kit check` + boş `generate`).
 
-## CI/CD (herkese açık repo, GitHub Free)
-**Kısıtlar ve korumalar (D-061)**
-- Repo herkese açıktır. `main` bir kural setiyle (`main-koruma`) korunur ve kimse bu kuralları atlayamaz:
-  - silme ve force push yasaktır
+## CI/CD (gizli repo, GitHub Free)
+**Kısıtlar ve korumalar (D-068; D-061'in yerini alır)**
+- Repo gizlidir. GitHub Free'de gizli repoda kural seti, dal koruması ve gizli bilgi taraması yoktur (`main-koruma` kural seti kayıtlı ama uygulanmıyor, API 403). Aynı kurallar süreçle uygulanır:
+  - silme ve force push yasaktır; `main`'e doğrudan push yapılmaz
   - değişiklik yalnızca PR ile ve yalnızca merge commit olarak girer
-  - zorunlu kontroller `checks` ve `test-integration` yeşil olmalıdır
-- Gizli bilgi taraması ve push koruması açıktır: sır içeren bir push GitHub'da reddedilir. Bağımlılık güvenlik uyarıları açıktır.
+  - `checks` ve `test-integration` yeşil olmadan birleştirme yapılmaz
+  - commit'ten önce değişiklik sır ve kişisel veri açısından taranır (GitHub push koruması yok)
+- Repo yeniden herkese açılırsa ya da plan Pro'ya çıkarsa kural seti kendiliğinden yeniden devreye girer.
 - Secrets repo düzeyinde tutulur (Settings → Secrets and variables → Actions). Fork'tan gelen PR'lara secrets verilmez; deploy yalnızca `main` push'unda çalışır.
-- Herkese açık repoda Actions dakikası sınırsızdır. Yine de gereksiz iş yapılmaz:
+- Gizli repoda Actions ayda 2.000 dakikadır (Linux). Bir PR + birleşme yaklaşık 40–60 dakika harcar. Gereksiz iş yapılmaz:
   - PR çalışmaları iptal edilebilir
   - imajlar yalnızca `main`'de derlenir
   - e2e yalnızca ilgili dosyalar değişince çalışır
