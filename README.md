@@ -2,7 +2,7 @@
 
 **[Türkçe](#türkçe) · [English](#english)**
 
-![sürüm](https://img.shields.io/badge/s%C3%BCr%C3%BCm-v0.7.1-blue) ![lisans](https://img.shields.io/badge/lisans-MIT-green) ![durum](https://img.shields.io/badge/durum-geli%C5%9Ftirme-yellow)
+![sürüm](https://img.shields.io/badge/s%C3%BCr%C3%BCm-v0.8.0-blue) ![lisans](https://img.shields.io/badge/lisans-MIT-green) ![durum](https://img.shields.io/badge/durum-geli%C5%9Ftirme-yellow)
 
 ---
 
@@ -14,7 +14,7 @@ Türkiye odaklı sivil havacılık uçuş takip platformu. Canlı harita, uçuş
 
 > **Bilinen sınır:** Kendi ADS-B alıcımız olmadığı için İstanbul Havalimanı'nda iniş anı çoğunlukla doğrudan görülmez. İniş bildirimi çoğu uçuşta "muhtemelen indi (tahmini saat)" olarak ve son sinyalden 1–1,5 dk sonra gelir. Bazı uçuşlarda yalnızca "iniş verisi alınamadı" denebilir.
 
-### Durum — v0.7.1
+### Durum — v0.8.0
 | Alan | Durum |
 |---|---|
 | Yol haritası, veri kaynakları, mimari | ✅ Hazır ve doğrulandı |
@@ -28,7 +28,7 @@ Türkiye odaklı sivil havacılık uçuş takip platformu. Canlı harita, uçuş
 | Canlı veri sağlayıcıları (ADSB.lol, kendi alıcı), veri temizliği ve gizlilik kuralları | ✅ Parça 1 · M3 |
 | Canlı veri akışı (ingest): kapsama planı, uyarlanır istek hızı, uçuş kaydı ve iz, sağlık izleme, replay aracı | ✅ Parça 1 · M4 (adsb.lol çekimi [ACTIVATION](docs/ACTIVATION.md) adımlarından sonra açılır) |
 | Harita tasarımı: uydu zemini, metrik birimler, açılıp kapanan uçak etiketleri | ✅ Tasarım (D-072); uygulama Parça 1 · M6 |
-| Canlı API ve WebSocket | ⏳ Parça 1 · M5 |
+| Canlı API ve WebSocket: görünen alan, arama (sefer no, çağrı kodu, tescil, hex), saniyelik farklar, gizlilik ve engel listesi | ✅ Parça 1 · M5 |
 | Canlı harita ve arama | ⏳ Parça 1 · M6 |
 | 10 km ve iniş bildirimi (web push) | ⏳ Parça 2 · M4 |
 | Hesaplar, takip listesi, istasyon operasyon panosu | ⏳ Parça 2B / 3 |
@@ -60,7 +60,7 @@ pnpm dev
 - `docs/DECISIONS.md`: kararlar ve gerekçeleri
 
 ### İstatistik (v0.7.1)
-Git'te 242 dosya, **29.312 satır**. Bunun 24.098 satırı kod (TypeScript, TSX, CSS, JS), 3.113 satırı belgedir. Lockfile, `docs/research/` ve elle yazılmayan veri (fixture CSV ve JSON dosyaları, drizzle şema snapshot'ları) hariç tutulur. Güncel değer için `pnpm stats` çalıştır.
+Git'te 270 dosya, **36.182 satır**. Bunun 30.861 satırı kod (TypeScript, TSX, CSS, JS), 3.207 satırı belgedir. Lockfile, `docs/research/` ve elle yazılmayan veri (fixture CSV ve JSON dosyaları, drizzle şema snapshot'ları) hariç tutulur. Güncel değer için `pnpm stats` çalıştır.
 
 | Alan | Satır |
 |---|---|
@@ -94,7 +94,7 @@ A Türkiye-focused civil aviation flight tracker. It offers a live map and lets 
 
 > **Known limitation:** Without our own ADS-B receiver, the moment of touchdown at Istanbul Airport is usually not observed directly. For most flights the landing alert says "probably landed (estimated time)" and arrives 1–1.5 minutes after the last signal. For some flights it can only say "landing data unavailable".
 
-### Status — v0.7.1
+### Status — v0.8.0
 | Area | Status |
 |---|---|
 | Roadmap, data sources, architecture | ✅ Done and verified |
@@ -108,7 +108,7 @@ A Türkiye-focused civil aviation flight tracker. It offers a live map and lets 
 | Live data providers (ADSB.lol, own receiver), data cleaning and privacy rules | ✅ Part 1 · M3 |
 | Live data ingest: coverage plan, adaptive request rate, flight records and tracks, health monitoring, replay tool | ✅ Part 1 · M4 (adsb.lol fetching starts after the [ACTIVATION](docs/ACTIVATION.md) steps) |
 | Map design: satellite base, metric units, switchable aircraft labels | ✅ Design (D-072); built in Part 1 · M6 |
-| Live API and WebSocket | ⏳ Part 1 · M5 |
+| Live API and WebSocket: visible area, search (flight number, callsign, registration, hex), per-second diffs, privacy and blocklist | ✅ Part 1 · M5 |
 | Live map and search | ⏳ Part 1 · M6 |
 | 10 km and landing alerts (web push) | ⏳ Part 2 · M4 |
 | Accounts, watchlist, station operations board | ⏳ Part 2B / 3 |
@@ -140,7 +140,7 @@ Then open `http://localhost:3100/durum` and `http://localhost:3100/yenilikler`. 
 - `docs/DECISIONS.md`: decisions and rationale
 
 ### Stats (v0.7.1)
-242 files and **29,312 lines** in git: 24,098 lines of code (TypeScript, TSX, CSS, JS) and 3,113 lines of documentation. The lockfile, `docs/research/` and generated data (fixture CSV and JSON files, drizzle schema snapshots) are excluded. Run `pnpm stats` for current numbers.
+270 files and **36,182 lines** in git: 30,861 lines of code (TypeScript, TSX, CSS, JS) and 3,207 lines of documentation. The lockfile, `docs/research/` and generated data (fixture CSV and JSON files, drizzle schema snapshots) are excluded. Run `pnpm stats` for current numbers.
 
 ### License, data and attribution
 - Code is licensed under the [MIT License](LICENSE): © 2026 [emindemirciai](https://github.com/emindemirciai). All copies or substantial portions of the code must include the copyright notice and license text; copying or distributing without them infringes the license and the copyright. The **havayolu** name and logo are not covered by the MIT License; rights reserved. The same notice appears in the page source of the site.

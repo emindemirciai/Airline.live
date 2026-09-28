@@ -1,6 +1,13 @@
 import type { Redis } from 'ioredis'
 import { afterEach, describe, expect, it } from 'vitest'
-import { ADMIN_EMAIL, testApp } from '../test/helpers'
+import { LIVE_RATE_LIMIT, SEARCH_RATE_LIMIT } from '../live/routes'
+import {
+  ADMIN_EMAIL,
+  FakeLiveSource,
+  publicAircraft,
+  testAirlineCodes,
+  testApp,
+} from '../test/helpers'
 import { isCidr, isCloudflareAddress } from './client-ip'
 
 type App = Awaited<ReturnType<typeof testApp>>['app']
@@ -124,6 +131,57 @@ describe('hız sınırı istemci başına tutulur', () => {
     expect(await viaEdge('203.0.113.60')).toBe(429)
     expect(await viaEdge('203.0.113.61')).toBe(401)
   })
+})
+
+describe('canlı uçların (/v1/live, /v1/search) hız sınırı istemci başına', () => {
+  const trusted = { TRUSTED_PROXY_CIDRS: '10.0.0.0/8' }
+  const routes = [
+    { url: '/v1/live?bbox=28,40,29,41', max: LIVE_RATE_LIMIT.max },
+    { url: '/v1/search?q=THY974', max: SEARCH_RATE_LIMIT.max },
+  ]
+  const liveApp = () =>
+    freshApp({
+      env: trusted,
+      deps: { live: { source: new FakeLiveSource([publicAircraft()]), codes: testAirlineCodes } },
+    })
+
+  /** Aynı istemciden `count` istek; durum kodlarını döndürür. */
+  async function burst(
+    app: App,
+    url: string,
+    count: number,
+    remoteAddress: string,
+    xff: (i: number) => string,
+  ) {
+    const codes: number[] = []
+    for (let i = 0; i < count; i++) {
+      const res = await app.inject({
+        method: 'GET',
+        url,
+        remoteAddress,
+        headers: { 'x-forwarded-for': xff(i) },
+      })
+      codes.push(res.statusCode)
+    }
+    return codes
+  }
+
+  for (const { url, max } of routes) {
+    it(`${url.split('?')[0]}: farklı X-Forwarded-For ayrı sayaca düşer (${max}/dk)`, async () => {
+      const app = await liveApp()
+      const first = await burst(app, url, max + 1, '10.0.0.5', () => '203.0.113.1')
+      expect(first.slice(0, max).every((code) => code === 200)).toBe(true)
+      expect(first.at(-1)).toBe(429)
+      // Aynı proxy arkasındaki başka bir ziyaretçi kilitlenmez.
+      expect(await burst(app, url, 1, '10.0.0.5', () => '203.0.113.2')).toEqual([200])
+    })
+
+    it(`${url.split('?')[0]}: güvenilmeyen adresten gelen X-Forwarded-For yok sayılır`, async () => {
+      const app = await liveApp()
+      const codes = await burst(app, url, max + 1, '198.51.100.7', (i) => `203.0.113.${i % 250}`)
+      expect(codes.at(-1)).toBe(429)
+    })
+  }
 })
 
 describe('sistem uçları ve sayaç deposu', () => {

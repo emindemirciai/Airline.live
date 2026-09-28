@@ -2,13 +2,18 @@ import cors from '@fastify/cors'
 import helmet from '@fastify/helmet'
 import rateLimit, { normalizeIP } from '@fastify/rate-limit'
 import swagger from '@fastify/swagger'
+import type { AirlineCodes } from '@havayolu/db'
 import { currentVersion } from '@havayolu/shared'
 import Fastify, { type FastifyInstance } from 'fastify'
 import type { Redis } from 'ioredis'
+import { redisBlocklistStore, registerBlocklistRoutes } from './admin/blocklist'
 import { collectServices, type ServiceProbes } from './admin/services'
 import { registerAuthRoutes, requireAdmin } from './auth/routes'
 import type { SessionStore } from './auth/session-store'
 import type { Env } from './env'
+import { registerLiveRoutes } from './live/routes'
+import type { LiveSource } from './live/types'
+import { registerLiveWs } from './live/ws'
 import { clientIp } from './net/client-ip'
 
 export interface VersionInfo {
@@ -27,6 +32,14 @@ export interface AppDeps {
   probes: Omit<ServiceProbes, 'api'>
   /** Hız limiti sayaçları için redis-queue; yoksa süreç içi sayaç kullanılır. */
   rateLimitRedis: Redis | null
+  /**
+   * Canlı veri (D-074): `source` null ise (redis-live yok) ya da `ready()` false iken (engel
+   * listesi henüz okunmadı, önbellek başlamadı) /v1/live, arama ve WS 503/1013 döner. `ready`
+   * verilmezse kaynak hep hazırdır.
+   */
+  live: { source: LiveSource | null; codes: () => AirlineCodes; ready?: () => boolean }
+  /** Hex engel listesinin deposu (redis-queue); yoksa admin engel listesi uçları 503. */
+  blocklistRedis: Redis | null
 }
 
 /** CORS izinli origin'leri: web ve admin host'ları (yerelde http, diğerlerinde https). */
@@ -82,6 +95,7 @@ export async function buildApp(env: Env, deps: AppDeps): Promise<FastifyInstance
         { name: 'system', description: 'Sağlık ve sürüm' },
         { name: 'auth', description: 'Yönetici oturumu (platform-admin sözleşmesi)' },
         { name: 'admin', description: 'Yönetim' },
+        { name: 'live', description: 'Canlı uçaklar ve arama (WebSocket: /v1/ws)' },
       ],
     },
   })
@@ -145,6 +159,15 @@ export async function buildApp(env: Env, deps: AppDeps): Promise<FastifyInstance
       api: { version: versionInfo.version, gitSha: versionInfo.gitSha, startedAt },
     })
   })
+
+  registerBlocklistRoutes(app, {
+    sessions: store,
+    blocklist: deps.blocklistRedis ? redisBlocklistStore(deps.blocklistRedis) : null,
+  })
+
+  // Canlı veri: REST, arama ve WebSocket aynı önbellekten okur (D-074).
+  registerLiveRoutes(app, deps.live)
+  registerLiveWs(app, { source: deps.live.source, ready: deps.live.ready, env, log: app.log })
 
   return app
 }

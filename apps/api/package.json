@@ -18,7 +18,11 @@
     "@fastify/helmet": "13.1.1",
     "@fastify/rate-limit": "11.2.0",
     "@fastify/swagger": "9.9.0",
+    "@fastify/websocket": "11.3.1",
     "@havayolu/db": "workspace:*",
+    "@havayolu/geo": "workspace:*",
+    "@havayolu/i18n": "workspace:*",
+    "@havayolu/providers": "workspace:*",
     "@havayolu/shared": "workspace:*",
     "fastify": "5.12.5",
     "ioredis": "6.0.0",
@@ -26,9 +30,11 @@
   },
   "devDependencies": {
     "@types/node": "24.x",
+    "@types/ws": "8.18.1",
     "esbuild": "0.28.2",
     "tsx": "4.23.15",
     "typescript": "6.0.3",
-    "vitest": "5.0.1"
+    "vitest": "5.0.1",
+    "ws": "8.22.0"
   }
 }

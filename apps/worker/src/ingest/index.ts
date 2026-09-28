@@ -8,10 +8,13 @@ import {
   loadTrailingGroundStart,
   recordProviderStatusChange,
   sweepLive,
+  writeConfiguredProviders,
+  writeCoverage,
   writeLiveUpdates,
   writeProviderHealth,
   writeProviderLive,
   writeRegionFreshness,
+  type CoverageCircle,
   type Database,
   type ProviderHealthSnapshot,
   type ProviderHourlyCounters,
@@ -76,7 +79,8 @@ import { isDataError, TrackWriter } from './writer'
  * - yerel alıcı: her alıcı kendi döngüsünde saniyede bir
  * - tik: birincil tazelik örneği, canlı süpürme, bellek budama, eski uçuşların kapatılması
  * - yazma: iz ve uçuş tamponu (1,5 sn)
- * - sağlık: `redis-live`'a her tur, veritabanına dakikada bir ve durum değişince
+ * - sağlık: `redis-live`'a her tur (sağlayıcı durumu, bölge tazeliği, kapsama planı), veritabanına
+ *   dakikada bir ve durum değişince
  *
  * Örnek işleme tek sıradadır (iki kaynak aynı hex için aynı anda kayıt açamaz). `redis-live`
  * yazımları bu sırayı ve döngüleri beklemez (`LiveWriter`, `LIVE_WRITE_TIMEOUT_MS`): anlık durum
@@ -312,6 +316,20 @@ export function watchNeed(
   return { hexes: needs.map((n) => n.hex), dueAt: needs[0]?.dueAt ?? null }
 }
 
+/**
+ * Kapsama planının `redis-live`'a yazılan biçimi (D-074): API `/v1/live`'ın kapsamasını
+ * (`full | partial | none | unknown`) bu çemberlerle hesaplar.
+ */
+export function coverageCircles(plan: readonly PlannedCircle[]): CoverageCircle[] {
+  return plan.map((c) => ({
+    id: c.id,
+    kind: c.kind,
+    lat: c.center.lat,
+    lon: c.center.lon,
+    radiusNm: c.radiusNm,
+  }))
+}
+
 export function trackRow(flightId: number, s: AircraftState): TrackPointRow {
   return {
     flightId,
@@ -503,6 +521,8 @@ export async function startIngest(deps: IngestDeps): Promise<IngestHandle> {
   let stationByIcao = new Map<string, StationArp>()
   let primaryIcao: string | null = null
   let scheduler: RequestScheduler | null = null
+  /** Güncel planın çemberleri; istasyon yokken boştur (API'de kapsama `none`). */
+  let coverage: CoverageCircle[] = []
   let fineCtx: FineContext = { stations: [], watch }
   let stationsKey: string | null = null
   let stationsLoadedAt = now()
@@ -521,6 +541,7 @@ export async function startIngest(deps: IngestDeps): Promise<IngestHandle> {
     }
     if (list.length === 0) {
       scheduler = null
+      coverage = []
       log.warn(
         { retrySec: STATIONS_RETRY_MS / 1000 },
         'no active station with an airport reference yet; adsb.lol waits for the reference import',
@@ -530,6 +551,7 @@ export async function startIngest(deps: IngestDeps): Promise<IngestHandle> {
     // Zamanlayıcı plan değişince yeniden kurulur (durum taşımaz; ilk turda birincil öne geçer).
     const plan = coveragePlan(list)
     scheduler = new RequestScheduler(plan)
+    coverage = coverageCircles(plan)
     log.info(
       {
         stations: list.map((s) => s.icao),
@@ -1154,6 +1176,7 @@ export async function startIngest(deps: IngestDeps): Promise<IngestHandle> {
     const t = now()
     const list = views(t)
     const regions = Object.fromEntries(regionTimes)
+    const circles = coverage
     await Promise.all([
       ...list.map((view) =>
         liveCall(
@@ -1168,6 +1191,18 @@ export async function startIngest(deps: IngestDeps): Promise<IngestHandle> {
             writeRegionFreshness(redis, regions),
           )
         : Promise.resolve(),
+      // Kapsama planı her turda yazılır (TTL 600 sn): worker durursa API `unknown` gösterir.
+      liveCall('coverage', { circles: circles.length }, 'coverage plan could not be written', () =>
+        writeCoverage(redis, circles),
+      ),
+      // Yapılandırılmış sağlayıcılar uzun TTL ile: API, worker çökükken yeniden başlasa da onları
+      // kayıt yokken "down" gösterir (D-074).
+      liveCall('providers', {}, 'configured providers could not be written', () =>
+        writeConfiguredProviders(
+          redis,
+          list.map((v) => v.id),
+        ),
+      ),
     ])
     for (const view of list) {
       const previous = lastStatus.get(view.id) ?? null

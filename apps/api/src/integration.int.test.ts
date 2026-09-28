@@ -1,6 +1,7 @@
 import {
   createDb,
   createRedis,
+  EMPTY_AIRLINE_CODES,
   pingDb,
   pingRedis,
   readHeartbeats,
@@ -64,6 +65,8 @@ describe('gerçek bağımlılıklarla', () => {
       },
       probes: fakeProbes(),
       rateLimitRedis: redisQueue,
+      live: { source: null, codes: () => EMPTY_AIRLINE_CODES },
+      blocklistRedis: null,
     })
     try {
       const ready = await app.inject({ method: 'GET', url: '/ready' })
