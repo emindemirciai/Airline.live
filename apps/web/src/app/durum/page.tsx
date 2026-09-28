@@ -1,5 +1,5 @@
 import { format, getMessages } from '@havayolu/i18n'
-import { currentVersion, pickText, roadmapProgress, ROADMAP } from '@havayolu/shared'
+import { currentVersion, pickText, roadmapProgress, ROADMAP, shortSha } from '@havayolu/shared'
 import type { Metadata } from 'next'
 import { connection } from 'next/server'
 import { fetchApiStatus } from '@/lib/api-status'
@@ -35,7 +35,9 @@ export default async function StatusPage() {
         </div>
         <div>
           <dt>{t.build}</dt>
-          <dd className="mono">{env.GIT_SHA}</dd>
+          <dd className="mono" title={env.GIT_SHA}>
+            {shortSha(env.GIT_SHA)}
+          </dd>
         </div>
         <div>
           <dt>{t.environment}</dt>
@@ -54,8 +56,8 @@ export default async function StatusPage() {
         {api.reachable ? (
           <div>
             <dt>{t.apiVersion}</dt>
-            <dd className="mono">
-              v{api.version} · {api.gitSha}
+            <dd className="mono" title={api.gitSha}>
+              v{api.version} · {shortSha(api.gitSha)}
             </dd>
           </div>
         ) : null}
