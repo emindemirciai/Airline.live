@@ -2,6 +2,73 @@
 
 Her karar tarih, gerekçe ve varsa alternatifiyle yazılır. En yeni karar en üsttedir.
 
+## 2026-09-28 — Parça 1 M4 ingest; metrik birimler ve harita etiketleri
+- **D-073 Ingest'in spec'te açık kalan ayrıntıları.** Spec'in (data-sources.md §1, parca-1.md M4) sayı vermediği yerlerde standart ve güvenli seçenek alındı.
+  - **Hız kovası (adsb.lol):**
+    - Kapasite 1 jetondur, patlama yoktur: araştırmada 15 isteklik patlama 5. istekte 429 aldı.
+    - `ADSBLOL_RPS` 0,05–0,2 dışındaysa env hatasıdır; sessizce kırpılmaz.
+    - **429/420:** Hız yarıya iner (alt sınır 0,05). Bekleme: Retry-After varsa o, yoksa tam jitter'lı üstel merdiven (15, 30, 60, 120, 240, 300 sn). Kovanın kendi aralığı (1/hız) da korunur.
+    - **Toparlanma:** Temiz 10 dk, 429/420/5xx/ağ hatası olmayan 10 dk demektir. Her temiz 10 dk'da hız %10 artar, üst sınır 0,2'dir. Her hata sayacı sıfırlar.
+    - **Devre kesici:** 5xx, ağ ve bozuk yanıt 5 kez üst üste gelirse devre 60 sn açılır. Sonra yarı açık tek deneme yapılır; o da başarısızsa süre ikiye katlanır (en fazla 10 dk).
+    - **401/403:** Devre `config` durumunda kalıcı açılır ve süreç yeniden başlayana kadar istek atılmaz. E-posta uyarısı SMTP gelince (Parça 2) bağlanır; o zamana kadar durum admin Servisler panelinde "Çalışmıyor" görünür ve log `error` yazar. RUNBOOK'ta adımı vardır.
+  - **Durum hesabı** (data-sources.md tanımı):
+    - `down`, `degraded`'dan önce gelir.
+    - Hata oranının paydası son 60 sn'deki bütün isteklerdir; payı 429/420/5xx'tir.
+    - **Tazelik:** Bir bölgenin veri zamanı, onu kapsayan son başarılı çekimdeki uçakların medyan `sampleTime`'ıdır; bölgede uçak yoksa yanıtın `now` değeri kullanılır. Birincil istasyonun yaşı saniyede bir örneklenir ve p95 son 5 dk üzerinden hesaplanır.
+  - **Kapsama ve zamanlayıcı:**
+    - P0 çemberlerini içeren batı çemberi, sığmayan istasyonlar için ayrı çember, birincil istasyon için ARP merkezli 40 NM çember ve her zaman Doğu çemberi.
+    - Her slotta, kaçırılmak üzere olan hedefler arasından en önemlisi seçilir (erken son tarih). Hedefler: birincil 20 sn, takip listesi 30 sn, diğer istasyonlar 30 sn, Doğu 90 sn. Önem sırası data-sources.md'deki gibidir: önce Doğu, sonra diğer istasyonlar düşer.
+    - **Takip listesi:** Uçağın son konumu 30 sn hedefli bir çemberin içindeyse, o çember son 30 sn'de çekildiyse ve uçak o yanıtta geldiyse `/v2/hex` atılmaz. Kapsama dışındaki, kapsayan çemberin son yanıtında gelmeyen ya da hiç görülmeyen uçaklar toplu `/v2/hex` ile istenir.
+    - **Takip işinin son tarihi:** son örnek ile son `/v2/hex` isteğinin büyüğü + 30 sn. Uçak susunca son tarih geçmişte donmaz; `/v2/hex` 30 sn'de en çok bir kez atılır.
+    - **Eşit önem:** Eşit önemli işlerde son tarihini hâlâ tutturabilecek olan, kaçırmış olandan önce gelir.
+    - **Kalıcı kapsama dışı:** Kapsama dışında kalan ya da hiç görülmeyen bir takip uçağı 0,1 istek/sn'de boş slotları alır. Doğu çemberi bu sürede düşer; önem sırası gereği buna izin verilir.
+    - P3 kapalıdır.
+  - **Yerel alıcı:** 1 sn'de bir okunur. Hız kovası yoktur; adsb.lol'den bağımsızdır. CONTACT_EMAIL olmadan da çalışır: dış istek değildir ve replay bu yoldan gelir.
+  - **Birleştirme:** Hex başına yalnızca daha yeni `sampleTime` kabul edilir; eşit zaman aynı örnektir, bir kez yazılır. Bayrağı `null` gelen örnek, aynı hex'in son 24 saatte bilinen bayrağını taşır (D-071).
+  - **Canlı durum (`redis-live`):** Anahtarlar projenin `hy:` önekini taşır:
+    - `hy:ac:{hex}` hash'i: `d` alanında `AircraftState` JSON'u, `t` alanında `sampleTime`; TTL 120 sn
+    - `hy:ac:geo` (GEO) ve `hy:ac:seen` (son görülme zaman kümesi); süpürme bu kümeyle yapılır
+    - `hy:ac:updates` stream'i, `MAXLEN ~ 50000`
+    - `hy:ac:batch` pub/sub
+    - `hy:provider:{id}` sağlayıcı anlık durumu
+    - `hy:ingest:regions` bölge tazeliği
+
+    İndeks anahtarlarına her turda 600 sn TTL verilir. `volatile-ttl` bellek dolunca onları da atabilir; sonraki tur yeniden kurar.
+  - **Uçuş kaydı:**
+    - Yeni kayıt: 30 dk'dan uzun boşluk ya da iki dolu çağrı kodu arasında değişim. Çağrı kodunun boşalıp dolması yeni kayıt değildir.
+    - **Yerde 20 dk:** Önceki kayıt kapanır ve yeni kayıt yer beklemesinin 20. dakikasında başlar. Aynı yer beklemesinde ikinci kez bölünmez; park eden uçak saatte üç kayıt üretmez.
+    - Durum bellekte tutulur. Açılışta son 30 dk'da görülen `active` kayıtlar yüklenir, daha eskileri `ended` yapılır.
+    - **Açılışta yer bekleme durumu:** Kaydın `track_points_sampled` satırlarının sonundaki yerde dizisinden kurtarılır (`loadTrailingGroundStart`). Kayıt yerde başladıysa ya da bekleme 20 dk'yı aştıysa bölünme yapılmış sayılır. Bu yüzden yeniden başlatma fazladan kayıt üretmez. Kalan sınır: yeniden başlatmadan 20 dk'dan kısa süre önce yerde başlayan kayıt bölünmüş sayılır ve o bekleme bir kez bölünmeyebilir.
+  - **İz örnekleme:**
+    - `track_points_sampled`: uçuş kaydı başına 30 sn'de bir örnek.
+    - `track_points_fine`, geçici kural: herhangi bir etkin istasyonun ARP'ına ≤ 30 km ve (yerde ya da `alt_baro − alan yüksekliği < 10.000 ft`), ya da takip listesinde. Alan yüksekliği yoksa 0 alınır; irtifası bilinmeyen havadaki uçak yazılmaz.
+    - Yerde son yazılan noktadan 20 m'den az kıpırdayan örnek iki tabloya da yazılmaz.
+    - Yazma 1,5 sn'de bir, `ON CONFLICT DO NOTHING` ile yapılır. Açılışta partition'lar `ensureTrackPartitions` ile garanti edilir.
+  - **Kaynak kodu:** `track_points.source = sağlayıcı (adsbLol 0, localReceiver 1) × 16 + PositionSource sırası`.
+  - **Sağlık kaydı:**
+    - `provider_health`: rps, devre, bekleme sonu, tazelik p95, 60 sn hata oranı sütunları eklendi.
+    - `provider_health_hourly`: saatlik sayaçlar; M7'de 24 saatlik 429 oranı buradan hesaplanır. Admin'deki "1 sa" ve "24 sa" oranları pencere başlangıcını içeren saat kovasını da sayar: saat başında oran kaybolmaz, "1 sa" 1–2 saati kapsar.
+    - `provider_status_changes`: durum geçişleri.
+    - DB'ye dakikada bir ve durum değişince yazılır; `redis-live`'a her turda yazılır.
+  - **Araçlar:** `tools/` artık `@havayolu/tools` workspace paketidir; lint, tip ve test kapsamına girer. Uygulamalar ona bağımlı olmadığından imaja girmez. Replay alıcısı ve `pnpm dev:replay` `APP_ENV=production`'da başlamaz. Replay yanıtının `now` değeri sunulduğu anın saatidir, çünkü ayrıştırıcı 60 sn'den fazla kayan yanıtı reddeder. Replay portu 4300'dür (`REPLAY_RECEIVER_PORT`).
+  - **Loglar:** Yeni ingest logları İngilizce ve ASCII'dir (CLAUDE.md). Her tur `debug`, dakikalık özet `info` yazılır. Tekrarlayan uyarılar tür başına dakikada birle sınırlıdır. adsb.lol hata logu yalnızca tür, durum kodu ve çember kimliğini taşır; adres, e-posta ve anahtar yazılmaz.
+  - **Çalışma düzeni:**
+    - **Sıra:** Gelen veri önce Redis'e, sonra uçuş kaydı ve ize yazılır; Postgres yavaşlasa da canlı durum güncel kalır.
+    - **`redis-live` işlemeyi bekletmez:** Canlı yazım beklenmeden kuyruğa alınır. Aynı anda tek yazım yolda olur, biriken örnekler hex başına en yenisiyle birleşir, her yazım en çok 1 sn beklenir. İstemci `enableOfflineQueue=false` ve `commandTimeout=2000` ile kurulur; Redis kesintisi DB'ye yazımı ve adsb.lol çekimini yavaşlatmaz.
+    - **Yerel alıcılar:** Her alıcının kendi döngüsü vardır; yanıt vermeyen biri diğerini yavaşlatmaz.
+    - **Bozuk veri:** DB sınırında temizlenir: int4 ve float4 aralığı dışındaki sayı null yazılır, metinden NUL ve eşsiz vekil karakter çıkarılır. Biçimi bozuk hex (`~?[0-9a-f]{6}` dışı) hiç işlenmez. Yazıcı veri hatasını (SQLSTATE 22/23) geçici hatadan ayırır: veri hatasında parçayı ikiye bölerek yalnızca bozuk satırı atar, sayar, tekrar kuyruğa almaz. Uçuş kaydı açmadaki veri hatası diğer uçakları 10 sn bekletmez.
+    - **Tek işleme kuyruğu:** Bütün kaynaklar tek kuyruktan geçer; iki kaynak aynı hex için iki kayıt açamaz.
+    - **DB kesintisi:** Uçuş kaydı açılamazsa yeni kayıt denemeleri 10 sn durur, böylece DB kesintisi işlemeyi kilitlemez. İz yazıcı en çok 50.000 satır tutar, fazlasında en eskiyi atar ve sayar.
+    - **İstasyon listesi:** Liste boşken 60 sn'de, doluyken 10 dk'da bir yeniden okunur; değişirse plan yeniden kurulur.
+    - **Sağlık satırları:** Açılışta bu süreçte yapılandırılmamış sağlayıcıların `provider_health` satırı silinir. Admin 180 sn'den eski satırı "Çalışmıyor" gösterir; bu yüzden her yapılandırılmış sağlayıcının satırı devre açıkken de dakikada bir yazılır.
+    - **Admin'deki hata metni:** Sabit kısa Türkçe metinlerden gelir (ör. "HTTP 429 (kısıtlama)", "CONTACT_EMAIL tanımlı değil"); ham hata metni gösterilmez.
+    - **Kapanış:** Açık adsb.lol isteği en çok 8 sn beklenir, son yazma en çok 4 sn sürer (compose `stop_grace_period` 30 sn).
+  - **Drizzle ve ham SQL:** `createDb()` aynı postgres-js istemcisini drizzle'a verdiği için tarih ve JSON serileştiricileri değişir. Ham SQL bu istemcide JS `Date` göndermez; `packages/db/src/ingest.ts` zamanı ISO metni ve `::timestamptz` ile gönderir.
+- **D-072 Metrik birimler ve harita etiketleri (kullanıcı kararı).**
+  - **Birimler:** Arayüz varsayılanı metriktir: yükseklik m, hız km/sa, dikey hız m/dk, mesafe km. Ayarlardan havacılık birimleri (ft, kt, ft/dk, NM) seçilebilir. Veri, API ve motor ft/kt'de kalır; dönüşüm yalnızca gösterimdedir. Biçimleyiciler `packages/i18n/src/units.ts`'tedir.
+  - **Harita etiketleri:** Kullanıcının `/design` isteğiyle belirlendi (domain.md → "Harita etiketleri"). Sefer no tireyle yazılır (TK-4). Etiket dört satırdır: sefer no, güzergâh, hız · yükseklik, pist. Seçili uçak ve diğer uçaklar için ayrı ayrı Gizle, Kısa ya da Tam seçilir; varsayılan Tam'dır.
+  - **Uydu zemini:** Kullanıcı uydu zemini ve yolsuz harita istedi. Tasarımda Esri World Imagery tek seferlik kullanıldı (kullanıcı onayı, 78 karo). Üründe hangi uydu kaynağının kullanılacağı, lisans ve maliyetiyle birlikte M6'da kullanıcıya sorulacak (DUR-SOR 5).
+
 ## 2026-09-27 — Parça 1 M3 sağlayıcılar
 - **D-071 Canlı sağlayıcı katmanının kuralları.**
   - **Model:** `AircraftState` (packages/providers). Bilinmeyen değer `null`dır, hiçbir alan uydurulmaz. `emergency: 'none'` null olur. Konumu yalnızca `lat`/`lon` verir: `lastPosition` ve `rr_lat`/`rr_lon` kullanılmaz, yalnızca bayat konumu olan uçak "konum yok" nedeniyle atılır.
