@@ -34,7 +34,8 @@ export const PROVIDER_LICENSES = {
       licenseUrl: 'https://opendatacommons.org/licenses/odbl/1-0/',
     },
     shareAlike: 'derivative-database',
-    rateLimit: 'dinamik; 429 Retry-After taşımaz; varsayılan 0,2 istek/sn + AIMD',
+    rateLimit:
+      'dinamik; 429 Retry-After taşımaz; başlangıç 0,1 istek/sn (alt 0,05, üst 0,2) + AIMD',
     b2cDisplayAllowed: true,
     mixingWithOtherRealtimeAllowed: true,
     maxRawStorageDays: null,

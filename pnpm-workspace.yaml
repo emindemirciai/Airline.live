@@ -1,6 +1,8 @@
 packages:
   - apps/*
   - packages/*
+  # Geliştirme ve test araçları (senaryo, replay alıcısı); uygulamalar bağımlı olmadığından imaja girmez (D-073).
+  - tools
 
 # Windows'ta package.json script'leri cmd.exe yerine pnpm'in kabuk öykünücüsüyle çalışır.
 shellEmulator: true

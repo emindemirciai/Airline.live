@@ -39,14 +39,72 @@ function serviceLabel(id: string, t: AdminMessages): string {
       return t.services.referenceData
     case 'track-partitions':
       return t.services.trackPartitions
+    case 'provider:adsbLol':
+      return t.services.providerAdsbLol
+    case 'provider:localReceiver':
+      return t.services.providerLocalReceiver
     default:
       return id.startsWith('worker:') ? `${t.services.workerOther} (${id.slice(7)})` : id
   }
 }
 
+/** Geçen süreyi okunur birimle yazar (sn → dk → sa → gün). */
+function ago(sec: number, t: AdminMessages): string {
+  if (sec < 120) return format(t.detail.secondsAgo, { n: sec })
+  if (sec < 7_200) return format(t.detail.minutesAgo, { n: Math.floor(sec / 60) })
+  if (sec < 172_800) return format(t.detail.hoursAgo, { n: Math.floor(sec / 3_600) })
+  return format(t.detail.daysAgo, { n: Math.floor(sec / 86_400) })
+}
+
+function circuitLabel(value: string, t: AdminMessages): string {
+  switch (value) {
+    case 'closed':
+    case 'open':
+    case 'half_open':
+    case 'config':
+      return t.detail.circuitStates[value]
+    default:
+      return value
+  }
+}
+
+/** Canlı veri sağlayıcısı satırının ayrıntıları (API: provider_health özeti). */
+function providerItems(d: ServiceStatus['detail'], t: AdminMessages, locale: Locale): string[] {
+  const tag = locale === 'tr' ? 'tr-TR' : 'en-GB'
+  const number = (value: number, digits: number) =>
+    new Intl.NumberFormat(tag, { maximumFractionDigits: digits }).format(value)
+  const percent = (value: number) =>
+    new Intl.NumberFormat(tag, { style: 'percent', maximumFractionDigits: 1 }).format(value / 100)
+  const items: string[] = []
+  if (typeof d.staleSec === 'number') items.push(`${t.detail.healthRecord}: ${ago(d.staleSec, t)}`)
+  if (typeof d.circuit === 'string') {
+    items.push(`${t.detail.circuit}: ${circuitLabel(d.circuit, t)}`)
+  }
+  if (typeof d.rps === 'number') items.push(`${t.detail.rps}: ${number(d.rps, 3)}`)
+  if (typeof d.freshnessP95Sec === 'number') {
+    items.push(
+      `${t.detail.freshnessP95}: ${format(t.detail.seconds, { n: number(d.freshnessP95Sec, 1) })}`,
+    )
+  }
+  if (typeof d.errorRatioPct === 'number') {
+    items.push(`${t.detail.errorRatio}: ${percent(d.errorRatioPct)}`)
+  }
+  if (typeof d.rateLimited1hPct === 'number') {
+    items.push(`${t.detail.rateLimited1h}: ${percent(d.rateLimited1hPct)}`)
+  }
+  if (typeof d.rateLimited24hPct === 'number') {
+    items.push(`${t.detail.rateLimited24h}: ${percent(d.rateLimited24hPct)}`)
+  }
+  if ('lastSuccessAgeSec' in d) {
+    const age = d.lastSuccessAgeSec
+    items.push(`${t.detail.lastSuccess}: ${typeof age === 'number' ? ago(age, t) : t.detail.never}`)
+  }
+  return items
+}
+
 function detailItems(service: ServiceStatus, t: AdminMessages, locale: Locale): string[] {
   const d = service.detail
-  const items: string[] = []
+  const items: string[] = service.kind === 'provider' ? providerItems(d, t, locale) : []
   const count = (value: unknown) =>
     typeof value === 'number' ? value.toLocaleString(locale === 'tr' ? 'tr-TR' : 'en-GB') : '?'
   if (typeof d.airports === 'number') {

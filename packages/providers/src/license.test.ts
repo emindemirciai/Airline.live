@@ -34,4 +34,10 @@ describe('lisans kaydı', () => {
     expect(PROVIDER_LICENSES.adsbLol.attribution.licenseUrl).toContain('odbl')
     expect(PROVIDER_LICENSES.adsbLol.shareAlike).toBe('derivative-database')
   })
+
+  it('adsb.lol hız sınırı notu D-073 kova değerlerini yazar', () => {
+    expect(PROVIDER_LICENSES.adsbLol.rateLimit).toBe(
+      'dinamik; 429 Retry-After taşımaz; başlangıç 0,1 istek/sn (alt 0,05, üst 0,2) + AIMD',
+    )
+  })
 })

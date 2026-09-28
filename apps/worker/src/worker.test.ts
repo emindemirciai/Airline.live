@@ -56,4 +56,70 @@ describe('env', () => {
     expect(() => parseEnv({ APP_ENV: 'production' })).toThrow(/REDIS_QUEUE_URL/)
     expect(() => parseEnv({ WORKER_SERVICE_NAME: 'Worker RT' })).toThrow()
   })
+
+  it('ingest varsayılanları', () => {
+    const parsed = parseEnv({})
+    expect(parsed.ADSBLOL_RPS).toBe(0.1)
+    expect(parsed.WATCH_HEX_LIST).toEqual([])
+    expect(parsed.LOCAL_RECEIVER_URLS).toBeUndefined()
+    expect(parsed.REDIS_LIVE_URL).toBeUndefined()
+    expect(parseEnv({ ADSBLOL_RPS: ' ', WATCH_HEX_LIST: '' }).WATCH_HEX_LIST).toEqual([])
+  })
+
+  it('ADSBLOL_RPS 0,05–0,2 dışında hata verir, kırpılmaz', () => {
+    expect(parseEnv({ ADSBLOL_RPS: '0.05' }).ADSBLOL_RPS).toBe(0.05)
+    expect(parseEnv({ ADSBLOL_RPS: '0.2' }).ADSBLOL_RPS).toBe(0.2)
+    for (const value of ['0.3', '0.01', '0', '-0.1']) {
+      expect(() => parseEnv({ ADSBLOL_RPS: value })).toThrow(/ADSBLOL_RPS: 0,05–0,2 istek\/sn/)
+    }
+    expect(() => parseEnv({ ADSBLOL_RPS: 'hızlı' })).toThrow(/ADSBLOL_RPS: sayı olmalı/)
+  })
+
+  it('WATCH_HEX_LIST küçük harfe çevrilir ve tekilleşir; hata değeri değil sırayı söyler', () => {
+    expect(parseEnv({ WATCH_HEX_LIST: ' 4B8750, 4b8750 ,abcdef,' }).WATCH_HEX_LIST).toEqual([
+      '4b8750',
+      'abcdef',
+    ])
+    let message = ''
+    try {
+      parseEnv({ WATCH_HEX_LIST: 'abcdef,4b875,ZZZZZZ' })
+    } catch (error) {
+      message = (error as Error).message
+    }
+    expect(message).toMatch(/WATCH_HEX_LIST: 2, 3\. değer 6 haneli ICAO hex değil/)
+    expect(message).not.toMatch(/4b875|zzzzzz/i)
+  })
+
+  it('LOCAL_RECEIVER_URLS açılışta doğrulanır; ileti adres ya da token taşımaz', () => {
+    expect(
+      parseEnv({ LOCAL_RECEIVER_URLS: 'http://127.0.0.1:4300/data/aircraft.json|tok_1' })
+        .LOCAL_RECEIVER_URLS,
+    ).toBe('http://127.0.0.1:4300/data/aircraft.json|tok_1')
+    expect(() => parseEnv({ LOCAL_RECEIVER_URLS: 'ftp://alici/aircraft.json' })).toThrow(
+      /LOCAL_RECEIVER_URLS: 1\. alıcı: yalnızca http\(s\) adresi/,
+    )
+    let message = ''
+    try {
+      parseEnv({ LOCAL_RECEIVER_URLS: 'http://a/b.json,http://kullanici:gizli@alici/x.json' })
+    } catch (error) {
+      message = (error as Error).message
+    }
+    expect(message).toMatch(/LOCAL_RECEIVER_URLS: 2\. alıcı: kimlik bilgisi/)
+    expect(message).not.toMatch(/gizli|kullanici/)
+  })
+
+  it("REDIS_LIVE_URL'de doldurulmamış parola talimatı hata verir", () => {
+    expect(() =>
+      parseEnv({ REDIS_LIVE_URL: 'redis://:#parola üret#@hy-redis-live:6379/0' }),
+    ).toThrow(/REDIS_LIVE_URL: REDIS_LIVE_PASSWORD doldurulmamış/)
+    expect(parseEnv({ REDIS_LIVE_URL: 'redis://:x@localhost:46380/0' }).REDIS_LIVE_URL).toBe(
+      'redis://:x@localhost:46380/0',
+    )
+  })
+
+  it('anahtar ve başlık tutarlılığı env hatası değildir (ingest yapılandırma hatası olur)', () => {
+    const parsed = parseEnv({ ADSBLOL_API_KEY: 'k1' })
+    expect(parsed.ADSBLOL_API_KEY).toBe('k1')
+    expect(parsed.ADSBLOL_API_KEY_HEADER).toBeUndefined()
+  })
 })

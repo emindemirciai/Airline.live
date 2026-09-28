@@ -1,6 +1,7 @@
 import {
   PARTITION_DAYS_AHEAD,
   type Heartbeat,
+  type ProviderSummary,
   type ReferenceStatus,
   type TrackTableStatus,
 } from '@havayolu/db'
@@ -8,6 +9,7 @@ import {
   errorMessage,
   overallState,
   type ServicesReport,
+  type ServiceState,
   type ServiceStatus,
 } from '@havayolu/shared'
 
@@ -24,6 +26,13 @@ export const REFERENCE_STALE_MS = 36 * 3_600_000
  * eksik görünmesi normaldir.
  */
 export const PARTITION_MIN_DAYS_AHEAD = PARTITION_DAYS_AHEAD - 1
+/**
+ * Worker sağlayıcı sağlığını dakikada bir (ve durum değişince) yazar (D-073). Kayıt bundan eskiyse
+ * worker durmuş ya da DB'ye yazamıyor demektir: son bilinen durum artık geçerli değildir.
+ */
+export const PROVIDER_HEALTH_STALE_MS = 180_000
+/** Panelde her zaman gösterilen canlı veri sağlayıcıları; sıra sabittir (servis kimliği provider:<id>). */
+export const PROVIDER_IDS = ['adsbLol', 'localReceiver'] as const
 
 export interface RedisProbeResult {
   latencyMs: number
@@ -46,6 +55,8 @@ export interface ServiceProbes {
   heartbeats: (() => Promise<Heartbeat[]>) | null
   referenceData: (() => Promise<ReferenceStatus>) | null
   trackPartitions: (() => Promise<Record<string, TrackTableStatus>>) | null
+  /** provider_health satırları ve 1/24 saatlik 429 oranları; veritabanı yoksa null. */
+  providers: (() => Promise<ProviderSummary[]>) | null
   http: (url: string) => Promise<HttpProbeResult>
   webUrl: string | null
   analyticsUrl: string | null
@@ -224,6 +235,80 @@ async function trackPartitionsStatus(
   }
 }
 
+const round = (value: number, digits: number) => {
+  const factor = 10 ** digits
+  return Math.round(value * factor) / factor
+}
+
+/** 0–1 oranını yüzdeye çevirir; oran yoksa (pencerede istek yok) null. */
+const percent = (ratio: number | null, digits: number): number | null =>
+  ratio === null || !Number.isFinite(ratio) ? null : round(ratio * 100, digits)
+
+const ageSec = (now: number, at: Date | null): number | null =>
+  at === null ? null : Math.max(0, Math.round((now - at.getTime()) / 1000))
+
+/** Worker'ın hesapladığı durum (data-sources.md tanımı); bilinmeyen değer çalışmıyor sayılır. */
+function providerState(status: string): ServiceState {
+  return status === 'ok' || status === 'degraded' ? status : 'down'
+}
+
+/**
+ * Canlı veri sağlayıcıları: bilinen her sağlayıcı için bir satır. Satırı olmayan sağlayıcı
+ * yapılandırılmamıştır (ör. LOCAL_RECEIVER_URLS boş); kaydı eskimiş sağlayıcı çalışmıyor sayılır.
+ */
+async function providerStatuses(
+  probes: ServiceProbes,
+  checkedAt: string,
+): Promise<ServiceStatus[]> {
+  const baseOf = (id: string) => base(`provider:${id}`, 'provider', checkedAt)
+  if (!probes.providers) {
+    return PROVIDER_IDS.map((id) => ({ ...baseOf(id), state: 'not_configured' as const }))
+  }
+  let summaries: ProviderSummary[]
+  try {
+    summaries = await withTimeout(probes.providers())
+  } catch (error) {
+    const message = errorText(error)
+    return PROVIDER_IDS.map((id) => ({
+      ...baseOf(id),
+      state: 'down' as const,
+      detail: { error: message },
+    }))
+  }
+  const now = probes.now().getTime()
+  return PROVIDER_IDS.map((id): ServiceStatus => {
+    const status = baseOf(id)
+    const row = summaries.find((summary) => summary.provider === id)
+    if (!row) return { ...status, state: 'not_configured' }
+    const lastSuccessAgeSec = ageSec(now, row.lastSuccessAt)
+    // Son bilinen hata yalnızca sağlayıcı sorunluyken gösterilir; düzelmiş eski hata yanıltır.
+    const error: Record<string, string> =
+      row.status !== 'ok' && row.lastError ? { error: row.lastError } : {}
+    const staleMs = now - row.updatedAt.getTime()
+    if (staleMs > PROVIDER_HEALTH_STALE_MS) {
+      return {
+        ...status,
+        state: 'down',
+        detail: { staleSec: Math.round(staleMs / 1000), lastSuccessAgeSec, ...error },
+      }
+    }
+    return {
+      ...status,
+      state: providerState(row.status),
+      detail: {
+        rps: row.rps === null ? null : round(row.rps, 3),
+        freshnessP95Sec: row.freshnessP95S === null ? null : round(row.freshnessP95S, 1),
+        errorRatioPct: percent(row.errorRatio60s, 0),
+        rateLimited1hPct: percent(row.rateLimitedRatio1h, 1),
+        rateLimited24hPct: percent(row.rateLimitedRatio24h, 1),
+        circuit: row.circuit,
+        lastSuccessAgeSec,
+        ...error,
+      },
+    }
+  })
+}
+
 /** Bütün servislerin durumunu paralel toplar. Hiçbir yoklama raporu bozamaz ya da geciktiremez. */
 export async function collectServices(probes: ServiceProbes): Promise<ServicesReport> {
   const checkedAt = probes.now().toISOString()
@@ -247,22 +332,33 @@ export async function collectServices(probes: ServiceProbes): Promise<ServicesRe
     }
   })()
 
-  const [web, workers, postgres, redisQueue, redisLive, analytics, referenceData, partitions] =
-    await Promise.all([
-      httpVersionStatus('web', 'web', probes.webUrl, probes, checkedAt),
-      workerStatuses(probes, checkedAt),
-      postgresPromise,
-      redisStatus('redis-queue', probes.redisQueue, checkedAt),
-      redisStatus('redis-live', probes.redisLive, checkedAt),
-      httpVersionStatus('analytics', 'analytics', probes.analyticsUrl, probes, checkedAt),
-      referenceDataStatus(probes, checkedAt),
-      trackPartitionsStatus(probes, checkedAt),
-    ])
+  const [
+    web,
+    workers,
+    providers,
+    postgres,
+    redisQueue,
+    redisLive,
+    analytics,
+    referenceData,
+    partitions,
+  ] = await Promise.all([
+    httpVersionStatus('web', 'web', probes.webUrl, probes, checkedAt),
+    workerStatuses(probes, checkedAt),
+    providerStatuses(probes, checkedAt),
+    postgresPromise,
+    redisStatus('redis-queue', probes.redisQueue, checkedAt),
+    redisStatus('redis-live', probes.redisLive, checkedAt),
+    httpVersionStatus('analytics', 'analytics', probes.analyticsUrl, probes, checkedAt),
+    referenceDataStatus(probes, checkedAt),
+    trackPartitionsStatus(probes, checkedAt),
+  ])
 
   const services = [
     web,
     api,
     ...workers,
+    ...providers,
     postgres,
     redisQueue,
     redisLive,

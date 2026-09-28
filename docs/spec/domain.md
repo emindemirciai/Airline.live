@@ -17,10 +17,27 @@ Olay motoru, bildirimler ve arayüz bu dosyadaki tanımlara uyar. **Motorun büt
 - **Takip / Takibe al:** Yalnızca bildirim aboneliği için kullanılır. Haritada kamerayı uçağa kilitlemek "Uçağı ortala"dır.
 
 ## Birimler ve zaman
-- İrtifa ft, hız kt, dikey hız ft/dk, mesafe km (ayarlardan NM seçilebilir). 1 NM = 1,852 km; 10 km ≈ 5,4 NM.
+- **Arayüz varsayılanı metriktir** (kullanıcı kararı 2026-09-28, D-072):
+  - yükseklik m, hız km/sa, dikey hız m/dk, mesafe km
+  - Ayarlardan "havacılık birimleri" seçilebilir: ft, kt, ft/dk, NM.
+  - EN arayüzde metrik birim kısaltmaları m, km/h, m/min'dir.
+- **Veri, API ve motor havacılık birimlerinde kalır:** DB sütunları ve `AircraftState` ft, kt, ft/dk taşır. Bu dosyadaki motor eşikleri ft ile yazılıdır; dönüşüm yalnızca gösterimde yapılır. Bildirim metinleri kullanıcının birim tercihiyle yazılır.
+- 1 NM = 1,852 km; 1 kt = 1,852 km/sa; 1 ft = 0,3048 m; 10 km ≈ 5,4 NM.
 - DB'de tüm zamanlar UTC'dir (`timestamptz`). Arayüzde yerel saat (Europe/Istanbul) ya da UTC ("Z" ekiyle) seçilebilir.
 - Olay zamanları her zaman konum örneğinin `sampleTime`'ından alınır, sunucu saatinden alınmaz.
 - Sade görünümde kısaltma kullanılmaz: ETA → "tahmini varış", ARP → "havalimanı merkezi", AGL → "yerden yükseklik".
+
+## Harita etiketleri (kullanıcı tasarım kararı 2026-09-28, D-072)
+- **Sefer no gösterimi:** Havayolu kodu ile numara arasında tire kullanılır: TK-4, TK-1985. Bu dosyadaki bildirim örnekleri de arayüzde bu biçimle yazılır. Aramada TK4, TK 4 ve TK-4 aynı sayılır.
+- **Etiket alanları (Tam):**
+  1. sefer no; bilinmiyorsa çağrı kodu gri yazılır
+  2. güzergâh, IATA kodlarıyla (JFK-IST); tahminidir, bilinmiyorsa "Güzergâh ?"
+  3. hız ve yükseklik (431 km/sa · 333 m); uçak yerdeyse yükseklik yerine "yerde"
+  4. ineceği pist (Pist 35L); yalnızca bir piste hizalanmış yaklaşmada
+- **Kısa:** yalnızca sefer no (yoksa çağrı kodu).
+- **Göster/gizle:** Seçili uçak ve diğer uçaklar için ayrı ayrı Gizle, Kısa ya da Tam seçilir. Varsayılan ikisi için de Tam'dır. Ayar haritadaki "Etiketler" düğmesinden açılır ve cihazda saklanır.
+- **Yerleşim:** Etiketler üst üste binmez; yer yoksa etiket yana kayar ve ince bir çizgiyle uçağa bağlanır. Etiket zemini opaktır.
+- Tasarım: https://claude.ai/artifact/Tsu4WTeQu8CxqvyZXpTSYD (Parça 1 M6 ve Parça 3 bu tasarıma göre yapılır).
 
 ## Yaklaşma
 - **Hazır uyarılar:**

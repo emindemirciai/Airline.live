@@ -1,5 +1,5 @@
 // Yalnızca testlerde kullanılan yardımcılar (üretim kodu bunları import edemez).
-import { REFERENCE_SOURCES, TRACK_TABLES } from '@havayolu/db'
+import { REFERENCE_SOURCES, TRACK_TABLES, type ProviderSummary } from '@havayolu/db'
 import { buildApp, type AppDeps } from '../app'
 import type { ServiceProbes } from '../admin/services'
 import { hashToken, newToken, type AdminSession, type SessionStore } from '../auth/session-store'
@@ -40,6 +40,28 @@ export function testEnv(overrides: Record<string, string> = {}) {
     ADMIN_SETUP_TOKEN,
     ...overrides,
   })
+}
+
+/** adsb.lol için sağlıklı bir provider_health özeti (fakeProbes saatine göre 20 sn önce yazılmış). */
+export function fakeProviderSummary(overrides: Partial<ProviderSummary> = {}): ProviderSummary {
+  return {
+    provider: 'adsbLol',
+    status: 'ok',
+    lastSuccessAt: new Date('2026-09-25T11:59:52Z'),
+    lastErrorAt: null,
+    lastError: null,
+    consecutiveFailures: 0,
+    rps: 0.1,
+    circuit: 'closed',
+    backoffUntil: null,
+    freshnessP95S: 14.26,
+    errorRatio60s: 0,
+    requests60s: 6,
+    updatedAt: new Date('2026-09-25T11:59:40Z'),
+    rateLimitedRatio1h: 0.004,
+    rateLimitedRatio24h: 0.0123,
+    ...overrides,
+  }
 }
 
 export function fakeProbes(overrides: Partial<Omit<ServiceProbes, 'api'>> = {}) {
@@ -107,6 +129,8 @@ export function fakeProbes(overrides: Partial<Omit<ServiceProbes, 'api'>> = {}) 
           },
         ]),
       ),
+    // Yerel alıcı tanımlı değil: yalnızca adsb.lol satırı var.
+    providers: async () => [fakeProviderSummary()],
     http: async (url: string) => ({
       status: 200,
       body: url.includes('health') ? { status: 'ok' } : { version: '0.3.0' },

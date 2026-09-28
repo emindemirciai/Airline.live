@@ -35,7 +35,13 @@ const files = execFileSync('git', ['ls-files', '-z'], { cwd: root, encoding: 'ut
 function area(file: string): string {
   const [first, second] = file.split('/')
   if ((first === 'apps' || first === 'packages') && second) return `${first}/${second}`
-  if (first === 'docs' || first === 'scripts' || first === '.github' || first === '.claude')
+  if (
+    first === 'docs' ||
+    first === 'scripts' ||
+    first === 'tools' ||
+    first === '.github' ||
+    first === '.claude'
+  )
     return first
   return '(kök)'
 }

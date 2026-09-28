@@ -22,6 +22,13 @@
       "when": 1790492563776,
       "tag": "0002_track_default_partitions",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1790568175334,
+      "tag": "0003_provider_health_ingest",
+      "breakpoints": true
     }
   ]
 }
