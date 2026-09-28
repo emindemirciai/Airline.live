@@ -3,12 +3,14 @@ import { createServer, type IncomingMessage, type ServerResponse } from 'node:ht
 import type { AddressInfo } from 'node:net'
 import { fileURLToPath } from 'node:url'
 import {
+  activeStationsWithArp,
   createDb,
   createFlight,
   createRedis,
   ensureTrackPartitions,
   insertTrackPoints,
   LIVE_KEYS,
+  readCoverage,
   runMigrations,
   seedStations,
   writeProviderHealth,
@@ -20,7 +22,8 @@ import type { Redis } from 'ioredis'
 import { pino } from 'pino'
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { parseEnv } from '../env'
-import { startIngest, type IngestDeps, type IngestHandle } from './index'
+import { coverageCircles, startIngest, type IngestDeps, type IngestHandle } from './index'
+import { coveragePlan } from './plan'
 
 // Gerçek PostgreSQL + redis-live (yerelde `pnpm dev:infra`, CI'da dev compose). Dış ağa hiçbir
 // istek gitmez: yerel alıcı ve adsb.lol, 127.0.0.1'de testin kendi sunucularıdır.
@@ -283,6 +286,7 @@ describe('ingest (gerçek PostgreSQL + redis-live)', () => {
             select provider from provider_health order by provider`
           expect(providers.map((r) => r.provider)).toEqual(['localReceiver'])
           expect(await redis.hget(LIVE_KEYS.provider('localReceiver'), 'status')).toBe('ok')
+          expect(await redis.get(LIVE_KEYS.providers)).toBe('["localReceiver"]')
           expect(ingest.stats()).toMatchObject({
             adsbLol: 'disabled',
             localReceivers: 1,
@@ -368,6 +372,18 @@ describe('ingest (gerçek PostgreSQL + redis-live)', () => {
             const regions = await redis.hgetall(LIVE_KEYS.regions)
             return regions.LTFM !== undefined && regions.primary !== undefined
           })
+          // Kapsama planı sağlık turunda TTL ile yazılır; API bu çemberlerle kapsama hesaplar.
+          await waitFor('coverage plan', async () => (await readCoverage(redis)) !== null)
+          const plan = coveragePlan(await activeStationsWithArp(database.sql))
+          expect(await readCoverage(redis)).toEqual(coverageCircles(plan))
+          expect(await readCoverage(redis)).toContainEqual({
+            id: 'primary',
+            kind: 'primary',
+            lat: 41.274874,
+            lon: 28.732136,
+            radiusNm: 40,
+          })
+          expect(await redis.ttl(LIVE_KEYS.coverage)).toBeGreaterThan(590)
 
           // 0,2 istek/sn = 5 sn'lik slot: saat ileri atlar, ikinci istek 429 alır.
           clock.advance(5_000)

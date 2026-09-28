@@ -60,14 +60,31 @@ describe('sistem uç noktaları', () => {
     await broken.close()
   })
 
-  it('/openapi.json auth uç noktalarını içerir', async () => {
+  it('/openapi.json auth, admin ve canlı uç noktalarını içerir', async () => {
     const res = await app.inject({ method: 'GET', url: '/openapi.json' })
     expect(res.statusCode).toBe(200)
-    const spec = res.json() as { openapi: string; paths: Record<string, unknown> }
+    const spec = res.json() as {
+      openapi: string
+      paths: Record<string, Record<string, { tags?: string[] }>>
+    }
     expect(spec.openapi).toMatch(/^3\./)
     expect(Object.keys(spec.paths)).toEqual(
-      expect.arrayContaining(['/api/auth/login', '/api/admin/session', '/v1/admin/services']),
+      expect.arrayContaining([
+        '/api/auth/login',
+        '/api/admin/session',
+        '/v1/admin/services',
+        '/v1/admin/blocklist',
+        '/v1/live',
+        '/v1/search',
+      ]),
     )
+    expect(spec.paths['/v1/live']?.get?.tags).toEqual(['live'])
+    expect(spec.paths['/v1/search']?.get?.tags).toEqual(['live'])
+    expect(Object.keys(spec.paths['/v1/admin/blocklist'] ?? {}).sort()).toEqual([
+      'delete',
+      'get',
+      'post',
+    ])
   })
 
   it('bilinmeyen yol 404 döner', async () => {
@@ -84,6 +101,29 @@ describe('env', () => {
     expect(parsed.GIT_SHA).toBe('dev')
     expect(parsed.EXPECTED_WORKERS).toEqual(['worker-rt', 'worker-bg'])
     expect(parseEnv({ API_PORT: '' }).API_PORT).toBe(4100)
+    expect(parsed.WS_MAX_CONNECTIONS).toBe(2_000)
+    expect(parsed.LIVE_POLL_MS).toBe(1_000)
+    expect(parseEnv({ WS_MAX_CONNECTIONS: '', LIVE_POLL_MS: '' })).toMatchObject({
+      WS_MAX_CONNECTIONS: 2_000,
+      LIVE_POLL_MS: 1_000,
+    })
+  })
+
+  it('canlı API ayarları sınırlar içinde olmalı', () => {
+    expect(parseEnv({ WS_MAX_CONNECTIONS: '500', LIVE_POLL_MS: '250' })).toMatchObject({
+      WS_MAX_CONNECTIONS: 500,
+      LIVE_POLL_MS: 250,
+    })
+    expect(parseEnv({ WS_MAX_CONNECTIONS: '100000', LIVE_POLL_MS: '10000' })).toMatchObject({
+      WS_MAX_CONNECTIONS: 100_000,
+      LIVE_POLL_MS: 10_000,
+    })
+    for (const bad of ['0', '100001', '1.5', 'abc']) {
+      expect(() => parseEnv({ WS_MAX_CONNECTIONS: bad }), bad).toThrow(/WS_MAX_CONNECTIONS/)
+    }
+    for (const bad of ['249', '10001', '500.5', 'hızlı']) {
+      expect(() => parseEnv({ LIVE_POLL_MS: bad }), bad).toThrow(/LIVE_POLL_MS/)
+    }
   })
 
   it('üretimde port 4000; veri bağlantıları ve güvenilen proxy ağları zorunlu', () => {

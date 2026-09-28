@@ -1,17 +1,27 @@
-import type { Redis } from 'ioredis'
+import { Redis } from 'ioredis'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import {
   compactAircraft,
+  CONFIGURED_PROVIDERS_TTL_SECONDS,
+  COVERAGE_TTL_SECONDS,
   LIVE_INDEX_TTL_SECONDS,
   LIVE_KEYS,
   LIVE_STREAM_MAXLEN,
   LIVE_TTL_SECONDS,
+  readConfiguredProviders,
+  readCoverage,
   readLiveAircraft,
+  readLiveAircraftMany,
+  readLiveChangedSince,
+  readProviderLive,
   sweepLive,
+  writeConfiguredProviders,
+  writeCoverage,
   writeLiveUpdates,
   writeProviderLive,
   writeRegionFreshness,
   type CompactAircraft,
+  type CoverageCircle,
   type LiveAircraftInput,
 } from './live'
 import { createRedis } from './redis'
@@ -201,5 +211,169 @@ describe('sağlayıcı ve bölge anlık durumu', () => {
       east: String(T0 - 50_000),
     })
     expect(await redis.ttl(LIVE_KEYS.regions)).toBeGreaterThan(LIVE_INDEX_TTL_SECONDS - 5)
+  })
+
+  it('readProviderLive yazılan alanları döndürür; kayıt yoksa null', async () => {
+    await redis.del(LIVE_KEYS.provider('localReceiver'))
+    expect(await readProviderLive(redis, 'localReceiver')).toBeNull()
+    await writeProviderLive(redis, 'localReceiver', {
+      status: 'ok',
+      receivers: 2,
+      lastError: null,
+      updatedAt: T0,
+    })
+    expect(await readProviderLive(redis, 'localReceiver')).toEqual({
+      status: 'ok',
+      receivers: '2',
+      updatedAt: String(T0),
+    })
+    await writeProviderLive(redis, 'localReceiver', { status: null })
+    expect(await readProviderLive(redis, 'localReceiver')).toBeNull()
+  })
+
+  it('writeConfiguredProviders tekilleştirip sıralar, uzun TTL verir; bozuk kayıt null, geçersiz ad atılır', async () => {
+    await redis.del(LIVE_KEYS.providers)
+    expect(await readConfiguredProviders(redis)).toBeNull()
+    await writeConfiguredProviders(redis, ['localReceiver', 'adsbLol', 'adsbLol'])
+    expect(await readConfiguredProviders(redis)).toEqual(['adsbLol', 'localReceiver'])
+    expect(await redis.ttl(LIVE_KEYS.providers)).toBeGreaterThan(
+      CONFIGURED_PROVIDERS_TTL_SECONDS - 5,
+    )
+
+    await redis.set(LIVE_KEYS.providers, '{bozuk')
+    expect(await readConfiguredProviders(redis)).toBeNull()
+    await redis.set(LIVE_KEYS.providers, JSON.stringify({ adsbLol: true }))
+    expect(await readConfiguredProviders(redis)).toBeNull()
+    await redis.set(LIVE_KEYS.providers, JSON.stringify(['adsbLol', 7, 'hy:bad', '']))
+    expect(await readConfiguredProviders(redis)).toEqual(['adsbLol'])
+  })
+})
+
+describe('kapsama çemberleri', () => {
+  const west: CoverageCircle = { id: 'west', kind: 'west', lat: 39.5, lon: 30.1, radiusNm: 250 }
+  const primary: CoverageCircle = {
+    id: 'primary',
+    kind: 'primary',
+    lat: 41.274874,
+    lon: 28.732136,
+    radiusNm: 40,
+  }
+  const circles = [west, primary]
+
+  it('writeCoverage JSON olarak TTL ile yazar; readCoverage doğrulayarak okur', async () => {
+    await redis.del(LIVE_KEYS.coverage)
+    expect(await readCoverage(redis)).toBeNull()
+
+    // PlannedCircle gibi fazla alanlı nesne verilse de yalnızca sözleşmedeki alanlar yazılır.
+    const withExtra = { ...west, covers: ['LTFM'], center: { lat: 0, lon: 0 } }
+    await writeCoverage(redis, [withExtra, primary])
+    expect(await readCoverage(redis)).toEqual(circles)
+    expect(JSON.parse((await redis.get(LIVE_KEYS.coverage)) ?? 'null')).toEqual(circles)
+    const ttl = await redis.ttl(LIVE_KEYS.coverage)
+    expect(ttl).toBeGreaterThan(COVERAGE_TTL_SECONDS - 5)
+    expect(ttl).toBeLessThanOrEqual(COVERAGE_TTL_SECONDS)
+
+    await writeCoverage(redis, [], 30)
+    expect(await readCoverage(redis)).toEqual([])
+    expect(await redis.ttl(LIVE_KEYS.coverage)).toBeLessThanOrEqual(30)
+  })
+
+  it('bozuk kayıt null okunur', async () => {
+    await redis.set(LIVE_KEYS.coverage, '{"broken"')
+    expect(await readCoverage(redis)).toBeNull()
+    await redis.set(LIVE_KEYS.coverage, JSON.stringify([{ ...west, radiusNm: -1 }]))
+    expect(await readCoverage(redis)).toBeNull()
+    await redis.del(LIVE_KEYS.coverage)
+  })
+})
+
+describe('canlı API okumaları', () => {
+  it('readLiveChangedSince: skoru sınırdan büyük olanlar (sınır hariç), skor sırasıyla', async () => {
+    await redis.flushdb()
+    expect(await readLiveChangedSince(redis, 0)).toEqual([])
+    await writeLiveUpdates(redis, [
+      aircraft('cc0003', T0 + 3_000),
+      aircraft('cc0001', T0 + 1_000),
+      aircraft('cc0002', T0 + 2_000),
+      aircraft('~cc0004', T0 + 2_500),
+    ])
+    expect(await readLiveChangedSince(redis, 0)).toEqual([
+      { hex: 'cc0001', sampleTime: T0 + 1_000 },
+      { hex: 'cc0002', sampleTime: T0 + 2_000 },
+      { hex: '~cc0004', sampleTime: T0 + 2_500 },
+      { hex: 'cc0003', sampleTime: T0 + 3_000 },
+    ])
+    expect(await readLiveChangedSince(redis, T0 + 2_000)).toEqual([
+      { hex: '~cc0004', sampleTime: T0 + 2_500 },
+      { hex: 'cc0003', sampleTime: T0 + 3_000 },
+    ])
+    expect(await readLiveChangedSince(redis, T0 + 1_999.5)).toHaveLength(3)
+    expect(await readLiveChangedSince(redis, T0 + 3_000)).toEqual([])
+    // İlk tur: sınır yok (negatif ya da sonsuz).
+    expect(await readLiveChangedSince(redis, -2_000)).toHaveLength(4)
+    expect(await readLiveChangedSince(redis, -Infinity)).toHaveLength(4)
+
+    // Güncellenen uçak yeni skoruyla yeniden görünür.
+    await writeLiveUpdates(redis, [aircraft('cc0001', T0 + 4_000)])
+    expect(await readLiveChangedSince(redis, T0 + 3_000)).toEqual([
+      { hex: 'cc0001', sampleTime: T0 + 4_000 },
+    ])
+  })
+
+  it('readLiveAircraftMany: tam durumlar; kaydı olmayan ve bozuk JSON atlanır', async () => {
+    await redis.flushdb()
+    const a = aircraft('dd0001', T0)
+    const b = aircraft('~dd0002', T0 + 1, { dbFlags: 8, registration: null })
+    await writeLiveUpdates(redis, [a, b])
+    await redis.hset(LIVE_KEYS.aircraft('dd0003'), 'd', '{"hex":"dd0003"', 't', String(T0))
+    await redis.hset(LIVE_KEYS.aircraft('dd0004'), 'd', '42', 't', String(T0))
+    await redis.hset(LIVE_KEYS.aircraft('dd0005'), 't', String(T0))
+
+    const many = await readLiveAircraftMany(redis, [
+      'dd0001',
+      'ffffff',
+      '~dd0002',
+      'dd0003',
+      'dd0004',
+      'dd0005',
+    ])
+    expect([...many.keys()]).toEqual(['dd0001', '~dd0002'])
+    expect(many.get('dd0001')).toEqual(a)
+    expect(many.get('~dd0002')).toEqual(b)
+    expect((await readLiveAircraftMany(redis, [])).size).toBe(0)
+  })
+
+  it('readLiveAircraftMany: çok sayıda uçak tek pipeline’da okunur', async () => {
+    await redis.flushdb()
+    const list = Array.from({ length: 3000 }, (_, i) =>
+      aircraft(`e${String(i).padStart(5, '0')}`, T0 + i),
+    )
+    await writeLiveUpdates(redis, list)
+    const changed = await readLiveChangedSince(redis, T0 - 1)
+    expect(changed).toHaveLength(3000)
+    const many = await readLiveAircraftMany(
+      redis,
+      changed.map((c) => c.hex),
+    )
+    expect(many.size).toBe(3000)
+    expect(many.get('e02999')).toMatchObject({ sampleTime: T0 + 2999 })
+  })
+
+  it('bağlantı hatası fırlatılır (çağıran son durumu korur)', async () => {
+    // Bağlanamayan, kuyruk tutmayan istemci: komutlar hemen hata verir.
+    const dead = new Redis({
+      host: '127.0.0.1',
+      port: 1,
+      lazyConnect: true,
+      enableOfflineQueue: false,
+      retryStrategy: () => null,
+    })
+    dead.on('error', () => undefined)
+    try {
+      await expect(readLiveAircraftMany(dead, ['dd0001'])).rejects.toBeInstanceOf(Error)
+      await expect(readLiveChangedSince(dead, 0)).rejects.toBeInstanceOf(Error)
+    } finally {
+      dead.disconnect()
+    }
   })
 })

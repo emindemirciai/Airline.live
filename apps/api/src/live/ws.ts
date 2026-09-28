@@ -1,0 +1,160 @@
+/**
+ * `GET /v1/ws`: canlı veri WebSocket'i (D-074). Protokol JSON metin çerçeveleridir:
+ *
+ * - İstemci → sunucu: `{ type: 'subscribe', viewport: { minLon, minLat, maxLon, maxLat }, zoom,
+ *   lastSeq? }`. Görünüm REST'teki `bbox` kuralına uyar. Hatalı mesaj `{ type: 'error', code:
+ *   'bad_request' }` alır; 5. hatalı mesajda bağlantı 1008 ile kapanır.
+ * - Sunucu → istemci:
+ *   - `{ type: 'snapshot', seq, coverage, status, aircraft }`: görünümdeki uçakların tamamı.
+ *   - `{ type: 'diff', seq, status, cells: [{ c, added, updated, removed }] }`: görünümle kesişen
+ *     2°'lik hücrelerin değişimi; saniyede en fazla bir tane, boşsa gönderilmez. İstemci önce
+ *     bütün `removed` listelerini, sonra `added`/`updated` kayıtlarını uygular (ws-protocol.ts).
+ *   - `{ type: 'reconnect', afterMs }`: sunucu kapanıyor; istemci bu kadar bekleyip son `seq` ile
+ *     yeniden bağlanır.
+ * - `lastSeq` yalnızca bağlantının ilk aboneliğinde ve aynı görünüm için anlamlıdır: fark tamponu
+ *   yetiyorsa eksik turlar tek diff olarak (boş da olabilir), yetmiyorsa tam görüntü gelir. Sonraki
+ *   her abonelik (görünüm değişikliği) tam görüntü alır. Abonelik soket başına saniyede bir, IP
+ *   başına dakikada 120 işlenir; fazlası atılmaz, en son istenen görünüm ilk uygun anda işlenir.
+ *
+ * Sınırlar: IP (/64) başına 10, toplam `WS_MAX_CONNECTIONS` bağlantı; el sıkışması IP başına
+ * dakikada 30. `Origin` başlığı varsa web ya da admin host'u olmalıdır; başlığı olmayan yerel
+ * uygulama kabul edilir. Sıkıştırma kapalıdır, en büyük istemci mesajı 16 KiB'tır.
+ */
+import { normalizeIP } from '@fastify/rate-limit'
+import websocket from '@fastify/websocket'
+import type { FastifyBaseLogger, FastifyInstance, FastifyRequest } from 'fastify'
+import type { Env } from '../env'
+import { clientIp } from '../net/client-ip'
+import type { LiveSource } from './types'
+import { LiveHub, WS_CLOSE } from './ws-hub'
+
+export interface LiveWsOptions {
+  /** `null`: canlı veri yok (redis-live tanımsız); bağlantı kabul edilip 1013 ile kapatılır. */
+  source: LiveSource | null
+  /**
+   * false iken (engel listesi henüz okunmadı) yeni bağlantı 1013 `live_unavailable` ile kapatılır;
+   * verilmezse hep hazır.
+   */
+  ready?: () => boolean
+  env: Env
+  log: FastifyBaseLogger
+  now?: () => number
+  random?: () => number
+  /** Varsayılan 25 sn. */
+  pingIntervalMs?: number
+}
+
+/** En büyük istemci mesajı; aşılırsa `ws` bağlantıyı 1009 ile kapatır. */
+export const WS_MAX_PAYLOAD_BYTES = 16_384
+
+/** El sıkışması hız sınırı (IP başına); genel 300/dk yerine geçer. */
+export const WS_RATE_LIMIT = { max: 30, timeWindow: '1 minute' } as const
+
+/** Açık merkezler: `closeLiveSockets` hepsini kapatır (testlerde birden çok uygulama olabilir). */
+const hubs = new Set<LiveHub>()
+
+/**
+ * app.ts'teki CORS kuralıyla aynı izinli origin'ler: web ve admin host'ları (yerelde http,
+ * diğerlerinde https). app.ts bu modülü içe aktardığı için döngü kurmamak adına burada da vardır;
+ * ws.test.ts ikisinin aynı sonucu verdiğini denetler.
+ */
+export function wsAllowedOrigins(env: Pick<Env, 'WEB_HOST' | 'ADMIN_HOST'>): string[] {
+  const hosts = [env.WEB_HOST, env.ADMIN_HOST].filter((h): h is string => Boolean(h))
+  return hosts.map((host) =>
+    host.startsWith('localhost') || host.startsWith('127.0.0.1')
+      ? `http://${host}`
+      : `https://${host}`,
+  )
+}
+
+/** Hız sınırıyla aynı ziyaretçi anahtarı: IPv6 /64 bloğu tek ziyaretçidir (app.ts keyGenerator). */
+function visitorKey(env: Env, request: FastifyRequest): string {
+  const ip = clientIp(env.EDGE_PROXY, request)
+  return ip ? normalizeIP(ip, 64) : 'unknown'
+}
+
+function toText(data: Buffer | ArrayBuffer | Buffer[], isBinary: boolean): string | null {
+  if (isBinary) return null
+  if (Array.isArray(data)) return Buffer.concat(data).toString('utf8')
+  if (data instanceof ArrayBuffer) return Buffer.from(data).toString('utf8')
+  return data.toString('utf8')
+}
+
+/** `@fastify/websocket`'i ve `GET /v1/ws` yolunu kaydeder. */
+export function registerLiveWs(app: FastifyInstance, opts: LiveWsOptions): void {
+  const { env } = opts
+  const ready = opts.ready ?? (() => true)
+  const origins = new Set(wsAllowedOrigins(env))
+  const hub = opts.source
+    ? new LiveHub({
+        source: opts.source,
+        log: opts.log,
+        maxConnections: env.WS_MAX_CONNECTIONS,
+        now: opts.now,
+        random: opts.random,
+        pingIntervalMs: opts.pingIntervalMs,
+      })
+    : null
+
+  void app.register(websocket, {
+    options: { perMessageDeflate: false, maxPayload: WS_MAX_PAYLOAD_BYTES },
+    // İstemci kaynaklı soket hataları kodludur ve debug yazılır. Protokol hatasında (bozuk çerçeve,
+    // 16 KiB'ı aşan mesaj) `ws` kapanışı kendi koduyla (1002/1007/1009) başlatmıştır; el sıkışması
+    // tamamlansın diye soket sonlandırılmaz. Kodsuz hata işleyicinin kendi hatasıdır.
+    errorHandler: (error, socket, request) => {
+      const code = (error as { code?: unknown }).code
+      if (typeof code === 'string') {
+        request.log.debug({ code }, 'ws socket error')
+        if (code.startsWith('WS_ERR_')) return
+      } else {
+        request.log.error({ err: error }, 'ws handler failed')
+      }
+      socket.terminate()
+    },
+  })
+
+  // Yol, eklenti yüklendikten sonra kaydedilsin diye ayrı bir kapsamdadır (onRoute kancası).
+  void app.register(async (scope) => {
+    scope.get(
+      '/v1/ws',
+      { websocket: true, config: { rateLimit: WS_RATE_LIMIT } },
+      (socket, request) => {
+        const origin = request.headers.origin
+        if (origin !== undefined && !origins.has(origin)) {
+          request.log.debug('ws origin rejected')
+          socket.close(WS_CLOSE.policyViolation, 'origin_not_allowed')
+          return
+        }
+        if (!hub || !ready()) {
+          socket.close(WS_CLOSE.tryAgainLater, 'live_unavailable')
+          return
+        }
+        const client = hub.connect(socket, visitorKey(env, request))
+        if (!client) return
+        socket.on('message', (data, isBinary) => hub.message(client, toText(data, isBinary)))
+        socket.on('pong', () => hub.pong(client))
+        socket.on('close', () => hub.disconnected(client))
+      },
+    )
+  })
+
+  if (hub) {
+    app.addHook('onReady', async () => {
+      hub.start()
+      hubs.add(hub)
+    })
+    app.addHook('onClose', async () => {
+      hub.stop()
+      hubs.delete(hub)
+    })
+  }
+}
+
+/**
+ * SIGTERM yolu (infra.md): yeni bağlantı kabul edilmez, her istemciye `{type:'reconnect',
+ * afterMs: 1000–10000}` gönderilir ve bağlantı 1012 ile kapatılır. Hepsi kapanınca ya da en geç
+ * 3 sn sonra çözülür. `app.close()`'tan önce çağrılır.
+ */
+export async function closeLiveSockets(): Promise<void> {
+  await Promise.all([...hubs].map((hub) => hub.closeAll()))
+}

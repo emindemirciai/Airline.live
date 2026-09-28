@@ -1,4 +1,4 @@
-import type { StationArp } from '@havayolu/db'
+import { parseCoverage, type StationArp } from '@havayolu/db'
 import { distanceKm, kmToNm } from '@havayolu/geo'
 import {
   AdsbLolError,
@@ -11,6 +11,7 @@ import {
   adsbLolConfigProblem,
   adsbLolErrorText,
   bounded,
+  coverageCircles,
   LIVE_WRITE_TIMEOUT_MS,
   LiveTimeoutError,
   LiveWriter,
@@ -475,6 +476,41 @@ describe('VALID_HEX', () => {
     for (const ok of ['4bb14b', 'ff0001', '~2c3a4f']) expect(VALID_HEX.test(ok)).toBe(true)
     for (const bad of ['', '4bb14', '4bb14bb', '4BB14B', '4b\u00008750', 'hy:ac', '~~12345'])
       expect(VALID_HEX.test(bad)).toBe(false)
+  })
+})
+
+describe('coverageCircles', () => {
+  it('plan çemberlerini kimlik, tür, merkez ve yarıçapla düz biçime çevirir', () => {
+    const plan = coveragePlan(SEED)
+    const circles = coverageCircles(plan)
+    expect(circles).toHaveLength(plan.length)
+    const primary = circles.find((c) => c.id === 'primary')
+    expect(primary).toEqual({
+      id: 'primary',
+      kind: 'primary',
+      lat: LTFM.lat,
+      lon: LTFM.lon,
+      radiusNm: 40,
+    })
+    for (const [index, circle] of circles.entries()) {
+      const planned = plan[index] as PlannedCircle
+      expect(circle).toEqual({
+        id: planned.id,
+        kind: planned.kind,
+        lat: planned.center.lat,
+        lon: planned.center.lon,
+        radiusNm: planned.radiusNm,
+      })
+    }
+    expect(coverageCircles([])).toEqual([])
+  })
+
+  it('API’nin okuyucusu (parseCoverage) worker’ın yazdığını olduğu gibi kabul eder', () => {
+    for (const stations of [SEED, SEED.slice(0, 1), SEED.slice(3)]) {
+      const circles = coverageCircles(coveragePlan(stations))
+      expect(circles.length).toBeGreaterThan(0)
+      expect(parseCoverage(JSON.stringify(circles))).toEqual(circles)
+    }
   })
 })
 

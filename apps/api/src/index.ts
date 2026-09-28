@@ -1,18 +1,33 @@
 import {
   createDb,
   createRedis,
+  EMPTY_AIRLINE_CODES,
+  loadAirlineCodes,
   pingDb,
   pingRedis,
+  readBlocklist,
   readHeartbeats,
   readProviderSummaries,
   redisMemory,
   referenceStatus,
   trackPartitionStatus,
+  type AirlineCodes,
 } from '@havayolu/db'
 import type { Redis } from 'ioredis'
 import { buildApp } from './app'
 import { RedisSessionStore } from './auth/session-store'
 import { EnvError, loadDotEnvForDevelopment, parseEnv, type Env } from './env'
+import { BlocklistSync, type BlocklistSyncLog } from './live/blocklist-sync'
+import { LiveCache, type LiveCacheLog } from './live/cache'
+import { closeLiveSockets } from './live/ws'
+
+/** Havayolu kod eşlemeleri (sefer no) bu aralıkla yeniden okunur. */
+const AIRLINE_CODES_REFRESH_MS = 6 * 3_600_000
+/**
+ * Kodlar okunamadıysa ya da tablo henüz boşsa (ilk kurulumda VRS içe aktarımı worker'da API'den
+ * sonra biter; PostgreSQL geç kalkmış olabilir) bu aralıkla yeniden denenir; sefer no 6 sa beklemez.
+ */
+const AIRLINE_CODES_RETRY_MS = 60_000
 
 loadDotEnvForDevelopment()
 
@@ -34,6 +49,46 @@ const redisQueue = env.REDIS_QUEUE_URL
   ? createRedis(env.REDIS_QUEUE_URL, { name: 'api-queue' })
   : null
 const redisLive = env.REDIS_LIVE_URL ? createRedis(env.REDIS_LIVE_URL, { name: 'api-live' }) : null
+// Canlı önbelleğin yoklaması kendi bağlantısındadır: pipeline'lı toplu okumalar /ready ve admin
+// yoklamalarını bekletmez.
+const redisLiveCache = env.REDIS_LIVE_URL
+  ? createRedis(env.REDIS_LIVE_URL, { name: 'api-live-cache' })
+  : null
+
+let airlineCodes: AirlineCodes = EMPTY_AIRLINE_CODES
+
+// Önbellek ve engel listesi uygulamaya verildiği için uygulamadan önce kurulur; logları uygulama
+// kurulunca onun log'una gider. start() uygulamadan sonra çağrıldığından log kaybolmaz.
+let liveLog: LiveCacheLog | null = null
+const cacheLog: LiveCacheLog = {
+  debug: (fields, message) => liveLog?.debug(fields, message),
+  info: (fields, message) => liveLog?.info(fields, message),
+  warn: (fields, message) => liveLog?.warn(fields, message),
+}
+let blocklistLog: BlocklistSyncLog | null = null
+// Engel listesi kapalı başlar: ilk başarılı okumaya kadar canlı veri sunulmaz (D-074).
+const blocklist = new BlocklistSync({
+  read: redisQueue ? () => readBlocklist(redisQueue) : null,
+  log: {
+    info: (fields, message) => blocklistLog?.info(fields, message),
+    warn: (fields, message) => blocklistLog?.warn(fields, message),
+  },
+})
+/** Önbellek başladı mı: engel listesi yüklenmiş ve kodlar bir kez denenmiştir. */
+let liveRunning = false
+
+const liveCache = redisLiveCache
+  ? new LiveCache({
+      redisLive: redisLiveCache,
+      codes: () => airlineCodes,
+      blocklist: () => blocklist.current(),
+      log: cacheLog,
+      pollMs: env.LIVE_POLL_MS,
+      // Süreç başına sayaç tabanı: yeniden başlayan API'ye eski `lastSeq` ile gelen istemci tam
+      // görüntü alır (D-074).
+      seqBase: Date.now(),
+    })
+  : null
 
 const redisProbe = (redis: Redis | null) =>
   redis
@@ -73,7 +128,48 @@ const app = await buildApp(env, {
     now: () => new Date(),
   },
   rateLimitRedis: redisQueue,
+  // Engel listesi yüklenip önbellek başlayana kadar /v1/live ve arama 503, WS 1013 döner.
+  live: { source: liveCache, codes: () => airlineCodes, ready: () => liveRunning },
+  blocklistRedis: redisQueue,
 })
+liveLog = app.log.child({ component: 'live-cache' })
+blocklistLog = app.log.child({ component: 'blocklist' })
+
+/** Dolu bir eşleme okundu mu; okunana kadar `AIRLINE_CODES_RETRY_MS` aralığıyla denenir. */
+let airlineCodesReady = false
+
+/** Havayolu kodları; okunamazsa eldeki (açılışta boş) eşleme kalır, sefer no çıkarılmaz. */
+const refreshAirlineCodes = async () => {
+  if (!database) return
+  try {
+    airlineCodes = await loadAirlineCodes(database.sql)
+    airlineCodesReady = airlineCodes.icaoToIata.size > 0
+    app.log.debug({ airlines: airlineCodes.icaoToIata.size }, 'airline codes loaded')
+  } catch (error) {
+    app.log.warn({ err: error }, 'airline codes could not be loaded; flight numbers disabled')
+  }
+}
+
+const refreshTimers = [
+  setInterval(() => void refreshAirlineCodes(), AIRLINE_CODES_REFRESH_MS),
+  setInterval(() => {
+    if (!airlineCodesReady) void refreshAirlineCodes()
+  }, AIRLINE_CODES_RETRY_MS),
+]
+for (const timer of refreshTimers) timer.unref()
+let shuttingDown = false
+// Önbellek, engel listesi ilk kez başarıyla okunduktan (5 sn'de bir denenir) ve kodlar bir kez
+// denendikten sonra başlar: engelli uçak açılışta bir an bile görünmez. HTTP bunu beklemez; o ana
+// kadar canlı uçlar 503/1013, ilk tura kadar /v1/live boş döner.
+blocklist.start()
+const liveStarted = Promise.all([refreshAirlineCodes(), blocklist.whenLoaded()]).then(
+  ([, loaded]) => {
+    if (!loaded || shuttingDown || !liveCache) return
+    liveCache.start()
+    liveRunning = true
+  },
+)
+if (!liveCache) app.log.warn('live data disabled: REDIS_LIVE_URL is not set')
 
 if (env.ADMIN_DISABLED_REASON) {
   app.log.error(
@@ -87,11 +183,19 @@ if (env.ADMIN_DISABLED_REASON) {
 const shutdown = async (signal: string) => {
   app.log.info({ signal }, 'kapanıyor')
   try {
+    shuttingDown = true
+    for (const timer of refreshTimers) clearInterval(timer)
+    blocklist.stop()
+    // WebSocket istemcilerine önce yeniden bağlan mesajı gider (1012); sonra HTTP kapanır.
+    await closeLiveSockets()
     await app.close()
+    await liveStarted
+    await liveCache?.stop()
     await Promise.allSettled([
       database?.sql.end({ timeout: 5 }),
       redisQueue?.quit(),
       redisLive?.quit(),
+      redisLiveCache?.quit(),
     ])
     process.exit(0)
   } catch (error) {

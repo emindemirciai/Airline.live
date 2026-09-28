@@ -2,6 +2,31 @@
 
 Her karar tarih, gerekçe ve varsa alternatifiyle yazılır. En yeni karar en üsttedir.
 
+## 2026-09-28 — Parça 1 M5 canlı API
+- **D-074 Canlı API'nin spec'te açık kalan ayrıntıları.**
+  - **Veri yolu:** API, `redis-live`'ı saniyede bir yoklar ve bellekte gizlilik uygulanmış bir önbellek tutar; REST, arama ve WebSocket bu önbellekten okur. Her turda `hy:ac:seen`'den son 120 sn'deki hex'ler skorlarıyla okunur; yalnızca skoru değişenlerin hash'i çekilir. Pencere son yoklamaya değil yaşa göredir: adsb.lol örneğinin `sampleTime`'ı yazıldığı andan saniyeler önce olabilir, "son turdan beri" penceresi bu örnekleri kaçırırdı. Sağlayıcı kaydı 30 sn'den eskiyse sağlayıcı `down` sayılır (worker durmuş). Bu süreçte görülmüş bir sağlayıcının kaydı kaybolursa (worker 180 sn'den uzun durdu, TTL doldu) ya da API kayıtları 30 sn'dir okuyamıyorsa (redis-live erişilemez) sağlayıcı yanıttan düşmez, `down` görünür. Worker yapılandırdığı sağlayıcıların listesini `hy:ingest:providers`'a yazar (TTL 7 gün); API bu listedeki sağlayıcıyı da görülmüş sayar. Böylece worker çökükken yeniden başlayan API de sağlayıcıyı `down` gösterir, yanıttan düşürmez. Ne listede olan ne de görülmüş sağlayıcı yanıtta yer almaz. Pub/sub'daki kompakt kayıtta etiket alanları yoktur. Silinme olayı da yayınlanmaz; silinme, 120 sn'yi aşan kaydın önbellekten budanmasıyla anlaşılır.
+  - **`seq`:** API sürecinin kendi sayacıdır, yalnızca değişen turda artar. Son 120 turun farkı tutulur. `lastSeq` bu tamponun dışındaysa tam görüntü gönderilir. Sayaç sürecin başlangıç anından (epoch ms) başlar. Tur en sık 250 ms'de bir olduğundan önceki sürecin her `seq` değeri yeni tabanın altında kalır: yeniden başlayan API'ye eski `lastSeq` ile gelen istemci yanlış süreçten fark değil tam görüntü alır.
+  - **Kapsama:** Worker plan çemberlerini `hy:ingest:coverage`'a yazar (TTL 600 sn). `/v1/live` istenen kutunun 5×5 noktasının (köşeler dahil) hepsi bir çemberin içindeyse `full` döner. Hiçbir çember kutuya değmiyorsa `none` döner; bu karar örnek noktalarla değil, çember merkezinin kutuya en kısa uzaklığıyla verilir (geniş görünümde çember noktaların arasına sığabilir). Arası `partial`, plan okunamıyorsa `unknown`'dır.
+  - **Kayıt biçimi:**
+    - `PublicAircraft` (`apps/api/src/live/types.ts`); birimler ft, kt, ft/dk (D-072).
+    - Rakamlı çağrı kodundan sefer no çıkarılır (THY974 → TK 974); ICAO→IATA eşlemesi `airlines` ve `airline_overrides` tablolarından gelir.
+    - Güzergâh ve pist alanları Parça 2'de eklenir.
+  - **Gizlilik:** Askeri ve bayrağı bilinmeyen uçak (D-071) hiçbir yanıtta yoktur; PIA/LADD'de tescil ve tescile eşit çağrı kodu gizlenir.
+  - **Engel listesi:** `redis-queue`'da `hy:blocklist:hex` kümesidir; API 30 sn'de bir okur. API kapalı başlar: liste ilk kez başarıyla okunana kadar (5 sn'de bir denenir) önbellek başlamaz, `/v1/live` ve arama 503 `live_unavailable`, WS 1013 `live_unavailable` döner; engelli uçak açılışta bir an bile görünmez. Sonraki okuma hataları son iyi listeyi korur. `redis-queue` tanımsızsa liste tutulamaz ve yönetilemez; boş sayılır. Yönetimi şimdilik yalnızca admin API'sindedir (`/v1/admin/blocklist`); admin arayüzü sonraki parçada gelir.
+  - **WebSocket:**
+    - JSON metin çerçeveleri kullanılır. İzgara 2°'lik hücrelerden oluşur. Her turda dokunulan hücrenin parçası bir kez serileştirilir; istemci mesajı bu ortak Buffer'ların birleşimidir.
+    - En fazla saniyede bir fark gönderilir.
+    - İstemci bir farkı şöyle uygular: önce bütün hücrelerin `removed` listeleri, sonra `added` ve `updated` kayıtları (ikisi de "ekle ya da güncelle"). Hücre değiştiren uçak eski hücrede `removed`, yenisinde `added` olarak gelir.
+    - `lastSeq` yalnızca bağlantının ilk aboneliğinde ve aynı görünüm için geçerlidir; sonraki her abonelik tam görüntü alır. Devam farkı son turun değil o anın durumunu (`status`) taşır.
+    - Abonelik (tam görüntü ya da `lastSeq` farkı) soket başına saniyede bir, IP (/64) başına dakikada 120'dir (`/v1/live` sınırı; IP'nin bütün soketleri paylaşır, GCRA kovası). Fazlası atılmaz: ertelenir ve en son istenen görünüm ilk uygun anda işlenir. Kova son soket kapansa da dolana kadar tutulur; yeniden bağlanmak bütçeyi sıfırlamaz.
+    - Geri basınç: 1 MiB'ta farklar atlanır ve bir sonraki uygun turda tam görüntü gönderilir; 4 MiB'ta bağlantı hemen koparılır (`terminate`). Merkez geneli bütçe 64 MiB'tır (hy-api `mem_limit` 384m, heap 270m; tamponlar heap dışındadır). Soket sınırı tek başına yetmez: 2.000 yavaş istemci 2 GiB tutabilir. Her turda istemcilerin tampon toplamı bütçeyi aşarsa en çok biriktirenler, toplam bütçenin altına inene kadar koparılır. `close()` yerine `terminate()` kullanılır, çünkü `ws` okumayan istemcinin tamponunu kapanış el sıkışması boyunca (en geç 30 sn) tutar ve bağlantı sayaçları da o süre dolu kalır. Koparılan istemci 1006 görür ve geri çekilmeyle yeniden bağlanır.
+    - Ping 25 sn'de bir atılır; iki pong kaçıran bağlantı kapatılır.
+    - Sınırlar: IP (/64) başına 10 bağlantı; toplam `WS_MAX_CONNECTIONS`.
+    - `Origin` başlığı varsa web host'larından biri olmalıdır; başlığı olmayan yerel uygulama kabul edilir.
+    - Sıkıştırma kapalıdır, en büyük istemci mesajı 16 KiB'tır.
+    - SIGTERM'de her istemciye `{type:'reconnect', afterMs: 1–10 sn}` gönderilir ve bağlantı 1012 ile kapatılır.
+  - **Hız sınırları (IP başına):** `/v1/live` 120/dk, `/v1/search` 60/dk, WS el sıkışması 30/dk, WS aboneliği 120/dk; diğer yollar genel 300/dk.
+
 ## 2026-09-28 — Parça 1 M4 ingest; metrik birimler ve harita etiketleri
 - **D-073 Ingest'in spec'te açık kalan ayrıntıları.** Spec'in (data-sources.md §1, parca-1.md M4) sayı vermediği yerlerde standart ve güvenli seçenek alındı.
   - **Hız kovası (adsb.lol):**

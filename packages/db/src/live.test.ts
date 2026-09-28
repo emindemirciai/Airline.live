@@ -1,6 +1,13 @@
 import { describe, expect, it } from 'vitest'
 import { hourStart } from './ingest'
-import { compactAircraft, LIVE_KEYS, type LiveAircraftInput } from './live'
+import {
+  compactAircraft,
+  LIVE_KEYS,
+  parseCoverage,
+  parseScoredMembers,
+  type CoverageCircle,
+  type LiveAircraftInput,
+} from './live'
 
 const base: LiveAircraftInput = {
   hex: '4bb463',
@@ -66,9 +73,78 @@ describe('LIVE_KEYS', () => {
       LIVE_KEYS.updates,
       LIVE_KEYS.batch,
       LIVE_KEYS.regions,
+      LIVE_KEYS.coverage,
     ]) {
       expect(key.startsWith('hy:')).toBe(true)
     }
+    expect(LIVE_KEYS.coverage).toBe('hy:ingest:coverage')
+  })
+})
+
+describe('parseCoverage', () => {
+  const west: CoverageCircle = { id: 'west', kind: 'west', lat: 39.5, lon: 30.1, radiusNm: 250 }
+  const primary: CoverageCircle = {
+    id: 'primary',
+    kind: 'primary',
+    lat: 41.274874,
+    lon: 28.732136,
+    radiusNm: 40,
+  }
+
+  it('geçerli çemberleri döndürür; fazla alanlar atılır; boş dizi geçerlidir', () => {
+    expect(parseCoverage(JSON.stringify([west, { ...primary, covers: ['LTFM'] }]))).toEqual([
+      west,
+      primary,
+    ])
+    expect(parseCoverage('[]')).toEqual([])
+  })
+
+  it('kayıt yoksa, JSON bozuksa ya da dizi değilse null', () => {
+    expect(parseCoverage(null)).toBeNull()
+    expect(parseCoverage('')).toBeNull()
+    expect(parseCoverage('{"id":"west"}')).toBeNull()
+    expect(parseCoverage('[{"id":"west"')).toBeNull()
+    expect(parseCoverage('null')).toBeNull()
+  })
+
+  it('tek bir bozuk çember bütün kaydı geçersiz kılar', () => {
+    const bad: unknown[] = [
+      null,
+      'west',
+      [west],
+      { ...west, id: 7 },
+      { ...west, kind: null },
+      { ...west, lat: 91 },
+      { ...west, lat: '39.5' },
+      { ...west, lon: -180.5 },
+      { ...west, radiusNm: 0 },
+      { ...west, radiusNm: -5 },
+      { ...west, radiusNm: '40' },
+      { id: 'west', kind: 'west', lat: 39.5, lon: 30.1 },
+    ]
+    for (const item of bad) {
+      expect(parseCoverage(JSON.stringify([primary, item]))).toBeNull()
+    }
+    // JSON'da NaN ve ∞ null olur; o da reddedilir.
+    expect(parseCoverage(JSON.stringify([{ ...west, radiusNm: Infinity }]))).toBeNull()
+  })
+
+  it('sınırdaki koordinatlar geçerlidir', () => {
+    const edge = { id: 'x', kind: 'station', lat: -90, lon: 180, radiusNm: 0.5 }
+    expect(parseCoverage(JSON.stringify([edge]))).toEqual([edge])
+  })
+})
+
+describe('parseScoredMembers', () => {
+  it('düz WITHSCORES yanıtını çiftlere çevirir; sayı olmayan skor ve eksik çift atlanır', () => {
+    expect(
+      parseScoredMembers(['4bb463', '1790000000000', '~2c3a4f', '1790000000500', 'bad001', 'x']),
+    ).toEqual([
+      { hex: '4bb463', sampleTime: 1_790_000_000_000 },
+      { hex: '~2c3a4f', sampleTime: 1_790_000_000_500 },
+    ])
+    expect(parseScoredMembers(['4bb463'])).toEqual([])
+    expect(parseScoredMembers([])).toEqual([])
   })
 })
 

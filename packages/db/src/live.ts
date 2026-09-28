@@ -6,6 +6,8 @@ import type { Redis } from 'ioredis'
  * - `hy:ac:geo` (GEO) ve `hy:ac:seen` (skor = `sampleTime`): süpürme `seen` ile yapılır
  * - `hy:ac:updates` stream'i (`MAXLEN ~ 50000`), `hy:ac:batch` pub/sub kanalı
  * - `hy:provider:{id}` sağlayıcı anlık durumu, `hy:ingest:regions` bölge tazeliği
+ * - `hy:ingest:coverage` kapsama planının çemberleri (JSON, TTL 600 sn; D-074)
+ * - `hy:ingest:providers` worker'ın yapılandırdığı sağlayıcılar (JSON dizi, TTL 7 gün; D-074)
  * İndeks anahtarlarına her turda 600 sn TTL verilir; `volatile-ttl` bellek dolunca onları atsa
  * da sonraki tur yeniden kurar.
  */
@@ -17,12 +19,20 @@ export const LIVE_KEYS = {
   batch: 'hy:ac:batch',
   provider: (id: string) => `hy:provider:${id}`,
   regions: 'hy:ingest:regions',
+  coverage: 'hy:ingest:coverage',
+  providers: 'hy:ingest:providers',
 } as const
 
 export const LIVE_TTL_SECONDS = 120
 export const LIVE_STREAM_MAXLEN = 50_000
 export const LIVE_INDEX_TTL_SECONDS = 600
 export const PROVIDER_LIVE_TTL_SECONDS = 180
+export const COVERAGE_TTL_SECONDS = 600
+/**
+ * Yapılandırılmış sağlayıcı listesi uzun yaşar: worker uzun süre çökmüşken yeniden başlayan API
+ * de hangi sağlayıcının "Çalışmıyor" gösterileceğini bilir (canlı kayıtlar 180 sn'de düşer).
+ */
+export const CONFIGURED_PROVIDERS_TTL_SECONDS = 7 * 24 * 3600
 
 /** Redis GEO'nun kabul ettiği enlem sınırı (EPSG:3857); ötesindeki uçak GEO'ya eklenmez. */
 const GEO_MAX_LAT = 85.05112878
@@ -205,4 +215,155 @@ export async function writeRegionFreshness(
 export async function readLiveAircraft(redis: Redis, hex: string): Promise<unknown | null> {
   const raw = await redis.hget(LIVE_KEYS.aircraft(hex), 'd')
   return raw === null ? null : (JSON.parse(raw) as unknown)
+}
+
+// ---------------------------------------------------------------------------------------------
+// Canlı API'nin okumaları (Parça 1 M5, D-074)
+
+/** Kapsama planının bir çemberi (worker yazar, API `/v1/live` kapsamasını bununla hesaplar). */
+export interface CoverageCircle {
+  id: string
+  kind: string
+  lat: number
+  lon: number
+  radiusNm: number
+}
+
+/** Worker her sağlık turunda planı yazar; worker durursa kayıt 600 sn sonra düşer (`unknown`). */
+export async function writeCoverage(
+  redis: Redis,
+  circles: readonly CoverageCircle[],
+  ttlSeconds = COVERAGE_TTL_SECONDS,
+): Promise<void> {
+  const payload = circles.map(({ id, kind, lat, lon, radiusNm }) => ({
+    id,
+    kind,
+    lat,
+    lon,
+    radiusNm,
+  }))
+  await redis.set(LIVE_KEYS.coverage, JSON.stringify(payload), 'EX', ttlSeconds)
+}
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null && !Array.isArray(value)
+
+const inRange = (value: unknown, min: number, max: number): value is number =>
+  typeof value === 'number' && Number.isFinite(value) && value >= min && value <= max
+
+/**
+ * Kapsama kaydını doğrular: dizi olmalı, her çemberin kimliği ve türü metin, merkezi geçerli bir
+ * koordinat, yarıçapı pozitif ve sonlu olmalıdır. Tek bir bozuk çember bütün kaydı geçersiz
+ * kılar (null): eksik bir plan kapsamayı olduğundan dar gösterirdi, `unknown` daha dürüsttür.
+ * Boş dizi geçerlidir (planda çember yok).
+ */
+export function parseCoverage(raw: string | null): CoverageCircle[] | null {
+  if (raw === null) return null
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(raw)
+  } catch {
+    return null
+  }
+  if (!Array.isArray(parsed)) return null
+  const out: CoverageCircle[] = []
+  for (const item of parsed as unknown[]) {
+    if (!isRecord(item)) return null
+    const { id, kind, lat, lon, radiusNm } = item
+    if (typeof id !== 'string' || typeof kind !== 'string') return null
+    if (!inRange(lat, -90, 90) || !inRange(lon, -180, 180)) return null
+    if (typeof radiusNm !== 'number' || !Number.isFinite(radiusNm) || radiusNm <= 0) return null
+    out.push({ id, kind, lat, lon, radiusNm })
+  }
+  return out
+}
+
+/** Worker'ın yazdığı kapsama çemberleri; kayıt yoksa ya da bozuksa null. */
+export async function readCoverage(redis: Redis): Promise<CoverageCircle[] | null> {
+  return parseCoverage(await redis.get(LIVE_KEYS.coverage))
+}
+
+export interface LiveChange {
+  hex: string
+  sampleTime: number
+}
+
+/** `ZRANGEBYSCORE … WITHSCORES` düz yanıtını (üye, skor, üye, skor …) çiftlere çevirir. */
+export function parseScoredMembers(flat: readonly string[]): LiveChange[] {
+  const out: LiveChange[] = []
+  for (let i = 0; i + 1 < flat.length; i += 2) {
+    const hex = flat[i] as string
+    const sampleTime = Number(flat[i + 1])
+    if (Number.isFinite(sampleTime)) out.push({ hex, sampleTime })
+  }
+  return out
+}
+
+/**
+ * `hy:ac:seen`'de skoru (`sampleTime`) `sinceMs`'ten büyük olan uçaklar, skorlarıyla, skor
+ * sırasıyla. Sınır dahil değildir. Sonlu olmayan `sinceMs` bütün kümeyi döndürür (ilk tur).
+ */
+export async function readLiveChangedSince(redis: Redis, sinceMs: number): Promise<LiveChange[]> {
+  const min = Number.isFinite(sinceMs) ? `(${sinceMs}` : '-inf'
+  const flat = await redis.zrangebyscore(LIVE_KEYS.seen, min, '+inf', 'WITHSCORES')
+  return parseScoredMembers(flat)
+}
+
+/**
+ * Verilen uçakların tam durumu (`d` alanı), tek pipeline'da. Kaydı olmayan (süpürülmüş) ya da
+ * JSON'u bozuk uçak atlanır; sonuç doğrulanmamıştır (çağıran şemayla doğrular). Komut hatası
+ * (bağlantı, zaman aşımı) fırlatılır: çağıran son durumu korur ve sonraki turda yeniden dener.
+ */
+export async function readLiveAircraftMany(
+  redis: Redis,
+  hexes: readonly string[],
+): Promise<Map<string, unknown>> {
+  const out = new Map<string, unknown>()
+  if (hexes.length === 0) return out
+  const pipeline = redis.pipeline()
+  for (const hex of hexes) pipeline.hget(LIVE_KEYS.aircraft(hex), 'd')
+  const results = await pipeline.exec()
+  assertPipeline(results)
+  for (const [index, [, raw]] of (results ?? []).entries()) {
+    const hex = hexes[index]
+    if (hex === undefined || typeof raw !== 'string') continue
+    try {
+      const value = JSON.parse(raw) as unknown
+      if (isRecord(value)) out.set(hex, value)
+    } catch {
+      // Bozuk kayıt atlanır; worker bir sonraki örnekte üzerine yazar.
+    }
+  }
+  return out
+}
+
+/** Sağlayıcının anlık durumu (`writeProviderLive`); kayıt yoksa (süresi dolmuş) null. */
+export async function readProviderLive(
+  redis: Redis,
+  id: string,
+): Promise<Record<string, string> | null> {
+  const fields = await redis.hgetall(LIVE_KEYS.provider(id))
+  return Object.keys(fields).length === 0 ? null : fields
+}
+
+/** Worker'ın bu süreçte yapılandırdığı sağlayıcı kimlikleri (adsbLol, localReceiver). */
+export async function writeConfiguredProviders(
+  redis: Redis,
+  ids: readonly string[],
+  ttlSeconds = CONFIGURED_PROVIDERS_TTL_SECONDS,
+): Promise<void> {
+  await redis.set(LIVE_KEYS.providers, JSON.stringify([...new Set(ids)].sort()), 'EX', ttlSeconds)
+}
+
+/** Yapılandırılmış sağlayıcılar; anahtar yok ya da bozuksa null. */
+export async function readConfiguredProviders(redis: Redis): Promise<string[] | null> {
+  const raw = await redis.get(LIVE_KEYS.providers)
+  if (raw === null) return null
+  try {
+    const parsed: unknown = JSON.parse(raw)
+    if (!Array.isArray(parsed)) return null
+    return parsed.filter((x): x is string => typeof x === 'string' && /^[A-Za-z]{1,32}$/.test(x))
+  } catch {
+    return null
+  }
 }
