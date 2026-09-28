@@ -7,3 +7,8 @@ export const PROJECT = {
   copyrightYear: 2026,
   license: 'MIT',
 } as const
+
+/** Tam git commit kimliğinin ekranda gösterilen kısa hâli (ilk 7 hane); "dev" gibi değerler olduğu gibi kalır. */
+export function shortSha(sha: string): string {
+  return /^[0-9a-f]{8,40}$/i.test(sha) ? sha.slice(0, 7) : sha
+}
