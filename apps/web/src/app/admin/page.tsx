@@ -1,5 +1,5 @@
 import { format, getMessages, type Messages } from '@havayolu/i18n'
-import type { Locale, ServiceStatus } from '@havayolu/shared'
+import { shortSha, type Locale, type ServiceStatus } from '@havayolu/shared'
 import type { Metadata } from 'next'
 import { cookies } from 'next/headers'
 import Link from 'next/link'
@@ -141,7 +141,7 @@ function detailItems(service: ServiceStatus, t: AdminMessages, locale: Locale): 
   if (typeof d.uptimeSec === 'number') {
     items.push(`${t.detail.uptime}: ${format(t.detail.seconds, { n: d.uptimeSec })}`)
   }
-  if (typeof d.gitSha === 'string') items.push(`${t.detail.gitSha}: ${d.gitSha}`)
+  if (typeof d.gitSha === 'string') items.push(`${t.detail.gitSha}: ${shortSha(d.gitSha)}`)
   if (typeof d.httpStatus === 'number') items.push(`${t.detail.httpStatus}: ${d.httpStatus}`)
   if (typeof d.error === 'string') items.push(`${t.detail.error}: ${d.error}`)
   return items

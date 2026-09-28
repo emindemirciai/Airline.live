@@ -151,6 +151,8 @@ a:focus-visible {
 }
 
 .facts > div {
+  /* Izgara öğesi içeriğinden dar olabilsin; uzun kimlik kutudan taşmasın (v0.7.1). */
+  min-width: 0;
   background: var(--surface);
   border: 1px solid var(--line);
   border-radius: var(--radius);
@@ -165,6 +167,7 @@ a:focus-visible {
 .facts dd {
   margin: 0.2rem 0 0;
   font-size: 1.05rem;
+  overflow-wrap: anywhere;
 }
 
 .state {

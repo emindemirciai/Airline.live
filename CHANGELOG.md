@@ -8,6 +8,24 @@
 
 ---
 
+## v0.7.1 — 2026-09-28
+
+### Türkçe
+**Durum sayfasında taşan yazılar düzeltildi**
+
+- Durum sayfasında derleme kimliği artık kutusundan taşmıyor; kısa hâli görünüyor, tamamı üzerine gelince okunuyor.
+
+Dene: [Durum sayfası](/durum)
+
+### English
+**Overflowing text on the status page fixed**
+
+- On the status page the build ID no longer spills out of its box; the short form is shown and the full ID appears on hover.
+
+Try it: [Status page](/durum)
+
+---
+
 ## v0.7.0 — 2026-09-28
 
 ### Türkçe

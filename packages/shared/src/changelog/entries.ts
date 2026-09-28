@@ -7,6 +7,21 @@ import type { ChangelogEntry } from './types'
  */
 export const CHANGELOG: readonly ChangelogEntry[] = [
   {
+    version: '0.7.1',
+    date: '2026-09-28',
+    title: {
+      tr: 'Durum sayfasında taşan yazılar düzeltildi',
+      en: 'Overflowing text on the status page fixed',
+    },
+    items: [
+      {
+        tr: 'Durum sayfasında derleme kimliği artık kutusundan taşmıyor; kısa hâli görünüyor, tamamı üzerine gelince okunuyor.',
+        en: 'On the status page the build ID no longer spills out of its box; the short form is shown and the full ID appears on hover.',
+      },
+    ],
+    tryLinks: [{ path: '/durum', label: { tr: 'Durum sayfası', en: 'Status page' } }],
+  },
+  {
     version: '0.7.0',
     date: '2026-09-28',
     title: {
