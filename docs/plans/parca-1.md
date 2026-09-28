@@ -16,7 +16,7 @@ Durumlar: `[ ]` başlamadı, `[~]` sürüyor, `[k]` kod bitti ve kullanıcı do�
 | M2 | Veritabanı ve referans verisi | `p1/m2-db` | [x] | #7 |
 | M3 | Sağlayıcılar | `p1/m3-providers` | [x] | #10 |
 | M4 | Ingest, replay ve senaryo araçları | `p1/m4-ingest` | [k] kod bitti; üretimde adsb.lol çekimi kullanıcının iki ACTIVATION adımından (info@adsb.lol bildirimi, ardından `CONTACT_EMAIL`) sonra açılır | #11 |
-| M5 | Canlı API | `p1/m5-live-api` | [ ] | — |
+| M5 | Canlı API | `p1/m5-live-api` | [k] kod bitti; üretimde 5 dk boşta WS bağlantısı kullanıcı doğrulaması bekliyor | #13 |
 | M6 | Web canlı harita | `p1/m6-map` | [ ] | — |
 | M7 | Canlı araçlar ve kapsama raporu | `p1/m7-tools` | [ ] | — |
 
@@ -232,5 +232,53 @@ Spec boşlukları için alınan kararlar D-073'tedir; metrik birim kararı D-072
   - `.facts` kutuları `min-width: 0`, değerler `overflow-wrap: anywhere` aldı; uzun metin kutu içinde kırılır.
 - **Doğrulama:** Önizlemede 40 haneli kimlik 199 px'lik kutuda taşmadan 3 satıra kırıldı. 375 px mobil genişlikte sayfada yatay taşma yok.
 
-## M5–M7
+## M5 — Canlı API
+Spec boşlukları için alınan kararlar D-074'tedir.
+
+**Dizinler ve dosyalar:**
+- **`apps/api/src/live/`:**
+  - `types.ts` (`PublicAircraft`, `LiveSource`)
+  - `record.ts` (gizlilik, sefer no), `bbox.ts` (kutu, kapsama), `search.ts`
+  - `cache.ts` (`redis-live` yoklaması, fark, `seq`), `routes.ts` (`/v1/live`, `/v1/search`)
+  - `ws.ts` (`/v1/ws`)
+- **`apps/api/src/admin/blocklist.ts`:** `/v1/admin/blocklist`
+- **`packages/db/src/`:** `live.ts` (okuyucular, kapsama), `blocklist.ts`, `airlines.ts` (ICAO↔IATA)
+- **`apps/worker/src/ingest/index.ts`:** kapsama çemberlerini `redis-live`'a yazar
+
+**Kabul komutları:**
+- `pnpm --filter @havayolu/api test`:
+  - gizlilik: askeri ve bilinmeyen bayrak yok, PIA/LADD tescili yok
+  - kutu ve kapsama; arama (hex, tescil, sefer no, çağrı kodu)
+  - önbellek farkı ve `seq`; farklı `X-Forwarded-For` ayrı sayaç, güvenilmeyen XFF yok sayılır
+  - WS birim: ortak hücre Buffer'ı, geri basınç, ping/pong, sınırlar, `Origin`
+- `pnpm test:integration` (önce `pnpm dev:infra`):
+  - `/v1/live` ve `/v1/search` gerçek `redis-live` ile; askeri uçak görünmez
+  - WS: tam görüntü → fark, `lastSeq` ile devam, yeniden bağlanma mesajı ve 1012, IP sınırı
+- `pnpm dev:replay` → `http://localhost:4100/v1/live?bbox=25,35,45,43` sentetik uçakları döner
+- `pnpm ci:full` yeşil
+- **Kullanıcıya bağlı (`[k]`):** `wss://api.havayolu.live/v1/ws` üzerinden 5 dk boşta bağlantı kopmaz.
+
+**Çıktı kaydı (2026-09-29):**
+- **Yöntem:** Arayüz sözleşmesi (`types.ts`) önce yazıldı. Paralel ajanlar ayrışık dosyalarda uyguladı, tek ajan API ve worker'a bağladı.
+- **İnceleme:** Çok açılı inceleme ve bulgu başına çürütücü doğrulayıcılar. 7 bulgu doğrulandı (6 orta, 1 düşük), hepsi düzeltildi:
+  - WS tamponları için merkez geneli 64 MiB bütçe
+  - engel listesi okunana kadar kapalı başlama
+  - redis-live okunamazken sağlayıcının `down` görünmesi
+  - `lastSeq` devam farkında güncel durum
+  - abonelik hız sınırı
+  - büyük kutuda `none` yerine tam çember–dikdörtgen kesişimi
+  - worker 180 sn'den uzun durunca sağlayıcının yanıttan düşmemesi
+
+  Bağımsız denetim iki düzeltmeyi yarım buldu, ikisi de tamamlandı. Tampon sınırında `close()` yerine `terminate()` kullanılıyor, çünkü `close()` tamponu 30 sn tutuyordu. Worker yapılandırdığı sağlayıcıları `hy:ingest:providers`'a yazıyor; böylece worker çökükken açılan API de sağlayıcıyı `down` gösteriyor. Ayrıntı D-074'tedir.
+- **`pnpm ci:full` → yeşil:**
+  - Birim testleri: worker 184, api 172, providers 88, tools 74, scripts 31, i18n 28, geo 20, db 19, web 10, shared 9 (toplam 635).
+  - Entegrasyon testleri: db 58, api 15, worker 11 (toplam 84).
+  - `compose:guard` yeşil; migration yükseltmesi 4 → 4 (M5'te migration yok).
+- **`pnpm dev:replay` (yerel):**
+  - `/v1/live?bbox=25,35,45,43` → 10 sentetik uçak; kapsama `partial`; `localReceiver` `ok`; en yeni örnek 1–2 sn.
+  - `bbox=0,0,5,5` → `none`, 0 uçak; `bbox=bad` → 400; `/v1/search?q=HYS001` → çağrı kodu eşleşmesi.
+  - `/v1/ws`: tam görüntü (10 uçak), ardından saniyede bir fark (4 hücre, 10 güncelleme).
+- `pnpm stats` → 270 dosya, 36.182 satır (30.861 kod).
+
+## M6–M7
 Ayrıntılar `docs/prompts/parca-1.md`'dedir. Her kilometre taşına başlarken bu dosyaya dizinler ve kabul komutları eklenir.

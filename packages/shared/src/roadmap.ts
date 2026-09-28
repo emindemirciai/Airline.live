@@ -68,7 +68,7 @@ export const ROADMAP: readonly Milestone[] = [
   {
     id: 'p1-m5',
     part: '1',
-    status: 'planned',
+    status: 'done',
     title: { tr: 'Canlı veri akışı (WebSocket)', en: 'Live data stream (WebSocket)' },
   },
   {

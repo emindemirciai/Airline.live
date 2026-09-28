@@ -48,6 +48,16 @@ const EnvSchema = z.object({
     z.array(z.string().refine(isCidr, 'geçerli bir IP ya da CIDR olmalı (ör. 10.0.0.0/8)')),
   ),
   EDGE_PROXY: z.preprocess(emptyToUndefined, z.enum(['cloudflare']).optional()),
+
+  // Canlı API (D-074): toplam WebSocket bağlantısı ve redis-live yoklama aralığı.
+  WS_MAX_CONNECTIONS: z.preprocess(
+    emptyToUndefined,
+    z.coerce.number().int().min(1).max(100_000).default(2_000),
+  ),
+  LIVE_POLL_MS: z.preprocess(
+    emptyToUndefined,
+    z.coerce.number().int().min(250).max(10_000).default(1_000),
+  ),
 })
 
 /** Yönetici kurulum anahtarının en kısa uzunluğu; giriş denemeleri ziyaretçi başına sınırlıdır (D-069). */

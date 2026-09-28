@@ -7,6 +7,32 @@ import type { ChangelogEntry } from './types'
  */
 export const CHANGELOG: readonly ChangelogEntry[] = [
   {
+    version: '0.8.0',
+    date: '2026-09-29',
+    title: {
+      tr: 'Canlı uçuş verisi artık uygulamalara akıyor',
+      en: 'Live flight data now flows to the apps',
+    },
+    items: [
+      {
+        tr: 'Harita ve mobil uygulama için canlı veri servisi hazır: görünen alandaki uçaklar anlık alınır, sonra her saniye yalnızca değişenler gönderilir. Bağlantı koparsa kaldığı yerden devam eder.',
+        en: 'The live data service for the map and the mobile app is ready: aircraft in the visible area are fetched at once, then only changes are sent every second. If the connection drops, it resumes where it left off.',
+      },
+      {
+        tr: 'Uçak sefer numarasıyla (TK-974), çağrı koduyla, tescille ya da hex koduyla aranabiliyor. Harfli çağrı kodu kullanan seferlerde sefer no eşleşmesi garanti değildir.',
+        en: 'Aircraft can be searched by flight number (TK-974), callsign, registration or hex code. For flights using alphanumeric callsigns, flight-number matching is not guaranteed.',
+      },
+      {
+        tr: 'Gizlilik: askeri uçaklar hiçbir yerde gösterilmiyor; gizlilik programındaki (PIA, LADD) uçakların tescili gizleniyor. Yönetici istediği uçağı listeden tamamen çıkarabiliyor.',
+        en: 'Privacy: military aircraft are never shown, and the registration of aircraft in privacy programmes (PIA, LADD) is hidden. The administrator can remove any aircraft from all listings.',
+      },
+      {
+        tr: 'Her yanıt verinin ne kadar taze olduğunu ve veri kaynağının durumunu söylüyor; bir bölge kapsama dışındaysa bu açıkça belirtiliyor.',
+        en: 'Every response states how fresh the data is and the status of the data source; if an area is outside coverage, this is stated clearly.',
+      },
+    ],
+  },
+  {
     version: '0.7.1',
     date: '2026-09-28',
     title: {
