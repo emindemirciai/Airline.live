@@ -15,6 +15,7 @@
   },
   "dependencies": {
     "@havayolu/db": "workspace:*",
+    "@havayolu/geo": "workspace:*",
     "@havayolu/providers": "workspace:*",
     "@havayolu/shared": "workspace:*",
     "bullmq": "6.3.9",

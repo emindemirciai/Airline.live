@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { fakeProbes } from '../test/helpers'
-import { collectServices, PROBE_TIMEOUT_MS } from './services'
+import type { ProviderSummary } from '@havayolu/db'
+import { fakeProbes, fakeProviderSummary } from '../test/helpers'
+import { collectServices, PROBE_TIMEOUT_MS, PROVIDER_HEALTH_STALE_MS } from './services'
 
 const api = { version: '0.3.0', gitSha: 'abc1234', startedAt: new Date('2026-09-25T11:00:00Z') }
 const byId = (report: Awaited<ReturnType<typeof collectServices>>, id: string) =>
@@ -187,5 +188,206 @@ describe('collectServices', () => {
       api,
     })
     expect(byId(report, 'analytics')).toMatchObject({ state: 'ok', detail: { httpStatus: 200 } })
+  })
+})
+
+describe('collectServices: canlı veri sağlayıcıları', () => {
+  const NOW = new Date('2026-09-25T12:00:00Z').getTime()
+  const secondsAgo = (sec: number) => new Date(NOW - sec * 1000)
+  const report = (providers: ProviderSummary[] | (() => Promise<ProviderSummary[]>) | null) =>
+    collectServices({
+      ...fakeProbes({
+        providers:
+          typeof providers === 'function' || providers === null ? providers : async () => providers,
+      }),
+      api,
+    })
+  const providerRows = (r: Awaited<ReturnType<typeof collectServices>>) =>
+    r.services.filter((s) => s.kind === 'provider')
+
+  it('sağlıklı adsb.lol satırı: hız, tazelik, oranlar ve devre; yerel alıcı yapılandırılmadı', async () => {
+    const r = await collectServices({ ...fakeProbes(), api })
+    expect(r.overall).toBe('ok')
+    expect(byId(r, 'provider:adsbLol')).toEqual({
+      id: 'provider:adsbLol',
+      kind: 'provider',
+      state: 'ok',
+      version: null,
+      latencyMs: null,
+      detail: {
+        rps: 0.1,
+        freshnessP95Sec: 14.3,
+        errorRatioPct: 0,
+        rateLimited1hPct: 0.4,
+        rateLimited24hPct: 1.2,
+        circuit: 'closed',
+        lastSuccessAgeSec: 8,
+      },
+      checkedAt: '2026-09-25T12:00:00.000Z',
+    })
+    expect(byId(r, 'provider:localReceiver')).toMatchObject({
+      kind: 'provider',
+      state: 'not_configured',
+      detail: {},
+    })
+  })
+
+  it('sıra sabittir ve worker satırlarından sonra gelir; bilinmeyen sağlayıcı gösterilmez', async () => {
+    const r = await report([
+      fakeProviderSummary({ provider: 'someOther' }),
+      fakeProviderSummary({ provider: 'localReceiver', rps: null }),
+      fakeProviderSummary(),
+    ])
+    const ids = r.services.map((s) => s.id)
+    expect(providerRows(r).map((s) => s.id)).toEqual(['provider:adsbLol', 'provider:localReceiver'])
+    expect(ids.indexOf('provider:adsbLol')).toBe(ids.indexOf('worker:worker-rt') + 1)
+    expect(ids.indexOf('postgres')).toBe(ids.indexOf('provider:localReceiver') + 1)
+    expect(ids).not.toContain('provider:someOther')
+    // Hız kovası olmayan yerel alıcıda hız boş kalır.
+    expect(byId(r, 'provider:localReceiver')).toMatchObject({ state: 'ok', detail: { rps: null } })
+  })
+
+  it('veritabanı yoksa iki sağlayıcı da yapılandırılmadı görünür ve genel durumu bozmaz', async () => {
+    const r = await report(null)
+    expect(providerRows(r).map((s) => s.state)).toEqual(['not_configured', 'not_configured'])
+    expect(r.overall).toBe('ok')
+  })
+
+  it('sağlık kaydı yoksa (worker henüz yazmadı ya da sağlayıcı kapalı) yapılandırılmadı görünür', async () => {
+    const r = await report([])
+    expect(providerRows(r).map((s) => s.state)).toEqual(['not_configured', 'not_configured'])
+  })
+
+  it('sorgu hata verirse iki sağlayıcı da down olur ve hata metni raporlanır', async () => {
+    const r = await report(() =>
+      Promise.reject(new Error('relation "provider_health" does not exist')),
+    )
+    for (const row of providerRows(r)) {
+      expect(row).toMatchObject({
+        state: 'down',
+        detail: { error: 'relation "provider_health" does not exist' },
+      })
+    }
+    expect(r.overall).toBe('down')
+  })
+
+  it('yanıt vermeyen sorgu zaman aşımında down olur', async () => {
+    vi.useFakeTimers()
+    const pending = report(() => new Promise(() => undefined))
+    await vi.advanceTimersByTimeAsync(PROBE_TIMEOUT_MS + 10)
+    const r = await pending
+    expect(byId(r, 'provider:adsbLol')).toMatchObject({
+      state: 'down',
+      detail: { error: expect.stringMatching(/zaman aşımı/) },
+    })
+  })
+
+  it("180 sn'den eski kayıt down olur: kaydın yaşı ve son başarılı yanıt gösterilir", async () => {
+    const stale = await report([
+      fakeProviderSummary({ updatedAt: secondsAgo(240), lastSuccessAt: secondsAgo(250) }),
+    ])
+    expect(byId(stale, 'provider:adsbLol')).toMatchObject({
+      state: 'down',
+      detail: { staleSec: 240, lastSuccessAgeSec: 250 },
+    })
+    expect(byId(stale, 'provider:adsbLol')?.detail).not.toHaveProperty('rps')
+    expect(byId(stale, 'provider:adsbLol')?.detail).not.toHaveProperty('error')
+    expect(stale.overall).toBe('down')
+
+    // Sınır: tam 180 sn eski kayıt hâlâ geçerlidir.
+    const edge = await report([
+      fakeProviderSummary({ updatedAt: new Date(NOW - PROVIDER_HEALTH_STALE_MS) }),
+    ])
+    expect(byId(edge, 'provider:adsbLol')?.state).toBe('ok')
+  })
+
+  it('eskimiş kayıt sorunluyken yazılmışsa son hata da gösterilir', async () => {
+    const r = await report([
+      fakeProviderSummary({
+        status: 'down',
+        updatedAt: secondsAgo(600),
+        lastError: 'network: ECONNRESET',
+        lastErrorAt: secondsAgo(610),
+      }),
+    ])
+    expect(byId(r, 'provider:adsbLol')).toMatchObject({
+      state: 'down',
+      detail: { staleSec: 600, error: 'network: ECONNRESET' },
+    })
+  })
+
+  it('degraded: 60 sn hata oranı tam yüzde, 429 oranı bir ondalık, son hata gösterilir', async () => {
+    const r = await report([
+      fakeProviderSummary({
+        status: 'degraded',
+        rps: 0.05,
+        errorRatio60s: 1 / 3,
+        lastError: 'rate_limit: HTTP 429',
+        lastErrorAt: secondsAgo(12),
+        rateLimitedRatio1h: 0.0567,
+      }),
+    ])
+    expect(byId(r, 'provider:adsbLol')).toMatchObject({
+      state: 'degraded',
+      detail: {
+        rps: 0.05,
+        errorRatioPct: 33,
+        rateLimited1hPct: 5.7,
+        error: 'rate_limit: HTTP 429',
+      },
+    })
+    expect(r.overall).toBe('degraded')
+  })
+
+  it('durum ok iken eski hata metni gösterilmez', async () => {
+    const r = await report([
+      fakeProviderSummary({ lastError: 'server: HTTP 502', lastErrorAt: secondsAgo(900) }),
+    ])
+    expect(byId(r, 'provider:adsbLol')?.detail).not.toHaveProperty('error')
+  })
+
+  it('401/403: devre config, hiç başarılı yanıt yok, down', async () => {
+    const r = await report([
+      fakeProviderSummary({
+        status: 'down',
+        circuit: 'config',
+        lastSuccessAt: null,
+        lastError: 'config: HTTP 403',
+        lastErrorAt: secondsAgo(5),
+        consecutiveFailures: 1,
+      }),
+    ])
+    expect(byId(r, 'provider:adsbLol')).toMatchObject({
+      state: 'down',
+      detail: { circuit: 'config', lastSuccessAgeSec: null, error: 'config: HTTP 403' },
+    })
+  })
+
+  it('pencerede istek yoksa oranlar boş; hız üç, tazelik bir ondalığa yuvarlanır', async () => {
+    const r = await report([
+      fakeProviderSummary({
+        rps: 0.1 * 1.1 * 1.1,
+        freshnessP95S: null,
+        errorRatio60s: null,
+        rateLimitedRatio1h: null,
+        rateLimitedRatio24h: null,
+      }),
+    ])
+    expect(byId(r, 'provider:adsbLol')?.detail).toMatchObject({
+      rps: 0.121,
+      freshnessP95Sec: null,
+      errorRatioPct: null,
+      rateLimited1hPct: null,
+      rateLimited24hPct: null,
+    })
+  })
+
+  it('bilinmeyen durum değeri down sayılır; ileri tarihli kayıt eski sayılmaz', async () => {
+    const r = await report([
+      fakeProviderSummary({ status: 'paused' as unknown as ProviderSummary['status'] }),
+      fakeProviderSummary({ provider: 'localReceiver', updatedAt: new Date(NOW + 5_000) }),
+    ])
+    expect(byId(r, 'provider:adsbLol')?.state).toBe('down')
+    expect(byId(r, 'provider:localReceiver')?.state).toBe('ok')
   })
 })

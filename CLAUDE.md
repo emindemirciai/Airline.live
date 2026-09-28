@@ -150,7 +150,7 @@ Sıra: 1–4 commit'ten önce yapılır ve aynı commit'e girer. 5 commit'ten so
 - **Repo:** `C:\PROJELER\havayolu` (ASCII, boşluksuz). `core.longpaths true`. `.gitattributes` LF'yi zorlar ve doğru yazılmıştır; yeniden yazma (gitattributes `{a,b}` sözdizimini desteklemez).
 - **Script'ler:** `pnpm-workspace.yaml` içinde `shellEmulator: true`. package.json script'lerinde `rm -rf`, `export`, `VAR=x cmd` ve tek tırnak yasaktır; karmaşık işler `scripts/*.mts` olarak yazılır. `.sh` dosyaları yalnızca Linux konteynerinde çalışır.
 - **Yerel portlar sabittir, env'den gelir.** Bu makinede 3000–3003 başka bir projenin konteynerlerindedir.
-  - web 3100 · api 4100 · worker sağlık 4200
+  - web 3100 · api 4100 · worker sağlık 4200 · replay alıcısı 4300
   - Postgres 45432 · redis-queue 46379 · redis-live 46380
   - Mailpit 48025/41025 · MinIO 49000/49001
   - Altyapı portları Windows'un dinamik port bölgesinin (49152+) altındadır; Hyper-V/WinNAT açılışta bu bölgeden rastgele aralık ayırır (`netsh interface ipv4 show excludedportrange protocol=tcp`, D-065).
@@ -187,10 +187,11 @@ Sıra: 1–4 commit'ten önce yapılır ve aynı commit'e girer. 5 commit'ten so
 | `pnpm stats` | Satır sayısı |
 | `pnpm backup` | Temiz zip yedek |
 | `pnpm test:scripts` | Script testleri (deploy script'i: stub Dokploy, sahte saat) |
+| `pnpm dev:replay` | Replay alıcısı (4300, sentetik senaryo) + `pnpm dev`; worker ingest veriyi yerel alıcı yolundan alır, canlı istek atılmaz |
 | `pnpm deploy:dokploy` | Yalnızca CI (`release`/`rollback` işleri) çalıştırır; yerelde çalıştırılmaz (canlı çağrı) |
 
 Yerel üretim denemesi: `docker compose -p hy-localprod -f docker-compose.yml -f docker-compose.build.yml --env-file .env.example up -d --build --wait --wait-timeout 300` (sonra aynı komutla `down -v`).
 
 Yayın ve geri alma: `docs/DEPLOY_DOKPLOY.md` (kurulum bir kez), `gh workflow run rollback.yml -f sha=<7>` (geri alma).
 
-Sonraki kilometre taşları bu tabloya kendi komutlarını ekler: `dev:replay`, `test:e2e`, `smoke:live`, `record`, `coverage:report`, `coverage:probe`. Ayrı bir `db:seed` yoktur; tohum verisi `db:migrate`'in parçasıdır.
+Sonraki kilometre taşları bu tabloya kendi komutlarını ekler: `test:e2e`, `smoke:live`, `record`, `coverage:report`, `coverage:probe`. Ayrı bir `db:seed` yoktur; tohum verisi `db:migrate`'in parçasıdır.

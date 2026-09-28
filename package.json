@@ -1,6 +1,6 @@
 {
   "name": "havayolu",
-  "version": "0.6.0",
+  "version": "0.7.0",
   "private": true,
   "license": "MIT",
   "type": "module",
@@ -10,6 +10,7 @@
   },
   "scripts": {
     "dev": "turbo run dev --filter=@havayolu/web --filter=@havayolu/api --filter=@havayolu/worker",
+    "dev:replay": "tsx scripts/dev-replay.mts",
     "build": "turbo run build",
     "lint": "turbo run lint",
     "typecheck": "turbo run typecheck",

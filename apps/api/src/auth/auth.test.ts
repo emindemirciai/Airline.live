@@ -183,6 +183,8 @@ describe('/v1/admin/services', () => {
       'api',
       'worker:worker-bg',
       'worker:worker-rt',
+      'provider:adsbLol',
+      'provider:localReceiver',
       'postgres',
       'redis-queue',
       'redis-live',

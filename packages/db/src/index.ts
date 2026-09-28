@@ -1,4 +1,6 @@
 export * from './client'
+export * from './ingest'
+export * from './live'
 export * from './migrate'
 export * from './partitions'
 export * from './redis'

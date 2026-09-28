@@ -1,10 +1,62 @@
 import { existsSync } from 'node:fs'
 import { dirname, join } from 'node:path'
+import { parseReceiverUrls, ReceiverConfigError } from '@havayolu/providers'
 import { withoutEnvPlaceholders } from '@havayolu/shared'
 import { z } from 'zod'
 
 const emptyToUndefined = (value: unknown) =>
   typeof value === 'string' && value.trim() === '' ? undefined : value
+
+/** adsb.lol başlangıç hızı sınırları (istek/sn, D-073); dışındaki değer sessizce kırpılmaz. */
+const ADSBLOL_RPS_MESSAGE = '0,05–0,2 istek/sn arasında olmalı (D-073)'
+const ICAO_HEX = /^[0-9a-f]{6}$/
+
+/**
+ * Takip listesi (Parça 2'ye kadar): virgülle ayrılmış 6 haneli ICAO hex'leri → küçük harf, tekil
+ * liste. Hata iletisi değeri değil sırasını söyler.
+ */
+const watchHexList = z.preprocess(
+  emptyToUndefined,
+  z
+    .string()
+    .optional()
+    .transform((value, ctx) => {
+      if (value === undefined) return []
+      const parts = value
+        .split(',')
+        .map((part) => part.trim().toLowerCase())
+        .filter(Boolean)
+      const invalid = parts.flatMap((part, index) => (ICAO_HEX.test(part) ? [] : [index + 1]))
+      if (invalid.length > 0) {
+        ctx.issues.push({
+          code: 'custom',
+          input: value,
+          message: `${invalid.join(', ')}. değer 6 haneli ICAO hex değil`,
+        })
+        return z.NEVER
+      }
+      return [...new Set(parts)]
+    }),
+)
+
+/** Yerel alıcı adresleri açılışta doğrulanır; ileti token ya da adres içermez (providers). */
+const receiverUrls = z.preprocess(
+  emptyToUndefined,
+  z
+    .string()
+    .optional()
+    .superRefine((value, ctx) => {
+      try {
+        parseReceiverUrls(value)
+      } catch (error) {
+        if (!(error instanceof ReceiverConfigError)) throw error
+        ctx.addIssue({
+          code: 'custom',
+          message: error.message.replace(/^LOCAL_RECEIVER_URLS: /, ''),
+        })
+      }
+    }),
+)
 const booleanFlag = (fallback: boolean) =>
   z.preprocess(
     (value) => (typeof value === 'string' ? value.trim().toLowerCase() || undefined : value),
@@ -35,6 +87,8 @@ const EnvSchema = z.object({
     z.coerce.number().int().min(1).max(65535).default(4200),
   ),
   REDIS_QUEUE_URL: z.preprocess(emptyToUndefined, z.url().optional()),
+  /** Anlık durum (ingest yazar); kalıcı değildir. Üretimde ingest rolü için zorunludur. */
+  REDIS_LIVE_URL: z.preprocess(emptyToUndefined, z.url().optional()),
   DATABASE_URL: z.preprocess(emptyToUndefined, z.url().optional()),
 
   APP_NAME: z.preprocess(emptyToUndefined, z.string().trim().min(1).default('havayolu')),
@@ -49,6 +103,21 @@ const EnvSchema = z.object({
   EXTERNAL_PROVIDERS_DISABLED: booleanFlag(true),
   TRACK_SAMPLED_RETENTION_DAYS: retentionDays(7),
   TRACK_FINE_RETENTION_DAYS: retentionDays(30),
+
+  /** adsb.lol başlangıç hızı; AIMD bu değerden başlar (D-073). */
+  ADSBLOL_RPS: z.preprocess(
+    emptyToUndefined,
+    z.coerce
+      .number('sayı olmalı')
+      .min(0.05, ADSBLOL_RPS_MESSAGE)
+      .max(0.2, ADSBLOL_RPS_MESSAGE)
+      .default(0.1),
+  ),
+  /** İkisi birlikte verilir; tutarlılığı adsb.lol istemcisi denetler (ingest yapılandırma hatası). */
+  ADSBLOL_API_KEY: z.preprocess(emptyToUndefined, z.string().optional()),
+  ADSBLOL_API_KEY_HEADER: z.preprocess(emptyToUndefined, z.string().optional()),
+  LOCAL_RECEIVER_URLS: receiverUrls,
+  WATCH_HEX_LIST: watchHexList,
 })
 
 export type Env = z.infer<typeof EnvSchema>
@@ -66,6 +135,7 @@ export class EnvError extends Error {
 const PASSWORD_URLS = {
   DATABASE_URL: 'POSTGRES_PASSWORD',
   REDIS_QUEUE_URL: 'REDIS_QUEUE_PASSWORD',
+  REDIS_LIVE_URL: 'REDIS_LIVE_PASSWORD',
 } as const
 
 export function parseEnv(source: NodeJS.ProcessEnv): Env {

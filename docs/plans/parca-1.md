@@ -15,7 +15,7 @@ Durumlar: `[ ]` başlamadı, `[~]` sürüyor, `[k]` kod bitti ve kullanıcı do�
 | M1b | Yayın hattı (CI, deploy, rollback, DEPLOY_DOKPLOY.md) | `p1/m1b-deploy` | [x] otomatik yayın zinciri 2026-09-27'de doğrulandı (CI → `release` dalı → Dokploy Autodeploy → `/version`, D-070) | #6, #9 |
 | M2 | Veritabanı ve referans verisi | `p1/m2-db` | [x] | #7 |
 | M3 | Sağlayıcılar | `p1/m3-providers` | [x] | #10 |
-| M4 | Ingest, replay ve senaryo araçları | `p1/m4-ingest` | [~] | — |
+| M4 | Ingest, replay ve senaryo araçları | `p1/m4-ingest` | [k] kod bitti; üretimde adsb.lol çekimi kullanıcının iki ACTIVATION adımından (info@adsb.lol bildirimi, ardından `CONTACT_EMAIL`) sonra açılır | — |
 | M5 | Canlı API | `p1/m5-live-api` | [ ] | — |
 | M6 | Web canlı harita | `p1/m6-map` | [ ] | — |
 | M7 | Canlı araçlar ve kapsama raporu | `p1/m7-tools` | [ ] | — |
@@ -164,5 +164,65 @@ Durumlar: `[ ]` başlamadı, `[~]` sürüyor, `[k]` kod bitti ve kullanıcı do�
 - Kapsama gözlemi (D-071): yoğun saatte LTFM çevresinde 18 uçak, yerde hiç yok; M7 kapsama raporunda ölçülecek.
 - `pnpm stats` → 194 dosya, 16.836 satır (11.988 kod); fixture JSON dosyaları da artık sayılmaz.
 
-## M4–M7
+## M4 — Ingest, replay ve senaryo araçları
+Spec boşlukları için alınan kararlar D-073'tedir; metrik birim kararı D-072'dir.
+
+**Dizinler ve dosyalar:**
+- **`packages/db`:**
+  - `drizzle/0003_*`: `provider_health`'e sütunlar; `provider_health_hourly` ve `provider_status_changes` tabloları
+  - `src/ingest.ts`: istasyon + ARP sorgusu, uçuş kaydı ve iz yazma, sağlayıcı sağlığı
+  - `src/live.ts`: `redis-live` anahtarları (`hy:ac:*`) ve yazıcılar
+- **`packages/geo`:** kt ↔ km/sa, ft/dk → m/dk, `distanceNm`, çember içerme
+- **`packages/i18n/src/units.ts`:** metrik varsayılanlı birim ve sefer no biçimleyiciler (D-072)
+- **`packages/providers/src/track-source.ts`:** `track_points.source` smallint kodu
+- **`apps/worker/src/ingest/`:**
+  - `rate.ts` (AIMD kova, geri çekilme, devre kesici)
+  - `status.ts` (sağlayıcı durumu, tazelik p95)
+  - `plan.ts` (kapsama planı ve istek zamanlayıcı)
+  - `merge.ts`, `flights.ts`, `tracks.ts`
+  - `writer.ts`, `index.ts` (döngüler, kapanış)
+- **`tools/`:** artık `@havayolu/tools` workspace paketi; imaja girmez
+  - `src/scenarios/`: deterministik sentetik seyir uçakları
+  - `src/replay-receiver/`: `aircraft.json` sunar
+- **`scripts/dev-replay.mts`**, kök `pnpm dev:replay`
+- **Admin Servisler paneli:** "Canlı veri · adsb.lol" ve "Canlı veri · yerel alıcı" satırları (API `services.ts`, web `/admin`, i18n)
+
+**Kabul komutları:**
+- `pnpm --filter @havayolu/worker test` → sahte saatle:
+  - 429 (Retry-After yok) → hız ≤ %50, bekleme; 10 dk temiz → kademeli toparlanma
+  - 403 → devre açık, yeniden deneme yok
+  - 5 tohum istasyonun P0'ı tek batı çemberinde, Doğu çemberi her planda
+  - 0,1 rps benzetiminde birincil p95 ≤ 20 sn, takip listesi ≤ 30 sn
+  - örnekleme (30 sn, ince iz kuralı, yerde 20 m) ve uçuş kaydı ayrıştırma
+- `pnpm --filter @havayolu/tools test` → senaryo deterministik; replay yanıtı ayrıştırıcıdan geçer; üretimde başlamaz
+- `pnpm test:integration` (önce `pnpm dev:infra`):
+  - Redis canlı durum: GEO süpürme, stream sınırı
+  - iz yazıcı ve uçuş kaydı (gerçek PostgreSQL)
+  - sağlık tabloları
+- `pnpm dev:replay` → replay alıcısı (4300) ve worker ingest; `redis-live`'da `hy:ac:*` anahtarları oluşur, `track_points_*` dolar
+- `pnpm ci:local` ve `pnpm ci:full` yeşil; PR'da CI yeşil
+
+**Notlar:**
+- **Ağ:** Canlı adsb.lol isteği yalnızca üretimde (`EXTERNAL_PROVIDERS_DISABLED=false`) atılır. Yerelde ve CI'da veri replay alıcısından gelir.
+- **Yayın öncesi:** CONTACT_EMAIL ve info@adsb.lol bildirimi ACTIVATION'dadır; ikisi tamamlanmadan üretimde adsb.lol çekimi başlamaz.
+
+**Çıktı kaydı (2026-09-28):**
+- **Yöntem:** Kod tabanı ve spec'ler 6 paralel okuyucuyla haritalandı. Arayüz sözleşmesi yazıldı; 6 paralel ajan ayrışık dosyalarda uyguladı, ardından tek ajan worker'a bağladı.
+- **İnceleme:** 6 açıdan inceleme (spec, çalışma zamanı, veri, güvenlik, testler, araçlar ve belgeler) ve bulgu başına 3 çürütücü doğrulayıcı. 20 bulgu, 18 tekil, 11 doğrulandı (4 orta, 7 düşük), hepsi düzeltildi. Bağımsız denetimde çıkan 2 yeni kusur da düzeltildi (takip son tarihinin donması, bozuk hex'in kayıt açmayı kilitlemesi). Ayrıntı D-073'tedir.
+- **Zamanlayıcı benzetimi** (0,1 istek/sn, 30 dk, tohum istasyonlar):
+  - Takip listesi yokken: birincil p95 16 sn, istasyonlar ≤ 30 sn, Doğu ≤ 90 sn.
+  - Takip uçağı kapsama içindeyken `/v2/hex` 0 (düzeltmeden önce isteklerin %27'siydi).
+  - Kapsamaya girip çıkan ve susan uçakta birincil p95 ≤ 20 sn.
+- `pnpm ci:full` → yeşil:
+  - Birim testleri: worker 182, providers 88, tools 74, api 57, scripts 31, i18n 28, geo 20, web 10, shared 7, db 6 (toplam 503).
+  - Entegrasyon testleri: db 40, worker 11, api 3 (toplam 54).
+  - `compose:guard` yeşil; migration yükseltmesi 3 → 4.
+- **`pnpm dev:replay` (yerel):**
+  - `redis-live`: 10 sentetik uçak, 320 stream girdisi, hash TTL 120 sn.
+  - DB: 10 aktif uçuş kaydı, 20 örneklenmiş ve 43 tam çözünürlüklü iz noktası.
+  - `provider_health`'te `localReceiver` `ok`, 60 sn'de 60 istek.
+- `pnpm stats` → 241 dosya, 29.228 satır (24.060 kod).
+- **Kullanıcıya bağlı (`[k]`):** üretimde adsb.lol çekimi, admin "Canlı veri · adsb.lol" satırının "Çalışıyor" olması.
+
+## M5–M7
 Ayrıntılar `docs/prompts/parca-1.md`'dedir. Her kilometre taşına başlarken bu dosyaya dizinler ve kabul komutları eklenir.

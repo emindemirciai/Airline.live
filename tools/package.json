@@ -1,0 +1,27 @@
+{
+  "name": "@havayolu/tools",
+  "version": "0.0.0",
+  "private": true,
+  "license": "MIT",
+  "type": "module",
+  "exports": {
+    "./scenarios": "./src/scenarios/index.ts",
+    "./replay-receiver": "./src/replay-receiver/server.ts"
+  },
+  "scripts": {
+    "lint": "eslint . --max-warnings 0",
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "vitest run",
+    "replay": "tsx src/replay-receiver/cli.ts"
+  },
+  "dependencies": {
+    "@havayolu/geo": "workspace:*"
+  },
+  "devDependencies": {
+    "@havayolu/providers": "workspace:*",
+    "@types/node": "24.x",
+    "tsx": "4.23.15",
+    "typescript": "6.0.3",
+    "vitest": "5.0.1"
+  }
+}

@@ -239,8 +239,57 @@ export const providerHealth = pgTable('provider_health', {
   lastErrorAt: timestamp('last_error_at', { withTimezone: true }),
   lastError: text('last_error'),
   consecutiveFailures: integer('consecutive_failures').notNull().default(0),
+  /** Hız kovasının anlık hızı (istek/sn); kovası olmayan sağlayıcıda null (D-073). */
+  rps: real('rps'),
+  /** Devre kesici: 'closed' | 'open' | 'half_open' | 'config' (D-073). */
+  circuit: text('circuit').notNull().default('closed'),
+  /** 429 ya da hata sonrası bekleme bitişi; beklemede değilse null. */
+  backoffUntil: timestamp('backoff_until', { withTimezone: true }),
+  /** Birincil istasyon verisinin yaşı, son 5 dk p95 (sn). */
+  freshnessP95S: real('freshness_p95_s'),
+  /** Son 60 sn'de (429/420 + 5xx) / bütün istekler; istek yoksa null. */
+  errorRatio60s: real('error_ratio_60s'),
+  requests60s: integer('requests_60s').notNull().default(0),
   updatedAt: updatedAt(),
 })
+
+/**
+ * Sağlayıcı başına saatlik istek sayaçları (D-073). Worker dakikada bir ekleyerek yazar; admin
+ * paneli son 1 ve 24 saatteki 429 oranını buradan hesaplar.
+ */
+export const providerHealthHourly = pgTable(
+  'provider_health_hourly',
+  {
+    provider: text('provider').notNull(),
+    /** Saatin başı (UTC, `date_trunc('hour', …)`). */
+    hour: timestamp('hour', { withTimezone: true }).notNull(),
+    requests: integer('requests').notNull().default(0),
+    successes: integer('successes').notNull().default(0),
+    /** 429/420 yanıtları. */
+    rateLimited: integer('rate_limited').notNull().default(0),
+    serverErrors: integer('server_errors').notNull().default(0),
+    networkErrors: integer('network_errors').notNull().default(0),
+    otherErrors: integer('other_errors').notNull().default(0),
+    /** Saat içindeki en yüksek tazelik p95 (sn). */
+    freshnessP95MaxS: real('freshness_p95_max_s'),
+    updatedAt: updatedAt(),
+  },
+  (t) => [primaryKey({ columns: [t.provider, t.hour] })],
+)
+
+/** Sağlayıcı durum geçişleri ('ok' | 'degraded' | 'down'); ilk kayıtta `from_status` null'dır. */
+export const providerStatusChanges = pgTable(
+  'provider_status_changes',
+  {
+    id: bigint('id', { mode: 'number' }).primaryKey().generatedAlwaysAsIdentity(),
+    provider: text('provider').notNull(),
+    at: timestamp('at', { withTimezone: true }).notNull(),
+    fromStatus: text('from_status'),
+    toStatus: text('to_status').notNull(),
+    reason: text('reason'),
+  },
+  (t) => [index('provider_status_changes_provider_at_idx').on(t.provider, t.at)],
+)
 
 /**
  * Referans verisi kaynaklarının durumu: koşullu indirme (ETag / Last-Modified), son içe aktarım

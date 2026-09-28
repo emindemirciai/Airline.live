@@ -2,7 +2,7 @@
 
 **[Türkçe](#türkçe) · [English](#english)**
 
-![sürüm](https://img.shields.io/badge/s%C3%BCr%C3%BCm-v0.6.0-blue) ![lisans](https://img.shields.io/badge/lisans-MIT-green) ![durum](https://img.shields.io/badge/durum-geli%C5%9Ftirme-yellow)
+![sürüm](https://img.shields.io/badge/s%C3%BCr%C3%BCm-v0.7.0-blue) ![lisans](https://img.shields.io/badge/lisans-MIT-green) ![durum](https://img.shields.io/badge/durum-geli%C5%9Ftirme-yellow)
 
 ---
 
@@ -14,7 +14,7 @@ Türkiye odaklı sivil havacılık uçuş takip platformu. Canlı harita, uçuş
 
 > **Bilinen sınır:** Kendi ADS-B alıcımız olmadığı için İstanbul Havalimanı'nda iniş anı çoğunlukla doğrudan görülmez. İniş bildirimi çoğu uçuşta "muhtemelen indi (tahmini saat)" olarak ve son sinyalden 1–1,5 dk sonra gelir. Bazı uçuşlarda yalnızca "iniş verisi alınamadı" denebilir.
 
-### Durum — v0.6.0
+### Durum — v0.7.0
 | Alan | Durum |
 |---|---|
 | Yol haritası, veri kaynakları, mimari | ✅ Hazır ve doğrulandı |
@@ -26,7 +26,9 @@ Türkiye odaklı sivil havacılık uçuş takip platformu. Canlı harita, uçuş
 | Otomatik yayın hattı (GitHub Actions → GHCR → Dokploy), doğrulama ve geri alma | ✅ Parça 1 · M1b, sunucu kurulumu sürüyor ([rehber](docs/DEPLOY_DOKPLOY.md)) |
 | Veritabanı: havalimanı, pist (eşikler dahil) ve havayolu verisi, günlük güncelleme, iz tabloları ve bakım işleri | ✅ Parça 1 · M2 |
 | Canlı veri sağlayıcıları (ADSB.lol, kendi alıcı), veri temizliği ve gizlilik kuralları | ✅ Parça 1 · M3 |
-| Canlı veri akışı (ingest), canlı API | ⏳ Parça 1 · M4–M5 |
+| Canlı veri akışı (ingest): kapsama planı, uyarlanır istek hızı, uçuş kaydı ve iz, sağlık izleme, replay aracı | ✅ Parça 1 · M4 (adsb.lol çekimi [ACTIVATION](docs/ACTIVATION.md) adımlarından sonra açılır) |
+| Harita tasarımı: uydu zemini, metrik birimler, açılıp kapanan uçak etiketleri | ✅ Tasarım (D-072); uygulama Parça 1 · M6 |
+| Canlı API ve WebSocket | ⏳ Parça 1 · M5 |
 | Canlı harita ve arama | ⏳ Parça 1 · M6 |
 | 10 km ve iniş bildirimi (web push) | ⏳ Parça 2 · M4 |
 | Hesaplar, takip listesi, istasyon operasyon panosu | ⏳ Parça 2B / 3 |
@@ -48,7 +50,7 @@ pnpm install
 pnpm dev
 ```
 
-`http://localhost:3100/durum` ve `http://localhost:3100/yenilikler` adreslerini aç. Yönetim paneli ve veritabanı için önce `pnpm dev:infra` (Docker), sonra bir kez `pnpm db:migrate` çalıştır (tabloları kurar, tohum istasyonlarını ekler). Worker açılınca havalimanı, pist ve havayolu verisini repodaki alt kümeden (`tools/fixtures`) kendisi yükler; internete çıkmaz. Panel `http://localhost:3100/admin` adresindedir. Uygulama `.env.example`'daki varsayılanlarla eksiksiz açılır; `.env` gerekmez. Bu makinede 3000–3003 portları başka bir projenin olduğu için web 3100, API 4100 portunda çalışır. Ayrıntılı komutlar `CLAUDE.md` → Komutlar bölümündedir.
+`http://localhost:3100/durum` ve `http://localhost:3100/yenilikler` adreslerini aç. Yönetim paneli ve veritabanı için önce `pnpm dev:infra` (Docker), sonra bir kez `pnpm db:migrate` çalıştır (tabloları kurar, tohum istasyonlarını ekler). Worker açılınca havalimanı, pist ve havayolu verisini repodaki alt kümeden (`tools/fixtures`) kendisi yükler; internete çıkmaz. Panel `http://localhost:3100/admin` adresindedir. Canlı veri akışını internete çıkmadan görmek için `pnpm dev:replay` çalıştır: sentetik uçaklar sunan bir yerel alıcı (port 4300) açılır ve worker veriyi oradan alır. Uygulama `.env.example`'daki varsayılanlarla eksiksiz açılır; `.env` gerekmez. Bu makinede 3000–3003 portları başka bir projenin olduğu için web 3100, API 4100 portunda çalışır. Ayrıntılı komutlar `CLAUDE.md` → Komutlar bölümündedir.
 
 ### Proje nasıl geliştiriliyor
 - `docs/prompts/README.md`: başlamadan önce yapılacaklar ve parçaların Claude Code ile nasıl çalıştırılacağı
@@ -57,22 +59,23 @@ pnpm dev
 - `docs/DEPLOY_DOKPLOY.md`: sunucu (Dokploy) kurulumu, bir kez
 - `docs/DECISIONS.md`: kararlar ve gerekçeleri
 
-### İstatistik (v0.6.0)
-Git'te 194 dosya, **16.836 satır**. Bunun 11.988 satırı kod (TypeScript, TSX, CSS, JS), 2.825 satırı belgedir. Lockfile, `docs/research/` ve elle yazılmayan veri (fixture CSV ve JSON dosyaları, drizzle şema snapshot'ları) hariç tutulur. Güncel değer için `pnpm stats` çalıştır.
+### İstatistik (v0.7.0)
+Git'te 241 dosya, **29.228 satır**. Bunun 24.060 satırı kod (TypeScript, TSX, CSS, JS), 3.067 satırı belgedir. Lockfile, `docs/research/` ve elle yazılmayan veri (fixture CSV ve JSON dosyaları, drizzle şema snapshot'ları) hariç tutulur. Güncel değer için `pnpm stats` çalıştır.
 
 | Alan | Satır |
 |---|---|
-| docs | 2.013 |
-| apps/web | 1.741 |
-| apps/api | 1.723 |
-| scripts | 1.096 |
-| packages/shared | 604 |
-| apps/worker | 411 |
-| packages/db | 372 |
-| packages/i18n | 359 |
-| packages/providers | 197 |
-| packages/geo | 152 |
-| diğer (kök, deploy, .claude, .github) | 1.947 |
+| apps/worker | 8.379 |
+| packages/db | 3.670 |
+| packages/providers | 2.587 |
+| apps/api | 2.343 |
+| docs | 2.318 |
+| tools | 2.176 |
+| scripts | 1.880 |
+| apps/web | 1.834 |
+| packages/i18n | 806 |
+| packages/shared | 747 |
+| packages/geo | 329 |
+| diğer (kök, deploy, .claude, .github) | 2.159 |
 
 ### Lisans, veri ve atıflar
 - Kod [MIT lisansı](LICENSE) ile lisanslanmıştır: © 2026 [emindemirciai](https://github.com/emindemirciai). Kodun tüm kopyaları ya da önemli bölümleri telif bildirimini ve lisans metnini içermek zorundadır; bunlar olmadan kopyalamak ya da dağıtmak lisans ve telif hakkı ihlalidir. **havayolu** adı ve logosu MIT kapsamında değildir, hakları saklıdır. Aynı bildirim sitenin sayfa kaynağında da yer alır.
@@ -91,7 +94,7 @@ A Türkiye-focused civil aviation flight tracker. It offers a live map and lets 
 
 > **Known limitation:** Without our own ADS-B receiver, the moment of touchdown at Istanbul Airport is usually not observed directly. For most flights the landing alert says "probably landed (estimated time)" and arrives 1–1.5 minutes after the last signal. For some flights it can only say "landing data unavailable".
 
-### Status — v0.6.0
+### Status — v0.7.0
 | Area | Status |
 |---|---|
 | Roadmap, data sources, architecture | ✅ Done and verified |
@@ -103,7 +106,9 @@ A Türkiye-focused civil aviation flight tracker. It offers a live map and lets 
 | Automatic release pipeline (GitHub Actions → GHCR → Dokploy), verification and rollback | ✅ Part 1 · M1b, server setup in progress ([guide](docs/DEPLOY_DOKPLOY.md)) |
 | Database: airport, runway (thresholds included) and airline data, daily updates, track tables and maintenance jobs | ✅ Part 1 · M2 |
 | Live data providers (ADSB.lol, own receiver), data cleaning and privacy rules | ✅ Part 1 · M3 |
-| Live data ingest, live API | ⏳ Part 1 · M4–M5 |
+| Live data ingest: coverage plan, adaptive request rate, flight records and tracks, health monitoring, replay tool | ✅ Part 1 · M4 (adsb.lol fetching starts after the [ACTIVATION](docs/ACTIVATION.md) steps) |
+| Map design: satellite base, metric units, switchable aircraft labels | ✅ Design (D-072); built in Part 1 · M6 |
+| Live API and WebSocket | ⏳ Part 1 · M5 |
 | Live map and search | ⏳ Part 1 · M6 |
 | 10 km and landing alerts (web push) | ⏳ Part 2 · M4 |
 | Accounts, watchlist, station operations board | ⏳ Part 2B / 3 |
@@ -125,7 +130,7 @@ pnpm install
 pnpm dev
 ```
 
-Then open `http://localhost:3100/durum` and `http://localhost:3100/yenilikler`. For the admin panel and the database, first run `pnpm dev:infra` (Docker), then `pnpm db:migrate` once (creates the tables and seeds the stations). When the worker starts it loads airport, runway and airline data from the committed subset (`tools/fixtures`) by itself, without going online. The panel is at `http://localhost:3100/admin`. The app starts with the defaults in `.env.example`; no `.env` is needed. On this machine ports 3000–3003 belong to another project, so the web app runs on 3100 and the API on 4100. Full command list: `CLAUDE.md` → Komutlar.
+Then open `http://localhost:3100/durum` and `http://localhost:3100/yenilikler`. For the admin panel and the database, first run `pnpm dev:infra` (Docker), then `pnpm db:migrate` once (creates the tables and seeds the stations). When the worker starts it loads airport, runway and airline data from the committed subset (`tools/fixtures`) by itself, without going online. The panel is at `http://localhost:3100/admin`. To see the live data flow without going online, run `pnpm dev:replay`: it starts a local receiver with synthetic aircraft (port 4300) and the worker reads from it. The app starts with the defaults in `.env.example`; no `.env` is needed. On this machine ports 3000–3003 belong to another project, so the web app runs on 3100 and the API on 4100. Full command list: `CLAUDE.md` → Komutlar.
 
 ### How the project is built
 - `docs/prompts/README.md`: one-time setup and how to run each part with Claude Code
@@ -134,8 +139,8 @@ Then open `http://localhost:3100/durum` and `http://localhost:3100/yenilikler`. 
 - `docs/DEPLOY_DOKPLOY.md`: one-time server (Dokploy) setup
 - `docs/DECISIONS.md`: decisions and rationale
 
-### Stats (v0.6.0)
-194 files and **16,836 lines** in git: 11,988 lines of code (TypeScript, TSX, CSS, JS) and 2,825 lines of documentation. The lockfile, `docs/research/` and generated data (fixture CSV and JSON files, drizzle schema snapshots) are excluded. Run `pnpm stats` for current numbers.
+### Stats (v0.7.0)
+241 files and **29,228 lines** in git: 24,060 lines of code (TypeScript, TSX, CSS, JS) and 3,067 lines of documentation. The lockfile, `docs/research/` and generated data (fixture CSV and JSON files, drizzle schema snapshots) are excluded. Run `pnpm stats` for current numbers.
 
 ### License, data and attribution
 - Code is licensed under the [MIT License](LICENSE): © 2026 [emindemirciai](https://github.com/emindemirciai). All copies or substantial portions of the code must include the copyright notice and license text; copying or distributing without them infringes the license and the copyright. The **havayolu** name and logo are not covered by the MIT License; rights reserved. The same notice appears in the page source of the site.

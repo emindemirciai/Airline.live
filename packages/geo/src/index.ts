@@ -3,6 +3,9 @@
 export const EARTH_RADIUS_KM = 6371.0088
 export const KM_PER_NM = 1.852
 export const FT_PER_M = 3.280839895
+export const M_PER_FT = 0.3048
+/** 1 kt = 1 NM/sa = 1,852 km/sa. */
+export const KMH_PER_KT = 1.852
 
 export interface LatLon {
   lat: number
@@ -16,6 +19,10 @@ export const kmToNm = (km: number) => km / KM_PER_NM
 export const nmToKm = (nm: number) => nm * KM_PER_NM
 export const mToFt = (m: number) => m * FT_PER_M
 export const ftToM = (ft: number) => ft / FT_PER_M
+export const ktToKmh = (kt: number) => kt * KMH_PER_KT
+export const kmhToKt = (kmh: number) => kmh / KMH_PER_KT
+/** ft/dk → m/dk (dikey hız). */
+export const fpmToMpm = (fpm: number) => fpm * M_PER_FT
 
 /** Açıyı [0, 360) aralığına getirir. */
 export function normalizeBearing(deg: number): number {
@@ -36,6 +43,36 @@ export function distanceKm(a: LatLon, b: LatLon): number {
     Math.sin(dLat / 2) ** 2 +
     Math.cos(toRad(a.lat)) * Math.cos(toRad(b.lat)) * Math.sin(dLon / 2) ** 2
   return 2 * EARTH_RADIUS_KM * Math.asin(Math.min(1, Math.sqrt(h)))
+}
+
+/** Büyük daire yatay mesafe, deniz mili (NM). */
+export function distanceNm(a: LatLon, b: LatLon): number {
+  return kmToNm(distanceKm(a, b))
+}
+
+/** Küre üzerinde merkezi ve büyük daire yarıçapı (NM) verilen çember (veri çekim bölgeleri). */
+export interface Circle {
+  center: LatLon
+  radiusNm: number
+}
+
+/** Kayan nokta hatası payı: sınırdaki nokta ya da tam teğet iç çember içeride sayılır. */
+const CONTAINMENT_EPSILON_NM = 1e-9
+
+/** Nokta çemberin içinde ya da sınırında mı? */
+export function circleContainsPoint(c: Circle, p: LatLon): boolean {
+  return distanceNm(c.center, p) <= c.radiusNm + CONTAINMENT_EPSILON_NM
+}
+
+/**
+ * `inner` çemberi tümüyle `outer`ın içinde mi? Küre üzerinde de üçgen eşitsizliği geçerli
+ * olduğundan merkezler arası mesafe + iç yarıçap ≤ dış yarıçap koşulu kesindir.
+ */
+export function circleContainsCircle(outer: Circle, inner: Circle): boolean {
+  return (
+    distanceNm(outer.center, inner.center) + inner.radiusNm <=
+    outer.radiusNm + CONTAINMENT_EPSILON_NM
+  )
 }
 
 /** a'dan b'ye ilk gerçek yön (true bearing), [0, 360). */
@@ -72,8 +109,6 @@ export function destinationPoint(
 
 /** Pist eşiğinin nereden geldiği (domain.md → Pist eşiği). */
 export type ThresholdSource = 'runway_end' | 'displaced_threshold' | 'arp_fallback'
-
-export const M_PER_FT = 0.3048
 
 /**
  * Pist eşiği: pist ucu koordinatı `displacedFt × 0,3048` m pist yönünde (bu uçtan karşı uca)

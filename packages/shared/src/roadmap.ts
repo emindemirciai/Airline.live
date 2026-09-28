@@ -59,7 +59,7 @@ export const ROADMAP: readonly Milestone[] = [
   {
     id: 'p1-m4',
     part: '1',
-    status: 'planned',
+    status: 'done',
     title: {
       tr: 'Türkiye üzerindeki uçakların sürekli takibi',
       en: 'Continuous tracking of aircraft over Türkiye',

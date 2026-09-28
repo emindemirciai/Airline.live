@@ -1,13 +1,22 @@
 import { describe, expect, it } from 'vitest'
 import {
   bearingDifference,
+  circleContainsCircle,
+  circleContainsPoint,
   destinationPoint,
   distanceKm,
+  distanceNm,
+  fpmToMpm,
+  ftToM,
   initialBearing,
+  kmhToKt,
   kmToNm,
+  ktToKmh,
+  mToFt,
   nmToKm,
   normalizeBearing,
   runwayThreshold,
+  type Circle,
 } from './index'
 
 describe('runwayThreshold', () => {
@@ -74,5 +83,95 @@ describe('geo', () => {
   it('10 km ≈ 5,4 NM', () => {
     expect(kmToNm(10)).toBeCloseTo(5.4, 1)
     expect(nmToKm(1)).toBe(1.852)
+  })
+})
+
+describe('birim dönüşümleri', () => {
+  it('kt ↔ km/sa', () => {
+    expect(ktToKmh(100)).toBeCloseTo(185.2, 10)
+    expect(ktToKmh(233)).toBeCloseTo(431.516, 10)
+    expect(kmhToKt(185.2)).toBeCloseTo(100, 10)
+    expect(kmhToKt(ktToKmh(451))).toBeCloseTo(451, 10)
+    expect(ktToKmh(0)).toBe(0)
+  })
+
+  it('ft/dk → m/dk işareti korur', () => {
+    expect(fpmToMpm(1000)).toBeCloseTo(304.8, 10)
+    expect(fpmToMpm(-1235)).toBeCloseTo(-376.428, 10)
+    expect(fpmToMpm(0)).toBe(0)
+  })
+
+  it('m ↔ ft', () => {
+    expect(ftToM(1000)).toBeCloseTo(304.8, 6)
+    expect(mToFt(304.8)).toBeCloseTo(1000, 6)
+  })
+})
+
+describe('distanceNm', () => {
+  it('km mesafesinin NM karşılığıdır ve simetriktir', () => {
+    expect(distanceNm(LTFM, LTFJ)).toBeCloseTo(kmToNm(distanceKm(LTFM, LTFJ)), 12)
+    expect(distanceNm(LTFM, LTFJ)).toBeCloseTo(distanceNm(LTFJ, LTFM), 12)
+    expect(distanceNm(LTFM, LTFM)).toBe(0)
+  })
+
+  it('ekvatorda 1 derece boylam ≈ 60 NM', () => {
+    expect(distanceNm({ lat: 0, lon: 0 }, { lat: 0, lon: 1 })).toBeCloseTo(60.04, 1)
+  })
+})
+
+describe('çember içerme', () => {
+  const center = { lat: 41.274874, lon: 28.732136 }
+  const circle: Circle = { center, radiusNm: 40 }
+  const at = (bearing: number, nm: number) => destinationPoint(center, bearing, nmToKm(nm))
+
+  it('merkez ve içteki noktalar içeride, dıştakiler dışarıda', () => {
+    expect(circleContainsPoint(circle, center)).toBe(true)
+    expect(circleContainsPoint(circle, at(90, 39.9))).toBe(true)
+    expect(circleContainsPoint(circle, at(270, 40.01))).toBe(false)
+    expect(circleContainsPoint(circle, LTAI)).toBe(false)
+  })
+
+  it('sınırdaki nokta (kayan nokta hatasıyla) içeride sayılır', () => {
+    for (const bearing of [0, 45, 90, 135, 180, 225, 270, 315]) {
+      expect(circleContainsPoint(circle, at(bearing, 40))).toBe(true)
+    }
+  })
+
+  it('sıfır yarıçaplı çember yalnızca merkezini içerir', () => {
+    const point: Circle = { center, radiusNm: 0 }
+    expect(circleContainsPoint(point, center)).toBe(true)
+    expect(circleContainsPoint(point, at(0, 0.001))).toBe(false)
+  })
+
+  it('iç çember: aynı çember, eş merkezli küçük çember ve içten teğet çember', () => {
+    expect(circleContainsCircle(circle, circle)).toBe(true)
+    expect(circleContainsCircle(circle, { center, radiusNm: 10 })).toBe(true)
+    expect(circleContainsCircle(circle, { center: at(45, 15), radiusNm: 25 })).toBe(true)
+  })
+
+  it('taşan, kesişen, ayrık ve daha büyük çember içeride değildir', () => {
+    expect(circleContainsCircle(circle, { center: at(45, 15), radiusNm: 25.01 })).toBe(false)
+    expect(circleContainsCircle(circle, { center: at(180, 50), radiusNm: 20 })).toBe(false)
+    expect(circleContainsCircle(circle, { center: LTAI, radiusNm: 1 })).toBe(false)
+    expect(circleContainsCircle(circle, { center, radiusNm: 40.01 })).toBe(false)
+    expect(circleContainsCircle({ center, radiusNm: 10 }, circle)).toBe(false)
+  })
+
+  it("batı çemberi (39,5 / 29,5; 250 NM) beş tohum istasyonun 60 NM P0 çemberini içerir, Doğu'dakini değil", () => {
+    const west: Circle = { center: { lat: 39.5, lon: 29.5 }, radiusNm: 250 }
+    const seeds = [
+      { lat: 41.274874, lon: 28.732136 },
+      { lat: 40.898602, lon: 29.3092 },
+      { lat: 40.128101, lon: 32.995098 },
+      { lat: 38.2924, lon: 27.157 },
+      { lat: 36.898701, lon: 30.800501 },
+    ]
+    for (const station of seeds) {
+      expect(circleContainsCircle(west, { center: station, radiusNm: 60 })).toBe(true)
+    }
+    // Van (LTCI) batı çemberinin dışında kalır.
+    const van = { lat: 38.468201, lon: 43.3323 }
+    expect(circleContainsPoint(west, van)).toBe(false)
+    expect(circleContainsCircle(west, { center: van, radiusNm: 60 })).toBe(false)
   })
 })
