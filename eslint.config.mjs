@@ -7,8 +7,16 @@ import tseslint from 'typescript-eslint'
 const productionRestrictedImports = {
   patterns: [
     {
-      group: ['**/tools/**', '**/fixtures/**', '**/test/**', '**/*.test', '**/*.test.*'],
-      message: "Üretim kodu test yardımcılarını, fixture'ları ya da tools/ altını import edemez.",
+      group: [
+        '**/tools/**',
+        '**/fixtures/**',
+        '**/test/**',
+        '**/e2e/**',
+        '**/*.test',
+        '**/*.test.*',
+      ],
+      message:
+        "Üretim kodu test yardımcılarını, fixture'ları, e2e/ ya da tools/ altını import edemez.",
     },
   ],
 }
@@ -22,6 +30,10 @@ export default tseslint.config(
       '**/.turbo/**',
       '**/coverage/**',
       '**/next-env.d.ts',
+      // Playwright çıktıları (e2e/.report, test-results).
+      '**/.report/**',
+      '**/test-results/**',
+      '**/playwright-report/**',
     ],
   },
   js.configs.recommended,

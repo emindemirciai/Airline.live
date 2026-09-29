@@ -76,10 +76,12 @@ describe('sistem uç noktaları', () => {
         '/v1/admin/blocklist',
         '/v1/live',
         '/v1/search',
+        '/v1/airports',
       ]),
     )
     expect(spec.paths['/v1/live']?.get?.tags).toEqual(['live'])
     expect(spec.paths['/v1/search']?.get?.tags).toEqual(['live'])
+    expect(spec.paths['/v1/airports']?.get?.tags).toEqual(['reference'])
     expect(Object.keys(spec.paths['/v1/admin/blocklist'] ?? {}).sort()).toEqual([
       'delete',
       'get',

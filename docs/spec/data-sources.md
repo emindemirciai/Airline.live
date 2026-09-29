@@ -135,9 +135,44 @@ Durum geçişleri `provider_health`'e yazılır.
 - **Stiller:** açık `https://tiles.openfreemap.org/styles/liberty`, koyu `.../styles/dark` (alternatif `fiord`). Env: `MAP_STYLE_URL`, `MAP_STYLE_URL_DARK`, `MAP_STYLE_FALLBACK_URL`. Testte yerel `test-style.json` kullanılır.
 - **Atıf:** Zorunlu metin "© OpenMapTiles Data from OpenStreetMap"; "OpenFreeMap" ibaresi tavsiye edilir.
 - **Önbellek yasağı:** Karo, stil, glif ve sprite'ların toplu indirilmesi ve service worker'da önbelleğe alınması yasaktır.
-- **Hata durumu:** Stil 3 kez yüklenemezse yedek stile geçilir. O da yüklenemezse uçaklar sade bir arka planda çizilir ve "Harita altlığı yüklenemedi" şeridi çıkar.
+- **Hata durumu:** Stil 3 kez yüklenemezse yedek stile (`MAP_STYLE_FALLBACK_URL`) geçilir. O da yüklenemezse uçaklar sade bir arka planda çizilir ve "Harita altlığı yüklenemedi" şeridi çıkar. Uydu açıkken zincir: uydu → koyu stil → `MAP_STYLE_FALLBACK_URL` → sade arka plan (D-075). Altlık yüklenirken de uçaklar sade arka planda çizilir.
 - **Self-host yedeği (RUNBOOK):** Protomaps PMTiles bölgesel kesit. Tüm dünya dosyası ~120 GB'tır ve KVM 2 diskine sığmaz. Kod BSD, karolar ODbL (OSM atfı zorunlu).
 - MapTiler Free ticari kullanıma kapalıdır.
+- **Uydu anahtarı yokken:** Harita koyu stille açılır ve yollar gizlenir: `source-layer`'ı `transportation` ya da `transportation_name` olan katmanlar kapanır, `aeroway` kalır (D-075).
+
+## 6a. Uydu altlığı — Esri World Imagery
+Doğrulama: 2026-09-28 (Esri'nin fiyat sayfası, E204 sözleşmesi ve geliştirici belgeleri; D-075). Kullanıcı ücretsiz katmanı seçti (2026-09-28).
+
+**Erişim**
+- **Hizmet:** ArcGIS Location Platform, ücretsiz katman. Ayda 2 milyon temel harita karosu verir. Kullandıkça öde açılmadıkça kota dolunca servis durur, fatura çıkmaz. Kotadan sonrası 1.000 karo başına 0,15 $'dır.
+- **Karo adresi:** `https://ibasemaps-api.arcgis.com/arcgis/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}?token=<ESRI_API_KEY>`. Karolar 256 px'tir, en büyük yakınlaştırma 19'dur. Sıra `{z}/{y}/{x}`'tir (satır önce).
+- **Anahtar:** API anahtarını kullanıcı kendi hesabında üretir (ACTIVATION); env `ESRI_API_KEY`, isteğe bağlıdır. Anahtar yalnızca "Basemaps" yetkisini taşır. İzinli referrer'lar üretim alan adlarıdır, süre en çok 1 yıldır ve her yıl yenilenir. Anahtar karo adresinde tarayıcıya görünür; bu kaçınılmazdır (D-075).
+- **Anahtarsız uç nokta yasak:** Örneklerde sık görülen `server.arcgisonline.com/.../World_Imagery/...` adresi bu kullanım için lisanslı değildir. Hiçbir yerde kullanılmaz.
+- **Görüntü:** LTFM'de 0,34 m, 2025-05-23 (Vantor "Vivid Advanced"); İstanbul merkezinde 0,46 m.
+
+**Lisans kaydı** (§ "Lisans kaydı"ndaki 7 alan)
+- `commercialUse`: `true`. E204 §3.1c.1 gelir getiren uygulamalara izin verir.
+- `attribution`: "Powered by Esri" ve hizmetin telif metni "Esri, Vantor, Earthstar Geographics, and the GIS User Community" (§3.1d.4; §3.1a.3 atfın kaldırılmasını ya da gizlenmesini yasaklar). Harita atıf kutusunda her zaman görünür.
+- `shareAlike`: `none`. Ters yönde bir kısıt vardır: §3.1a.4'e göre Esri çıktısı açık veritabanı lisansına bağlanamaz. Görüntü yalnızca gösterilir, ODbL altındaki iz veritabanına girmez.
+- `rateLimit`: Ayda 2 milyon karo (ücretsiz katman). Kota dolunca servis ay sonuna kadar durur ve harita vektör altlığa geçer.
+- `b2cDisplayAllowed`: `true`. Yalnızca görselleştirme için ve yalnızca kendi uygulamamızda gösterilir (§3.1d.3).
+- `mixingWithOtherRealtimeAllowed`: `true`. Başka kaynaklı verinin bu altlık üstünde gösterilmesini yasaklayan bir madde bulunmadı.
+- `maxRawStorageDays`: `0`. Karo saklanmaz. Tarayıcı önbelleği yalnızca HTTP başlıklarının izin verdiği kadardır (§3.1d.6A).
+
+**Şartlar** (E204 ArcGIS Location Platform Agreement, rev. 2025-11-21)
+- **§3.1c.1:** Ticari (gelir getiren) uygulamaya izin verilir.
+- **§3.1d.2:** Bir isteğin çıktısı yalnızca tek bir kullanıcıya hizmet eder. Proxy ve paylaşılan önbellek yoktur: karoyu worker, API ya da CDN aracılığıyla değil, tarayıcı doğrudan çeker.
+- **§3.1d.6:** Kazıma, toplu indirme ve saklama yasaktır. Önbelleğe alma yalnızca HTTP önbellek başlıklarının izin verdiği kadardır. Service worker karo önbelleği, çevrimdışı ve mobil karo paketi yoktur.
+- **§3.1d.1:** Çıktı yeniden markalanamaz ve üçüncü taraflara dağıtılamaz.
+- **§3.1c.5:** Uygulama kullanıcılarının Esri şartlarına uymasını isteyen bir madde kullanım koşullarında yer almalıdır. M6'dan beri geçici kullanım koşulları (`/kullanim-kosullari`) bu maddeyi taşır: haritayı kullanan Esri'nin geçerli şartlarına (E204 ve ürüne özgü şartlar E300, bağlantılı) uymayı kabul eder; karolar indirilemez, kazınamaz, saklanamaz ve dağıtılamaz. Bağlantı harita atıf satırında ve site alt bilgisinde her zaman görünür. Metin geçicidir; Parça 3 M6a'da genişletilir, hukukçu incelemesi ACTIVATION'dadır (D-075).
+- **§3.1b.5:** Esri ürünleriyle rekabet eden ürüne katılım yasaktır. Herkese açık uçuş takibi için büyük olasılıkla sorun değildir; kesin değildir (D-075).
+
+**Kaynaklar** (erişim 2026-09-28)
+- Fiyatlar: https://location.arcgis.com/pricing/
+- E204 sözleşmesi: https://www.esri.com/content/dam/esrisites/en-us/media/legal/platform/platform-legal.pdf
+- Ürüne özgü kullanım şartları (E300; ArcGIS Location Platform maddeleri dahil): https://www.esri.com/content/dam/esrisites/en-us/media/legal/product-specific-terms-of-use/e300.pdf
+- Statik temel harita karoları: https://developers.arcgis.com/rest/static-basemap-tiles/
+- Anahtar güvenliği: https://developers.arcgis.com/documentation/security-and-authentication/security-best-practices/
 
 ## 7. Ticari seçenekler (v1'de yok; Parça 5 için)
 | Sağlayıcı | Ne verir | Giriş fiyatı (2026-09) | Kritik şart |

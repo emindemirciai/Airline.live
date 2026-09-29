@@ -1,0 +1,112 @@
+import { describe, expect, it } from 'vitest'
+import { MAP_COLORS } from './colors'
+import {
+  AIRCRAFT_LAYER,
+  AIRCRAFT_LAYER_ID,
+  AIRCRAFT_SOURCE_ID,
+  AIRPORT_LAYER,
+  AIRPORT_LAYER_ID,
+  AIRPORT_SOURCE_ID,
+  LIVE_MAP_LAYERS,
+  TRAIL_LAYER,
+  TRAIL_LAYER_ID,
+  TRAIL_SOURCE_ID,
+  type StyleExpression,
+} from './layers'
+
+/** `['interpolate', ['linear'], ['zoom'], z0, v0, z1, v1 …]` durakları. */
+function stops(value: unknown): [number, number][] {
+  const expression = value as StyleExpression
+  expect(expression.slice(0, 3)).toEqual(['interpolate', ['linear'], ['zoom']])
+  const rest = expression.slice(3) as number[]
+  expect(rest.length % 2).toBe(0)
+  const pairs: [number, number][] = []
+  for (let i = 0; i < rest.length; i += 2) pairs.push([rest[i] ?? NaN, rest[i + 1] ?? NaN])
+  return pairs
+}
+
+describe('MAP_COLORS', () => {
+  it('bütün renkler opak 6 haneli hex', () => {
+    for (const [name, color] of Object.entries(MAP_COLORS)) {
+      expect(color, name).toMatch(/^#[0-9A-F]{6}$/)
+    }
+  })
+
+  it('tasarım paleti: THY kırmızı-beyaz, seçili kehribar, havada iz seçili renk, yerde camgöbeği', () => {
+    expect(MAP_COLORS.thyRed).toBe('#E30A17')
+    expect(MAP_COLORS.thyWhite).toBe('#FFFFFF')
+    expect(MAP_COLORS.selected).toBe('#FFB300')
+    expect(MAP_COLORS.airTrack).toBe(MAP_COLORS.selected)
+    expect(MAP_COLORS.groundTrack).toBe('#22D3EE')
+    expect(MAP_COLORS.background).toBe('#0B1016')
+  })
+})
+
+describe('katmanlar', () => {
+  it('kimlikler ve kaynaklar', () => {
+    expect([AIRCRAFT_LAYER.id, AIRCRAFT_LAYER.source]).toEqual([
+      AIRCRAFT_LAYER_ID,
+      AIRCRAFT_SOURCE_ID,
+    ])
+    expect([AIRPORT_LAYER.id, AIRPORT_LAYER.source]).toEqual([AIRPORT_LAYER_ID, AIRPORT_SOURCE_ID])
+    expect([TRAIL_LAYER.id, TRAIL_LAYER.source]).toEqual([TRAIL_LAYER_ID, TRAIL_SOURCE_ID])
+    expect(AIRCRAFT_LAYER_ID).toBe('hy-aircraft')
+    expect(AIRPORT_LAYER_ID).toBe('hy-airports')
+    expect(TRAIL_LAYER_ID).toBe('hy-trail')
+  })
+
+  it('sıra alttan üste: havalimanları, iz, uçaklar', () => {
+    expect(LIVE_MAP_LAYERS.map((layer) => layer.id)).toEqual([
+      AIRPORT_LAYER_ID,
+      TRAIL_LAYER_ID,
+      AIRCRAFT_LAYER_ID,
+    ])
+  })
+
+  it('uçak katmanı: ikon, yön ve sıralama özelliklerden; harita düzleminde, hep çizilir', () => {
+    expect(AIRCRAFT_LAYER.type).toBe('symbol')
+    expect(AIRCRAFT_LAYER.layout).toMatchObject({
+      'icon-image': ['get', 'icon'],
+      'icon-rotate': ['get', 'trk'],
+      'icon-rotation-alignment': 'map',
+      'icon-pitch-alignment': 'map',
+      'icon-allow-overlap': true,
+      'icon-ignore-placement': true,
+      'symbol-sort-key': ['get', 'sort'],
+    })
+    expect(stops(AIRCRAFT_LAYER.layout['icon-size'])).toEqual([
+      [4, 0.55],
+      [10, 1],
+    ])
+  })
+
+  it('havalimanı katmanı: opak nokta, yakınlaştıkça büyür', () => {
+    const { paint } = AIRPORT_LAYER
+    expect(AIRPORT_LAYER.type).toBe('circle')
+    expect(paint['circle-color']).toBe(MAP_COLORS.airport)
+    expect(paint['circle-stroke-color']).toBe(MAP_COLORS.airportOutline)
+    expect(paint['circle-opacity']).toBe(1)
+    expect(paint['circle-stroke-opacity']).toBe(1)
+    const radius = stops(paint['circle-radius'])
+    for (let i = 1; i < radius.length; i++) {
+      expect(radius[i]?.[0]).toBeGreaterThan(radius[i - 1]?.[0] ?? Infinity)
+      expect(radius[i]?.[1]).toBeGreaterThan(radius[i - 1]?.[1] ?? Infinity)
+    }
+  })
+
+  it('iz katmanı: yerde camgöbeği, havada kehribar; düz ve opak', () => {
+    expect(TRAIL_LAYER.type).toBe('line')
+    expect(TRAIL_LAYER.paint).toEqual({
+      'line-color': ['case', ['get', 'gnd'], MAP_COLORS.groundTrack, MAP_COLORS.airTrack],
+      'line-width': 3,
+      'line-opacity': 1,
+    })
+    expect(TRAIL_LAYER.layout).toEqual({ 'line-cap': 'round', 'line-join': 'round' })
+  })
+
+  it('katmanlar düz JSON: serileştirilip geri okununca aynıdır', () => {
+    for (const layer of LIVE_MAP_LAYERS) {
+      expect(JSON.parse(JSON.stringify(layer)), layer.id).toEqual(layer)
+    }
+  })
+})

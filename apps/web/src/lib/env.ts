@@ -5,6 +5,36 @@ import { z } from 'zod'
 const emptyToUndefined = (value: unknown) =>
   typeof value === 'string' && value.trim() === '' ? undefined : value
 
+/** Worker'daki bayrakla aynı yazımlar: true/false/1/0 (büyük-küçük harf fark etmez). */
+const booleanFlag = (fallback: boolean) =>
+  z.preprocess(
+    (value) => (typeof value === 'string' ? value.trim().toLowerCase() || undefined : value),
+    z
+      .enum(['true', 'false', '1', '0'])
+      .optional()
+      .transform((value) => (value === undefined ? fallback : value === 'true' || value === '1')),
+  )
+
+/** Şemasız genel host: `api.havayolu.live`, `localhost:4100`, `[::1]:4100`. */
+const PUBLIC_HOST =
+  /^(?:\[[0-9A-Fa-f:.]+\]|[A-Za-z0-9](?:[A-Za-z0-9.-]*[A-Za-z0-9])?)(?::\d{1,5})?$/
+
+/**
+ * Harita stili: aynı sitedeki bir yol (`/test-style.json`) ya da mutlak http(s) adresi.
+ * `//host/…` biçimi (şemasız dış adres) kabul edilmez.
+ */
+const styleUrl = z
+  .string()
+  .trim()
+  .refine(
+    (value) =>
+      (value.startsWith('/') && !value.startsWith('//')) || /^https?:\/\/[^/\s]+/.test(value),
+    "'/' ile başlayan bir yol ya da http(s) adresi olmalı",
+  )
+
+/** ArcGIS API anahtarı; karo adresine sorgu parametresi olarak girer. */
+const ESRI_API_KEY = /^[A-Za-z0-9._~+/=-]+$/
+
 const ServerEnvSchema = z.object({
   APP_ENV: z.enum(['development', 'test', 'production']).default('development'),
   APP_NAME: z.preprocess(emptyToUndefined, z.string().trim().optional()),
@@ -15,6 +45,30 @@ const ServerEnvSchema = z.object({
   ADMIN_HOST: z.preprocess(emptyToUndefined, z.string().trim().optional()),
   ANALYZE_URL: z.preprocess(emptyToUndefined, z.url().optional()),
   ANALYZE_SITE_ID: z.preprocess(emptyToUndefined, z.string().trim().optional()),
+  // Tarayıcının REST ve WebSocket için doğrudan bağlandığı API host'u (şemasız, D-075).
+  API_HOST: z.preprocess(
+    emptyToUndefined,
+    z
+      .string()
+      .trim()
+      .regex(PUBLIC_HOST, 'şemasız host olmalı (ör. api.havayolu.live ya da localhost:4100)')
+      .default('localhost:4100'),
+  ),
+  MAP_STYLE_URL: z.preprocess(emptyToUndefined, styleUrl.default('/test-style.json')),
+  MAP_STYLE_URL_DARK: z.preprocess(emptyToUndefined, styleUrl.optional()),
+  MAP_STYLE_FALLBACK_URL: z.preprocess(emptyToUndefined, styleUrl.optional()),
+  // true iken harita yerel stili kullanır; tarayıcı dış harita sunucusuna istek atmaz.
+  EXTERNAL_PROVIDERS_DISABLED: booleanFlag(false),
+  // Uydu altlığı (Esri World Imagery, D-075); kullanıcı üretir, yoksa koyu vektör harita kullanılır.
+  ESRI_API_KEY: z.preprocess(
+    emptyToUndefined,
+    z
+      .string()
+      .trim()
+      .max(512)
+      .regex(ESRI_API_KEY, 'yalnızca harf, rakam ve ._~+/=- karakterleri')
+      .optional(),
+  ),
 })
 
 export type ServerEnv = z.infer<typeof ServerEnvSchema>

@@ -79,21 +79,21 @@ Sunucu: Hostinger **KVM 2** (2 vCPU, 8 GB RAM, 100 GB NVMe). Üzerinde Dokploy �
 - Repo gizlidir. GitHub Free'de gizli repoda kural seti, dal koruması ve gizli bilgi taraması yoktur (`main-koruma` kural seti kayıtlı ama uygulanmıyor, API 403). Aynı kurallar süreçle uygulanır:
   - silme ve force push yasaktır; `main`'e doğrudan push yapılmaz
   - değişiklik yalnızca PR ile ve yalnızca merge commit olarak girer
-  - `checks` ve `test-integration` yeşil olmadan birleştirme yapılmaz
+  - `checks`, `test-integration` ve `e2e` yeşil olmadan birleştirme yapılmaz
   - commit'ten önce değişiklik sır ve kişisel veri açısından taranır (GitHub push koruması yok)
 - Repo yeniden herkese açılırsa ya da plan Pro'ya çıkarsa kural seti kendiliğinden yeniden devreye girer.
 - Secrets repo düzeyinde tutulur (Settings → Secrets and variables → Actions). Fork'tan gelen PR'lara secrets verilmez; deploy yalnızca `main` push'unda çalışır.
-- Gizli repoda Actions ayda 2.000 dakikadır (Linux). Bir PR + birleşme yaklaşık 40–60 dakika harcar. Gereksiz iş yapılmaz:
+- Gizli repoda Actions ayda 2.000 dakikadır (Linux). Bir PR + birleşme yaklaşık 40–60 dakika harcıyordu; `e2e` işi tahminen 12–16 dakika ekler (D-075). Gereksiz iş yapılmaz:
   - PR çalışmaları iptal edilebilir
   - imajlar yalnızca `main`'de derlenir
-  - e2e yalnızca ilgili dosyalar değişince çalışır
+  - e2e şimdilik her çalışmada koşar; dakikalar daralırsa `changes` işiyle yalnızca ilgili dosyalar değişince çalışır (D-075)
 
 **`.github/workflows/ci.yml`** (`pull_request` ve `push: main`)
 - `concurrency: {group: ci-${{ github.ref }}, cancel-in-progress: ${{ github.event_name == 'pull_request' }}}`. `main` çalışmaları iptal edilmez; aksi hâlde çağrılan deploy işi yarıda kesilir.
 - İşler:
   1. `checks`: format, lint, typecheck, unit test, build, `changelog:check`, `check:eol`, `compose:guard`, `test:scripts`.
   2. `test-integration`: dev compose'daki PostGIS, iki Redis ve Mailpit; gerçek veritabanı testleri.
-  3. `e2e`: Playwright; ilgili testler eklendikçe açılır.
+  3. `e2e`: Playwright (Chromium, SwiftShader). Dev compose'daki PostGIS ve iki Redis, `pnpm db:migrate`, ardından `pnpm test:e2e`; web sunucusu `pnpm dev:replay`dir. Chromium önbelleklenir, hata olursa rapor artifact olarak yüklenir (D-075).
   4. `actionlint`.
   5. `deploy`: `uses: ./.github/workflows/deploy.yml`, `secrets: inherit`, `permissions: {contents: read, packages: write}` (çağrılan workflow izin yükseltemez), `needs: [tüm kontroller]`. Koşul: `if: github.event_name=='push' && github.ref=='refs/heads/main'`. **`main`'e her push'ta çalışır.** "Yalnızca belge değişti" kararı yol filtresiyle (son push'a göre) değil, `release` işinde canlıdaki sürüme göre verilir. Aksi hâlde bir kod birleşmesinin arkasından belge birleşmesi geldiğinde kod hiç yayınlanmazdı (D-064).
   6. `github-release`: `deploy`'dan sonra, yalnızca `main` push'unda. Kök sürüm için `v<sürüm>` GitHub Release'i yoksa changelog'dan (TR + EN) oluşturur (`contents: write`, D-067).

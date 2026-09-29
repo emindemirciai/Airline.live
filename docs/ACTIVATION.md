@@ -11,6 +11,7 @@ Durum işaretleri: `[ ]` bekliyor, `[x]` tamam, `[-]` bilinçli olarak yapılmı
 | Domain | kalıcı domain seçilince (geçici host ücretsiz) | ~10–20 $/yıl |
 | GitHub (gizli repo, Free) | başlangıç | 0; Actions ayda 2.000 dakika; dal koruması ve gizli bilgi taraması yok (Pro: 4 $/ay) |
 | GHCR, adsb.lol, OpenFreeMap, OurAirports, VRS, aviationweather | — | 0 |
+| Uydu altlığı: Esri World Imagery (ArcGIS Location Platform) | Parça 1 M6, isteğe bağlı | 0 (ücretsiz katman: ayda 2 milyon karo; kullandıkça öde açılmadıkça kota dolunca servis durur, fatura çıkmaz) |
 | Analiz (kendi uygulaman) | Parça 1 | 0 (aynı VPS'te ~150–250 MB) |
 | SMTP (doğrulama/şifre e-postaları) | Parça 2B | ücretsiz katman yeter |
 | Yedek deposu (Backblaze B2 / Cloudflare R2) | Parça 2B | birkaç GB için ~0–1 $/ay |
@@ -51,7 +52,8 @@ Web sürümü (Parça 1–3) için zorunlu tek ek gider kalıcı domain'dir. İk
 | [~] | Dokploy paneli `https://dokploy.havayolu.live` adresinde (2026-09-27, Let's Encrypt). Kalan: `http://72.62.53.122:3000` hâlâ açık; güvenlik duvarıyla kapat (DEPLOY_DOKPLOY.md §1, `ufw route allow` satırlarıyla birlikte; aynı sunucudaki diğer siteleri etkiler) | — | VPS (SSH) | Panel güvenliği |
 | [ ] | v0.5.0+ yayında (2026-09-27); doğrula (M1a ve M2): admin → Servisler'de bütün servisler (web, API, iki worker, PostgreSQL, iki Redis, analiz) Çalışıyor; "Referans verisi" Çalışıyor (~6.350 havalimanı, ~8.000 pist, ~6.000 havayolu; kaynak OurAirports ve VRS) ve "İz tabloları" 7 gün ileri açık, DEFAULT'ta 0 satır. İlk içe aktarım worker-bg açılınca kendiliğinden başlar (birkaç saniye) | — | admin.havayolu.live | Referans verisinin üretimde doğrulanması |
 | [x] | 2026-09-27: `analiz.havayolu.live` yayında (`/api/health` 200). Analiz uygulamasını ayrı Dokploy Compose uygulaması olarak kur (repo `emindemirciai/Analyze.Your.Site-Siteni-Analiz-Et-`, env bloğu `deploy/analiz.env.example`, `ANALYZE_GEO_LOOKUP=false`) | `ANALYZE_URL`, `ANALYZE_SITE_ID` | Dokploy | Ziyaretçi analizi |
-| [ ] | M5 kabulü: `wss://api.havayolu.live/v1/ws` bağlantısı 5 dk boşta açık kalır (Traefik zaman aşımı yok, ping 25 sn). havayolu.live açıkken tarayıcı konsolunda: `const w = new WebSocket('wss://api.havayolu.live/v1/ws'); w.onclose = (e) => console.log('kapandı', e.code); setTimeout(() => console.log('açık:', w.readyState === 1), 300000)` → 5 dk sonra `açık: true` | — | Tarayıcı | Canlı haritanın kesintisiz akışı |
+| [x] | **2026-09-29 doğrulandı:** üretimde bağlantı 5 dk 30 sn boşta açık kaldı (v0.8.0; tam görüntü alındı, kopma yok). M5 kabulü: `wss://api.havayolu.live/v1/ws` bağlantısı 5 dk boşta açık kalır (Traefik zaman aşımı yok, ping 25 sn). havayolu.live açıkken tarayıcı konsolunda: `const w = new WebSocket('wss://api.havayolu.live/v1/ws'); w.onclose = (e) => console.log('kapandı', e.code); setTimeout(() => console.log('açık:', w.readyState === 1), 300000)` → 5 dk sonra `açık: true` | — | Tarayıcı | Canlı haritanın kesintisiz akışı |
+| [~] | **2026-09-29:** hesap açıldı, kullandıkça öde kapalı, anahtar Dokploy Environment'a `ESRI_API_KEY` olarak girildi. Kalan: M6 yayınında uydu görüntüsünün ve "Powered by Esri" atfının doğrulanması. **Uydu altlığı (M6, D-075):** location.arcgis.com'da ücretsiz ArcGIS Location Platform hesabı aç (kullandıkça öde açma). API anahtarı oluştur: yetki yalnızca **Basemaps**; izinli referrer'lar `https://havayolu.live/*` ve `https://www.havayolu.live/*`; son kullanma en çok 1 yıl (tarihi not et, her yıl yenile). Anahtarı Dokploy Environment'ta `ESRI_API_KEY=` satırına gir ve yeniden deploy et; anahtarı repoya ya da sohbete yazma. Doğrulama: https://havayolu.live haritası uydu görüntüsü gösterir ve atıfta "Powered by Esri" yazar. Anahtar yokken harita OpenFreeMap'in koyu haritasıyla, yollar gizli açılır. Not: Esri sözleşmesi (E204 §3.1c.5) kullanım koşullarında Esri şartlarına uyma maddesi ister; M6'da yayımlanan geçici kullanım koşulları (`/kullanim-kosullari`) bu maddeyi taşır. Doğrulama: harita atıf satırındaki "Koşullar" bağlantısı sayfayı açar | `ESRI_API_KEY` | location.arcgis.com → Dokploy | Uydu harita altlığı |
 | [ ] | 24 saatlik kapsama raporu: admin panelinden `coverage:report` (üretim yoksa `pnpm coverage:probe --hours 24`, bilgisayar uyku moduna geçmeden) | — | Admin / bilgisayar | Parça 2 kararları |
 
 ### Parça 2
@@ -68,7 +70,7 @@ Web sürümü (Parça 1–3) için zorunlu tek ek gider kalıcı domain'dir. İk
 ### Parça 3
 | Durum | Adım | Env / secret | Nerede | Neyi açar |
 |---|---|---|---|---|
-| [ ] | Yasal metinlerin ve analiz onay bandının hukukçu incelemesi | — | Hukukçu | Herkese açık yayın |
+| [ ] | Yasal metinlerin ve analiz onay bandının hukukçu incelemesi. M6'dan beri yayında olan geçici kullanım koşulları (`/kullanim-kosullari`: Esri şartlarına uyma maddesi, E204 §3.1c.5; ODbL maddesi; "olduğu gibi" ve garanti yok maddeleri) de incelenir; kapsamlı metin M6a'da onun yerini alır (D-075) | — | Hukukçu | Herkese açık yayın |
 | [ ] | Opsiyonel: Turnstile anahtarları | `TURNSTILE_SITE_KEY`, `TURNSTILE_SECRET_KEY` | Cloudflare | Kayıtta bot koruması |
 | [ ] | Herkese açık duyurudan önce info@adsb.lol'e güncelleme e-postası | — | E-posta | adsb.lol şartları |
 

@@ -89,11 +89,22 @@ export function AnalyticsConsent({
   )
 }
 
-export function ConsentSettingsButton({ label }: { label: string }) {
+/**
+ * Analiz tercihini yeniden açan düğme (onay bandını gösterir). Alt bilgide ve alt bilginin gizli
+ * olduğu harita sayfasında harita denetimlerinde durur: onay, verildiği kadar kolay geri alınabilir
+ * (KVKK, GDPR md. 7/3).
+ */
+export function ConsentSettingsButton({
+  label,
+  className = 'link-button',
+}: {
+  label: string
+  className?: string
+}) {
   return (
     <button
       type="button"
-      className="link-button"
+      className={className}
       onClick={() => window.dispatchEvent(new Event(OPEN_CONSENT_EVENT))}
     >
       {label}

@@ -16,6 +16,13 @@ Bir şeyi doğrulaman gerekiyorsa önce buradaki kaynakları kullan. Yeni bir ka
 - OpenFreeMap: https://openfreemap.org/ (SSS ve kullanım şartları)
 - Protomaps (self-host yedek): https://docs.protomaps.com/
 
+## Uydu altlığı (Esri World Imagery, erişim 2026-09-28)
+- ArcGIS Location Platform fiyatları ve ücretsiz katman: https://location.arcgis.com/pricing/
+- E204 ArcGIS Location Platform Agreement (rev. 2025-11-21; §3.1c–d kullanım, proxy ve önbellek): https://www.esri.com/content/dam/esrisites/en-us/media/legal/platform/platform-legal.pdf
+- E300 ürüne özgü kullanım şartları (ArcGIS Location Platform maddeleri; kullanım koşullarında bağlantılı): https://www.esri.com/content/dam/esrisites/en-us/media/legal/product-specific-terms-of-use/e300.pdf
+- Statik temel harita karoları (World Imagery karo adresi): https://developers.arcgis.com/rest/static-basemap-tiles/
+- API anahtarı güvenliği (referrer kısıtı, yetki, süre): https://developers.arcgis.com/documentation/security-and-authentication/security-best-practices/
+
 ## Yayın ve altyapı
 - Dokploy API: https://docs.dokploy.com/docs/api · Compose referansı: https://docs.dokploy.com/docs/api/reference-compose
 - Dokploy Compose domain'leri: https://docs.dokploy.com/docs/core/docker-compose/domains

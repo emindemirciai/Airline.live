@@ -35,6 +35,13 @@ describe('lisans kaydı', () => {
     expect(PROVIDER_LICENSES.adsbLol.shareAlike).toBe('derivative-database')
   })
 
+  it('Esri uydu altlığı karo saklamaz ve "Powered by Esri" atfını taşır (data-sources.md §6a)', () => {
+    const esri = PROVIDER_LICENSES.esriWorldImagery
+    expect(esri.maxRawStorageDays).toBe(0)
+    expect(esri.attribution.text).toMatch(/^Powered by Esri \| Esri, Vantor, Earthstar Geographics/)
+    expect(esri.commercialUse).toBe(true)
+  })
+
   it('adsb.lol hız sınırı notu D-073 kova değerlerini yazar', () => {
     expect(PROVIDER_LICENSES.adsbLol.rateLimit).toBe(
       'dinamik; 429 Retry-After taşımaz; başlangıç 0,1 istek/sn (alt 0,05, üst 0,2) + AIMD',

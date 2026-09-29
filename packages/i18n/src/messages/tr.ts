@@ -4,11 +4,101 @@ export const tr = {
     description: 'Türkiye odaklı canlı uçuş takibi, istasyona yaklaşma ve iniş bildirimleri.',
   },
   nav: {
+    map: 'Harita',
     status: 'Durum',
     changelog: 'Yenilikler',
     language: 'Dil',
     switchTo: 'English',
     mainLabel: 'Ana menü',
+  },
+  /** Canlı harita (kök sayfa). "Takip" kelimesi yalnızca bildirim aboneliğidir; kamera "Uçağı ortala"dır. */
+  map: {
+    title: 'Canlı harita',
+    mapLabel: 'Canlı uçuş haritası',
+    webglUnavailable:
+      'Bu tarayıcı haritayı çizemiyor (WebGL2 desteklenmiyor ya da kapalı). Uçakları arama kutusundan ve uçak listesinden görebilirsin.',
+    loading: 'Harita yükleniyor…',
+    nav: 'Harita',
+    /** Harita atfındaki canlı veri bağlantısının ön eki (data-sources.md §1). */
+    dataAttributionPrefix: 'Canlı uçuş verisi:',
+    /** Atıf satırındaki kullanım koşulları bağlantısı (E204 §3.1c.5, D-075). */
+    termsLink: 'Koşullar',
+    search: {
+      label: 'Uçak ara',
+      placeholder: 'Sefer no, çağrı kodu, tescil ya da hex',
+      submit: 'Ara',
+      searching: 'Aranıyor…',
+      notFound:
+        'Bu sefer şu an havada görünmüyor ya da farklı bir çağrı koduyla uçuyor; tescil ile arayabilirsin.',
+      error: 'Arama şu an yapılamıyor. Biraz sonra yeniden dene.',
+      rateLimited: 'Kısa sürede çok fazla arama yapıldı. Bir dakika sonra yeniden dene.',
+      pick: 'Birden fazla uçak bulundu; birini seç.',
+      flightNumberNote:
+        'Sefer no, uçağın yayınladığı çağrı kodundan çıkarılır. Harfli çağrı kodu kullanan seferler (ör. THY4KN) sefer no ile bulunamaz; çağrı kodu ya da tescille ara.',
+      results: 'Arama sonuçları',
+    },
+    card: {
+      close: 'Kapat',
+      follow: 'Uçağı ortala',
+      following: 'Harita uçağı ortada tutuyor.',
+      flight: 'Sefer no',
+      callsign: 'Çağrı kodu',
+      registration: 'Tescil',
+      type: 'Uçak tipi',
+      altitude: 'Yükseklik',
+      speed: 'Yer hızı',
+      verticalRate: 'Dikey hız',
+      track: 'Yön',
+      squawk: 'Transponder kodu',
+      lastSeen: 'Son görülme',
+      secondsAgo: '{s} sn önce',
+      minutesAgo: '{m} dk önce',
+      source: 'Veri kaynağı',
+      positionSource: 'Konum kaynağı',
+      hex: 'Hex kodu',
+      sources: {
+        adsbLol: 'ADSB.lol',
+        localReceiver: 'Yerel alıcı',
+      },
+    },
+    table: {
+      caption: 'Haritada görünen uçaklar',
+      captionLimited: 'Haritada görünen uçaklar (ilk {shown} / {total})',
+      flight: 'Sefer',
+      type: 'Tip',
+      altitude: 'Yükseklik',
+      speed: 'Hız',
+      position: 'Konum',
+      empty: 'Bu alanda şu an uçak görünmüyor.',
+      show: 'Uçak listesini göster',
+      hide: 'Uçak listesini gizle',
+      select: '{flight} uçağını seç',
+    },
+    labels: {
+      button: 'Etiketler',
+      title: 'Etiket ayarları',
+      selected: 'Seçili uçak',
+      others: 'Diğer uçaklar',
+      hidden: 'Gizle',
+      short: 'Kısa',
+      full: 'Tam',
+      hint: 'Kısa: yalnızca sefer no. Tam: sefer no, hız ve yükseklik.',
+    },
+    status: {
+      freshness: 'Veri yaşı {s} sn',
+      connecting: 'Canlı veriye bağlanılıyor…',
+      reconnecting: 'Bağlantı koptu; yeniden bağlanılıyor…',
+      offline:
+        'Canlı veri sunucusuna ulaşılamıyor. İnternet bağlantını kontrol et; yeniden denemeye devam ediyoruz.',
+      noProvider: 'Canlı veri kaynağı şu an kapalı; haritada uçak görünmüyor.',
+      providerDegraded: 'Canlı veri kaynağında yavaşlama var; konumlar gecikmeli gelebilir.',
+      providerDown:
+        'Canlı veri kaynağından yanıt alınamıyor; haritadaki konumlar güncel olmayabilir.',
+      coverageNone: 'Bu bölge kapsama alanının dışında; burada uçak görünmez.',
+      coveragePartial:
+        'Bu bölgenin bir kısmı kapsama alanının dışında; bazı uçaklar görünmeyebilir.',
+      basemapFailed: 'Harita altlığı yüklenemedi.',
+    },
   },
   status: {
     title: 'Sistem durumu',
@@ -38,10 +128,6 @@ export const tr = {
     current: 'Güncel sürüm',
     tryIt: 'Dene',
     released: 'Yayın tarihi',
-  },
-  footer: {
-    dataAttributionPrefix: 'Canlı uçuş verisi:',
-    license: 'lisansıyla',
   },
   admin: {
     title: 'Yönetim',
@@ -138,8 +224,62 @@ export const tr = {
   },
   errors: {
     notFoundTitle: 'Sayfa bulunamadı',
-    notFoundBody: 'Aradığın sayfa yok ya da taşınmış. Durum sayfasından devam edebilirsin.',
-    goToStatus: 'Durum sayfasına git',
+    notFoundBody: 'Aradığın sayfa yok ya da taşınmış. Canlı haritadan devam edebilirsin.',
+    goToMap: 'Haritaya dön',
+  },
+  /**
+   * Geçici kullanım koşulları (`/kullanim-kosullari`, D-075). Esri sözleşmesi (E204 §3.1c.5) uygulama
+   * kullanıcılarının Esri şartlarına uymasını isteyen bir madde ister. Kapsamlı metin Parça 3 M6a'da
+   * gelir; hukukçu incelemesi ACTIVATION'dadır. `{ad}` yer tutucuları bağlantılarla doldurulur.
+   */
+  terms: {
+    title: 'Kullanım koşulları',
+    effective: 'Yürürlük tarihi: {date}',
+    interim:
+      'Bu metin geçicidir; kapsamlı kullanım koşulları ve gizlilik politikası yakında yayımlanacak.',
+    service: {
+      heading: 'Hizmet',
+      about:
+        '{app}, Türkiye odaklı, herkese açık ve ücretsiz bir uçuş takip hizmetidir. Uçak konumları uçakların yayınladığı ADS-B sinyallerinden, bazı uçaklarda çok noktalı konumlandırmadan (MLAT) gelir ve yalnızca bilgi amaçlıdır.',
+      notOperational:
+        'Hizmet operasyonel, seyrüsefer ya da uçuş emniyetiyle ilgili kararlar için kullanılamaz.',
+      noWarranty:
+        'Verilerin doğru, eksiksiz ya da kesintisiz olacağı garanti edilmez; hizmet “olduğu gibi” sunulur.',
+    },
+    data: {
+      heading: 'Veriler',
+      live: 'Canlı uçak konumları {source} kaynağından gelir ve {license} ile lisanslıdır.',
+      odbl: 'Bu koşullar, ADS-B’den türetilen veriler üzerinde ODbL’nin sana tanıdığı hakları kısıtlamaz.',
+      airports: 'Havalimanı bilgileri {source} kaynağından gelir ve kamu malıdır.',
+    },
+    map: {
+      heading: 'Harita görüntüleri',
+      esri: 'Uydu haritası gösterildiğinde görüntüleri Esri sağlar. Haritayı kullanarak Esri’nin geçerli koşullarına uymayı kabul edersin: {platform} ve {productTerms}.',
+      esriPlatform: 'ArcGIS Location Platform sözleşmesi (E204)',
+      esriProductTerms: 'ürüne özgü kullanım koşulları (E300)',
+      tiles:
+        'Uydu harita karoları (Esri) yalnızca bu sitede görüntülenmek içindir: indirilemez, kazınamaz, tarayıcının standart önbelleği dışında önbelleğe alınamaz ya da saklanamaz ve yeniden dağıtılamaz.',
+      vector:
+        'Vektör harita gösterildiğinde altlığı {openFreeMap} ya da yedek vektör harita sağlar. Harita verisi: © {openMapTiles}, © {openStreetMap} katkıcıları (ODbL).',
+    },
+    use: {
+      heading: 'Kullanım kuralları',
+      bulk: 'Siteden ya da API’den otomatik araçlarla, API’nin bildirdiği istek sınırlarını aşacak biçimde toplu veri toplanamaz.',
+      disrupt: 'Hizmeti aksatmaya yönelik girişimde bulunulamaz.',
+    },
+    privacy: {
+      heading: 'Uçak gizliliği',
+      military: 'Askeri uçaklar haritada, aramada ve API’de gösterilmez.',
+      registration: 'PIA ya da LADD programındaki uçakların tescili gösterilmez.',
+    },
+    code: {
+      heading: 'Kaynak kodu ve ad',
+      license: 'Uygulamanın kaynak kodu MIT lisanslıdır.',
+    },
+    changes: {
+      heading: 'Değişiklikler',
+      body: 'Bu koşullar güncellenebilir; güncellenince yukarıdaki yürürlük tarihi değişir.',
+    },
   },
   /** Sayfa kaynağında (Sayfa kaynağını görüntüle) görünen bildirim; ekranda gösterilmez. */
   legal: {
