@@ -201,16 +201,26 @@ describe('layoutLabels — değişmezler ve hız', () => {
     expect(placed[0]?.id).toBe('ac0')
     expect(placed.length).toBeGreaterThan(50)
     expect(new Set(placed.map((l) => l.id)).size).toBe(placed.length)
+    // Yüz binlerce çift denetlenir; her biri için ayrı expect CI'da saniyeler sürer. İhlaller
+    // toplanır ve tek seferde doğrulanır (boş liste beklenir).
+    const violations: string[] = []
     for (const [i, label] of placed.entries()) {
       const size = sizes.get(label.id)
       if (!size) throw new Error('unknown label')
-      expect(label.x).toBeGreaterThanOrEqual(0)
-      expect(label.y).toBeGreaterThanOrEqual(0)
-      expect(label.x + size.width).toBeLessThanOrEqual(view.width)
-      expect(label.y + size.height).toBeLessThanOrEqual(view.height)
-      for (const other of placed.slice(i + 1)) expect(overlaps(label, other, sizes)).toBe(false)
-      for (const b of boxes) expect(coversIcon(label, size, b.anchorX, b.anchorY)).toBe(false)
+      if (label.x < 0 || label.y < 0) violations.push(`${label.id}: outside top/left`)
+      if (label.x + size.width > view.width || label.y + size.height > view.height) {
+        violations.push(`${label.id}: outside bottom/right`)
+      }
+      for (const other of placed.slice(i + 1)) {
+        if (overlaps(label, other, sizes)) violations.push(`${label.id}: overlaps ${other.id}`)
+      }
+      for (const b of boxes) {
+        if (coversIcon(label, size, b.anchorX, b.anchorY)) {
+          violations.push(`${label.id}: covers icon ${b.id}`)
+        }
+      }
     }
+    expect(violations).toEqual([])
   })
 
   it('aynı girdiye aynı sonucu verir (girdi sırasından bağımsız)', () => {
