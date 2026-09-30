@@ -1,4 +1,5 @@
-export const DEFAULT_PATH = '/durum'
+/** Hedef boş ya da güvensizse dönülen sayfa: kök adresteki canlı harita. */
+export const DEFAULT_PATH = '/'
 
 function hasControlCharacter(value: string): boolean {
   for (let i = 0; i < value.length; i++) {

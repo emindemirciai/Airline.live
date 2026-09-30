@@ -1,8 +1,9 @@
 import type { AirlineCodes } from '@havayolu/db'
 import { normalizeFlightNumber } from '@havayolu/i18n'
+import type { SearchKind } from '@havayolu/shared'
 import type { LiveSource, PublicAircraft } from './types'
 
-export type SearchKind = 'hex' | 'registration' | 'flight' | 'callsign' | 'none'
+export type { SearchKind }
 
 export interface SearchResult {
   kind: SearchKind

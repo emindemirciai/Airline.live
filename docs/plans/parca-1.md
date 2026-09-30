@@ -16,8 +16,8 @@ Durumlar: `[ ]` başlamadı, `[~]` sürüyor, `[k]` kod bitti ve kullanıcı do�
 | M2 | Veritabanı ve referans verisi | `p1/m2-db` | [x] | #7 |
 | M3 | Sağlayıcılar | `p1/m3-providers` | [x] | #10 |
 | M4 | Ingest, replay ve senaryo araçları | `p1/m4-ingest` | [k] kod bitti; üretimde adsb.lol çekimi kullanıcının iki ACTIVATION adımından (info@adsb.lol bildirimi, ardından `CONTACT_EMAIL`) sonra açılır | #11 |
-| M5 | Canlı API | `p1/m5-live-api` | [k] kod bitti; üretimde 5 dk boşta WS bağlantısı kullanıcı doğrulaması bekliyor | #13 |
-| M6 | Web canlı harita | `p1/m6-map` | [ ] | — |
+| M5 | Canlı API | `p1/m5-live-api` | [x] tamam; üretimde 5 dk boşta WS bağlantısı doğrulandı (2026-09-29) | #13 |
+| M6 | Web canlı harita | `p1/m6-map` | [k] kod bitti; üretimde uydu altlığı ve "Powered by Esri" doğrulaması bekliyor | #14 |
 | M7 | Canlı araçlar ve kapsama raporu | `p1/m7-tools` | [ ] | — |
 
 ## M0 — Repo iskeleti ve yerel test ortamı
@@ -256,7 +256,7 @@ Spec boşlukları için alınan kararlar D-074'tedir.
   - WS: tam görüntü → fark, `lastSeq` ile devam, yeniden bağlanma mesajı ve 1012, IP sınırı
 - `pnpm dev:replay` → `http://localhost:4100/v1/live?bbox=25,35,45,43` sentetik uçakları döner
 - `pnpm ci:full` yeşil
-- **Kullanıcıya bağlı (`[k]`):** `wss://api.havayolu.live/v1/ws` üzerinden 5 dk boşta bağlantı kopmaz.
+- **Kullanıcıya bağlı (`[k]`):** `wss://api.havayolu.live/v1/ws` üzerinden 5 dk boşta bağlantı kopmaz. **2026-09-29 doğrulandı:** üretimde (v0.8.0) bağlantı 5 dk 30 sn boşta açık kaldı.
 
 **Çıktı kaydı (2026-09-29):**
 - **Yöntem:** Arayüz sözleşmesi (`types.ts`) önce yazıldı. Paralel ajanlar ayrışık dosyalarda uyguladı, tek ajan API ve worker'a bağladı.
@@ -280,5 +280,76 @@ Spec boşlukları için alınan kararlar D-074'tedir.
   - `/v1/ws`: tam görüntü (10 uçak), ardından saniyede bir fark (4 hücre, 10 güncelleme).
 - `pnpm stats` → 270 dosya, 36.182 satır (30.861 kod).
 
-## M6–M7
-Ayrıntılar `docs/prompts/parca-1.md`'dedir. Her kilometre taşına başlarken bu dosyaya dizinler ve kabul komutları eklenir.
+## M6 — Web canlı harita
+Spec boşlukları için alınan kararlar D-075'tedir. Uydu altlığı kullanıcının seçimiyle Esri World Imagery'dir: ArcGIS Location Platform ücretsiz katmanı, anahtar ACTIVATION'da.
+
+**Dizinler ve dosyalar:**
+- **`packages/shared/src/`:**
+  - `live.ts`: API ile istemcinin ortak tipleri (`PublicAircraft`, WebSocket mesajları, arama ve havalimanı yanıtları)
+  - `map/`: harita renkleri, uçak kategorisi ve ikon kimlikleri, uçak/havalimanı/iz katman stilleri (mobille ortak), özgün siluetler (`silhouettes.ts`)
+- **`packages/db/src/airports.ts`:** IATA kodlu havalimanları
+- **`apps/api`:** `GET /v1/airports?country=TR` (10 dk bellek önbelleği)
+- **`apps/web/src/lib/`:**
+  - `env.ts` (harita env'leri), `map-config.ts` (altlık zinciri)
+  - `live/`: `store`, `clock` (geri gitmeyen saat, sunucu saati tahmini), `interpolate`, `connection`, `subscription` (hücreye yuvarlanan abonelik), `api`, `visible`
+  - `map/`: `label-text`, `label-layout`, `label-settings`, `url-state`, `shared-link` (`/?hex=` çözümü)
+- **`apps/web/src/components/map/`:** `live-map.tsx`, harita görünümü ve denetleyicisi, `maplibre-loader.ts` (MapLibre'nin tembel yüklenmesi), `camera.ts`, ikonlar, `data-attribution.tsx`, `use-live.ts`; `panels/` (arama, bilgi kartı, tablo, durum şeridi, etiket ayarı)
+- **`apps/web/src/app/page.tsx`:** kök `/` haritayı gösterir; menüde "Harita" ilk sıradadır
+- **Geçici kullanım koşulları (kullanıcı kararı 2026-09-29, D-075):** `apps/web/src/app/kullanim-kosullari/page.tsx`, `components/terms-content.tsx`, `components/rich-text.tsx` (i18n metnine bağlantı yerleştirme), `lib/terms.ts` (yol, yürürlük tarihi, belge adresleri). Esri sözleşmesinin (E204 §3.1c.5) istediği Esri şartlarına uyma maddesi ve ODbL maddesi buradadır. Bağlantı site alt bilgisinde ve harita atıf satırındadır ("Koşullar")
+- **`packages/i18n`:** `map` ve `terms` bölümleri (TR/EN)
+- **`apps/web/public/test-style.json`:** yerel test stili (glif, sprite ve uzak adres yok)
+- **`e2e/`:** Playwright yapılandırması ve testleri; kökte `pnpm test:e2e`, `typecheck:e2e`, `lint:e2e`
+- **CI:** `e2e` işi; `deploy` onu da bekler
+- **Belgeler:** D-075, data-sources.md §6a, `ATTRIBUTION.md`, ACTIVATION (Esri anahtarı; geçici kullanım koşullarının hukukçu incelemesi Parça 3 satırında)
+
+**Kabul komutları:**
+- `pnpm --filter @havayolu/web test`:
+  - altlık zinciri (yerel, uydu, vektör; anahtar adrese kodlanarak yazılır)
+  - uçak deposu (tam görüntü, fark, budama, iz en çok 600 nokta; örnek yaşı sunucu saatinden, eski örnek yok sayılır), ara değerleme (örnekten en çok 10 sn ileri), ekranda 0,5 px altı kaymada yükleme yok
+  - bağlantı: yeniden bağlanma gecikmesi, `lastSeq`, `reconnect` mesajı, `refresh` (sahte WebSocket); abonelik planı ("Uçağı ortala" hücre içinde yeniden abone olmaz); 30 sn sessizlikte yenileme
+  - etiket metni (sefer no → çağrı kodu → tescil → hex), etiket yerleşimi (500 etiket < 8 ms; yalnızca seçili etiket zorla yerleşir), havalimanı kodları uçak simgesini ve seçili izi örtmez, etiket ayarı, `?hex=` ayrıştırma ve paylaşılan bağlantı akışı
+  - veri yaşı (sağlayıcı sağlıklıyken sakin bölgede artmaz), harita yokken atıf, MapLibre yükleyicisi (ortak modül bir kez)
+  - atıf satırı: canlı veri atfı ve "Koşullar" bağlantısı tek girdi; harita yokken aynı metin
+  - kullanım koşulları (TR ve EN): Esri maddesi, E204 ve E300 bağlantıları, ODbL maddesi, yürürlük tarihi, doldurulmamış yer tutucu yok
+- `pnpm --filter @havayolu/i18n test` → TR ve EN anahtarları ve yer tutucuları aynı (`terms` dahil)
+- `pnpm --filter @havayolu/shared test` → uçak kategorisi tablosu
+- `pnpm --filter @havayolu/api test` → `/v1/airports` (önbellek, 400, 503, başlıklar)
+- `pnpm test:integration` (önce `pnpm dev:infra`) → fixture'daki 61 IATA kodlu Türkiye havalimanı
+- `pnpm test:e2e` (önce `pnpm dev:infra` ve `pnpm db:migrate`; `pnpm dev` kapalı):
+  - `/api/version` → `app: havayolu`; replay uçağı API'de görünene kadar beklenir
+  - harita açılır, ADSB.lol (ODbL) atfı ve veri yaşı görünür
+  - replay uçağı `HYS001` tabloda görünür ve konumu 6 sn içinde değişir
+  - satıra tıklayınca bilgi kartı açılır, adres `?hex=ff0001` olur; kart kapanınca `hex` silinir; satır klavyeyle de seçilir
+  - arama `HYS001`'i bulur; bulunamayan sefer için spec'teki metin çıkar
+  - `/?hex=ff0001` ile doğrudan açılış aynı uçağı seçer; canlı olmayan hex'te arama alanında "bulunamadı" metni çıkar
+  - "Diğer uçaklar: Gizle" yeniden yüklemede korunur
+  - 375 px genişlikte yatay kayma yok
+  - analiz onay bandı (M1a'dan): onaysız script yok, "Kabul et" yükler, "Reddet" yüklemez, tercih alt bilgiden ve harita sayfasında harita denetimlerinden değişir, admin'de bant yok
+  - `/kullanim-kosullari` 200 döner ve Esri maddesini içerir (E204 bağlantısı, ODbL); haritanın atıf satırındaki "Koşullar" bağlantısı sayfayı açar; site alt bilgisinde "Kullanım koşulları" bağlantısı var
+- `pnpm ci:full` yeşil; PR'da CI (`e2e` dahil) yeşil
+- **Kullanıcıya bağlı (`[k]`):** Esri anahtarı girilince https://havayolu.live haritası uydu görüntüsü ve "Powered by Esri" atfı gösterir; atıf satırındaki "Koşullar" bağlantısı https://havayolu.live/kullanim-kosullari'yi açar (ACTIVATION). Geçici kullanım koşullarının hukukçu incelemesi Parça 3 ACTIVATION satırındadır.
+
+**Çıktı kaydı (2026-09-29):**
+- **Yöntem:** Arayüz sözleşmesi yazıldı; 5 paralel ajan ayrışık dosyalarda uyguladı (paylaşılan tipler ve `/v1/airports`, web mantık modülleri, MapLibre çizimi, paneller ve i18n, E2E/CI/belgeler), tek ajan birleştirdi.
+- **İnceleme:** 6 açıdan inceleme (spec ve tasarım, çalışma zamanı, güvenlik/gizlilik/lisans, erişilebilirlik ve mobil, test/CI/belgeler, performans) ve bulgu başına 3 çürütücü doğrulayıcı. 35 bulgudan 23'ü çoğunlukla doğrulandı (tekilleştirilince 18 sorun), hepsi düzeltildi. Başlıcaları:
+  - harita başlatılamadığında da görünen ADSB.lol atfı
+  - havalimanı kutucuklarının uçakları örtmemesi
+  - örnek yaşına göre "son görülme"
+  - "Uçağı ortala"da seyrek abonelik
+  - yarım pikselin altındaki hareketlerde veri yüklememe
+  - altlık yüklenirken de çizilen uçaklar
+  - uydu → koyu vektör → yedek → düz arka plan zinciri
+  - haritada analiz tercihleri düğmesi
+  - MapLibre'nin sayfa paketinden ayrılması
+
+  Bağımsız denetim 23 bulgunun hepsini düzeltilmiş buldu; 10 kasıtlı hata denemesinin hepsi testlerce yakalandı. Denetimin küçük notları da düzeltildi (karo kuralı yalnızca Esri karolarına uygulanır, MLAT ibaresi, test anahtarı).
+- **Kullanım koşulları:** Esri E204 §3.1c.5 gereği `/kullanim-kosullari` (geçici metin, TR/EN) eklendi; kullanıcı kararı 2026-09-29.
+- **`pnpm ci:full` → yeşil** (önbelleksiz turbo çalıştırması dahil):
+  - Birim testleri: web 245, worker 184, api 182, providers 89, tools 74, shared 34, i18n 31, scripts 31, db 26, geo 20.
+  - Entegrasyon testleri: db 61, api 16, worker 11.
+  - E2E: 17/17 (kurulum 1, onay 4, canlı harita 9, koşullar 3).
+  - `compose:guard` yeşil; migration yükseltmesi 4 → 4 (M6'da migration yok).
+- `pnpm stats` → 361 dosya, 49.569 satır (43.835 kod).
+
+## M7 — Canlı araçlar ve kapsama raporu
+Ayrıntılar `docs/prompts/parca-1.md`'dedir. Başlarken bu dosyaya dizinler ve kabul komutları eklenir.

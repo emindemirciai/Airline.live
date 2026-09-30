@@ -2,6 +2,129 @@
 
 Her karar tarih, gerekçe ve varsa alternatifiyle yazılır. En yeni karar en üsttedir.
 
+## 2026-09-29 — Parça 1 M6 web canlı harita
+- **D-075 Harita altlığı, istemci veri yolu, etiketler, geçici kullanım koşulları ve E2E.**
+  - **Uydu altlığı (kullanıcı kararı 2026-09-28, D-072'deki DUR-SOR'un sonucu):**
+    - Kaynak: Esri World Imagery, ArcGIS Location Platform'un ücretsiz katmanıyla. Ayda 2 milyon karo. Kullandıkça öde açılmadığı için kota dolunca servis ay sonuna kadar durur, fatura çıkmaz.
+    - Karoyu tarayıcı doğrudan çeker: `https://ibasemaps-api.arcgis.com/arcgis/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}?token=<ESRI_API_KEY>`, 256 px, en büyük yakınlaştırma 19.
+    - Atıf: "Powered by Esri" ve "Esri, Vantor, Earthstar Geographics, and the GIS User Community".
+    - Anahtarsız `server.arcgisonline.com` uç noktası bu kullanım için lisanslı değildir; hiçbir yerde kullanılmaz.
+    - Anahtarı kullanıcı üretir (ACTIVATION). Env `ESRI_API_KEY` isteğe bağlıdır; yoksa harita OpenFreeMap'in koyu stiliyle, yollar gizli açılır. Lisans kaydı ve şartlar: data-sources.md §6a.
+    - Görüntü kalitesi: LTFM'de 0,34 m, Mayıs 2025 (Vantor "Vivid Advanced"; 2026-09-28 metadata sorgusu).
+    - Karşılaştırılan diğer seçenekler:
+      - Mapbox: ücretsiz kota 750 bin karo, ölçekte karo başına en pahalısı.
+      - MapTiler: Free planı ticari kullanıma kapalı.
+      - Google: Google dışı bir haritayla aynı ekranda kullanılamaz, yedek zincir kurulamaz.
+      - Stadia: uydu yalnızca ayda 80 $'lık planda.
+      - Sentinel-2: 10 m, havalimanı ölçeğinde bulanık.
+      - EOX: ticari kullanıma açık tek sürümü (2016) LTFM'den eskidir.
+  - **Karolar sunucudan geçmez:** E204 §3.1d.2'ye göre bir isteğin çıktısı yalnızca tek bir kullanıcıya hizmet edebilir. §3.1d.6 önbelleğe almaya yalnızca HTTP önbellek başlıklarının izin verdiği kadar izin verir; toplu indirme ve çevrimdışı paket yoktur. Bu yüzden worker ya da API aracılığı, CDN ve service worker önbelleği kullanılmaz. "Harici servislere yalnızca worker erişir" kuralının istisnası harita karolarıdır; OpenFreeMap'te de karoyu tarayıcı çeker.
+  - **Anahtar tarayıcıda görünür.** Karo adresi anahtarı taşır, istemcide gizlenemez. Önlemler:
+    - Anahtar yalnızca "Basemaps" yetkisini taşır.
+    - İzinli referrer'lar `https://havayolu.live/*` ve `https://www.havayolu.live/*`'dır. Referrer taklit edilebilir; bu tam bir koruma değildir.
+    - Süre en çok 1 yıldır ve anahtar her yıl yenilenir.
+    - Kötüye kullanımın en kötü sonucu kotanın bitmesidir: ücretsiz katmanda fatura çıkmaz, karolar hata verir ve harita aşağıdaki zincirle vektör altlığa geçer.
+  - **Kota:** Etkileşimli oturum başına ~300 karo varsayımıyla ayda ~6.700 oturum eder (tahmin). Büyümede Esri'nin "basemap session" faturalaması denenir; karar kullanıcıya aittir (ücretli bağımlılık, DUR-SOR 5).
+  - **Açık konular:**
+    - E204 §3.1c.5, uygulama kullanıcılarının Esri şartlarına uymasını isteyen bir maddenin kullanım koşullarında yer almasını ister. Anahtar üretimde tanımlı olduğundan madde beklemez: M6'da geçici kullanım koşulları yayımlanır (aşağıda "Kullanım koşulları"). Kapsamlı metin Parça 3 M6a'dadır.
+    - §3.1b.5 Esri ürünleriyle "rekabet eden" ürünü yasaklar. Herkese açık bir uçuş takipçisi için büyük olasılıkla sorun değildir, ama kesin değildir.
+    - §3.1a.4'e göre Esri çıktısı açık veritabanı lisansına bağlanamaz. Görüntü yalnızca gösterilir; ODbL altındaki iz veritabanına hiçbir zaman girmez.
+  - **Altlık zinciri (`resolveMapConfig`, `apps/web/src/lib/map-config.ts`):**
+    1. `MAP_STYLE_URL` `/` ile başlıyorsa ya da `EXTERNAL_PROVIDERS_DISABLED=true` ise yerel stil kullanılır: `MAP_STYLE_URL` göreliyse o, değilse `/test-style.json`. Yerel geliştirme, testler ve CI bu yoldadır; dışarıya karo isteği gitmez.
+    2. Değilse ve `ESRI_API_KEY` varsa uydu kullanılır. Stil kodda kurulur: arka plan ve raster katman.
+    3. Hiçbiri yoksa vektör kullanılır: `MAP_STYLE_URL_DARK` (yoksa `MAP_STYLE_URL`), yedek `MAP_STYLE_FALLBACK_URL`. Yüklenince `source-layer`'ı `transportation` ya da `transportation_name` olan katmanlar gizlenir; `aeroway` kalır.
+  - **Hata davranışı (data-sources.md §6):**
+    - Stil ya da karolar 3 kez yüklenemezse sonraki adıma geçilir.
+    - Uydunun yedeği, dış servisler açıksa vektör zinciridir: önce koyu stil (`MAP_STYLE_URL_DARK`, yoksa `MAP_STYLE_URL`), sonra `MAP_STYLE_FALLBACK_URL` (varsa; ör. kendi barındırdığımız Protomaps yedeği, kendi atfıyla). Anahtarsız vektör zincirindeki yedekle aynıdır.
+    - O da yüklenemezse kodda kurulan düz arka plan (`#0B1016`) çizilir ve "Harita altlığı yüklenemedi" şeridi çıkar.
+    - Uçaklar her durumda çizilmeye devam eder. Harita koddaki düz arka plan stiliyle açılır ve kendi katmanlarımız hemen eklenir. Altlık stili indirilirken, yanıt vermeyen sunucu için 3 × 20 sn beklenirken ya da yeniden denenirken uçaklar bu arka planda (ya da ekrandaki eski altlıkta) çizilir ve seçilebilir. Katmanlar yalnızca `setStyle` anında kısa süre kalkar, yeni stil yüklenince yeniden eklenir.
+  - **İstemci API'ye doğrudan bağlanır:**
+    - REST adresi `API_HOST` `localhost`, `127.0.0.1` ya da `[::1]` ile başlıyorsa `http://<API_HOST>`, değilse `https://<API_HOST>`'tur.
+    - WebSocket adresi aynı kuralla `ws`/`wss` ve `/v1/ws`'dir.
+    - API'nin CORS ve WS `Origin` denetimi `WEB_HOST`'u zaten tanır (D-074). Web sunucusu canlı veriyi aktarmaz.
+  - **Etiket satırları (v1):**
+    - Tam etiket iki satırdır. 1. satır sefer no; yoksa gri çağrı kodu, yoksa gri tescil (tasarım tuvalindeki "TC-JVI" gibi), o da yoksa gri büyük harfli hex. Bilgi kartı başlığı, tablo ve arama sonucu aynı sırayı kullanır. 3. satır "431 km/sa · 333 m"; uçak yerdeyse "yerde".
+    - 2. satır (güzergâh) ve 4. satır (pist), verisi gelince eklenir: güzergâh Parça 2 M2'de, pist hizası Parça 2 motorunda. Her uçakta "Güzergâh ?" yazmak gürültü olurdu.
+    - Kısa etiket yalnızca 1. satırdır.
+    - Yer bulamayan etiket çizilmez. Yalnızca seçili uçağın etiketi (ayarı Gizle değilse) gerekirse çakışarak yerleşir; seçim yokken en öncelikli etiket de diğer simgelerin üstüne zorla konmaz ("Etiketler üst üste binmez", domain.md).
+  - **Örnek yaşı ve ara değerleme:**
+    - Örnek zamanı `t` sunucu saatiyle yazılır ve hiçbir zaman istemci saatiyle (`Date.now()`) karşılaştırılmaz; iki saat arasındaki kayma bilinmez.
+    - Sunucu saati her WebSocket mesajından tahmin edilir. Mesajdaki en yeni örnek + `status.newestAgeS` sunucu saatinin alt sınırıdır, çünkü sunucunun en yeni örneği mesajdakilerden eski olamaz. En sıkı alt sınır, alındığı andaki istemci saatiyle tutulur ve istemci saatiyle ileri taşınır. Daha gevşek sınır (ör. yalnızca eski uçakların olduğu sakin görünüm) tahmini geri almaz.
+    - Bir örneğin yaşı = tahmini sunucu saati − `t`. İki değer de sunucu saatindendir, kayma etkilemez. Hata yalnızca ağ gecikmesi kadardır ve yaşı küçük gösterir, büyük göstermez.
+    - Her uçak için `receivedAt` (istemciye ilk ulaştığı an) ve `sampledAt` (örneğin alındığı anın istemci saatindeki tahmini; en çok `receivedAt`) tutulur. Sunucu önbelleği uçağı son örnekten 120 sn sonrasına kadar tuttuğundan görünüme yeni giren uçağın örneği dakikalık olabilir (ör. alçakta sinyali kesilen iniş). "Son görülme", tahminin ufku ve istemcideki budama (120 sn) `sampledAt`'e dayanır: eski örnekli uçak "0 sn önce" görünmez ve sunucuyla aynı anda düşer. Sunucu saati bilinmeden eklenen örnek (WebSocket'ten önce gelen arama sonucu), aynı örnek bir tam görüntüyle yeniden gelince düzelir.
+    - Konum, `sampledAt`'ten bu yana yer hızı ve yönle ileri hesaplanır; örnekten en çok 10 sn sonrasına gidilir. Sinyali çoktan kesilmiş uçak ilerliyormuş gibi gösterilmez.
+    - Yeni örnek gelince (ya da örnek zamanı tahmini düzelince) gösterilen konumdan yeni tahmine 1 sn'de geçilir.
+    - Eldekinden eski örnek (arama isteği yoldayken gelen yeni fark) yok sayılır; iz ve simge geri sıçramaz.
+    - İstemci içindeki bütün süreler geri gitmeyen saatle ölçülür (`performance.timeOrigin + performance.now()`): çizim döngüsü, seyreltmeler, alınma zamanları ve saniyelik saat. Sistem saati geri alınsa da (uykudan dönüşte eşitleme, elle değişiklik) döngü durmaz; abonelik ve tablo güncellenmeye devam eder.
+    - Çizim döngüsü ~15 kare/sn'dir. Kaynağa `setData` yalnızca küme, depo sürümü, seçim ya da ayar değişince ya da bir simge son yüklemeden bu yana ekranda en az 0,5 px kayınca verilir; Türkiye görünümünde seyirdeki uçak ~0,25 px/sn kayar. "Uçağı ortala" da kamerayı ancak uçak ortadan 0,5 px uzaklaşınca oynatır.
+    - `fadeDuration: 0`: uçak simgeleri yerleşime katılmadığından sembol geçişinin görsel etkisi yoktur, yalnızca çizimi her karede sürdürürdü. Etiketler haritanın her `render` olayında yeniden çizilir.
+  - **Görünüm aboneliği:**
+    - Sunucu her abonelikte tam görüntü gönderir, farkları ise 2°'lik hücreler hâlinde, görünümle kesişen bütün hücreler için yollar (D-074). Abonelik kutusu bu yüzden dışa doğru hücre sınırlarına yuvarlanır; üst kenar sınırın hemen altındadır, fazladan hücre sırası yoktur. Tam görüntü farklarla aynı uçakları taşır ve kutu, görünüm yeni bir hücreye taşmadıkça değişmez.
+    - Yeniden abonelik yalnızca iki durumda yapılır: görünüm eldeki kutunun dışına taşınca ya da kutu gerekenin 4 katından büyükken (yakınlaşma). API'nin en geniş kutusundan (60° × 40°) büyük görünümde kutu, hücreye yuvarlanmış merkezin etrafında kurulur.
+    - "Uçağı ortala" haritayı her turda kaydırır. Önceden bu, saniyede iki abonelik ve istemci başına saniyede bir tam görüntü demekti; iki sekme IP başına dakikada 120 aboneliklik bütçeyi tüketiyordu. Şimdi abonelik, uçak bir hücre sınırını geçtiğinde (dakikalar) yenilenir.
+    - Açık bağlantıda 30 sn hiç mesaj gelmezse aynı abonelik yeniden gönderilir (`lastSeq` olmadan). Sunucu yalnızca görünümde değişiklik olunca mesaj gönderir; sakin bir görünümde (ya da veri akışı durunca) sağlayıcı durumu başka türlü tazelenmez. Sunucu sağlayıcı kaydını 30 sn'de bayat sayar. Bedeli, sakin görünümde dakikada en çok iki küçük tam görüntüdür.
+  - **Veri yaşı (durum şeridi):**
+    - Değer sunucunun son durum mesajındaki `primaryAgeS`'tir (birincil istasyon tazeliği; yoksa `newestAgeS`).
+    - Son durumda sağlayıcılar `ok` ise (data-sources.md → Sağlayıcı durumu: son 60 sn'de başarılı yanıt, istasyon tazeliği hedefte) değer olduğu gibi gösterilir. Mesaj gelmemesi yalnızca görünümde hareket olmadığını gösterir; sakin bölgede sayaç yanıltıcı biçimde artmaz.
+    - Sağlayıcı `degraded`, `down` ya da yoksa besleme gecikiyor demektir; mesajdan bu yana geçen süre eklenir.
+    - 30 sn'lik sessizlik yenilemesi sayesinde gösterilen `ok` durumu en çok ~30 sn eskidir.
+  - **İz:**
+    - Yalnızca istemcide tutulur: sayfa açıldığından beri alınan konumlar, uçak başına son 600 nokta, yalnızca konum değişince.
+    - Yalnızca seçili uçak için çizilir: havadaki bölüm düz amber (`#FFB300`), yerdeki bölüm düz camgöbeği (`#22D3EE`), opaklık 1.
+    - M6'da sunucudan iz geçmişi alınmaz.
+  - **Havalimanları (`GET /v1/airports?country=TR`):**
+    - OurAirports referans verisinden IATA kodu olan büyük, orta ve küçük havalimanları döner. ICAO kodu `icao_code`, yoksa `gps_code`, o da yoksa `ident`'tir.
+    - IP başına dakikada 60 istek. Ülke başına 10 dk süreç içi önbellek; boş liste 60 sn tutulur, çünkü ilk kurulumda içe aktarma API açıldıktan sonra biter. Yanıt `cache-control: public, max-age=300` taşır.
+    - Hatalar: `bad_country` (400) ve `airports_unavailable` (503: veritabanı yok ya da okuma başarısız ve eldeki kopya yok). Okuma başarısızsa eldeki eski kopya sunulur ve veritabanı 60 sn yeniden denenmez.
+    - Harita listeyi açılışta bir kez alır; alınamazsa harita havalimanları olmadan çalışır. IATA kodları etiket tuvalinde, yakınlaştırma 5 ve üstünde yazılır.
+    - Tuval uçak katmanının üstünde olduğundan kod hiçbir uçak simgesini (seçili uçağınkini hale payıyla) ve seçili uçağın izini örtmez: bunlara değen konum denenmez, dört konum da doluysa kod yazılmaz. Pistte ve önlükte, havalimanı noktasının yanındaki yer hareketi böylece görünür kalır. Glif gerektiren bir GL sembol katmanı seçilmedi, çünkü uydu ve yerel stillerde glif adresi yoktur.
+  - **MapLibre yüklemesi (`maplibre-loader.ts`):**
+    - MapLibre sayfa paketinde değildir. Arama, tablo ve paneller kütüphaneyi beklemeden çizilir; WebGL2 olmayan tarayıcı onu hiç indirmez.
+    - v6 üç ESM dosyasıdır: ana modül, çizim işçisi ve ikisinin içe aktardığı ortak modül (~516 KB). Üçü `new URL(…, import.meta.url)` ile statik varlık olarak yayınlanır. Turbopack'te `import.meta.url` tarayıcıda `file:///ROOT/…` olduğu için kütüphane işçiyi kendisi bulamaz; özetli dosya adları yüzünden de göreli `./maplibre-gl-shared.mjs` içe aktarımı çözülemez.
+    - Ana modül ve işçi kaynağı indirilir, bu içe aktarım mutlak adrese çevrilir ve ikisi blob adresi olarak açılır: ana modül `import()` ile, işçi `setWorkerUrl` ile. Ana modülün ad alanı nesnesi `import * as maplibregl`'inkiyle aynıdır.
+    - Ortak modül böylece bir kez iner: `modulepreload` ile erken istenir, işçi HTTP önbelleğinden alır. Önceden paketlenmiş ana modül ortak kodu kendi içine alıyor, işçi aynı kodu ikinci kez indiriyordu.
+    - Blob aynı kökendendir. İleride CSP eklenirse `script-src blob:` ve `worker-src blob:` gerekir.
+  - **Harita hazır:** "Harita yükleniyor" metni ilk `style.load`'da (koddaki düz arka plan), kendi katmanlarımız eklenince kalkar. MapLibre'nin `load` olayı beklenmez: bütün kaynakların yüklenmiş olmasını ister, uçak kaynağı ise sık `setData` aldığından yoğun trafikte gecikebilir.
+  - **Seçim ve bilgi kartı:**
+    - Seçim yalnızca kartın Kapat düğmesiyle kalkar; boş haritaya tıklamak seçimi değiştirmez.
+    - Seçili uçak görünümün dışına çıkıp abonelikten düşerse kart son bilinen durumla açık kalır ("Son görülme" ilerler).
+    - Dar ekranda (768 px altı) kart alttan açılır. Kartın yüksekliği haritaya alt boşluk (`padding`) olarak verilir; seçili uçak ve "Uçağı ortala" kartın üstündeki görünür bölgede kalır.
+    - Harita düz ve kuzeyi yukarıdadır (döndürme ve eğim kapalı); etiket yerleşimi ve simge yönü bunu varsayar.
+    - "Uçağı ortala" açıkken fare tekerleği ve kıstırma yakınlaştırması ekranın ortasına göre yapılır. MapLibre 6'da `scrollZoom.enable` açık denetimde seçeneği yok sayar; bu yüzden önce kapatılır. İki parmakla başlayan hareket kaydırma sayılmaz; "Uçağı ortala"yı yalnızca tek parmakla ya da fareyle sürükleme kapatır.
+    - Paylaşılan bağlantı (`/?hex=`): uçak önce `/v1/search` ile aranır. Arama bulamaz ya da hata verirse (açılıştan hemen sonra 503, 429) ilk tam görüntü beklenir; uçak görünümdeyse depodan seçilir. Orada da yoksa arama bir kez yinelenir; yine yoksa arama alanında spec'teki "bulunamadı" metni çıkar. Uçak sonra görünüme girerse yine seçilir. Kullanıcı kendisi bir seçim yapınca süreç biter.
+  - **Atıf:**
+    - Canlı veri atfı data-sources.md §1'deki biçimdedir ("Canlı uçuş verisi: ADSB.lol — ODbL 1.0", iki bağlantı). MapLibre atıf kutusunun `customAttribution`'ında durur ve küçük ekranda da katlanmaz.
+    - Harita yokken (yükleniyor, WebGL2 yok, harita kurulamadı) arama, tablo ve kart yine canlı veri gösterir. Aynı atıf ve bağlantılar o zaman bir React öğesiyle aynı köşede gösterilir.
+    - Altlığın atfı stilin kendi kaynağından gelir; yalnızca o altlık görünürken çıkar. İngilizce altlık atıfları (Esri, OpenFreeMap) `lang="en"` taşır (WCAG 3.1.2).
+    - Canlı veri atfı ile "Koşullar" bağlantısı tek bir `customAttribution` girdisidir. MapLibre girdileri uzunluğa göre sıralar; ayrı girdi olsa bağlantı atfın başına düşerdi.
+    - Atıf satırı panellerin üstündedir. Dar ekranda uzun altlık atfı (Esri, 320 px'te 3 satır) kırılınca alt panellerin bıraktığı yükseklik (`--map-attrib-space`, en az 36 px) ölçülen satır yüksekliğine göre büyür; liste düğmesi ve denetimler atfın altında kalmaz.
+  - **Kullanım koşulları (`/kullanim-kosullari`, kullanıcı kararı 2026-09-29):**
+    - Neden şimdi: E204 §3.1c.5 kullanım koşullarında Esri şartlarına uyma maddesi ister. Esri anahtarı üretimde tanımlı, uydu altlığı M6 yayınıyla açılır. Kapsamlı metni (Parça 3 M6a) beklemek maddesiz yayın demekti. Seçenekler: anahtarı M6a'ya kadar kaldırmak ya da kısa bir geçici metin yayımlamak. Kullanıcı geçici metni seçti.
+    - İçerik kısa ve olgusaldır, hukuki iddia eklenmez:
+      - yürürlük tarihi 29 Eylül 2026; metnin geçici olduğu ve kapsamlı koşullarla gizlilik politikasının yakında yayımlanacağı açıkça yazar
+      - hizmet: herkese açık, ücretsiz, ADS-B'ye dayalı, bilgi amaçlı; operasyonel, seyrüsefer ve emniyet kararları için değil; doğruluk, eksiksizlik ve erişilebilirlik garantisi yok, "olduğu gibi"
+      - veri: ADSB.lol (ODbL 1.0) ve koşulların ADS-B türevi veri üzerindeki ODbL haklarını kısıtlamadığı (ODbL 4.7, Parça 3 M6a); OurAirports (kamu malı)
+      - harita: uydu gösterilince görüntü Esri'nindir, haritayı kullanan Esri'nin geçerli şartlarına uymayı kabul eder (E204 ve E300 bağlantılı); karolar indirilemez, kazınamaz, tarayıcının standart önbelleği dışında saklanamaz ve dağıtılamaz; vektör altlıkta OpenFreeMap, OpenMapTiles ve OpenStreetMap (ODbL)
+      - kullanım: API'nin bildirdiği istek sınırlarını aşan otomatik toplu toplama ve hizmeti aksatma girişimi yok
+      - gizlilik: askeri uçak gösterilmez, PIA/LADD tescili gösterilmez
+      - kod MIT'tir; ad ve logo MIT kapsamında değildir (`legal.brand` metni yeniden kullanılır)
+      - koşullar güncellenebilir, güncellenince tarih değişir
+    - İletişim satırı yoktur (`CONTACT_EMAIL` tanımsız). `/hakkinda` henüz olmadığı için bağlantı verilmez.
+    - Metinler `packages/i18n` → `terms`'tedir (TR/EN). Sayfa sunucu bileşenidir, dil çerezden gelir; adres iki dilde aynıdır. Yürürlük tarihi ve belge adresleri `apps/web/src/lib/terms.ts`'tedir.
+    - Bağlantı her zaman görünür: site alt bilgisinde ("Kullanım koşulları") ve haritanın atıf satırında ("Koşullar"; harita yokken sayfadaki atıf öğesinde de). Harita sayfasında alt bilgi gizli olduğundan atıf satırı tek görünür yerdir.
+    - Hukukçu incelemesi ACTIVATION'dadır (Parça 3). Parça 3 M6a metni genişletir ve gizlilik politikasını ekler.
+  - **Analiz onayı:** Harita sayfasında alt bilgi gizlidir. Analiz açıksa "Analiz tercihleri" düğmesi harita denetimlerinde, "Etiketler"in üstünde durur. Onay, verildiği sayfada geri alınabilir (KVKK; GDPR md. 7/3).
+  - **E2E:**
+    - Playwright testleri kökteki `e2e/` klasöründedir. Chromium SwiftShader'la çalışır (WebGL2 GPU'suz). Web sunucusu `pnpm dev:replay`'dir, `reuseExistingServer: false`. Harita yerel test stiliyle açılır.
+    - Testler uçakları WebGL tuvalinden değil, erişilebilir tablodan okur.
+    - M1a'dan kalan onay bandı testi de eklendi. Analiz adresi yerel ve sahtedir (`http://127.0.0.1:4390`); takip script'i isteği `page.route` ile tarayıcıda yanıtlanır, dışarıya istek gitmez.
+    - Web sunucusunun ortamında Next.js ve Turborepo telemetrisi kapalıdır.
+    - CI'da web, API ve worker günlükleri (`stdout`) iş çıktısına aktarılır; başarısız koşu buradan incelenir. Yerelde yalnızca hata çıktısı gösterilir.
+  - **E2E'nin CI bedeli:**
+    - CI'daki `e2e` işi her PR'da ve `main` push'unda çalışır. infra.md yalnızca ilgili dosyalar değişince çalışmasını öngörüyordu, ama henüz `changes` işi yok. `deploy` de `e2e`'yi bekler.
+    - Bedeli Actions dakikasıdır. İş başına tahmin 6–8 dk'dır (kurulum, Chromium önbelleği, altyapı, ilk derleme ve testler); PR ile birleşme birlikte ~12–16 dk ekler. Gizli repoda ayda 2.000 dakika vardır.
+    - Dakikalar daralırsa `dorny/paths-filter` ile bir `changes` işi eklenir; e2e yalnızca `apps/`, `packages/`, `tools/`, `e2e/`, lockfile ya da workflow değişince çalışır. `deploy` bu durumda atlanan işi başarı sayacak biçimde bağlanır.
+
 ## 2026-09-28 — Parça 1 M5 canlı API
 - **D-074 Canlı API'nin spec'te açık kalan ayrıntıları.**
   - **Veri yolu:** API, `redis-live`'ı saniyede bir yoklar ve bellekte gizlilik uygulanmış bir önbellek tutar; REST, arama ve WebSocket bu önbellekten okur. Her turda `hy:ac:seen`'den son 120 sn'deki hex'ler skorlarıyla okunur; yalnızca skoru değişenlerin hash'i çekilir. Pencere son yoklamaya değil yaşa göredir: adsb.lol örneğinin `sampleTime`'ı yazıldığı andan saniyeler önce olabilir, "son turdan beri" penceresi bu örnekleri kaçırırdı. Sağlayıcı kaydı 30 sn'den eskiyse sağlayıcı `down` sayılır (worker durmuş). Bu süreçte görülmüş bir sağlayıcının kaydı kaybolursa (worker 180 sn'den uzun durdu, TTL doldu) ya da API kayıtları 30 sn'dir okuyamıyorsa (redis-live erişilemez) sağlayıcı yanıttan düşmez, `down` görünür. Worker yapılandırdığı sağlayıcıların listesini `hy:ingest:providers`'a yazar (TTL 7 gün); API bu listedeki sağlayıcıyı da görülmüş sayar. Böylece worker çökükken yeniden başlayan API de sağlayıcıyı `down` gösterir, yanıttan düşürmez. Ne listede olan ne de görülmüş sağlayıcı yanıtta yer almaz. Pub/sub'daki kompakt kayıtta etiket alanları yoktur. Silinme olayı da yayınlanmaz; silinme, 120 sn'yi aşan kaydın önbellekten budanmasıyla anlaşılır.

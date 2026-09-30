@@ -106,6 +106,25 @@ export const PROVIDER_LICENSES = {
     mixingWithOtherRealtimeAllowed: true,
     maxRawStorageDays: null,
   },
+  /**
+   * Uydu altlığı (data-sources.md §6a, D-075). Karoyu tarayıcı kullanıcının anahtarıyla doğrudan
+   * çeker; worker ve API aracılık etmez, karo saklanmaz.
+   */
+  esriWorldImagery: {
+    id: 'esriWorldImagery',
+    name: 'Esri World Imagery (ArcGIS Location Platform)',
+    license: 'Esri E204 (ArcGIS Location Platform Agreement)',
+    commercialUse: true,
+    attribution: {
+      text: 'Powered by Esri | Esri, Vantor, Earthstar Geographics, and the GIS User Community',
+      url: 'https://www.esri.com/',
+    },
+    shareAlike: 'none',
+    rateLimit: 'ayda 2 milyon karo (ücretsiz katman); kota dolunca ay sonuna kadar durur',
+    b2cDisplayAllowed: true,
+    mixingWithOtherRealtimeAllowed: true,
+    maxRawStorageDays: 0,
+  },
 } as const satisfies Record<string, ProviderLicense>
 
 export type ProviderId = keyof typeof PROVIDER_LICENSES

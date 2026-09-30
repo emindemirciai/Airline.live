@@ -67,6 +67,7 @@ describe('gerçek bağımlılıklarla', () => {
       rateLimitRedis: redisQueue,
       live: { source: null, codes: () => EMPTY_AIRLINE_CODES },
       blocklistRedis: null,
+      airports: { list: null },
     })
     try {
       const ready = await app.inject({ method: 'GET', url: '/ready' })

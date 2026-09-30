@@ -9,8 +9,8 @@ export default async function NotFound() {
       <h1>{t.notFoundTitle}</h1>
       <p className="lead">{t.notFoundBody}</p>
       <p>
-        <Link href="/durum" className="try-link">
-          {t.goToStatus} →
+        <Link href="/" className="try-link">
+          {t.goToMap} →
         </Link>
       </p>
     </article>

@@ -17,6 +17,7 @@ import { LanguageToggle } from '@/components/language-toggle'
 import { analyticsConfig, appName, getServerEnv } from '@/lib/env'
 import { getLocale } from '@/lib/locale'
 import { sourceNoticeComment } from '@/lib/source-notice'
+import { TERMS_PATH } from '@/lib/terms'
 
 export async function generateMetadata(): Promise<Metadata> {
   const locale = await getLocale()
@@ -44,11 +45,12 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
         <div hidden dangerouslySetInnerHTML={{ __html: sourceNoticeComment(appName(env)) }} />
         <link rel="license" href={PROJECT.licenseUrl} />
         <header className="site-header">
-          <Link href="/durum" className="brand">
+          <Link href="/" className="brand">
             <span className="brand-mark" aria-hidden="true" />
             {appName(env)}
           </Link>
           <nav aria-label={t.nav.mainLabel} className="site-nav">
+            <Link href="/">{t.nav.map}</Link>
             <Link href="/durum">{t.nav.status}</Link>
             <Link href="/yenilikler">{t.nav.changelog}</Link>
             <LanguageToggle target={locale === 'tr' ? 'en' : 'tr'} label={t.nav.switchTo} />
@@ -58,6 +60,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
         <footer className="site-footer">
           <span className="mono">v{currentVersion()}</span>
           <span>{appName(env)}</span>
+          <Link href={TERMS_PATH}>{t.terms.title}</Link>
           {analytics ? <ConsentSettingsButton label={t.consent.settings} /> : null}
         </footer>
         {analytics ? (

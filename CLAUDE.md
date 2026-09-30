@@ -9,13 +9,13 @@ Bu dosya her oturumda otomatik yüklenir; yalnızca her zaman geçerli kurallar�
   - API ve WS `https://api.havayolu.live` (`API_HOST`)
   - admin `https://admin.havayolu.live` (`ADMIN_HOST`)
   - analiz `https://analiz.havayolu.live` (`ANALYZE_URL`; kullanıcının Siteni Analiz Et uygulaması)
-- **GITHUB_REPO:** `emindemirciai/havayolu`. Repo **gizli** (kullanıcı kararı 2026-09-27, D-068), plan GitHub Free. Bu planda gizli repoda kural seti, dal koruması ve gizli bilgi taraması çalışmaz; aynı kurallar süreçle uygulanır: `main`'e doğrudan push, silme ve force push yok; yalnızca PR + merge commit; `checks` ve `test-integration` yeşil olmadan birleştirme yok; commit'ten önce sır ve kişisel veri taranır. Actions ayda 2.000 dakikadır. GHCR imaj adları küçük harflidir: `ghcr.io/emindemirciai/havayolu-{web,api,worker}`; paketler şu an herkese açıktır (D-068).
+- **GITHUB_REPO:** `emindemirciai/havayolu`. Repo **gizli** (kullanıcı kararı 2026-09-27, D-068), plan GitHub Free. Bu planda gizli repoda kural seti, dal koruması ve gizli bilgi taraması çalışmaz; aynı kurallar süreçle uygulanır: `main`'e doğrudan push, silme ve force push yok; yalnızca PR + merge commit; `checks`, `test-integration` ve `e2e` yeşil olmadan birleştirme yok; commit'ten önce sır ve kişisel veri taranır. Actions ayda 2.000 dakikadır. GHCR imaj adları küçük harflidir: `ghcr.io/emindemirciai/havayolu-{web,api,worker}`; paketler şu an herkese açıktır (D-068).
 - **Birincil istasyon:** IST (LTFM). Tohum istasyonlar: IST, SAW, ESB, ADB, AYT.
 - **URL şeması:**
   - canlı uçak `/?hex=<hex>`
   - uçuş sayfası `/ucus/<flightId>` (EN: `/en/ucus/<flightId>`)
   - istasyon `/istasyon/<icao>`, operasyon panosu `/istasyon/<icao>/operasyon`
-  - durum `/durum`, yenilikler `/yenilikler`
+  - durum `/durum`, yenilikler `/yenilikler`, kullanım koşulları `/kullanim-kosullari` (geçici metin, D-075)
 
   Bildirimler uçuş sayfasına gider; uçuş sayfası gelene kadar (Parça 3) `/?hex=` kullanılır.
 
@@ -57,13 +57,13 @@ FR24 premium benzeri derinlik: canlı harita, uçuş detayı, grafikler, geçmi�
 - **İzinli:**
   - canlı veri: adsb.lol API (ODbL; tek canlı kaynak), opsiyonel kendi alıcımız (`LOCAL_RECEIVER_URLS`)
   - referans: OurAirports (kamu malı), VRS standing-data (CC0; havayolu + rota), aviationweather.gov (METAR/TAF)
-  - harita: OpenFreeMap; Protomaps PMTiles yalnızca self-host harita yedeği
+  - harita: OpenFreeMap; Esri World Imagery (uydu; ArcGIS Location Platform ücretsiz katmanı, kullanıcının anahtarıyla, D-075); Protomaps PMTiles yalnızca self-host harita yedeği
 - **Yasak:**
   - airplanes.live, adsb.fi, OpenSky (her katman), ADS-B Exchange Community/RapidAPI
   - Flightradar24 ve FlightAware'den kazıma; **FR24 resmi API'si** (şartları rakip ürünü yasaklar)
   - adsb.lol `routeset` (Referer korumalı) ve gizli `route` (güvenilmez) uç noktaları
   - resmi olmayan uç noktalar ve kütüphaneler; başka markaların ikon ve görselleri
-- **Harici servislere yalnızca worker erişir.** Web ve mobil istemci adsb.lol'e asla doğrudan istek atmaz.
+- **Harici servislere yalnızca worker erişir.** Web ve mobil istemci adsb.lol'e asla doğrudan istek atmaz. Tek istisna harita karolarıdır: onları tarayıcı doğrudan çeker, sunucu aracılık etmez ve önbelleğe almaz (Esri şartı, D-075).
 - **Lisans kaydı:** `packages/providers` içindeki her sağlayıcı data-sources.md → "Lisans kaydı"ndaki 7 alanı taşır. `DATA_USAGE_MODE=commercial` (varsayılan) iken `commercialUse:false` olan bir sağlayıcı başlatılamaz.
 - **Gizlilik:** `dbFlags` yoksa 0'dır ve bit testiyle okunur.
   - 1 askeri → varsayılan gizli (API, WS ve aramada dönmez).
@@ -129,7 +129,7 @@ Sıra: 1–4 commit'ten önce yapılır ve aynı commit'e girer. 5 commit'ten so
 - **Testler** (`**/*.test.ts`, `**/test/**`, `e2e/`, `tools/`, `**/fixtures/**`) stub HTTP sunucusu, commit'li fixture, Mailpit, S3 emülatörü (Parça 2 M9'da seçilir) ve Turnstile stub'ını kullanabilir. Üretim kodu bunları import edemez (`no-restricted-imports`).
 - **CI, testler ve `pnpm dev` canlı harici servise istek atmaz.** `EXTERNAL_PROVIDERS_DISABLED=true` (`.env.example` varsayılanı) şunları kapatır:
   - adsb.lol, OurAirports, VRS aynası, aviationweather
-  - OpenFreeMap (testte yerel `test-style.json`)
+  - OpenFreeMap ve Esri uydu altlığı (harita yerel `/test-style.json` ile açılır)
   - Turnstile siteverify (testte stub)
 
   `LOCAL_RECEIVER_URLS` (localhost replay) açık kalır. Referans verisi testte `tools/fixtures/` altındaki commit'li dosyalardan gelir.
@@ -156,7 +156,7 @@ Sıra: 1–4 commit'ten önce yapılır ve aynı commit'e girer. 5 commit'ten so
   - Altyapı portları Windows'un dinamik port bölgesinin (49152+) altındadır; Hyper-V/WinNAT açılışta bu bölgeden rastgele aralık ayırır (`netsh interface ipv4 show excludedportrange protocol=tcp`, D-065).
 
   Konteyner içi portlar üretimde web 3000, api 4000'dir.
-- **Uzun komutlar:** 2 dk'dan uzun sürebilecek her komut arka planda çalıştırılır: `pnpm dev`, `gh pr checks --watch --interval 30`, `gh run watch`, `pnpm record`, yük testi.
+- **Uzun komutlar:** 2 dk'dan uzun sürebilecek her komut arka planda çalıştırılır: `pnpm dev`, `pnpm test:e2e`, `gh pr checks --watch --interval 30`, `gh run watch`, `pnpm record`, yük testi.
   - Compose her zaman `docker compose … up -d --wait --wait-timeout 300` ile başlatılır.
   - "no checks reported" hata sayılmaz; 1 dk sonra yeniden bakılır.
   - k6 kurulmaz; `docker run --rm -i grafana/k6` ile çalıştırılır.
@@ -172,10 +172,12 @@ Sıra: 1–4 commit'ten önce yapılır ve aynı commit'e girer. 5 commit'ten so
 | `pnpm install` | Bağımlılıkları kurar |
 | `pnpm dev` | Web (3100) + API (4100) geliştirme sunucuları |
 | `pnpm ci:local` | format + lint + typecheck + test + build |
-| `pnpm ci:full` | `ci:local` + `compose:guard` + `test:integration` + `test:migration-upgrade` (+ `test:e2e` eklenince; Docker gerekir) |
+| `pnpm ci:full` | `ci:local` + `compose:guard` + `test:integration` + `test:migration-upgrade` + `test:e2e` (Docker gerekir; önce `dev:infra` ve `db:migrate`, 3100/4100/4200/4300 boş) |
 | `pnpm lint` · `pnpm typecheck` · `pnpm test` · `pnpm build` | Tekil kontroller |
 | `pnpm check:eol` | Depoda CRLF'li metin dosyası olmadığını doğrular |
 | `pnpm typecheck:scripts` | `scripts/*.mts` tip denetimi |
+| `pnpm typecheck:e2e` · `pnpm lint:e2e` | `e2e/` tip denetimi ve lint (`ci:local`'in parçası) |
+| `pnpm test:e2e` | Playwright (Chromium, SwiftShader): kendi `pnpm dev:replay`'ini başlatır (`reuseExistingServer: false`), harita yerel test stiliyle açılır. Önce `dev:infra` ve `db:migrate`; `pnpm dev` açıksa kapat. Rapor `e2e/.report` |
 | `pnpm dev:infra` · `pnpm dev:infra:down` | Yerel PostGIS, iki Redis ve Mailpit (Docker) |
 | `pnpm test:integration` | Gerçek PostgreSQL/Redis testleri (önce `dev:infra`) |
 | `pnpm db:migrate` | Yerel veritabanına migration'ları uygular, günlük iz partition'larını açar, tohum istasyonlarını ekler (idempotent) |
@@ -194,4 +196,4 @@ Yerel üretim denemesi: `docker compose -p hy-localprod -f docker-compose.yml -f
 
 Yayın ve geri alma: `docs/DEPLOY_DOKPLOY.md` (kurulum bir kez), `gh workflow run rollback.yml -f sha=<7>` (geri alma).
 
-Sonraki kilometre taşları bu tabloya kendi komutlarını ekler: `test:e2e`, `smoke:live`, `record`, `coverage:report`, `coverage:probe`. Ayrı bir `db:seed` yoktur; tohum verisi `db:migrate`'in parçasıdır.
+Sonraki kilometre taşları bu tabloya kendi komutlarını ekler: `smoke:live`, `record`, `coverage:report`, `coverage:probe`. Ayrı bir `db:seed` yoktur; tohum verisi `db:migrate`'in parçasıdır.
