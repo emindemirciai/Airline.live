@@ -18,10 +18,13 @@ import {
   pendingHex,
   type SharedLinkState,
 } from '../../lib/map/shared-link'
-import { hexUrl } from '../../lib/map/url-state'
+import { findAirportByCode, hexUrl } from '../../lib/map/url-state'
+import { localePath } from '../../lib/locale-routing'
+import { TERMS_PATH } from '../../lib/terms'
 import { ConsentSettingsButton } from '../analytics-consent'
 import { mapCustomAttributionHtml } from './attribution'
 import {
+  AIRPORT_MIN_ZOOM,
   SELECT_MIN_ZOOM,
   TURKEY_BOUNDS,
   TURKEY_CENTER,
@@ -42,6 +45,11 @@ export interface LiveMapProps {
   messages: Messages['map']
   /** Paylaşılan bağlantıdaki seçili uçak (`/?hex=`), doğrulanmış. */
   initialHex: string | null
+  /**
+   * Açılışta ortalanacak havalimanı (`/?havalimani=LTFM`, ICAO ya da IATA), biçimi doğrulanmış.
+   * Paylaşılan uçak (`?hex=`) varsa ya da kullanıcı haritayı önce kendisi kullanırsa yok sayılır.
+   */
+  initialAirport: string | null
   /**
    * Analiz açıksa (onay bandı var) tercih düğmesinin metni: haritada alt bilgi gizli olduğundan
    * onay harita denetimlerinden geri alınır. Analiz kapalıysa null.
@@ -83,6 +91,7 @@ export function LiveMap({
   locale,
   messages,
   initialHex,
+  initialAirport,
   consentSettingsLabel,
 }: LiveMapProps) {
   const units = DEFAULT_UNIT_SYSTEM
@@ -105,11 +114,14 @@ export function LiveMap({
   const [heldSelected, setHeldSelected] = useState<TrackedAircraft | null>(null)
   const [bottomInset, setBottomInset] = useState(0)
   const [sharedLink, setSharedLink] = useState<SharedLinkState>(() => initialSharedLink(initialHex))
+  // `?havalimani=` hedefi havalimanı listesi gelince bir kez uygulanır; seçim ya da sürükleme iptal eder.
+  const pendingAirportRef = useRef<string | null>(initialHex === null ? initialAirport : null)
 
   /** Seçim (kullanıcının ya da paylaşılan bağlantının); paylaşılan bağlantı süreci biter. */
   const select = useCallback((hex: string | null) => {
     setSelectedHex(hex)
     setSharedLink(SHARED_LINK_DONE)
+    pendingAirportRef.current = null
     if (hex === null) setFollowing(false)
     window.history.replaceState(null, '', hexUrl(window.location.href, hex))
   }, [])
@@ -151,7 +163,10 @@ export function LiveMap({
 
   const closeCard = useCallback(() => select(null), [select])
   const toggleFollow = useCallback(() => setFollowing((on) => !on), [])
-  const stopFollowing = useCallback(() => setFollowing(false), [])
+  const handleUserPan = useCallback(() => {
+    setFollowing(false)
+    pendingAirportRef.current = null
+  }, [])
   const markReady = useCallback(() => setMapReady(true), [])
 
   // Harita görünümü gelene kadar (ya da hiç gelmeyecekse) Türkiye'ye abone olunur.
@@ -159,11 +174,19 @@ export function LiveMap({
     subscribeViewport(INITIAL_VIEWPORT.bounds, INITIAL_VIEWPORT.zoom)
   }, [subscribeViewport])
 
-  // Havalimanları bir kez yüklenir; yüklenemezse harita onlarsız çalışır.
+  // Havalimanları bir kez yüklenir; yüklenemezse harita onlarsız çalışır. `?havalimani=` hedefi
+  // listede varsa harita havalimanı merkezine gider (harita henüz kurulmadıysa doğrudan orada açılır).
   useEffect(() => {
     const controller = new AbortController()
     fetchAirports(config.apiBaseUrl, 'TR', controller.signal).then(
-      (response) => setAirports(response.airports),
+      (response) => {
+        if (controller.signal.aborted) return
+        setAirports(response.airports)
+        const code = pendingAirportRef.current
+        pendingAirportRef.current = null
+        const airport = code === null ? undefined : findAirportByCode(response.airports, code)
+        if (airport) mapRef.current?.flyTo({ lat: airport.lat, lon: airport.lon }, AIRPORT_MIN_ZOOM)
+      },
       (error: unknown) => {
         if (!controller.signal.aborted) console.warn('Airports could not be loaded', error)
       },
@@ -216,10 +239,12 @@ export function LiveMap({
     })
   }, [waitingHex, store, select])
 
+  const termsHref = localePath(locale, TERMS_PATH)
   const customAttribution = mapCustomAttributionHtml(
     config.dataAttribution,
     messages.dataAttributionPrefix,
     messages.termsLink,
+    termsHref,
   )
   // Seçili uçak görünümün dışına çıkınca abonelikten ve depodan düşer. Kart kullanıcı kapatana kadar
   // son bilinen durumla açık kalır ("Son görülme" ilerler); uçak geri gelince yeniden canlanır.
@@ -302,7 +327,7 @@ export function LiveMap({
           units={units}
           bottomInset={bottomInset}
           onSelect={select}
-          onUserPan={stopFollowing}
+          onUserPan={handleUserPan}
           onViewportChange={handleViewportChange}
           onBasemapFailedChange={setBasemapFailed}
           onReady={markReady}
@@ -372,6 +397,7 @@ export function LiveMap({
           attribution={config.dataAttribution}
           prefix={messages.dataAttributionPrefix}
           termsLabel={messages.termsLink}
+          termsHref={termsHref}
         />
       )}
     </div>

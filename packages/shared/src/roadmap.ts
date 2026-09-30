@@ -78,6 +78,15 @@ export const ROADMAP: readonly Milestone[] = [
     title: { tr: 'Canlı harita ve arama', en: 'Live map and search' },
   },
   {
+    id: 'p1-m6b',
+    part: '1',
+    status: 'done',
+    title: {
+      tr: 'Havalimanı sayfaları ve arama motorlarında görünürlük',
+      en: 'Airport pages and search visibility',
+    },
+  },
+  {
     id: 'p1-m7',
     part: '1',
     status: 'planned',

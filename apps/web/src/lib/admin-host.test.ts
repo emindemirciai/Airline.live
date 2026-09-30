@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { adminRouting, canonicalHostRedirect } from './admin-host'
+import { adminRouting, canonicalHostRedirect, isAdminHost, robotsTagFor } from './admin-host'
 
 describe('adminRouting', () => {
   it('ADMIN_HOST yoksa her şey geçer (yerel geliştirme)', () => {
@@ -31,12 +31,66 @@ describe('adminRouting', () => {
     })
   })
 
+  it("admin host'unda /robots.txt geçer (tüm siteyi kapatan kurallar oradan okunur)", () => {
+    const host = 'admin.havayolu.live'
+    expect(adminRouting(host, host, '/robots.txt')).toEqual({ action: 'next' })
+    expect(adminRouting(host, host, '/robots.txt.bak')).toEqual({
+      action: 'redirect',
+      location: 'https://admin.havayolu.live/admin',
+    })
+    expect(adminRouting(host, host, '/en')).toEqual({
+      action: 'redirect',
+      location: 'https://admin.havayolu.live/admin',
+    })
+  })
+
+  it("admin host'unda simgeler ve manifest geçer; site haritası, llms.txt ve OG görseli yönlenir", () => {
+    const host = 'admin.havayolu.live'
+    for (const path of ['/favicon.ico', '/icon/192', '/apple-icon', '/manifest.webmanifest']) {
+      expect(adminRouting(host, host, path), path).toEqual({ action: 'next' })
+    }
+    for (const path of ['/sitemap.xml', '/llms.txt', '/og/site', '/iconx', '/apple-icon-x']) {
+      expect(adminRouting(host, host, path), path).toEqual({
+        action: 'redirect',
+        location: 'https://admin.havayolu.live/admin',
+      })
+    }
+  })
+
   it("başka host'tan /admin 404 alır, diğer sayfalar geçer", () => {
     const host = 'admin.havayolu.live'
     expect(adminRouting(host, 'havayolu.live', '/admin')).toEqual({ action: 'not_found' })
     expect(adminRouting(host, 'havayolu.live', '/admin/giris')).toEqual({ action: 'not_found' })
     expect(adminRouting(host, 'havayolu.live', '/administrator')).toEqual({ action: 'next' })
     expect(adminRouting(host, 'havayolu.live', '/durum')).toEqual({ action: 'next' })
+  })
+})
+
+describe('isAdminHost', () => {
+  it('büyük-küçük harf ve boşluk farkını yok sayar; ADMIN_HOST yoksa false', () => {
+    expect(isAdminHost('admin.havayolu.live', ' ADMIN.havayolu.live ')).toBe(true)
+    expect(isAdminHost('admin.havayolu.live', 'havayolu.live')).toBe(false)
+    expect(isAdminHost('admin.havayolu.live', null)).toBe(false)
+    expect(isAdminHost(undefined, 'admin.havayolu.live')).toBe(false)
+    expect(isAdminHost('', '')).toBe(false)
+  })
+})
+
+describe('robotsTagFor', () => {
+  const admin = 'admin.havayolu.live'
+
+  it("admin host'undaki her yanıt noindex, nofollow taşır", () => {
+    for (const path of ['/admin', '/admin/giris', '/api/version', '/robots.txt', '/dil', '/']) {
+      expect(robotsTagFor(admin, admin, path), path).toBe('noindex, nofollow')
+    }
+  })
+
+  it("web host'unda yalnızca /api/* noindex alır", () => {
+    expect(robotsTagFor(admin, 'havayolu.live', '/api/version')).toBe('noindex')
+    expect(robotsTagFor(undefined, 'localhost:3100', '/api/version')).toBe('noindex')
+    expect(robotsTagFor(admin, 'havayolu.live', '/')).toBeNull()
+    expect(robotsTagFor(admin, 'havayolu.live', '/istasyon/LTFM')).toBeNull()
+    expect(robotsTagFor(undefined, 'localhost:3100', '/apiary')).toBeNull()
   })
 })
 

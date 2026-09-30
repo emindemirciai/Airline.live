@@ -1,0 +1,154 @@
+import { getMessages } from '@havayolu/i18n'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import {
+  absoluteUrl,
+  DEV_SITE_URL,
+  INDEX_ROBOTS,
+  NOINDEX_ROBOTS,
+  OG_SITE_IMAGE,
+  pageMetadata,
+  siteUrl,
+  siteUrlFrom,
+} from './metadata'
+
+vi.mock('server-only', () => ({}))
+
+beforeEach(() => {
+  vi.stubEnv('APP_ENV', 'test')
+  vi.stubEnv('APP_NAME', 'havayolu')
+  vi.stubEnv('WEB_HOST', 'havayolu.live')
+})
+
+afterEach(() => {
+  vi.unstubAllEnvs()
+})
+
+describe('siteUrlFrom / siteUrl', () => {
+  it('genel host https, yerel host http ile kök adres olur', () => {
+    expect(siteUrlFrom('havayolu.live').toString()).toBe('https://havayolu.live/')
+    expect(siteUrlFrom(' HavaYolu.Live ').toString()).toBe('https://havayolu.live/')
+    expect(siteUrlFrom('localhost:3100').toString()).toBe('http://localhost:3100/')
+    expect(siteUrlFrom('127.0.0.1:3100').toString()).toBe('http://127.0.0.1:3100/')
+    expect(siteUrlFrom('[::1]:3100').toString()).toBe('http://[::1]:3100/')
+    expect(siteUrlFrom('web.localhost').toString()).toBe('http://web.localhost/')
+    // "localhost" ile başlayan genel bir alan adı yerel sayılmaz.
+    expect(siteUrlFrom('localhost.example.com').toString()).toBe('https://localhost.example.com/')
+  })
+
+  it('WEB_HOST yoksa yerel geliştirme adresi', () => {
+    expect(siteUrlFrom(undefined).toString()).toBe(`${DEV_SITE_URL}/`)
+    expect(siteUrlFrom('  ').toString()).toBe(`${DEV_SITE_URL}/`)
+    vi.stubEnv('WEB_HOST', '')
+    expect(siteUrl().toString()).toBe(`${DEV_SITE_URL}/`)
+  })
+
+  it('siteUrl çalışma zamanında WEB_HOST okur; absoluteUrl yolu ona ekler', () => {
+    expect(siteUrl().toString()).toBe('https://havayolu.live/')
+    expect(absoluteUrl('/istasyon/LTFM')).toBe('https://havayolu.live/istasyon/LTFM')
+    expect(absoluteUrl('/en')).toBe('https://havayolu.live/en')
+    vi.stubEnv('WEB_HOST', 'staging.havayolu.live')
+    expect(absoluteUrl('/')).toBe('https://staging.havayolu.live/')
+  })
+})
+
+describe('pageMetadata', () => {
+  it('Türkçe sayfa: kanonik kendisi, tr + en + x-default (= en) karşılıkları', () => {
+    const m = pageMetadata({
+      locale: 'tr',
+      path: '/havalimanlari',
+      title: 'Havalimanları',
+      description: 'Açıklama',
+    })
+    expect(m.title).toBe('Havalimanları')
+    expect(m.description).toBe('Açıklama')
+    expect(m.alternates).toEqual({
+      canonical: '/havalimanlari',
+      languages: {
+        tr: '/havalimanlari',
+        en: '/en/havalimanlari',
+        'x-default': '/en/havalimanlari',
+      },
+    })
+    expect(m.robots).toEqual(INDEX_ROBOTS)
+  })
+
+  it('İngilizce kök sayfa: kanonik /en, mutlak başlık, og:locale en_US', () => {
+    const m = pageMetadata({
+      locale: 'en',
+      path: '/',
+      title: 'Live flight tracker · havayolu',
+      description: 'Description',
+      absoluteTitle: true,
+    })
+    expect(m.title).toEqual({ absolute: 'Live flight tracker · havayolu' })
+    expect(m.alternates).toEqual({
+      canonical: '/en',
+      languages: { tr: '/', en: '/en', 'x-default': '/en' },
+    })
+    expect(m.openGraph).toMatchObject({
+      type: 'website',
+      siteName: 'havayolu',
+      url: '/en',
+      locale: 'en_US',
+      alternateLocale: ['tr_TR'],
+      title: 'Live flight tracker · havayolu',
+      description: 'Description',
+    })
+  })
+
+  it('varsayılan paylaşım görseli açıkça eklenir (sayfa openGraph üst düzenin görselini düşürür)', () => {
+    const m = pageMetadata({ locale: 'tr', path: '/hakkinda', title: 'Hakkında', description: 'x' })
+    expect(m.openGraph).toMatchObject({
+      locale: 'tr_TR',
+      alternateLocale: ['en_US'],
+      images: [
+        {
+          url: OG_SITE_IMAGE.path,
+          width: 1200,
+          height: 630,
+          type: 'image/png',
+          alt: `havayolu · ${getMessages('tr').seo.ogTagline}`,
+        },
+      ],
+    })
+  })
+
+  it("ogImage 'segment': images anahtarı hiç yazılmaz, klasördeki opengraph-image kullanılır", () => {
+    const m = pageMetadata({
+      locale: 'tr',
+      path: '/istasyon/LTFM',
+      title: 'İstanbul Havalimanı',
+      description: 'x',
+      ogImage: 'segment',
+    })
+    // Next yalnızca `images` anahtarı yoksa dosya tabanlı görseli ekler (hasOwnProperty).
+    expect(Object.hasOwn(m.openGraph ?? {}, 'images')).toBe(false)
+  })
+
+  it('index: false → noindex, follow', () => {
+    const m = pageMetadata({
+      locale: 'tr',
+      path: '/durum',
+      title: 'Durum',
+      description: 'x',
+      index: false,
+    })
+    expect(m.robots).toEqual(NOINDEX_ROBOTS)
+    expect(NOINDEX_ROBOTS).toEqual({ index: false, follow: true })
+  })
+
+  it('dizine eklenen sayfaların robots değeri önizleme yönergelerini de taşır', () => {
+    expect(INDEX_ROBOTS).toEqual({
+      index: true,
+      follow: true,
+      'max-image-preview': 'large',
+      'max-snippet': -1,
+    })
+  })
+
+  it('APP_NAME site adını değiştirir', () => {
+    vi.stubEnv('APP_NAME', 'deneme')
+    const m = pageMetadata({ locale: 'tr', path: '/', title: 't', description: 'd' })
+    expect(m.openGraph).toMatchObject({ siteName: 'deneme' })
+  })
+})

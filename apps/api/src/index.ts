@@ -2,6 +2,8 @@ import {
   createDb,
   createRedis,
   EMPTY_AIRLINE_CODES,
+  findAirportDetail,
+  listAirportDetails,
   listAirportsWithIata,
   loadAirlineCodes,
   pingDb,
@@ -132,7 +134,11 @@ const app = await buildApp(env, {
   // Engel listesi yüklenip önbellek başlayana kadar /v1/live ve arama 503, WS 1013 döner.
   live: { source: liveCache, codes: () => airlineCodes, ready: () => liveRunning },
   blocklistRedis: redisQueue,
-  airports: { list: database ? (country) => listAirportsWithIata(database.db, country) : null },
+  airports: {
+    list: database ? (country) => listAirportsWithIata(database.db, country) : null,
+    details: database ? (country) => listAirportDetails(database.db, country) : null,
+    find: database ? (code) => findAirportDetail(database.db, code) : null,
+  },
 })
 liveLog = app.log.child({ component: 'live-cache' })
 blocklistLog = app.log.child({ component: 'blocklist' })

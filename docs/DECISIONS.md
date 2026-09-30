@@ -2,6 +2,132 @@
 
 Her karar tarih, gerekçe ve varsa alternatifiyle yazılır. En yeni karar en üsttedir.
 
+## 2026-09-30 — Parça 1 M6b havalimanı sayfaları ve keşfedilebilirlik (SEO, GEO)
+- **D-076 Dil adreste, havalimanı sayfaları, arama motorları ve yapay zekâ tarayıcıları.**
+  - **Kullanıcı kararları (2026-09-29, sohbette; kaynak düzeltmesi 2026-09-30):**
+    1. Plan değişikliği onaylandı: M6b Parça 1'e eklendi. Parça 3 M2'nin dil yönlendirmesi (TR `/`, EN `/en/...`, hreflang) öne alındı. Yeni genel adresler: `/havalimanlari`, `/istasyon/<ICAO>`, `/hakkinda`. Adresteki ICAO büyük harflidir.
+    2. Yapay zekâ tarayıcıları: arama, yanıt ve eğitim tarayıcılarının hepsine izin verilir; yalnızca `Bytespider` engellenir.
+    3. Havalimanı adları: resmî Türkçe adlar ve İngilizce görünen adlar. Resmî ad doğrulanamazsa OurAirports adı kullanılır (aşağıda "Resmî havalimanı adları").
+    4. hreflang `x-default` İngilizce adrestir. Türkçe ve İngilizce dışındaki ziyaretçiye (ör. Almanca, Rusça) hizmet eder; Google: "match any language not explicitly listed". Geri alınabilir; TR'yi göstermek de geçerlidir.
+    5. `/durum`: `noindex, follow`, site haritasında yok.
+    6. Sorulmadan alınan varsayılanlar: veritabanındaki 61 havalimanı (içe aktarma filtresi değişmedi); IndexNow şimdilik yok; OurAirports `wikipedia_link` içe aktarılmaz; FAQPage, Dataset, SoftwareApplication ve SearchAction JSON-LD'si yok.
+    7. `/kullanim-kosullari` (M6) de genel sayfadır: `/en/kullanim-kosullari` ikizi, canonical ve hreflang, site haritası kaydı ve `WebPage` JSON-LD'si vardır. D-075'teki "dil çerezden gelir; adres iki dilde aynıdır" notu bununla değişti.
+  - **Dil yönlendirmesi: seçenek A (proxy yeniden yazma + istek başlığı).**
+    - `app/[lang]` bölümü yoktur. `proxy.ts`, `/en` ve `/en/*` isteğini öneksiz yola yeniden yazar. Dili `x-hy-locale`, sorgulu mantıksal yolu `x-hy-path` başlığıyla sayfaya iletir. İki başlık her istekte ezilir; istemci taklit edemez. Kurallar saf `apps/web/src/lib/locale-routing.ts` modülündedir (`localePath`, `stripLocale`, `alternatesFor`, `localeRouting`).
+    - `/tr` ve `/tr/*` öneksiz adrese 308 ile gider; sorgu korunur. `/en/admin*`, `/en/api/*`, `/en/dil` ve `/en/` + kök dosya (robots.txt, sitemap.xml, llms.txt, manifest, ikonlar, paylaşım görseli) 404 döner. `/english` önek sayılmaz.
+    - **Kök dosyalar proxy'den geçer** (eşleyici yalnızca `/_next/static` ve `/_next/image`'ı dışarıda bırakır). Böylece www → kök alan adı 308'i ve admin host'unun `X-Robots-Tag: noindex, nofollow`'u onlara da uygulanır; dil kararı onları olduğu gibi geçirir. Admin host'unda `robots.txt` (`Disallow: /`), uygulama simgeleri ve manifest geçer (admin sayfaları kullanır); site haritası, llms.txt ve paylaşım görseli web sitesinindir, admin host'unda `/admin`'e yönlenir. İlk sürümde eşleyici kök dosyaları dışarıda bırakıyordu; www ve admin host'u onları yönlendirmesiz ve başlıksız sunuyordu (inceleme, 2026-10-01).
+    - Yollar `/en` altında da Türkçedir (`/en/havalimanlari`): sayfa başına tek yol ve basit hreflang çiftleri.
+    - **Neden A:**
+      - Fark küçüktür, rota dosyaları taşınmaz, M6 dosyalarıyla çakışma azdır.
+      - Mevcut `not-found.tsx` çalışır.
+      - Statik çizimden kaybedilen bir şey yoktur: sayfalar zaten dinamiktir (onay çerezi, çalışma zamanı env'i D-075; Docker build'inde env ve API yok).
+    - **Bilinen tuzaklar ve önlemleri:**
+      - Kök düzen istemci geçişinde yeniden kullanılır. Bu yüzden dil anahtarı `<Link>` değil, düz `<a hreflang lang>`dır; dil değişimi tam sayfa yüklemesidir.
+      - `usePathname` yeniden yazmada sunucuda ve istemcide farklı döner (Next.js `use-pathname.md`, "Avoid hydration mismatch with rewrites"). Anahtarın ilk adresi sunucuda `x-hy-path`'ten gelir; istemci yüklenince ve her geçişten sonra `window.location`'dan yeniden hesaplar.
+      - Sorgu korunur: `/?hex=ff0001` → `/en?hex=ff0001`. Harita `?hex=` yazarken `/en` önekini korur.
+    - **Seçenek B, gelecek hedefi:** `app/[lang]` + varsayılan dili gizleyen yeniden yazma. Yalnızca `cacheComponents`'e geçilirse anlamlıdır (statik kabuk); o geçişle birlikte yeniden değerlendirilir. Bedeli: bütün rotalar taşınır, admin kendi kök düzenini ister, eşleşmeyen adreslerin 404'ü için deneysel `global-not-found` ya da `[...rest]` gerekir, dosya tabanlı görsel adreslerinde `/tr/` görünür.
+    - **Dil çerezi emekliye ayrıldı (D-050'nin yerini alır):**
+      - `getLocale()` başlığı okur; admin'de her zaman `tr` döner. Admin öneksiz ve yalnızca Türkçedir; önceden çerezle gelen İngilizcesi kalktı (tek kullanıcılı panel için kabul edilir).
+      - Eski `/dil?to=&next=` bağlantıları `safeNextPath(localePath(to, safeLogicalPath(next)))` adresine 308 ile gider (`apps/web/src/app/dil/route.ts`). `safeLogicalPath` hedefi önek ayrılmadan önce ve sonra denetler, `/en` ya da `/tr` önekini ayırır, `localePath` hedef dilin önekini ekler; son adres bir kez daha denetlenir ve `Location` başlığı yalnızca Latin-1 taşıdığı için yüzde kodlanır (`encodeURI`; önceden "ş" gibi bir karakter 500 döndürüyordu). Eski `lang` çerezi silinir (`Max-Age=0`), yanıt `X-Robots-Tag: noindex` taşır.
+      - **Açık yönlendirme düzeltmesi (inceleme, 2026-10-01):** İlk sürüm `next`'i yalnızca önek ayrılmadan önce denetliyordu. `/en//evil.example` tek `/` ile başladığı için geçiyor, önek ayrılınca `//evil.example` oluyordu; tarayıcı bunu şemasız dış adres sayar. Artık önek ayrıldıktan sonraki yol da son adres de yeniden denetlenir. Proxy'de `/tr//…` ve `/en//…` (önek ayrılınca `//` ile başlayan yol) 404 alır; Next bu yolları proxy'den önce zaten normalleştirir (`resolve-routes.js`, yinelenen bölü → 308), denetim buna bel bağlamaz. Birim testleri (`safe-path`, `dil/route`, `locale-routing`, `proxy`) kodlu ve kodsuz biçimleri dener.
+      - Accept-Language ya da çerezle otomatik yönlendirme yoktur. Google her dil için ayrı adres ister ve dili tahmin etmeyi önermez (localized-versions, locale-adaptive-pages). Çerezle İngilizce seçmiş kullanıcı bir kez Türkçe köke düşer; bilinçli bir tercihtir.
+  - **Üst veri (`apps/web/src/lib/seo/metadata.ts` → `pageMetadata`):**
+    - Canonical, sorgusuz mantıksal yoldur: `/?hex=` ve `/?havalimani=` adreslerinin canonical'ı `/`'dır.
+    - hreflang `tr`, `en` ve `x-default` (= `en`). Her dil sürümü kendini ve diğerini listeler.
+    - Open Graph: `og:url`, `og:locale` (`tr_TR`, `en_US`), site görseli. Havalimanı sayfası kendi klasöründeki görseli kullanır.
+    - Adresleri kök düzendeki `metadataBase` mutlak yapar. `metadataBase` çalışma zamanında `WEB_HOST`'tan kurulur: yerel host (`localhost`, `127.0.0.1`, `[::1]`) http, diğerleri https; tanımsızsa `http://localhost:3100`. `WEB_HOST` artık web env şemasındadır ve `APP_ENV=production`'da zorunludur.
+    - Kök düzen `alternates` ve `openGraph.images` yazmaz. Üst veri birleştirmesi sığdır: alt sayfalar canonical `/`'ı miras alırdı. Sayfa düzeyindeki `openGraph` de üst düzeyin dosya tabanlı görsellerini düşürür (`next/dist/lib/metadata/resolve-metadata.js` → `mergeStaticMetadata`); site görseli bu yüzden `pageMetadata` içinde açıkça verilir.
+    - Sayfa düzeyindeki `robots` kök düzeninkini tümüyle ezer. Dizine eklenen sayfalar önizleme yönergelerini (`max-image-preview:large`, `max-snippet:-1`) kendileri yazar.
+    - **`htmlLimitedBots: /.*/`** (`apps/web/next.config.ts`): Sayfalar dinamik olduğundan Next.js başlığı, canonical'ı ve hreflang'ı listesindeki botlar dışında herkes için `<body>`'ye akıtır. Varsayılan liste (`next/dist/shared/lib/router/utils/html-bots.js`) GPTBot, OAI-SearchBot, ClaudeBot, Claude-SearchBot, PerplexityBot ve TelegramBot'u kapsamaz. Artık üst veri her istemci için `<head>`'de, akış beklenerek yazılır. Bedeli küçüktür, çünkü üst veri önbellekli veriden gelir. Alternatifi, varsayılan listeyi kopyalayıp bu botları eklemekti; yeni botlar geldikçe bakım isterdi.
+  - **İndeksleme kuralları:**
+    - **index:** `/`, `/havalimanlari`, `/hakkinda`, `/yenilikler`, `/kullanim-kosullari` ve arkasında durabildiğimiz veriye göre havalimanları (fixture'da 55). Hepsi TR ve EN. Havalimanı kuralı (`apps/web/src/lib/airports.ts` → `isIndexable`): OurAirports'ta tarifeli seferi kayıtlı **ya da** izlenen istasyon **ya da** resmî adı DHMİ ya da işletmeci kaynağından doğrulanmış sivil havalimanı (`airport-names.ts` → `source` `dhmi`/`operator`).
+      - **Neden (inceleme, 2026-10-01):** OurAirports `scheduled_service` bayrağı bazı sivil havalimanlarında güncel değildir: Siirt (LTCL) "tarifeli değil" görünür ama AJet ve THY seferleri vardır; Kocaeli Cengiz Topel (LTBQ) de öyle. İlk kural bu yüzden DHMİ'nin işlettiği sivil havalimanlarını `noindex` yapıyordu. Kuraldaki yeni koşulla Siirt, Kocaeli, Uşak ve İstanbul Atatürk dizine girer.
+      - **Bayrakların yazımı:** OurAirports bayrakları doğrulanmış bilgi gibi sunulmaz. Tarifeli sefer kaynağa atfedilir ("OurAirports kaydına göre tarifeli havayolu seferi yapılıyor" / "OurAirports kaydında tarifeli havayolu seferi görünmüyor; bu bilgi güncel olmayabilir"; sütun ve satır başlığı "Tarifeli sefer (OurAirports)"). Pist ışıklandırmasında `lighted=0` "kaynakta belirtilmemiş" demektir, "ışık yok" değil (Sabiha Gökçen 06R/24L ILS'li ve ışıklıdır ama 0 görünür). İki bayrakta da "evet" değilse "Kayıtlı değil" yazılır, "Yok" denmez.
+    - **`noindex, follow`:**
+      - `/durum`: operasyoneldir ve sık değişir.
+      - Resmî adı doğrulanamayan, OurAirports'ta tarifeli seferi kayıtlı olmayan ve istasyon olmayan havalimanları (fixture'da 6 askerî üs: LTAD, LTAG, LTAH, LTBG, LTBI, LTBL). Sayfa açılır, site haritasında ve llms.txt'de yoktur. Liste tablosu OurAirports'ta tarifeli seferi kayıtlı olmayan satırları (10) soluk zeminle gösterir.
+      - Parça 3 kuralı: `/ucus/<id>` ve `/istasyon/<ICAO>/operasyon` da `noindex, follow` olur ve site haritasına girmez; giriş sayfası havalimanı sayfası kalır.
+    - **`noindex, nofollow`:** admin. Admin düzeninin üst verisiyle ve admin host'undaki her yanıtta `X-Robots-Tag` ile uygulanır.
+    - **`X-Robots-Tag: noindex`:** web'in `/api/*` ve `/dil` yanıtları, API host'unun bütün yanıtları (Fastify `onSend`).
+    - **Gerçek 404:** Havalimanı sayfasında adres normalleştirmesi akış başlamadan, Suspense sınırından önce yapılır: küçük harf ICAO ya da IATA kodu `permanentRedirect` ile büyük harfli ICAO'ya gider, bilinmeyen kod `notFound()` alır. Bu bölümlerde `loading.tsx` yoktur. Akış başladıktan sonra durum kodu 200'e kilitlenir ve yumuşak 404 olurdu.
+      - Bilinen Next.js 16.3 davranışı: sayfa çiziminde fırlatılan `notFound()` sunucu HTML'inde 404 durumu, `noindex` ve 404 başlığıyla boş bir hata kabuğu (`<html id="__next_error__">`, `lang` yok) döndürür; 404 sayfasını sitenin düzeniyle istemci çizer (`next/dist/server/app-render/app-render.js` → `getErrorRSCPayload`). Eşleşmeyen adresler (`/en/zzz`) ise sunucuda tam 404 sayfası alır. Arama motorları için belirleyici olan 404 durumudur; E2E ham yanıtta durum, `noindex` ve başlığı, tarayıcıda `<html lang>`'ı denetler.
+  - **robots.txt (`apps/web/src/app/robots.ts`, istek anında):**
+    - Tek `*` grubu: `Allow: /`; `Disallow: /admin`, `/api/`, `/dil`; Yandex için `Clean-param: hex&havalimani /` ve utm parametreleri (Next.js 16.3 `rules[].other`).
+    - Adlandırılmış grup yalnızca engellenen tarayıcı içindir: `User-agent: Bytespider` / `Disallow: /`.
+    - **Neden tek grup:** Google ve RFC 9309 bir tarayıcıya yalnızca en özel grubu uygular. İzinli bir bota ayrı "Allow" grubu yazılsaydı `Disallow: /admin` o bot için sessizce kaybolurdu. Yandex de kendi grubu varsa `*`'ı yok sayar.
+    - `/_next/` engellenmez: Google sayfayı çizmek için JS ve CSS'e ihtiyaç duyar.
+    - `Google-Extended` engellenmez: Gemini uygulamalarındaki dayanak kullanımını da kapatır, Aramayı etkilemez.
+    - Bytespider engeli semboliktir; robots.txt'ye uymadığı yalnızca ikincil kaynaklarda yazar. Kullanıcının başlattığı getiriciler (ChatGPT-User, Perplexity-User, Google'ın kullanıcı tetiklemeli getiricileri) robots.txt'ye uymayabilir; bu politika onları denetleyemez.
+    - Eğitim kullanımı kapatılmak istenirse: GPTBot, ClaudeBot, CCBot, Applebot-Extended ve meta-externalagent için birer `Disallow: /` grubu eklenir. OAI-SearchBot, Claude-SearchBot, PerplexityBot, Googlebot, Bingbot, YandexBot ve DuckAssistBot `*` ile açık kalır.
+    - `Sitemap:` satırı `WEB_HOST` tanımlıysa mutlak adresle yazılır. Admin host'unda `Disallow: /`. API host'unda Fastify `GET /robots.txt` → `Disallow: /`.
+    - `apps/web/public/robots.txt` silindi: üretimde `app/robots.ts`'yi gölgelerdi, geliştirmede çakışma (500) verirdi.
+    - Tarama yükü ~120 indekslenebilir adresle küçüktür. Traefik'te hız sınırı bir Dokploy değişikliği olurdu (DUR-SOR 4); gerekmedi.
+  - **Site haritası (`apps/web/src/app/sitemap.ts`):**
+    - Dizine eklenen her sayfa TR ve EN olarak yer alır. Her kayıt tr, en ve x-default karşılıklarını mutlak adresle listeler.
+    - `lastmod` yalnızca doğrulanabilir tarihse yazılır; `new Date()` kullanılmaz. Google lastmod'u yalnızca "tutarlı ve doğrulanabilir biçimde doğru" ise kullanır.
+      - havalimanı: `dataUpdatedAt`, yani havalimanı, pistleri ve pist düzeltmelerindeki en yeni `updated_at`. `updated_at` yalnızca `row_hash` değişince oynar (D-066).
+      - `/havalimanlari`: bütün havalimanlarının en yenisi
+      - `/yenilikler`: en yeni sürümün tarihi
+      - `/kullanim-kosullari`: yürürlük tarihi
+      - diğerleri: yazılmaz
+    - noindex sayfalar ve admin yoktur. Yandex dil sürümlerini site haritasından okumaz; HTML'deki hreflang etiketleri bu yüzden zorunludur, site haritasındaki karşılıklar Google içindir.
+  - **Metadata rotaları ve build:**
+    - Env ya da veri okuyan her metadata rotası (`robots`, `sitemap`, `manifest`, `llms.txt`, `/og/site`, havalimanı paylaşım görseli) önce `await connection()` çağırır. Yoksa build sırasında önceden çizilirdi; Docker build'inde `WEB_HOST` ve API yoktur. `dynamic = 'force-dynamic'` kullanılmaz.
+    - İkonlar (`app/icon.tsx` 192 ve 512 px, `app/apple-icon.tsx` 180 px) yalnızca şekilden çizilir, yazı tipi gerekmez; build'de bir kez üretilir.
+    - `app/favicon.ico` (16, 32, 48 px) `scripts/gen-favicon.mts` ile üretilip commit'lenir; yeni bağımlılık yoktur.
+    - Manifest `display: browser`'dır. Service worker gelince (Parça 3 M5) `standalone` olur.
+    - Varsayılan site açıklaması (`meta.description`) değişti: eski metin henüz olmayan yaklaşma ve iniş bildirimlerini vaat ediyordu. Manifest ve Organization açıklaması `seo.home.description`'ı kullanır.
+  - **Paylaşım (OG) görselleri:**
+    - Site görseli: `app/og/site/route.ts`, 1200×630, sabit adres (`/og/site`). Brief'teki `force-static` yerine dinamiktir: `APP_NAME` ve `WEB_HOST` yalnızca çalışma zamanında vardır. Görsel süreç başına bir kez çizilip bellekte tutulur, `Cache-Control: public, max-age=86400`.
+    - Havalimanı görseli: `app/istasyon/[icao]/opengraph-image.tsx`, dilden bağımsız (dosya tabanlı görsel adresi iç yoldan gelir; TR ve EN aynı görseli gösterir). Özel `Cache-Control: public, max-age=86400` dinamik görsel rotasında korunur (Next 16.3.6 kaynağında ve yerelde curl ile doğrulandı). `alt` metni sabit uygulama adıdır: havalimanına özel alt metin `generateImageMetadata` ister, Next o zaman build sırasında API'ye istek atabilecek bir `generateStaticParams` ekler.
+    - **Yazı tipleri:** `next/og` (Satori) WOFF2 okumaz. Verilen yazı tiplerinde olmayan bir harfi çalışma anında fonts.googleapis.com'dan indirir; bu canlı dış istek proje kurallarına aykırıdır. `@fontsource/overpass`'ın latin alt kümesinde ğ, İ ve ş yoktur.
+      - Bu yüzden latin ve latin-ext 400/800 `.woff` dosyaları `apps/web/assets/og-fonts/`'a kopyalandı; OFL-1.1 lisans metni (`OFL.txt`) yanlarındadır.
+      - latin-ext ayrı aile adıyla (`Overpass Ext`) harf başına yedektir.
+      - Dosyalar çalışma anında diskten okunur ve standalone çıktıya `outputFileTracingIncludes` ile girer.
+      - Görsel metinlerinde emoji ve ₺ kullanılmaz. Birim testi, görsel çizilirken `fetch`'in hiç çağrılmadığını doğrular.
+  - **Yapılandırılmış veri (JSON-LD):**
+    - Sayfa başına tek `<script type="application/ld+json">`, sayfanın üst düzey çiziminde (Suspense içinde değil); `<` karakteri `\u003c` kaçış dizisiyle yazılır (`JSON.stringify(…).replace(/</g, '\\u003c')`, `apps/web/src/components/json-ld.tsx`). Betik sayfa gövdesinde (`<main>`) durur: React satır içi JSON-LD betiğini `<head>`'e taşımaz. Google yapılandırılmış veriyi gövdede de okur; E2E yalnızca ayrıştırılabilirliği ve gövdede olduğunu denetler.
+    - Ana sayfa: `WebSite` (`inLanguage` tr ve en, publisher) ve `Organization` (logo 512 px ikon). `SearchAction` yok: Google site içi arama kutusunu 2024-11-21'de kaldırdı. `sameAs` yok: repo gizli, lisans ve repo adresleri 404 döner.
+    - `/havalimanlari`: `CollectionPage`, `ItemList` (her havalimanı) ve `BreadcrumbList`.
+    - Havalimanı: `WebPage` (`dateModified` = `dataUpdatedAt`), `Airport` (IATA, ICAO, `geo` enlem, boylam ve metre cinsinden yalın sayı olarak rakım, adres, `hasMap` canlı harita) ve `BreadcrumbList` (havayolu › Havalimanları › ad).
+    - `/hakkinda`: `AboutPage`. `/yenilikler` ve `/kullanim-kosullari`: `WebPage`. `/durum`'da JSON-LD yoktur.
+    - İşaretlenen her değer sayfada da görünür (Google'ın yapılandırılmış veri kuralı).
+    - FAQPage, Dataset ve SoftwareApplication yoktur. SoftwareApplication puan ister; puan uydurulmaz.
+  - **llms.txt (`apps/web/src/app/llms.txt/route.ts`):**
+    - llmstxt.org önerisi (2024-09-03). Sayfalarla aynı i18n metinlerinden ve aynı havalimanı verisinden kurulur; ikisi ayrışamaz.
+    - Dizine eklenen her havalimanı için bir satır. E-posta ve kişisel veri yoktur.
+    - `llms-full.txt` ve sayfaların `.md` kopyaları eklenmez. Google Search bu dosyaları kullanmaz ("doesn't use them", AI optimization guide). Dosya ucuz ve zararsız olduğu için sunulur.
+  - **Havalimanı verisi:**
+    - Web tek toplu istek yapar: `GET /v1/airports?country=TR&include=runways`, `revalidate: 3600`, `tags: ['airports']`, React `cache()`. Sayfa, üst veri, site haritası, llms.txt ve paylaşım görseli bu listeden türer.
+    - İstemci IP başlıkları bu isteğe eklenmez: Next.js fetch önbelleğinin anahtarı istek başlıklarını içerir (`incremental-cache/index.js` → `generateCacheKey`); eklenseydi önbellek ziyaretçi başına bölünürdü.
+    - Saatte ~1 istekle web konteynerinin API hız kovası (dakikada 60, D-060) risk altında değildir; dağıtımdan hemen sonra bütün sayfaları gezen bir tarayıcı da bunu değiştirmez.
+    - API kapalıysa önbellekteki eski liste sunulur. Önbellek boşken API kapalıysa sayfa 500 döner, yumuşak 404 değil.
+    - **Boş liste (inceleme, 2026-10-01):** İlk kurulumda içe aktarım bitmeden alınan boş liste saatlik kayıtta kalabilir. İlk sürüm o durumda her çizimde önbelleksiz bir istek daha atıyordu; bir saat boyunca her sayfa, OG görseli, site haritası ve llms.txt API'ye gidiyor, web konteynerinin tek hız kovası (dakikada 60) dolunca sayfalar 500 veriyordu. Artık saatlik kayıttaki liste boşsa **dakikalık** ikinci bir önbellek kaydına bakılır (`AIRPORTS_EMPTY_REVALIDATE_S = 60`). Next veri önbelleğinin anahtarı `revalidate`'i içermez, istek başlıklarını içerir; iki kayıt `x-hy-cache-window` başlığıyla ayrılır (API bu başlığı okumaz). Hiçbir çizim önbelleksiz istek atmaz; API'ye en çok dakikada bir istek gider ve içe aktarım bitince sayfalar bir dakika içinde dolar.
+    - API: `GET /v1/airports/:code` (4 harfli ICAO ya da 3 harfli IATA, büyük-küçük harf duyarsız; 400 biçim hatası, 404 bilinmeyen kod) API ve mobil istemciler içindir. İki uç nokta da mevcut dakikada 60 sınırını, 10 dk süreç içi önbelleği ve `Cache-Control: public, max-age=300`'ü kullanır.
+    - Pist yönü `true_bearing_deg`'den gelir, `heading_degT`'den değil (LTFM'nin 4 pistinde yanlış; D-066). `runway_overrides` alan alan `COALESCE` ile uygulanır.
+    - İl adları ISO 3166-2:TR kodundan gelir (`packages/shared/src/reference/tr-provinces.ts`); OurAirports `municipality` çoğu zaman ilçedir (Gaziemir, Tarsus). Bu alan serbest metindir ve İstanbul kayıtlarında İngilizce ya da biçimsizdir ("Istanbul(Bakırköy)", "Pendik, Istanbul", ille aynı "Istanbul"). "Hizmet verdiği yerleşim" satırı ve JSON-LD `addressLocality` bu yüzden ham değeri değil `airportDistrict`'i kullanır: tek bir yer adıysa ve ilden farklıysa (büyük-küçük harf ve Türkçe harf farkı yok sayılarak) gösterilir, değilse satır ve alan yazılmaz. İlçe tablosu tutulmaz: doğrulanmış kaynak olmadan uydurma olurdu (Milas-Bodrum Milas'tadır, OurAirports "Bodrum" yazar; alan "hizmet verdiği yerleşim"dir). Pist kaplaması `runway-surface.ts`'dedir; `PEM` "karışık kaplama" olarak yazılır (DAFIF kodu, OurAirports belgesinde yok).
+  - **Resmî havalimanı adları (`packages/shared/src/reference/airport-names.ts`):**
+    - ICAO → Türkçe resmî ad, İngilizce görünen ad ve kaynak (`dhmi`, `operator` ya da `ourairports`). Kaynaklar ve erişim tarihleri REFERENCES.md'dedir.
+    - Kaynaklar: DHMİ'nin "Havalimanları Web Siteleri" listesi ve havalimanı sayfaları; DHMİ dışındaki işletmecilerin resmî siteleri (İGA, ISG, Gazipaşa-Alanya, Zafer, Eskişehir Teknik Üniversitesi).
+    - Brief'te önerilen SHGM listesi (`web.shgm.gov.tr/doc2/havlist.pdf`) 2006 tarihli bir tablo dışa aktarımıdır ve İstanbul Havalimanı'ndan (2018) eskidir; kullanılmadı.
+    - 61 havalimanının 50'si DHMİ'den, 5'i işletmeciden (LTFM İGA, LTFJ, LTFG, LTBZ, LTBY Eskişehir Teknik Üniversitesi) gelir. Kaynaklardaki büyük harfli adlar Türkçe başlık biçimine çevrildi ("MİLAS - BODRUM" → "Milas-Bodrum").
+    - **İngilizce adlar çeviridir, kaynaktan alınmaz** (inceleme, 2026-10-01): "Havalimanı" → "Airport", "Uluslararası" → "International"; İstanbul ve İzmir noktasız yazılır, diğer Türkçe harfler korunur. DHMİ'nin İngilizce listesi (https://www.dhmi.gov.tr/Sayfalar/EN/DefaultEN.aspx, erişim 2026-10-01) tutarsızdır ("DALAMAN AIRPORT", "MUS AIRPORT", "CUKUROVA AİRPORT", "MUĞLA-MİLAS BODRUM AIRPORT") ve kullanılmadı. Kaynak (`source`) yalnızca Türkçe adın kaynağıdır. İngilizce sayfa bu yüzden "Official Turkish name: <Türkçe ad> (DHMİ); the English name is a translation." yazar; ilk sürüm yalnızca "Official name: DHMİ" diyordu.
+    - Resmî adı doğrulanamayan 6 askerî alan OurAirports adıyla kalır (kaynak `ourairports`): LTAD Etimesgut, LTAG İncirlik, LTAH Afyon, LTBG Bandırma, LTBI Eskişehir, LTBL Çiğli. Hiçbiri DHMİ listesinde değildir; hepsi `noindex, follow`'dur.
+  - **Kapsama ve yöntem metinleri (inceleme, 2026-10-01):**
+    - Kapsama planı (`coveragePlan`, batı/Doğu çemberleri, `PRIMARY_EXTRA_RADIUS_NM`) worker'dan `packages/geo/src/coverage.ts`'e taşındı (`@havayolu/geo/coverage`); worker'ın `plan.ts`'i yeniden dışa açar, zamanlayıcı worker'da kalır. Web aynı planı havalimanı listesindeki etkin istasyonlardan kurar (`liveCoveragePlan`, `isInLiveCoverage`). Listede olmayan istasyonlar (Türkiye dışı ya da IATA kodsuz) hesaba girmez.
+    - Havalimanı sayfası canlı haritada çevredeki uçakları yalnızca havalimanı merkezi plandaki bir çemberin içindeyse vaat eder; değilse "canlı veri çekim alanının dışında" der (sayfa ve arama açıklaması). Tohum istasyonlarla dışarıda kalan tek havalimanı Hakkari Yüksekova'dır (LTCW, Doğu çemberinin ~24 NM dışında). `/hakkinda` çekim alanı dışındaki havalimanlarını veriden listeler.
+    - Birincil istasyon cümlesi en sık güncellenen alanı 40 NM'lik birincil çember olarak yazar (`PRIMARY_EXTRA_RADIUS_NM`); 40–60 NM halkası 30 sn'lik istasyon hedefiyle batı çemberinden gelir (D-073).
+    - `/hakkinda` ve llms.txt'ten "hesaplanan ya da tahmin edilen her değer 'tahmini' etiketi taşır" cümlesi kaldırıldı: pist yönleri, mesafeler ve çağrı kodundan türetilen sefer no etiketsizdir; "tahmini" etiketi domain.md'de yalnızca henüz olmayan tahmini varış ve rota tahmini içindir.
+    - Durum satırı cümlesi koda göre düzeltildi: satır birincil istasyonun çevresindeki veri yaşını gösterir, o yoksa en yeni verinin yaşını (`status-strip.tsx` → `dataAgeSeconds`); bakılan bölgenin yaşı farklı olabilir.
+  - **Klavye odak halkası (inceleme, 2026-10-01):** `--focus` token'ı: açık temada `#1f5fd1` (zemine karşı 5,4:1), koyu temada ve haritada işaret sarısı. Sarı halka açık zeminde 1,6:1 kalıyor, WCAG 2.1 SC 1.4.11'in 3:1'ini karşılamıyordu. `a`, `.button` ve `.table-wrap` odakları bu token'ı kullanır; E2E iki temada kontrastı ölçer.
+  - **Doğrulama env'leri:** `GOOGLE_SITE_VERIFICATION`, `BING_SITE_VERIFICATION` (`msvalidate.01`) ve `YANDEX_VERIFICATION`. İsteğe bağlıdır, biçimi `^[A-Za-z0-9_-]{1,128}$`'dir; boşsa etiket yazılmaz. Hesapları ve değerleri kullanıcı oluşturur (ACTIVATION); ajan hesap açmaz, değer uydurmaz.
+  - **IndexNow şimdilik yok:** Worker'dan yeni bir dış uç noktaya istek ve kullanıcının tutacağı bir anahtar ister. İstenirse ayrı PR'dır (ACTIVATION'daki not).
+  - **Riskler ve önlemleri:**
+    - 61 şablon sayfada kapı sayfası ya da ölçekli içerik riski (Google spam politikaları; Bing'in birbirine çok benzeyen şablonlar uyarısı). İçerik blokları veriden kurulur, ortak bir giriş metni yoktur. Tarifesiz alanlar noindex'tir. İl ve anahtar kelime listesi yoktur. Tarife, rötar ya da METAR iddiası yoktur; METAR Parça 2 M2'de gelir, o zamana kadar hiçbir başlık ve açıklama METAR'dan söz etmez.
+    - Başlık uzunluğu yumuşak bir hedeftir. "İstanbul Sabiha Gökçen Uluslararası Havalimanı" gibi uzun adlarda 60 karakter aşılabilir; kodlar başta kalır.
+    - OurAirports veri kalitesi: İngilizce adlar, ilçe düzeyindeki `municipality`, kaplama kodları ve heading tutarsızlıkları yukarıdaki tablolarla karşılanır.
+  - **E2E:** `e2e/tests/seo.spec.ts`, `airports.spec.ts` ve `language.spec.ts` çoğunlukla ham yanıtı `request` ile denetler, çünkü tarayıcılar JavaScript çalıştırmadan okur. GPTBot User-Agent'ıyla başlık, canonical ve hreflang `<head>` içinde aranır. Kurulum, web sayfaları istenmeden önce API'nin fixture'daki 61 havalimanını döndürmesini bekler. Admin host'u yolu e2e ortamında yoktur (`ADMIN_HOST` boş); birim testleriyle kapsanır.
+
 ## 2026-09-29 — Parça 1 M6 web canlı harita
 - **D-075 Harita altlığı, istemci veri yolu, etiketler, geçici kullanım koşulları ve E2E.**
   - **Uydu altlığı (kullanıcı kararı 2026-09-28, D-072'deki DUR-SOR'un sonucu):**
@@ -346,7 +472,7 @@ Her karar tarih, gerekçe ve varsa alternatifiyle yazılır. En yeni karar en ü
 - **D-047 API portu ortama göre varsayılır.** `API_PORT` boşsa üretimde 4000 (konteyner), yerelde 4100 kullanılır. Dinleme adresi `API_LISTEN_HOST`'tur; `API_HOST` genel alan adıdır.
 - **D-048 Geliştirmede env yükleme sırası `.env` → `.env.example`.** Ajan `.env` okuyamaz ve yazamaz; uygulama `.env.example`'daki sır olmayan varsayılanlarla eksiksiz açılır.
 - **D-049 `next-env.d.ts` git'e girmez.** `next typegen` üretir; biçim denetiminden de çıkarıldı.
-- **D-050 Dil tercihi M0'da çerezle tutulur.** URL tabanlı `/en/...` yönlendirmesi Parça 3 M2'de gelir.
+- **D-050 Dil tercihi M0'da çerezle tutulur.** URL tabanlı `/en/...` yönlendirmesi Parça 3 M2'de gelir. **Değişti:** D-076 (Parça 1 M6b) ile dil adrese taşındı, çerez emekliye ayrıldı.
 
 ## 2026-09-25 — Dört açılı inceleme sonrası düzeltmeler ve yeni kullanıcı kararları
 Yeniden yazılan prompt seti dört bağımsız inceleyiciden geçti: sadakat, tutarlılık, yürütülebilirlik, hedefe uygunluk ve dil. 129 bulgunun kabul edilenleri işlendi.

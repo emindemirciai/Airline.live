@@ -4,7 +4,7 @@ import { getLocale } from '@/lib/locale'
 import { LoginForm } from './login-form'
 
 export async function generateMetadata(): Promise<Metadata> {
-  return { title: getMessages(await getLocale()).admin.loginTitle, robots: { index: false } }
+  return { title: getMessages(await getLocale()).admin.loginTitle }
 }
 
 export default async function AdminLoginPage() {

@@ -5,9 +5,19 @@ import { connection } from 'next/server'
 import { fetchApiStatus } from '@/lib/api-status'
 import { getServerEnv } from '@/lib/env'
 import { getLocale } from '@/lib/locale'
+import { pageMetadata } from '@/lib/seo/metadata'
 
+/** Operasyonel ve sık değişen içerik: `noindex, follow`, site haritasında yok (kullanıcı kararı, D-076). */
 export async function generateMetadata(): Promise<Metadata> {
-  return { title: getMessages(await getLocale()).status.title }
+  const locale = await getLocale()
+  const t = getMessages(locale)
+  return pageMetadata({
+    locale,
+    path: '/durum',
+    title: t.status.title,
+    description: t.seo.status.description,
+    index: false,
+  })
 }
 
 export default async function StatusPage() {

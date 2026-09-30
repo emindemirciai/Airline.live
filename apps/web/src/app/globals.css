@@ -11,6 +11,11 @@
   --down: #b42318;
   --sign: #f2c230;
   --sign-ink: #111111;
+  /*
+   * Klavye odak halkası. WCAG 2.1 SC 1.4.11: zemine (--bg, --surface) karşı en az 3:1. Açık temada
+   * sarı işaret rengi 1,6:1 kalır; koyu mavi 5,4:1'dir. Koyu temada ve haritada işaret rengi (11:1).
+   */
+  --focus: #1f5fd1;
   --radius: 6px;
   --font-ui: 'Overpass', system-ui, sans-serif;
   --font-data: 'IBM Plex Mono', ui-monospace, monospace;
@@ -26,6 +31,7 @@
     --accent: #7fb0ff;
     --ok: #4cc38a;
     --down: #ff6b5e;
+    --focus: var(--sign);
   }
 }
 
@@ -48,7 +54,7 @@ a {
 }
 
 a:focus-visible {
-  outline: 3px solid var(--sign);
+  outline: 3px solid var(--focus);
   outline-offset: 2px;
   border-radius: 2px;
 }
@@ -396,7 +402,7 @@ a:focus-visible {
 .button:focus-visible,
 .link-button:focus-visible,
 .field input:focus-visible {
-  outline: 3px solid var(--sign);
+  outline: 3px solid var(--focus);
   outline-offset: 2px;
 }
 
@@ -547,6 +553,7 @@ body:has(.map-page) {
   --muted: var(--map-muted);
   --line: var(--map-line);
   --accent: #7fb0ff;
+  --focus: var(--sign);
   display: flex;
   flex-direction: column;
   height: 100dvh;
@@ -1313,5 +1320,183 @@ body:has(.map-page) .site-footer {
 @media (max-width: 400px) {
   .live-map__controls {
     bottom: calc(var(--map-attrib-space) + 48px);
+  }
+}
+
+/*
+ * Harita sayfasının başlığı telefonda iki satırda kalır (marka, menü): menü M6b'de "Havalimanları"
+ * ile uzadı ve 375 px'te üçüncü satıra taşıp haritadan ~30 px alıyordu. Harita sayfasında "Harita"
+ * bağlantısı gizlenir (geçerli sayfa; marka da haritaya gider), menü biraz sıklaşır.
+ */
+@media (max-width: 560px) {
+  body:has(.map-page) .site-nav {
+    gap: 0.4rem 0.75rem;
+    font-size: 0.9375rem;
+  }
+
+  body:has(.map-page) .site-nav-map {
+    display: none;
+  }
+}
+
+/*
+ * Havalimanı listesi, havalimanı sayfaları ve Hakkında (Parça 1 M6b). Geçici tema: yukarıdaki sade
+ * görünümün token'ları kullanılır (WCAG AA karşıtlık). Geniş tablolar sayfayı değil kendi
+ * kutularını yatay kaydırır (`.table-wrap`, klavyeyle odaklanabilir); 320 px'te sayfa kaymaz.
+ */
+.breadcrumbs ol {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.2rem 0;
+  list-style: none;
+  margin: 0 0 1rem;
+  padding: 0;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.breadcrumbs li {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+/* Ayraç ekran okuyucuya okunmaz (boş alternatif metin). */
+.breadcrumbs li + li::before {
+  content: '›';
+  content: '›' / '';
+  margin: 0 0.5rem;
+}
+
+.breadcrumbs [aria-current='page'] {
+  color: var(--ink);
+}
+
+.page h1,
+.page h2 {
+  overflow-wrap: anywhere;
+}
+
+.airport-codes {
+  font-family: var(--font-data);
+  font-weight: 500;
+  font-size: 0.8em;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.airport-location {
+  margin: 0 0 1rem;
+  font-weight: 600;
+}
+
+.airport-live {
+  margin-top: 1.5rem;
+  padding: 0.25rem 1rem 0.5rem;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-left: 4px solid var(--accent);
+  border-radius: var(--radius);
+}
+
+.airport-live h2 {
+  margin-top: 0.75rem;
+}
+
+.table caption {
+  caption-side: top;
+  text-align: left;
+  padding: 0.6rem 0.8rem;
+  font-weight: 600;
+  border-bottom: 1px solid var(--line);
+}
+
+.table tbody th {
+  font-weight: 600;
+}
+
+.table .num {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.table-wrap:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.airport-runway-end {
+  display: block;
+}
+
+.airport-runway-ident {
+  display: inline-block;
+  min-width: 2.6em;
+  color: var(--muted);
+}
+
+/* Koordinatlar uzun olduğundan olgu ızgarasında tam satır kaplar. */
+.facts > .facts-wide {
+  grid-column: 1 / -1;
+}
+
+.airport-coordinates {
+  display: inline-block;
+  margin-right: 1.25rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.airports-table tbody tr.is-unscheduled > * {
+  background: var(--bg);
+}
+
+.airport-nearby {
+  margin: 0;
+  padding-left: 1.4rem;
+}
+
+.airport-nearby li + li {
+  margin-top: 0.35rem;
+}
+
+.airport-limits {
+  margin: 2rem 0 0;
+  padding: 0.75rem 0.9rem;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-left: 4px solid var(--sign);
+  border-radius: var(--radius);
+}
+
+.airport-source {
+  margin-top: 1.5rem;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.airport-source p {
+  margin: 0.25rem 0;
+}
+
+.about ul {
+  margin: 0;
+  padding-left: 1.2rem;
+}
+
+.about li + li {
+  margin-top: 0.35rem;
+}
+
+.about a {
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 560px) {
+  .page h1 {
+    font-size: 1.6rem;
+  }
+
+  .table th,
+  .table td {
+    padding: 0.5rem 0.6rem;
   }
 }

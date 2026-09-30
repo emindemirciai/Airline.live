@@ -64,7 +64,7 @@ Onay gelmeden sayfa yapımına geçilmez.
   - Sade görünümde kısaltma kullanılmaz: tahmini varış, havalimanı merkezi, yerden yükseklik.
 - **Hata ve boş ekranlar:** Hata mesajları özür dilemez; ne olduğunu ve nasıl düzeltileceğini söyler. Boş ekranlar kullanıcıya bir sonraki adımı söyler. Örnek: "Henüz takip ettiğin uçuş yok. Sefer numarası ya da tescil ile ara."
 - **Tahmini bilgi:** Her zaman "tahmini" etiketi taşır. Muhtemel iniş, kesin inişten görsel ve metinsel olarak ayrışır.
-- **Dil yönlendirmesi:** TR varsayılan yoldur (`/`), EN `/en/...` altındadır. `hreflang` eklenir; dil anahtarı URL'yi korur. Parça 1'deki çerez tabanlı geçiş bu yapıya taşınır.
+- **Dil yönlendirmesi: Parça 1 M6b'ye taşındı** (kullanıcı kararı 2026-09-29, D-076). TR kökte (`/`), EN `/en/...` altındadır; hreflang (`x-default` İngilizce), canonical ve dil anahtarı orada yapıldı, çerez tabanlı geçiş kaldırıldı. Bu kilometre taşında yeni eklenen her genel sayfa aynı yapıya uyar: iç bağlantılar `localePath` ile kurulur, üst veri `pageMetadata` ile yazılır, dizine eklenen sayfa site haritasına girer.
 - **Kabul:**
   - `pnpm i18n:check` geçer: tr/en anahtar kümeleri eşittir, kullanılmayan anahtar yoktur.
   - `apps/web/src`'de sabit metin kontrolü (`i18next/no-literal-string` ya da eşdeğeri) 0 hata verir.
@@ -88,9 +88,12 @@ Onay gelmeden sayfa yapımına geçilmez.
 - **"Takibe al" akışı:** Tek dokunuşla varsayılanlarla takip kurulur: 10 km uyarısı + iniş, açık olan bütün kanallar. Uyarı mesafesi, mesafenin ölçüleceği nokta (havalimanı merkezi ya da pist eşiği), ek olaylar ve kanallar "Ayrıntılı ayarlar" altında kapalı gelir. Sefer no takibinde eşleşme uyarısı gösterilir (domain.md).
 - **Uçuş sayfası** (`/ucus/<flightId>`, paylaşılabilir): iz, grafikler, olaylar. Geçmiş oynatma: zaman çubuğu ve 1×–60× hız. İz verisi saklama süresini aştıysa sayfa zaman çizelgesini ve özeti gösterir ve "iz verisi saklama süresini aştı (N gün)" der.
 - **Bildirim yönlendirmesi:** Bildirimler artık `/ucus/<flightId>`'ye gider (CLAUDE.md URL şeması).
+- **Arama motorları (D-076):** Uçuş sayfası `noindex, follow`'dur ve site haritasına girmez; `/en/ucus/<flightId>` ikizi, canonical ve hreflang `pageMetadata` ile yazılır.
 - **Kabul:** E2E: arama → takibe al (tek dokunuş) → replay senaryosu → bildirim merkezinde doğru olaylar ve web push gönderim kaydı. Geçmiş oynatma testi de geçer.
 
 ## M4 — İstasyon sayfası ve operasyon panosu (`p3/m4-station`)
+`/istasyon/<ICAO>` Parça 1 M6b'den beri havalimanı bilgi sayfasıdır (pistler, konum, canlı harita bağlantısı; dizine eklenir, D-076). Bu kilometre taşı varış panosunu ve aşağıdaki bölümleri o sayfaya ekler; adres, canonical ve JSON-LD aynı kalır. Operasyon panosu `noindex, follow`'dur ve site haritasına girmez; arama motorları için giriş sayfası havalimanı sayfasıdır.
+
 **Varış panosu:**
 - Sütunlar: sefer/çağrı kodu, tescil, tip, nereden (tahmini), mesafe, tahmini varış, durum.
 - Durumlar: yolda / yaklaşmada / alçakta sinyal kaybı / teker koydu (saatiyle) / muhtemelen indi (tahmini saat + güven) / pas geçti / yerde.
@@ -123,9 +126,9 @@ Onay gelmeden sayfa yapımına geçilmez.
 - **Onay bandı** (KVKK Çerez Rehberi; infra.md "Analiz"):
   - İlk ziyarette "Analiz için onay" bandı çıkar; "Kabul et" ve "Reddet" eşit ağırlıktadır.
   - Onay yoksa analiz script'i yüklenmez. Tercih ayarlardan değiştirilebilir.
-  - Zorunlu çerezler (oturum, dil) onaydan bağımsızdır.
+  - Zorunlu çerezler (oturum) onaydan bağımsızdır. Dil çerezde değil, adreste tutulur (D-076).
 - **PWA:**
-  - Manifest ve özgün ikon seti.
+  - Manifest ve özgün ikon seti. Parça 1 M6b'de `app/manifest.ts` (`display: browser`) ve ikonlar (192/512, apple-icon, favicon) eklendi; service worker gelince `display: standalone` olur.
   - Service worker: push gösterimi, bildirime tıklanınca ilgili uçuşa derin bağlantı, çevrimdışı kabuk.
   - Harita stil, karo, glif ve sprite istekleri service worker'da **asla** önbelleğe alınmaz (OpenFreeMap şartları).
   - iOS'ta push anahtarı yalnızca standalone modda (`display-mode: standalone` / `navigator.standalone`) gösterilir. Değilse adım adım "Ana Ekrana Ekle" yönergesi çıkar.
