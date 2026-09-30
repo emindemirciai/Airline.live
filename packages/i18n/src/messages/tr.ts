@@ -1,15 +1,259 @@
 /** Türkçe arayüz metinleri (varsayılan dil). Anahtar yapısı tüm diller için buradan türetilir. */
 export const tr = {
   meta: {
-    description: 'Türkiye odaklı canlı uçuş takibi, istasyona yaklaşma ve iniş bildirimleri.',
+    description:
+      'Türkiye odaklı, herkese açık canlı uçuş takibi: uçak konumları, havalimanları ve pistler.',
   },
   nav: {
     map: 'Harita',
+    airports: 'Havalimanları',
     status: 'Durum',
     changelog: 'Yenilikler',
+    about: 'Hakkında',
     language: 'Dil',
     switchTo: 'English',
     mainLabel: 'Ana menü',
+  },
+  /**
+   * Arama motoru ve paylaşım önizlemesi metinleri (Parça 1 M6b). Layout şablonu başlığa " · {app}"
+   * ekler; kök sayfanın başlığı tamdır (şablon uygulanmaz). Havalimanı açıklamaları veriden kurulur ve
+   * rötar, kalkış saati ya da hava durumu vaat etmez (şablon sayfa riski, M6b brief §b ve §i).
+   */
+  seo: {
+    home: {
+      title: 'Türkiye canlı uçak haritası ve uçuş takibi',
+      description:
+        'Türkiye semalarındaki uçakların canlı konumu, yüksekliği ve hızı; veriler ADS-B’den gelir. Tarife, rötar ve kapı bilgisi içermez. Canlı uçuş verisi: ADSB.lol (ODbL).',
+    },
+    airports: {
+      title: 'Türkiye’deki havalimanları: IATA ve ICAO kodları',
+      description:
+        'Türkiye’deki {count} havalimanının IATA ve ICAO kodları, illeri, en uzun pistleri ve tarifeli sefer bilgisi; her biri için canlı harita bağlantısı. Kaynak: OurAirports.',
+    },
+    airport: {
+      title: '{name} ({iata}/{icao}) canlı hava trafiği ve pistler',
+      /** `{facts}`: aşağıdaki parçalardan veriye göre seçilenler, "; " ile birleşik. */
+      description: '{name}, {province}: {facts}. {live}',
+      descriptionNoFacts: '{name}, {province}. {live}',
+      /** `{live}`: havalimanı canlı veri çekim alanındaysa (packages/geo/src/coverage.ts). */
+      liveCovered: 'Çevredeki uçaklar canlı haritada görünür; tarife bilgisi içermez.',
+      /** `{live}`: havalimanı çekim alanının dışındaysa; çevredeki uçak vaat edilmez. */
+      liveOutside: 'Canlı veri çekim alanının dışında; tarife bilgisi içermez.',
+      runwaysOne: 'tek pist, {length}',
+      runwaysMany: '{count} pist, en uzunu {length}',
+      runwaysCount: '{count} pist',
+      elevation: 'rakım {elevation}',
+    },
+    about: {
+      title: 'Hakkında: veri kaynakları ve yöntem',
+      description:
+        '{app} nasıl çalışır: canlı konumların ADS-B kaynağı, veri kaynakları ve lisansları, uçak gizliliği kuralları ve ADS-B’nin sınırları.',
+    },
+    changelog: {
+      description: 'Her sürümde gelen yenilikler ve o sürümde eklenen sayfaların bağlantıları.',
+    },
+    status: {
+      description: 'Uygulamanın sürümü, sunucu bağlantısı ve yol haritasındaki ilerleme.',
+    },
+    terms: {
+      description:
+        'Kullanım koşulları: veri lisansları (ODbL), harita görüntüleri (Esri), kullanım kuralları ve uçak gizliliği.',
+    },
+    /** Varsayılan paylaşım görselindeki alt başlık. */
+    ogTagline: 'Türkiye canlı uçuş takibi',
+  },
+  /** Havalimanı listesi (`/havalimanlari`). */
+  airports: {
+    title: 'Türkiye’deki havalimanları',
+    summary:
+      'Listede {count} havalimanı var: OurAirports kaydına göre {scheduled} tanesinde tarifeli sefer yapılıyor; {stations} tanesi izlenen istasyon.',
+    scope:
+      'Listede IATA kodu olan büyük ve orta boy havalimanları ile OurAirports’ta tarifeli seferi kayıtlı küçük havalimanları yer alır; diğer küçük havalimanları listelenmez.',
+    names:
+      'Resmî Türkçe adlar DHMİ’den ve havalimanı işletmecilerinden derlenmiştir; resmî adı doğrulanamayan havalimanları OurAirports’taki adıyla gösterilir.',
+    caption: 'Havalimanları, ile göre sıralı',
+    columns: {
+      name: 'Havalimanı',
+      province: 'İl',
+      iata: 'IATA',
+      icao: 'ICAO',
+      longestRunway: 'En uzun pist',
+      /** OurAirports `scheduled_service` bayrağı; doğrulanmış bilgi gibi sunulmaz (D-076). */
+      scheduled: 'Tarifeli sefer (OurAirports)',
+      station: 'İzlenen istasyon',
+    },
+    empty: 'Havalimanı verisi henüz yüklenmedi. Biraz sonra yeniden dene.',
+  },
+  /** Havalimanı sayfası (`/istasyon/<ICAO>`). Sade görünümde kısaltma yoktur (web-ui kuralları). */
+  airport: {
+    breadcrumbLabel: 'Sayfa konumu',
+    country: 'Türkiye',
+    location: '{province}, Türkiye',
+    lead: {
+      runwaysOne: 'Havalimanında tek pist var: {length} uzunluğundaki {designator}.',
+      runwaysMany: 'Havalimanında {count} pist var; en uzunu {length} ile {designator}.',
+      runwaysCount: 'Havalimanında {count} pist var.',
+      elevation: 'Havalimanının rakımı {elevation}.',
+      scheduled: 'OurAirports kaydına göre tarifeli havayolu seferi yapılıyor.',
+      unscheduled:
+        'OurAirports kaydında tarifeli havayolu seferi görünmüyor; bu bilgi güncel olmayabilir.',
+      otherOne: '{province} ilindeki diğer havalimanı: {airports}.',
+      otherMany: '{province} ilindeki diğer havalimanları: {airports}.',
+    },
+    facts: {
+      heading: 'Temel bilgiler',
+      iata: 'IATA kodu',
+      icao: 'ICAO kodu',
+      type: 'Tür',
+      province: 'İl',
+      municipality: 'Hizmet verdiği yerleşim',
+      sourceName: 'OurAirports’taki adı',
+      reference: 'Havalimanı merkezi',
+      elevation: 'Rakım',
+      scheduled: 'Tarifeli sefer (OurAirports)',
+      station: 'İzlenen istasyon',
+      runways: 'Pist sayısı',
+    },
+    types: {
+      large_airport: 'Büyük havalimanı',
+      medium_airport: 'Orta boy havalimanı',
+      small_airport: 'Küçük havalimanı',
+    },
+    yes: 'Var',
+    /** Kaynakta "evet" işaretli değil: "yok" anlamına gelmez (OurAirports bayrakları, D-076). */
+    notRecorded: 'Kayıtlı değil',
+    stationYes: 'Evet',
+    stationPrimary: 'Evet, birincil istasyon',
+    stationNo: 'Hayır',
+    /** Koordinat yön harfleri: kuzey, güney, doğu, batı. */
+    hemisphere: {
+      n: 'K',
+      s: 'G',
+      e: 'D',
+      w: 'B',
+    },
+    runways: {
+      heading: 'Pistler',
+      caption: '{name} pistleri',
+      designator: 'Pist',
+      length: 'Uzunluk',
+      width: 'Genişlik',
+      surface: 'Yüzey',
+      lighting: 'Işıklandırma',
+      bearing: 'Gerçek yön',
+      displaced: 'Kaydırılmış pist eşiği',
+      bearingNote: 'Yönler gerçek kuzeye göredir; pist adları manyetik yönden gelir.',
+      displacedNote:
+        'Kaydırılmış pist eşiği, inişin pistin başından değil bu mesafe kadar ileriden başladığını gösterir.',
+    },
+    live: {
+      heading: 'Canlı hava trafiği',
+      open: 'Canlı haritada aç',
+      station:
+        '{app} bu havalimanını izliyor: havalimanı merkezinin {radius} çevresindeki uçaklar öncelikli güncellenir.',
+      /** `{radius}`: birincil istasyonun en sık çekilen çemberi (PRIMARY_EXTRA_RADIUS_NM, D-073). */
+      stationPrimary:
+        'Birincil istasyondur: havalimanı merkezinin {radius} çevresinin verisi en sık güncellenir.',
+      notStation:
+        'Bu havalimanında varış izleme henüz açık değil. Havalimanı canlı veri çekim alanının içinde; çevredeki uçaklar canlı haritada görünür (kapsama ADS-B alıcılarına bağlıdır).',
+      outside:
+        'Bu havalimanında varış izleme açık değil ve havalimanı canlı veri çekim alanının dışında: çevresindeki uçaklar için veri çekilmez, bu yüzden canlı haritada görünmeyebilirler.',
+    },
+    nearby: {
+      heading: 'En yakın havalimanları',
+      item: '{airport}, {province}: {distance}',
+      note: 'Mesafeler havalimanı merkezleri arasındaki kuş uçuşu mesafedir.',
+    },
+    limits:
+      'Bu sayfa tarife, rötar, kapı ve iptal bilgisi içermez. ADS-B’nin sınırları ve veri kaynakları için {about}.',
+    limitsLink: 'Hakkında sayfasına bak',
+    source: 'Havalimanı ve pist verisi: {source} (kamu malı) · son değişiklik {date}',
+    /** `{name}`: resmî Türkçe ad (airport-names.ts). */
+    nameSource: {
+      dhmi: 'Resmî Türkçe ad: {name} (DHMİ)',
+      operator: 'Resmî Türkçe ad: {name} (havalimanı işletmecisi)',
+      ourairports: 'Ad: OurAirports',
+    },
+  },
+  /** Pist yüzeyi; ham OurAirports kodları `packages/shared` → `runway-surface.ts`'te eşlenir. */
+  surface: {
+    asphalt: 'Asfalt',
+    concrete: 'Beton',
+    /** PEM: kısmen beton, asfalt ya da bitümlü makadam. */
+    mixed: 'Karışık kaplama',
+    /** PER: kalıcı kaplama, türü bilinmiyor. */
+    paved: 'Kaplamalı',
+    grass: 'Çim',
+    dirt: 'Toprak',
+    gravel: 'Çakıl',
+    water: 'Su',
+    unknown: 'Bilinmiyor',
+  },
+  /**
+   * Hakkında ve yöntem (`/hakkinda`). Kaynaklar: docs/spec/domain.md ("v1 sınırları"),
+   * docs/spec/data-sources.md (§1 tazelik hedefleri, §3, §4, §6, §6a), D-066, D-071, D-073, ATTRIBUTION.md.
+   */
+  about: {
+    title: 'Hakkında',
+    intro:
+      '{app}, Türkiye odaklı, herkese açık ve ücretsiz bir canlı uçuş takip sitesidir. Siteyi {owner} geliştirir ve işletir.',
+    shows: {
+      heading: 'Neler gösterilir',
+      map: 'Canlı harita: uçakların konumu, yüksekliği, yer hızı, dikey hızı ve kimlik bilgileri (sefer no, çağrı kodu, tescil, uçak tipi).',
+      search: 'Arama: havadaki uçağı sefer no, çağrı kodu, tescil ya da hex koduyla bulma.',
+      airports:
+        'Havalimanları: Türkiye’deki havalimanlarının kodları, pistleri ve en yakın havalimanları.',
+    },
+    limits: {
+      heading: 'Neler gösterilmez',
+      intro:
+        'ADS-B yalnızca konum, yükseklik, hız ve kimlik verir. Tarife verisi olmadığından şunlar yoktur:',
+      times: 'tarifeli kalkış ve varış saatleri',
+      delays: 'rötar, kapı, terminal, bagaj, kod paylaşımı ve iptal bilgisi',
+      board: 'kalkıştan önce kalkış panosu',
+      search: 'harfli çağrı kodu kullanan seferlerde kalkıştan önce sefer no ile arama',
+    },
+    method: {
+      heading: 'Yöntem',
+      adsb: 'Uçak konumları uçakların yayınladığı ADS-B sinyallerinden, bazı uçaklarda birden çok alıcının ölçümüyle hesaplanan çok noktalı konumlandırmadan (MLAT) gelir. Sinyalleri yerdeki alıcılardan toplayan {source} ağı tek canlı veri kaynağıdır.',
+      coverage:
+        'Kapsama alıcılara bağlıdır: alçak irtifadaki ve yerdeki uçaklar bazı bölgelerde görünmeyebilir.',
+      /** `{radius}`: birincil istasyonun en sık çekilen çemberi (PRIMARY_EXTRA_RADIUS_NM, D-073). */
+      freshness:
+        'Hedeflenen veri yaşı: birincil istasyonun {radius} çevresinde yaklaşık 20 sn, diğer izlenen havalimanlarının çevresinde yaklaşık 30 sn, Doğu Türkiye’yi kapsayan veri çekim alanında yaklaşık 90 sn. Haritadaki durum satırı birincil istasyonun çevresindeki gerçekleşen veri yaşını gösterir (bu bilgi yoksa en yeni verinin yaşını); haritada bakılan bölgenin veri yaşı bundan farklı olabilir.',
+      stations: 'İzlenen havalimanları:',
+      /** Kapsama planının (packages/geo/src/coverage.ts) dışında kalan havalimanları, veriden. */
+      outside:
+        'Canlı veri çekim alanının dışında kalan havalimanları; çevrelerindeki uçaklar haritada görünmeyebilir:',
+      primary: 'birincil istasyon',
+      reference:
+        'Havalimanı ve pist bilgisi her gün OurAirports’tan güncellenir. Pist yönleri, mümkün olduğunda pist uçlarının koordinatlarından hesaplanan gerçek yönlerdir.',
+    },
+    sources: {
+      heading: 'Veri kaynakları ve lisanslar',
+      live: 'Canlı uçak konumları: {source}, {license} lisansıyla.',
+      derived:
+        'Saklanan konum ve iz verisi bu veriden türetilmiş bir veritabanıdır ve ODbL altında kalır.',
+      reference: 'Havalimanı ve pist verisi: {source}, kamu malı.',
+      names:
+        'Resmî Türkçe havalimanı adları: DHMİ ve havalimanı işletmecilerinin siteleri; doğrulanamayan adlarda OurAirports.',
+      airlines: 'Havayolu kodları: {source}, CC0 (atıf zorunlu değildir, nezaketen anılır).',
+      vector:
+        'Vektör harita: {openFreeMap} © {openMapTiles}, harita verisi © {openStreetMap} katkıcıları (ODbL).',
+      satellite: 'Uydu görüntüsü (gösterildiğinde): {esri}.',
+    },
+    privacy: {
+      heading: 'Uçak gizliliği',
+      military: 'Askeri uçaklar haritada, aramada ve API’de gösterilmez.',
+      registration: 'PIA ya da LADD programındaki uçakların tescili gösterilmez.',
+      blocklist:
+        'Yöneticinin engel listesine eklediği uçaklar haritada, aramada ve API’de gösterilmez.',
+    },
+    more: {
+      heading: 'Daha fazla bilgi',
+      terms: '{link}: veri lisansları, harita görüntüleri ve kullanım kuralları.',
+      changelog: '{link}: her sürümde gelen yenilikler.',
+    },
   },
   /** Canlı harita (kök sayfa). "Takip" kelimesi yalnızca bildirim aboneliğidir; kamera "Uçağı ortala"dır. */
   map: {

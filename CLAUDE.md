@@ -11,11 +11,11 @@ Bu dosya her oturumda otomatik yüklenir; yalnızca her zaman geçerli kurallar�
   - analiz `https://analiz.havayolu.live` (`ANALYZE_URL`; kullanıcının Siteni Analiz Et uygulaması)
 - **GITHUB_REPO:** `emindemirciai/havayolu`. Repo **gizli** (kullanıcı kararı 2026-09-27, D-068), plan GitHub Free. Bu planda gizli repoda kural seti, dal koruması ve gizli bilgi taraması çalışmaz; aynı kurallar süreçle uygulanır: `main`'e doğrudan push, silme ve force push yok; yalnızca PR + merge commit; `checks`, `test-integration` ve `e2e` yeşil olmadan birleştirme yok; commit'ten önce sır ve kişisel veri taranır. Actions ayda 2.000 dakikadır. GHCR imaj adları küçük harflidir: `ghcr.io/emindemirciai/havayolu-{web,api,worker}`; paketler şu an herkese açıktır (D-068).
 - **Birincil istasyon:** IST (LTFM). Tohum istasyonlar: IST, SAW, ESB, ADB, AYT.
-- **URL şeması:**
-  - canlı uçak `/?hex=<hex>`
-  - uçuş sayfası `/ucus/<flightId>` (EN: `/en/ucus/<flightId>`)
-  - istasyon `/istasyon/<icao>`, operasyon panosu `/istasyon/<icao>/operasyon`
-  - durum `/durum`, yenilikler `/yenilikler`, kullanım koşulları `/kullanim-kosullari` (geçici metin, D-075)
+- **URL şeması** (D-076): Türkçe kökte; her genel sayfanın İngilizce ikizi `/en` + aynı yoldur (`/en`, `/en/havalimanlari`, `/en/istasyon/LTFM`). Yollar iki dilde de Türkçedir. İç bağlantılar `localePath` ile kurulur; admin öneksiz ve yalnızca Türkçedir.
+  - canlı uçak `/?hex=<hex>`; havalimanında açılan harita `/?havalimani=<ICAO>` (ikisinin de canonical'ı `/`)
+  - uçuş sayfası `/ucus/<flightId>` (`noindex, follow`)
+  - havalimanları `/havalimanlari`; havalimanı (istasyon) sayfası `/istasyon/<ICAO>`, operasyon panosu `/istasyon/<ICAO>/operasyon` (`noindex, follow`). `<ICAO>` büyük harflidir; küçük harf ve IATA kodu 308 ile ona gider.
+  - hakkında `/hakkinda`, durum `/durum` (`noindex, follow`), yenilikler `/yenilikler`, kullanım koşulları `/kullanim-kosullari` (geçici metin, D-075)
 
   Bildirimler uçuş sayfasına gider; uçuş sayfası gelene kadar (Parça 3) `/?hex=` kullanılır.
 

@@ -41,7 +41,10 @@ export interface AppDeps {
   live: { source: LiveSource | null; codes: () => AirlineCodes; ready?: () => boolean }
   /** Hex engel listesinin deposu (redis-queue); yoksa admin engel listesi uçları 503. */
   blocklistRedis: Redis | null
-  /** Harita havalimanları (`/v1/airports`); `list` null ise (veritabanı yok) 503. */
+  /**
+   * Havalimanı uçları (`/v1/airports`, `/v1/airports/:code`); okuyucu null ise (veritabanı yok)
+   * 503.
+   */
   airports: AirportRouteOptions
 }
 
@@ -56,6 +59,13 @@ export function allowedOrigins(env: Env): string[] {
 }
 
 const UNAUTHORIZED = { message: 'Yönetici oturumu gerekli.' }
+
+/**
+ * API herkese açıktır ama arama sonuçlarında yer almaz (M6b, D-076): her yanıtta bu X-Robots-Tag
+ * başlığı gider, /robots.txt bütün yolları kapatır. Sayfalar web host'undadır.
+ */
+export const API_ROBOTS_TAG = 'noindex'
+export const API_ROBOTS_TXT = 'User-agent: *\nDisallow: /\n'
 
 /** Ucuz ve durumsuz sistem uçları hız sınırına girmez: web'in /durum sayfası ve izleme bunları sık çağırır. */
 const NO_RATE_LIMIT = { rateLimit: false } as const
@@ -74,6 +84,11 @@ export async function buildApp(env: Env, deps: AppDeps): Promise<FastifyInstance
   })
 
   await app.register(helmet, { global: true })
+  // 404, 429 ve hata yanıtları dahil her yanıt (onSend hata işleyicisinden sonra da çalışır).
+  app.addHook('onSend', async (_request, reply, payload) => {
+    reply.header('x-robots-tag', API_ROBOTS_TAG)
+    return payload
+  })
   const origins = allowedOrigins(env)
   await app.register(cors, { origin: origins.length > 0 ? origins : false, credentials: true })
   await app.register(rateLimit, {
@@ -142,6 +157,16 @@ export async function buildApp(env: Env, deps: AppDeps): Promise<FastifyInstance
       .send({ status: ready ? 'ready' : 'not_ready', checks: Object.fromEntries(entries) })
   })
 
+  app.get(
+    '/robots.txt',
+    { config: NO_RATE_LIMIT, schema: { hide: true } },
+    async (_request, reply) =>
+      reply
+        .type('text/plain; charset=utf-8')
+        .header('cache-control', 'public, max-age=86400')
+        .send(API_ROBOTS_TXT),
+  )
+
   app.get('/openapi.json', { config: NO_RATE_LIMIT, schema: { hide: true } }, async () =>
     app.swagger(),
   )
@@ -172,7 +197,7 @@ export async function buildApp(env: Env, deps: AppDeps): Promise<FastifyInstance
   // Canlı veri: REST, arama ve WebSocket aynı önbellekten okur (D-074).
   registerLiveRoutes(app, deps.live)
   registerLiveWs(app, { source: deps.live.source, ready: deps.live.ready, env, log: app.log })
-  // Haritadaki havalimanları (OurAirports referans verisi).
+  // Havalimanları: harita noktaları ve havalimanı sayfaları (OurAirports referans verisi).
   registerAirportRoutes(app, deps.airports)
 
   return app

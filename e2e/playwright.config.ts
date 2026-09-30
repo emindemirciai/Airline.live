@@ -11,7 +11,7 @@
 // servislere istek atılmaz (EXTERNAL_PROVIDERS_DISABLED=true). WebGL2 CI'da GPU olmadan SwiftShader'la
 // sağlanır. Rapor: e2e/.report (git'e girmez).
 import { defineConfig, devices } from '@playwright/test'
-import { E2E_ANALYZE_SITE_ID, E2E_ANALYZE_URL, WEB_URL } from './support'
+import { API_HOST, E2E_ANALYZE_SITE_ID, E2E_ANALYZE_URL, WEB_HOST, WEB_URL } from './support'
 
 const ci = Boolean(process.env.CI)
 
@@ -67,9 +67,10 @@ export default defineConfig({
       MAP_STYLE_URL: '/test-style.json',
       EXTERNAL_PROVIDERS_DISABLED: 'true',
       ESRI_API_KEY: '',
-      // Kullanıcının .env'i ne derse desin web, API ve WebSocket aynı yerel host'larda buluşur.
-      WEB_HOST: 'localhost:3100',
-      API_HOST: 'localhost:4100',
+      // Kullanıcının .env'i ne derse desin web, API ve WebSocket aynı yerel host'larda buluşur. Sayfalardaki
+      // mutlak adresler (canonical, hreflang, sitemap, llms.txt) de WEB_HOST'tan kurulur (D-076).
+      WEB_HOST,
+      API_HOST,
       ADMIN_HOST: '',
       // Onay bandı testi: analiz adresi yerel ve sahtedir; script isteği test içinde yanıtlanır.
       ANALYZE_URL: E2E_ANALYZE_URL,

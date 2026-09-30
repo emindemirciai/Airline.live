@@ -106,6 +106,7 @@ Durum geçişleri `provider_health`'e yazılır.
 - **İçe aktarım:** Günlük, `If-Modified-Since` ya da ETag ile. Değişmeyen satır yeniden yazılmaz, hatalı satır atlanır ve loglanır. Testte ve `EXTERNAL_PROVIDERS_DISABLED` iken `tools/fixtures/ourairports/` altındaki commit'li alt küme kullanılır (Türkiye + birkaç büyük havalimanı).
 - **Filtre:** `type IN (large_airport, medium_airport)` ya da `scheduled_service = yes`. Anahtar sırası `icao_code` → `gps_code` → `ident`. `closed = 1` olan pistler atlanır.
 - **Eşik ve yükseklik:** Eşik hesabı domain.md'de tanımlıdır. Türkiye'de (LT*) 118 pistin 105'inde uç koordinatı vardır. Alan yüksekliği `le_elevation_ft`'ten, yoksa `elevation_ft`'ten alınır. Admin için pist düzeltme tablosu vardır.
+- **Resmî Türkçe adlar (D-076):** OurAirports adları İngilizcedir. Havalimanı sayfalarındaki resmî Türkçe adlar ve İngilizce görünen adlar elle derlenmiş bir tablodadır (`packages/shared/src/reference/airport-names.ts`). Kaynaklar DHMİ'nin havalimanı listesi ve DHMİ dışındaki işletmecilerin resmî siteleridir (REFERENCES.md, erişim 2026-09-30); bu siteler çalışma zamanında çekilmez. Doğrulanamayan ad OurAirports adıyla kalır. Eski SHGM listesi (`havlist.pdf`, 2006) kullanılmaz.
 
 ## 4. VRS standing-data — havayolu ve rota (CC0)
 - **Kaynaklar:**

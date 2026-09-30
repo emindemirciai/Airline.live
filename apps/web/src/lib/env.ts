@@ -35,13 +35,37 @@ const styleUrl = z
 /** ArcGIS API anahtarı; karo adresine sorgu parametresi olarak girer. */
 const ESRI_API_KEY = /^[A-Za-z0-9._~+/=-]+$/
 
-const ServerEnvSchema = z.object({
+/**
+ * Arama motoru site doğrulama kodu (Google Search Console, Bing Webmaster, Yandex Webmaster): meta
+ * etiketinin yalnızca `content` değeri. Kullanıcı üretir (ACTIVATION); tanımsızsa etiket çıkmaz.
+ */
+const siteVerification = z.preprocess(
+  emptyToUndefined,
+  z
+    .string()
+    .trim()
+    .regex(/^[A-Za-z0-9_-]{1,128}$/, 'yalnızca harf, rakam, _ ve - (en fazla 128 karakter)')
+    .optional(),
+)
+
+const ServerEnvFields = z.object({
   APP_ENV: z.enum(['development', 'test', 'production']).default('development'),
   APP_NAME: z.preprocess(emptyToUndefined, z.string().trim().optional()),
   API_INTERNAL_URL: z.preprocess(emptyToUndefined, z.url().default('http://localhost:4100')),
   // İmaja build sırasında gömülür ve Dokploy'a girilmez; boş gelirse açılışı engellemez, 'dev' olur.
   GIT_SHA: z.preprocess(emptyToUndefined, z.string().min(1).default('dev')),
   BUILD_TIME: z.preprocess(emptyToUndefined, z.string().optional()),
+  // Sitenin genel alan adı (şemasız, D-059): kanonik adresler, hreflang, site haritası ve robots.txt
+  // bu adla mutlak yazılır; www isteği buraya yönlenir. Üretimde zorunludur.
+  WEB_HOST: z.preprocess(
+    emptyToUndefined,
+    z
+      .string()
+      .trim()
+      .toLowerCase()
+      .regex(PUBLIC_HOST, 'şemasız host olmalı (ör. havayolu.live ya da localhost:3100)')
+      .optional(),
+  ),
   ADMIN_HOST: z.preprocess(emptyToUndefined, z.string().trim().optional()),
   ANALYZE_URL: z.preprocess(emptyToUndefined, z.url().optional()),
   ANALYZE_SITE_ID: z.preprocess(emptyToUndefined, z.string().trim().optional()),
@@ -69,6 +93,20 @@ const ServerEnvSchema = z.object({
       .regex(ESRI_API_KEY, 'yalnızca harf, rakam ve ._~+/=- karakterleri')
       .optional(),
   ),
+  GOOGLE_SITE_VERIFICATION: siteVerification,
+  BING_SITE_VERIFICATION: siteVerification,
+  YANDEX_VERIFICATION: siteVerification,
+})
+
+/** WEB_HOST üretimde zorunludur: kanonik adresler, site haritası ve robots.txt onunla mutlak yazılır. */
+const ServerEnvSchema = ServerEnvFields.superRefine((env, ctx) => {
+  if (env.APP_ENV === 'production' && !env.WEB_HOST) {
+    ctx.addIssue({
+      code: 'custom',
+      path: ['WEB_HOST'],
+      message: 'üretimde zorunlu (ör. havayolu.live)',
+    })
+  }
 })
 
 export type ServerEnv = z.infer<typeof ServerEnvSchema>

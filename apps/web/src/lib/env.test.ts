@@ -89,3 +89,74 @@ describe('getServerEnv — harita alanları', () => {
     expect(getServerEnv().ESRI_API_KEY).toBeUndefined()
   })
 })
+
+const SITE_KEYS = [
+  'APP_ENV',
+  'WEB_HOST',
+  'GOOGLE_SITE_VERIFICATION',
+  'BING_SITE_VERIFICATION',
+  'YANDEX_VERIFICATION',
+] as const
+
+function withSiteEnv(values: Partial<Record<(typeof SITE_KEYS)[number], string>>) {
+  withEnv({})
+  for (const key of SITE_KEYS) {
+    vi.stubEnv(key, values[key] ?? (key === 'APP_ENV' ? 'development' : ''))
+  }
+}
+
+describe('getServerEnv — site alanları', () => {
+  it('WEB_HOST geliştirmede isteğe bağlıdır; kırpılıp küçük harfe çevrilir', () => {
+    withSiteEnv({ APP_ENV: 'development' })
+    expect(getServerEnv().WEB_HOST).toBeUndefined()
+    withSiteEnv({ APP_ENV: 'test', WEB_HOST: ' HavaYolu.live ' })
+    expect(getServerEnv().WEB_HOST).toBe('havayolu.live')
+    withSiteEnv({ WEB_HOST: 'localhost:3100' })
+    expect(getServerEnv().WEB_HOST).toBe('localhost:3100')
+  })
+
+  it('WEB_HOST üretimde zorunludur', () => {
+    withSiteEnv({ APP_ENV: 'production' })
+    expect(() => getServerEnv()).toThrow(/WEB_HOST: üretimde zorunlu/)
+    withSiteEnv({ APP_ENV: 'production', WEB_HOST: '#kullanıcı yazar#' })
+    expect(() => getServerEnv()).toThrow(/WEB_HOST/)
+    withSiteEnv({ APP_ENV: 'production', WEB_HOST: 'havayolu.live' })
+    expect(getServerEnv().WEB_HOST).toBe('havayolu.live')
+  })
+
+  it('WEB_HOST şemasız bir host olmalıdır', () => {
+    for (const host of ['https://havayolu.live', 'havayolu.live/en', 'havayolu live']) {
+      withSiteEnv({ WEB_HOST: host })
+      expect(() => getServerEnv(), host).toThrow(/Web ortam değişkenleri hatalı: WEB_HOST/)
+    }
+  })
+
+  it('doğrulama kodları isteğe bağlıdır; boş değer tanımsız sayılır', () => {
+    withSiteEnv({})
+    const env = getServerEnv()
+    expect(env.GOOGLE_SITE_VERIFICATION).toBeUndefined()
+    expect(env.BING_SITE_VERIFICATION).toBeUndefined()
+    expect(env.YANDEX_VERIFICATION).toBeUndefined()
+  })
+
+  it('doğrulama kodlarını okur', () => {
+    withSiteEnv({
+      GOOGLE_SITE_VERIFICATION: ' test-only_Google-1 ',
+      BING_SITE_VERIFICATION: 'TESTONLYBING0123',
+      YANDEX_VERIFICATION: 'a'.repeat(128),
+    })
+    const env = getServerEnv()
+    expect(env.GOOGLE_SITE_VERIFICATION).toBe('test-only_Google-1')
+    expect(env.BING_SITE_VERIFICATION).toBe('TESTONLYBING0123')
+    expect(env.YANDEX_VERIFICATION).toBe('a'.repeat(128))
+  })
+
+  it('hatalı doğrulama kodunu reddeder', () => {
+    for (const value of ['a b', '<meta>', 'a"b', 'a.b', 'a'.repeat(129)]) {
+      withSiteEnv({ GOOGLE_SITE_VERIFICATION: value })
+      expect(() => getServerEnv(), value).toThrow(/GOOGLE_SITE_VERIFICATION/)
+    }
+    withSiteEnv({ YANDEX_VERIFICATION: 'x/y' })
+    expect(() => getServerEnv()).toThrow(/YANDEX_VERIFICATION/)
+  })
+})

@@ -1,5 +1,4 @@
 import type { DataAttribution } from '../../lib/map-config'
-import { TERMS_PATH } from '../../lib/terms'
 
 export interface DataAttributionNoticeProps {
   attribution: DataAttribution
@@ -7,6 +6,8 @@ export interface DataAttributionNoticeProps {
   prefix: string
   /** "Koşullar" (i18n `map.termsLink`). */
   termsLabel: string
+  /** Kullanım koşullarının sayfanın dilindeki adresi (`localePath(locale, TERMS_PATH)`). */
+  termsHref: string
 }
 
 /**
@@ -19,6 +20,7 @@ export function DataAttributionNotice({
   attribution,
   prefix,
   termsLabel,
+  termsHref,
 }: DataAttributionNoticeProps) {
   return (
     <p className="live-map__attrib">
@@ -31,7 +33,7 @@ export function DataAttributionNotice({
         {attribution.license}
       </a>
       {' · '}
-      <a href={TERMS_PATH}>{termsLabel}</a>
+      <a href={termsHref}>{termsLabel}</a>
     </p>
   )
 }

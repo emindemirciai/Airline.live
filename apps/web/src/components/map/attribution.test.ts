@@ -2,7 +2,9 @@ import { getMessages } from '@havayolu/i18n'
 import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
+import { localePath } from '../../lib/locale-routing'
 import { DATA_ATTRIBUTION } from '../../lib/map-config'
+import { TERMS_PATH } from '../../lib/terms'
 import {
   dataAttributionHtml,
   escapeHtml,
@@ -32,11 +34,21 @@ describe('dataAttributionHtml', () => {
 describe('mapCustomAttributionHtml', () => {
   it('canlı veri atfı ve kullanım koşulları bağlantısı tek girdidir (E204 §3.1c.5)', () => {
     const { dataAttributionPrefix, termsLink } = getMessages('tr').map
-    expect(termsLinkHtml(termsLink)).toBe('<a href="/kullanim-kosullari">Koşullar</a>')
-    expect(mapCustomAttributionHtml(DATA_ATTRIBUTION, dataAttributionPrefix, termsLink)).toBe(
+    expect(termsLinkHtml(termsLink, TERMS_PATH)).toBe('<a href="/kullanim-kosullari">Koşullar</a>')
+    expect(
+      mapCustomAttributionHtml(DATA_ATTRIBUTION, dataAttributionPrefix, termsLink, TERMS_PATH),
+    ).toBe(
       `${dataAttributionHtml(DATA_ATTRIBUTION, dataAttributionPrefix)} · <a href="/kullanim-kosullari">Koşullar</a>`,
     )
-    expect(termsLinkHtml('<b>')).toBe('<a href="/kullanim-kosullari">&lt;b&gt;</a>')
+    expect(termsLinkHtml('<b>', TERMS_PATH)).toBe('<a href="/kullanim-kosullari">&lt;b&gt;</a>')
+  })
+
+  it('İngilizce sayfada koşullar bağlantısı /en önekini taşır', () => {
+    const { termsLink } = getMessages('en').map
+    expect(termsLinkHtml(termsLink, localePath('en', TERMS_PATH))).toBe(
+      `<a href="/en/kullanim-kosullari">${termsLink}</a>`,
+    )
+    expect(termsLinkHtml('x', '/a"b')).toBe('<a href="/a&quot;b">x</a>')
   })
 })
 
@@ -44,10 +56,15 @@ describe('DataAttributionNotice (harita yokken)', () => {
   it('MapLibre atıf kutusundakiyle aynı metin ve bağlantılar', () => {
     const { dataAttributionPrefix: prefix, termsLink: termsLabel } = getMessages('tr').map
     const html = renderToStaticMarkup(
-      createElement(DataAttributionNotice, { attribution: DATA_ATTRIBUTION, prefix, termsLabel }),
+      createElement(DataAttributionNotice, {
+        attribution: DATA_ATTRIBUTION,
+        prefix,
+        termsLabel,
+        termsHref: TERMS_PATH,
+      }),
     )
     expect(html).toBe(
-      `<p class="live-map__attrib">${mapCustomAttributionHtml(DATA_ATTRIBUTION, prefix, termsLabel)}</p>`,
+      `<p class="live-map__attrib">${mapCustomAttributionHtml(DATA_ATTRIBUTION, prefix, termsLabel, TERMS_PATH)}</p>`,
     )
     expect(html).toContain('Canlı uçuş verisi: <a href="https://adsb.lol"')
     expect(html).toContain('<a href="/kullanim-kosullari">Koşullar</a>')

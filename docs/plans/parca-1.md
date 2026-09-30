@@ -17,7 +17,8 @@ Durumlar: `[ ]` başlamadı, `[~]` sürüyor, `[k]` kod bitti ve kullanıcı do�
 | M3 | Sağlayıcılar | `p1/m3-providers` | [x] | #10 |
 | M4 | Ingest, replay ve senaryo araçları | `p1/m4-ingest` | [k] kod bitti; üretimde adsb.lol çekimi kullanıcının iki ACTIVATION adımından (info@adsb.lol bildirimi, ardından `CONTACT_EMAIL`) sonra açılır | #11 |
 | M5 | Canlı API | `p1/m5-live-api` | [x] tamam; üretimde 5 dk boşta WS bağlantısı doğrulandı (2026-09-29) | #13 |
-| M6 | Web canlı harita | `p1/m6-map` | [k] kod bitti; üretimde uydu altlığı ve "Powered by Esri" doğrulaması bekliyor | #14 |
+| M6 | Web canlı harita | `p1/m6-map` | [x] tamam; üretimde uydu altlığı doğrulandı (2026-09-30) | #14 |
+| M6b | Havalimanı sayfaları, dil adreste (`/en`), SEO ve GEO | `p1/m6b-seo` | [k] kod bitti; Search Console, Bing ve Yandex doğrulaması kullanıcıda (ACTIVATION) | #15 |
 | M7 | Canlı araçlar ve kapsama raporu | `p1/m7-tools` | [ ] | — |
 
 ## M0 — Repo iskeleti ve yerel test ortamı
@@ -178,7 +179,7 @@ Spec boşlukları için alınan kararlar D-073'tedir; metrik birim kararı D-072
 - **`apps/worker/src/ingest/`:**
   - `rate.ts` (AIMD kova, geri çekilme, devre kesici)
   - `status.ts` (sağlayıcı durumu, tazelik p95)
-  - `plan.ts` (kapsama planı ve istek zamanlayıcı)
+  - `plan.ts` (kapsama planı ve istek zamanlayıcı; plan M6b'den beri `packages/geo/src/coverage.ts`'tedir, D-076)
   - `merge.ts`, `flights.ts`, `tracks.ts`
   - `writer.ts`, `index.ts` (döngüler, kapanış)
 - **`tools/`:** artık `@havayolu/tools` workspace paketi; imaja girmez
@@ -327,7 +328,7 @@ Spec boşlukları için alınan kararlar D-075'tedir. Uydu altlığı kullanıc�
   - analiz onay bandı (M1a'dan): onaysız script yok, "Kabul et" yükler, "Reddet" yüklemez, tercih alt bilgiden ve harita sayfasında harita denetimlerinden değişir, admin'de bant yok
   - `/kullanim-kosullari` 200 döner ve Esri maddesini içerir (E204 bağlantısı, ODbL); haritanın atıf satırındaki "Koşullar" bağlantısı sayfayı açar; site alt bilgisinde "Kullanım koşulları" bağlantısı var
 - `pnpm ci:full` yeşil; PR'da CI (`e2e` dahil) yeşil
-- **Kullanıcıya bağlı (`[k]`):** Esri anahtarı girilince https://havayolu.live haritası uydu görüntüsü ve "Powered by Esri" atfı gösterir; atıf satırındaki "Koşullar" bağlantısı https://havayolu.live/kullanim-kosullari'yi açar (ACTIVATION). Geçici kullanım koşullarının hukukçu incelemesi Parça 3 ACTIVATION satırındadır.
+- **Kullanıcıya bağlı (`[k]`):** Esri anahtarı girilince https://havayolu.live haritası uydu görüntüsü ve "Powered by Esri" atfı gösterir; atıf satırındaki "Koşullar" bağlantısı https://havayolu.live/kullanim-kosullari'yi açar (ACTIVATION). Geçici kullanım koşullarının hukukçu incelemesi Parça 3 ACTIVATION satırındadır. 2026-09-30 doğrulandı: üretimde (v0.9.0) uydu görüntüsü, 'Powered by Esri' atfı ve 'Koşullar' bağlantısı görünüyor; karolar 200.
 
 **Çıktı kaydı (2026-09-29):**
 - **Yöntem:** Arayüz sözleşmesi yazıldı; 5 paralel ajan ayrışık dosyalarda uyguladı (paylaşılan tipler ve `/v1/airports`, web mantık modülleri, MapLibre çizimi, paneller ve i18n, E2E/CI/belgeler), tek ajan birleştirdi.
@@ -350,6 +351,99 @@ Spec boşlukları için alınan kararlar D-075'tedir. Uydu altlığı kullanıc�
   - E2E: 17/17 (kurulum 1, onay 4, canlı harita 9, koşullar 3).
   - `compose:guard` yeşil; migration yükseltmesi 4 → 4 (M6'da migration yok).
 - `pnpm stats` → 361 dosya, 49.569 satır (43.835 kod).
+
+## M6b — Havalimanı sayfaları ve keşfedilebilirlik (SEO, GEO)
+Onay: 2026-09-29 (kullanıcı isteği: SEO/GEO, kararlar sohbette)
+
+Kararlar ve gerekçeler D-076'dadır. Kilometre taşı Parça 1'e sonradan eklendi. Parça 3 M2'nin dil yönlendirmesi buraya taşındı (`docs/prompts/parca-3.md`).
+
+**Kapsam:**
+- Dil adreste: Türkçe `/`, İngilizce `/en/...`; her genel sayfanın `/en` ikizi var. Dil çerezi emekliye ayrıldı; eski `/dil` bağlantıları önekli adrese 308 ile gider.
+- Yeni genel sayfalar: `/havalimanlari` (61 havalimanı), `/istasyon/<ICAO>` (veritabanındaki gerçek veri), `/hakkinda` (veri kaynakları ve yöntem).
+- Canonical ve hreflang (`x-default` İngilizce), robots.txt, site haritası, manifest, ikonlar, paylaşım (OG) görselleri, JSON-LD, `/llms.txt`, arama motoru doğrulama env'leri.
+- Havalimanı ayrıntı API'si: `include=runways` ve `GET /v1/airports/:code`.
+- Kapsam dışı: METAR/TAF (Parça 2 M2), istasyon operasyon panosu (Parça 3 M4), uçuş sayfası (Parça 3 M3b), service worker (Parça 3 M5), IndexNow (ayrı PR, kullanıcı onayıyla).
+
+**Dizinler ve dosyalar:**
+- **`packages/shared/src/`:** havalimanı ayrıntı tipleri (`AirportDetail`, `RunwayDetail`); `reference/`: `tr-provinces.ts` (ISO 3166-2:TR), `airport-names.ts` (resmî adlar; kaynak DHMİ, işletmeci ya da OurAirports), `runway-surface.ts`
+- **`packages/db/src/airports.ts`:** pistler, pist düzeltmeleri (alan alan `COALESCE`), istasyon bilgisi, `dataUpdatedAt`
+- **`apps/api/src/`:** `reference/airports.ts` (`include=runways`, `GET /v1/airports/:code`); `app.ts` (`GET /robots.txt` → `Disallow: /`, her yanıtta `X-Robots-Tag: noindex`)
+- **`apps/web/src/lib/`:**
+  - dil: `locale-routing.ts`, `locale.ts`, `safe-path.ts`, `admin-host.ts`
+  - `env.ts` (`WEB_HOST` üretimde zorunlu; üç doğrulama env'i), `airports.ts` (tek toplu istek, 1 saat önbellek)
+  - `seo/`: `metadata.ts` (`pageMetadata`, `siteUrl`), `structured-data.ts`, `robots.ts`, `sitemap.ts`, `llms.ts`, OG yardımcıları ve yazı tipleri
+- **`apps/web/src/proxy.ts`:** `/en/*` yeniden yazma, `/tr/*` → 308, dil ve yol başlıkları, `X-Robots-Tag`
+- **`apps/web/src/app/`:**
+  - sayfalar: `havalimanlari/page.tsx`, `istasyon/[icao]/page.tsx` + `opengraph-image.tsx`, `hakkinda/page.tsx`; mevcut sayfalarda `pageMetadata` ve JSON-LD; `admin/layout.tsx` (noindex, nofollow); `dil/route.ts` (308)
+  - kök dosyalar: `robots.ts`, `sitemap.ts`, `manifest.ts`, `icon.tsx`, `apple-icon.tsx`, `favicon.ico`, `og/site/route.ts`, `llms.txt/route.ts`
+  - `apps/web/public/robots.txt` silindi
+- **`apps/web/src/components/`:** `language-toggle.tsx` (düz `<a hreflang lang>`), `json-ld.tsx`, `airports/`, `about/`; `map/` (`?havalimani=<ICAO>`, `/en` önekini koruyan `?hex=`)
+- **`apps/web/`:** `next.config.ts` (`htmlLimitedBots: /.*/`, `outputFileTracingIncludes`), `assets/og-fonts/` (Overpass latin ve latin-ext `.woff`, OFL-1.1)
+- **`scripts/gen-favicon.mts`:** `favicon.ico` üretimi (yeni bağımlılık yok)
+- **`packages/i18n`:** `nav`, `seo`, `airports`, `airport`, `surface`, `about` (TR/EN)
+- **`e2e/`:** `tests/seo.spec.ts`, `tests/airports.spec.ts`, `tests/language.spec.ts`, `html.ts` (ham HTML, robots, site haritası ayrıştırıcıları); kurulum API'de 61 havalimanını bekler ve yeni sayfaları derletir
+- **Belgeler:** D-076; CLAUDE.md URL şeması; `docs/prompts/parca-3.md` M2 notu; ACTIVATION (Search Console, Bing Webmaster, Yandex Webmaster); REFERENCES; ATTRIBUTION (Overpass, paylaşım görselleri); `.env.example` ve `deploy/dokploy.env.example` (üç doğrulama env'i); `.claude/rules/web-ui.md`
+
+**Kabul komutları:**
+- `pnpm --filter @havayolu/shared test`:
+  - 81 il kodunun hepsi; fixture'daki her `iso_region` çözülür
+  - fixture'daki 61 havalimanının her biri için ad kaydı ya da açık OurAirports yedeği
+  - fixture'daki her pist kaplaması eşlenir
+- `pnpm --filter @havayolu/api test`:
+  - `GET /v1/airports/:code`: 400, 404, IATA ile arama, başlıklar, pist düzeltmeleri uygulanır, pistler sıralı
+  - `include=runways`
+  - API `GET /robots.txt` ve her yanıtta `X-Robots-Tag`
+- `pnpm test:integration` (önce `pnpm dev:infra`) → 61 havalimanı, 51'i indekslenebilir; LTFM 6 pist; her havalimanında en az bir pist; LTFM yönleri uç koordinatlarından
+- `pnpm --filter @havayolu/web test`:
+  - dil: `localeRouting`'in her dalı (`/en`, `/en/x`, `/english`, `/tr/x`, `/en/admin`, `/en/robots.txt`), `localePath`, `alternatesFor` (kendisi, tr, en, x-default); admin host'unda `/robots.txt` geçer; dil anahtarı (`?hex=` korunur, `/en` ↔ `/`); `safe-path` `/en` yolları
+  - env: doğrulama env'leri, üretimde `WEB_HOST` zorunlu
+  - SEO: `pageMetadata`; her fixture havalimanının başlığı ve açıklaması (açıklama 70–170 karakter; "rötar", "gecikme", "kalkış saati", "METAR", "meydan" yok); `JsonLd` `<` kaçışı; Airport düğümünde `iataCode`, `icaoCode` ve sayısal `geo`
+  - robots (web host'u politikası ve mutlak Sitemap, admin host'u `Disallow: /`), site haritası (adres sayısı = (indekslenebilir havalimanı + 5) × 2, mutlak, karşılıklı, noindex sayfa yok), llms.txt (`# havayolu` ile başlar, bağlantılar mutlak, indekslenebilir her havalimanı bir satır)
+  - paylaşım görseli çizilirken `fetch` hiç çağrılmaz (Google Fonts yedeği yok)
+- `pnpm --filter @havayolu/i18n test` → TR ve EN anahtarları ve yer tutucuları aynı
+- `pnpm test:e2e` (önce `pnpm dev:infra` ve `pnpm db:migrate`; `pnpm dev` kapalı):
+  - kurulum: API `/v1/airports?country=TR` 61 havalimanı döndürene kadar beklenir; `GET /v1/airports/ist` → LTFM, 6 pist
+  - `/`, `/havalimanlari`, `/istasyon/LTFM`, `/hakkinda`, `/yenilikler`, `/kullanim-kosullari` ve `/en` ikizleri: 200, doğru `<html lang>`, beklenen başlık, tek ve kendini gösteren mutlak canonical, karşılıklı tr/en/x-default hreflang (x-default İngilizce), `og:url` ve `og:locale`; GPTBot User-Agent'ıyla hepsi `<head>` içinde
+  - JSON-LD: her blok ayrıştırılır; ana sayfada `WebSite` + `Organization`, `SearchAction` yok; havalimanında `Airport` (IATA, ICAO, sayısal `geo`) ve sıralı `BreadcrumbList`; listede 61 öğelik sıralı `ItemList`; sayfa düğümünün `inLanguage` değeri `<html lang>` ile aynı
+  - yönlendirme ve durum kodları: `/istasyon/ltfm`, `/istasyon/IST` ve `/istasyon/ist` → 308 → `/istasyon/LTFM`; `/en/istasyon/ist` → `/en/istasyon/LTFM`; `/tr/durum` → `/durum`; `/dil?to=en&next=/durum` → 308 → `/en/durum` (`X-Robots-Tag`, `lang` çerezi silinir, site dışı hedef reddedilir; `next=/en//evil.example` ve `next=/tr//evil.example` de site içinde kalır); `/istasyon/ZZZZ` gerçek 404; `/en/admin`, `/en/robots.txt`, `/english` 404
+  - canonical ve noindex: `/?hex=ff0001` ve `/?havalimani=LTFM` canonical `/`; `/durum` ve resmî adı doğrulanamayan tarifesiz hava üssü (LTAG) `noindex, follow`; `/admin` ve `/admin/giris` `noindex, nofollow`
+  - kök dosyalar: robots.txt (tek `*` grubu, `Disallow: /admin`, yalnızca Bytespider grubu, mutlak `Sitemap:`); sitemap.xml (120 adres, LTFM için `xhtml:link` karşılıkları, `/durum` ve LTAG yok, iki istekte aynı); llms.txt; manifest ve ikonlar (PNG boyutları); `favicon.ico`; OG görselleri 1200×630 PNG (havalimanı görseli TR ve EN'de aynı); web `/api/version` ve API host'unun yanıtları `X-Robots-Tag: noindex`
+  - tarayıcı: dil anahtarı `/istasyon/LTFM` ↔ `/en/istasyon/LTFM` ve `lang` değişir; istemci geçişinden sonra anahtar yeni sayfayı gösterir; haritada `/?hex=ff0001` ↔ `/en?hex=ff0001`, seçim dil değişince korunur, EN haritada seçim adresi `/en?hex=`; EN sayfalardaki bütün site içi bağlantılar `/en` altında, TR sayfalarda hiçbiri
+  - `/havalimanlari` tablosunda 61 satır, satır havalimanı sayfasını açar; havalimanı sayfasında görünür yol, 6 satırlı pist tablosu, yakın havalimanları ve `/hakkinda` bağlantısı; "Canlı haritada aç" haritayı LTFM'de açar (taksi uçağı görünür, Esenboğa–Van uçağı görünmez); 320 px'te yatay kayma yok; klavye odak halkası açık ve koyu temada zemine karşı ≥ 3:1
+  - mevcut onay bandı, canlı harita ve kullanım koşulları testleri değişmeden geçer
+- `pnpm build` → metadata rotaları dinamik (build'e `WEB_HOST` gömülmez); `.next/standalone/apps/web/assets/og-fonts` var
+- `pnpm dev:replay` üzerinde elle: `curl` ile `/`, `/en`, `/havalimanlari`, `/en/havalimanlari`, `/istasyon/LTFM`, `/en/istasyon/LTFM`, `/istasyon/ist` (308), `/hakkinda`, `/robots.txt`, `/sitemap.xml`, `/llms.txt`, `/manifest.webmanifest`, `/icon/192`, OG görseli; `curl -A "GPTBot/1.2"` → başlık, canonical ve hreflang `<head>` içinde; API `GET /robots.txt` ve `X-Robots-Tag`
+- `pnpm ci:full` yeşil; PR'da CI (`e2e` dahil) yeşil
+- **Kullanıcıya bağlı (`[k]`):**
+  - Yayından sonra `curl -A "GPTBot/1.2" https://havayolu.live/istasyon/LTFM` → canonical ve hreflang `<head>` içinde; `curl https://api.havayolu.live/robots.txt` → `Disallow: /`.
+  - Google Search Console, Bing Webmaster Tools ve Yandex Webmaster doğrulaması ve site haritası gönderimi (ACTIVATION).
+
+**Sonuçlar (2026-10-01, entegrasyon):**
+- `pnpm ci:full` → yeşil: format, EOL, changelog, script ve e2e tip denetimi, e2e lint, `db:check`, `test:scripts` (31), lint, typecheck, build; `compose:guard` (8 servis, 64 anahtar); migration yükseltme (4 → 4).
+- Birim testleri: shared 46, i18n 31, geo 20, providers 89, db 32, worker 184, tools 74, api 197, web 416 (45 dosya).
+- `pnpm test:integration` → db 65, api 19, worker 11.
+- `pnpm test:e2e` → 58/58 (3 kurulum + 55 test, ~48 sn).
+- `pnpm build` → `robots.txt`, `sitemap.xml`, `manifest.webmanifest`, `llms.txt`, `/og/site`, `/istasyon/[icao]/opengraph-image` ve bütün sayfalar dinamik (ƒ); `/icon/192`, `/icon/512` (●), `/apple-icon` ve `favicon.ico` build'de üretilir. `.next/standalone/apps/web/assets/og-fonts` dört `.woff` ve `OFL.txt` ile var.
+- Standalone üretim sunucusu (yan port 3190, `APP_ENV=production`, `WEB_HOST=localhost:3190`): `Sitemap:` satırı, site haritası ve canonical adresler çalışma zamanındaki `WEB_HOST`'u kullanır (build'e gömülmez); `/en/istasyon/LTFM` `lang="en"` ve EN canonical ile döner; havalimanı ve site OG görselleri `Cache-Control: public, max-age=86400`'ü korur.
+- `pnpm dev:replay` üzerinde curl:
+  - GPTBot User-Agent'ıyla `/`, `/en`, `/havalimanlari`, `/istasyon/LTFM`, `/hakkinda`, `/yenilikler`, `/kullanim-kosullari` ve EN ikizleri: 200, doğru `lang`; başlık, tek canonical, tr/en/x-default hreflang ve `og:url` `<head>` içinde; JSON-LD sayfa gövdesinde (`<main>`; React satır içi betiği `<head>`'e taşımaz, Google için yeri önemsizdir); `/durum`, `/en/durum` ve LTAG `noindex, follow`; `/?hex=ff0001` ve `/en?havalimani=LTFM` canonical `/` ve `/en`.
+  - `/istasyon/ist` → 308 `/istasyon/LTFM`; `/en/istasyon/ltfm` → 308 `/en/istasyon/LTFM`; `/istasyon/ZZZZ` → 404 (`noindex`); `/en/admin`, `/en/robots.txt` → 404; `/tr/durum?x=1` → 308 `/durum?x=1`; `/dil?to=en&next=/durum` → 308 `/en/durum` (`X-Robots-Tag: noindex`, `lang` çerezi silinir; `next=//evil.com` → `/en`).
+  - `/robots.txt` tek `*` grubu + Bytespider; `/sitemap.xml` geçerli XML, 112 adres, 336 `xhtml:link`; `/llms.txt` 51 havalimanı satırı; manifest, `/icon/192`, `/icon/512`, `/apple-icon`, `favicon.ico`, `/og/site` ve havalimanı OG görseli 200 ve doğru içerik türü; web `/api/version` `X-Robots-Tag: noindex`.
+  - API: `GET /robots.txt` → `Disallow: /`; `/v1/airports/ist` 200, `zzzz` 404, `x1` 400; bütün yanıtlarda (404 dahil) `X-Robots-Tag: noindex`.
+- Bilinen sınır: `/istasyon/<bilinmeyen>` 404'ünün sunucu HTML'i Next'in boş hata kabuğudur (`<html id="__next_error__">`); 404 sayfası tarayıcıda çizilir (D-076 → "Gerçek 404").
+
+**İnceleme düzeltmeleri (2026-10-01; doğrulanan 20 bulgu, tekilleştirilince 16 sorun, hepsi düzeltildi, ayrıntı D-076):**
+- `/dil` açık yönlendirmesi (`next=/en//evil.example` → `//evil.example`) kapatıldı; proxy'de `/tr//…` ve `/en//…` 404.
+- Kök dosyalar yeniden proxy'den geçer: www'de 308, admin host'unda `X-Robots-Tag` ve `/admin` yönlendirmesi (site haritası, llms.txt, OG).
+- Boş havalimanı listesi saatlik önbellekte kalırsa dakikalık ikinci kayıt okunur; önbelleksiz istek yok.
+- Dizine ekleme: tarifeli ya da istasyon ya da resmî adı doğrulanmış sivil havalimanı (fixture'da 55; noindex 6 askerî üs). OurAirports tarifeli sefer ve pist ışıklandırması bayrakları kaynağa atfedilir, "Yok" denmez.
+- Kapsama planı `packages/geo/src/coverage.ts`'e taşındı; çekim alanı dışındaki havalimanı (LTCW) canlı haritada uçak vaat etmez, `/hakkinda` onu veriden listeler.
+- `/hakkinda` ve llms.txt: "her hesaplanan değer tahmini etiketlidir" cümlesi kaldırıldı; birincil çember 40 NM; durum satırı birincil istasyonun veri yaşını gösterir.
+- İngilizce adlar çeviri olarak atfedilir; ham OurAirports yerleşimi (Istanbul(Bakırköy) vb.) sayfada ve JSON-LD'de yok; açık temada odak halkası `#1f5fd1` (5,4:1).
+- Site haritası E2E'sindeki `lastmod` denetimi gün biçimli tarihlerde İstanbul takvimine göre kıyaslar (00:00–03:00 arası kırmızı olmaz).
+- `pnpm ci:full` → yeşil. Birim testleri: shared 49, i18n 31, geo 31, providers 89, db 32, worker 175 (kapsama planı testleri geo'ya taşındı), tools 74, api 197, web 442 (46 dosya), scripts 31. `test:integration` → db 65, api 19, worker 11. Migration yükseltme 4 → 4. `compose:guard` 8 servis, 64 anahtar. `test:e2e` → 59/59 (3 kurulum + 56 test). Site haritası artık 120 adres, llms.txt 55 havalimanı satırı.
+- **Bağımsız denetim:** 20 bulgunun hepsi düzeltilmiş bulundu. `/dil` için 53 düşmanca girdiyle (424 çağrı, 25 proxy yolu) atlatma denendi, site dışına giden yönlendirme yok. 16 mutasyonun 15'i testlerce yakalandı (16. satır başka denetimle zaten kapalı). Denetimin bulduğu, `main`'de de olan bir sorun düzeltildi: `next` "ş" gibi Latin-1 dışı karakter içerince `/dil` 500 dönüyordu; hedef artık yüzde kodlanır (test eklendi).
+- `pnpm stats` → 434 dosya, 60.942 satır (54.417 kod).
 
 ## M7 — Canlı araçlar ve kapsama raporu
 Ayrıntılar `docs/prompts/parca-1.md`'dedir. Başlarken bu dosyaya dizinler ve kabul komutları eklenir.

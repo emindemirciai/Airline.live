@@ -12,7 +12,7 @@ import { getLocale } from '@/lib/locale'
 import { logoutAction } from './actions'
 
 export async function generateMetadata(): Promise<Metadata> {
-  return { title: getMessages(await getLocale()).admin.servicesTitle, robots: { index: false } }
+  return { title: getMessages(await getLocale()).admin.servicesTitle }
 }
 
 type AdminMessages = Messages['admin']
