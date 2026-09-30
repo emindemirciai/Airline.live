@@ -74,7 +74,7 @@ export const ROADMAP: readonly Milestone[] = [
   {
     id: 'p1-m6',
     part: '1',
-    status: 'planned',
+    status: 'done',
     title: { tr: 'Canlı harita ve arama', en: 'Live map and search' },
   },
   {

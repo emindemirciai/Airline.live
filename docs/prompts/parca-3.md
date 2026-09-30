@@ -137,7 +137,7 @@ Onay gelmeden sayfa yapımına geçilmez.
 ## M6a — Yasal sayfalar ve açık veri (`p3/m6a-legal`)
 Metinler uygulamanın gerçek veri akışlarını anlatır: ADSB.lol, analiz uygulaması, push servisleri, SMTP, yedek deposu. Hukuki inceleme dış aktivasyon adımıdır.
 - KVKK aydınlatma metni ve gizlilik politikası (`/gizlilik`). Analiz: onaylı, `localStorage` kimliği, IP konum sorgusu kapalı.
-- Kullanım koşulları: ADS-B türevi verinin yeniden kullanımını yasaklamaz (ODbL 4.7).
+- Kullanım koşulları: ADS-B türevi verinin yeniden kullanımını yasaklamaz (ODbL 4.7). Parça 1 M6'da yayımlanan geçici `/kullanim-kosullari` bu metinle genişletilir; adres, Esri şartlarına uyma maddesi (E204 §3.1c.5) ve harita atıf satırındaki bağlantı korunur (D-075).
 - Veri kaynakları ve atıflar.
 - Uçak gizliliği kaldırma talebi formu.
 - **`/hesap-silme`** (giriş gerektirmez, TR/EN): uygulamanın adını anar, neyin silinip neyin tutulduğunu açıklar ve e-posta doğrulamasıyla silme talebi alır. Google Play Data safety formuna bu URL yazılır.

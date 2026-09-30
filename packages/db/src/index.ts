@@ -1,4 +1,5 @@
 export * from './airlines'
+export * from './airports'
 export * from './blocklist'
 export * from './client'
 export * from './ingest'

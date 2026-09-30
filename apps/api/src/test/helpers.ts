@@ -321,6 +321,7 @@ export async function testApp(
     rateLimitRedis: null,
     live: { source: null, codes: () => EMPTY_AIRLINE_CODES },
     blocklistRedis: null,
+    airports: { list: null },
     ...options.deps,
   })
   return { app, store }

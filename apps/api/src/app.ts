@@ -15,6 +15,7 @@ import { registerLiveRoutes } from './live/routes'
 import type { LiveSource } from './live/types'
 import { registerLiveWs } from './live/ws'
 import { clientIp } from './net/client-ip'
+import { registerAirportRoutes, type AirportRouteOptions } from './reference/airports'
 
 export interface VersionInfo {
   app: 'havayolu'
@@ -40,6 +41,8 @@ export interface AppDeps {
   live: { source: LiveSource | null; codes: () => AirlineCodes; ready?: () => boolean }
   /** Hex engel listesinin deposu (redis-queue); yoksa admin engel listesi uçları 503. */
   blocklistRedis: Redis | null
+  /** Harita havalimanları (`/v1/airports`); `list` null ise (veritabanı yok) 503. */
+  airports: AirportRouteOptions
 }
 
 /** CORS izinli origin'leri: web ve admin host'ları (yerelde http, diğerlerinde https). */
@@ -96,6 +99,7 @@ export async function buildApp(env: Env, deps: AppDeps): Promise<FastifyInstance
         { name: 'auth', description: 'Yönetici oturumu (platform-admin sözleşmesi)' },
         { name: 'admin', description: 'Yönetim' },
         { name: 'live', description: 'Canlı uçaklar ve arama (WebSocket: /v1/ws)' },
+        { name: 'reference', description: 'Referans verisi (havalimanları)' },
       ],
     },
   })
@@ -168,6 +172,8 @@ export async function buildApp(env: Env, deps: AppDeps): Promise<FastifyInstance
   // Canlı veri: REST, arama ve WebSocket aynı önbellekten okur (D-074).
   registerLiveRoutes(app, deps.live)
   registerLiveWs(app, { source: deps.live.source, ready: deps.live.ready, env, log: app.log })
+  // Haritadaki havalimanları (OurAirports referans verisi).
+  registerAirportRoutes(app, deps.airports)
 
   return app
 }

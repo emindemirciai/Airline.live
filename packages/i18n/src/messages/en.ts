@@ -5,11 +5,98 @@ export const en: Messages = {
     description: 'Türkiye-focused live flight tracking with station approach and landing alerts.',
   },
   nav: {
+    map: 'Map',
     status: 'Status',
     changelog: 'What’s new',
     language: 'Language',
     switchTo: 'Türkçe',
     mainLabel: 'Main menu',
+  },
+  map: {
+    title: 'Live map',
+    mapLabel: 'Live flight map',
+    webglUnavailable:
+      'This browser cannot draw the map (WebGL2 is unsupported or turned off). You can still find aircraft with the search box and the aircraft list.',
+    loading: 'Loading map…',
+    nav: 'Map',
+    dataAttributionPrefix: 'Live flight data:',
+    termsLink: 'Terms',
+    search: {
+      label: 'Search aircraft',
+      placeholder: 'Flight number, callsign, registration or hex',
+      submit: 'Search',
+      searching: 'Searching…',
+      notFound:
+        'This flight is not airborne right now or is flying under a different callsign; try searching by registration.',
+      error: 'Search is not available right now. Try again shortly.',
+      rateLimited: 'Too many searches in a short time. Try again in a minute.',
+      pick: 'More than one aircraft matched; pick one.',
+      flightNumberNote:
+        'The flight number is derived from the callsign the aircraft broadcasts. Flights that use an alphanumeric callsign (e.g. THY4KN) cannot be found by flight number; search by callsign or registration.',
+      results: 'Search results',
+    },
+    card: {
+      close: 'Close',
+      follow: 'Centre on aircraft',
+      following: 'The map keeps this aircraft centred.',
+      flight: 'Flight number',
+      callsign: 'Callsign',
+      registration: 'Registration',
+      type: 'Aircraft type',
+      altitude: 'Altitude',
+      speed: 'Ground speed',
+      verticalRate: 'Vertical speed',
+      track: 'Track',
+      squawk: 'Transponder code',
+      lastSeen: 'Last seen',
+      secondsAgo: '{s} s ago',
+      minutesAgo: '{m} min ago',
+      source: 'Data source',
+      positionSource: 'Position source',
+      hex: 'Hex code',
+      sources: {
+        adsbLol: 'ADSB.lol',
+        localReceiver: 'Local receiver',
+      },
+    },
+    table: {
+      caption: 'Aircraft visible on the map',
+      captionLimited: 'Aircraft visible on the map (first {shown} of {total})',
+      flight: 'Flight',
+      type: 'Type',
+      altitude: 'Altitude',
+      speed: 'Speed',
+      position: 'Position',
+      empty: 'No aircraft are visible in this area right now.',
+      show: 'Show aircraft list',
+      hide: 'Hide aircraft list',
+      select: 'Select {flight}',
+    },
+    labels: {
+      button: 'Labels',
+      title: 'Label settings',
+      selected: 'Selected aircraft',
+      others: 'Other aircraft',
+      hidden: 'Hide',
+      short: 'Short',
+      full: 'Full',
+      hint: 'Short: flight number only. Full: flight number, speed and altitude.',
+    },
+    status: {
+      freshness: 'Data age {s} s',
+      connecting: 'Connecting to live data…',
+      reconnecting: 'Connection lost; reconnecting…',
+      offline:
+        'Cannot reach the live data server. Check your internet connection; we keep retrying.',
+      noProvider:
+        'The live data source is switched off right now; no aircraft are shown on the map.',
+      providerDegraded: 'The live data source is slow; positions may arrive late.',
+      providerDown:
+        'The live data source is not responding; positions on the map may be out of date.',
+      coverageNone: 'This area is outside our coverage; no aircraft appear here.',
+      coveragePartial: 'Part of this area is outside our coverage; some aircraft may be missing.',
+      basemapFailed: 'The base map could not be loaded.',
+    },
   },
   status: {
     title: 'System status',
@@ -39,10 +126,6 @@ export const en: Messages = {
     current: 'Current version',
     tryIt: 'Try it',
     released: 'Released',
-  },
-  footer: {
-    dataAttributionPrefix: 'Live flight data:',
-    license: 'licensed under',
   },
   admin: {
     title: 'Administration',
@@ -140,8 +223,57 @@ export const en: Messages = {
   errors: {
     notFoundTitle: 'Page not found',
     notFoundBody:
-      'The page you are looking for does not exist or has moved. Continue from the status page.',
-    goToStatus: 'Go to status page',
+      'The page you are looking for does not exist or has moved. Continue from the live map.',
+    goToMap: 'Back to the map',
+  },
+  terms: {
+    title: 'Terms of use',
+    effective: 'Effective date: {date}',
+    interim:
+      'This is an interim text; full terms of use and a privacy policy will be published soon.',
+    service: {
+      heading: 'The service',
+      about:
+        '{app} is a public, free flight tracking service focused on Türkiye. Aircraft positions come from the ADS-B signals that aircraft broadcast, for some aircraft from multilateration (MLAT), and are for information only.',
+      notOperational:
+        'Do not use the service for operational, navigation or flight safety decisions.',
+      noWarranty:
+        'We do not guarantee that the data is accurate, complete or always available; the service is provided “as is”.',
+    },
+    data: {
+      heading: 'Data',
+      live: 'Live aircraft positions come from {source} and are licensed under the {license}.',
+      odbl: 'These terms do not restrict the rights the ODbL gives you over data derived from ADS-B.',
+      airports: 'Airport data comes from {source} and is in the public domain.',
+    },
+    map: {
+      heading: 'Map imagery',
+      esri: 'When the satellite map is shown, its imagery is provided by Esri. By using the map you agree to comply with Esri’s applicable terms: the {platform} and the {productTerms}.',
+      esriPlatform: 'ArcGIS Location Platform agreement (E204)',
+      esriProductTerms: 'Product-Specific Terms of Use (E300)',
+      tiles:
+        'Satellite map tiles (Esri) are for viewing on this site only: you may not download, scrape, cache or store them (beyond your browser’s standard cache) or redistribute them.',
+      vector:
+        'When the vector map is shown, it is provided by {openFreeMap} or a backup vector map. Map data: © {openMapTiles}, © {openStreetMap} contributors (ODbL).',
+    },
+    use: {
+      heading: 'Acceptable use',
+      bulk: 'Do not use automated tools to collect data in bulk from the site or the API beyond the rate limits the API reports.',
+      disrupt: 'Do not attempt to disrupt the service.',
+    },
+    privacy: {
+      heading: 'Aircraft privacy',
+      military: 'Military aircraft are not shown on the map, in search or in the API.',
+      registration: 'Registrations of aircraft in the PIA or LADD programmes are not shown.',
+    },
+    code: {
+      heading: 'Source code and name',
+      license: 'The app’s source code is licensed under the MIT License.',
+    },
+    changes: {
+      heading: 'Changes',
+      body: 'These terms may be updated; when they are, the effective date above changes.',
+    },
   },
   legal: {
     owner: '{app} · © {year} {owner} ({ownerUrl}) · Source code: {repoUrl}',
