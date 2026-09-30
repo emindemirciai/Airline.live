@@ -1,6 +1,6 @@
 import { CHANGELOG } from '@havayolu/shared'
 import { afterAll, describe, expect, it } from 'vitest'
-import { allowedOrigins } from './app'
+import { allowedOrigins, API_ROBOTS_TAG, API_ROBOTS_TXT } from './app'
 import { EnvError, parseEnv } from './env'
 import { testApp, testEnv } from './test/helpers'
 
@@ -92,6 +92,77 @@ describe('sistem uç noktaları', () => {
   it('bilinmeyen yol 404 döner', async () => {
     const res = await app.inject({ method: 'GET', url: '/yok' })
     expect(res.statusCode).toBe(404)
+  })
+})
+
+describe('arama motorları (M6b)', () => {
+  it('/robots.txt bütün yolları kapatır; düz metin, hız sınırsız', async () => {
+    const res = await app.inject({ method: 'GET', url: '/robots.txt' })
+    expect(res.statusCode).toBe(200)
+    expect(res.headers['content-type']).toBe('text/plain; charset=utf-8')
+    expect(res.headers['cache-control']).toBe('public, max-age=86400')
+    expect(res.headers['x-ratelimit-limit']).toBeUndefined()
+    expect(res.body).toBe(API_ROBOTS_TXT)
+    expect(res.body).toBe('User-agent: *\nDisallow: /\n')
+  })
+
+  it('her yanıtta X-Robots-Tag: noindex (başarı, 4xx, 5xx, robots.txt, OpenAPI)', async () => {
+    const requests = [
+      { url: '/health', status: 200 },
+      { url: '/robots.txt', status: 200 },
+      { url: '/openapi.json', status: 200 },
+      { url: '/yok', status: 404 },
+      { url: '/v1/airports?country=tr', status: 400 },
+      { url: '/v1/airports/LT-M', status: 400 },
+      // testApp'te veritabanı yok: havalimanı uçları 503.
+      { url: '/v1/airports', status: 503 },
+      { url: '/v1/airports/LTFM', status: 503 },
+      { url: '/v1/admin/services', status: 401 },
+    ]
+    for (const { url, status } of requests) {
+      const res = await app.inject({ method: 'GET', url })
+      expect(res.statusCode, url).toBe(status)
+      expect(res.headers['x-robots-tag'], url).toBe(API_ROBOTS_TAG)
+    }
+    expect(API_ROBOTS_TAG).toBe('noindex')
+    const options = await app.inject({
+      method: 'OPTIONS',
+      url: '/v1/airports',
+      headers: { origin: 'https://example.com', 'access-control-request-method': 'GET' },
+    })
+    expect(options.headers['x-robots-tag']).toBe(API_ROBOTS_TAG)
+  })
+
+  it('hız sınırı aşılınca da (429) X-Robots-Tag gönderilir', async () => {
+    const { app: limited } = await testApp()
+    try {
+      let last = await limited.inject({ method: 'GET', url: '/v1/airports/LTFM' })
+      for (let i = 0; i < 60 && last.statusCode !== 429; i++) {
+        last = await limited.inject({ method: 'GET', url: '/v1/airports/LTFM' })
+      }
+      expect(last.statusCode).toBe(429)
+      expect(last.headers['x-robots-tag']).toBe(API_ROBOTS_TAG)
+    } finally {
+      await limited.close()
+    }
+  })
+
+  it('/openapi.json havalimanı uçlarını içerir; robots.txt belgelenmez', async () => {
+    const spec = (await app.inject({ method: 'GET', url: '/openapi.json' })).json() as {
+      paths: Record<
+        string,
+        Record<string, { tags?: string[]; parameters?: { name: string; in: string }[] }>
+      >
+    }
+    expect(spec.paths['/v1/airports/{code}']?.get?.tags).toEqual(['reference'])
+    expect(spec.paths['/v1/airports/{code}']?.get?.parameters).toEqual(
+      expect.arrayContaining([expect.objectContaining({ name: 'code', in: 'path' })]),
+    )
+    expect(spec.paths['/v1/airports']?.get?.parameters?.map((p) => p.name).sort()).toEqual([
+      'country',
+      'include',
+    ])
+    expect(spec.paths['/robots.txt']).toBeUndefined()
   })
 })
 

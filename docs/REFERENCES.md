@@ -23,6 +23,44 @@ Bir şeyi doğrulaman gerekiyorsa önce buradaki kaynakları kullan. Yeni bir ka
 - Statik temel harita karoları (World Imagery karo adresi): https://developers.arcgis.com/rest/static-basemap-tiles/
 - API anahtarı güvenliği (referrer kısıtı, yetki, süre): https://developers.arcgis.com/documentation/security-and-authentication/security-best-practices/
 
+## Resmî havalimanı adları (erişim 2026-09-30; D-076)
+- DHMİ "Havalimanları Web Siteleri" listesi (resmî Türkçe adlar; `airport-names.ts` → `source: 'dhmi'`): https://www.dhmi.gov.tr/Sayfalar/HavalimaniListesi.aspx · bağlandığı sayfa: https://www.dhmi.gov.tr/Sayfalar/Havalimanlari.aspx · havalimanı sayfaları `https://www.dhmi.gov.tr/Sayfalar/Havalimani/<Ad>/AnaSayfa.aspx` biçimindedir
+- DHMİ İngilizce sitesi: https://www.dhmi.gov.tr/Sayfalar/EN/DefaultEN.aspx · havalimanı listesi https://www.dhmi.gov.tr/Sayfalar/EN/Airports.aspx (erişim 2026-10-01). İngilizce görünen adların kaynağı **değildir**: liste tutarsızdır ("DALAMAN AIRPORT", "MUS AIRPORT", "CUKUROVA AİRPORT", "MUĞLA-MİLAS BODRUM AIRPORT"). `airport-names.ts`'teki İngilizce adlar resmî Türkçe adın çevirisidir; İngilizce sayfalar resmî Türkçe adı ve kaynağını ayrıca yazar (D-076).
+- İşletmeci siteleri (`source: 'operator'`):
+  - İstanbul Havalimanı (İGA, LTFM): https://www.istairport.com/
+  - İstanbul Sabiha Gökçen (ISG, LTFJ): https://www.sabihagokcen.aero/anasayfa
+  - Gazipaşa-Alanya (LTFG): http://www.gzpairport.com/tr-TR/
+  - Zafer (LTBZ): http://www.zafer.aero/
+  - Eskişehir Hasan Polatkan (Eskişehir Teknik Üniversitesi, LTBY): https://hph.eskisehir.edu.tr/
+- **Kullanılmaz:** SHGM listesi https://web.shgm.gov.tr/doc2/havlist.pdf. 2006 tarihli bir tablo dışa aktarımıdır ("HAVAALANLARI TABLOSU.xls", 2006-11-20) ve İstanbul Havalimanı'ndan (2018) eskidir.
+- OurAirports veri sözlüğü (pist kaplama kodları; `runway-surface.ts`): https://ourairports.com/help/data-dictionary.html
+
+## Arama motorları, yapay zekâ tarayıcıları ve yapılandırılmış veri (erişim 2026-09-29; D-076)
+- **Google Search Central:**
+  - Yerelleştirilmiş sürümler, hreflang, x-default, tam adres, kendini listeleme: https://developers.google.com/search/docs/specialty/international/localized-versions
+  - Yerele göre uyarlanan sayfalar (dili tahmin etme, ayrı adres kullan): https://developers.google.com/search/docs/specialty/international/locale-adaptive-pages
+  - Google tarayıcıları ve Google-Extended: https://developers.google.com/search/docs/crawling-indexing/google-common-crawlers
+  - robots.txt: https://developers.google.com/search/docs/crawling-indexing/robots/robots_txt
+  - Site haritası ve `lastmod`: https://developers.google.com/search/docs/crawling-indexing/sitemaps/build-sitemap
+  - Site içi arama kutusunun kaldırılması (2024-11-21): https://developers.google.com/search/blog/2024/10/sitelinks-search-box
+  - Yapılandırılmış veri kuralları (görünmeyen içerik işaretlenmez): https://developers.google.com/search/docs/appearance/structured-data/sd-policies
+  - Spam politikaları (kapı sayfaları, ölçekli içerik): https://developers.google.com/search/docs/essentials/spam-policies
+  - Yapay zekâ özellikleri rehberi (llms.txt kullanılmaz): https://developers.google.com/search/docs/fundamentals/ai-optimization-guide
+  - Search Console: https://search.google.com/search-console
+- **Yandex:**
+  - Dil sürümleri (HTML hreflang ve x-default desteklenir; site haritasındaki dil sürümleri desteklenmez): https://yandex.com/support/webmaster/yandex-indexing/locale-pages.html
+  - `Clean-param`: https://yandex.com/support/webmaster/robot-workings/clean-param.html
+  - Yandex Webmaster: https://webmaster.yandex.com/
+- Bing Webmaster Tools: https://www.bing.com/webmasters
+- RFC 9309 Robots Exclusion Protocol (grup eşleştirme, §2.2.1): https://www.rfc-editor.org/rfc/rfc9309.html
+- **Tarayıcı belgeleri:** OpenAI https://developers.openai.com/api/docs/bots · Anthropic https://support.claude.com/en/articles/8896518 · Perplexity https://docs.perplexity.ai/guides/bots · Apple https://support.apple.com/en-us/119829 · Meta https://developers.facebook.com/docs/sharing/webmasters/web-crawlers/ · Amazon https://developer.amazon.com/amazonbot · Common Crawl https://commoncrawl.org/ccbot
+- schema.org: https://schema.org/Airport · https://schema.org/elevation (yalın sayı metre sayılır) · https://schema.org/BreadcrumbList · https://schema.org/ItemList
+- llms.txt önerisi (2024-09-03): https://llmstxt.org/
+- IndexNow (şimdilik kullanılmıyor): https://www.indexnow.org/documentation
+- Türkiye arama motoru payları: https://gs.statcounter.com/search-engine-market-share/all/turkey
+- **Next.js 16.3** (paketle gelen belgeler, `apps/web/node_modules/next/dist/docs/01-app/`): `03-api-reference/04-functions/use-pathname.md` (yeniden yazmada hidrasyon farkı), `03-api-reference/03-file-conventions/01-metadata/` (`robots.md` → `rules[].other`, `sitemap.md`, `opengraph-image.md`, `manifest.md`, `app-icons.md`), `02-guides/json-ld.md`, `03-api-reference/05-config/01-next-config-js/htmlLimitedBots.md`
+- Overpass yazı tipi (OFL-1.1): https://github.com/RedHatOfficial/Overpass · paket: https://fontsource.org/fonts/overpass
+
 ## Yayın ve altyapı
 - Dokploy API: https://docs.dokploy.com/docs/api · Compose referansı: https://docs.dokploy.com/docs/api/reference-compose
 - Dokploy Compose domain'leri: https://docs.dokploy.com/docs/core/docker-compose/domains

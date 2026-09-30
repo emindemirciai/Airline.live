@@ -1,0 +1,118 @@
+import type * as AirportsModule from '../../lib/airports'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { airportFixture, runwayFixture } from '../../lib/test/airport-fixture'
+import { GET } from './route'
+
+vi.mock('server-only', () => ({}))
+const connection = vi.hoisted(() => vi.fn(async () => undefined))
+const getAirports = vi.hoisted(() => vi.fn())
+vi.mock('next/server', () => ({ connection }))
+vi.mock('../../lib/airports', async (importOriginal) => ({
+  ...(await importOriginal<typeof AirportsModule>()),
+  getAirports,
+}))
+
+const AIRPORTS = [
+  airportFixture({
+    icao: 'LTFM',
+    iata: 'IST',
+    name: 'Istanbul Airport',
+    isoRegion: 'TR-34',
+    station: { active: true, primary: true, fetchRadiusNm: 60 },
+    runways: [1, 2, 3, 4, 5, 6].map((id) => runwayFixture({ id })),
+  }),
+  airportFixture({
+    icao: 'LTAC',
+    iata: 'ESB',
+    name: 'Esenboğa International Airport',
+    isoRegion: 'TR-06',
+  }),
+  airportFixture({ icao: 'LTAG', iata: 'ADA', scheduled: false, isoRegion: 'TR-01' }),
+]
+const HOST = 'https://havayolu.live'
+
+beforeEach(() => {
+  vi.stubEnv('APP_ENV', 'test')
+  vi.stubEnv('APP_NAME', 'havayolu')
+  vi.stubEnv('WEB_HOST', 'havayolu.live')
+  getAirports.mockResolvedValue(AIRPORTS)
+})
+
+afterEach(() => {
+  vi.unstubAllEnvs()
+  connection.mockClear()
+  getAirports.mockReset()
+})
+
+async function llms(): Promise<{ response: Response; text: string }> {
+  const response = await GET()
+  return { response, text: await response.text() }
+}
+
+describe('GET /llms.txt', () => {
+  it('düz metin, UTF-8; önce connection() çağrılır', async () => {
+    const { response } = await llms()
+    expect(connection).toHaveBeenCalledTimes(1)
+    expect(response.headers.get('content-type')).toBe('text/plain; charset=utf-8')
+  })
+
+  it('llms.txt biçimi: # başlık, > özet, ## bölümler, sonda Optional', async () => {
+    const { text } = await llms()
+    const lines = text.split('\n')
+    expect(lines[0]).toBe('# havayolu')
+    expect(lines[2]?.startsWith('> ')).toBe(true)
+    const headings = lines.filter((l) => l.startsWith('## '))
+    expect(headings).toEqual([
+      '## Harita / Map',
+      '## Havalimanları / Airports',
+      '## Hakkında / About',
+      '## Optional',
+    ])
+    expect(text).toContain('ADSB.lol')
+    expect(text).toContain('ODbL')
+  })
+
+  it('her bağlantı sitenin mutlak adresidir (dış kaynak atıfları hariç)', async () => {
+    const { text } = await llms()
+    const links = [...text.matchAll(/\]\(([^)]+)\)/g)].map((m) => m[1] ?? '')
+    expect(links.length).toBeGreaterThan(10)
+    const external = [
+      'https://adsb.lol',
+      'https://opendatacommons.org/',
+      'https://ourairports.com/',
+    ]
+    for (const link of links) {
+      const ok = link.startsWith(`${HOST}/`) || external.some((e) => link.startsWith(e))
+      expect(ok, link).toBe(true)
+    }
+    expect(links).toEqual(expect.arrayContaining([`${HOST}/`, `${HOST}/en`, `${HOST}/hakkinda`]))
+  })
+
+  it('dizine eklenen her havalimanı için tek satır; noindex havalimanı yok', async () => {
+    const { text } = await llms()
+    const airportLines = text.split('\n').filter((l) => l.includes('/istasyon/'))
+    expect(airportLines).toHaveLength(2)
+    expect(text).not.toContain('LTAG')
+    expect(airportLines).toContain(
+      `- [İstanbul Havalimanı (IST/LTFM)](${HOST}/istasyon/LTFM): İstanbul; 6 pist; izlenen istasyon; English: [Istanbul Airport](${HOST}/en/istasyon/LTFM)`,
+    )
+    // İl sırası Türkçe alfabeyle: Ankara, İstanbul.
+    expect(airportLines[0]).toContain('(ESB/LTAC)')
+  })
+
+  it('kodun doğrulamadığı "her hesaplanan değer tahmini etiketlidir" iddiasını taşımaz', async () => {
+    const { text } = await llms()
+    expect(text).not.toMatch(/“tahmini” etiketi|labelled “estimated”/)
+    // Tarifesiz ama resmî adı DHMİ'den doğrulanan sivil havalimanı da listelenir (D-076).
+    getAirports.mockResolvedValue([
+      ...AIRPORTS,
+      airportFixture({ icao: 'LTCL', iata: 'SXZ', scheduled: false, isoRegion: 'TR-56' }),
+    ])
+    expect((await llms()).text).toContain(`(${HOST}/istasyon/LTCL)`)
+  })
+
+  it('e-posta ya da kişisel veri içermez', async () => {
+    const { text } = await llms()
+    expect(text).not.toMatch(/@[a-z0-9-]+\.[a-z]/i)
+  })
+})

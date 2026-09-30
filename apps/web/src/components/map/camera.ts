@@ -12,6 +12,9 @@ export const TURKEY_ZOOM = 5.3
 /** Search, tablo ve `?hex=` seçiminde en az bu yakınlaştırmaya uçulur. */
 export const SELECT_MIN_ZOOM = 8
 
+/** `?havalimani=` ile açılışta havalimanı merkezine en az bu yakınlaştırmayla gidilir (pistler görünür). */
+export const AIRPORT_MIN_ZOOM = 10
+
 export interface MapViewport {
   bounds: Bbox
   center: { lat: number; lon: number }

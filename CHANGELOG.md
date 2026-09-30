@@ -8,6 +8,32 @@
 
 ---
 
+## v0.10.0 — 2026-10-01
+
+### Türkçe
+**Havalimanı sayfaları ve İngilizce adresler**
+
+- Türkiye’deki 61 havalimanının listesi ve her biri için ayrı bir sayfa geldi: resmî adı, IATA ve ICAO kodları, il, rakım, havalimanı merkezinin koordinatları, pistler (uzunluk, genişlik, kaplama, yön) ve en yakın üç havalimanı. Sivil havalimanlarının resmî adları DHMİ’nin ve işletmecilerin güncel listelerinden alındı.
+- Havalimanı sayfasındaki “Canlı haritada aç” bağlantısı haritayı o havalimanına ortalar. Havalimanı canlı veri kapsamının dışındaysa sayfa bunu açıkça söyler.
+- Her sayfanın İngilizce sürümü artık kendi adresinde: örneğin /en/havalimanlari. Dil düğmesi aynı sayfanın diğer diline geçer ve paylaştığın bağlantı hep aynı dilde açılır.
+- Yeni “Hakkında” sayfası sitenin ne gösterip ne göstermediğini, veri kaynaklarını ve lisanslarını, gizlilik kurallarını ve verinin ne kadar taze olduğunu anlatıyor.
+- Site arama motorlarında ve yapay zekâ yanıtlarında daha iyi bulunacak: site haritası, dil eşleştirmeleri, yapılandırılmış veri, paylaşım görselleri ve sitenin kısa bir özeti eklendi.
+
+Dene: [Havalimanları](/havalimanlari) · [İstanbul Havalimanı](/istasyon/LTFM) · [Hakkında](/hakkinda)
+
+### English
+**Airport pages and English addresses**
+
+- A list of the 61 airports in Türkiye, with a page for each: official name, IATA and ICAO codes, province, elevation, airport reference point coordinates, runways (length, width, surface, heading) and the three nearest airports. Official names of civil airports come from the current DHMİ and operator lists.
+- The “Open on the live map” link on an airport page centres the map on that airport. If the airport is outside live data coverage, the page says so clearly.
+- Every page now has its English version at its own address, for example /en/havalimanlari. The language button switches to the same page in the other language, and a link you share always opens in the same language.
+- The new About page explains what the site does and does not show, the data sources and their licences, the privacy rules and how fresh the data is.
+- The site is now easier to find in search engines and AI answers: a sitemap, language alternates, structured data, share images and a short summary of the site were added.
+
+Try it: [Airports](/havalimanlari) · [Istanbul Airport](/istasyon/LTFM) · [About](/hakkinda)
+
+---
+
 ## v0.9.0 — 2026-09-29
 
 ### Türkçe

@@ -5,7 +5,6 @@
  * temizler (izinli etiket ve adres şemaları; site içi göreli adres geçer).
  */
 import type { DataAttribution } from '../../lib/map-config'
-import { TERMS_PATH } from '../../lib/terms'
 
 const HTML_ESCAPES: Readonly<Record<string, string>> = {
   '&': '&amp;',
@@ -29,9 +28,12 @@ export function dataAttributionHtml(attribution: DataAttribution, prefix?: strin
   return prefix ? `${escapeHtml(prefix)} ${text}` : text
 }
 
-/** Kullanım koşulları bağlantısı; aynı sekmede açılır (site içi sayfa). */
-export function termsLinkHtml(label: string): string {
-  return `<a href="${TERMS_PATH}">${escapeHtml(label)}</a>`
+/**
+ * Kullanım koşulları bağlantısı; aynı sekmede açılır (site içi sayfa). `href` sayfanın dilindeki
+ * adrestir: `localePath(locale, TERMS_PATH)` → `/kullanim-kosullari` ya da `/en/kullanim-kosullari`.
+ */
+export function termsLinkHtml(label: string, href: string): string {
+  return `<a href="${escapeHtml(href)}">${escapeHtml(label)}</a>`
 }
 
 /**
@@ -42,6 +44,7 @@ export function mapCustomAttributionHtml(
   attribution: DataAttribution,
   prefix: string,
   termsLabel: string,
+  termsHref: string,
 ): string {
-  return `${dataAttributionHtml(attribution, prefix)} · ${termsLinkHtml(termsLabel)}`
+  return `${dataAttributionHtml(attribution, prefix)} · ${termsLinkHtml(termsLabel, termsHref)}`
 }
