@@ -2,6 +2,16 @@
 
 Her karar tarih, gerekçe ve varsa alternatifiyle yazılır. En yeni karar en üsttedir.
 
+## 2026-10-01 — Ortak teslim ve tam yedek standardı
+- **D-077 Kullanıcının ortak teslim standardı projeye eklendi** (kullanıcı kararı 2026-10-01).
+  - **Dosyalar:** repo kökünde `push-and-backup.ps1`, `run-backup.cmd`, `BACKUP-STANDARD.md`, `PROJECT-BACKUP-RULES.md`, `AI-PROMPT.md`. Adları ve içerikleri kullanıcınındır. Yalnızca üç `.md` dosyasının satır sonları repo kuralı (`.gitattributes`, `pnpm check:eol`) gereği LF'ye çevrildi; `.ps1` ve `.cmd` CRLF kalır.
+  - **Akış:** kontroller yeşil → kilometre taşı dalında commit → `push-and-backup.ps1` (dalı push eder, ardından repo kökünün filtresiz ZIP'ini Google Drive'a yazar, son 30'u tutar). ZIP şifrelenmez ve `.env` dosyalarını da içerir; bu, kullanıcının kendi Drive'ı için bilinçli tercihidir. Ajan `.env` içeriğini okumaz; betik dosyaları olduğu gibi paketler.
+  - **Mevcut kurallarla birlikte:**
+    - README her işte güncellenmeye devam eder (D-022). Standarttaki "README'ye dokunma" kuralı, standart kurulurken README'nin üzerine yazılmaması olarak yorumlandı; kullanıcı bunu onayladı.
+    - İki yedek birlikte alınır: masaüstündeki küçük `git archive` zip'i (kullanıcıya dosya olarak gönderilir) ve Drive'daki tam ZIP.
+    - Betik o anki dalı push ettiği için `main`'de çalıştırılmaz; PR ve merge commit akışı değişmez.
+  - **Gizli dosya denetimi:** betik, adı `credentials.*` olan izlenen her dosyayı hassas sayar. Yönetici girişini doğrulayan kaynak dosya `apps/api/src/auth/credentials.ts` bu yüzden `verify-login.ts` adını aldı (içerik aynı; sır yoktur). Denetim gevşetilmedi.
+
 ## 2026-09-30 — Parça 1 M6b havalimanı sayfaları ve keşfedilebilirlik (SEO, GEO)
 - **D-076 Dil adreste, havalimanı sayfaları, arama motorları ve yapay zekâ tarayıcıları.**
   - **Kullanıcı kararları (2026-09-29, sohbette; kaynak düzeltmesi 2026-09-30):**
