@@ -145,10 +145,22 @@ describe('referenceMode ve User-Agent', () => {
     ).toBe('havayolu/1 (+https://havayolu.live; iletisim@example.com)')
   })
 
-  it('zamanlayıcılar UTC ve günde bir kez', () => {
-    for (const schedule of Object.values(JOB_SCHEDULES)) {
-      expect(schedule.tz).toBe('UTC')
+  it('zamanlayıcılar UTC; bakım işleri günde bir kez, hava durumu 5 ve 15 dakikada bir', () => {
+    const { 'weather-metar': metar, 'weather-taf': taf, ...daily } = JOB_SCHEDULES
+    for (const schedule of Object.values(JOB_SCHEDULES)) expect(schedule.tz).toBe('UTC')
+    expect(Object.keys(daily).sort()).toEqual([
+      'reference-import',
+      'track-partitions',
+      'weather-prune',
+    ])
+    for (const schedule of Object.values(daily)) {
       expect(schedule.pattern).toMatch(/^\d+ \d+ \* \* \*$/)
+    }
+    // D-078: METAR 5 dk, TAF 15 dk; yeniden deneme bir kez, en az 1 dk sonra.
+    expect(metar.pattern).toBe('1-59/5 * * * *')
+    expect(taf.pattern).toBe('3-59/15 * * * *')
+    for (const schedule of [metar, taf]) {
+      expect(schedule.opts).toEqual({ attempts: 2, backoff: { type: 'fixed', delay: 60_000 } })
     }
   })
 })

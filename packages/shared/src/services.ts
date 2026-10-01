@@ -8,8 +8,8 @@ export type ServiceKind =
 export interface ServiceStatus {
   /**
    * Kararlı kimlik: web, api, worker:worker-rt, postgres, redis-queue, redis-live, analytics,
-   * reference-data, track-partitions, provider:adsbLol, provider:localReceiver (canlı veri
-   * sağlayıcıları; worker'ın provider_health kaydından).
+   * reference-data, weather (METAR/TAF, D-078), track-partitions, provider:adsbLol,
+   * provider:localReceiver (canlı veri sağlayıcıları; worker'ın provider_health kaydından).
    */
   id: string
   kind: ServiceKind

@@ -1,11 +1,15 @@
-// Canlı harita (Parça 1 M6) kabul akışı: harita açılır → replay uçağı tabloda görünür ve konumu
-// değişir → satıra tıklayınca bilgi kartı açılır → arama uçağı bulur → /?hex= ile doğrudan açılış aynı
-// uçağı seçer → etiket ayarı cihazda saklanır. Tablo, haritanın erişilebilir karşılığıdır; testler
-// uçakları WebGL tuvalinden değil tablodan okur.
+// Canlı harita (Parça 1 M6) kabul akışı: harita IST/LTFM merkezli açılır (D-079) → yaklaşmadaki
+// replay uçağı tabloda görünür ve konumu değişir → satıra tıklayınca bilgi kartı açılır → arama
+// (her yerdeki) uçağı bulur → /?hex= ile doğrudan açılış aynı uçağı seçer → etiket ayarı cihazda
+// saklanır. Tablo, haritanın erişilebilir karşılığıdır; testler uçakları WebGL tuvalinden değil
+// tablodan okur.
 import { expect, test } from '@playwright/test'
 import {
   aircraftRow,
+  airportListCodes,
+  APPROACH_AIRCRAFT,
   declineAnalytics,
+  FAR_AIRCRAFT,
   hexParam,
   infoCard,
   LABEL_SETTINGS_KEY,
@@ -13,20 +17,30 @@ import {
   MISSING_HEX,
   NOT_FOUND_TEXT,
   openMap,
+  PRIMARY_AIRPORT,
   REPLAY_AIRCRAFT,
+  TAXI_AIRCRAFT,
+  waitForMap,
 } from '../support'
 
 const { hex, callsign } = REPLAY_AIRCRAFT
+/** Açılış görünümünde (IST) hep görünen, havadaki uçak. */
+const near = APPROACH_AIRCRAFT
 
 test.beforeEach(async ({ context }) => {
   await declineAnalytics(context)
 })
 
-test('harita açılır, atıflar görünür, replay uçağı tabloda konumunu günceller', async ({
+test('harita IST/LTFM merkezli açılır, atıflar görünür, replay uçağı tabloda konumunu günceller', async ({
   page,
 }) => {
   await openMap(page)
   await expect(page.locator('.live-map__labels')).toBeAttached()
+  // Açılış görünümü IST/LTFM merkezlidir (D-079): görünümdeki ilk havalimanı IST, LTFM'deki taksi
+  // uçağı tabloda; Esenboğa–Van arasındaki seyir uçağı görünmez (Türkiye görünümü yok).
+  expect((await airportListCodes(page))[0]).toBe(PRIMARY_AIRPORT.iata)
+  await expect(aircraftRow(page, TAXI_AIRCRAFT.hex)).toBeVisible({ timeout: 30_000 })
+  await expect(aircraftRow(page, FAR_AIRCRAFT.hex)).toHaveCount(0)
 
   const attribution = page.locator('.maplibregl-ctrl-attrib')
   await expect(attribution.getByRole('link', { name: 'ADSB.lol' })).toHaveAttribute(
@@ -36,7 +50,7 @@ test('harita açılır, atıflar görünür, replay uçağı tabloda konumunu g�
   await expect(attribution.getByRole('link', { name: 'ODbL' })).toBeVisible()
   await expect(page.locator('.live-map__status')).toContainText('Veri yaşı')
 
-  const row = aircraftRow(page, hex)
+  const row = aircraftRow(page, near.hex)
   await expect(row).toBeVisible({ timeout: 30_000 })
   // Konum sütunu en sondadır: "enlem, boylam", 3 ondalık (~100 m); uçak ~230 m/sn gider.
   const position = row.locator('td').last()
@@ -51,15 +65,15 @@ test('satıra tıklayınca bilgi kartı açılır; seçim adrese yazılır, kart
   page,
 }) => {
   await openMap(page)
-  const row = aircraftRow(page, hex)
+  const row = aircraftRow(page, near.hex)
   await expect(row).toBeVisible({ timeout: 30_000 })
 
   await row.locator('td').last().click()
   const card = infoCard(page)
   await expect(card).toBeVisible()
-  await expect(card).toContainText(callsign)
+  await expect(card).toContainText(near.callsign)
   await expect(row).toHaveAttribute('aria-selected', 'true')
-  await expect(page).toHaveURL(hexParam(hex))
+  await expect(page).toHaveURL(hexParam(near.hex))
   await expect(card.getByRole('button', { name: 'Uçağı ortala' })).toHaveAttribute(
     'aria-pressed',
     /^(true|false)$/,
@@ -72,12 +86,12 @@ test('satıra tıklayınca bilgi kartı açılır; seçim adrese yazılır, kart
 
 test('tablo satırı klavyeyle seçilebilir', async ({ page }) => {
   await openMap(page)
-  const row = aircraftRow(page, hex)
+  const row = aircraftRow(page, near.hex)
   await expect(row).toBeVisible({ timeout: 30_000 })
 
   await row.getByRole('button').first().focus()
   await page.keyboard.press('Enter')
-  await expect(infoCard(page)).toContainText(callsign)
+  await expect(infoCard(page)).toContainText(near.callsign)
 })
 
 test('arama çağrı kodunu bulur ve uçağı seçer', async ({ page }) => {
@@ -124,7 +138,9 @@ test('/?hex= ile açılan uçak canlı değilse arama alanında açıklayıcı m
   await expect(infoCard(page)).toBeHidden()
 })
 
-test('etiket ayarı cihazda saklanır ve yeniden açılışta geri gelir', async ({ page }) => {
+test('etiket ayarı cihazda saklanır ve yeniden açılışta geri gelir; harita yine IST’de açılır', async ({
+  page,
+}) => {
   await openMap(page)
   const button = page.getByRole('button', { name: 'Etiketler' })
   await button.click()
@@ -147,7 +163,9 @@ test('etiket ayarı cihazda saklanır ve yeniden açılışta geri gelir', async
   await expect(button).toHaveAttribute('aria-expanded', 'false')
 
   await page.reload()
-  await expect(page.locator('.live-map .maplibregl-canvas')).toBeVisible({ timeout: 30_000 })
+  await waitForMap(page)
+  // Her yenilemede yine IST'de açılır (D-079).
+  expect((await airportListCodes(page))[0]).toBe(PRIMARY_AIRPORT.iata)
   await button.click()
   await expect(others.getByRole('radio', { name: 'Gizle' })).toBeChecked()
   await expect(selected.getByRole('radio', { name: 'Tam' })).toBeChecked()
@@ -156,8 +174,9 @@ test('etiket ayarı cihazda saklanır ve yeniden açılışta geri gelir', async
 test.describe('telefon genişliği', () => {
   test.use({ viewport: { width: 375, height: 812 } })
 
-  test('sayfa yatay kaymaz; arama ve atıf erişilebilir', async ({ page }) => {
+  test('sayfa yatay kaymaz; arama ve atıf erişilebilir; harita IST’de açılır', async ({ page }) => {
     await openMap(page)
+    expect((await airportListCodes(page))[0]).toBe(PRIMARY_AIRPORT.iata)
     await expect(page.getByRole('search').getByRole('searchbox')).toBeVisible()
     await expect(page.locator('.maplibregl-ctrl-attrib')).toBeVisible()
     const overflow = await page.evaluate(

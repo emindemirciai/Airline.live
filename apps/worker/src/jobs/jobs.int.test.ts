@@ -5,6 +5,7 @@ import {
   listTrackPartitions,
   referenceStatus,
   runMigrations,
+  weatherStatus,
   type Database,
 } from '@havayolu/db'
 import { Queue } from 'bullmq'
@@ -18,6 +19,8 @@ import {
   runReferenceImport,
   type ReferenceFetcher,
 } from './reference'
+import { databaseWeatherStore, runWeatherMetar, runWeatherTaf } from './weather'
+import { fixtureWeatherSource } from './weather-fixture'
 
 const adminUrl =
   process.env.TEST_DATABASE_ADMIN_URL ??
@@ -69,6 +72,9 @@ describe('bakım işleri (gerçek PostgreSQL + Redis, BullMQ)', () => {
       expect(schedulers.map((s) => [s.key, s.pattern, s.tz]).sort()).toEqual([
         ['reference-import', '40 4 * * *', 'UTC'],
         ['track-partitions', '15 0 * * *', 'UTC'],
+        ['weather-metar', '1-59/5 * * * *', 'UTC'],
+        ['weather-prune', '25 0 * * *', 'UTC'],
+        ['weather-taf', '3-59/15 * * * *', 'UTC'],
       ])
 
       // Açılış telafisi: tablolar boş olduğu için içe aktarım, partition işi de her açılışta
@@ -90,6 +96,31 @@ describe('bakım işleri (gerçek PostgreSQL + Redis, BullMQ)', () => {
         (await listTrackPartitions(database.sql, 'track_points_fine')).length,
       ]
       await waitFor(async () => (await partitionCounts()).every((n) => n === 9))
+
+      // Hava durumu açılışta, referans içe aktarımından sonra fixture'dan (zamanı kaydırılarak)
+      // yazılır: 14 istasyon, raporu olmayan LTBQ yok; LTFM'nin 3 günlük geçmişi.
+      await waitFor(async () => {
+        const weather = await weatherStatus(database.sql, new Date())
+        return Boolean(weather.metar?.checkedAt) && Boolean(weather.taf?.checkedAt)
+      })
+      const weather = await weatherStatus(database.sql, new Date())
+      expect(weather.metar).toMatchObject({ origin: 'fixture', lastError: null, skippedCount: 0 })
+      expect(weather.taf).toMatchObject({ origin: 'fixture', lastError: null })
+      const stations = await database.sql<{ station_icao: string; n: number }[]>`
+        select station_icao, count(*)::int as n from weather_metar
+        group by station_icao order by station_icao`
+      expect(stations).toHaveLength(14)
+      expect(stations.some((s) => s.station_icao === 'LTBQ')).toBe(false)
+      // 144 METAR + 1 SPECI; düzeltilmiş rapor (COR) asıl raporla aynı satırdır.
+      expect(stations.find((s) => s.station_icao === 'LTFM')?.n).toBe(145)
+      const [cor] = await database.sql<{ raw_text: string }[]>`
+        select raw_text from weather_metar where raw_text like 'METAR COR LTFM %'`
+      expect(cor?.raw_text).toMatch(/^METAR COR LTFM \d{6}Z /)
+      // Güncel gözlem 10–70 dk eski (fixtureNow içinde bulunulan saatin başına kaydırılır).
+      const ageMin = (Date.now() - (weather.newestObservedAt?.getTime() ?? 0)) / 60_000
+      expect(ageMin).toBeGreaterThanOrEqual(9)
+      expect(ageMin).toBeLessThanOrEqual(71)
+      expect(weather.stationsWithRecentMetar).toBe(13)
 
       // Yeniden başlatma: tanımı değişmeyen zamanlayıcıya dokunulmaz (sıradaki çalışma aynı kalır;
       // upsert zamanı geçmiş işi silerdi).
@@ -195,5 +226,28 @@ describe("referans içe aktarımı (commit'li fixture)", () => {
     const vrs = after.sources.find((s) => s.source === 'vrs-airlines')
     expect(vrs).toMatchObject({ lastError: 'HTTP 503' })
     expect(vrs?.lastErrorAt?.toISOString()).toBe('2026-09-28T04:40:00.000Z')
+  })
+})
+
+describe('hava durumu fixture modu (gerçek PostgreSQL)', () => {
+  it('saatler geçip zamanlar yeniden kaydırılsa da kopya birikmez; satırlar fixture ile aynı kalır', async () => {
+    const dir = findFixturesDir()
+    if (!dir) throw new Error('tools/fixtures bulunamadı')
+    const counts = async () => {
+      const [row] = await database.sql<{ metars: number; ltfm: number; tafs: number }[]>`
+        select (select count(*)::int from weather_metar) as metars,
+          (select count(*)::int from weather_metar where station_icao = 'LTFM') as ltfm,
+          (select count(*)::int from weather_taf) as tafs`
+      return row
+    }
+    const store = databaseWeatherStore(database)
+    for (const hours of [1, 2, 5]) {
+      const now = () => new Date(Date.now() + hours * 3_600_000)
+      const source = fixtureWeatherSource({ dir: `${dir}/weather`, appEnv: 'test', now })
+      await runWeatherMetar({ store, source, origin: 'fixture', log, now })
+      await runWeatherTaf({ store, source, origin: 'fixture', log, now })
+      // 14 istasyon: LTFM 145 (144 METAR + 1 SPECI; COR aynı satır), diğer 13 istasyon birer rapor.
+      expect(await counts()).toEqual({ metars: 158, ltfm: 145, tafs: 19 })
+    }
   })
 })

@@ -1,5 +1,5 @@
 import type { FastifyInstance, FastifyRequest } from 'fastify'
-import { verifyAdminCredentials, type AdminCredentials } from './credentials'
+import { verifyAdminCredentials, type AdminCredentials } from './verify-login'
 import type { AdminSession, SessionStore } from './session-store'
 
 export interface AuthRouteOptions {

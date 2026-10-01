@@ -41,6 +41,12 @@ export interface LabelLayoutOptions {
   /** Etiketi olmayan (gizli) uçakların simge merkezleri: etiketler bunları da örtmez. */
   obstacles?: readonly { x: number; y: number }[]
   /**
+   * Önceden ayrılmış dikdörtgenler (sol üst köşe ve boyut; ör. birincil istasyonun IATA kodu):
+   * etiketler bunları yerleşmiş bir etiket gibi örtmez. Yalnızca `mustPlace` etiketi yer bulamazsa
+   * üstüne gelebilir.
+   */
+  reserved?: readonly { x: number; y: number; width: number; height: number }[]
+  /**
    * Yer bulamasa da (çakışarak) yerleşecek etiketin kimliği: seçili uçak. Verilmezse her etiket yer
    * bulamayınca atlanır.
    */
@@ -198,6 +204,8 @@ export function layoutLabels(
 
   const labels = new Grid<Rect>(width, height)
   const place = (rect: Rect) => labels.insert(rect, rect)
+  for (const r of opts.reserved ?? [])
+    place({ x0: r.x, y0: r.y, x1: r.x + r.width, y1: r.y + r.height })
 
   const inside = (r: Rect) => r.x0 >= 0 && r.y0 >= 0 && r.x1 <= width && r.y1 <= height
 

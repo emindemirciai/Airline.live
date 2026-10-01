@@ -1,8 +1,10 @@
 import type { AirportDetail, Locale } from '@havayolu/shared'
 import type { Metadata } from 'next'
 import { notFound, permanentRedirect } from 'next/navigation'
+import { Suspense } from 'react'
 import { airportDescription, airportName, airportTitle } from '@/components/airports/airport-text'
 import { AirportView } from '@/components/airports/airport-view'
+import { AirportWeatherSection, WeatherSkeleton } from '@/components/airports/airport-weather'
 import { airportCrumbs, crumbsForJsonLd } from '@/components/airports/crumbs'
 import { JsonLd } from '@/components/json-ld'
 import {
@@ -15,6 +17,7 @@ import {
 import { appName, getServerEnv } from '@/lib/env'
 import { getLocale } from '@/lib/locale'
 import { localePath } from '@/lib/locale-routing'
+import { apiBaseUrl } from '@/lib/map-config'
 import { pageMetadata } from '@/lib/seo/metadata'
 import { airportPath } from '@/lib/seo/paths'
 import {
@@ -68,10 +71,16 @@ export async function generateMetadata({
   })
 }
 
-/** Havalimanı sayfası (`/istasyon/<ICAO>`, EN `/en/istasyon/<ICAO>`), M6b brief §g. */
+/**
+ * Havalimanı sayfası (`/istasyon/<ICAO>`, EN `/en/istasyon/<ICAO>`), M6b brief §g. Hava durumu ve
+ * METAR/TAF kaydı (M6c) Suspense içinde gelir: 404/308 kararı ondan önce verilir, hava durumu isteği
+ * gövdenin geri kalanını bekletmez. Başlık, açıklama, JSON-LD ve paylaşım görseli hava durumu
+ * içermez (D-078).
+ */
 export default async function AirportPage({ params }: PageProps<'/istasyon/[icao]'>) {
   const { locale, airport, airports } = await loadAirport(params)
-  const app = appName(getServerEnv())
+  const env = getServerEnv()
+  const app = appName(env)
   const path = airportPath(airport.icao)
   const crumbs = airportCrumbs(locale, app, airport)
 
@@ -92,7 +101,21 @@ export default async function AirportPage({ params }: PageProps<'/istasyon/[icao
           breadcrumbList(crumbsForJsonLd(crumbs), breadcrumbId(locale, path)),
         ]}
       />
-      <AirportView locale={locale} app={app} airport={airport} airports={airports} />
+      <AirportView
+        locale={locale}
+        app={app}
+        airport={airport}
+        airports={airports}
+        weather={
+          <Suspense fallback={<WeatherSkeleton locale={locale} />}>
+            <AirportWeatherSection
+              locale={locale}
+              airport={airport}
+              apiBaseUrl={apiBaseUrl(env.API_HOST)}
+            />
+          </Suspense>
+        }
+      />
     </>
   )
 }

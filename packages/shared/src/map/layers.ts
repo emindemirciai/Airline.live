@@ -4,6 +4,7 @@
  * belirtiminin (style-spec) katman JSON'unun alt kümesidir, web `map.addLayer()`'a olduğu gibi
  * verir, mobil de aynı nesneleri kullanır. Katman sırası alttan üste: havalimanları, iz, uçaklar.
  */
+import { AIRPORT_PIN_ICON_ID, AIRPORT_PIN_MARGIN } from './airport-pin'
 import { MAP_COLORS } from './colors'
 
 type StyleLiteral = string | number | boolean
@@ -32,6 +33,10 @@ export interface SymbolLayerStyle extends LayerStyleBase {
     'icon-image': StyleValue<string>
     'icon-rotate'?: StyleValue<number>
     'icon-size'?: StyleValue<number>
+    /** İkonun noktaya bağlanan kenarı (pin: alt kenar). */
+    'icon-anchor'?: 'center' | 'bottom' | 'top' | 'left' | 'right'
+    /** İkon pikseli cinsinden kaydırma (`icon-size` ile ölçeklenir). */
+    'icon-offset'?: [number, number]
     'icon-rotation-alignment'?: 'map' | 'viewport' | 'auto'
     'icon-pitch-alignment'?: 'map' | 'viewport' | 'auto'
     'icon-allow-overlap'?: boolean
@@ -111,18 +116,22 @@ export interface AirportFeatureProperties {
   name: string
 }
 
-/** Havalimanları: koyu kenarlı opak beyaz nokta; yakınlaştıkça büyür. */
-export const AIRPORT_LAYER: CircleLayerStyle = {
+/**
+ * Havalimanları: kırmızı pin (airport-pin.ts), ucu havalimanı referans noktasında (alt kenar +
+ * kenar payı kadar kaydırma). Çakışsa da hep çizilir; yakınlaştıkça büyür (z4 0,45 → z15 0,9).
+ * Yerli ve yabancı havalimanları aynı pini kullanır. `icon-image` haritaya önceden eklenir.
+ */
+export const AIRPORT_LAYER: SymbolLayerStyle = {
   id: AIRPORT_LAYER_ID,
-  type: 'circle',
+  type: 'symbol',
   source: AIRPORT_SOURCE_ID,
-  paint: {
-    'circle-color': MAP_COLORS.airport,
-    'circle-radius': ['interpolate', ['linear'], ['zoom'], 4, 2.5, 8, 4, 12, 5.5],
-    'circle-opacity': 1,
-    'circle-stroke-color': MAP_COLORS.airportOutline,
-    'circle-stroke-width': ['interpolate', ['linear'], ['zoom'], 4, 1.5, 8, 2],
-    'circle-stroke-opacity': 1,
+  layout: {
+    'icon-image': AIRPORT_PIN_ICON_ID,
+    'icon-anchor': 'bottom',
+    'icon-offset': [0, AIRPORT_PIN_MARGIN],
+    'icon-allow-overlap': true,
+    'icon-ignore-placement': true,
+    'icon-size': ['interpolate', ['linear'], ['zoom'], 4, 0.45, 8, 0.6, 12, 0.8, 15, 0.9],
   },
 }
 

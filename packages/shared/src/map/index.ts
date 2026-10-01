@@ -1,4 +1,5 @@
 export * from './aircraft'
+export * from './airport-pin'
 export * from './colors'
 export * from './layers'
 export * from './silhouettes'

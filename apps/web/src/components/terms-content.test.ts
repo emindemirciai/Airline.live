@@ -43,8 +43,14 @@ describe('TermsContent', () => {
     expect(html).toContain(t.data.odbl)
     expect(html).toContain('href="https://opendatacommons.org/licenses/odbl/1-0/"')
     expect(html).toContain('href="https://adsb.lol"')
-    expect(html).toMatch(/<time datetime="2026-09-29">/i)
-    expect(html).toContain(locale === 'tr' ? '29 Eylül 2026' : '29 September 2026')
+    expect(html).toMatch(/<time datetime="2026-10-01">/i)
+    expect(html).toContain(locale === 'tr' ? '1 Ekim 2026' : '1 October 2026')
+    // Hava durumu maddesi (D-078): kaynak ve NWS kullanım şartları bağlantılı, resmî brifing değil.
+    expect(html).toContain('href="https://aviationweather.gov/"')
+    expect(html).toContain('href="https://www.weather.gov/disclaimer"')
+    expect(html).toContain(
+      locale === 'tr' ? 'resmî brifing yerine geçmez' : 'not an official briefing',
+    )
     expect(html).toContain(t.interim)
     // Uygulama adı yer tutucuları dolduruldu; açıkta "{ad}" kalmadı.
     expect(html).toContain('havayolu')

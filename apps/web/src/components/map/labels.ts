@@ -3,9 +3,14 @@
  * (pointer-events yok, cihaz piksel oranına duyarlı). Harita her `render` olayında ve her çizim
  * turunda yeniden çizer (map-controller.ts).
  *
- * - Havalimanı IATA kodları önce çizilir (z ≥ 5). Tuval uçak katmanının üstünde olduğundan kod
- *   hiçbir uçak simgesini ve seçili uçağın izini örtmez: bunlara değen konum denenmez, yer yoksa kod
- *   yazılmaz. Kodlar birbirini de örtmez; uçak etiketleri üstlerine gelebilir.
+ * - Havalimanı IATA kodları önce çizilir (z ≥ 5), havalimanı pininin (GL katmanı, ucu noktada)
+ *   başının yanında ya da üstünde; hiçbir pini örtmez (D-079). Tuval uçak katmanının üstünde
+ *   olduğundan kod hiçbir uçak simgesini ve seçili uçağın izini örtmez: bunlara değen konum
+ *   denenmez, yer yoksa kod yazılmaz. Tek istisna birincil istasyondur (IST): kodu yerdeki
+ *   uçakların üstüne yazılabilir, havadakilere yine değmez; uçak etiketleri de (seçili uçağınki yer
+ *   bulamazsa hariç) IST kodunu örtmez. Kodlar birbirini de örtmez; diğer kodların üstüne uçak
+ *   etiketleri gelebilir. Çizilen kodun kutusu tıklanabilir (`airportHitTest`):
+ *   havalimanı penceresini açar (M6c).
  * - Uçak etiketleri etiket ayarına göre kurulur (seçili uçak `selected`, diğerleri `others`;
  *   Gizle → etiket yok, simge yine engel sayılır), `layoutLabels` ile çakışmasız yerleşir.
  * - Görünüm kullanıcının tasarım tuvalindendir (Etiket.dc.html): opak koyu kutu, ince kenar; sefer
@@ -14,7 +19,16 @@
  *   bir çizgi bağlar (seçilide kehribar).
  */
 import type { UnitSystem } from '@havayolu/i18n'
-import { MAP_COLORS, isTurkishAirlines, type Airport, type Locale } from '@havayolu/shared'
+import {
+  AIRPORT_PIN_HALO,
+  AIRPORT_PIN_HEAD,
+  AIRPORT_PIN_OUTLINE,
+  AIRPORT_PIN_VIEWBOX,
+  MAP_COLORS,
+  isTurkishAirlines,
+  type Airport,
+  type Locale,
+} from '@havayolu/shared'
 import type { TrackedAircraft } from '../../lib/live/store'
 import { CircleObstacles, layoutLabels, leaderEnd, type LabelBox } from '../../lib/map/label-layout'
 import type { LabelSettings } from '../../lib/map/label-settings'
@@ -35,11 +49,12 @@ export interface LabelTheme {
   border: number
 }
 
+/** Yazı boyutları kullanıcı isteğiyle (2026-10-01, D-079) birer piksel küçüldü; en küçüğü 11 px. */
 export const NORMAL_THEME: LabelTheme = {
-  primaryFont: `500 13px ${FONT_FAMILY}`,
-  primaryLine: 16,
-  secondaryFont: `400 12px ${FONT_FAMILY}`,
-  secondaryLine: 15,
+  primaryFont: `500 12px ${FONT_FAMILY}`,
+  primaryLine: 15,
+  secondaryFont: `400 11px ${FONT_FAMILY}`,
+  secondaryLine: 14,
   padX: 6,
   padTop: 2,
   padBottom: 3,
@@ -48,10 +63,10 @@ export const NORMAL_THEME: LabelTheme = {
 }
 
 export const SELECTED_THEME: LabelTheme = {
-  primaryFont: `500 16px ${FONT_FAMILY}`,
-  primaryLine: 19,
-  secondaryFont: `500 12px ${FONT_FAMILY}`,
-  secondaryLine: 15,
+  primaryFont: `500 15px ${FONT_FAMILY}`,
+  primaryLine: 18,
+  secondaryFont: `500 11px ${FONT_FAMILY}`,
+  secondaryLine: 14,
   padX: 8,
   padTop: 3,
   padBottom: 4,
@@ -78,14 +93,36 @@ const COLORS = {
 
 /** Havalimanı kodları bu yakınlaştırmadan itibaren yazılır. */
 export const AIRPORT_LABEL_MIN_ZOOM = 5
-const AIRPORT_FONT = `500 12px ${FONT_FAMILY}`
+const AIRPORT_FONT = `500 11px ${FONT_FAMILY}`
 const AIRPORT_PAD_X = 5
-const AIRPORT_HEIGHT = 18
-/** Kod kutusunun havalimanı noktasına yatay uzaklığı. */
-const AIRPORT_OFFSET = 7
-/** Üst ve alt konumun dikey uzaklığı: yandaki kodlarla çakışmaz. */
-const AIRPORT_OFFSET_Y = AIRPORT_HEIGHT / 2 + 4
+const AIRPORT_HEIGHT = 16
+/** Kod kutusu ile pin arasındaki boşluk, px. */
+const AIRPORT_GAP = 3
 const AIRPORT_MARGIN = 2
+/** Pin katmanının `icon-size` değeri verilmezse (testler) kullanılan ölçek (z8 civarı). */
+export const DEFAULT_PIN_SCALE = 0.6
+
+/**
+ * Pinin ekrandaki geometrisi (CSS px): uç noktadadır (`x`, `y`), baş yukarıdadır. Kenar ve hat
+ * dahil. `scale` katmanın o yakınlaştırmadaki `icon-size` değeridir (airport-pin.ts birimleri).
+ */
+export function pinGeometry(x: number, y: number, scale: number) {
+  const edge = AIRPORT_PIN_OUTLINE / 2 + AIRPORT_PIN_HALO
+  return {
+    headX: x,
+    headY: y - (AIRPORT_PIN_VIEWBOX.height - AIRPORT_PIN_HEAD.cy) * scale,
+    headRadius: (AIRPORT_PIN_HEAD.r + edge) * scale,
+    top: y - (AIRPORT_PIN_VIEWBOX.height + edge) * scale,
+  }
+}
+
+/** Pinin çakışma daireleri: baş ve uca doğru incelen gövde (kodlar pinleri örtmez). */
+function addPinObstacles(obstacles: CircleObstacles, x: number, y: number, scale: number): void {
+  const pin = pinGeometry(x, y, scale)
+  obstacles.add(pin.headX, pin.headY, pin.headRadius)
+  obstacles.add(x, y - 9 * scale, 5 * scale)
+  obstacles.add(x, y - 3.5 * scale, 2.5 * scale)
+}
 /** Havalimanı kodu ile uçak simgesi arasında bırakılan boşluk, px. */
 const AIRPORT_ICON_CLEARANCE = 2
 /** Seçili uçağın simgesi (hale dahil) diğerlerinden büyük sayılır. */
@@ -126,6 +163,10 @@ export interface LabelFrame {
   settings: LabelSettings
   locale: Locale
   units: UnitSystem
+  /** Pin katmanının o yakınlaştırmadaki `icon-size` değeri (varsayılan `DEFAULT_PIN_SCALE`). */
+  pinScale?: number
+  /** Birincil istasyonun ICAO kodu (IST/LTFM): kodu yerdeki uçakların üstüne yazılabilir. */
+  primaryIcao?: string | null
 }
 
 /** Ölçülmüş etiket: içerik, kutu boyutu ve tema. */
@@ -181,6 +222,7 @@ export function labelPriority(
 }
 
 export interface PlacedAirportChip {
+  icao: string
   iata: string
   x: number
   y: number
@@ -189,22 +231,39 @@ export interface PlacedAirportChip {
   major: boolean
 }
 
+export interface ChipLayoutOptions {
+  /** Pin katmanının `icon-size` değeri (varsayılan `DEFAULT_PIN_SCALE`). */
+  pinScale?: number
+  /**
+   * Birincil istasyon (IST): kodu yalnızca bu engellere bakar (yerdeki uçaklar hariç, kullanıcı
+   * kararı 2026-10-01). Kalabalık apronda da kod görünür ve tıklanır; havadaki uçağı yine örtmez.
+   */
+  primary?: { icao: string; obstacles?: Pick<CircleObstacles, 'hits'> }
+}
+
 /**
- * Havalimanı kodlarının yeri: noktanın sağında, yer yoksa solunda, üstünde ya da altında.
- * Büyük havalimanları önce yerleşir; birbirini ya da bir engeli (uçak simgesi, seçili uçağın izi)
- * örten ya da görünümden taşan kod yazılmaz.
+ * Havalimanı kodlarının yeri: pin başının sağında, yer yoksa solunda, pinin üstünde ya da noktanın
+ * altında. Birincil istasyon ilk, sonra büyük havalimanları yerleşir; birbirini, bir pini ya da bir
+ * engeli (uçak simgesi, seçili uçağın izi) örten ya da görünümden taşan kod yazılmaz.
  */
 export function layoutAirportChips(
   airports: readonly ScreenAirport[],
   view: { width: number; height: number },
   measure: MeasureText,
   obstacles?: Pick<CircleObstacles, 'hits'>,
+  options: ChipLayoutOptions = {},
 ): PlacedAirportChip[] {
+  const scale = options.pinScale ?? DEFAULT_PIN_SCALE
+  const primary = options.primary
+  const rank = (a: ScreenAirport) =>
+    a.airport.icao === primary?.icao ? -1 : AIRPORT_RANK[a.airport.type]
   const sorted = [...airports].sort(
     (a, b) =>
-      AIRPORT_RANK[a.airport.type] - AIRPORT_RANK[b.airport.type] ||
+      rank(a) - rank(b) ||
       (a.airport.iata < b.airport.iata ? -1 : a.airport.iata > b.airport.iata ? 1 : 0),
   )
+  const pins = new CircleObstacles(view)
+  for (const { x, y } of airports) addPinObstacles(pins, x, y, scale)
   const placed: PlacedAirportChip[] = []
   const overlaps = (x: number, y: number, w: number, h: number) =>
     placed.some(
@@ -217,17 +276,21 @@ export function layoutAirportChips(
   for (const { airport, x, y } of sorted) {
     const width = Math.ceil(measure(AIRPORT_FONT, airport.iata) + AIRPORT_PAD_X * 2)
     const height = AIRPORT_HEIGHT
+    const pin = pinGeometry(x, y, scale)
+    const blockers = airport.icao === primary?.icao ? primary.obstacles : obstacles
     const candidates: [number, number][] = [
-      [x + AIRPORT_OFFSET, y - height / 2],
-      [x - AIRPORT_OFFSET - width, y - height / 2],
-      [x - width / 2, y - AIRPORT_OFFSET_Y - height],
-      [x - width / 2, y + AIRPORT_OFFSET_Y],
+      [x + pin.headRadius + AIRPORT_GAP, pin.headY - height / 2],
+      [x - pin.headRadius - AIRPORT_GAP - width, pin.headY - height / 2],
+      [x - width / 2, pin.top - AIRPORT_GAP - height],
+      [x - width / 2, y + AIRPORT_GAP],
     ]
     for (const [cx, cy] of candidates) {
       if (cx < 0 || cy < 0 || cx + width > view.width || cy + height > view.height) continue
       if (overlaps(cx, cy, width, height)) continue
-      if (obstacles?.hits(cx, cy, width, height)) continue
+      if (pins.hits(cx, cy, width, height)) continue
+      if (blockers?.hits(cx, cy, width, height)) continue
       placed.push({
+        icao: airport.icao,
         iata: airport.iata,
         x: cx,
         y: cy,
@@ -241,10 +304,17 @@ export function layoutAirportChips(
   return placed
 }
 
-/** Havalimanı kodlarının örtmeyeceği yerler: bütün uçak simgeleri ve seçili uçağın izi. */
-export function chipObstacles(frame: LabelFrame): CircleObstacles {
+/**
+ * Havalimanı kodlarının örtmeyeceği yerler: uçak simgeleri ve seçili uçağın izi. `ground: false`
+ * yerdeki uçakları katmaz (birincil istasyonun kodu için).
+ */
+export function chipObstacles(
+  frame: LabelFrame,
+  { ground = true }: { ground?: boolean } = {},
+): CircleObstacles {
   const obstacles = new CircleObstacles(frame)
   for (const item of frame.aircraft) {
+    if (!ground && item.ac.gnd) continue
     const scale = item.ac.hex === frame.selectedHex ? SELECTED_ICON_SCALE : 1
     obstacles.add(item.x, item.y, frame.iconRadius * scale + AIRPORT_ICON_CLEARANCE)
   }
@@ -273,6 +343,8 @@ export class LabelPainter {
   private readonly widths = new Map<string, number>()
   private labels = new WeakMap<TrackedAircraft, CachedLabel>()
   private hitBoxes: HitBox[] = []
+  /** Son çizimde yazılan havalimanı kodları (tıklama: havalimanı penceresi). */
+  private chips: PlacedAirportChip[] = []
   private width = 0
   private height = 0
   private pixelRatio = 1
@@ -312,10 +384,24 @@ export class LabelPainter {
     return null
   }
 
+  /**
+   * Noktadaki (CSS px) havalimanı kodunun ICAO kodu; kod çizilmediyse (çakışma, uzak görünüm) null.
+   * Tıklama önceliği map-controller.ts → `resolveHit`'tedir.
+   */
+  airportHitTest(x: number, y: number): string | null {
+    for (const chip of this.chips) {
+      if (x >= chip.x && x <= chip.x + chip.width && y >= chip.y && y <= chip.y + chip.height) {
+        return chip.icao
+      }
+    }
+    return null
+  }
+
   clear(): void {
     this.ctx.setTransform(1, 0, 0, 1, 0, 0)
     this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height)
     this.hitBoxes = []
+    this.chips = []
   }
 
   /** Çerçeveyi çizer; tuval önceden `resize` ile haritanın boyutuna getirilmiş olmalıdır. */
@@ -328,8 +414,14 @@ export class LabelPainter {
     const measure = this.measure
 
     if (frame.zoom >= AIRPORT_LABEL_MIN_ZOOM && frame.airports.length > 0) {
-      for (const chip of layoutAirportChips(frame.airports, frame, measure, chipObstacles(frame)))
-        this.drawAirportChip(chip)
+      const primaryIcao = frame.primaryIcao ?? null
+      this.chips = layoutAirportChips(frame.airports, frame, measure, chipObstacles(frame), {
+        pinScale: frame.pinScale ?? DEFAULT_PIN_SCALE,
+        ...(primaryIcao === null
+          ? {}
+          : { primary: { icao: primaryIcao, obstacles: chipObstacles(frame, { ground: false }) } }),
+      })
+      for (const chip of this.chips) this.drawAirportChip(chip)
     }
 
     const boxes: LabelBox[] = []
@@ -358,6 +450,8 @@ export class LabelPainter {
     const placed = layoutLabels(boxes, frame, {
       iconRadius: frame.iconRadius,
       obstacles,
+      // Birincil istasyonun kodu uçak etiketlerinin altında kalmaz (D-079); seçili etiket hariç.
+      reserved: this.chips.filter((chip) => chip.icao === frame.primaryIcao),
       // Yalnızca seçili uçağın etiketi yer bulamasa da çizilir; diğerleri simge örtmez.
       mustPlace: frame.selectedHex,
     })

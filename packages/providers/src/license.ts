@@ -79,14 +79,21 @@ export const PROVIDER_LICENSES = {
     mixingWithOtherRealtimeAllowed: true,
     maxRawStorageDays: null,
   },
+  /**
+   * METAR/TAF (data-sources.md §5, D-078). Türk raporlarını havalimanlarının meteoroloji birimleri
+   * (MGM; İncirlik'te USAF) hazırlar, AWC yeniden dağıtır. weather.gov/disclaimer: NWS bilgisi
+   * aksi belirtilmedikçe kamu malıdır; sahiplenilemez, onay ima edilemez, değiştirilmiş veri resmî
+   * diye sunulamaz, NWS adı ve logosu izinsiz kullanılmaz. Atıf nezaketen verilir (logo yok).
+   */
   aviationWeather: {
     id: 'aviationWeather',
     name: 'NOAA Aviation Weather Center',
-    license: 'ABD kamu verisi',
+    license: 'ABD kamu verisi (NWS/NOAA; weather.gov/disclaimer)',
     commercialUse: true,
     attribution: { text: 'NOAA Aviation Weather Center', url: 'https://aviationweather.gov/' },
     shareAlike: 'none',
-    rateLimit: 'dakikada en fazla 100 istek; özel User-Agent',
+    rateLimit:
+      'dakikada en fazla 100 istek; çoğu uç noktada yanıt başına en fazla 400 kayıt; aşımda erişim engellenir; özel User-Agent önerilir',
     b2cDisplayAllowed: true,
     mixingWithOtherRealtimeAllowed: true,
     maxRawStorageDays: null,

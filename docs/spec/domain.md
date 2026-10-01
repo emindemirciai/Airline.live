@@ -85,7 +85,7 @@ Olay motoru, bildirimler ve arayüz bu dosyadaki tanımlara uyar. **Motorun büt
 
 ## AGL (yerden yükseklik) yöntemi
 Sırayla denenir; kullanılan yöntem olay verisine `aglMethod` olarak yazılır:
-1. **`qnh`:** `alt_baro + (QNH − 1013,25) × 27 − alan_yüksekliği_ft`. QNH, istasyonun METAR `altim` değeridir (hPa).
+1. **`qnh`:** `alt_baro + (QNH − 1013,25) × 27 − alan_yüksekliği_ft`. QNH, istasyonun son METAR'ının ham `Qdddd` grubundan gelir (hPa; `weather_metar.qnh_hpa`, Parça 1 M6c, D-078). Yalnızca `observed_at` 90 dk'dan yeniyse kullanılır; değilse sonraki yönteme geçilir.
 2. **`geoid`:** `alt_geom_ft − N_m × 3,28084 − alan_yüksekliği_ft`. N, istasyonun EGM96 geoid ondülasyonudur (LTFM ≈ 37,05 m).
 3. **`baro_tolerant`:** `alt_baro − alan_yüksekliği_ft`, eşiklere ±300 ft tolerans eklenir.
 

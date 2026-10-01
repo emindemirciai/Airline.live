@@ -4,6 +4,8 @@ import {
   type ProviderSummary,
   type ReferenceStatus,
   type TrackTableStatus,
+  type WeatherSourceState,
+  type WeatherStatus,
 } from '@havayolu/db'
 import {
   errorMessage,
@@ -31,6 +33,15 @@ export const PARTITION_MIN_DAYS_AHEAD = PARTITION_DAYS_AHEAD - 1
  * worker durmuş ya da DB'ye yazamıyor demektir: son bilinen durum artık geçerli değildir.
  */
 export const PROVIDER_HEALTH_STALE_MS = 180_000
+/**
+ * Hava durumu (D-078): METAR işi 5 dk'da bir çalışır. Son başarılı kontrol 15 dk'dan eskiyse
+ * "degraded", 2 saatten eskiyse (ya da hiç yoksa) "down". TAF işi 15 dk'da bir; 1 saatten eskiyse
+ * "degraded". Son 3 saatte gözlemi olan istasyon yoksa da "degraded".
+ */
+export const WEATHER_METAR_STALE_MS = 15 * 60_000
+export const WEATHER_METAR_DOWN_MS = 2 * 3_600_000
+export const WEATHER_TAF_STALE_MS = 3_600_000
+
 /** Panelde her zaman gösterilen canlı veri sağlayıcıları; sıra sabittir (servis kimliği provider:<id>). */
 export const PROVIDER_IDS = ['adsbLol', 'localReceiver'] as const
 
@@ -57,6 +68,11 @@ export interface ServiceProbes {
   trackPartitions: (() => Promise<Record<string, TrackTableStatus>>) | null
   /** provider_health satırları ve 1/24 saatlik 429 oranları; veritabanı yoksa null. */
   providers: (() => Promise<ProviderSummary[]>) | null
+  /**
+   * Hava durumu kaynak durumu (`weatherStatus`, packages/db); veritabanı yoksa null. Verilmezse
+   * satır "yapılandırılmamış" görünür.
+   */
+  weather?: (() => Promise<WeatherStatus>) | null
   http: (url: string) => Promise<HttpProbeResult>
   webUrl: string | null
   analyticsUrl: string | null
@@ -235,6 +251,83 @@ async function trackPartitionsStatus(
   }
 }
 
+const ageMin = (now: number, at: Date | null): number | null =>
+  at === null ? null : Math.max(0, Math.floor((now - at.getTime()) / 60_000))
+
+/** Son başarılı kontrolden sonra hata alınmış mı (hiç başarı yoksa her hata yenidir)? */
+function failingSince(source: WeatherSourceState | null): boolean {
+  if (!source?.lastErrorAt) return false
+  return source.checkedAt === null || source.lastErrorAt.getTime() > source.checkedAt.getTime()
+}
+
+/** Engel sürüyor mu (429 ya da 403 sonrası; süresi geçmiş engel sayılmaz)? */
+const activeBlock = (source: WeatherSourceState | null, now: number) =>
+  source?.blockedUntil && source.blockedUntil.getTime() > now
+    ? { until: source.blockedUntil, kind: source.blockedKind }
+    : null
+
+/**
+ * Hava durumu (aviationweather.gov METAR/TAF, D-078): son kontrollerin yaşı, güncel gözlemi olan
+ * istasyonlar, geçerli TAF'ı olan istasyonlar, engel ve son hata. Kaynak kapalıysa (üretim
+ * imajında dış istek kapalı ya da lisans izin vermiyor) "yapılandırılmamış" ve nedeni.
+ */
+async function weatherServiceStatus(
+  probes: ServiceProbes,
+  checkedAt: string,
+): Promise<ServiceStatus> {
+  const status = base('weather', 'data', checkedAt)
+  if (!probes.weather) return { ...status, state: 'not_configured' }
+  try {
+    const result = await withTimeout(probes.weather())
+    const { metar, taf } = result
+    if (metar?.origin === 'disabled') {
+      return {
+        ...status,
+        state: 'not_configured',
+        detail: { origin: 'disabled', reason: metar.disabledReason },
+      }
+    }
+    const now = probes.now().getTime()
+    const metarAge = ageMin(now, metar?.checkedAt ?? null)
+    const tafAge = ageMin(now, taf?.checkedAt ?? null)
+    const blocks = [activeBlock(metar, now), activeBlock(taf, now)].filter((b) => b !== null)
+    const forbidden = blocks.some((b) => b.kind === 'forbidden')
+    const failing = [metar, taf].find(failingSince)
+    const state: ServiceState =
+      metarAge === null || metarAge * 60_000 > WEATHER_METAR_DOWN_MS || forbidden
+        ? 'down'
+        : metarAge * 60_000 > WEATHER_METAR_STALE_MS ||
+            tafAge === null ||
+            tafAge * 60_000 > WEATHER_TAF_STALE_MS ||
+            failing !== undefined ||
+            blocks.length > 0 ||
+            result.stationsWithRecentMetar === 0
+          ? 'degraded'
+          : 'ok'
+    const blockedUntil = blocks
+      .map((b) => b.until.getTime())
+      .reduce<number | null>((latest, t) => (latest === null || t > latest ? t : latest), null)
+    return {
+      ...status,
+      state,
+      detail: {
+        stationsWithMetar: result.stationsWithRecentMetar,
+        stationsTotal: metar?.stationCount ?? null,
+        newestObsAgeMin: ageMin(now, result.newestObservedAt),
+        metarCheckAgeMin: metarAge,
+        tafCheckAgeMin: tafAge,
+        /** Geçerli TAF'ı olan istasyon sayısı. */
+        validTafCount: result.stationsWithValidTaf,
+        origin: metar?.origin ?? taf?.origin ?? null,
+        ...(blockedUntil === null ? {} : { blockedUntil: new Date(blockedUntil).toISOString() }),
+        ...(failing?.lastError ? { error: failing.lastError } : {}),
+      },
+    }
+  } catch (error) {
+    return { ...status, state: 'down', detail: { error: errorText(error) } }
+  }
+}
+
 const round = (value: number, digits: number) => {
   const factor = 10 ** digits
   return Math.round(value * factor) / factor
@@ -341,6 +434,7 @@ export async function collectServices(probes: ServiceProbes): Promise<ServicesRe
     redisLive,
     analytics,
     referenceData,
+    weather,
     partitions,
   ] = await Promise.all([
     httpVersionStatus('web', 'web', probes.webUrl, probes, checkedAt),
@@ -351,6 +445,7 @@ export async function collectServices(probes: ServiceProbes): Promise<ServicesRe
     redisStatus('redis-live', probes.redisLive, checkedAt),
     httpVersionStatus('analytics', 'analytics', probes.analyticsUrl, probes, checkedAt),
     referenceDataStatus(probes, checkedAt),
+    weatherServiceStatus(probes, checkedAt),
     trackPartitionsStatus(probes, checkedAt),
   ])
 
@@ -363,6 +458,7 @@ export async function collectServices(probes: ServiceProbes): Promise<ServicesRe
     redisQueue,
     redisLive,
     referenceData,
+    weather,
     partitions,
     analytics,
   ]

@@ -42,6 +42,23 @@ describe('lisans kaydı', () => {
     expect(esri.commercialUse).toBe(true)
   })
 
+  it('aviationweather.gov kaydı: ABD kamu verisi, nezaketen atıf, 100 istek/dk ve 400 kayıt notu (D-078)', () => {
+    const awc = PROVIDER_LICENSES.aviationWeather
+    expect(Object.keys(awc).sort()).toEqual(Object.keys(PROVIDER_LICENSES.ourAirports).sort())
+    expect(awc).toMatchObject({
+      commercialUse: true,
+      shareAlike: 'none',
+      b2cDisplayAllowed: true,
+      mixingWithOtherRealtimeAllowed: true,
+      maxRawStorageDays: null,
+      attribution: { text: 'NOAA Aviation Weather Center', url: 'https://aviationweather.gov/' },
+    })
+    expect(awc.license).toContain('weather.gov/disclaimer')
+    expect(awc.rateLimit).toMatch(/100 istek/)
+    expect(awc.rateLimit).toMatch(/400 kayıt/)
+    expect(awc.rateLimit).toMatch(/User-Agent/)
+  })
+
   it('adsb.lol hız sınırı notu D-073 kova değerlerini yazar', () => {
     expect(PROVIDER_LICENSES.adsbLol.rateLimit).toBe(
       'dinamik; 429 Retry-After taşımaz; başlangıç 0,1 istek/sn (alt 0,05, üst 0,2) + AIMD',

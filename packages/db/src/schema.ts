@@ -6,6 +6,7 @@ import { sql } from 'drizzle-orm'
 import {
   bigint,
   boolean,
+  check,
   doublePrecision,
   index,
   integer,
@@ -16,6 +17,7 @@ import {
   text,
   timestamp,
   uniqueIndex,
+  type PgColumn,
 } from 'drizzle-orm/pg-core'
 
 const updatedAt = () => timestamp('updated_at', { withTimezone: true }).notNull().defaultNow()
@@ -309,5 +311,91 @@ export const referenceSources = pgTable('reference_sources', {
   skippedCount: integer('skipped_count'),
   lastError: text('last_error'),
   lastErrorAt: timestamp('last_error_at', { withTimezone: true }),
+  updatedAt: updatedAt(),
+})
+
+/** İstasyon kodu denetimi (ICAO: dört büyük harf ya da rakam). */
+const stationIcaoCheck = (name: string, column: PgColumn) =>
+  check(name, sql`${column} ~ '^[A-Z0-9]{4}$'`)
+
+/**
+ * METAR/SPECI kaydı (D-078): her farklı rapor saklanır (geçmiş listesi), 30 gün sonra silinir.
+ * Anahtar `(station_icao, observed_at, report_type)`; aynı anahtarla gelen düzeltilmiş rapor (COR)
+ * metnin yerine geçer. Ham metin asıl veridir, kod çözme okurken yapılır. Havalimanı tablosuna
+ * yabancı anahtar yoktur (referans içe aktarımı serbestçe yazar; listeden çıkan istasyon silinir).
+ */
+export const weatherMetar = pgTable(
+  'weather_metar',
+  {
+    id: bigint('id', { mode: 'number' }).primaryKey().generatedAlwaysAsIdentity(),
+    stationIcao: text('station_icao').notNull(),
+    /** 'METAR' | 'SPECI' */
+    reportType: text('report_type').notNull(),
+    observedAt: timestamp('observed_at', { withTimezone: true }).notNull(),
+    rawText: text('raw_text').notNull(),
+    /** Ham metindeki QNH (hPa); Parça 2 AGL hesabı yalnızca 90 dk'dan yeni gözlemde kullanır. */
+    qnhHpa: real('qnh_hpa'),
+    /** AWC uçuş kategorisi (ABD sınıflandırması); yalnızca uzman görünüm. */
+    flightCategory: text('flight_category'),
+    fetchedAt: timestamp('fetched_at', { withTimezone: true }).notNull(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [
+    // Tekil anahtar ve tek dizin. Sıra en yeni rapor ve geçmiş sorgularının `ORDER BY observed_at
+    // DESC, report_type DESC` sırasıyla birebir aynıdır (PostgreSQL'de DESC = NULLS FIRST); sıralama
+    // adımı olmadan dizin taranır (weather.int.test.ts → EXPLAIN). Aynı anda SPECI METAR'dan önce.
+    uniqueIndex('weather_metar_station_observed_type_idx').on(
+      t.stationIcao,
+      t.observedAt.desc().nullsFirst(),
+      t.reportType.desc().nullsFirst(),
+    ),
+    stationIcaoCheck('weather_metar_station_icao_check', t.stationIcao),
+    check('weather_metar_report_type_check', sql`${t.reportType} in ('METAR', 'SPECI')`),
+  ],
+)
+
+/** TAF kaydı: her farklı `(station_icao, issued_at)`; geçerliliği bittikten 30 gün sonra silinir. */
+export const weatherTaf = pgTable(
+  'weather_taf',
+  {
+    id: bigint('id', { mode: 'number' }).primaryKey().generatedAlwaysAsIdentity(),
+    stationIcao: text('station_icao').notNull(),
+    issuedAt: timestamp('issued_at', { withTimezone: true }).notNull(),
+    validFrom: timestamp('valid_from', { withTimezone: true }).notNull(),
+    validTo: timestamp('valid_to', { withTimezone: true }).notNull(),
+    rawText: text('raw_text').notNull(),
+    fetchedAt: timestamp('fetched_at', { withTimezone: true }).notNull(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [
+    // Tekil anahtar; `ORDER BY issued_at DESC` (NULLS FIRST) sırasıyla aynı.
+    uniqueIndex('weather_taf_station_issued_idx').on(t.stationIcao, t.issuedAt.desc().nullsFirst()),
+    stationIcaoCheck('weather_taf_station_icao_check', t.stationIcao),
+    check('weather_taf_valid_range_check', sql`${t.validTo} > ${t.validFrom}`),
+  ],
+)
+
+/**
+ * Hava durumu kaynaklarının durumu (`metar` | `taf`): son başarılı kontrol, son hata ve AWC
+ * engeli. `reference_sources`'tan ayrıdır (referans telafisi orada tam üç satır bekler) ve
+ * `provider_health`'ten ayrıdır (o tablo 180 sn'de eskir; hava durumu 5–15 dk'da bir çalışır).
+ */
+export const weatherSources = pgTable('weather_sources', {
+  kind: text('kind').primaryKey(),
+  /** 'remote' | 'fixture' | 'disabled' */
+  origin: text('origin').notNull(),
+  /** origin = 'disabled' iken nedeni (ör. EXTERNAL_PROVIDERS_DISABLED üretim imajında). */
+  disabledReason: text('disabled_reason'),
+  /** Son başarılı kontrol (204 dahil). */
+  checkedAt: timestamp('checked_at', { withTimezone: true }),
+  stationCount: integer('station_count'),
+  reportCount: integer('report_count'),
+  skippedCount: integer('skipped_count'),
+  lastError: text('last_error'),
+  lastErrorAt: timestamp('last_error_at', { withTimezone: true }),
+  /** 429 ya da 403 sonrası bu ana kadar istek atılmaz. */
+  blockedUntil: timestamp('blocked_until', { withTimezone: true }),
+  /** Engelin nedeni: 'rate_limit' (429) | 'forbidden' (403). */
+  blockedKind: text('blocked_kind'),
   updatedAt: updatedAt(),
 })

@@ -1,8 +1,10 @@
 import type { Airport } from '@havayolu/shared'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { DEFAULT_LABEL_SETTINGS } from '../../lib/map/label-settings'
 import type { TrackedAircraft } from '../../lib/live/store'
 import {
+  DEFAULT_PIN_SCALE,
+  LabelPainter,
   NORMAL_THEME,
   SELECTED_THEME,
   THY_BAR_WIDTH,
@@ -10,6 +12,7 @@ import {
   labelPriority,
   layoutAirportChips,
   measureLabel,
+  pinGeometry,
   type LabelFrame,
   type ScreenAirport,
 } from './labels'
@@ -28,7 +31,7 @@ describe('measureLabel', () => {
       false,
       measure,
     )
-    expect(size.width).toBe(Math.ceil(6 * 13 * 0.6 + NORMAL_THEME.padX * 2))
+    expect(size.width).toBe(Math.ceil(6 * 12 * 0.6 + NORMAL_THEME.padX * 2))
     expect(size.height).toBe(
       NORMAL_THEME.padTop + NORMAL_THEME.primaryLine + NORMAL_THEME.padBottom,
     )
@@ -37,13 +40,24 @@ describe('measureLabel', () => {
   it('tam etiket: en geniş satır belirler; THY şeridi genişliğe eklenir', () => {
     const content = { primary: 'TK-4', primaryMuted: false, lines: ['431 km/sa · 333 m'] }
     const size = measureLabel(content, NORMAL_THEME, true, measure)
-    expect(size.width).toBe(Math.ceil(17 * 12 * 0.6 + NORMAL_THEME.padX * 2 + THY_BAR_WIDTH))
+    expect(size.width).toBe(Math.ceil(17 * 11 * 0.6 + NORMAL_THEME.padX * 2 + THY_BAR_WIDTH))
     expect(size.height).toBe(
       NORMAL_THEME.padTop +
         NORMAL_THEME.primaryLine +
         NORMAL_THEME.secondaryLine +
         NORMAL_THEME.padBottom,
     )
+  })
+
+  it('yazı boyutları okunur kalır: birincil satır en az 11 px, ikinci satır en az 10 px (D-079)', () => {
+    const px = (font: string) => Number(/(\d+)px/.exec(font)?.[1])
+    for (const theme of [NORMAL_THEME, SELECTED_THEME]) {
+      expect(px(theme.primaryFont)).toBeGreaterThanOrEqual(11)
+      expect(px(theme.secondaryFont)).toBeGreaterThanOrEqual(10)
+      expect(theme.primaryLine).toBeGreaterThan(px(theme.primaryFont))
+      expect(theme.secondaryLine).toBeGreaterThan(px(theme.secondaryFont))
+    }
+    expect(px(NORMAL_THEME.primaryFont)).toBe(12)
   })
 
   it('seçili etiket daha büyük yazılır', () => {
@@ -87,10 +101,51 @@ describe('layoutAirportChips', () => {
   })
   const view = { width: 400, height: 300 }
 
-  it('kodu noktanın sağına koyar; büyük havalimanı beyaz zeminlidir', () => {
+  it('kodu pin başının sağına koyar, pini örtmez; büyük havalimanı beyaz zeminlidir', () => {
     const [chip] = layoutAirportChips([at('IST', 'large_airport', 100, 100)], view, measure)
-    expect(chip).toMatchObject({ iata: 'IST', major: true, y: 91 })
-    expect(chip?.x).toBe(107)
+    const pin = pinGeometry(100, 100, DEFAULT_PIN_SCALE)
+    expect(chip).toMatchObject({ icao: 'LTIST', iata: 'IST', major: true, height: 16 })
+    // Kodun ortası pin başıyla aynı hizada, sol kenarı başın sağında (pinin ucu 100,100'de).
+    expect((chip?.y ?? 0) + (chip?.height ?? 0) / 2).toBeCloseTo(pin.headY)
+    expect(chip?.x ?? 0).toBeGreaterThan(pin.headX + pin.headRadius)
+    expect(chip?.x ?? 0).toBeLessThan(pin.headX + pin.headRadius + 5)
+    // Pin kutusu (baş ve uç) kodun dışındadır.
+    expect(chip?.y ?? 0).toBeLessThan(100)
+    expect((chip?.y ?? 0) + (chip?.height ?? 0)).toBeLessThan(100)
+  })
+
+  it('pin ölçeği yakınlaştırmayla büyür; kod pinden uzaklaşır', () => {
+    const near = layoutAirportChips(
+      [at('IST', 'large_airport', 100, 150)],
+      view,
+      measure,
+      undefined,
+      {
+        pinScale: 0.45,
+      },
+    )[0]
+    const far = layoutAirportChips(
+      [at('IST', 'large_airport', 100, 150)],
+      view,
+      measure,
+      undefined,
+      {
+        pinScale: 0.9,
+      },
+    )[0]
+    expect(far?.x ?? 0).toBeGreaterThan(near?.x ?? 0)
+    expect(far?.y ?? 0).toBeLessThan(near?.y ?? 0)
+  })
+
+  it('kod başka bir havalimanının pinini örtmez', () => {
+    // SAW'ın pini IST kodunun sağdaki yerinde: IST kodu sola kayar.
+    const chips = layoutAirportChips(
+      [at('IST', 'large_airport', 100, 100), at('SAW', 'large_airport', 130, 100)],
+      view,
+      measure,
+    )
+    const ist = chips.find((chip) => chip.iata === 'IST')
+    expect(ist?.x ?? 0).toBeLessThan(100)
   })
 
   it('yer yoksa sola, üste ya da alta kaydırır; hiçbiri olmazsa yazmaz', () => {
@@ -180,9 +235,108 @@ describe('layoutAirportChips', () => {
     expect(chip?.x).toBeLessThan(100)
   })
 
+  it('birincil istasyonun kodu yerdeki uçakların üstüne yazılır; havadakilere yine değmez', () => {
+    const ist = at('IST', 'large_airport', 100, 100)
+    ist.airport.icao = 'LTFM'
+    const ring = (gnd: boolean) =>
+      [
+        { hex: 'a', x: 125, y: 88 },
+        { hex: 'b', x: 75, y: 88 },
+        { hex: 'c', x: 100, y: 70 },
+        { hex: 'd', x: 100, y: 120 },
+      ].map(({ hex, x, y }) => ({ ac: { hex, gnd } as TrackedAircraft, x, y }))
+    const frame = (gnd: boolean): LabelFrame => ({
+      width: 400,
+      height: 300,
+      iconRadius: 14,
+      zoom: 10,
+      aircraft: ring(gnd),
+      airports: [ist],
+      trail: [],
+      selectedHex: null,
+      settings: DEFAULT_LABEL_SETTINGS,
+      locale: 'tr',
+      units: 'metric',
+    })
+    const layout = (gnd: boolean, primary: boolean) =>
+      layoutAirportChips([ist], view, measure, chipObstacles(frame(gnd)), {
+        ...(primary
+          ? { primary: { icao: 'LTFM', obstacles: chipObstacles(frame(gnd), { ground: false }) } }
+          : {}),
+      })
+    // Apronda dört yanı yerdeki uçaklarla dolu: kural yokken kod yazılmazdı.
+    expect(layout(true, false)).toEqual([])
+    expect(layout(true, true).map((chip) => chip.icao)).toEqual(['LTFM'])
+    // Havadaki uçaklar birincil istasyonda da engeldir.
+    expect(layout(false, true)).toEqual([])
+  })
+
   it('görünümden taşan kod yazılmaz', () => {
     expect(layoutAirportChips([at('VAN', 'medium_airport', -50, 100)], view, measure)).toEqual([])
     const [chip] = layoutAirportChips([at('VAN', 'medium_airport', 395, 100)], view, measure)
     expect(chip?.x).toBeLessThan(395)
+  })
+})
+
+describe('LabelPainter.airportHitTest', () => {
+  /** Tuvalin 2B bağlamı yerine çizim çağrılarını yutan, ölçüyü `measure` ile veren sahte bağlam. */
+  function fakeCanvas(): HTMLCanvasElement {
+    const ctx = new Proxy(
+      { measureText: (text: string) => ({ width: measure('12px', text) }) },
+      {
+        get: (target, key) =>
+          key in target ? target[key as keyof typeof target] : vi.fn(() => undefined),
+        set: () => true,
+      },
+    )
+    return { width: 0, height: 0, getContext: () => ctx } as unknown as HTMLCanvasElement
+  }
+
+  const ist: Airport = {
+    icao: 'LTFM',
+    iata: 'IST',
+    name: 'İstanbul Havalimanı',
+    city: null,
+    lat: 41.27,
+    lon: 28.75,
+    elevationFt: 325,
+    type: 'large_airport',
+    scheduled: true,
+  }
+
+  const frame = (zoom: number): LabelFrame => ({
+    width: 400,
+    height: 300,
+    iconRadius: 14,
+    zoom,
+    aircraft: [],
+    airports: [{ airport: ist, x: 100, y: 100 }],
+    trail: [],
+    selectedHex: null,
+    settings: DEFAULT_LABEL_SETTINGS,
+    locale: 'tr',
+    units: 'metric',
+  })
+
+  it('çizilen kodun kutusu havalimanının ICAO kodunu verir; kutu dışı ve temizlenmiş tuval null', () => {
+    const painter = new LabelPainter(fakeCanvas())
+    painter.resize(400, 300, 1)
+    painter.draw(frame(8))
+    // Kod pin başının sağında (pinin ucu 100,100; baş ~12 px yukarıda).
+    const pin = pinGeometry(100, 100, DEFAULT_PIN_SCALE)
+    const inside = { x: pin.headX + pin.headRadius + 8, y: pin.headY }
+    expect(painter.airportHitTest(inside.x, inside.y)).toBe('LTFM')
+    expect(painter.airportHitTest(100, 100)).toBeNull()
+    expect(painter.airportHitTest(inside.x, 120)).toBeNull()
+    expect(painter.hitTest(inside.x, inside.y)).toBeNull()
+    painter.clear()
+    expect(painter.airportHitTest(inside.x, inside.y)).toBeNull()
+  })
+
+  it('kodların yazılmadığı uzak görünümde kod tıklaması yoktur', () => {
+    const painter = new LabelPainter(fakeCanvas())
+    painter.resize(400, 300, 1)
+    painter.draw(frame(4))
+    expect(painter.airportHitTest(112, 100)).toBeNull()
   })
 })

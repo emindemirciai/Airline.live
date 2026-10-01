@@ -15,7 +15,7 @@ export interface LabelSettingsControlProps {
 /**
  * "Etiketler" düğmesi ve açılır ayar paneli: seçili uçak ve diğer uçaklar için ayrı ayrı Gizle,
  * Kısa ya da Tam. Denetimli bileşendir; saklama (`hy:map:labels`) üst bileşenin işidir. Panel
- * Escape'le ve dışına tıklanınca kapanır; Escape odağı düğmeye geri verir.
+ * Escape'le ve dışına tıklanınca kapanır; Escape odağı düğmeye geri verir ve tüketilir.
  */
 export function LabelSettingsControl({ value, onChange, messages }: LabelSettingsControlProps) {
   const [open, setOpen] = useState(false)
@@ -32,16 +32,19 @@ export function LabelSettingsControl({ value, onChange, messages }: LabelSetting
       if (root && event.target instanceof Node && !root.contains(event.target)) setOpen(false)
     }
     const closeOnEscape = (event: KeyboardEvent) => {
-      if (event.key !== 'Escape') return
+      if (event.key !== 'Escape' || event.defaultPrevented) return
+      // Tüketilir: açık havalimanı penceresi aynı tuşla kapanmaz (airport-popup.tsx).
+      event.preventDefault()
       const focusInside = rootRef.current?.contains(document.activeElement) ?? false
       setOpen(false)
       if (focusInside) buttonRef.current?.focus()
     }
     document.addEventListener('pointerdown', closeOnOutside)
-    document.addEventListener('keydown', closeOnEscape)
+    // Yakalama evresi: belgeye bağlı diğer Escape dinleyicilerinden (havalimanı penceresi) önce.
+    document.addEventListener('keydown', closeOnEscape, true)
     return () => {
       document.removeEventListener('pointerdown', closeOnOutside)
-      document.removeEventListener('keydown', closeOnEscape)
+      document.removeEventListener('keydown', closeOnEscape, true)
     }
   }, [open])
 

@@ -50,6 +50,7 @@ export default async function MapPage({ searchParams }: PageProps<'/'>) {
           config={config}
           locale={locale}
           messages={messages}
+          weatherMessages={t.weather}
           initialHex={parseHexParam(hex)}
           initialAirport={parseAirportParam(havalimani)}
           consentSettingsLabel={analyticsConfig(env) ? t.consent.settings : null}

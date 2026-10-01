@@ -87,6 +87,15 @@ export const ROADMAP: readonly Milestone[] = [
     },
   },
   {
+    id: 'p1-m6c',
+    part: '1',
+    status: 'done',
+    title: {
+      tr: 'Havalimanlarında canlı hava durumu ve harita penceresi',
+      en: 'Live airport weather and map window',
+    },
+  },
+  {
     id: 'p1-m7',
     part: '1',
     status: 'planned',

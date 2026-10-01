@@ -1,4 +1,3 @@
-import { PRIMARY_EXTRA_RADIUS_NM } from '@havayolu/geo/coverage'
 import { format, formatDistance, getMessages, NO_VALUE } from '@havayolu/i18n'
 import {
   airportDisplayName,
@@ -14,7 +13,6 @@ import { Fragment, type ReactNode } from 'react'
 // Göreli yollar: vitest `@/` takma adını çözmez ve bu bileşen testte çizilir.
 import {
   isInLiveCoverage,
-  isMonitoredStation,
   liveCoveragePlan,
   nearestAirports,
   sameProvinceAirports,
@@ -32,12 +30,12 @@ import {
   formatDataDate,
   formatLength,
   formatMeters,
-  formatRadius,
   longestRunway,
   runwayDesignator,
 } from './airport-text'
 import { Breadcrumbs } from './breadcrumbs'
 import { airportCrumbs } from './crumbs'
+import { AVIATION_WEATHER_URL } from './weather-links'
 
 /** "En yakın havalimanları" bölümündeki havalimanı sayısı (M6b brief §g). */
 export const NEARBY_COUNT = 3
@@ -49,6 +47,12 @@ export interface AirportViewProps {
   airport: AirportDetail
   /** Tüm havalimanları: en yakınlar ve aynı ildeki diğerleri bunlardan hesaplanır. */
   airports: readonly AirportDetail[]
+  /**
+   * Hava durumu ve METAR/TAF kaydı bölümleri (M6c). Sayfa bunları Suspense içinde verir: hava durumu
+   * isteği ilk baytı geciktirmez ve görünüm eşzamanlı kalır. Verilmezse bölümler ve kaynak satırı
+   * çizilmez (testler, önizlemeler).
+   */
+  weather?: ReactNode
 }
 
 /** Dış kaynak bağlantısı; kaynak siteler İngilizcedir. */
@@ -91,12 +95,13 @@ const displacedFt = (end: RunwayDetail['ends'][number]) =>
     : null
 
 /**
- * Havalimanı sayfasının gövdesi (`/istasyon/<ICAO>`, M6b brief §g). Her değer veriden gelir
- * (OurAirports + istasyon tablosu + resmî ad tablosu + kapsama planı); ortak giriş metni yoktur.
- * OurAirports bayrakları (tarifeli sefer, pist ışıklandırması) kaynağa atfedilir: "evet" değilse
- * "kayıtlı değil" yazılır, "yok" denmez (D-076). Sunucuda çizilir, kanca yoktur.
+ * Havalimanı sayfasının gövdesi (`/istasyon/<ICAO>`, M6b brief §g, M6c). Her değer veriden gelir
+ * (OurAirports + resmî ad tablosu + kapsama planı + hava durumu); ortak giriş metni yoktur. Tarifeli
+ * sefer ve izlenen istasyon bilgisi gösterilmez (D-078). OurAirports pist ışıklandırması kaynağa
+ * atfedilir: "evet" değilse "kayıtlı değil" yazılır, "yok" denmez (D-076). Sunucuda çizilir, kanca
+ * yoktur; hava durumu bölümü `weather` yuvasından gelir.
  */
-export function AirportView({ locale, app, airport, airports }: AirportViewProps) {
+export function AirportView({ locale, app, airport, airports, weather }: AirportViewProps) {
   const messages = getMessages(locale)
   const t = messages.airport
   const name = airportName(airport, locale)
@@ -107,7 +112,6 @@ export function AirportView({ locale, app, airport, airports }: AirportViewProps
   const longest = longestRunway(airport)
   const others = sameProvinceAirports(airport, airports)
   const nearby = nearestAirports(airport, airports, NEARBY_COUNT)
-  const monitored = isMonitoredStation(airport)
   const hasDisplaced = airport.runways.some((runway) => runway.ends.some((end) => displacedFt(end)))
   const nameSource = airportNameSource(airport.icao)
   const covered = isInLiveCoverage(airport, liveCoveragePlan(airports))
@@ -129,12 +133,6 @@ export function AirportView({ locale, app, airport, airports }: AirportViewProps
           ? format(t.lead.runwaysCount, { count })
           : null
 
-  const stationValue = !monitored
-    ? t.stationNo
-    : airport.station?.primary
-      ? t.stationPrimary
-      : t.stationYes
-
   return (
     <article className="page airport-page">
       <Breadcrumbs label={t.breadcrumbLabel} items={airportCrumbs(locale, app, airport)} />
@@ -154,7 +152,6 @@ export function AirportView({ locale, app, airport, airports }: AirportViewProps
           airport.elevationFt === null
             ? null
             : format(t.lead.elevation, { elevation: formatLength(airport.elevationFt, locale) }),
-          airport.scheduled ? t.lead.scheduled : t.lead.unscheduled,
         ]
           .filter((sentence): sentence is string => sentence !== null)
           .join(' ')}
@@ -175,31 +172,25 @@ export function AirportView({ locale, app, airport, airports }: AirportViewProps
         ) : null}
       </p>
 
+      {weather}
+
       <section aria-labelledby="airport-live" className="airport-live">
         <h2 id="airport-live">{t.live.heading}</h2>
-        {monitored && airport.station ? (
-          <>
-            <p>
-              {format(t.live.station, {
-                app,
-                radius: formatRadius(airport.station.fetchRadiusNm, locale),
-              })}
-            </p>
-            {airport.station.primary ? (
-              <p>
-                {format(t.live.stationPrimary, {
-                  radius: formatRadius(PRIMARY_EXTRA_RADIUS_NM, locale),
-                })}
-              </p>
-            ) : null}
-          </>
-        ) : (
-          <p>{covered ? t.live.notStation : t.live.outside}</p>
-        )}
+        <p>{covered ? t.live.covered : t.live.outside}</p>
         <p>
           <Link href={localePath(locale, airportMapPath(airport.icao))} className="button">
             {t.live.open}
           </Link>
+        </p>
+      </section>
+
+      <section aria-labelledby="airport-schedule" className="airport-schedule">
+        <h2 id="airport-schedule">{t.schedule.heading}</h2>
+        <p>{format(t.schedule.body, { app })}</p>
+        <p>
+          {richText(t.schedule.observed, {
+            about: <Link href={localePath(locale, '/hakkinda')}>{t.schedule.aboutLink}</Link>,
+          })}
         </p>
       </section>
 
@@ -248,14 +239,6 @@ export function AirportView({ locale, app, airport, airports }: AirportViewProps
           <div>
             <dt>{t.facts.elevation}</dt>
             <dd>{formatLength(airport.elevationFt, locale)}</dd>
-          </div>
-          <div>
-            <dt>{t.facts.scheduled}</dt>
-            <dd>{airport.scheduled ? t.yes : t.notRecorded}</dd>
-          </div>
-          <div>
-            <dt>{t.facts.station}</dt>
-            <dd>{stationValue}</dd>
           </div>
           <div>
             <dt>{t.facts.runways}</dt>
@@ -341,12 +324,6 @@ export function AirportView({ locale, app, airport, airports }: AirportViewProps
         </section>
       ) : null}
 
-      <p className="airport-limits">
-        {richText(t.limits, {
-          about: <Link href={localePath(locale, '/hakkinda')}>{t.limitsLink}</Link>,
-        })}
-      </p>
-
       <footer className="airport-source">
         <p>
           {richText(t.source, {
@@ -363,6 +340,13 @@ export function AirportView({ locale, app, airport, airports }: AirportViewProps
             name: <span lang="tr">{airportDisplayName(airport, 'tr')}</span>,
           })}
         </p>
+        {weather === undefined ? null : (
+          <p>
+            {richText(messages.weather.source, {
+              source: <SourceLink href={AVIATION_WEATHER_URL}>aviationweather.gov</SourceLink>,
+            })}
+          </p>
+        )}
       </footer>
     </article>
   )

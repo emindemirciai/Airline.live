@@ -121,7 +121,10 @@ Sıra: 1–4 commit'ten önce yapılır ve aynı commit'e girer. 5 commit'ten so
 2. **README:** `README.md` Türkçe ve İngilizce bölümleriyle güncellenir: sürüm, özellik durumu, yerelde çalıştırma, satır sayısı.
 3. **Satır sayısı:** `pnpm stats` çalıştırılır (lockfile ve `docs/research/` hariç). Toplam ve dağılım kullanıcıya bildirilir.
 4. **Yerel test:** `pnpm dev` arka planda başlatılır ve uygulama tarayıcı önizlemesinde (`.claude/launch.json`) kullanıcıya gösterilir.
-5. **Yedek:** `pnpm backup` → `git archive` zip'i masaüstünde `havayolu-yedek\havayolu-v<sürüm>-<tarih>-<commit>.zip` olarak üretilir ve kullanıcıya gönderilir (D-059).
+5. **Yedek** (ikisi birden, D-077):
+   - `pnpm backup` → `git archive` zip'i masaüstünde `havayolu-yedek\havayolu-v<sürüm>-<tarih>-<commit>.zip` olarak üretilir ve kullanıcıya gönderilir (D-059).
+   - Kullanıcının ortak teslim standardı (`PROJECT-BACKUP-RULES.md`, `BACKUP-STANDARD.md`, `AI-PROMPT.md`): kontroller yeşilken kilometre taşı dalında, kendi commit'imden sonra `push-and-backup.ps1` arka planda çalıştırılır. Betik dalı push eder ve repo kökünün **filtresiz** tam kopyasını (`.git`, `node_modules`, `.env`, `.next` dahil) `H:\Drive'ım\Artificial Intelligence - Projects\havayolu\havayolu_YYYY-MM-DD_HHMMSS.zip` olarak yazar, son 30 yedeği tutar. ZIP'in tam yolu kullanıcıya bildirilir. Betik hata verirse teslim başarılı sayılmaz.
+   - `push-and-backup.ps1` `main`'de çalıştırılmaz (`main`'e doğrudan push yasak). Betiğin Drive yolu, 30 yedek kuralı, tarih biçimi ve gizli dosya denetimi kullanıcı istemedikçe değiştirilmez. Denetim bir kaynak dosyayı adı yüzünden yanlış işaretlerse dosyanın adı değiştirilir, denetim gevşetilmez.
 6. **CI ve yayın:** CI yeşil ve Dokploy deploy'u hatasız olmalıdır. Kırmızıysa iş bitmiş sayılmaz. Birleşmeden sonra `v<sürüm>` GitHub Release'i CI'da kendiliğinden oluşur (`github-release` işi, D-067); oluştuğu doğrulanır.
 
 ## Kalite çıtası

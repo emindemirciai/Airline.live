@@ -189,6 +189,7 @@ describe('/v1/admin/services', () => {
       'redis-queue',
       'redis-live',
       'reference-data',
+      'weather',
       'track-partitions',
       'analytics',
     ])

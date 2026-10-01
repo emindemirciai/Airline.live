@@ -1,9 +1,15 @@
 // Testlerden önce: 3100'deki sunucunun bu uygulama olduğu doğrulanır (bu makinede başka projeler de
-// çalışır), canlı veri yolu (replay → worker → redis-live → API) ve havalimanı referans verisi
-// (fixture → worker `jobs` → PostgreSQL → API) hazır olana kadar beklenir, sayfalar bir kez derletilir.
-// Başarısız olursa diğer testler çalışmaz.
+// çalışır), canlı veri yolu (replay → worker → redis-live → API), havalimanı referans verisi ve hava
+// durumu (fixture → worker `jobs` → PostgreSQL → API) hazır olana kadar beklenir, sayfalar bir kez
+// derletilir. Başarısız olursa diğer testler çalışmaz.
 import { expect, test as setup } from '@playwright/test'
-import { AIRPORT_COUNT, API_URL, PRIMARY_AIRPORT, REPLAY_AIRCRAFT } from '../support'
+import {
+  AIRPORT_COUNT,
+  API_URL,
+  PRIMARY_AIRPORT,
+  PRIMARY_WEATHER,
+  REPLAY_AIRCRAFT,
+} from '../support'
 
 setup('uygulama havayolu ve replay verisi API’de', async ({ request }) => {
   setup.setTimeout(240_000)
@@ -64,6 +70,59 @@ setup('havalimanı referans verisi API’de', async ({ request }) => {
   const airport = (await detail.json()) as { icao?: unknown; runways?: unknown[] }
   expect(airport.icao).toBe(PRIMARY_AIRPORT.icao)
   expect(airport.runways).toHaveLength(PRIMARY_AIRPORT.runways)
+})
+
+// Hava durumu (D-078): worker'ın `jobs` rolü fixture'daki METAR ve TAF'ları referans verisinden
+// sonra yükler (tools/fixtures/weather). API yanıtları 60 sn, havalimanı sayfasının toplu hava isteği
+// de 60 sn önbelleklidir; sayfalar veri gelmeden derletilirse ilk dakika "rapor yok" gösterirdi. Bu
+// yüzden sayfalar istenmeden önce LTFM'nin METAR/TAF kaydının dolması ve toplu yanıtta son METAR'ın
+// görünmesi beklenir.
+setup('hava durumu verisi API’de', async ({ request }) => {
+  setup.setTimeout(240_000)
+  const history = `${API_URL}/v1/airports/${PRIMARY_AIRPORT.icao}/weather/history?hours=24`
+  await expect
+    .poll(
+      async () => {
+        const response = await request.get(history, { failOnStatusCode: false }).catch(() => null)
+        if (!response?.ok()) return 'yanıt yok'
+        const data = (await response.json()) as { entries?: { kind?: unknown }[] }
+        const entries = data.entries ?? []
+        const tafs = entries.filter((entry) => entry.kind === 'TAF').length
+        return entries.length >= PRIMARY_WEATHER.logMin24h && tafs > 0
+          ? 'hazır'
+          : `${entries.length} kayıt, ${tafs} TAF`
+      },
+      {
+        message:
+          'LTFM’nin METAR/TAF kaydı API’de dolmadı. Worker’ın jobs rolü hava durumu fixture’ını yükledi mi? (pnpm dev:replay günlükleri)',
+        timeout: 200_000,
+        // Hava uç noktaları IP başına dakikada 60 istekle sınırlıdır; web sunucusu da aynı IP'den çağırır.
+        intervals: [3_000],
+      },
+    )
+    .toBe('hazır')
+
+  await expect
+    .poll(
+      async () => {
+        const response = await request
+          .get(`${API_URL}/v1/weather?country=TR`, { failOnStatusCode: false })
+          .catch(() => null)
+        if (!response?.ok()) return null
+        const data = (await response.json()) as {
+          stations?: { icao?: unknown; metar?: { raw?: unknown } | null }[]
+        }
+        const station = data.stations?.find((entry) => entry.icao === PRIMARY_AIRPORT.icao)
+        return typeof station?.metar?.raw === 'string' ? station.metar.raw : null
+      },
+      {
+        message:
+          'Toplu hava durumu yanıtında LTFM’nin son METAR’ı yok (GET /v1/weather?country=TR)',
+        timeout: 90_000,
+        intervals: [3_000],
+      },
+    )
+    .toContain(PRIMARY_WEATHER.latestMetarGroups[0])
 })
 
 // next dev her yolu ilk istekte derler; testlerin kendi süre sınırları derlemeyi kapsamasın.
