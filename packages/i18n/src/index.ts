@@ -4,6 +4,7 @@ import { tr, type Messages } from './messages/tr'
 
 export type { Messages } from './messages/tr'
 export * from './units'
+export * from './weather'
 
 const catalogs: Record<Locale, Messages> = { tr, en }
 

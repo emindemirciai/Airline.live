@@ -20,6 +20,11 @@ export const API_HOST = new URL(API_URL).host
  * tools/src/scenarios/cruise.ts → `syntheticIdentity(1)`.
  */
 export const REPLAY_AIRCRAFT = { hex: 'ff0001', callsign: 'HYS001' } as const
+/**
+ * Senaryoda LTFM 35L'ye döngüsel son yaklaşma yapan uçak (cruise.ts → `APPROACH_NUMBER`, 12 NM'den
+ * eşiğe): hep havadadır ve haritanın açılış görünümünün (IST/LTFM, D-079) içindedir.
+ */
+export const APPROACH_AIRCRAFT = { hex: 'ff0091', callsign: 'HYS091' } as const
 /** Senaryoda LTFM'de yerde taksi yapan uçak (cruise.ts → `TAXI_NUMBER`, 35R ile 18/36 arası). */
 export const TAXI_AIRCRAFT = { hex: 'ff0092', callsign: 'HYS092' } as const
 /** LTFM'den hep uzakta, Esenboğa ile Van arasında uçan seyir uçağı (cruise.ts → `CRUISE_ROUTES[3]`). */
@@ -65,6 +70,27 @@ export const PRIMARY_AIRPORT_NEIGHBOURS = ['LTFJ', 'LTBU'] as const
  * sayfası açılır ama noindex.
  */
 export const NON_INDEXABLE_AIRPORT = { icao: 'LTAG', iata: 'UAB' } as const
+
+/**
+ * Hava durumu fixture'ı (tools/fixtures/weather; elle yazılmış ve sentetik, D-078). Worker'ın `jobs`
+ * rolü geliştirme ve testte yükler ve bütün zamanları tam saat kaydırır: fixture'ın "şimdi"si
+ * (15 Ocak 13:00Z) içinde bulunulan UTC saatinin başına gelir, dakikalar korunur.
+ *
+ * LTFM'nin son METAR'ı (fixture'da `LTFM 151250Z 03018G32KT 9999 -SHRA FEW025CB BKN035 09/05 Q1009
+ * TEMPO 4000 SHRA`): kuzeydoğudan 18 kt, hamle 32 kt (kuvvetli rüzgâr), hafif sağanak yağmur,
+ * kümülonimbüs; kar, gök gürültüsü ve sis yok. Ham metinde yalnızca gün ve saat grubu kaydırılır.
+ */
+export const PRIMARY_WEATHER = {
+  /** Son METAR'ın kaydırılmayan, yalnızca ona özgü grupları (bir önceki rapor `03017G31KT`). */
+  latestMetarGroups: ['03018G32KT', '-SHRA', 'FEW025CB'],
+  /**
+   * Son 24 saatteki en az METAR/TAF kaydı. Fixture'da METAR yarım saatte birdir (:20 ve :50); saatin
+   * dakikasına göre pencerede 46–48 METAR ve 4 TAF kalır. Pencere kenarı için pay bırakılır.
+   */
+  logMin24h: 45,
+} as const
+/** Fixture'da METAR'ı da TAF'ı da olmayan havalimanı (Kocaeli Cengiz Topel). */
+export const NO_WEATHER_AIRPORT = 'LTBQ'
 
 /** OpenAI'nin tarayıcısı; Next.js'in varsayılan "HTML-limited bot" listesinde yoktur (D-076). */
 export const GPTBOT_USER_AGENT =
@@ -118,6 +144,17 @@ export function aircraftTable(page: Page): Locator {
 
 export function aircraftRow(page: Page, hex: string): Locator {
   return aircraftTable(page).locator(`tbody tr[data-hex="${hex}"]`)
+}
+
+/** "Havalimanları" denetiminin listesindeki düğmeler (görünümdekiler, haritanın ortasına yakın önce). */
+export async function airportListCodes(page: Page, button = 'Havalimanları'): Promise<string[]> {
+  const toggle = page.getByRole('button', { name: button, exact: true })
+  if ((await toggle.getAttribute('aria-expanded')) !== 'true') await toggle.click()
+  const codes = page.locator('.map-airports__code')
+  await expect(codes.first()).toBeVisible()
+  const list = await codes.allTextContents()
+  await toggle.click()
+  return list
 }
 
 export function infoCard(page: Page): Locator {

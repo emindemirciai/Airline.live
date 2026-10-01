@@ -121,15 +121,71 @@ Durum geçişleri `provider_health`'e yazılır.
 - **Kapsam dışı ve atıf:** Telsiz çağrı adları (TURKISH, SUNTURK) v1'de yoktur. **OpenFlights kullanılmaz:** 2017'den beri güncellenmiyor ve ODbL share-alike yükü getiriyor. CC0 atıf gerektirmez; yine de ATTRIBUTION.md'de nezaketen anılır.
 
 ## 5. aviationweather.gov — METAR/TAF
-- **Base URL:** `https://aviationweather.gov/api/data`. Uç noktalar:
-  - METAR: `GET /metar?ids=LTFM,LTFJ,...&format=json` (`taf=true` ile TAF da aynı yanıtta gelir)
-  - TAF: `GET /taf?ids=...&format=json`
-  - bölge sorgusu: `bbox=lat0,lon0,lat1,lon1`
-- **İstek düzeni:** Tüm istasyonlar tek istekte çekilir; yanıt başına en fazla 400 kayıt gelir. Sınır dakikada 100 istektir. Özel User-Agent gönderilir, `Cache-Control max-age=60`'a uyulur.
-- **METAR JSON alanları:** `icaoId`, `obsTime` (epoch sn), `wdir`, `wspd`, `visib` (ör. "6+"), `altim` (**her zaman hPa**), `clouds[{cover, base}]`, `fltCat`, `rawOb`. Tavan = en alçak BKN/OVC/OVX tabanı (OVX dikey görüş anlamına gelir).
-- **TAF JSON alanları:** `rawTAF`, `issueTime`, `validTimeFrom/To`, `fcsts[]`.
-- **Kaldırılanlar:** Eylül 2025'te `/cgi-bin/` yolları ve `recent`, `order`, `vfr`, `output`, `filter`, `fields` parametreleri kaldırıldı; kullanılmaz.
-- **SLA yoktur.** Son geçerli METAR önbellekte tutulur ve yaşı gösterilir. Testte `tools/fixtures/metar/` kullanılır.
+Doğrulama: 2026-10-01 (OpenAPI şeması v4.0, Data API sayfası, help/data, değişiklik günlüğü, weather.gov/disclaimer; canlı istek atılmadı). Parça 1 M6c'den beri kullanılır (D-078).
+
+**Erişim ve şartlar**
+- **Base URL:** `https://aviationweather.gov/api/data`. Yalnızca HTTPS; `www` alt alan adı kullanılmaz (belgenin talimatı).
+- **CORS yoktur** ("Cross-origin resource sharing is not permitted"). Yalnızca worker (`hy-worker-bg`, `jobs` rolü) çağırır; web ve mobil kendi API'mizi kullanır.
+- **Sınır:** dakikada 100 istek; çoğu uç nokta yanıt başına en çok 400 kayıt döndürür. **Aşımda erişim engellenir.** Özel User-Agent önerilir (zorunlu olduğu yazmaz); mevcut `providerUserAgent` gönderilir.
+- **Yeniden deneme:** NWS yönergesi: hizmet yanıt vermiyorsa denemeler en az 1 dk arayla yapılır. Engellenen kullanıcı sdm@noaa.gov'a yazar (RUNBOOK).
+- **SLA yoktur**, hizmet "olduğu gibi"dir. Son geçerli rapor veritabanında kalır ve yaşıyla gösterilir.
+- **Önbellek başlığı belgelenmemiştir.** 2026-09-25'teki canlı denetimde `Cache-Control: max-age=60` görüldü (`docs/research/2026-09-25-kaynak-dogrulama.md`, R1); belgeli bir taahhüt değildir, sabit yazılmaz.
+
+**Uç noktalar ve parametreler**
+- **METAR:** `GET /metar` — `ids` (virgülle ayrılmış ICAO kodları) ya da `bbox=lat0,lon0,lat1,lon1` (önce enlem) zorunlu; `format` (`raw|decoded|json|geojson|xml|iwxxm`, **varsayılan `raw`**, bu yüzden `format=json` her zaman gönderilir); `taf` (boolean); `hours` (geriye bakılan saat, **varsayılan 1,5**; biz 2 gönderiyoruz); `date` (`yyyymmdd_hhmm` ya da ISO). Geçmiş en çok 30 gün geriye gider.
+- **TAF:** `GET /taf` — `ids`/`bbox`, `format` (`raw|json|geojson|xml|iwxxm`), `metar` (boolean), `time=valid|issue`, `date`. **`hours` parametresi yoktur.**
+- **`metar?taf=true` kullanılmaz:** METAR JSON şemasında TAF alanı tanımlı değildir; çözümlenmiş TAF (`fcsts[]`) yalnızca `/taf`'tan gelir. İki ayrı istek atılır.
+- **Belgelenmemiş parametre yasaktır:** "Undocumented query parameter requests are restricted and will result in an error" (değişiklik günlüğü v4.26, 2026-08-13). Önbellek kırıcı sorgu parametresi de eklenmez.
+- **İstek düzenimiz:** 61 havalimanı tek METAR isteğinde (`ids=<61 kod>&format=json&hours=2`, ~330 karakter) ve tek TAF isteğinde. Kodlar düz virgülle birleşir (AWC'nin kendi METAR sayfası da öyle gönderir). Yanıt 400 kayda ulaşırsa kod listesi ikiye bölünür, en çok 2 düzey. METAR 5 dk'da, TAF 15 dk'da bir: saatte 16 istek (D-078). Kesintiden sonra METAR geriye bakışı son başarılı denetimi kapsayacak kadar uzar (en çok 24 saat; istasyonlar istek başına 400 kayıt sınırına göre gruplanır); ilk açılışta 24 saat istenir. `/taf` `hours` almadığı için kesintide yayımlanıp yerini yenisine bırakan TAF'lar alınamaz (D-078).
+
+**Yanıt kodları**
+- **200:** JSON dizi.
+- **204:** geçerli istek, veri yok, **gövde boş**; JSON ayrıştırmadan önce durum kodu denetlenir. Başarı sayılır, eldeki raporlar silinmez.
+- **400:** geçersiz parametre ya da değer; `format=json` ile gövde `{status:"error", error:string}`. Bizim hatamızdır.
+- **403:** uç nokta kısıtlı ya da güvenlik duvarı engeli. Kaynağın davranışı değişti demektir (DUR-SOR 3): worker 1 sa durur, admin satırı "Çalışmıyor" olur.
+- **404:** bulunamadı.
+- **429:** çok fazla istek. `Retry-After` belgelenmemiştir; varsa okunur, yoksa en az 10 dk beklenir.
+- **500, 502, 504:** sunucu hatası ya da geçici kesinti; 60 sn sonra bir kez yeniden denenir.
+
+**METAR JSON alanları** (her alan boş gelebilir; zod şeması her alanı isteğe bağlı ve boş olabilir sayar, bilinmeyen anahtarları atar)
+- **Kimlik ve zaman:** `icaoId`; `obsTime` (epoch **saniye**, tamsayı); `reportTime` ve `receiptTime` (metin, `"yyyy-mm-dd hh:mm:ss.sssZ"`); `metarType` (`METAR|SPECI|…`); `rawOb` (ham rapor); `name`; `lat`, `lon`; `elev` (**metre**; OurAirports'taki feet değil).
+- **Değerler:** `temp`, `dewp` (°C; `temp`'in şema varsayılanı `0`'dır); `wdir` (gerçek kuzeye göre derece **ya da `"VRB"`**); `wspd`, `wgst` (kt); `visib` (**kara mili**, sayı ya da metin; `"6+"`/`"10+"` "daha fazla" demektir, Türkiye'deki `9999` `"6+"` gelir); `vertVis` (ft); `altim` (hPa, belgeli); `slp`; `wxString` (kodlu hava olayı, ör. `-RA`); `fltCat` (ABD uçuş kategorisi VFR/MVFR/IFR/LIFR).
+- **Bulut:** `clouds[{cover, base, top}]`; `cover` `CLR|CAVOK|FEW|SCT|BKN|OVC|OVX` (AWC'nin kendi kodu NSC ve SKC'yi de tanır); `base` ve `top` **ft, yerden** (AGL). OVX dikey görüş demektir; Eylül 2025'ten beri tabanı dikey görüş değeridir. CB/TCU türü JSON'da **yoktur**. Belgelenmemiş bir üst düzey `cover` alanı da gelebilir.
+- ABD'ye özgü alanlar (`precip`, `snow`, `maxT`…) Türkiye istasyonlarında boştur.
+- Eğilim (NOSIG, BECMG, TEMPO), son hava olayı (`RE..`) ve rüzgâr kesmesi (`WS`) için alan yoktur; ham metinden okunur.
+
+**TAF JSON alanları**
+- **Üst düzey:** `icaoId`; `issueTime`, `bulletinTime`, `dbPopTime` (**metin**; boşluklu ya da `T`'li ISO biçimi, ikisi de okunur); `validTimeFrom`, `validTimeTo` (epoch saniye); `rawTAF`; `mostRecent` (0 ya da 1); `remarks`; `lat`, `lon`, `elev` (metre); `prior`; `name`.
+- **`fcsts[]`:** `timeFrom`, `timeTo`, `timeBec` (epoch saniye; `timeBec` boş olabilir); `fcstChange` (`TEMPO|FM|BECMG|PROB` ya da temel dönem için boş; AWC'nin kendi kodu `PROB30`/`PROB40` de bekler, `/^PROB\d\d$/` kabul edilir); `probability`; `wdir` (derece ya da `"VRB"`); `wspd`, `wgst` (kt); `wshearHgt` (ft), `wshearDir`, `wshearSpd`; `visib` (kara mili, `"6+"`); `altim` (hPa); `vertVis` (ft); `wxString`; `notDecoded`; `clouds` (METAR'daki gibi, CB/TCU yok); `icgTurb[]`; `temp[]`. Türk TAF'larında sıcaklık grubu yoktur.
+
+**Ham metinden çözümleme (D-078)**
+- Görüş, bulut, sıcaklık, rüzgâr, hava olayları ve TAF dönemleri **ham metinden** (`rawOb`, `rawTAF`) çözümlenir; JSON alanları yalnızca zaman ve kimlik için kullanılır, testlerde çapraz denetimdir. Nedenleri: `9999` → `"6+"` kara mili kaybı; `clouds` NSC, NCD, SKC, VV ve CB/TCU'yu ayırmaz; `temp` varsayılanı `0`; birleşik `PROB30 TEMPO`'nun JSON'daki gösterimi belgelenmemiştir.
+- Tavan = en alçak BKN/OVC tabanı ya da dikey görüş (VV, JSON'da OVX).
+- Çözümleyici `packages/shared/src/weather/`'dadır (saf, IO yok).
+
+**Saklama (D-078)**
+- Her farklı rapor saklanır: METAR/SPECI `(istasyon, gözlem anı, tür)`, TAF `(istasyon, yayım anı)` anahtarıyla; aynı anahtarla gelen düzeltilmiş rapor (COR) metni değiştirir.
+- **30 gün** tutulur; `weather-prune` işi günde bir budar. Listeden çıkan istasyonların satırları da silinir.
+- Lisans kaydındaki `maxRawStorageDays: null`: kaynak bir sınır koymaz; 30 gün bizim seçimimizdir.
+
+**Lisans kaydı** (§ "Lisans kaydı"ndaki 7 alan; `packages/providers/src/license.ts` → `aviationWeather`)
+- `commercialUse`: `true`. NWS bilgisi aksi belirtilmedikçe kamu malıdır ve her yasal amaçla ücretsiz kullanılabilir (https://www.weather.gov/disclaimer).
+- `attribution`: "NOAA Aviation Weather Center" → https://aviationweather.gov/. Yasal zorunluluk değil nezaket atfıdır; NWS adı ve logosu izin ister, logo kullanılmaz; NOAA/NWS onayı ya da bağlantısı ima edilmez; değiştirilmiş veri resmî gibi sunulmaz. Sayfada "otomatik çözümlenmiştir; resmî brifing yerine geçmez, uçuş planlamasında kullanılmaz" yazar.
+- `shareAlike`: `none`.
+- `rateLimit`: dakikada en çok 100 istek; çoğu uç noktada yanıt başına en çok 400 kayıt; aşımda erişim engellenir; özel User-Agent önerilir.
+- `b2cDisplayAllowed`: `true`.
+- `mixingWithOtherRealtimeAllowed`: `true` (kısıt bulunmadı).
+- `maxRawStorageDays`: `null`.
+- **Kaynağın kaynağı:** Türk METAR ve TAF'larını havalimanlarının meteoroloji birimleri (MGM; İncirlik'te ABD Hava Kuvvetleri) hazırlar, AWC uluslararası değişimle yeniden dağıtır ve üçüncü taraf verisi olarak işaretlemez. MGM'nin kendi şartları incelenmedi; risk düşüktür (D-078).
+
+**Kullanılmayanlar ve kaldırılanlar**
+- **Toplu önbellek dosyaları** (`/data/cache/metars.cache.csv.gz` ve `.xml.gz` dakikada bir, `tafs.cache.xml.gz` 10 dk'da bir, `stations.cache.json.gz` günde bir): bütün dünyayı içerir; METAR ve TAF için JSON yoktur; **XML'de basınç inHg'dir** (`altim_in_hg`), dönüştürme tuzağıdır. Yalnızca dünya çapında kapsama ya da kalıcı 429 sonrası yedek için anlamlıdır.
+- **CSV:** ürün tablosu METAR için CSV yazar, ama `/metar`'ın biçim listesinde `csv` yoktur; CSV yalnızca `/api/data/dataserver` ve önbellek dosyasındadır. Kullanılmaz.
+- **Kaldırılanlar:** Eylül 2025 yenilemesinde METAR'da `recent`, `order`, `vfr`, `output`, `filter`, `fields`, TAF'ta `fields` dışındakilerin aynısı; HTML çıktısı, TAF CSV'si ve `metar_id` kaldırıldı; `fltCat` ve bulut örtüsü eklendi. Son adımlar 2026'da geldi: v4.25 (2026-08-06) eski `/cgi-bin/` uyumluluğunu kaldırdı, v4.26 (2026-08-13) belgelenmemiş parametreleri yasakladı.
+
+**Fixture'lar**
+- `tools/fixtures/weather/`: AWC JSON biçiminde, **elle yazılmış ve "sentetik, kayıt değil" etiketli** METAR ve TAF dosyaları; canlı kayıt yapılmaz (kullanıcı kararı 2026-10-01, D-078). Vakalar (yağmur, kar, gök gürültüsü, sis, CAVOK, VRB, hamle, SPECI ve dolu, donan yağmur, gecikmiş ve eski gözlem, raporu olmayan istasyon, TAF'ta yerine geçme, AMD ve süresi dolmuş TAF) ve LTFM için en az 3 günlük METAR/TAF kaydı içerir. Ayrıntı `tools/fixtures/README.md`'dedir.
+- Testte ve `EXTERNAL_PROVIDERS_DISABLED=true` iken worker bu dosyaları yükler; geliştirme ve testte (`APP_ENV` `development|test`) zamanlar tam saat kaydırılarak bugüne getirilir. Birim testleri sabit bir "şimdi" kullanır.
 
 ## 6. Harita — OpenFreeMap
 - **Şartlar:** Anahtar yok, ticari kullanım serbest, sayı limiti yok, **SLA yok**.

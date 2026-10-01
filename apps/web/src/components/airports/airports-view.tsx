@@ -2,7 +2,7 @@ import { format, getMessages } from '@havayolu/i18n'
 import type { AirportDetail, Locale } from '@havayolu/shared'
 import Link from 'next/link'
 // Göreli yollar: vitest `@/` takma adını çözmez ve bu bileşen testte çizilir.
-import { isMonitoredStation, latestDataUpdate } from '../../lib/airports'
+import { latestDataUpdate } from '../../lib/airports'
 import { localePath } from '../../lib/locale-routing'
 import { airportPath } from '../../lib/seo/paths'
 import { TERMS_LINKS } from '../../lib/terms'
@@ -26,13 +26,12 @@ export interface AirportsViewProps {
   airports: readonly AirportDetail[]
 }
 
-/** Liste sayfasının sayıları (açıklama ve özet cümlesi aynı sayıları kullanır). */
+/**
+ * Liste sayfasının sayıları (açıklama ve özet cümlesi aynı sayıyı kullanır). Tarifeli sefer ve
+ * izlenen istasyon bilgisi gösterilmez (M6c, kullanıcı kararı 2026-10-01, D-078).
+ */
 export function airportCounts(airports: readonly AirportDetail[]) {
-  return {
-    count: airports.length,
-    scheduled: airports.filter((airport) => airport.scheduled).length,
-    stations: airports.filter(isMonitoredStation).length,
-  }
+  return { count: airports.length }
 }
 
 /**
@@ -66,19 +65,13 @@ export function AirportsView({ locale, app, airports }: AirportsViewProps) {
                   <th scope="col">{t.columns.iata}</th>
                   <th scope="col">{t.columns.icao}</th>
                   <th scope="col">{t.columns.longestRunway}</th>
-                  <th scope="col">{t.columns.scheduled}</th>
-                  <th scope="col">{t.columns.station}</th>
                 </tr>
               </thead>
               <tbody>
                 {rows.map((airport) => {
                   const longest = longestRunway(airport)
-                  const monitored = isMonitoredStation(airport)
                   return (
-                    <tr
-                      key={airport.icao}
-                      className={airport.scheduled ? undefined : 'is-unscheduled'}
-                    >
+                    <tr key={airport.icao}>
                       <th scope="row">
                         <Link href={localePath(locale, airportPath(airport.icao))}>
                           {airportName(airport, locale)}
@@ -88,14 +81,6 @@ export function AirportsView({ locale, app, airports }: AirportsViewProps) {
                       <td className="mono">{airport.iata}</td>
                       <td className="mono">{airport.icao}</td>
                       <td className="num">{formatMeters(longest?.lengthFt ?? null, locale)}</td>
-                      <td>{airport.scheduled ? a.yes : a.notRecorded}</td>
-                      <td>
-                        {monitored
-                          ? airport.station?.primary
-                            ? a.stationPrimary
-                            : a.stationYes
-                          : a.stationNo}
-                      </td>
                     </tr>
                   )
                 })}

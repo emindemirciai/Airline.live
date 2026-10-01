@@ -1220,6 +1220,54 @@ body:has(.map-page) .site-footer {
   line-height: 1.4;
 }
 
+/* Havalimanları listesi (havalimanı penceresinin klavye yolu) */
+.map-airports__panel {
+  max-height: min(420px, calc(100dvh - 220px));
+  overflow-y: auto;
+}
+
+.map-airports__list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.map-airports__item {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  width: 100%;
+  min-height: 36px;
+  padding: 6px 8px;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  color: var(--map-ink);
+  font: inherit;
+  font-size: 0.85rem;
+  text-align: left;
+  cursor: pointer;
+}
+
+.map-airports__item:hover {
+  background: var(--map-panel-raised);
+}
+
+.map-airports__item:focus-visible {
+  outline: 3px solid var(--sign);
+  outline-offset: 1px;
+}
+
+.map-airports__code {
+  flex: none;
+  min-width: 3ch;
+  font-family: var(--font-data);
+  font-weight: 700;
+}
+
 /* MapLibre atıfı: koyu, opak ve her zaman panellerin üstünde; bağlantılar altı çizili. */
 .live-map .maplibregl-ctrl-bottom-left,
 .live-map .maplibregl-ctrl-bottom-right {
@@ -1445,10 +1493,6 @@ body:has(.map-page) .site-footer {
   font-variant-numeric: tabular-nums;
 }
 
-.airports-table tbody tr.is-unscheduled > * {
-  background: var(--bg);
-}
-
 .airport-nearby {
   margin: 0;
   padding-left: 1.4rem;
@@ -1458,13 +1502,18 @@ body:has(.map-page) .site-footer {
   margin-top: 0.35rem;
 }
 
-.airport-limits {
-  margin: 2rem 0 0;
-  padding: 0.75rem 0.9rem;
+/* Sefer sayısı, rötar ve iptal: bu bilgilerin olmadığını söyleyen bölüm (M6c brief §10). */
+.airport-schedule {
+  margin-top: 1.5rem;
+  padding: 0.25rem 1rem 0.25rem;
   background: var(--surface);
   border: 1px solid var(--line);
   border-left: 4px solid var(--sign);
   border-radius: var(--radius);
+}
+
+.airport-schedule h2 {
+  margin-top: 0.75rem;
 }
 
 .airport-source {
@@ -1475,6 +1524,262 @@ body:has(.map-page) .site-footer {
 
 .airport-source p {
   margin: 0.25rem 0;
+}
+
+/*
+ * Havalimanı hava durumu ve METAR/TAF kaydı (Parça 1 M6c). Geçici tema token'ları; uyarı rengi
+ * (gecikmiş gözlem, kuvvetli rüzgâr) iki temada da zemine karşı en az 4,5:1'dir (WCAG AA). Satırlar
+ * gerçek `<dl>`, kayıt gerçek `<table>`; ham metin satır kırar, 320 px'te sayfa yatay kaymaz.
+ */
+.airport-weather,
+.airport-weather-log {
+  --weather-warn: #8a5a00;
+
+  margin-top: 1.5rem;
+  padding: 0.25rem 1rem 0.75rem;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  min-width: 0;
+}
+
+.airport-weather {
+  border-left: 4px solid var(--accent);
+}
+
+@media (prefers-color-scheme: dark) {
+  .airport-weather,
+  .airport-weather-log {
+    --weather-warn: #f0b94a;
+  }
+}
+
+.airport-weather h2,
+.airport-weather-log h2 {
+  margin-top: 0.75rem;
+}
+
+.airport-weather h3 {
+  font-size: 1.05rem;
+  margin: 1.25rem 0 0.4rem;
+}
+
+.weather-status {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem 0.6rem;
+  margin: 0 0 0.75rem;
+  color: var(--muted);
+}
+
+.weather-badge {
+  display: inline-block;
+  padding: 0.05rem 0.5rem;
+  border: 1px solid currentColor;
+  border-radius: 3px;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.weather-badge.is-delayed,
+.weather-chip {
+  color: var(--weather-warn);
+}
+
+.weather-badge.is-stale {
+  color: var(--muted);
+}
+
+.weather-headline {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin: 0 0 0.9rem;
+  font-size: 1.2rem;
+}
+
+.weather-headline strong {
+  font-weight: 700;
+}
+
+.weather-icon {
+  flex: none;
+  width: 32px;
+  height: 32px;
+  color: var(--accent);
+}
+
+.weather-rows {
+  display: grid;
+  grid-template-columns: minmax(8.5rem, max-content) minmax(0, 1fr);
+  gap: 0.35rem 1rem;
+  margin: 0;
+}
+
+.weather-rows > div {
+  display: contents;
+}
+
+.weather-rows dt {
+  color: var(--muted);
+}
+
+.weather-rows dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.weather-chip {
+  display: inline-block;
+  padding: 0 0.4rem;
+  border: 1px solid currentColor;
+  border-radius: 3px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.weather-forecast {
+  margin: 0;
+  padding-left: 1.2rem;
+}
+
+.weather-forecast li + li {
+  margin-top: 0.3rem;
+}
+
+.weather-sun {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 1.25rem;
+  margin: 1rem 0 0;
+  padding: 0;
+  list-style: none;
+  font-variant-numeric: tabular-nums;
+}
+
+.weather-sun abbr {
+  text-decoration: underline dotted;
+  cursor: help;
+}
+
+.weather-details {
+  margin-top: 1rem;
+  border-top: 1px solid var(--line);
+  padding-top: 0.6rem;
+}
+
+.weather-details > summary {
+  cursor: pointer;
+  font-weight: 600;
+  color: var(--accent);
+}
+
+.weather-details > summary:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+.weather-raw {
+  margin: 0.4rem 0 0;
+  padding: 0.5rem 0.65rem;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  font-family: var(--font-data);
+  font-size: 0.9rem;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.weather-raw-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.4rem;
+  margin-top: 1rem;
+}
+
+.weather-raw-head h4 {
+  margin: 0;
+  font-size: 0.95rem;
+}
+
+.weather-copy {
+  padding: 0.15rem 0.6rem;
+  font-size: 0.85rem;
+}
+
+.weather-note {
+  color: var(--muted);
+  font-size: 0.95rem;
+}
+
+.weather-log td,
+.weather-log th {
+  vertical-align: top;
+}
+
+.weather-log .weather-raw {
+  margin: 0;
+  padding: 0;
+  background: none;
+  border: 0;
+  font-size: 0.85rem;
+}
+
+.weather-log-raw {
+  min-width: 14rem;
+}
+
+.weather-log-time {
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.weather-log-utc {
+  display: block;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.weather-type {
+  display: inline-block;
+  padding: 0 0.35rem;
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  font-family: var(--font-data);
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.weather-type.is-speci {
+  color: var(--weather-warn);
+  border-color: currentColor;
+}
+
+.weather-type.is-taf {
+  color: var(--accent);
+  border-color: currentColor;
+}
+
+/* Dar ekran: satır etiketleri değerin üstüne geçer; kayıt tablosunun ham metin sütunu satır kırar. */
+@media (max-width: 400px) {
+  .weather-rows {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0;
+  }
+
+  .weather-rows dd {
+    margin-bottom: 0.45rem;
+  }
+
+  .weather-headline {
+    font-size: 1.1rem;
+  }
 }
 
 .about ul {

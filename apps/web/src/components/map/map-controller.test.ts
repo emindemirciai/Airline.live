@@ -1,8 +1,8 @@
 import { AIRCRAFT_LAYER } from '@havayolu/shared'
 import { describe, expect, it } from 'vitest'
 import { clampViewport } from '../../lib/live/connection'
-import { TURKEY_BOUNDS } from './camera'
-import { iconScaleAt } from './map-controller'
+import { INITIAL_BOUNDS, INITIAL_MAX_ZOOM, initialZoom, PRIMARY_AIRPORT_VIEW } from './camera'
+import { iconScaleAt, resolveHit, type HitCandidates } from './map-controller'
 
 describe('iconScaleAt', () => {
   it('paylaşılan uçak katmanının icon-size ifadesini izler (z4 0,55 → z10 1)', () => {
@@ -32,8 +32,65 @@ describe('iconScaleAt', () => {
   })
 })
 
-describe('açılış görünümü', () => {
-  it('Türkiye kutusu API görünüm sınırının içindedir (kırpılmadan abone olunur)', () => {
-    expect(clampViewport(TURKEY_BOUNDS)).toEqual(TURKEY_BOUNDS)
+describe('açılış görünümü (IST/LTFM, D-079)', () => {
+  it('ilk abonelik kutusu IST çevresidir ve API görünüm sınırının içindedir', () => {
+    expect(clampViewport(INITIAL_BOUNDS)).toEqual(INITIAL_BOUNDS)
+    const { lat, lon } = PRIMARY_AIRPORT_VIEW
+    expect(INITIAL_BOUNDS.minLat).toBeLessThan(lat)
+    expect(INITIAL_BOUNDS.maxLat).toBeGreaterThan(lat)
+    expect(INITIAL_BOUNDS.minLon).toBeLessThan(lon)
+    expect(INITIAL_BOUNDS.maxLon).toBeGreaterThan(lon)
+    expect([lat, lon]).toEqual([41.2753, 28.7519])
+  })
+
+  it('yakınlaştırma: masaüstünde 8,5; telefonda kısa kenar ~100 km kapsar', () => {
+    expect(initialZoom(1280, 720)).toBe(INITIAL_MAX_ZOOM)
+    expect(initialZoom(1920, 1080)).toBe(INITIAL_MAX_ZOOM)
+    const phone = initialZoom(375, 812)
+    expect(phone).toBeGreaterThan(7.5)
+    expect(phone).toBeLessThan(8)
+    // 375 px'in kapsadığı mesafe ~100 km (Web Mercator, LTFM enlemi).
+    const metersPerPixel = (40_075_016.686 * Math.cos((41.2753 * Math.PI) / 180)) / 512 / 2 ** phone
+    expect(metersPerPixel * 375).toBeGreaterThan(90_000)
+    expect(metersPerPixel * 375).toBeLessThan(110_000)
+    expect(initialZoom(0, 0)).toBe(7)
+  })
+})
+
+describe('resolveHit: tıklama önceliği (D-079)', () => {
+  const none: HitCandidates = {
+    label: null,
+    airborne: null,
+    chip: null,
+    pin: null,
+    ground: null,
+    near: null,
+  }
+  const hit = (c: Partial<HitCandidates>) => resolveHit({ ...none, ...c })
+
+  it('havadaki uçağın simgesi pin ve koddan önce gelir; etiket hepsinden önce', () => {
+    expect(hit({ airborne: 'air', pin: 'LTFM', chip: 'LTFM' })).toEqual({
+      kind: 'aircraft',
+      hex: 'air',
+    })
+    expect(hit({ label: 'lbl', airborne: 'air', chip: 'LTFM' })).toEqual({
+      kind: 'aircraft',
+      hex: 'lbl',
+    })
+  })
+
+  it('pin ya da kod yerdeki uçaktan önce gelir (apronda havalimanı penceresi açılır)', () => {
+    expect(hit({ pin: 'LTFM', ground: 'taxi' })).toEqual({ kind: 'airport', icao: 'LTFM' })
+    expect(hit({ chip: 'LTFM', ground: 'taxi', near: 'taxi' })).toEqual({
+      kind: 'airport',
+      icao: 'LTFM',
+    })
+  })
+
+  it('yerdeki uçak dokunma payından önce; pay en sonda; boş yer null', () => {
+    expect(hit({ ground: 'taxi', near: 'other' })).toEqual({ kind: 'aircraft', hex: 'taxi' })
+    expect(hit({ pin: 'LTFJ', near: 'air' })).toEqual({ kind: 'airport', icao: 'LTFJ' })
+    expect(hit({ near: 'air' })).toEqual({ kind: 'aircraft', hex: 'air' })
+    expect(hit({})).toBeNull()
   })
 })

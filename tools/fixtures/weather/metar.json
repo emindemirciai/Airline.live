@@ -1,0 +1,4369 @@
+[
+  {
+    "icaoId": "LTAC",
+    "receiptTime": "2026-01-15 12:53:00.000Z",
+    "obsTime": 1768481400,
+    "reportTime": "2026-01-15 12:50:00.000Z",
+    "temp": -1,
+    "dewp": -2,
+    "wdir": 320,
+    "wspd": 12,
+    "visib": 0.93,
+    "altim": 1018,
+    "wxString": "SN BR",
+    "metarType": "METAR",
+    "rawOb": "LTAC 151250Z 32012KT 1500 SN BR BKN008 OVC015 M01/M02 Q1018 BECMG 3000 -SN",
+    "lat": 40.128,
+    "lon": 32.995,
+    "elev": 953,
+    "name": "Ankara/Esenboga Intl, AN, TR",
+    "clouds": [
+      {
+        "cover": "BKN",
+        "base": 800
+      },
+      {
+        "cover": "OVC",
+        "base": 1500
+      }
+    ],
+    "fltCat": "LIFR"
+  },
+  {
+    "icaoId": "LTAI",
+    "receiptTime": "2026-01-15 12:53:00.000Z",
+    "obsTime": 1768481400,
+    "reportTime": "2026-01-15 12:50:00.000Z",
+    "temp": 16,
+    "dewp": 14,
+    "wdir": 200,
+    "wspd": 15,
+    "wgst": 28,
+    "visib": 1.86,
+    "altim": 1006,
+    "wxString": "+TSRA",
+    "metarType": "METAR",
+    "rawOb": "LTAI 151250Z 20015G28KT 160V240 3000 +TSRA SCT015CB BKN030 16/14 Q1006 TEMPO 1500 +TSRA",
+    "lat": 36.899,
+    "lon": 30.801,
+    "elev": 54,
+    "name": "Antalya Intl, AN, TR",
+    "clouds": [
+      {
+        "cover": "SCT",
+        "base": 1500
+      },
+      {
+        "cover": "BKN",
+        "base": 3000
+      }
+    ],
+    "fltCat": "IFR"
+  },
+  {
+    "icaoId": "LTAU",
+    "receiptTime": "2026-01-15 12:53:00.000Z",
+    "obsTime": 1768481400,
+    "reportTime": "2026-01-15 12:50:00.000Z",
+    "temp": 7,
+    "dewp": -1,
+    "wdir": 230,
+    "wspd": 8,
+    "visib": "6+",
+    "altim": 1013,
+    "wxString": "VCTS",
+    "metarType": "METAR",
+    "rawOb": "LTAU 151250Z 23008KT 9999 VCTS SCT040CB BKN100 07/M01 Q1013 NOSIG",
+    "lat": 38.77,
+    "lon": 35.495,
+    "elev": 1053,
+    "name": "Kayseri/Erkilet Intl, KS, TR",
+    "clouds": [
+      {
+        "cover": "SCT",
+        "base": 4000
+      },
+      {
+        "cover": "BKN",
+        "base": 10000
+      }
+    ],
+    "fltCat": "VFR"
+  },
+  {
+    "icaoId": "LTBA",
+    "receiptTime": "2026-01-15 12:53:00.000Z",
+    "obsTime": 1768481400,
+    "reportTime": "2026-01-15 12:50:00.000Z",
+    "temp": 10,
+    "dewp": 3,
+    "wdir": 40,
+    "wspd": 8,
+    "visib": "6+",
+    "altim": 1010,
+    "metarType": "METAR",
+    "rawOb": "LTBA 151250Z 04008KT CAVOK 10/03 Q1010 NOSIG",
+    "lat": 40.976,
+    "lon": 28.821,
+    "elev": 50,
+    "name": "Istanbul/Ataturk Intl, IS, TR",
+    "clouds": [
+      {
+        "cover": "CAVOK"
+      }
+    ],
+    "fltCat": "VFR"
+  },
+  {
+    "icaoId": "LTBJ",
+    "receiptTime": "2026-01-15 12:53:00.000Z",
+    "obsTime": 1768481400,
+    "reportTime": "2026-01-15 12:50:00.000Z",
+    "temp": 14,
+    "dewp": 6,
+    "wdir": "VRB",
+    "wspd": 2,
+    "visib": "6+",
+    "altim": 1012,
+    "metarType": "METAR",
+    "rawOb": "LTBJ 151250Z VRB02KT 9999 FEW040 14/06 Q1012 NOSIG",
+    "lat": 38.292,
+    "lon": 27.157,
+    "elev": 125,
+    "name": "Izmir/Adnan Menderes Intl, IZ, TR",
+    "clouds": [
+      {
+        "cover": "FEW",
+        "base": 4000
+      }
+    ],
+    "fltCat": "VFR"
+  },
+  {
+    "icaoId": "LTCE",
+    "receiptTime": "2026-01-15 12:53:00.000Z",
+    "obsTime": 1768481400,
+    "reportTime": "2026-01-15 12:50:00.000Z",
+    "temp": -8,
+    "dewp": -10,
+    "wdir": 270,
+    "wspd": 22,
+    "wgst": 35,
+    "visib": 0.5,
+    "altim": 1021,
+    "wxString": "+SHSN BLSN",
+    "vertVis": 400,
+    "metarType": "METAR",
+    "rawOb": "LTCE 151250Z 27022G35KT 0800 +SHSN BLSN VV004 M08/M10 Q1021 TEMPO 0400 +SHSN",
+    "lat": 39.957,
+    "lon": 41.17,
+    "elev": 1756,
+    "name": "Erzurum Intl, ER, TR",
+    "clouds": [
+      {
+        "cover": "OVX",
+        "base": 0
+      }
+    ],
+    "fltCat": "LIFR"
+  },
+  {
+    "icaoId": "LTCF",
+    "receiptTime": "2026-01-15 12:53:00.000Z",
+    "obsTime": 1768481400,
+    "reportTime": "2026-01-15 12:50:00.000Z",
+    "temp": -1,
+    "dewp": -2,
+    "wdir": 0,
+    "wspd": 0,
+    "visib": 1.55,
+    "altim": 1022,
+    "wxString": "FZRA BR",
+    "metarType": "METAR",
+    "rawOb": "LTCF 151250Z 00000KT 2500 FZRA BR OVC005 M01/M02 Q1022 NOSIG",
+    "lat": 40.562,
+    "lon": 43.115,
+    "elev": 1795,
+    "name": "Kars/Harakani, KA, TR",
+    "clouds": [
+      {
+        "cover": "OVC",
+        "base": 500
+      }
+    ],
+    "fltCat": "IFR"
+  },
+  {
+    "icaoId": "LTCG",
+    "receiptTime": "2026-01-15 12:53:00.000Z",
+    "obsTime": 1768481400,
+    "reportTime": "2026-01-15 12:50:00.000Z",
+    "temp": 8,
+    "dewp": 8,
+    "wdir": 0,
+    "wspd": 0,
+    "visib": 0.12,
+    "altim": 1015,
+    "wxString": "FG",
+    "vertVis": 100,
+    "metarType": "METAR",
+    "rawOb": "LTCG 151250Z 00000KT 0200 R11/0350N FG VV001 08/08 Q1015 BECMG 1500 BR",
+    "lat": 40.995,
+    "lon": 39.79,
+    "elev": 33,
+    "name": "Trabzon Intl, TR, TR",
+    "clouds": [
+      {
+        "cover": "OVX",
+        "base": 0
+      }
+    ],
+    "fltCat": "LIFR"
+  },
+  {
+    "icaoId": "LTDB",
+    "receiptTime": "2026-01-15 12:53:00.000Z",
+    "obsTime": 1768481400,
+    "reportTime": "2026-01-15 12:50:00.000Z",
+    "temp": 19,
+    "dewp": 8,
+    "wdir": 180,
+    "wspd": 6,
+    "visib": 2.49,
+    "altim": 1008,
+    "wxString": "HZ",
+    "metarType": "METAR",
+    "rawOb": "LTDB 151250Z 18006KT 4000 HZ NSC 19/08 Q1008 NOSIG",
+    "lat": 36.891,
+    "lon": 35.071,
+    "elev": 30,
+    "name": "Adana/Cukurova Intl, MR, TR",
+    "clouds": [
+      {
+        "cover": "CLR"
+      }
+    ],
+    "fltCat": "IFR"
+  },
+  {
+    "icaoId": "LTFJ",
+    "receiptTime": "2026-01-15 12:53:00.000Z",
+    "obsTime": 1768481400,
+    "reportTime": "2026-01-15 12:50:00.000Z",
+    "temp": 8,
+    "dewp": 7,
+    "wdir": 60,
+    "wspd": 10,
+    "visib": 2.49,
+    "altim": 1011,
+    "wxString": "-DZ BR",
+    "metarType": "METAR",
+    "rawOb": "LTFJ 151250Z 06010KT 4000 -DZ BR SCT006 OVC012 08/07 Q1011 RERA NOSIG",
+    "lat": 40.899,
+    "lon": 29.309,
+    "elev": 95,
+    "name": "Istanbul/Sabiha Gokcen Intl, IS, TR",
+    "clouds": [
+      {
+        "cover": "SCT",
+        "base": 600
+      },
+      {
+        "cover": "OVC",
+        "base": 1200
+      }
+    ],
+    "fltCat": "IFR"
+  },
+  {
+    "icaoId": "LTFM",
+    "receiptTime": "2026-01-15 12:53:00.000Z",
+    "obsTime": 1768481400,
+    "reportTime": "2026-01-15 12:50:00.000Z",
+    "temp": 9,
+    "dewp": 5,
+    "wdir": 30,
+    "wspd": 18,
+    "wgst": 32,
+    "visib": "6+",
+    "altim": 1009,
+    "wxString": "-SHRA",
+    "metarType": "METAR",
+    "rawOb": "LTFM 151250Z 03018G32KT 9999 -SHRA FEW025CB BKN035 09/05 Q1009 TEMPO 4000 SHRA",
+    "lat": 41.262,
+    "lon": 28.742,
+    "elev": 99,
+    "name": "Istanbul Arpt, IS, TR",
+    "clouds": [
+      {
+        "cover": "FEW",
+        "base": 2500
+      },
+      {
+        "cover": "BKN",
+        "base": 3500
+      }
+    ],
+    "fltCat": "VFR"
+  },
+  {
+    "icaoId": "LTBS",
+    "receiptTime": "2026-01-15 12:45:00.000Z",
+    "obsTime": 1768480920,
+    "reportTime": "2026-01-15 12:42:00.000Z",
+    "temp": 12,
+    "dewp": 10,
+    "wdir": 250,
+    "wspd": 15,
+    "wgst": 27,
+    "visib": 1.24,
+    "altim": 1007,
+    "wxString": "+TSRAGR",
+    "metarType": "SPECI",
+    "rawOb": "LTBS 151242Z 25015G27KT 2000 +TSRAGR SCT012CB BKN025 12/10 Q1007",
+    "lat": 36.713,
+    "lon": 28.793,
+    "elev": 6,
+    "name": "Dalaman Intl, MU, TR",
+    "clouds": [
+      {
+        "cover": "SCT",
+        "base": 1200
+      },
+      {
+        "cover": "BKN",
+        "base": 2500
+      }
+    ],
+    "fltCat": "IFR"
+  },
+  {
+    "icaoId": "LTFM",
+    "receiptTime": "2026-01-15 12:23:00.000Z",
+    "obsTime": 1768479600,
+    "reportTime": "2026-01-15 12:20:00.000Z",
+    "temp": 9,
+    "dewp": 5,
+    "wdir": 30,
+    "wspd": 17,
+    "wgst": 31,
+    "visib": "6+",
+    "altim": 1009,
+    "wxString": "-SHRA",
+    "metarType": "METAR",
+    "rawOb": "LTFM 151220Z 03017G31KT 9999 -SHRA FEW025CB BKN035 09/05 Q1009 TEMPO 4000 SHRA",
+    "lat": 41.262,
+    "lon": 28.742,
+    "elev": 99,
+    "name": "Istanbul Arpt, IS, TR",
+    "clouds": [
+      {
+        "cover": "FEW",
+        "base": 2500
+      },
+      {
+        "cover": "BKN",
+        "base": 3500
+      }
+    ],
+    "fltCat": "VFR"
+  },
+  {
+    "icaoId": "LTFM",
+    "receiptTime": "2026-01-15 11:53:00.000Z",
+    "obsTime": 1768477800,
+    "reportTime": "2026-01-15 11:50:00.000Z",
+    "temp": 9,
+    "dewp": 5,
+    "wdir": 30,
+    "wspd": 17,
+    "wgst": 31,
+    "visib": "6+",
+    "altim": 1009,
+    "wxString": "-SHRA",
+    "metarType": "METAR",
+    "rawOb": "LTFM 151150Z 03017G31KT 9999 -SHRA FEW025CB BKN035 09/05 Q1009 TEMPO 4000 SHRA",
+    "lat": 41.262,
+    "lon": 28.742,
+    "elev": 99,
+    "name": "Istanbul Arpt, IS, TR",
+    "clouds": [
+      {
+        "cover": "FEW",
+        "base": 2500
+      },
+      {
+        "cover": "BKN",
+        "base": 3500
+      }
+    ],
+    "fltCat": "VFR"
+  },
+  {
+    "icaoId": "LTAJ",
+    "receiptTime": "2026-01-15 11:23:00.000Z",
+    "obsTime": 1768476000,
+    "reportTime": "2026-01-15 11:20:00.000Z",
+    "temp": 11,
+    "dewp": 2,
+    "wdir": 90,
+    "wspd": 5,
+    "visib": "6+",
+    "altim": 1016,
+    "metarType": "METAR",
+    "rawOb": "LTAJ 151120Z 09005KT 9999 SCT030 11/02 Q1016 NOSIG",
+    "lat": 36.947,
+    "lon": 37.479,
+    "elev": 704,
+    "name": "Gaziantep/Oguzeli Intl, GA, TR",
+    "clouds": [
+      {
+        "cover": "SCT",
+        "base": 3000
+      }
+    ],
+    "fltCat": "VFR"
+  },
+  {
+    "icaoId": "LTFM",
+    "receiptTime": "2026-01-15 11:23:00.000Z",
+    "obsTime": 1768476000,
+    "reportTime": "2026-01-15 11:20:00.000Z",
+    "temp": 9,
+    "dewp": 5,
+    "wdir": 30,
+    "wspd": 16,
+    "wgst": 27,
+    "visib": "6+",
+    "altim": 1010,
+    "wxString": "-SHRA",
+    "metarType": "METAR",
+    "rawOb": "LTFM 151120Z 03016G27KT 9999 -SHRA FEW025CB BKN035 09/05 Q1010 TEMPO 5000 SHRA",
+    "lat": 41.262,
+    "lon": 28.742,
+    "elev": 99,
+    "name": "Istanbul Arpt, IS, TR",
+    "clouds": [
+      {
+        "cover": "FEW",
+        "base": 2500
+      },
+      {
+        "cover": "BKN",
+        "base": 3500
+      }
+    ],
+    "fltCat": "VFR"
+  },
+  {
+    "icaoId": "LTFM",
+    "receiptTime": "2026-01-15 10:53:00.000Z",
+    "obsTime": 1768474200,
+    "reportTime": "2026-01-15 10:50:00.000Z",
+    "temp": 9,
+    "dewp": 5,
+    "wdir": 30,
+    "wspd": 16,
+    "wgst": 27,
+    "visib": "6+",
+    "altim": 1010,
+    "wxString": "-SHRA",
+    "metarType": "METAR",
+    "rawOb": "LTFM 151050Z 03016G27KT 9999 -SHRA FEW025CB BKN035 09/05 Q1010 TEMPO 5000 SHRA",
+    "lat": 41.262,
+    "lon": 28.742,
+    "elev": 99,
+    "name": "Istanbul Arpt, IS, TR",
+    "clouds": [
+      {
+        "cover": "FEW",
+        "base": 2500
+      },
+      {
+        "cover": "BKN",
+        "base": 3500
+      }
+    ],
+    "fltCat": "VFR"
+  },
+  {
+    "icaoId": "LTFM",
+    "receiptTime": "2026-01-15 10:23:00.000Z",
+    "obsTime": 1768472400,
+    "reportTime": "2026-01-15 10:20:00.000Z",
+    "temp": 9,
+    "dewp": 5,
+    "wdir": 30,
+    "wspd": 14,
+    "visib": "6+",
+    "altim": 1011,
+    "wxString": "-SHRA",
+    "metarType": "METAR",
+    "rawOb": "LTFM 151020Z 03014KT 9999 -SHRA FEW025 BKN035 09/05 Q1011 NOSIG",
+    "lat": 41.262,
+    "lon": 28.742,
+    "elev": 99,
+    "name": "Istanbul Arpt, IS, TR",
+    "clouds": [
+      {
+        "cover": "FEW",
+        "base": 2500
+      },
+      {
+        "cover": "BKN",
+        "base": 3500
+      }
+    ],
+    "fltCat": "VFR"
+  },
+  {
+    "icaoId": "LTFM",
+    "receiptTime": "2026-01-15 09:53:00.000Z",
+    "obsTime": 1768470600,
+    "reportTime": "2026-01-15 09:50:00.000Z",
+    "temp": 9,
+    "dewp": 5,
+    "wdir": 30,
+    "wspd": 14,
+    "visib": "6+",
+    "altim": 1011,
+    "wxString": "-SHRA",
+    "metarType": "METAR",
+    "rawOb": "LTFM 150950Z 03014KT 9999 -SHRA FEW025 BKN035 09/05 Q1011 NOSIG",
+    "lat": 41.262,
+    "lon": 28.742,
+    "elev": 99,
+    "name": "Istanbul Arpt, IS, TR",
+    "clouds": [
+      {
+        "cover": "FEW",
+        "base": 2500
+      },
+      {
+        "cover": "BKN",
+        "base": 3500
+      }
+    ],
+    "fltCat": "VFR"
+  },
+  {
+    "icaoId": "LTFM",
+    "receiptTime": "2026-01-15 09:23:00.000Z",
+    "obsTime": 1768468800,
+    "reportTime": "2026-01-15 09:20:00.000Z",
+    "temp": 9,
+    "dewp": 5,
+    "wdir": 30,
+    "wspd": 12,
+    "visib": "6+",
+    "altim": 1012,
+    "metarType": "METAR",
+    "rawOb": "LTFM 150920Z 03012KT 9999 BKN035 09/05 Q1012 TEMPO -SHRA",
+    "lat": 41.262,
+    "lon": 28.742,
+    "elev": 99,
+    "name": "Istanbul Arpt, IS, TR",
+    "clouds": [
+      {
+        "cover": "BKN",
+        "base": 3500
+      }
+    ],
+    "fltCat": "VFR"
+  },
+  {
+    "icaoId": "LTFM",
+    "receiptTime": "2026-01-15 08:53:00.000Z",
+    "obsTime": 1768467000,
+    "reportTime": "2026-01-15 08:50:00.000Z",
+    "temp": 9,
+    "dewp": 5,
+    "wdir": 30,
+    "wspd": 12,
+    "visib": "6+",
+    "altim": 1012,
+    "metarType": "METAR",
+    "rawOb": "LTFM 150850Z 03012KT 9999 BKN035 09/05 Q1012 TEMPO -SHRA",
+    "lat": 41.262,
+    "lon": 28.742,
+    "elev": 99,
+    "name": "Istanbul Arpt, IS, TR",
+    "clouds": [
+      {
+        "cover": "BKN",
+        "base": 3500
+      }
+    ],
+    "fltCat": "VFR"
+  },
+  {
+    "icaoId": "LTFM",
+    "receiptTime": "2026-01-15 08:23:00.000Z",
+    "obsTime": 1768465200,
+    "reportTime": "2026-01-15 08:20:00.000Z",
+    "temp": 9,
+    "dewp": 5,
+    "wdir": 30,
+    "wspd": 12,
+    "visib": "6+",
+    "altim": 1012,
+    "metarType": "METAR",
+    "rawOb": "LTFM 150820Z 03012KT 9999 BKN035 09/05 Q1012 TEMPO -SHRA",
+    "lat": 41.262,
+    "lon": 28.742,
+    "elev": 99,
+    "name": "Istanbul Arpt, IS, TR",
+    "clouds": [
+      {
+        "cover": "BKN",
+        "base": 3500
+      }
+    ],
+    "fltCat": "VFR"
+  },
+  {
+    "icaoId": "LTFM",
+    "receiptTime": "2026-01-15 07:53:00.000Z",
+    "obsTime": 1768463400,
+    "reportTime": "2026-01-15 07:50:00.000Z",
+    "temp": 8,
+    "dewp": 4,
+    "wdir": 20,
+    "wspd": 8,
+    "visib": "6+",
+    "altim": 1014,
+    "metarType": "METAR",
+    "rawOb": "LTFM 150750Z 02008KT 9999 SCT035 BKN050 08/04 Q1014 NOSIG",
+    "lat": 41.262,
+    "lon": 28.742,
+    "elev": 99,
+    "name": "Istanbul Arpt, IS, TR",
+    "clouds": [
+      {
+        "cover": "SCT",
+        "base": 3500
+      },
+      {
+        "cover": "BKN",
+        "base": 5000
+      }
+    ],
+    "fltCat": "VFR"
+  },
+  {
+    "icaoId": "LTFM",
+    "receiptTime": "2026-01-15 07:23:00.000Z",
+    "obsTime": 1768461600,
+    "reportTime": "2026-01-15 07:20:00.000Z",
+    "temp": 8,
+    "dewp": 4,
+    "wdir": 20,
+    "wspd": 8,
+    "visib": "6+",
+    "altim": 1014,
+    "metarType": "METAR",
+    "rawOb": "LTFM 150720Z 02008KT 9999 SCT035 BKN050 08/04 Q1014 NOSIG",
+    "lat": 41.262,
+    "lon": 28.742,
+    "elev": 99,
+    "name": "Istanbul Arpt, IS, TR",
+    "clouds": [
+      {
+        "cover": "SCT",
+        "base": 3500
+      },
+      {
+        "cover": "BKN",
+        "base": 5000
+      }
+    ],
+    "fltCat": "VFR"
+  },
+  {
+    "icaoId": "LTFM",
+    "receiptTime": "2026-01-15 06:53:00.000Z",
+    "obsTime": 1768459800,
+    "reportTime": "2026-01-15 06:50:00.000Z",
+    "temp": 8,
+    "dewp": 4,
+    "wdir": 20,
+    "wspd": 8,
+    "visib": "6+",
+    "altim": 1014,
+    "metarType": "METAR",
+    "rawOb": "LTFM 150650Z 02008KT 9999 SCT035 BKN050 08/04 Q1014 NOSIG",
+    "lat": 41.262,
+    "lon": 28.742,
+    "elev": 99,
+    "name": "Istanbul Arpt, IS, TR",
+    "clouds": [
+      {
+        "cover": "SCT",
+        "base": 3500
+      },
+      {
+        "cover": "BKN",
+        "base": 5000
+      }
+    ],
+    "fltCat": "VFR"
+  },
+  {
+    "icaoId": "LTFM",
+    "receiptTime": "2026-01-15 06:23:00.000Z",
+    "obsTime": 1768458000,
+    "reportTime": "2026-01-15 06:20:00.000Z",
+    "temp": 8,
+    "dewp": 4,
+    "wdir": 20,
+    "wspd": 8,
+    "visib": "6+",
+    "altim": 1014,
+    "metarType": "METAR",
+    "rawOb": "LTFM 150620Z 02008KT 9999 SCT035 BKN050 08/04 Q1014 NOSIG",
+    "lat": 41.262,
+    "lon": 28.742,
+    "elev": 99,
+    "name": "Istanbul Arpt, IS, TR",
+    "clouds": [
+      {
+        "cover": "SCT",
+        "base": 3500
+      },
+      {
+        "cover": "BKN",
+        "base": 5000
+      }
+    ],
+    "fltCat": "VFR"
+  },
+  {
+    "icaoId": "LTFM",
+    "receiptTime": "2026-01-15 05:53:00.000Z",
+    "obsTime": 1768456200,
+    "reportTime": "2026-01-15 05:50:00.000Z",
+    "temp": 7,
+    "dewp": 4,
+    "wdir": "VRB",
+    "wspd": 2,
+    "visib": "6+",
+    "altim": 1015,
+    "metarType": "METAR",
+    "rawOb": "LTFM 150550Z VRB02KT 9999 FEW040 07/04 Q1015 NOSIG",
+    "lat": 41.262,
+    "lon": 28.742,
+    "elev": 99,
+    "name": "Istanbul Arpt, IS, TR",
+    "clouds": [
+      {
+        "cover": "FEW",
+        "base": 4000
+      }
+    ],
+    "fltCat": "VFR"
+  },
+  {
+    "icaoId": "LTFM",
+    "receiptTime": "2026-01-15 05:23:00.000Z",
+    "obsTime": 1768454400,
+    "reportTime": "2026-01-15 05:20:00.000Z",
+    "temp": 7,
+    "dewp": 4,
+    "wdir": "VRB",
+    "wspd": 2,
+    "visib": "6+",
+    "altim": 1015,
+    "metarType": "METAR",
+    "rawOb": "LTFM 150520Z VRB02KT 9999 FEW040 07/04 Q1015 NOSIG",
+    "lat": 41.262,
+    "lon": 28.742,
+    "elev": 99,
+    "name": "Istanbul Arpt, IS, TR",
+    "clouds": [
+      {
+        "cover": "FEW",
+        "base": 4000
+      }
+    ],
+    "fltCat": "VFR"
+  },
+  {
+    "icaoId": "LTCW",
+    "receiptTime": "2026-01-15 04:53:00.000Z",
+    "obsTime": 1768452600,
+    "reportTime": "2026-01-15 04:50:00.000Z",
+    "temp": -5,
+    "dewp": -9,
+    "wdir": 360,
+    "wspd": 4,
+    "visib": "6+",
+    "altim": 1024,
+    "metarType": "METAR",
+    "rawOb": "LTCW 150450Z 36004KT 9999 FEW050 M05/M09 Q1024",
+    "lat": 37.55,
+    "lon": 44.238,
+    "elev": 1888,
+    "name": "Hakkari/Yuksekova, HA, TR",
+    "clouds": [
+      {
+        "cover": "FEW",
+        "base": 5000
+      }
+    ],
+    "fltCat": "VFR"
+  },
+  {
+    "icaoId": "LTFM",
+    "receiptTime": "2026-01-15 04:53:00.000Z",
+    "obsTime": 1768452600,
+    "reportTime": "2026-01-15 04:50:00.000Z",
+    "temp": 7,
+    "dewp": 4,
+    "wdir": "VRB",
+    "wspd": 2,
+    "visib": "6+",
+    "altim": 1015,
+    "metarType": "METAR",
+    "rawOb": "LTFM 150450Z VRB02KT 9999 FEW040 07/04 Q1015 NOSIG",
+    "lat": 41.262,
+    "lon": 28.742,
+    "elev": 99,
+    "name": "Istanbul Arpt, IS, TR",
+    "clouds": [
+      {
+        "cover": "FEW",
+        "base": 4000
+      }
+    ],
+    "fltCat": "VFR"
+  },
+  {
+    "icaoId": "LTFM",
+    "receiptTime": "2026-01-15 04:23:00.000Z",
+    "obsTime": 1768450800,
+    "reportTime": "2026-01-15 04:20:00.000Z",
+    "temp": 6,
+    "dewp": 3,
+    "wdir": "VRB",
+    "wspd": 2,
+    "visib": "6+",
+    "altim": 1015,
+    "metarType": "METAR",
+    "rawOb": "LTFM 150420Z VRB02KT 9999 FEW040 06/03 Q1015 NOSIG",
+    "lat": 41.262,
+    "lon": 28.742,
+    "elev": 99,
+    "name": "Istanbul Arpt, IS, TR",
+    "clouds": [
+      {
+        "cover": "FEW",
+        "base": 4000
+      }
+    ],
+    "fltCat": "VFR"
+  },
+  {
+    "icaoId": "LTFM",
+    "receiptTime": "2026-01-15 03:53:00.000Z",
+    "obsTime": 1768449000,
+    "reportTime": "2026-01-15 03:50:00.000Z",
+    "temp": 6,
+    "dewp": 3,
+    "wdir": "VRB",
+    "wspd": 2,
+    "visib": "6+",
+    "altim": 1015,
+    "metarType": "METAR",
+    "rawOb": "LTFM 150350Z VRB02KT 9999 FEW040 06/03 Q1015 NOSIG",
+    "lat": 41.262,
+    "lon": 28.742,
+    "elev": 99,
+    "name": "Istanbul Arpt, IS, TR",
+    "clouds": [
+      {
+        "cover": "FEW",
+        "base": 4000
+      }
+    ],
+    "fltCat": "VFR"
+  },
+  {
+    "icaoId": "LTFM",
+    "receiptTime": "2026-01-15 03:23:00.000Z",
+    "obsTime": 1768447200,
+    "reportTime": "2026-01-15 03:20:00.000Z",
+    "temp": 6,
+    "dewp": 3,
+    "wdir": "VRB",
+    "wspd": 2,
+    "visib": "6+",
+    "altim": 1015,
+    "metarType": "METAR",
+    "rawOb": "LTFM 150320Z VRB02KT 9999 FEW040 06/03 Q1015 NOSIG",
+    "lat": 41.262,
+    "lon": 28.742,
+    "elev": 99,
+    "name": "Istanbul Arpt, IS, TR",
+    "clouds": [
+      {
+        "cover": "FEW",
+        "base": 4000
+      }
+    ],
+    "fltCat": "VFR"
+  },
+  {
+    "icaoId": "LTFM",
+    "receiptTime": "2026-01-15 02:53:00.000Z",
+    "obsTime": 1768445400,
+    "reportTime": "2026-01-15 02:50:00.000Z",
+    "temp": 5,
+    "dewp": 2,
+    "wdir": 340,
+    "wspd": 4,
+    "visib": "6+",
+    "altim": 1015,
+    "metarType": "METAR",
+    "rawOb": "LTFM 150250Z 34004KT CAVOK 05/02 Q1015 NOSIG",
+    "lat": 41.262,
+    "lon": 28.742,
+    "elev": 99,
+    "name": "Istanbul Arpt, IS, TR",
+    "clouds": [
+      {
+        "cover": "CAVOK"
+      }
+    ],
+    "fltCat": "VFR"
+  },
+  {
+    "icaoId": "LTFM",
+    "receiptTime": "2026-01-15 02:23:00.000Z",
+    "obsTime": 1768443600,
+    "reportTime": "2026-01-15 02:20:00.000Z",
+    "temp": 5,
+    "dewp": 2,
+    "wdir": 340,
+    "wspd": 4,
+    "visib": "6+",
+    "altim": 1015,
+    "metarType": "METAR",
+    "rawOb": "LTFM 150220Z 34004KT CAVOK 05/02 Q1015 NOSIG",
+    "lat": 41.262,
+    "lon": 28.742,
+    "elev": 99,
+    "name": "Istanbul Arpt, IS, TR",
+    "clouds": [
+      {
+        "cover": "CAVOK"
+      }
+    ],
+    "fltCat": "VFR"
+  },
+  {
+    "icaoId": "LTFM",
+    "receiptTime": "2026-01-15 01:53:00.000Z",
+    "obsTime": 1768441800,
+    "reportTime": "2026-01-15 01:50:00.000Z",
+    "temp": 5,
+    "dewp": 2,
+    "wdir": 340,
+    "wspd": 4,
+    "visib": "6+",
+    "altim": 1015,
+    "metarType": "METAR",
+    "rawOb": "LTFM 150150Z 34004KT CAVOK 05/02 Q1015 NOSIG",
+    "lat": 41.262,
+    "lon": 28.742,
+    "elev": 99,
+    "name": "Istanbul Arpt, IS, TR",
+    "clouds": [
+      {
+        "cover": "CAVOK"
+      }
+    ],
+    "fltCat": "VFR"
+  },
+  {
+    "icaoId": "LTFM",
+    "receiptTime": "2026-01-15 01:23:00.000Z",
+    "obsTime": 1768440000,
+    "reportTime": "2026-01-15 01:20:00.000Z",
+    "temp": 5,
+    "dewp": 2,
+    "wdir": 340,
+    "wspd": 4,
+    "visib": "6+",
+    "altim": 1015,
+    "metarType": "METAR",
+    "rawOb": "LTFM 150120Z 34004KT CAVOK 05/02 Q1015 NOSIG",
+    "lat": 41.262,
+    "lon": 28.742,
+    "elev": 99,
+    "name": "Istanbul Arpt, IS, TR",
+    "clouds": [
+      {
+        "cover": "CAVOK"
+      }
+    ],
+    "fltCat": "VFR"
+  },
+  {
+    "icaoId": "LTFM",
+    "receiptTime": "2026-01-15 00:53:00.000Z",
+    "obsTime": 1768438200,
+    "reportTime": "2026-01-15 00:50:00.000Z",
+    "temp": 5,
+    "dewp": 2,
+    "wdir": 340,
+    "wspd": 4,
+    "visib": "6+",
+    "altim": 1015,
+    "metarType": "METAR",
+    "rawOb": "LTFM 150050Z 34004KT CAVOK 05/02 Q1015 NOSIG",
+    "lat": 41.262,
+    "lon": 28.742,
+    "elev": 99,
+    "name": "Istanbul Arpt, IS, TR",
+    "clouds": [
+      {
+        "cover": "CAVOK"
+      }
+    ],
+    "fltCat": "VFR"
+  },
+  {
+    "icaoId": "LTFM",
+    "receiptTime": "2026-01-15 00:23:00.000Z",
+    "obsTime": 1768436400,
+    "reportTime": "2026-01-15 00:20:00.000Z",
+    "temp": 5,
+    "dewp": 2,
+    "wdir": 340,
+    "wspd": 4,
+    "visib": "6+",
+    "altim": 1015,
+    "metarType": "METAR",
+    "rawOb": "LTFM 150020Z 34004KT CAVOK 05/02 Q1015 NOSIG",
+    "lat": 41.262,
+    "lon": 28.742,
+    "elev": 99,
+    "name": "Istanbul Arpt, IS, TR",
+    "clouds": [
+      {
+        "cover": "CAVOK"
+      }
+    ],
+    "fltCat": "VFR"
+  },
+  {
+    "icaoId": "LTFM",
+    "receiptTime": "2026-01-14 23:53:00.000Z",
+    "obsTime": 1768434600,
+    "reportTime": "2026-01-14 23:50:00.000Z",
+    "temp": 9,
+    "dewp": 6,
+    "wdir": 340,
+    "wspd": 4,
+    "visib": "6+",
+    "altim": 1015,
+    "metarType": "METAR",
+    "rawOb": "LTFM 142350Z 34004KT CAVOK 09/06 Q1015 NOSIG",
+    "lat": 41.262,
+    "lon": 28.742,
+    "elev": 99,
+    "name": "Istanbul Arpt, IS, TR",
+    "clouds": [
+      {
+        "cover": "CAVOK"
+      }
+    ],
+    "fltCat": "VFR"
+  },
+  {
+    "icaoId": "LTFM",
+    "receiptTime": "2026-01-14 23:23:00.000Z",
+    "obsTime": 1768432800,
+    "reportTime": "2026-01-14 23:20:00.000Z",
+    "temp": 9,
+    "dewp": 6,
+    "wdir": 340,
+    "wspd": 4,
+    "visib": "6+",
+    "altim": 1015,
+    "metarType": "METAR",
+    "rawOb": "LTFM 142320Z 34004KT CAVOK 09/06 Q1015 NOSIG",
+    "lat": 41.262,
+    "lon": 28.742,
+    "elev": 99,
+    "name": "Istanbul Arpt, IS, TR",
+    "clouds": [
+      {
+        "cover": "CAVOK"
+      }
+    ],
+    "fltCat": "VFR"
+  },
+  {
+    "icaoId": "LTFM",
+    "receiptTime": "2026-01-14 22:53:00.000Z",
+    "obsTime": 1768431000,
+    "reportTime": "2026-01-14 22:50:00.000Z",
+    "temp": 9,
+    "dewp": 6,
+    "wdir": 340,
+    "wspd": 4,
+    "visib": "6+",
+    "altim": 1015,
+    "metarType": "METAR",
+    "rawOb": "LTFM 142250Z 34004KT CAVOK 09/06 Q1015 NOSIG",
+    "lat": 41.262,
+    "lon": 28.742,
+    "elev": 99,
+    "name": "Istanbul Arpt, IS, TR",
+    "clouds": [
+      {
+        "cover": "CAVOK"
+      }
+    ],
+    "fltCat": "VFR"
+  },
+  {
+    "icaoId": "LTFM",
+    "receiptTime": "2026-01-14 22:23:00.000Z",
+    "obsTime": 1768429200,
+    "reportTime": "2026-01-14 22:20:00.000Z",
+    "temp": 9,
+    "dewp": 6,
+    "wdir": 340,
+    "wspd": 4,
+    "visib": "6+",
+    "altim": 1015,
+    "metarType": "METAR",
+    "rawOb": "LTFM 142220Z 34004KT CAVOK 09/06 Q1015 NOSIG",
+    "lat": 41.262,
+    "lon": 28.742,
+    "elev": 99,
+    "name": "Istanbul Arpt, IS, TR",
+    "clouds": [
+      {
+        "cover": "CAVOK"
+      }
+    ],
+    "fltCat": "VFR"
+  },
+  {
+    "icaoId": "LTFM",
+    "receiptTime": "2026-01-14 21:53:00.000Z",
+    "obsTime": 1768427400,
+    "reportTime": "2026-01-14 21:50:00.000Z",
+    "temp": 9,
+    "dewp": 6,
+    "wdir": 340,
+    "wspd": 4,
+    "visib": "6+",
+    "altim": 1015,
+    "metarType": "METAR",
+    "rawOb": "LTFM 142150Z 34004KT CAVOK 09/06 Q1015 NOSIG",
+    "lat": 41.262,
+    "lon": 28.742,
+    "elev": 99,
+    "name": "Istanbul Arpt, IS, TR",
+    "clouds": [
+      {
+        "cover": "CAVOK"
+      }
+    ],
+    "fltCat": "VFR"
+  },
+  {
+    "icaoId": "LTFM",
+    "receiptTime": "2026-01-14 21:23:00.000Z",
+    "obsTime": 1768425600,
+    "reportTime": "2026-01-14 21:20:00.000Z",
+    "temp": 9,
+    "dewp": 6,
+    "wdir": 340,
+    "wspd": 4,
+    "visib": "6+",
+    "altim": 1015,
+    "metarType": "METAR",
+    "rawOb": "LTFM 142120Z 34004KT CAVOK 09/06 Q1015 NOSIG",
+    "lat": 41.262,
+    "lon": 28.742,
+    "elev": 99,
+    "name": "Istanbul Arpt, IS, TR",
+    "clouds": [
+      {
+        "cover": "CAVOK"
+      }
+    ],
+    "fltCat": "VFR"
+  },
+  {
+    "icaoId": "LTFM",
+    "receiptTime": "2026-01-14 20:53:00.000Z",
+    "obsTime": 1768423800,
+    "reportTime": "2026-01-14 20:50:00.000Z",
+    "temp": 9,
+    "dewp": 5,
+    "wdir": 320,
+    "wspd": 8,
+    "visib": "6+",
+    "altim": 1014,
+    "metarType": "METAR",
+    "rawOb": "LTFM 142050Z 32008KT 9999 FEW035 09/05 Q1014 NOSIG",
+    "lat": 41.262,
+    "lon": 28.742,
+    "elev": 99,
+    "name": "Istanbul Arpt, IS, TR",
+    "clouds": [
+      {
+        "cover": "FEW",
+        "base": 3500
+      }
+    ],
+    "fltCat": "VFR"
+  },
+  {
+    "icaoId": "LTFM",
+    "receiptTime": "2026-01-14 20:23:00.000Z",
+    "obsTime": 1768422000,
+    "reportTime": "2026-01-14 20:20:00.000Z",
+    "temp": 9,
+    "dewp": 5,
+    "wdir": 320,
+    "wspd": 8,
+    "visib": "6+",
+    "altim": 1014,
+    "metarType": "METAR",
+    "rawOb": "LTFM 142020Z 32008KT 9999 FEW035 09/05 Q1014 NOSIG",
+    "lat": 41.262,
+    "lon": 28.742,
+    "elev": 99,
+    "name": "Istanbul Arpt, IS, TR",
+    "clouds": [
+      {
+        "cover": "FEW",
+        "base": 3500
+      }
+    ],
+    "fltCat": "VFR"
+  },
+  {
+    "icaoId": "LTFM",
+    "receiptTime": "2026-01-14 19:53:00.000Z",
+    "obsTime": 1768420200,
+    "reportTime": "2026-01-14 19:50:00.000Z",
+    "temp": 9,
+    "dewp": 5,
+    "wdir": 320,
+    "wspd": 8,
+    "visib": "6+",
+    "altim": 1014,
+    "metarType": "METAR",
+    "rawOb": "LTFM 141950Z 32008KT 9999 FEW035 09/05 Q1014 NOSIG",
+    "lat": 41.262,
+    "lon": 28.742,
+    "elev": 99,
+    "name": "Istanbul Arpt, IS, TR",
+    "clouds": [
+      {
+        "cover": "FEW",
+        "base": 3500
+      }
+    ],
+    "fltCat": "VFR"
+  },
+  {
+    "icaoId": "LTFM",
+    "receiptTime": "2026-01-14 19:23:00.000Z",
+    "obsTime": 1768418400,
+    "reportTime": "2026-01-14 19:20:00.000Z",
+    "temp": 9,
+    "dewp": 5,
+    "wdir": 320,
+    "wspd": 8,
+    "visib": "6+",
+    "altim": 1014,
+    "metarType": "METAR",
+    "rawOb": "LTFM 141920Z 32008KT 9999 FEW035 09/05 Q1014 NOSIG",
+    "lat": 41.262,
+    "lon": 28.742,
+    "elev": 99,
+    "name": "Istanbul Arpt, IS, TR",
+    "clouds": [
+      {
+        "cover": "FEW",
+        "base": 3500
+      }
+    ],
+    "fltCat": "VFR"
+  },
+  {
+    "icaoId": "LTFM",
+    "receiptTime": "2026-01-14 18:53:00.000Z",
+    "obsTime": 1768416600,
+    "reportTime": "2026-01-14 18:50:00.000Z",
+    "temp": 9,
+    "dewp": 5,
+    "wdir": 320,
+    "wspd": 8,
+    "visib": "6+",
+    "altim": 1014,
+    "metarType": "METAR",
+    "rawOb": "LTFM 141850Z 32008KT 9999 FEW035 09/05 Q1014 NOSIG",
+    "lat": 41.262,
+    "lon": 28.742,
+    "elev": 99,
+    "name": "Istanbul Arpt, IS, TR",
+    "clouds": [
+      {
+        "cover": "FEW",
+        "base": 3500
+      }
+    ],
+    "fltCat": "VFR"
+  },
+  {
+    "icaoId": "LTFM",
+    "receiptTime": "2026-01-14 18:23:00.000Z",
+    "obsTime": 1768414800,
+    "reportTime": "2026-01-14 18:20:00.000Z",
+    "temp": 10,
+    "dewp": 6,
+    "wdir": 320,
+    "wspd": 8,
+    "visib": "6+",
+    "altim": 1014,
+    "metarType": "METAR",
+    "rawOb": "LTFM 141820Z 32008KT 9999 FEW035 10/06 Q1014 NOSIG",
+    "lat": 41.262,
+    "lon": 28.742,
+    "elev": 99,
+    "name": "Istanbul Arpt, IS, TR",
+    "clouds": [
+      {
+        "cover": "FEW",
+        "base": 3500
+      }
+    ],
+    "fltCat": "VFR"
+  },
+  {
+    "icaoId": "LTFM",
+    "receiptTime": "2026-01-14 17:53:00.000Z",
+    "obsTime": 1768413000,
+    "reportTime": "2026-01-14 17:50:00.000Z",
+    "temp": 10,
+    "dewp": 6,
+    "wdir": 320,
+    "wspd": 8,
+    "visib": "6+",
+    "altim": 1014,
+    "metarType": "METAR",
+    "rawOb": "LTFM 141750Z 32008KT 9999 FEW035 10/06 Q1014 NOSIG",
+    "lat": 41.262,
+    "lon": 28.742,
+    "elev": 99,
+    "name": "Istanbul Arpt, IS, TR",
+    "clouds": [
+      {
+        "cover": "FEW",
+        "base": 3500
+      }
+    ],
+    "fltCat": "VFR"
+  },
+  {
+    "icaoId": "LTFM",
+    "receiptTime": "2026-01-14 17:23:00.000Z",
+    "obsTime": 1768411200,
+    "reportTime": "2026-01-14 17:20:00.000Z",
+    "temp": 10,
+    "dewp": 6,
+    "wdir": 320,
+    "wspd": 8,
+    "visib": "6+",
+    "altim": 1014,
+    "metarType": "METAR",
+    "rawOb": "LTFM 141720Z 32008KT 9999 FEW035 10/06 Q1014 NOSIG",
+    "lat": 41.262,
+    "lon": 28.742,
+    "elev": 99,
+    "name": "Istanbul Arpt, IS, TR",
+    "clouds": [
+      {
+        "cover": "FEW",
+        "base": 3500
+      }
+    ],
+    "fltCat": "VFR"
+  },
+  {
+    "icaoId": "LTFM",
+    "receiptTime": "2026-01-14 16:53:00.000Z",
+    "obsTime": 1768409400,
+    "reportTime": "2026-01-14 16:50:00.000Z",
+    "temp": 10,
+    "dewp": 5,
+    "wdir": 310,
+    "wspd": 12,
+    "visib": "6+",
+    "altim": 1012,
+    "metarType": "METAR",
+    "rawOb": "LTFM 141650Z 31012KT 9999 FEW030 SCT050 10/05 Q1012 NOSIG",
+    "lat": 41.262,
+    "lon": 28.742,
+    "elev": 99,
+    "name": "Istanbul Arpt, IS, TR",
+    "clouds": [
+      {
+        "cover": "FEW",
+        "base": 3000
+      },
+      {
+        "cover": "SCT",
+        "base": 5000
+      }
+    ],
+    "fltCat": "VFR"
+  },
+  {
+    "icaoId": "LTFM",
+    "receiptTime": "2026-01-14 16:23:00.000Z",
+    "obsTime": 1768407600,
+    "reportTime": "2026-01-14 16:20:00.000Z",
+    "temp": 10,
+    "dewp": 5,
+    "wdir": 310,
+    "wspd": 12,
+    "visib": "6+",
+    "altim": 1012,
+    "metarType": "METAR",
+    "rawOb": "LTFM 141620Z 31012KT 9999 FEW030 SCT050 10/05 Q1012 NOSIG",
+    "lat": 41.262,
+    "lon": 28.742,
+    "elev": 99,
+    "name": "Istanbul Arpt, IS, TR",
+    "clouds": [
+      {
+        "cover": "FEW",
+        "base": 3000
+      },
+      {
+        "cover": "SCT",
+        "base": 5000
+      }
+    ],
+    "fltCat": "VFR"
+  },
+  {
+    "icaoId": "LTFM",
+    "receiptTime": "2026-01-14 15:53:00.000Z",
+    "obsTime": 1768405800,
+    "reportTime": "2026-01-14 15:50:00.000Z",
+    "temp": 11,
+    "dewp": 6,
+    "wdir": 310,
+    "wspd": 12,
+    "visib": "6+",
+    "altim": 1012,
+    "metarType": "METAR",
+    "rawOb": "LTFM 141550Z 31012KT 9999 FEW030 SCT050 11/06 Q1012 NOSIG",
+    "lat": 41.262,
+    "lon": 28.742,
+    "elev": 99,
+    "name": "Istanbul Arpt, IS, TR",
+    "clouds": [
+      {
+        "cover": "FEW",
+        "base": 3000
+      },
+      {
+        "cover": "SCT",
+        "base": 5000
+      }
+    ],
+    "fltCat": "VFR"
+  },
+  {
+    "icaoId": "LTFM",
+    "receiptTime": "2026-01-14 15:23:00.000Z",
+    "obsTime": 1768404000,
+    "reportTime": "2026-01-14 15:20:00.000Z",
+    "temp": 11,
+    "dewp": 6,
+    "wdir": 310,
+    "wspd": 12,
+    "visib": "6+",
+    "altim": 1012,
+    "metarType": "METAR",
+    "rawOb": "LTFM 141520Z 31012KT 9999 FEW030 SCT050 11/06 Q1012 NOSIG",
+    "lat": 41.262,
+    "lon": 28.742,
+    "elev": 99,
+    "name": "Istanbul Arpt, IS, TR",
+    "clouds": [
+      {
+        "cover": "FEW",
+        "base": 3000
+      },
+      {
+        "cover": "SCT",
+        "base": 5000
+      }
+    ],
+    "fltCat": "VFR"
+  },
+  {
+    "icaoId": "LTFM",
+    "receiptTime": "2026-01-14 14:53:00.000Z",
+    "obsTime": 1768402200,
+    "reportTime": "2026-01-14 14:50:00.000Z",
+    "temp": 11,
+    "dewp": 6,
+    "wdir": 310,
+    "wspd": 12,
+    "visib": "6+",
+    "altim": 1012,
+    "metarType": "METAR",
+    "rawOb": "LTFM 141450Z 31012KT 9999 FEW030 SCT050 11/06 Q1012 NOSIG",
+    "lat": 41.262,
+    "lon": 28.742,
+    "elev": 99,
+    "name": "Istanbul Arpt, IS, TR",
+    "clouds": [
+      {
+        "cover": "FEW",
+        "base": 3000
+      },
+      {
+        "cover": "SCT",
+        "base": 5000
+      }
+    ],
+    "fltCat": "VFR"
+  },
+  {
+    "icaoId": "LTFM",
+    "receiptTime": "2026-01-14 14:23:00.000Z",
+    "obsTime": 1768400400,
+    "reportTime": "2026-01-14 14:20:00.000Z",
+    "temp": 11,
+    "dewp": 6,
+    "wdir": 310,
+    "wspd": 12,
+    "visib": "6+",
+    "altim": 1012,
+    "metarType": "METAR",
+    "rawOb": "LTFM 141420Z 31012KT 9999 FEW030 SCT050 11/06 Q1012 NOSIG",
+    "lat": 41.262,
+    "lon": 28.742,
+    "elev": 99,
+    "name": "Istanbul Arpt, IS, TR",
+    "clouds": [
+      {
+        "cover": "FEW",
+        "base": 3000
+      },
+      {
+        "cover": "SCT",
+        "base": 5000
+      }
+    ],
+    "fltCat": "VFR"
+  },
+  {
+    "icaoId": "LTFM",
+    "receiptTime": "2026-01-14 13:53:00.000Z",
+    "obsTime": 1768398600,
+    "reportTime": "2026-01-14 13:50:00.000Z",
+    "temp": 11,
+    "dewp": 6,
+    "wdir": 310,
+    "wspd": 12,
+    "visib": "6+",
+    "altim": 1012,
+    "metarType": "METAR",
+    "rawOb": "LTFM 141350Z 31012KT 9999 FEW030 SCT050 11/06 Q1012 NOSIG",
+    "lat": 41.262,
+    "lon": 28.742,
+    "elev": 99,
+    "name": "Istanbul Arpt, IS, TR",
+    "clouds": [
+      {
+        "cover": "FEW",
+        "base": 3000
+      },
+      {
+        "cover": "SCT",
+        "base": 5000
+      }
+    ],
+    "fltCat": "VFR"
+  },
+  {
+    "icaoId": "LTFM",
+    "receiptTime": "2026-01-14 13:23:00.000Z",
+    "obsTime": 1768396800,
+    "reportTime": "2026-01-14 13:20:00.000Z",
+    "temp": 11,
+    "dewp": 6,
+    "wdir": 310,
+    "wspd": 12,
+    "visib": "6+",
+    "altim": 1012,
+    "metarType": "METAR",
+    "rawOb": "LTFM 141320Z 31012KT 9999 FEW030 SCT050 11/06 Q1012 NOSIG",
+    "lat": 41.262,
+    "lon": 28.742,
+    "elev": 99,
+    "name": "Istanbul Arpt, IS, TR",
+    "clouds": [
+      {
+        "cover": "FEW",
+        "base": 3000
+      },
+      {
+        "cover": "SCT",
+        "base": 5000
+      }
+    ],
+    "fltCat": "VFR"
+  },
+  {
+    "icaoId": "LTFM",
+    "receiptTime": "2026-01-14 12:53:00.000Z",
+    "obsTime": 1768395000,
+    "reportTime": "2026-01-14 12:50:00.000Z",
+    "temp": 11,
+    "dewp": 6,
+    "wdir": 310,
+    "wspd": 12,
+    "visib": "6+",
+    "altim": 1012,
+    "metarType": "METAR",
+    "rawOb": "LTFM 141250Z 31012KT 9999 FEW030 SCT050 11/06 Q1012 RESHRA NOSIG",
+    "lat": 41.262,
+    "lon": 28.742,
+    "elev": 99,
+    "name": "Istanbul Arpt, IS, TR",
+    "clouds": [
+      {
+        "cover": "FEW",
+        "base": 3000
+      },
+      {
+        "cover": "SCT",
+        "base": 5000
+      }
+    ],
+    "fltCat": "VFR"
+  },
+  {
+    "icaoId": "LTFM",
+    "receiptTime": "2026-01-14 12:23:00.000Z",
+    "obsTime": 1768393200,
+    "reportTime": "2026-01-14 12:20:00.000Z",
+    "temp": 11,
+    "dewp": 6,
+    "wdir": 310,
+    "wspd": 12,
+    "visib": "6+",
+    "altim": 1012,
+    "metarType": "METAR",
+    "rawOb": "LTFM 141220Z 31012KT 9999 FEW030 SCT050 11/06 Q1012 RESHRA NOSIG",
+    "lat": 41.262,
+    "lon": 28.742,
+    "elev": 99,
+    "name": "Istanbul Arpt, IS, TR",
+    "clouds": [
+      {
+        "cover": "FEW",
+        "base": 3000
+      },
+      {
+        "cover": "SCT",
+        "base": 5000
+      }
+    ],
+    "fltCat": "VFR"
+  },
+  {
+    "icaoId": "LTFM",
+    "receiptTime": "2026-01-14 11:53:00.000Z",
+    "obsTime": 1768391400,
+    "reportTime": "2026-01-14 11:50:00.000Z",
+    "temp": 11,
+    "dewp": 7,
+    "wdir": 290,
+    "wspd": 12,
+    "visib": "6+",
+    "altim": 1010,
+    "wxString": "VCSH",
+    "metarType": "METAR",
+    "rawOb": "LTFM 141150Z 29012KT 9999 VCSH FEW025 SCT040 11/07 Q1010 NOSIG",
+    "lat": 41.262,
+    "lon": 28.742,
+    "elev": 99,
+    "name": "Istanbul Arpt, IS, TR",
+    "clouds": [
+      {
+        "cover": "FEW",
+        "base": 2500
+      },
+      {
+        "cover": "SCT",
+        "base": 4000
+      }
+    ],
+    "fltCat": "VFR"
+  },
+  {
+    "icaoId": "LTFM",
+    "receiptTime": "2026-01-14 11:23:00.000Z",
+    "obsTime": 1768389600,
+    "reportTime": "2026-01-14 11:20:00.000Z",
+    "temp": 11,
+    "dewp": 7,
+    "wdir": 290,
+    "wspd": 12,
+    "visib": "6+",
+    "altim": 1010,
+    "wxString": "VCSH",
+    "metarType": "METAR",
+    "rawOb": "LTFM 141120Z 29012KT 9999 VCSH FEW025 SCT040 11/07 Q1010 NOSIG",
+    "lat": 41.262,
+    "lon": 28.742,
+    "elev": 99,
+    "name": "Istanbul Arpt, IS, TR",
+    "clouds": [
+      {
+        "cover": "FEW",
+        "base": 2500
+      },
+      {
+        "cover": "SCT",
+        "base": 4000
+      }
+    ],
+    "fltCat": "VFR"
+  },
+  {
+    "icaoId": "LTFM",
+    "receiptTime": "2026-01-14 10:53:00.000Z",
+    "obsTime": 1768387800,
+    "reportTime": "2026-01-14 10:50:00.000Z",
+    "temp": 11,
+    "dewp": 7,
+    "wdir": 290,
+    "wspd": 12,
+    "visib": "6+",
+    "altim": 1010,
+    "wxString": "VCSH",
+    "metarType": "METAR",
+    "rawOb": "LTFM 141050Z 29012KT 9999 VCSH FEW025 SCT040 11/07 Q1010 NOSIG",
+    "lat": 41.262,
+    "lon": 28.742,
+    "elev": 99,
+    "name": "Istanbul Arpt, IS, TR",
+    "clouds": [
+      {
+        "cover": "FEW",
+        "base": 2500
+      },
+      {
+        "cover": "SCT",
+        "base": 4000
+      }
+    ],
+    "fltCat": "VFR"
+  },
+  {
+    "icaoId": "LTFM",
+    "receiptTime": "2026-01-14 10:23:00.000Z",
+    "obsTime": 1768386000,
+    "reportTime": "2026-01-14 10:20:00.000Z",
+    "temp": 11,
+    "dewp": 8,
+    "wdir": 270,
+    "wspd": 14,
+    "visib": "6+",
+    "altim": 1008,
+    "wxString": "-SHRA",
+    "metarType": "METAR",
+    "rawOb": "LTFM 141020Z 27014KT 9999 -SHRA FEW020TCU BKN030 11/08 Q1008 NOSIG",
+    "lat": 41.262,
+    "lon": 28.742,
+    "elev": 99,
+    "name": "Istanbul Arpt, IS, TR",
+    "clouds": [
+      {
+        "cover": "FEW",
+        "base": 2000
+      },
+      {
+        "cover": "BKN",
+        "base": 3000
+      }
+    ],
+    "fltCat": "MVFR"
+  },
+  {
+    "icaoId": "LTFM",
+    "receiptTime": "2026-01-14 09:53:00.000Z",
+    "obsTime": 1768384200,
+    "reportTime": "2026-01-14 09:50:00.000Z",
+    "temp": 11,
+    "dewp": 8,
+    "wdir": 270,
+    "wspd": 14,
+    "visib": "6+",
+    "altim": 1008,
+    "wxString": "-SHRA",
+    "metarType": "METAR",
+    "rawOb": "LTFM 140950Z 27014KT 9999 -SHRA FEW020TCU BKN030 11/08 Q1008 NOSIG",
+    "lat": 41.262,
+    "lon": 28.742,
+    "elev": 99,
+    "name": "Istanbul Arpt, IS, TR",
+    "clouds": [
+      {
+        "cover": "FEW",
+        "base": 2000
+      },
+      {
+        "cover": "BKN",
+        "base": 3000
+      }
+    ],
+    "fltCat": "MVFR"
+  },
+  {
+    "icaoId": "LTFM",
+    "receiptTime": "2026-01-14 09:23:00.000Z",
+    "obsTime": 1768382400,
+    "reportTime": "2026-01-14 09:20:00.000Z",
+    "temp": 11,
+    "dewp": 8,
+    "wdir": 270,
+    "wspd": 14,
+    "visib": "6+",
+    "altim": 1008,
+    "wxString": "-SHRA",
+    "metarType": "METAR",
+    "rawOb": "LTFM 140920Z 27014KT 9999 -SHRA FEW020TCU BKN030 11/08 Q1008 NOSIG",
+    "lat": 41.262,
+    "lon": 28.742,
+    "elev": 99,
+    "name": "Istanbul Arpt, IS, TR",
+    "clouds": [
+      {
+        "cover": "FEW",
+        "base": 2000
+      },
+      {
+        "cover": "BKN",
+        "base": 3000
+      }
+    ],
+    "fltCat": "MVFR"
+  },
+  {
+    "icaoId": "LTFM",
+    "receiptTime": "2026-01-14 08:53:00.000Z",
+    "obsTime": 1768380600,
+    "reportTime": "2026-01-14 08:50:00.000Z",
+    "temp": 11,
+    "dewp": 9,
+    "wdir": 240,
+    "wspd": 16,
+    "wgst": 26,
+    "visib": 3.73,
+    "altim": 1007,
+    "wxString": "TSRA",
+    "metarType": "METAR",
+    "rawOb": "LTFM 140850Z 24016G26KT 6000 TSRA SCT015CB BKN025 11/09 Q1007 BECMG NSW",
+    "lat": 41.262,
+    "lon": 28.742,
+    "elev": 99,
+    "name": "Istanbul Arpt, IS, TR",
+    "clouds": [
+      {
+        "cover": "SCT",
+        "base": 1500
+      },
+      {
+        "cover": "BKN",
+        "base": 2500
+      }
+    ],
+    "fltCat": "MVFR"
+  },
+  {
+    "icaoId": "LTFM",
+    "receiptTime": "2026-01-14 08:23:00.000Z",
+    "obsTime": 1768378800,
+    "reportTime": "2026-01-14 08:20:00.000Z",
+    "temp": 11,
+    "dewp": 9,
+    "wdir": 240,
+    "wspd": 16,
+    "wgst": 26,
+    "visib": 3.73,
+    "altim": 1007,
+    "wxString": "TSRA",
+    "metarType": "METAR",
+    "rawOb": "LTFM 140820Z 24016G26KT 6000 TSRA SCT015CB BKN025 11/09 Q1007 BECMG NSW",
+    "lat": 41.262,
+    "lon": 28.742,
+    "elev": 99,
+    "name": "Istanbul Arpt, IS, TR",
+    "clouds": [
+      {
+        "cover": "SCT",
+        "base": 1500
+      },
+      {
+        "cover": "BKN",
+        "base": 2500
+      }
+    ],
+    "fltCat": "MVFR"
+  },
+  {
+    "icaoId": "LTFM",
+    "receiptTime": "2026-01-14 07:53:00.000Z",
+    "obsTime": 1768377000,
+    "reportTime": "2026-01-14 07:50:00.000Z",
+    "temp": 11,
+    "dewp": 9,
+    "wdir": 240,
+    "wspd": 16,
+    "wgst": 26,
+    "visib": 3.73,
+    "altim": 1007,
+    "wxString": "TSRA",
+    "metarType": "METAR",
+    "rawOb": "LTFM 140750Z 24016G26KT 6000 TSRA SCT015CB BKN025 11/09 Q1007 BECMG NSW",
+    "lat": 41.262,
+    "lon": 28.742,
+    "elev": 99,
+    "name": "Istanbul Arpt, IS, TR",
+    "clouds": [
+      {
+        "cover": "SCT",
+        "base": 1500
+      },
+      {
+        "cover": "BKN",
+        "base": 2500
+      }
+    ],
+    "fltCat": "MVFR"
+  },
+  {
+    "icaoId": "LTFM",
+    "receiptTime": "2026-01-14 07:23:00.000Z",
+    "obsTime": 1768375200,
+    "reportTime": "2026-01-14 07:20:00.000Z",
+    "temp": 11,
+    "dewp": 9,
+    "wdir": 220,
+    "wspd": 18,
+    "wgst": 28,
+    "visib": 3.11,
+    "altim": 1007,
+    "wxString": "-TSRA",
+    "metarType": "METAR",
+    "rawOb": "LTFM 140720Z 22018G28KT 5000 -TSRA FEW018CB BKN028 11/09 Q1007 TEMPO 3000 +TSRA",
+    "lat": 41.262,
+    "lon": 28.742,
+    "elev": 99,
+    "name": "Istanbul Arpt, IS, TR",
+    "clouds": [
+      {
+        "cover": "FEW",
+        "base": 1800
+      },
+      {
+        "cover": "BKN",
+        "base": 2800
+      }
+    ],
+    "fltCat": "MVFR"
+  },
+  {
+    "icaoId": "LTFM",
+    "receiptTime": "2026-01-14 07:08:00.000Z",
+    "obsTime": 1768374300,
+    "reportTime": "2026-01-14 07:05:00.000Z",
+    "temp": 12,
+    "dewp": 10,
+    "wdir": 230,
+    "wspd": 20,
+    "wgst": 32,
+    "visib": 1.55,
+    "altim": 1006,
+    "wxString": "+TSRA",
+    "metarType": "SPECI",
+    "rawOb": "LTFM 140705Z 23020G32KT 2500 +TSRA SCT012CB BKN025 12/10 Q1006 TEMPO 1500 +TSRA",
+    "lat": 41.262,
+    "lon": 28.742,
+    "elev": 99,
+    "name": "Istanbul Arpt, IS, TR",
+    "clouds": [
+      {
+        "cover": "SCT",
+        "base": 1200
+      },
+      {
+        "cover": "BKN",
+        "base": 2500
+      }
+    ],
+    "fltCat": "IFR"
+  },
+  {
+    "icaoId": "LTFM",
+    "receiptTime": "2026-01-14 06:53:00.000Z",
+    "obsTime": 1768373400,
+    "reportTime": "2026-01-14 06:50:00.000Z",
+    "temp": 11,
+    "dewp": 9,
+    "wdir": 220,
+    "wspd": 18,
+    "wgst": 28,
+    "visib": 3.11,
+    "altim": 1007,
+    "wxString": "-TSRA",
+    "metarType": "METAR",
+    "rawOb": "LTFM 140650Z 22018G28KT 5000 -TSRA FEW018CB BKN028 11/09 Q1007 TEMPO 3000 +TSRA",
+    "lat": 41.262,
+    "lon": 28.742,
+    "elev": 99,
+    "name": "Istanbul Arpt, IS, TR",
+    "clouds": [
+      {
+        "cover": "FEW",
+        "base": 1800
+      },
+      {
+        "cover": "BKN",
+        "base": 2800
+      }
+    ],
+    "fltCat": "MVFR"
+  },
+  {
+    "icaoId": "LTFM",
+    "receiptTime": "2026-01-14 06:23:00.000Z",
+    "obsTime": 1768371600,
+    "reportTime": "2026-01-14 06:20:00.000Z",
+    "temp": 21,
+    "dewp": 10,
+    "wdir": 220,
+    "wspd": 18,
+    "wgst": 28,
+    "visib": 3.11,
+    "altim": 1007,
+    "wxString": "-TSRA",
+    "metarType": "METAR",
+    "rawOb": "LTFM 140620Z 22018G28KT 5000 -TSRA FEW018CB BKN028 21/10 Q1007 TEMPO 3000 +TSRA",
+    "lat": 41.262,
+    "lon": 28.742,
+    "elev": 99,
+    "name": "Istanbul Arpt, IS, TR",
+    "clouds": [
+      {
+        "cover": "FEW",
+        "base": 1800
+      },
+      {
+        "cover": "BKN",
+        "base": 2800
+      }
+    ],
+    "fltCat": "MVFR"
+  },
+  {
+    "icaoId": "LTFM",
+    "receiptTime": "2026-01-14 06:23:00.000Z",
+    "obsTime": 1768371600,
+    "reportTime": "2026-01-14 06:20:00.000Z",
+    "temp": 10,
+    "dewp": 8,
+    "wdir": 220,
+    "wspd": 18,
+    "wgst": 28,
+    "visib": 3.11,
+    "altim": 1007,
+    "wxString": "-TSRA",
+    "metarType": "METAR",
+    "rawOb": "METAR COR LTFM 140620Z 22018G28KT 5000 -TSRA FEW018CB BKN028 10/08 Q1007 TEMPO 3000 +TSRA",
+    "lat": 41.262,
+    "lon": 28.742,
+    "elev": 99,
+    "name": "Istanbul Arpt, IS, TR",
+    "clouds": [
+      {
+        "cover": "FEW",
+        "base": 1800
+      },
+      {
+        "cover": "BKN",
+        "base": 2800
+      }
+    ],
+    "fltCat": "MVFR"
+  },
+  {
+    "icaoId": "LTFM",
+    "receiptTime": "2026-01-14 05:53:00.000Z",
+    "obsTime": 1768369800,
+    "reportTime": "2026-01-14 05:50:00.000Z",
+    "temp": 10,
+    "dewp": 8,
+    "wdir": 210,
+    "wspd": 16,
+    "visib": 4.97,
+    "altim": 1008,
+    "wxString": "-SHRA",
+    "metarType": "METAR",
+    "rawOb": "LTFM 140550Z 21016KT 8000 -SHRA FEW020CB BKN030 10/08 Q1008 TEMPO 3000 TSRA",
+    "lat": 41.262,
+    "lon": 28.742,
+    "elev": 99,
+    "name": "Istanbul Arpt, IS, TR",
+    "clouds": [
+      {
+        "cover": "FEW",
+        "base": 2000
+      },
+      {
+        "cover": "BKN",
+        "base": 3000
+      }
+    ],
+    "fltCat": "MVFR"
+  },
+  {
+    "icaoId": "LTFM",
+    "receiptTime": "2026-01-14 05:23:00.000Z",
+    "obsTime": 1768368000,
+    "reportTime": "2026-01-14 05:20:00.000Z",
+    "temp": 10,
+    "dewp": 8,
+    "wdir": 210,
+    "wspd": 16,
+    "visib": 4.97,
+    "altim": 1008,
+    "wxString": "-SHRA",
+    "metarType": "METAR",
+    "rawOb": "LTFM 140520Z 21016KT 8000 -SHRA FEW020CB BKN030 10/08 Q1008 TEMPO 3000 TSRA",
+    "lat": 41.262,
+    "lon": 28.742,
+    "elev": 99,
+    "name": "Istanbul Arpt, IS, TR",
+    "clouds": [
+      {
+        "cover": "FEW",
+        "base": 2000
+      },
+      {
+        "cover": "BKN",
+        "base": 3000
+      }
+    ],
+    "fltCat": "MVFR"
+  },
+  {
+    "icaoId": "LTFM",
+    "receiptTime": "2026-01-14 04:53:00.000Z",
+    "obsTime": 1768366200,
+    "reportTime": "2026-01-14 04:50:00.000Z",
+    "temp": 10,
+    "dewp": 8,
+    "wdir": 210,
+    "wspd": 16,
+    "visib": 4.97,
+    "altim": 1008,
+    "wxString": "-SHRA",
+    "metarType": "METAR",
+    "rawOb": "LTFM 140450Z 21016KT 8000 -SHRA FEW020CB BKN030 10/08 Q1008 TEMPO 3000 TSRA",
+    "lat": 41.262,
+    "lon": 28.742,
+    "elev": 99,
+    "name": "Istanbul Arpt, IS, TR",
+    "clouds": [
+      {
+        "cover": "FEW",
+        "base": 2000
+      },
+      {
+        "cover": "BKN",
+        "base": 3000
+      }
+    ],
+    "fltCat": "MVFR"
+  },
+  {
+    "icaoId": "LTFM",
+    "receiptTime": "2026-01-14 04:23:00.000Z",
+    "obsTime": 1768364400,
+    "reportTime": "2026-01-14 04:20:00.000Z",
+    "temp": 10,
+    "dewp": 8,
+    "wdir": 210,
+    "wspd": 16,
+    "visib": 4.97,
+    "altim": 1008,
+    "wxString": "-SHRA",
+    "metarType": "METAR",
+    "rawOb": "LTFM 140420Z 21016KT 8000 -SHRA FEW020CB BKN030 10/08 Q1008 TEMPO 3000 TSRA",
+    "lat": 41.262,
+    "lon": 28.742,
+    "elev": 99,
+    "name": "Istanbul Arpt, IS, TR",
+    "clouds": [
+      {
+        "cover": "FEW",
+        "base": 2000
+      },
+      {
+        "cover": "BKN",
+        "base": 3000
+      }
+    ],
+    "fltCat": "MVFR"
+  },
+  {
+    "icaoId": "LTFM",
+    "receiptTime": "2026-01-14 03:53:00.000Z",
+    "obsTime": 1768362600,
+    "reportTime": "2026-01-14 03:50:00.000Z",
+    "temp": 9,
+    "dewp": 8,
+    "wdir": 220,
+    "wspd": 12,
+    "visib": 4.35,
+    "altim": 1010,
+    "wxString": "-RA",
+    "metarType": "METAR",
+    "rawOb": "LTFM 140350Z 22012KT 7000 -RA BKN012 OVC030 09/08 Q1010 NOSIG",
+    "lat": 41.262,
+    "lon": 28.742,
+    "elev": 99,
+    "name": "Istanbul Arpt, IS, TR",
+    "clouds": [
+      {
+        "cover": "BKN",
+        "base": 1200
+      },
+      {
+        "cover": "OVC",
+        "base": 3000
+      }
+    ],
+    "fltCat": "MVFR"
+  },
+  {
+    "icaoId": "LTFM",
+    "receiptTime": "2026-01-14 03:23:00.000Z",
+    "obsTime": 1768360800,
+    "reportTime": "2026-01-14 03:20:00.000Z",
+    "temp": 9,
+    "dewp": 8,
+    "wdir": 220,
+    "wspd": 12,
+    "visib": 4.35,
+    "altim": 1010,
+    "wxString": "-RA",
+    "metarType": "METAR",
+    "rawOb": "LTFM 140320Z 22012KT 7000 -RA BKN012 OVC030 09/08 Q1010 NOSIG",
+    "lat": 41.262,
+    "lon": 28.742,
+    "elev": 99,
+    "name": "Istanbul Arpt, IS, TR",
+    "clouds": [
+      {
+        "cover": "BKN",
+        "base": 1200
+      },
+      {
+        "cover": "OVC",
+        "base": 3000
+      }
+    ],
+    "fltCat": "MVFR"
+  },
+  {
+    "icaoId": "LTFM",
+    "receiptTime": "2026-01-14 02:53:00.000Z",
+    "obsTime": 1768359000,
+    "reportTime": "2026-01-14 02:50:00.000Z",
+    "temp": 9,
+    "dewp": 8,
+    "wdir": 220,
+    "wspd": 12,
+    "visib": 4.35,
+    "altim": 1010,
+    "wxString": "-RA",
+    "metarType": "METAR",
+    "rawOb": "LTFM 140250Z 22012KT 7000 -RA BKN012 OVC030 09/08 Q1010 NOSIG",
+    "lat": 41.262,
+    "lon": 28.742,
+    "elev": 99,
+    "name": "Istanbul Arpt, IS, TR",
+    "clouds": [
+      {
+        "cover": "BKN",
+        "base": 1200
+      },
+      {
+        "cover": "OVC",
+        "base": 3000
+      }
+    ],
+    "fltCat": "MVFR"
+  },
+  {
+    "icaoId": "LTFM",
+    "receiptTime": "2026-01-14 02:23:00.000Z",
+    "obsTime": 1768357200,
+    "reportTime": "2026-01-14 02:20:00.000Z",
+    "temp": 9,
+    "dewp": 8,
+    "wdir": 220,
+    "wspd": 12,
+    "visib": 4.35,
+    "altim": 1010,
+    "wxString": "-RA",
+    "metarType": "METAR",
+    "rawOb": "LTFM 140220Z 22012KT 7000 -RA BKN012 OVC030 09/08 Q1010 NOSIG",
+    "lat": 41.262,
+    "lon": 28.742,
+    "elev": 99,
+    "name": "Istanbul Arpt, IS, TR",
+    "clouds": [
+      {
+        "cover": "BKN",
+        "base": 1200
+      },
+      {
+        "cover": "OVC",
+        "base": 3000
+      }
+    ],
+    "fltCat": "MVFR"
+  },
+  {
+    "icaoId": "LTFM",
+    "receiptTime": "2026-01-14 01:53:00.000Z",
+    "obsTime": 1768355400,
+    "reportTime": "2026-01-14 01:50:00.000Z",
+    "temp": 9,
+    "dewp": 8,
+    "wdir": 220,
+    "wspd": 12,
+    "visib": 4.35,
+    "altim": 1010,
+    "wxString": "-RA",
+    "metarType": "METAR",
+    "rawOb": "LTFM 140150Z 22012KT 7000 -RA BKN012 OVC030 09/08 Q1010 NOSIG",
+    "lat": 41.262,
+    "lon": 28.742,
+    "elev": 99,
+    "name": "Istanbul Arpt, IS, TR",
+    "clouds": [
+      {
+        "cover": "BKN",
+        "base": 1200
+      },
+      {
+        "cover": "OVC",
+        "base": 3000
+      }
+    ],
+    "fltCat": "MVFR"
+  },
+  {
+    "icaoId": "LTFM",
+    "receiptTime": "2026-01-14 01:23:00.000Z",
+    "obsTime": 1768353600,
+    "reportTime": "2026-01-14 01:20:00.000Z",
+    "temp": 9,
+    "dewp": 8,
+    "wdir": 220,
+    "wspd": 12,
+    "visib": 4.35,
+    "altim": 1010,
+    "wxString": "-RA",
+    "metarType": "METAR",
+    "rawOb": "LTFM 140120Z 22012KT 7000 -RA BKN012 OVC030 09/08 Q1010 NOSIG",
+    "lat": 41.262,
+    "lon": 28.742,
+    "elev": 99,
+    "name": "Istanbul Arpt, IS, TR",
+    "clouds": [
+      {
+        "cover": "BKN",
+        "base": 1200
+      },
+      {
+        "cover": "OVC",
+        "base": 3000
+      }
+    ],
+    "fltCat": "MVFR"
+  },
+  {
+    "icaoId": "LTFM",
+    "receiptTime": "2026-01-14 00:53:00.000Z",
+    "obsTime": 1768351800,
+    "reportTime": "2026-01-14 00:50:00.000Z",
+    "temp": 9,
+    "dewp": 8,
+    "wdir": 220,
+    "wspd": 12,
+    "visib": 4.35,
+    "altim": 1010,
+    "wxString": "-RA",
+    "metarType": "METAR",
+    "rawOb": "LTFM 140050Z 22012KT 7000 -RA BKN012 OVC030 09/08 Q1010 NOSIG",
+    "lat": 41.262,
+    "lon": 28.742,
+    "elev": 99,
+    "name": "Istanbul Arpt, IS, TR",
+    "clouds": [
+      {
+        "cover": "BKN",
+        "base": 1200
+      },
+      {
+        "cover": "OVC",
+        "base": 3000
+      }
+    ],
+    "fltCat": "MVFR"
+  },
+  {
+    "icaoId": "LTFM",
+    "receiptTime": "2026-01-14 00:23:00.000Z",
+    "obsTime": 1768350000,
+    "reportTime": "2026-01-14 00:20:00.000Z",
+    "temp": 9,
+    "dewp": 8,
+    "wdir": 220,
+    "wspd": 12,
+    "visib": 4.35,
+    "altim": 1010,
+    "wxString": "-RA",
+    "metarType": "METAR",
+    "rawOb": "LTFM 140020Z 22012KT 7000 -RA BKN012 OVC030 09/08 Q1010 NOSIG",
+    "lat": 41.262,
+    "lon": 28.742,
+    "elev": 99,
+    "name": "Istanbul Arpt, IS, TR",
+    "clouds": [
+      {
+        "cover": "BKN",
+        "base": 1200
+      },
+      {
+        "cover": "OVC",
+        "base": 3000
+      }
+    ],
+    "fltCat": "MVFR"
+  },
+  {
+    "icaoId": "LTFM",
+    "receiptTime": "2026-01-13 23:53:00.000Z",
+    "obsTime": 1768348200,
+    "reportTime": "2026-01-13 23:50:00.000Z",
+    "temp": 4,
+    "dewp": 3,
+    "wdir": 220,
+    "wspd": 15,
+    "visib": 3.73,
+    "altim": 1012,
+    "wxString": "RA",
+    "metarType": "METAR",
+    "rawOb": "LTFM 132350Z 22015KT 6000 RA BKN015 OVC040 04/03 Q1012 TEMPO 4000 RA",
+    "lat": 41.262,
+    "lon": 28.742,
+    "elev": 99,
+    "name": "Istanbul Arpt, IS, TR",
+    "clouds": [
+      {
+        "cover": "BKN",
+        "base": 1500
+      },
+      {
+        "cover": "OVC",
+        "base": 4000
+      }
+    ],
+    "fltCat": "MVFR"
+  },
+  {
+    "icaoId": "LTFM",
+    "receiptTime": "2026-01-13 23:23:00.000Z",
+    "obsTime": 1768346400,
+    "reportTime": "2026-01-13 23:20:00.000Z",
+    "temp": 4,
+    "dewp": 3,
+    "wdir": 220,
+    "wspd": 15,
+    "visib": 3.73,
+    "altim": 1012,
+    "wxString": "RA",
+    "metarType": "METAR",
+    "rawOb": "LTFM 132320Z 22015KT 6000 RA BKN015 OVC040 04/03 Q1012 TEMPO 4000 RA",
+    "lat": 41.262,
+    "lon": 28.742,
+    "elev": 99,
+    "name": "Istanbul Arpt, IS, TR",
+    "clouds": [
+      {
+        "cover": "BKN",
+        "base": 1500
+      },
+      {
+        "cover": "OVC",
+        "base": 4000
+      }
+    ],
+    "fltCat": "MVFR"
+  },
+  {
+    "icaoId": "LTFM",
+    "receiptTime": "2026-01-13 22:53:00.000Z",
+    "obsTime": 1768344600,
+    "reportTime": "2026-01-13 22:50:00.000Z",
+    "temp": 4,
+    "dewp": 3,
+    "wdir": 220,
+    "wspd": 15,
+    "visib": 3.73,
+    "altim": 1012,
+    "wxString": "RA",
+    "metarType": "METAR",
+    "rawOb": "LTFM 132250Z 22015KT 6000 RA BKN015 OVC040 04/03 Q1012 TEMPO 4000 RA",
+    "lat": 41.262,
+    "lon": 28.742,
+    "elev": 99,
+    "name": "Istanbul Arpt, IS, TR",
+    "clouds": [
+      {
+        "cover": "BKN",
+        "base": 1500
+      },
+      {
+        "cover": "OVC",
+        "base": 4000
+      }
+    ],
+    "fltCat": "MVFR"
+  },
+  {
+    "icaoId": "LTFM",
+    "receiptTime": "2026-01-13 22:23:00.000Z",
+    "obsTime": 1768342800,
+    "reportTime": "2026-01-13 22:20:00.000Z",
+    "temp": 4,
+    "dewp": 3,
+    "wdir": 220,
+    "wspd": 15,
+    "visib": 3.73,
+    "altim": 1012,
+    "wxString": "RA",
+    "metarType": "METAR",
+    "rawOb": "LTFM 132220Z 22015KT 6000 RA BKN015 OVC040 04/03 Q1012 TEMPO 4000 RA",
+    "lat": 41.262,
+    "lon": 28.742,
+    "elev": 99,
+    "name": "Istanbul Arpt, IS, TR",
+    "clouds": [
+      {
+        "cover": "BKN",
+        "base": 1500
+      },
+      {
+        "cover": "OVC",
+        "base": 4000
+      }
+    ],
+    "fltCat": "MVFR"
+  },
+  {
+    "icaoId": "LTFM",
+    "receiptTime": "2026-01-13 21:53:00.000Z",
+    "obsTime": 1768341000,
+    "reportTime": "2026-01-13 21:50:00.000Z",
+    "temp": 4,
+    "dewp": 3,
+    "wdir": 220,
+    "wspd": 15,
+    "visib": 3.73,
+    "altim": 1012,
+    "wxString": "RA",
+    "metarType": "METAR",
+    "rawOb": "LTFM 132150Z 22015KT 6000 RA BKN015 OVC040 04/03 Q1012 TEMPO 4000 RA",
+    "lat": 41.262,
+    "lon": 28.742,
+    "elev": 99,
+    "name": "Istanbul Arpt, IS, TR",
+    "clouds": [
+      {
+        "cover": "BKN",
+        "base": 1500
+      },
+      {
+        "cover": "OVC",
+        "base": 4000
+      }
+    ],
+    "fltCat": "MVFR"
+  },
+  {
+    "icaoId": "LTFM",
+    "receiptTime": "2026-01-13 21:23:00.000Z",
+    "obsTime": 1768339200,
+    "reportTime": "2026-01-13 21:20:00.000Z",
+    "temp": 4,
+    "dewp": 3,
+    "wdir": 220,
+    "wspd": 15,
+    "visib": 3.73,
+    "altim": 1012,
+    "wxString": "RA",
+    "metarType": "METAR",
+    "rawOb": "LTFM 132120Z 22015KT 6000 RA BKN015 OVC040 04/03 Q1012 TEMPO 4000 RA",
+    "lat": 41.262,
+    "lon": 28.742,
+    "elev": 99,
+    "name": "Istanbul Arpt, IS, TR",
+    "clouds": [
+      {
+        "cover": "BKN",
+        "base": 1500
+      },
+      {
+        "cover": "OVC",
+        "base": 4000
+      }
+    ],
+    "fltCat": "MVFR"
+  },
+  {
+    "icaoId": "LTFM",
+    "receiptTime": "2026-01-13 20:53:00.000Z",
+    "obsTime": 1768337400,
+    "reportTime": "2026-01-13 20:50:00.000Z",
+    "temp": 4,
+    "dewp": 3,
+    "wdir": 220,
+    "wspd": 15,
+    "visib": 3.73,
+    "altim": 1012,
+    "wxString": "RA",
+    "metarType": "METAR",
+    "rawOb": "LTFM 132050Z 22015KT 6000 RA BKN015 OVC040 04/03 Q1012 TEMPO 4000 RA",
+    "lat": 41.262,
+    "lon": 28.742,
+    "elev": 99,
+    "name": "Istanbul Arpt, IS, TR",
+    "clouds": [
+      {
+        "cover": "BKN",
+        "base": 1500
+      },
+      {
+        "cover": "OVC",
+        "base": 4000
+      }
+    ],
+    "fltCat": "MVFR"
+  },
+  {
+    "icaoId": "LTFM",
+    "receiptTime": "2026-01-13 20:23:00.000Z",
+    "obsTime": 1768335600,
+    "reportTime": "2026-01-13 20:20:00.000Z",
+    "temp": 4,
+    "dewp": 2,
+    "wdir": 210,
+    "wspd": 14,
+    "visib": "6+",
+    "altim": 1014,
+    "wxString": "-RA",
+    "metarType": "METAR",
+    "rawOb": "LTFM 132020Z 21014KT 9999 -RA BKN025 OVC060 04/02 Q1014 NOSIG",
+    "lat": 41.262,
+    "lon": 28.742,
+    "elev": 99,
+    "name": "Istanbul Arpt, IS, TR",
+    "clouds": [
+      {
+        "cover": "BKN",
+        "base": 2500
+      },
+      {
+        "cover": "OVC",
+        "base": 6000
+      }
+    ],
+    "fltCat": "MVFR"
+  },
+  {
+    "icaoId": "LTFM",
+    "receiptTime": "2026-01-13 19:53:00.000Z",
+    "obsTime": 1768333800,
+    "reportTime": "2026-01-13 19:50:00.000Z",
+    "temp": 5,
+    "dewp": 3,
+    "wdir": 210,
+    "wspd": 14,
+    "visib": "6+",
+    "altim": 1014,
+    "wxString": "-RA",
+    "metarType": "METAR",
+    "rawOb": "LTFM 131950Z 21014KT 9999 -RA BKN025 OVC060 05/03 Q1014 NOSIG",
+    "lat": 41.262,
+    "lon": 28.742,
+    "elev": 99,
+    "name": "Istanbul Arpt, IS, TR",
+    "clouds": [
+      {
+        "cover": "BKN",
+        "base": 2500
+      },
+      {
+        "cover": "OVC",
+        "base": 6000
+      }
+    ],
+    "fltCat": "MVFR"
+  },
+  {
+    "icaoId": "LTFM",
+    "receiptTime": "2026-01-13 19:23:00.000Z",
+    "obsTime": 1768332000,
+    "reportTime": "2026-01-13 19:20:00.000Z",
+    "temp": 5,
+    "dewp": 3,
+    "wdir": 210,
+    "wspd": 14,
+    "visib": "6+",
+    "altim": 1014,
+    "wxString": "-RA",
+    "metarType": "METAR",
+    "rawOb": "LTFM 131920Z 21014KT 9999 -RA BKN025 OVC060 05/03 Q1014 NOSIG",
+    "lat": 41.262,
+    "lon": 28.742,
+    "elev": 99,
+    "name": "Istanbul Arpt, IS, TR",
+    "clouds": [
+      {
+        "cover": "BKN",
+        "base": 2500
+      },
+      {
+        "cover": "OVC",
+        "base": 6000
+      }
+    ],
+    "fltCat": "MVFR"
+  },
+  {
+    "icaoId": "LTFM",
+    "receiptTime": "2026-01-13 18:53:00.000Z",
+    "obsTime": 1768330200,
+    "reportTime": "2026-01-13 18:50:00.000Z",
+    "temp": 5,
+    "dewp": 3,
+    "wdir": 210,
+    "wspd": 14,
+    "visib": "6+",
+    "altim": 1014,
+    "wxString": "-RA",
+    "metarType": "METAR",
+    "rawOb": "LTFM 131850Z 21014KT 9999 -RA BKN025 OVC060 05/03 Q1014 NOSIG",
+    "lat": 41.262,
+    "lon": 28.742,
+    "elev": 99,
+    "name": "Istanbul Arpt, IS, TR",
+    "clouds": [
+      {
+        "cover": "BKN",
+        "base": 2500
+      },
+      {
+        "cover": "OVC",
+        "base": 6000
+      }
+    ],
+    "fltCat": "MVFR"
+  },
+  {
+    "icaoId": "LTFM",
+    "receiptTime": "2026-01-13 18:23:00.000Z",
+    "obsTime": 1768328400,
+    "reportTime": "2026-01-13 18:20:00.000Z",
+    "temp": 5,
+    "dewp": 3,
+    "wdir": 210,
+    "wspd": 14,
+    "visib": "6+",
+    "altim": 1014,
+    "wxString": "-RA",
+    "metarType": "METAR",
+    "rawOb": "LTFM 131820Z 21014KT 9999 -RA BKN025 OVC060 05/03 Q1014 NOSIG",
+    "lat": 41.262,
+    "lon": 28.742,
+    "elev": 99,
+    "name": "Istanbul Arpt, IS, TR",
+    "clouds": [
+      {
+        "cover": "BKN",
+        "base": 2500
+      },
+      {
+        "cover": "OVC",
+        "base": 6000
+      }
+    ],
+    "fltCat": "MVFR"
+  },
+  {
+    "icaoId": "LTFM",
+    "receiptTime": "2026-01-13 17:53:00.000Z",
+    "obsTime": 1768326600,
+    "reportTime": "2026-01-13 17:50:00.000Z",
+    "temp": 6,
+    "dewp": 0,
+    "wdir": 210,
+    "wspd": 12,
+    "visib": "6+",
+    "altim": 1016,
+    "metarType": "METAR",
+    "rawOb": "LTFM 131750Z 21012KT 9999 BKN035 OVC080 06/00 Q1016 TEMPO -RA",
+    "lat": 41.262,
+    "lon": 28.742,
+    "elev": 99,
+    "name": "Istanbul Arpt, IS, TR",
+    "clouds": [
+      {
+        "cover": "BKN",
+        "base": 3500
+      },
+      {
+        "cover": "OVC",
+        "base": 8000
+      }
+    ],
+    "fltCat": "VFR"
+  },
+  {
+    "icaoId": "LTFM",
+    "receiptTime": "2026-01-13 17:23:00.000Z",
+    "obsTime": 1768324800,
+    "reportTime": "2026-01-13 17:20:00.000Z",
+    "temp": 6,
+    "dewp": 0,
+    "wdir": 210,
+    "wspd": 12,
+    "visib": "6+",
+    "altim": 1016,
+    "metarType": "METAR",
+    "rawOb": "LTFM 131720Z 21012KT 9999 BKN035 OVC080 06/00 Q1016 TEMPO -RA",
+    "lat": 41.262,
+    "lon": 28.742,
+    "elev": 99,
+    "name": "Istanbul Arpt, IS, TR",
+    "clouds": [
+      {
+        "cover": "BKN",
+        "base": 3500
+      },
+      {
+        "cover": "OVC",
+        "base": 8000
+      }
+    ],
+    "fltCat": "VFR"
+  },
+  {
+    "icaoId": "LTFM",
+    "receiptTime": "2026-01-13 16:53:00.000Z",
+    "obsTime": 1768323000,
+    "reportTime": "2026-01-13 16:50:00.000Z",
+    "temp": 6,
+    "dewp": 0,
+    "wdir": 210,
+    "wspd": 12,
+    "visib": "6+",
+    "altim": 1016,
+    "metarType": "METAR",
+    "rawOb": "LTFM 131650Z 21012KT 9999 BKN035 OVC080 06/00 Q1016 TEMPO -RA",
+    "lat": 41.262,
+    "lon": 28.742,
+    "elev": 99,
+    "name": "Istanbul Arpt, IS, TR",
+    "clouds": [
+      {
+        "cover": "BKN",
+        "base": 3500
+      },
+      {
+        "cover": "OVC",
+        "base": 8000
+      }
+    ],
+    "fltCat": "VFR"
+  },
+  {
+    "icaoId": "LTFM",
+    "receiptTime": "2026-01-13 16:23:00.000Z",
+    "obsTime": 1768321200,
+    "reportTime": "2026-01-13 16:20:00.000Z",
+    "temp": 7,
+    "dewp": 1,
+    "wdir": 210,
+    "wspd": 12,
+    "visib": "6+",
+    "altim": 1016,
+    "metarType": "METAR",
+    "rawOb": "LTFM 131620Z 21012KT 9999 BKN035 OVC080 07/01 Q1016 TEMPO -RA",
+    "lat": 41.262,
+    "lon": 28.742,
+    "elev": 99,
+    "name": "Istanbul Arpt, IS, TR",
+    "clouds": [
+      {
+        "cover": "BKN",
+        "base": 3500
+      },
+      {
+        "cover": "OVC",
+        "base": 8000
+      }
+    ],
+    "fltCat": "VFR"
+  },
+  {
+    "icaoId": "LTFM",
+    "receiptTime": "2026-01-13 15:53:00.000Z",
+    "obsTime": 1768319400,
+    "reportTime": "2026-01-13 15:50:00.000Z",
+    "temp": 7,
+    "dewp": 1,
+    "wdir": 210,
+    "wspd": 12,
+    "visib": "6+",
+    "altim": 1016,
+    "metarType": "METAR",
+    "rawOb": "LTFM 131550Z 21012KT 9999 BKN035 OVC080 07/01 Q1016 TEMPO -RA",
+    "lat": 41.262,
+    "lon": 28.742,
+    "elev": 99,
+    "name": "Istanbul Arpt, IS, TR",
+    "clouds": [
+      {
+        "cover": "BKN",
+        "base": 3500
+      },
+      {
+        "cover": "OVC",
+        "base": 8000
+      }
+    ],
+    "fltCat": "VFR"
+  },
+  {
+    "icaoId": "LTFM",
+    "receiptTime": "2026-01-13 15:23:00.000Z",
+    "obsTime": 1768317600,
+    "reportTime": "2026-01-13 15:20:00.000Z",
+    "temp": 7,
+    "dewp": 1,
+    "wdir": 210,
+    "wspd": 12,
+    "visib": "6+",
+    "altim": 1016,
+    "metarType": "METAR",
+    "rawOb": "LTFM 131520Z 21012KT 9999 BKN035 OVC080 07/01 Q1016 TEMPO -RA",
+    "lat": 41.262,
+    "lon": 28.742,
+    "elev": 99,
+    "name": "Istanbul Arpt, IS, TR",
+    "clouds": [
+      {
+        "cover": "BKN",
+        "base": 3500
+      },
+      {
+        "cover": "OVC",
+        "base": 8000
+      }
+    ],
+    "fltCat": "VFR"
+  },
+  {
+    "icaoId": "LTFM",
+    "receiptTime": "2026-01-13 14:53:00.000Z",
+    "obsTime": 1768315800,
+    "reportTime": "2026-01-13 14:50:00.000Z",
+    "temp": 8,
+    "dewp": 2,
+    "wdir": 200,
+    "wspd": 10,
+    "visib": "6+",
+    "altim": 1019,
+    "metarType": "METAR",
+    "rawOb": "LTFM 131450Z 20010KT 9999 SCT030 BKN060 08/02 Q1019 NOSIG",
+    "lat": 41.262,
+    "lon": 28.742,
+    "elev": 99,
+    "name": "Istanbul Arpt, IS, TR",
+    "clouds": [
+      {
+        "cover": "SCT",
+        "base": 3000
+      },
+      {
+        "cover": "BKN",
+        "base": 6000
+      }
+    ],
+    "fltCat": "VFR"
+  },
+  {
+    "icaoId": "LTFM",
+    "receiptTime": "2026-01-13 14:23:00.000Z",
+    "obsTime": 1768314000,
+    "reportTime": "2026-01-13 14:20:00.000Z",
+    "temp": 8,
+    "dewp": 2,
+    "wdir": 200,
+    "wspd": 10,
+    "visib": "6+",
+    "altim": 1019,
+    "metarType": "METAR",
+    "rawOb": "LTFM 131420Z 20010KT 9999 SCT030 BKN060 08/02 Q1019 NOSIG",
+    "lat": 41.262,
+    "lon": 28.742,
+    "elev": 99,
+    "name": "Istanbul Arpt, IS, TR",
+    "clouds": [
+      {
+        "cover": "SCT",
+        "base": 3000
+      },
+      {
+        "cover": "BKN",
+        "base": 6000
+      }
+    ],
+    "fltCat": "VFR"
+  },
+  {
+    "icaoId": "LTFM",
+    "receiptTime": "2026-01-13 13:53:00.000Z",
+    "obsTime": 1768312200,
+    "reportTime": "2026-01-13 13:50:00.000Z",
+    "temp": 8,
+    "dewp": 2,
+    "wdir": 200,
+    "wspd": 10,
+    "visib": "6+",
+    "altim": 1019,
+    "metarType": "METAR",
+    "rawOb": "LTFM 131350Z 20010KT 9999 SCT030 BKN060 08/02 Q1019 NOSIG",
+    "lat": 41.262,
+    "lon": 28.742,
+    "elev": 99,
+    "name": "Istanbul Arpt, IS, TR",
+    "clouds": [
+      {
+        "cover": "SCT",
+        "base": 3000
+      },
+      {
+        "cover": "BKN",
+        "base": 6000
+      }
+    ],
+    "fltCat": "VFR"
+  },
+  {
+    "icaoId": "LTFM",
+    "receiptTime": "2026-01-13 13:23:00.000Z",
+    "obsTime": 1768310400,
+    "reportTime": "2026-01-13 13:20:00.000Z",
+    "temp": 8,
+    "dewp": 2,
+    "wdir": 200,
+    "wspd": 10,
+    "visib": "6+",
+    "altim": 1019,
+    "metarType": "METAR",
+    "rawOb": "LTFM 131320Z 20010KT 9999 SCT030 BKN060 08/02 Q1019 NOSIG",
+    "lat": 41.262,
+    "lon": 28.742,
+    "elev": 99,
+    "name": "Istanbul Arpt, IS, TR",
+    "clouds": [
+      {
+        "cover": "SCT",
+        "base": 3000
+      },
+      {
+        "cover": "BKN",
+        "base": 6000
+      }
+    ],
+    "fltCat": "VFR"
+  },
+  {
+    "icaoId": "LTFM",
+    "receiptTime": "2026-01-13 12:53:00.000Z",
+    "obsTime": 1768308600,
+    "reportTime": "2026-01-13 12:50:00.000Z",
+    "temp": 8,
+    "dewp": 2,
+    "wdir": 200,
+    "wspd": 10,
+    "visib": "6+",
+    "altim": 1019,
+    "metarType": "METAR",
+    "rawOb": "LTFM 131250Z 20010KT 9999 SCT030 BKN060 08/02 Q1019 NOSIG",
+    "lat": 41.262,
+    "lon": 28.742,
+    "elev": 99,
+    "name": "Istanbul Arpt, IS, TR",
+    "clouds": [
+      {
+        "cover": "SCT",
+        "base": 3000
+      },
+      {
+        "cover": "BKN",
+        "base": 6000
+      }
+    ],
+    "fltCat": "VFR"
+  },
+  {
+    "icaoId": "LTFM",
+    "receiptTime": "2026-01-13 12:23:00.000Z",
+    "obsTime": 1768306800,
+    "reportTime": "2026-01-13 12:20:00.000Z",
+    "temp": 8,
+    "dewp": 2,
+    "wdir": 200,
+    "wspd": 10,
+    "visib": "6+",
+    "altim": 1019,
+    "metarType": "METAR",
+    "rawOb": "LTFM 131220Z 20010KT 9999 SCT030 BKN060 08/02 Q1019 NOSIG",
+    "lat": 41.262,
+    "lon": 28.742,
+    "elev": 99,
+    "name": "Istanbul Arpt, IS, TR",
+    "clouds": [
+      {
+        "cover": "SCT",
+        "base": 3000
+      },
+      {
+        "cover": "BKN",
+        "base": 6000
+      }
+    ],
+    "fltCat": "VFR"
+  },
+  {
+    "icaoId": "LTFM",
+    "receiptTime": "2026-01-13 11:53:00.000Z",
+    "obsTime": 1768305000,
+    "reportTime": "2026-01-13 11:50:00.000Z",
+    "temp": 8,
+    "dewp": 2,
+    "wdir": 200,
+    "wspd": 10,
+    "visib": "6+",
+    "altim": 1019,
+    "metarType": "METAR",
+    "rawOb": "LTFM 131150Z 20010KT 9999 SCT030 BKN060 08/02 Q1019 NOSIG",
+    "lat": 41.262,
+    "lon": 28.742,
+    "elev": 99,
+    "name": "Istanbul Arpt, IS, TR",
+    "clouds": [
+      {
+        "cover": "SCT",
+        "base": 3000
+      },
+      {
+        "cover": "BKN",
+        "base": 6000
+      }
+    ],
+    "fltCat": "VFR"
+  },
+  {
+    "icaoId": "LTFM",
+    "receiptTime": "2026-01-13 11:23:00.000Z",
+    "obsTime": 1768303200,
+    "reportTime": "2026-01-13 11:20:00.000Z",
+    "temp": 8,
+    "dewp": 2,
+    "wdir": 200,
+    "wspd": 10,
+    "visib": "6+",
+    "altim": 1019,
+    "metarType": "METAR",
+    "rawOb": "LTFM 131120Z 20010KT 9999 SCT030 BKN060 08/02 Q1019 NOSIG",
+    "lat": 41.262,
+    "lon": 28.742,
+    "elev": 99,
+    "name": "Istanbul Arpt, IS, TR",
+    "clouds": [
+      {
+        "cover": "SCT",
+        "base": 3000
+      },
+      {
+        "cover": "BKN",
+        "base": 6000
+      }
+    ],
+    "fltCat": "VFR"
+  },
+  {
+    "icaoId": "LTFM",
+    "receiptTime": "2026-01-13 10:53:00.000Z",
+    "obsTime": 1768301400,
+    "reportTime": "2026-01-13 10:50:00.000Z",
+    "temp": 8,
+    "dewp": 2,
+    "wdir": 50,
+    "wspd": 7,
+    "visib": 4.97,
+    "altim": 1022,
+    "metarType": "METAR",
+    "rawOb": "LTFM 131050Z 05007KT 8000 SCT015 BKN035 08/02 Q1022 NOSIG",
+    "lat": 41.262,
+    "lon": 28.742,
+    "elev": 99,
+    "name": "Istanbul Arpt, IS, TR",
+    "clouds": [
+      {
+        "cover": "SCT",
+        "base": 1500
+      },
+      {
+        "cover": "BKN",
+        "base": 3500
+      }
+    ],
+    "fltCat": "MVFR"
+  },
+  {
+    "icaoId": "LTFM",
+    "receiptTime": "2026-01-13 10:23:00.000Z",
+    "obsTime": 1768299600,
+    "reportTime": "2026-01-13 10:20:00.000Z",
+    "temp": 8,
+    "dewp": 2,
+    "wdir": 50,
+    "wspd": 7,
+    "visib": 4.97,
+    "altim": 1022,
+    "metarType": "METAR",
+    "rawOb": "LTFM 131020Z 05007KT 8000 SCT015 BKN035 08/02 Q1022 NOSIG",
+    "lat": 41.262,
+    "lon": 28.742,
+    "elev": 99,
+    "name": "Istanbul Arpt, IS, TR",
+    "clouds": [
+      {
+        "cover": "SCT",
+        "base": 1500
+      },
+      {
+        "cover": "BKN",
+        "base": 3500
+      }
+    ],
+    "fltCat": "MVFR"
+  },
+  {
+    "icaoId": "LTFM",
+    "receiptTime": "2026-01-13 09:53:00.000Z",
+    "obsTime": 1768297800,
+    "reportTime": "2026-01-13 09:50:00.000Z",
+    "temp": 8,
+    "dewp": 2,
+    "wdir": 50,
+    "wspd": 7,
+    "visib": 4.97,
+    "altim": 1022,
+    "metarType": "METAR",
+    "rawOb": "LTFM 130950Z 05007KT 8000 SCT015 BKN035 08/02 Q1022 NOSIG",
+    "lat": 41.262,
+    "lon": 28.742,
+    "elev": 99,
+    "name": "Istanbul Arpt, IS, TR",
+    "clouds": [
+      {
+        "cover": "SCT",
+        "base": 1500
+      },
+      {
+        "cover": "BKN",
+        "base": 3500
+      }
+    ],
+    "fltCat": "MVFR"
+  },
+  {
+    "icaoId": "LTFM",
+    "receiptTime": "2026-01-13 09:23:00.000Z",
+    "obsTime": 1768296000,
+    "reportTime": "2026-01-13 09:20:00.000Z",
+    "temp": 8,
+    "dewp": 2,
+    "wdir": 50,
+    "wspd": 7,
+    "visib": 4.97,
+    "altim": 1022,
+    "metarType": "METAR",
+    "rawOb": "LTFM 130920Z 05007KT 8000 SCT015 BKN035 08/02 Q1022 NOSIG",
+    "lat": 41.262,
+    "lon": 28.742,
+    "elev": 99,
+    "name": "Istanbul Arpt, IS, TR",
+    "clouds": [
+      {
+        "cover": "SCT",
+        "base": 1500
+      },
+      {
+        "cover": "BKN",
+        "base": 3500
+      }
+    ],
+    "fltCat": "MVFR"
+  },
+  {
+    "icaoId": "LTFM",
+    "receiptTime": "2026-01-13 08:53:00.000Z",
+    "obsTime": 1768294200,
+    "reportTime": "2026-01-13 08:50:00.000Z",
+    "temp": 8,
+    "dewp": 2,
+    "wdir": 50,
+    "wspd": 7,
+    "visib": 4.97,
+    "altim": 1022,
+    "metarType": "METAR",
+    "rawOb": "LTFM 130850Z 05007KT 8000 SCT015 BKN035 08/02 Q1022 NOSIG",
+    "lat": 41.262,
+    "lon": 28.742,
+    "elev": 99,
+    "name": "Istanbul Arpt, IS, TR",
+    "clouds": [
+      {
+        "cover": "SCT",
+        "base": 1500
+      },
+      {
+        "cover": "BKN",
+        "base": 3500
+      }
+    ],
+    "fltCat": "MVFR"
+  },
+  {
+    "icaoId": "LTFM",
+    "receiptTime": "2026-01-13 08:23:00.000Z",
+    "obsTime": 1768292400,
+    "reportTime": "2026-01-13 08:20:00.000Z",
+    "temp": 8,
+    "dewp": 7,
+    "wdir": 50,
+    "wspd": 5,
+    "visib": 2.17,
+    "altim": 1023,
+    "wxString": "BR",
+    "metarType": "METAR",
+    "rawOb": "LTFM 130820Z 05005KT 3500 BR SCT005 BKN012 08/07 Q1023 BECMG 6000",
+    "lat": 41.262,
+    "lon": 28.742,
+    "elev": 99,
+    "name": "Istanbul Arpt, IS, TR",
+    "clouds": [
+      {
+        "cover": "SCT",
+        "base": 500
+      },
+      {
+        "cover": "BKN",
+        "base": 1200
+      }
+    ],
+    "fltCat": "IFR"
+  },
+  {
+    "icaoId": "LTFM",
+    "receiptTime": "2026-01-13 07:53:00.000Z",
+    "obsTime": 1768290600,
+    "reportTime": "2026-01-13 07:50:00.000Z",
+    "temp": 7,
+    "dewp": 6,
+    "wdir": 50,
+    "wspd": 5,
+    "visib": 2.17,
+    "altim": 1023,
+    "wxString": "BR",
+    "metarType": "METAR",
+    "rawOb": "LTFM 130750Z 05005KT 3500 BR SCT005 BKN012 07/06 Q1023 BECMG 6000",
+    "lat": 41.262,
+    "lon": 28.742,
+    "elev": 99,
+    "name": "Istanbul Arpt, IS, TR",
+    "clouds": [
+      {
+        "cover": "SCT",
+        "base": 500
+      },
+      {
+        "cover": "BKN",
+        "base": 1200
+      }
+    ],
+    "fltCat": "IFR"
+  },
+  {
+    "icaoId": "LTFM",
+    "receiptTime": "2026-01-13 07:23:00.000Z",
+    "obsTime": 1768288800,
+    "reportTime": "2026-01-13 07:20:00.000Z",
+    "temp": 7,
+    "dewp": 7,
+    "wdir": 60,
+    "wspd": 3,
+    "visib": 0.43,
+    "altim": 1024,
+    "wxString": "BCFG BR",
+    "metarType": "METAR",
+    "rawOb": "LTFM 130720Z 06003KT 0700 BCFG BR BKN003 07/07 Q1024 BECMG 3000 BR",
+    "lat": 41.262,
+    "lon": 28.742,
+    "elev": 99,
+    "name": "Istanbul Arpt, IS, TR",
+    "clouds": [
+      {
+        "cover": "BKN",
+        "base": 300
+      }
+    ],
+    "fltCat": "LIFR"
+  },
+  {
+    "icaoId": "LTFM",
+    "receiptTime": "2026-01-13 06:53:00.000Z",
+    "obsTime": 1768287000,
+    "reportTime": "2026-01-13 06:50:00.000Z",
+    "temp": 7,
+    "dewp": 7,
+    "wdir": 60,
+    "wspd": 3,
+    "visib": 0.43,
+    "altim": 1024,
+    "wxString": "BCFG BR",
+    "metarType": "METAR",
+    "rawOb": "LTFM 130650Z 06003KT 0700 BCFG BR BKN003 07/07 Q1024 BECMG 3000 BR",
+    "lat": 41.262,
+    "lon": 28.742,
+    "elev": 99,
+    "name": "Istanbul Arpt, IS, TR",
+    "clouds": [
+      {
+        "cover": "BKN",
+        "base": 300
+      }
+    ],
+    "fltCat": "LIFR"
+  },
+  {
+    "icaoId": "LTFM",
+    "receiptTime": "2026-01-13 06:23:00.000Z",
+    "obsTime": 1768285200,
+    "reportTime": "2026-01-13 06:20:00.000Z",
+    "temp": 7,
+    "dewp": 7,
+    "wdir": 0,
+    "wspd": 0,
+    "visib": 0.09,
+    "altim": 1024,
+    "wxString": "FG",
+    "vertVis": 100,
+    "metarType": "METAR",
+    "rawOb": "LTFM 130620Z 00000KT 0150 R35L/0400D R34R/0450N FG VV001 07/07 Q1024 BECMG 0800 FG",
+    "lat": 41.262,
+    "lon": 28.742,
+    "elev": 99,
+    "name": "Istanbul Arpt, IS, TR",
+    "clouds": [
+      {
+        "cover": "OVX",
+        "base": 0
+      }
+    ],
+    "fltCat": "LIFR"
+  },
+  {
+    "icaoId": "LTFM",
+    "receiptTime": "2026-01-13 05:53:00.000Z",
+    "obsTime": 1768283400,
+    "reportTime": "2026-01-13 05:50:00.000Z",
+    "temp": 6,
+    "dewp": 6,
+    "wdir": 0,
+    "wspd": 0,
+    "visib": 0.09,
+    "altim": 1024,
+    "wxString": "FG",
+    "vertVis": 100,
+    "metarType": "METAR",
+    "rawOb": "LTFM 130550Z 00000KT 0150 R35L/0400D R34R/0450N FG VV001 06/06 Q1024 BECMG 0800 FG",
+    "lat": 41.262,
+    "lon": 28.742,
+    "elev": 99,
+    "name": "Istanbul Arpt, IS, TR",
+    "clouds": [
+      {
+        "cover": "OVX",
+        "base": 0
+      }
+    ],
+    "fltCat": "LIFR"
+  },
+  {
+    "icaoId": "LTFM",
+    "receiptTime": "2026-01-13 05:23:00.000Z",
+    "obsTime": 1768281600,
+    "reportTime": "2026-01-13 05:20:00.000Z",
+    "temp": 6,
+    "dewp": 6,
+    "wdir": 0,
+    "wspd": 0,
+    "visib": 0.09,
+    "altim": 1024,
+    "wxString": "FG",
+    "vertVis": 100,
+    "metarType": "METAR",
+    "rawOb": "LTFM 130520Z 00000KT 0150 R35L/0400D R34R/0450N FG VV001 06/06 Q1024 BECMG 0800 FG",
+    "lat": 41.262,
+    "lon": 28.742,
+    "elev": 99,
+    "name": "Istanbul Arpt, IS, TR",
+    "clouds": [
+      {
+        "cover": "OVX",
+        "base": 0
+      }
+    ],
+    "fltCat": "LIFR"
+  },
+  {
+    "icaoId": "LTFM",
+    "receiptTime": "2026-01-13 04:53:00.000Z",
+    "obsTime": 1768279800,
+    "reportTime": "2026-01-13 04:50:00.000Z",
+    "temp": 6,
+    "dewp": 6,
+    "wdir": "VRB",
+    "wspd": 1,
+    "visib": 0.19,
+    "altim": 1024,
+    "wxString": "FG",
+    "vertVis": 100,
+    "metarType": "METAR",
+    "rawOb": "LTFM 130450Z VRB01KT 0300 R35L/0550N R34R/0600U FG VV001 06/06 Q1024 NOSIG",
+    "lat": 41.262,
+    "lon": 28.742,
+    "elev": 99,
+    "name": "Istanbul Arpt, IS, TR",
+    "clouds": [
+      {
+        "cover": "OVX",
+        "base": 0
+      }
+    ],
+    "fltCat": "LIFR"
+  },
+  {
+    "icaoId": "LTFM",
+    "receiptTime": "2026-01-13 04:23:00.000Z",
+    "obsTime": 1768278000,
+    "reportTime": "2026-01-13 04:20:00.000Z",
+    "temp": 5,
+    "dewp": 5,
+    "wdir": "VRB",
+    "wspd": 1,
+    "visib": 0.19,
+    "altim": 1024,
+    "wxString": "FG",
+    "vertVis": 100,
+    "metarType": "METAR",
+    "rawOb": "LTFM 130420Z VRB01KT 0300 R35L/0550N R34R/0600U FG VV001 05/05 Q1024 NOSIG",
+    "lat": 41.262,
+    "lon": 28.742,
+    "elev": 99,
+    "name": "Istanbul Arpt, IS, TR",
+    "clouds": [
+      {
+        "cover": "OVX",
+        "base": 0
+      }
+    ],
+    "fltCat": "LIFR"
+  },
+  {
+    "icaoId": "LTFM",
+    "receiptTime": "2026-01-13 03:53:00.000Z",
+    "obsTime": 1768276200,
+    "reportTime": "2026-01-13 03:50:00.000Z",
+    "temp": 5,
+    "dewp": 5,
+    "wdir": "VRB",
+    "wspd": 1,
+    "visib": 0.19,
+    "altim": 1024,
+    "wxString": "FG",
+    "vertVis": 100,
+    "metarType": "METAR",
+    "rawOb": "LTFM 130350Z VRB01KT 0300 R35L/0550N R34R/0600U FG VV001 05/05 Q1024 NOSIG",
+    "lat": 41.262,
+    "lon": 28.742,
+    "elev": 99,
+    "name": "Istanbul Arpt, IS, TR",
+    "clouds": [
+      {
+        "cover": "OVX",
+        "base": 0
+      }
+    ],
+    "fltCat": "LIFR"
+  },
+  {
+    "icaoId": "LTFM",
+    "receiptTime": "2026-01-13 03:23:00.000Z",
+    "obsTime": 1768274400,
+    "reportTime": "2026-01-13 03:20:00.000Z",
+    "temp": 5,
+    "dewp": 5,
+    "wdir": 0,
+    "wspd": 0,
+    "visib": 1.12,
+    "altim": 1023,
+    "wxString": "BR",
+    "metarType": "METAR",
+    "rawOb": "LTFM 130320Z 00000KT 1800 BR BKN004 05/05 Q1023 TEMPO 0400 FG",
+    "lat": 41.262,
+    "lon": 28.742,
+    "elev": 99,
+    "name": "Istanbul Arpt, IS, TR",
+    "clouds": [
+      {
+        "cover": "BKN",
+        "base": 400
+      }
+    ],
+    "fltCat": "LIFR"
+  },
+  {
+    "icaoId": "LTFM",
+    "receiptTime": "2026-01-13 02:53:00.000Z",
+    "obsTime": 1768272600,
+    "reportTime": "2026-01-13 02:50:00.000Z",
+    "temp": 4,
+    "dewp": 4,
+    "wdir": 0,
+    "wspd": 0,
+    "visib": 1.12,
+    "altim": 1023,
+    "wxString": "BR",
+    "metarType": "METAR",
+    "rawOb": "LTFM 130250Z 00000KT 1800 BR BKN004 04/04 Q1023 TEMPO 0400 FG",
+    "lat": 41.262,
+    "lon": 28.742,
+    "elev": 99,
+    "name": "Istanbul Arpt, IS, TR",
+    "clouds": [
+      {
+        "cover": "BKN",
+        "base": 400
+      }
+    ],
+    "fltCat": "LIFR"
+  },
+  {
+    "icaoId": "LTFM",
+    "receiptTime": "2026-01-13 02:23:00.000Z",
+    "obsTime": 1768270800,
+    "reportTime": "2026-01-13 02:20:00.000Z",
+    "temp": 4,
+    "dewp": 3,
+    "wdir": 0,
+    "wspd": 0,
+    "visib": 3.11,
+    "altim": 1023,
+    "wxString": "BR",
+    "metarType": "METAR",
+    "rawOb": "LTFM 130220Z 00000KT 5000 BR NSC 04/03 Q1023 BECMG 2000 BR",
+    "lat": 41.262,
+    "lon": 28.742,
+    "elev": 99,
+    "name": "Istanbul Arpt, IS, TR",
+    "clouds": [
+      {
+        "cover": "CLR"
+      }
+    ],
+    "fltCat": "MVFR"
+  },
+  {
+    "icaoId": "LTFM",
+    "receiptTime": "2026-01-13 01:53:00.000Z",
+    "obsTime": 1768269000,
+    "reportTime": "2026-01-13 01:50:00.000Z",
+    "temp": 4,
+    "dewp": 3,
+    "wdir": 0,
+    "wspd": 0,
+    "visib": 3.11,
+    "altim": 1023,
+    "wxString": "BR",
+    "metarType": "METAR",
+    "rawOb": "LTFM 130150Z 00000KT 5000 BR NSC 04/03 Q1023 BECMG 2000 BR",
+    "lat": 41.262,
+    "lon": 28.742,
+    "elev": 99,
+    "name": "Istanbul Arpt, IS, TR",
+    "clouds": [
+      {
+        "cover": "CLR"
+      }
+    ],
+    "fltCat": "MVFR"
+  },
+  {
+    "icaoId": "LTFM",
+    "receiptTime": "2026-01-13 01:23:00.000Z",
+    "obsTime": 1768267200,
+    "reportTime": "2026-01-13 01:20:00.000Z",
+    "temp": 4,
+    "dewp": 3,
+    "wdir": 0,
+    "wspd": 0,
+    "visib": 3.11,
+    "altim": 1023,
+    "wxString": "BR",
+    "metarType": "METAR",
+    "rawOb": "LTFM 130120Z 00000KT 5000 BR NSC 04/03 Q1023 BECMG 2000 BR",
+    "lat": 41.262,
+    "lon": 28.742,
+    "elev": 99,
+    "name": "Istanbul Arpt, IS, TR",
+    "clouds": [
+      {
+        "cover": "CLR"
+      }
+    ],
+    "fltCat": "MVFR"
+  },
+  {
+    "icaoId": "LTFM",
+    "receiptTime": "2026-01-13 00:53:00.000Z",
+    "obsTime": 1768265400,
+    "reportTime": "2026-01-13 00:50:00.000Z",
+    "temp": 4,
+    "dewp": 1,
+    "wdir": 0,
+    "wspd": 0,
+    "visib": "6+",
+    "altim": 1023,
+    "metarType": "METAR",
+    "rawOb": "LTFM 130050Z 00000KT 9999 NSC 04/01 Q1023 NOSIG",
+    "lat": 41.262,
+    "lon": 28.742,
+    "elev": 99,
+    "name": "Istanbul Arpt, IS, TR",
+    "clouds": [
+      {
+        "cover": "CLR"
+      }
+    ],
+    "fltCat": "VFR"
+  },
+  {
+    "icaoId": "LTFM",
+    "receiptTime": "2026-01-13 00:23:00.000Z",
+    "obsTime": 1768263600,
+    "reportTime": "2026-01-13 00:20:00.000Z",
+    "temp": 4,
+    "dewp": 1,
+    "wdir": 0,
+    "wspd": 0,
+    "visib": "6+",
+    "altim": 1023,
+    "metarType": "METAR",
+    "rawOb": "LTFM 130020Z 00000KT 9999 NSC 04/01 Q1023 NOSIG",
+    "lat": 41.262,
+    "lon": 28.742,
+    "elev": 99,
+    "name": "Istanbul Arpt, IS, TR",
+    "clouds": [
+      {
+        "cover": "CLR"
+      }
+    ],
+    "fltCat": "VFR"
+  },
+  {
+    "icaoId": "LTFM",
+    "receiptTime": "2026-01-12 23:53:00.000Z",
+    "obsTime": 1768261800,
+    "reportTime": "2026-01-12 23:50:00.000Z",
+    "temp": 5,
+    "dewp": -1,
+    "wdir": 0,
+    "wspd": 0,
+    "visib": "6+",
+    "altim": 1023,
+    "metarType": "METAR",
+    "rawOb": "LTFM 122350Z 00000KT 9999 NSC 05/M01 Q1023 NOSIG",
+    "lat": 41.262,
+    "lon": 28.742,
+    "elev": 99,
+    "name": "Istanbul Arpt, IS, TR",
+    "clouds": [
+      {
+        "cover": "CLR"
+      }
+    ],
+    "fltCat": "VFR"
+  },
+  {
+    "icaoId": "LTFM",
+    "receiptTime": "2026-01-12 23:23:00.000Z",
+    "obsTime": 1768260000,
+    "reportTime": "2026-01-12 23:20:00.000Z",
+    "temp": 5,
+    "dewp": -1,
+    "wdir": 0,
+    "wspd": 0,
+    "visib": "6+",
+    "altim": 1023,
+    "metarType": "METAR",
+    "rawOb": "LTFM 122320Z 00000KT 9999 NSC 05/M01 Q1023 NOSIG",
+    "lat": 41.262,
+    "lon": 28.742,
+    "elev": 99,
+    "name": "Istanbul Arpt, IS, TR",
+    "clouds": [
+      {
+        "cover": "CLR"
+      }
+    ],
+    "fltCat": "VFR"
+  },
+  {
+    "icaoId": "LTFM",
+    "receiptTime": "2026-01-12 22:53:00.000Z",
+    "obsTime": 1768258200,
+    "reportTime": "2026-01-12 22:50:00.000Z",
+    "temp": 5,
+    "dewp": -1,
+    "wdir": 0,
+    "wspd": 0,
+    "visib": "6+",
+    "altim": 1023,
+    "metarType": "METAR",
+    "rawOb": "LTFM 122250Z 00000KT 9999 NSC 05/M01 Q1023 NOSIG",
+    "lat": 41.262,
+    "lon": 28.742,
+    "elev": 99,
+    "name": "Istanbul Arpt, IS, TR",
+    "clouds": [
+      {
+        "cover": "CLR"
+      }
+    ],
+    "fltCat": "VFR"
+  },
+  {
+    "icaoId": "LTFM",
+    "receiptTime": "2026-01-12 22:23:00.000Z",
+    "obsTime": 1768256400,
+    "reportTime": "2026-01-12 22:20:00.000Z",
+    "temp": 5,
+    "dewp": -1,
+    "wdir": 0,
+    "wspd": 0,
+    "visib": "6+",
+    "altim": 1023,
+    "metarType": "METAR",
+    "rawOb": "LTFM 122220Z 00000KT 9999 NSC 05/M01 Q1023 NOSIG",
+    "lat": 41.262,
+    "lon": 28.742,
+    "elev": 99,
+    "name": "Istanbul Arpt, IS, TR",
+    "clouds": [
+      {
+        "cover": "CLR"
+      }
+    ],
+    "fltCat": "VFR"
+  },
+  {
+    "icaoId": "LTFM",
+    "receiptTime": "2026-01-12 21:53:00.000Z",
+    "obsTime": 1768254600,
+    "reportTime": "2026-01-12 21:50:00.000Z",
+    "temp": 5,
+    "dewp": -1,
+    "wdir": 0,
+    "wspd": 0,
+    "visib": "6+",
+    "altim": 1023,
+    "metarType": "METAR",
+    "rawOb": "LTFM 122150Z 00000KT 9999 NSC 05/M01 Q1023 NOSIG",
+    "lat": 41.262,
+    "lon": 28.742,
+    "elev": 99,
+    "name": "Istanbul Arpt, IS, TR",
+    "clouds": [
+      {
+        "cover": "CLR"
+      }
+    ],
+    "fltCat": "VFR"
+  },
+  {
+    "icaoId": "LTFM",
+    "receiptTime": "2026-01-12 21:23:00.000Z",
+    "obsTime": 1768252800,
+    "reportTime": "2026-01-12 21:20:00.000Z",
+    "temp": 5,
+    "dewp": -1,
+    "wdir": 0,
+    "wspd": 0,
+    "visib": "6+",
+    "altim": 1023,
+    "metarType": "METAR",
+    "rawOb": "LTFM 122120Z 00000KT 9999 NSC 05/M01 Q1023 NOSIG",
+    "lat": 41.262,
+    "lon": 28.742,
+    "elev": 99,
+    "name": "Istanbul Arpt, IS, TR",
+    "clouds": [
+      {
+        "cover": "CLR"
+      }
+    ],
+    "fltCat": "VFR"
+  },
+  {
+    "icaoId": "LTFM",
+    "receiptTime": "2026-01-12 20:53:00.000Z",
+    "obsTime": 1768251000,
+    "reportTime": "2026-01-12 20:50:00.000Z",
+    "temp": 5,
+    "dewp": -1,
+    "wdir": 30,
+    "wspd": 5,
+    "visib": "6+",
+    "altim": 1023,
+    "metarType": "METAR",
+    "rawOb": "LTFM 122050Z 03005KT CAVOK 05/M01 Q1023 NOSIG",
+    "lat": 41.262,
+    "lon": 28.742,
+    "elev": 99,
+    "name": "Istanbul Arpt, IS, TR",
+    "clouds": [
+      {
+        "cover": "CAVOK"
+      }
+    ],
+    "fltCat": "VFR"
+  },
+  {
+    "icaoId": "LTFM",
+    "receiptTime": "2026-01-12 20:23:00.000Z",
+    "obsTime": 1768249200,
+    "reportTime": "2026-01-12 20:20:00.000Z",
+    "temp": 5,
+    "dewp": -1,
+    "wdir": 30,
+    "wspd": 5,
+    "visib": "6+",
+    "altim": 1023,
+    "metarType": "METAR",
+    "rawOb": "LTFM 122020Z 03005KT CAVOK 05/M01 Q1023 NOSIG",
+    "lat": 41.262,
+    "lon": 28.742,
+    "elev": 99,
+    "name": "Istanbul Arpt, IS, TR",
+    "clouds": [
+      {
+        "cover": "CAVOK"
+      }
+    ],
+    "fltCat": "VFR"
+  },
+  {
+    "icaoId": "LTFM",
+    "receiptTime": "2026-01-12 19:53:00.000Z",
+    "obsTime": 1768247400,
+    "reportTime": "2026-01-12 19:50:00.000Z",
+    "temp": 6,
+    "dewp": 0,
+    "wdir": 30,
+    "wspd": 5,
+    "visib": "6+",
+    "altim": 1023,
+    "metarType": "METAR",
+    "rawOb": "LTFM 121950Z 03005KT CAVOK 06/00 Q1023 NOSIG",
+    "lat": 41.262,
+    "lon": 28.742,
+    "elev": 99,
+    "name": "Istanbul Arpt, IS, TR",
+    "clouds": [
+      {
+        "cover": "CAVOK"
+      }
+    ],
+    "fltCat": "VFR"
+  },
+  {
+    "icaoId": "LTFM",
+    "receiptTime": "2026-01-12 19:23:00.000Z",
+    "obsTime": 1768245600,
+    "reportTime": "2026-01-12 19:20:00.000Z",
+    "temp": 6,
+    "dewp": 0,
+    "wdir": 30,
+    "wspd": 5,
+    "visib": "6+",
+    "altim": 1023,
+    "metarType": "METAR",
+    "rawOb": "LTFM 121920Z 03005KT CAVOK 06/00 Q1023 NOSIG",
+    "lat": 41.262,
+    "lon": 28.742,
+    "elev": 99,
+    "name": "Istanbul Arpt, IS, TR",
+    "clouds": [
+      {
+        "cover": "CAVOK"
+      }
+    ],
+    "fltCat": "VFR"
+  },
+  {
+    "icaoId": "LTFM",
+    "receiptTime": "2026-01-12 18:53:00.000Z",
+    "obsTime": 1768243800,
+    "reportTime": "2026-01-12 18:50:00.000Z",
+    "temp": 6,
+    "dewp": 0,
+    "wdir": 30,
+    "wspd": 5,
+    "visib": "6+",
+    "altim": 1023,
+    "metarType": "METAR",
+    "rawOb": "LTFM 121850Z 03005KT CAVOK 06/00 Q1023 NOSIG",
+    "lat": 41.262,
+    "lon": 28.742,
+    "elev": 99,
+    "name": "Istanbul Arpt, IS, TR",
+    "clouds": [
+      {
+        "cover": "CAVOK"
+      }
+    ],
+    "fltCat": "VFR"
+  },
+  {
+    "icaoId": "LTFM",
+    "receiptTime": "2026-01-12 18:23:00.000Z",
+    "obsTime": 1768242000,
+    "reportTime": "2026-01-12 18:20:00.000Z",
+    "temp": 6,
+    "dewp": 0,
+    "wdir": 30,
+    "wspd": 5,
+    "visib": "6+",
+    "altim": 1023,
+    "metarType": "METAR",
+    "rawOb": "LTFM 121820Z 03005KT CAVOK 06/00 Q1023 NOSIG",
+    "lat": 41.262,
+    "lon": 28.742,
+    "elev": 99,
+    "name": "Istanbul Arpt, IS, TR",
+    "clouds": [
+      {
+        "cover": "CAVOK"
+      }
+    ],
+    "fltCat": "VFR"
+  },
+  {
+    "icaoId": "LTFM",
+    "receiptTime": "2026-01-12 17:53:00.000Z",
+    "obsTime": 1768240200,
+    "reportTime": "2026-01-12 17:50:00.000Z",
+    "temp": 7,
+    "dewp": 1,
+    "wdir": 30,
+    "wspd": 5,
+    "visib": "6+",
+    "altim": 1023,
+    "metarType": "METAR",
+    "rawOb": "LTFM 121750Z 03005KT CAVOK 07/01 Q1023 NOSIG",
+    "lat": 41.262,
+    "lon": 28.742,
+    "elev": 99,
+    "name": "Istanbul Arpt, IS, TR",
+    "clouds": [
+      {
+        "cover": "CAVOK"
+      }
+    ],
+    "fltCat": "VFR"
+  },
+  {
+    "icaoId": "LTFM",
+    "receiptTime": "2026-01-12 17:23:00.000Z",
+    "obsTime": 1768238400,
+    "reportTime": "2026-01-12 17:20:00.000Z",
+    "temp": 7,
+    "dewp": 1,
+    "wdir": 30,
+    "wspd": 5,
+    "visib": "6+",
+    "altim": 1023,
+    "metarType": "METAR",
+    "rawOb": "LTFM 121720Z 03005KT CAVOK 07/01 Q1023 NOSIG",
+    "lat": 41.262,
+    "lon": 28.742,
+    "elev": 99,
+    "name": "Istanbul Arpt, IS, TR",
+    "clouds": [
+      {
+        "cover": "CAVOK"
+      }
+    ],
+    "fltCat": "VFR"
+  },
+  {
+    "icaoId": "LTFM",
+    "receiptTime": "2026-01-12 16:53:00.000Z",
+    "obsTime": 1768236600,
+    "reportTime": "2026-01-12 16:50:00.000Z",
+    "temp": 7,
+    "dewp": 1,
+    "wdir": 40,
+    "wspd": 8,
+    "visib": "6+",
+    "altim": 1022,
+    "metarType": "METAR",
+    "rawOb": "LTFM 121650Z 04008KT CAVOK 07/01 Q1022 NOSIG",
+    "lat": 41.262,
+    "lon": 28.742,
+    "elev": 99,
+    "name": "Istanbul Arpt, IS, TR",
+    "clouds": [
+      {
+        "cover": "CAVOK"
+      }
+    ],
+    "fltCat": "VFR"
+  },
+  {
+    "icaoId": "LTFM",
+    "receiptTime": "2026-01-12 16:23:00.000Z",
+    "obsTime": 1768234800,
+    "reportTime": "2026-01-12 16:20:00.000Z",
+    "temp": 8,
+    "dewp": 2,
+    "wdir": 40,
+    "wspd": 8,
+    "visib": "6+",
+    "altim": 1022,
+    "metarType": "METAR",
+    "rawOb": "LTFM 121620Z 04008KT CAVOK 08/02 Q1022 NOSIG",
+    "lat": 41.262,
+    "lon": 28.742,
+    "elev": 99,
+    "name": "Istanbul Arpt, IS, TR",
+    "clouds": [
+      {
+        "cover": "CAVOK"
+      }
+    ],
+    "fltCat": "VFR"
+  },
+  {
+    "icaoId": "LTFM",
+    "receiptTime": "2026-01-12 15:53:00.000Z",
+    "obsTime": 1768233000,
+    "reportTime": "2026-01-12 15:50:00.000Z",
+    "temp": 8,
+    "dewp": 2,
+    "wdir": 40,
+    "wspd": 8,
+    "visib": "6+",
+    "altim": 1022,
+    "metarType": "METAR",
+    "rawOb": "LTFM 121550Z 04008KT CAVOK 08/02 Q1022 NOSIG",
+    "lat": 41.262,
+    "lon": 28.742,
+    "elev": 99,
+    "name": "Istanbul Arpt, IS, TR",
+    "clouds": [
+      {
+        "cover": "CAVOK"
+      }
+    ],
+    "fltCat": "VFR"
+  },
+  {
+    "icaoId": "LTFM",
+    "receiptTime": "2026-01-12 15:23:00.000Z",
+    "obsTime": 1768231200,
+    "reportTime": "2026-01-12 15:20:00.000Z",
+    "temp": 8,
+    "dewp": 2,
+    "wdir": 40,
+    "wspd": 8,
+    "visib": "6+",
+    "altim": 1022,
+    "metarType": "METAR",
+    "rawOb": "LTFM 121520Z 04008KT CAVOK 08/02 Q1022 NOSIG",
+    "lat": 41.262,
+    "lon": 28.742,
+    "elev": 99,
+    "name": "Istanbul Arpt, IS, TR",
+    "clouds": [
+      {
+        "cover": "CAVOK"
+      }
+    ],
+    "fltCat": "VFR"
+  },
+  {
+    "icaoId": "LTFM",
+    "receiptTime": "2026-01-12 14:53:00.000Z",
+    "obsTime": 1768229400,
+    "reportTime": "2026-01-12 14:50:00.000Z",
+    "temp": 9,
+    "dewp": 3,
+    "wdir": 40,
+    "wspd": 8,
+    "visib": "6+",
+    "altim": 1022,
+    "metarType": "METAR",
+    "rawOb": "LTFM 121450Z 04008KT CAVOK 09/03 Q1022 NOSIG",
+    "lat": 41.262,
+    "lon": 28.742,
+    "elev": 99,
+    "name": "Istanbul Arpt, IS, TR",
+    "clouds": [
+      {
+        "cover": "CAVOK"
+      }
+    ],
+    "fltCat": "VFR"
+  },
+  {
+    "icaoId": "LTFM",
+    "receiptTime": "2026-01-12 14:23:00.000Z",
+    "obsTime": 1768227600,
+    "reportTime": "2026-01-12 14:20:00.000Z",
+    "temp": 9,
+    "dewp": 3,
+    "wdir": 40,
+    "wspd": 8,
+    "visib": "6+",
+    "altim": 1022,
+    "metarType": "METAR",
+    "rawOb": "LTFM 121420Z 04008KT CAVOK 09/03 Q1022 NOSIG",
+    "lat": 41.262,
+    "lon": 28.742,
+    "elev": 99,
+    "name": "Istanbul Arpt, IS, TR",
+    "clouds": [
+      {
+        "cover": "CAVOK"
+      }
+    ],
+    "fltCat": "VFR"
+  },
+  {
+    "icaoId": "LTFM",
+    "receiptTime": "2026-01-12 13:53:00.000Z",
+    "obsTime": 1768225800,
+    "reportTime": "2026-01-12 13:50:00.000Z",
+    "temp": 9,
+    "dewp": 3,
+    "wdir": 40,
+    "wspd": 8,
+    "visib": "6+",
+    "altim": 1022,
+    "metarType": "METAR",
+    "rawOb": "LTFM 121350Z 04008KT CAVOK 09/03 Q1022 NOSIG",
+    "lat": 41.262,
+    "lon": 28.742,
+    "elev": 99,
+    "name": "Istanbul Arpt, IS, TR",
+    "clouds": [
+      {
+        "cover": "CAVOK"
+      }
+    ],
+    "fltCat": "VFR"
+  },
+  {
+    "icaoId": "LTFM",
+    "receiptTime": "2026-01-12 13:23:00.000Z",
+    "obsTime": 1768224000,
+    "reportTime": "2026-01-12 13:20:00.000Z",
+    "temp": 9,
+    "dewp": 3,
+    "wdir": 40,
+    "wspd": 8,
+    "visib": "6+",
+    "altim": 1022,
+    "metarType": "METAR",
+    "rawOb": "LTFM 121320Z 04008KT CAVOK 09/03 Q1022 NOSIG",
+    "lat": 41.262,
+    "lon": 28.742,
+    "elev": 99,
+    "name": "Istanbul Arpt, IS, TR",
+    "clouds": [
+      {
+        "cover": "CAVOK"
+      }
+    ],
+    "fltCat": "VFR"
+  }
+]

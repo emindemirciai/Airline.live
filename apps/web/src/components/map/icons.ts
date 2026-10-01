@@ -10,6 +10,14 @@
  */
 import {
   AIRCRAFT_CATEGORIES,
+  AIRPORT_PIN_DOT_RADIUS,
+  AIRPORT_PIN_HALO,
+  AIRPORT_PIN_HEAD,
+  AIRPORT_PIN_ICON_ID,
+  AIRPORT_PIN_MARGIN,
+  AIRPORT_PIN_OUTLINE,
+  AIRPORT_PIN_PATH,
+  AIRPORT_PIN_VIEWBOX,
   AIRCRAFT_SILHOUETTES,
   AIRCRAFT_TAIL_ACCENTS,
   AIRCRAFT_VARIANTS,
@@ -150,4 +158,53 @@ export function renderAircraftIcons(devicePixelRatio: number): AircraftIconImage
   return AIRCRAFT_CATEGORIES.flatMap((category) =>
     AIRCRAFT_VARIANTS.map((variant) => renderAircraftIcon(category, variant, devicePixelRatio)),
   )
+}
+
+export interface AirportPinImage {
+  id: typeof AIRPORT_PIN_ICON_ID
+  image: ImageData
+  pixelRatio: number
+}
+
+/** Pin bitmapinin boyutu, CSS px (`icon-size` 1'de): görünüm kutusu + iki yanda pay. */
+export const AIRPORT_PIN_IMAGE = {
+  width: AIRPORT_PIN_VIEWBOX.width + AIRPORT_PIN_MARGIN * 2,
+  height: AIRPORT_PIN_VIEWBOX.height + AIRPORT_PIN_MARGIN * 2,
+} as const
+
+/**
+ * Havalimanı pini (airport-pin.ts): önce koyu hat, sonra beyaz kenar kalın çizilir, kırmızı dolgu
+ * üstüne gelir (kenarlar yalnızca silüetin dışında kalır); başta beyaz nokta. Her şey opaktır.
+ */
+export function renderAirportPin(devicePixelRatio: number): AirportPinImage {
+  const { width, height } = AIRPORT_PIN_IMAGE
+  const ratio = iconPixelRatio(devicePixelRatio)
+  const pixelsWide = Math.max(1, Math.round(width * ratio))
+  const pixelRatio = pixelsWide / width
+  const canvas = document.createElement('canvas')
+  canvas.width = pixelsWide
+  canvas.height = Math.max(1, Math.round(height * pixelRatio))
+  const ctx = canvas.getContext('2d')
+  if (!ctx) throw new Error('Canvas 2D context is unavailable')
+  ctx.scale(pixelRatio, pixelRatio)
+  ctx.translate(AIRPORT_PIN_MARGIN, AIRPORT_PIN_MARGIN)
+  const pin = new Path2D(AIRPORT_PIN_PATH)
+  ctx.lineJoin = 'round'
+  ctx.lineWidth = AIRPORT_PIN_OUTLINE + AIRPORT_PIN_HALO * 2
+  ctx.strokeStyle = MAP_COLORS.airportHalo
+  ctx.stroke(pin)
+  ctx.lineWidth = AIRPORT_PIN_OUTLINE
+  ctx.strokeStyle = MAP_COLORS.airportOutline
+  ctx.stroke(pin)
+  ctx.fillStyle = MAP_COLORS.airport
+  ctx.fill(pin)
+  ctx.beginPath()
+  ctx.arc(AIRPORT_PIN_HEAD.cx, AIRPORT_PIN_HEAD.cy, AIRPORT_PIN_DOT_RADIUS, 0, Math.PI * 2)
+  ctx.fillStyle = MAP_COLORS.airportOutline
+  ctx.fill()
+  return {
+    id: AIRPORT_PIN_ICON_ID,
+    image: ctx.getImageData(0, 0, canvas.width, canvas.height),
+    pixelRatio,
+  }
 }

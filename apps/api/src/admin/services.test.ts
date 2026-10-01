@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import type { ProviderSummary } from '@havayolu/db'
+import type { ProviderSummary, WeatherSourceState, WeatherStatus } from '@havayolu/db'
 import { fakeProbes, fakeProviderSummary } from '../test/helpers'
 import { collectServices, PROBE_TIMEOUT_MS, PROVIDER_HEALTH_STALE_MS } from './services'
 
@@ -389,5 +389,166 @@ describe('collectServices: canlı veri sağlayıcıları', () => {
     ])
     expect(byId(r, 'provider:adsbLol')?.state).toBe('down')
     expect(byId(r, 'provider:localReceiver')?.state).toBe('ok')
+  })
+})
+
+describe('collectServices: hava durumu (D-078)', () => {
+  const NOW = new Date('2026-09-25T12:00:00Z').getTime()
+  const minutesAgo = (min: number) => new Date(NOW - min * 60_000)
+  const source = (overrides: Partial<WeatherSourceState> = {}): WeatherSourceState => ({
+    kind: 'metar',
+    origin: 'remote',
+    disabledReason: null,
+    checkedAt: minutesAgo(3),
+    stationCount: 61,
+    reportCount: 118,
+    skippedCount: 0,
+    lastError: null,
+    lastErrorAt: null,
+    blockedUntil: null,
+    blockedKind: null,
+    updatedAt: minutesAgo(3),
+    ...overrides,
+  })
+  const status = (overrides: Partial<WeatherStatus> = {}): WeatherStatus => ({
+    metar: source(),
+    taf: source({ kind: 'taf', checkedAt: minutesAgo(9), reportCount: 140 }),
+    stationsWithRecentMetar: 52,
+    newestObservedAt: minutesAgo(11),
+    stationsWithValidTaf: 34,
+    ...overrides,
+  })
+  const row = async (weather: (() => Promise<WeatherStatus>) | null | undefined) => {
+    const report = await collectServices({ ...fakeProbes({ weather }), api })
+    return { report, row: byId(report, 'weather') }
+  }
+
+  it('sağlıklı: tazelik ve sayılar; satır referans verisinden sonra gelir', async () => {
+    const { report, row: weather } = await row(async () => status())
+    expect(weather).toEqual({
+      id: 'weather',
+      kind: 'data',
+      state: 'ok',
+      version: null,
+      latencyMs: null,
+      detail: {
+        stationsWithMetar: 52,
+        stationsTotal: 61,
+        newestObsAgeMin: 11,
+        metarCheckAgeMin: 3,
+        tafCheckAgeMin: 9,
+        validTafCount: 34,
+        origin: 'remote',
+      },
+      checkedAt: '2026-09-25T12:00:00.000Z',
+    })
+    const ids = report.services.map((s) => s.id)
+    expect(ids.indexOf('weather')).toBe(ids.indexOf('reference-data') + 1)
+    expect(report.overall).toBe('ok')
+  })
+
+  it('yoklama yoksa ya da kaynak kapalıysa yapılandırılmadı (nedeniyle); genel durumu bozmaz', async () => {
+    expect((await row(undefined)).row?.state).toBe('not_configured')
+    expect((await row(null)).row?.state).toBe('not_configured')
+    const reason = "EXTERNAL_PROVIDERS_DISABLED=true ve commit'li hava durumu fixture'ı yok"
+    const { report, row: disabled } = await row(async () =>
+      status({ metar: source({ origin: 'disabled', disabledReason: reason, checkedAt: null }) }),
+    )
+    expect(disabled).toMatchObject({
+      state: 'not_configured',
+      detail: { origin: 'disabled', reason },
+    })
+    expect(report.overall).toBe('ok')
+  })
+
+  it('degraded: METAR 15 dk–2 sa eski, TAF 1 saatten eski ya da hiç yok, güncel gözlem yok', async () => {
+    const cases: [string, WeatherStatus][] = [
+      ['metar 16 dk', status({ metar: source({ checkedAt: minutesAgo(16) }) })],
+      ['taf 61 dk', status({ taf: source({ kind: 'taf', checkedAt: minutesAgo(61) }) })],
+      ['taf hiç', status({ taf: null })],
+      ['güncel gözlem yok', status({ stationsWithRecentMetar: 0 })],
+    ]
+    for (const [name, value] of cases) {
+      expect((await row(async () => value)).row?.state, name).toBe('degraded')
+    }
+    expect(
+      (await row(async () => status({ metar: source({ checkedAt: minutesAgo(15) }) }))).row?.state,
+    ).toBe('ok')
+  })
+
+  it('son kontrolden yeni hata ve 429 engeli degraded; hata ve engel bitişi gösterilir', async () => {
+    const failing = await row(async () =>
+      status({
+        taf: source({
+          kind: 'taf',
+          checkedAt: minutesAgo(20),
+          lastError: 'aviationweather.gov sunucu hatası (TAF, HTTP 503)',
+          lastErrorAt: minutesAgo(5),
+        }),
+      }),
+    )
+    expect(failing.row).toMatchObject({
+      state: 'degraded',
+      detail: { error: 'aviationweather.gov sunucu hatası (TAF, HTTP 503)' },
+    })
+    const limited = await row(async () =>
+      status({
+        metar: source({
+          lastError: 'aviationweather.gov hız sınırı (METAR, HTTP 429)',
+          lastErrorAt: minutesAgo(1),
+          blockedUntil: new Date(NOW + 9 * 60_000),
+          blockedKind: 'rate_limit',
+        }),
+      }),
+    )
+    expect(limited.row).toMatchObject({
+      state: 'degraded',
+      detail: {
+        blockedUntil: '2026-09-25T12:09:00.000Z',
+        error: 'aviationweather.gov hız sınırı (METAR, HTTP 429)',
+      },
+    })
+    // Süresi geçmiş engel ve düzelmiş eski hata gösterilmez.
+    const recovered = await row(async () =>
+      status({
+        metar: source({
+          lastError: 'eski',
+          lastErrorAt: minutesAgo(30),
+          blockedUntil: minutesAgo(1),
+          blockedKind: 'rate_limit',
+        }),
+      }),
+    )
+    expect(recovered.row?.state).toBe('ok')
+    expect(recovered.row?.detail).not.toHaveProperty('blockedUntil')
+    expect(recovered.row?.detail).not.toHaveProperty('error')
+  })
+
+  it('down: METAR 2 saatten eski ya da hiç kontrol yok, 403 engeli, sorgu hatası', async () => {
+    const cases: [string, () => Promise<WeatherStatus>][] = [
+      ['metar 121 dk', async () => status({ metar: source({ checkedAt: minutesAgo(121) }) })],
+      ['metar hiç', async () => status({ metar: null })],
+      [
+        '403',
+        async () =>
+          status({
+            metar: source({
+              lastError: 'aviationweather.gov erişimi engelledi (METAR, HTTP 403)',
+              lastErrorAt: minutesAgo(2),
+              blockedUntil: new Date(NOW + 58 * 60_000),
+              blockedKind: 'forbidden',
+            }),
+          }),
+      ],
+      ['sorgu', () => Promise.reject(new Error('relation "weather_sources" does not exist'))],
+    ]
+    for (const [name, probe] of cases) {
+      const { report, row: weather } = await row(probe)
+      expect(weather?.state, name).toBe('down')
+      expect(report.overall, name).toBe('down')
+    }
+    expect((await row(cases[3]![1])).row?.detail).toEqual({
+      error: 'relation "weather_sources" does not exist',
+    })
   })
 })

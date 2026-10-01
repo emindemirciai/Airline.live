@@ -1,17 +1,11 @@
 /**
- * Tarayıcının API'ye doğrudan yaptığı REST istekleri (D-075 §3): canlı arama ve havalimanı
- * listesi. 2xx olmayan yanıt `ApiError` fırlatır (429: hız sınırı); yanıtın biçimi döndürülmeden
- * önce denetlenir, uygun olmayan kayıtlar atlanır.
+ * Tarayıcının API'ye doğrudan yaptığı REST istekleri (D-075 §3): canlı arama. Haritanın havalimanı
+ * listesi (pist özetiyle) components/map/airport-data.ts'tedir. 2xx olmayan yanıt `ApiError`
+ * fırlatır (429: hız sınırı); yanıtın biçimi döndürülmeden önce denetlenir, uygun olmayan kayıtlar
+ * atlanır.
  */
-import type { AirportsResponse, SearchResponse } from '@havayolu/shared'
-import {
-  isAirport,
-  isLiveStatus,
-  isObject,
-  isPublicAircraft,
-  isSearchKind,
-  validItems,
-} from './validate'
+import type { SearchResponse } from '@havayolu/shared'
+import { isLiveStatus, isObject, isPublicAircraft, isSearchKind, validItems } from './validate'
 
 export class ApiError extends Error {
   /** HTTP durum kodu; biçimi bozuk 2xx yanıtta o yanıtın kodu. */
@@ -57,20 +51,4 @@ export async function fetchSearch(
   const results = validItems(body.results, isPublicAircraft)
   if (!results) throw invalidShape(response)
   return { kind: body.kind, results, status: body.status }
-}
-
-/** `GET /v1/airports?country=`: IATA kodlu havalimanları (varsayılan Türkiye). */
-export async function fetchAirports(
-  apiBaseUrl: string,
-  country = 'TR',
-  signal?: AbortSignal,
-): Promise<AirportsResponse> {
-  const url = new URL('/v1/airports', apiBaseUrl)
-  url.searchParams.set('country', country)
-  const response = await getJson(url, signal)
-  const body = await readBody(response)
-  if (!isObject(body) || typeof body.country !== 'string') throw invalidShape(response)
-  const airports = validItems(body.airports, isAirport)
-  if (!airports) throw invalidShape(response)
-  return { country: body.country, airports }
 }

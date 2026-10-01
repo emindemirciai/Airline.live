@@ -19,6 +19,7 @@ Durumlar: `[ ]` başlamadı, `[~]` sürüyor, `[k]` kod bitti ve kullanıcı do�
 | M5 | Canlı API | `p1/m5-live-api` | [x] tamam; üretimde 5 dk boşta WS bağlantısı doğrulandı (2026-09-29) | #13 |
 | M6 | Web canlı harita | `p1/m6-map` | [x] tamam; üretimde uydu altlığı doğrulandı (2026-09-30) | #14 |
 | M6b | Havalimanı sayfaları, dil adreste (`/en`), SEO ve GEO | `p1/m6b-seo` | [k] kod bitti; Search Console, Bing ve Yandex doğrulaması kullanıcıda (ACTIVATION) | #15 |
+| M6c | Havalimanı hava durumu (METAR/TAF), METAR/TAF kaydı, haritada havalimanı penceresi | `p1/m6c-weather` | [k] kod bitti; yayından sonra üretimde gerçek METAR doğrulaması (ACTIVATION) | #16 |
 | M7 | Canlı araçlar ve kapsama raporu | `p1/m7-tools` | [ ] | — |
 
 ## M0 — Repo iskeleti ve yerel test ortamı
@@ -362,7 +363,7 @@ Kararlar ve gerekçeler D-076'dadır. Kilometre taşı Parça 1'e sonradan eklen
 - Yeni genel sayfalar: `/havalimanlari` (61 havalimanı), `/istasyon/<ICAO>` (veritabanındaki gerçek veri), `/hakkinda` (veri kaynakları ve yöntem).
 - Canonical ve hreflang (`x-default` İngilizce), robots.txt, site haritası, manifest, ikonlar, paylaşım (OG) görselleri, JSON-LD, `/llms.txt`, arama motoru doğrulama env'leri.
 - Havalimanı ayrıntı API'si: `include=runways` ve `GET /v1/airports/:code`.
-- Kapsam dışı: METAR/TAF (Parça 2 M2), istasyon operasyon panosu (Parça 3 M4), uçuş sayfası (Parça 3 M3b), service worker (Parça 3 M5), IndexNow (ayrı PR, kullanıcı onayıyla).
+- Kapsam dışı: METAR/TAF (Parça 2 M2'den M6c'ye öne alındı, D-078), istasyon operasyon panosu (Parça 3 M4), uçuş sayfası (Parça 3 M3b), service worker (Parça 3 M5), IndexNow (ayrı PR, kullanıcı onayıyla).
 
 **Dizinler ve dosyalar:**
 - **`packages/shared/src/`:** havalimanı ayrıntı tipleri (`AirportDetail`, `RunwayDetail`); `reference/`: `tr-provinces.ts` (ISO 3166-2:TR), `airport-names.ts` (resmî adlar; kaynak DHMİ, işletmeci ya da OurAirports), `runway-surface.ts`
@@ -444,6 +445,97 @@ Kararlar ve gerekçeler D-076'dadır. Kilometre taşı Parça 1'e sonradan eklen
 - `pnpm ci:full` → yeşil. Birim testleri: shared 49, i18n 31, geo 31, providers 89, db 32, worker 175 (kapsama planı testleri geo'ya taşındı), tools 74, api 197, web 442 (46 dosya), scripts 31. `test:integration` → db 65, api 19, worker 11. Migration yükseltme 4 → 4. `compose:guard` 8 servis, 64 anahtar. `test:e2e` → 59/59 (3 kurulum + 56 test). Site haritası artık 120 adres, llms.txt 55 havalimanı satırı.
 - **Bağımsız denetim:** 20 bulgunun hepsi düzeltilmiş bulundu. `/dil` için 53 düşmanca girdiyle (424 çağrı, 25 proxy yolu) atlatma denendi, site dışına giden yönlendirme yok. 16 mutasyonun 15'i testlerce yakalandı (16. satır başka denetimle zaten kapalı). Denetimin bulduğu, `main`'de de olan bir sorun düzeltildi: `next` "ş" gibi Latin-1 dışı karakter içerince `/dil` 500 dönüyordu; hedef artık yüzde kodlanır (test eklendi).
 - `pnpm stats` → 434 dosya, 60.942 satır (54.417 kod).
+
+## M6c — Havalimanı hava durumu, METAR/TAF kaydı ve harita penceresi
+Onay: 2026-10-01 (kullanıcı isteği: havalimanı hava durumu, METAR/TAF kaydı, harita penceresi)
+
+Kararlar ve gerekçeler D-078'dedir; düzeltme turundaki harita ek istekleri (pin, yazı boyu, açılış görünümü, tıklama önceliği) D-079'dadır. Kilometre taşı Parça 1'e sonradan eklendi; METAR/TAF Parça 2 M2'den öne alındı (`docs/prompts/parca-2.md`). Hedef sürüm 0.11.0, migration 0004.
+
+**Kapsam:**
+- Her havalimanı sayfasında (`/istasyon/<ICAO>`, TR ve EN) canlı hava durumu: rüzgâr (yön, hız, hamle), yağmur, kar, gök gürültüsü ve sis her zaman açıkça; görüş, bulut, sıcaklık, nem, basınç, gözlem saati ve yaşı, TAF tahmini, yerel saat, gün doğumu ve batımı. Sade görünüm metrik ve kodsuz; ayrıntı ve ham metin uzman `<details>`'inde.
+- METAR/TAF kaydı: her farklı rapor 30 gün saklanır; sayfada son 24 saatin "METAR/TAF kaydı" listesi; API'den istek başına en çok 7 gün.
+- Kaynak aviationweather.gov: worker METAR'ı 5 dk'da, TAF'ı 15 dk'da bir tek toplu istekle çeker; günlük budama.
+- API: `GET /v1/weather?country=TR`, `GET /v1/airports/:code/weather`, `GET /v1/airports/:code/weather/history?hours=`.
+- Canlı haritada havalimanına (pini ya da IATA kutucuğu) tıklayınca küçük pencere: ad, kodlar, il, rakım, pist özeti, yerel saat, gün doğumu ve batımı, güncel hava, havalimanı sayfası bağlantısı. Klavyeyle "Havalimanları" listesinden açılır.
+- **Ek istekler (kullanıcı, 2026-10-01; D-079):**
+  - havalimanı noktası yerine özgün kırmızı pin (ucu referans noktasında, beyaz kenar ve koyu hat, yakınlaştırmayla büyür); IATA kodu pinin yanında ya da üstünde, pini örtmez; pin ve kod tıklanır
+  - harita yazıları ~1 px küçük (uçak etiketi 12/11 px, kod 11 px), çakışma düzeni yeni boyutlarla
+  - açılış görünümü her açılışta ve yenilemede IST/LTFM merkezli, kısa kenar ~100 km (masaüstünde z8,5, telefonda ~7,8); `?hex=` ve `?havalimani=` önceliklidir; Türkiye görünümü kaldırıldı
+  - tıklama önceliği: uçak etiketi > havadaki uçak > havalimanı kodu ya da pini > yerdeki uçak > dokunma payı; IST'nin kodu yerdeki uçakların üstüne yazılabilir
+  - `/havalimanlari` kapsam cümlesindeki "OurAirports'ta tarifeli seferi kayıtlı" ifadesi kaldırıldı (yalın dahil etme cümlesi); `/hakkinda` tazelik listesi kalır
+- "Tarifeli sefer (OurAirports)" ve "İzlenen istasyon" bilgileri her yerden kaldırıldı (dizine ekleme kuralı D-076'daki gibi kalır).
+- Havalimanı sayfasında "Sefer sayısı, rötar ve iptal" bölümü: bu bilgilerin henüz olmadığını açıkça söyler.
+- Admin Servisler'de "Hava durumu · aviationweather.gov" satırı.
+- Kapsam dışı: rötar, iptal ve tarife (Parça 5, ücretli sağlayıcı, DUR-SOR 5); gözlenen günlük iniş ve kalkış sayıları ve pist kullanımı (Parça 2 motoru); `/havalimanlari` listesinde hava durumu; canlı fixture kaydı (kullanıcı kararı: fixture'lar elle yazılır).
+
+**Dizinler ve dosyalar:**
+- **`packages/shared/src/map/airport-pin.ts`, `layers.ts`, `colors.ts`:** pin geometrisi, pin symbol katmanı ve renkleri (D-079)
+- **`packages/shared/src/weather/`:** zod sözleşmesi (`AirportWeatherSchema`, `WeatherBulkResponseSchema`, `WeatherHistoryResponseSchema`), METAR/SPECI ve TAF çözümleyicileri (ham metinden), türetilen değerler (başlık, tavan, bağıl nem, kuvvetli rüzgâr, yaş sınıfı), i18n anahtarı döndüren özetleyici, pusula yönü, gün doğumu ve batımı (NOAA), yerel saat; saf, IO yok
+- **`packages/providers/src/weather/`:** aviationweather.gov istemcisi (HTTPS, User-Agent, `redirect: 'manual'`, gövde sınırı, 200/204/400/403/429/5xx, `Retry-After`) ve toleranslı AWC JSON şeması; `license.ts` → `aviationWeather` 7 alan
+- **`tools/fixtures/weather/`:** elle yazılmış, "sentetik" etiketli METAR ve TAF fixture'ları; LTFM için en az 3 günlük kayıt
+- **`packages/db`:** `weather_metar`, `weather_taf`, `weather_sources` (`drizzle/0004_weather.sql`); `src/weather.ts` (ekleme, son rapor, kayıt sorgusu, budama, kaynak durumu)
+- **`apps/worker/src/jobs/`:** `weather-metar` (5 dk), `weather-taf` (15 dk), `weather-prune` (günlük); `EXTERNAL_PROVIDERS_DISABLED` iken geliştirme ve testte fixture (zamanlar tam saat kaydırılır), üretimde nedeniyle kapalı
+- **`apps/api/src/`:** `reference/cache.ts` (`cachedReader` ayrıldı), `reference/weather.ts` (üç uç nokta, OpenAPI etiketi `weather`), `admin/services.ts` (hava durumu satırı), `app.ts` ve `index.ts` bağlantıları
+- **`apps/web/src/`:**
+  - `lib/weather.ts` (sunucu yükleyicisi; hata `null` döner), `lib/use-now.ts` (`components/map/`'ten taşındı)
+  - `components/airports/`: hava durumu bölümü ve istemci yenileme adası, METAR/TAF kaydı listesi, sefer bilgisi bölümü, simgeler; kaldırılan iki bilgi
+  - `app/istasyon/[icao]/page.tsx`, `app/havalimanlari/` (iki sütun kalktı), `app/llms.txt/` ve `lib/seo/` (kaldırılan satırlar)
+  - `components/map/`: havalimanı penceresi (`airport-popup.tsx`), pin ve kutucuk isabet testi (`resolveHit`), konumlama, odak yönetimi, uçak kartıyla karşılıklı dışlama, tembel toplu hava isteği, "Havalimanları" listesi (`panels/airport-list-control.tsx`), pin bitmapi (`icons.ts`), IST açılış görünümü (`camera.ts`)
+  - `lib/wall-clock.ts`: sunucu saatine bağlı duvar saati (hava durumu "şimdi"si)
+  - `app/globals.css`: bölümlerin ve pencerenin stilleri
+- **`packages/i18n`:** `weather.*` (satırlar, hava olayları, rüzgâr, bulut, yaş, TAF şablonları, kayıt listesi, uzman ayrıntısı, kaynak ve uyarı), `airport.schedule.*`, `map.airportPopup.*`, admin ve hakkında satırları; kaldırılan bilgilerin anahtarları silindi
+- **`e2e/`:** `tests/weather.spec.ts`; kurulum (`app.setup.ts`) sayfaları derletmeden önce LTFM'nin METAR/TAF kaydının ve toplu yanıttaki son METAR'ın API'de görünmesini bekler; `support.ts`'te hava fixture değerleri (`PRIMARY_WEATHER`, `NO_WEATHER_AIRPORT`)
+- **Belgeler:** D-078; `docs/spec/data-sources.md` §5; `docs/REFERENCES.md` (AWC, NWS, MGM, WMO-782, NOAA güneş hesabı); `docs/RUNBOOK.md` (AWC 429/403); `docs/spec/domain.md` (QNH kaynağı); `docs/prompts/parca-2.md` ve `parca-3.md` notları; `ATTRIBUTION.md`; `tools/fixtures/README.md`; `docs/ACTIVATION.md` (üretimde ilk gerçek METAR'ın doğrulanması)
+
+**Kabul komutları:**
+- `pnpm --filter @havayolu/db db:generate --name weather` ve `pnpm db:check` → şema ile migration tutarlı
+- `pnpm --filter @havayolu/shared test`:
+  - METAR/SPECI: yağmur, kar, gök gürültüsü, FZRA, VC, RE, CAVOK, NSC, NCD, SKC, VV, VRB, sakin, hamle, değişken yön aralığı, RVR, NOSIG/TEMPO/BECMG, AUTO, NIL, COR; tanınmayan parça → "belirlenemedi" (MGM ve WMO-782 örnekleri dahil)
+  - TAF: PROB30 TEMPO, AMD, CNL, NIL, yerine geçme, ay dönümü; "… saatine kadar" olayın gerçek sonudur (yalnız rüzgârı değiştiren BECMG, MGM BCFG örneği, örtüşen iki TAF'ta da yağmur)
+  - eğilim penceresi: taze gözlemde "önümüzdeki 2 saat", 30 dk–2 sa'te bitiş saatiyle, sonra yok
+  - başlık sıralaması ("-DZ FG" sis başlığı alır), bağıl nem (20/15 → %75; 5/4 → %95), tavan, kuvvetli rüzgâr, yaş sınıfı, pusula sınırları
+  - gün doğumu ve batımı LTFM için üç tarihte NOAA hesaplayıcısına ±1 dk
+- `pnpm --filter @havayolu/providers test` → URL (düz virgül, belgelenmemiş parametre yok), 200, 204 (ayrıştırılmaz), 400, 403, 429 (`Retry-After` var ve yok), 5xx, 3xx, gövde sınırı, zaman aşımı, 400 kayıtta bölme; AWC şeması (`"VRB"`, `"6+"`, boş ve bilinmeyen alanlar); lisans kaydı
+- `pnpm --filter @havayolu/worker test` → çalışma kipi (lisans engeli, uzak, fixture, kapalı), fixture kaydırma (epoch ve ham gruplar, ay dönümü), 429 → engel ve atlanan çalışmalar, 403, 204 satırları korur, zamanlama kalıpları; kesinti sonrası METAR geriye bakışı (5 sa önce son denetim → 6 sa, ilk açılış → 24 sa) ve uzun geriye bakışta istasyon gruplama (providers)
+- `pnpm --filter @havayolu/api test` → üç uç nokta: ICAO ve IATA, 400/404/503, `Cache-Control`, `hours` 1–168, gövde 1 MB altında (168 saat dahil), OpenAPI etiketi ve şeması, okurken çözümleme; admin hava durumu satırının durumları; geçmiş önbelleği farklı saat ve istasyonlarla doldurulsa da anahtar ve bayt sınırında kalır; yayımlanan OpenAPI şemaları fixture yanıtlarını Ajv ile doğrular (null enum)
+- `pnpm --filter @havayolu/web test` → duvar saati (uyku, yanlış cihaz saati), açılışta iki yanıtın da tazeliği, uzman tablosunda pist yüzeyi durumu ve renk durumu, "1 report", kuvvetli rüzgâr etiketinden önce ayraç, pencerede Escape kuralı ve kibar bildirim, görünümdeki havalimanları listesi, tıklama önceliği, pin geometrisi ve IST kodu kuralı, IST açılış yakınlaştırması; hava durumu bölümü her fixture vakası için (yağmur, kar, gök gürültüsü ve sis satırları hep var; CAVOK, VRB, hamle, SPECI ve dolu, FZRA, gecikmiş, eski, rapor yok, TAF yok, süresi dolmuş TAF, API yok), METAR/TAF kaydı listesi, sefer bilgisi bölümü, kaldırılan iki bilgi yok; harita penceresinin saf parçaları (konumlama, isabet testi, veri birleştirme); SEO yasak kelime testi aynen geçer, JSON-LD'de hava durumu anahtarı yok
+- `pnpm --filter @havayolu/i18n test` → TR ve EN anahtarları ve yer tutucuları aynı
+- `pnpm test:integration` (önce `pnpm dev:infra`) → hava tabloları: ekleme, COR değişimi, 30 günlük budama, istasyon budaması, kaynak durumu, en yeni rapor ve geçmiş sorgularının dizini sıralama adımı olmadan kullanması (EXPLAIN); 5 migration; worker zamanlayıcıları ve fixture'dan dolan `weather_metar`; API gerçek PostgreSQL'le
+- `pnpm test:migration-upgrade` → 4 → 5
+- `pnpm test:e2e` (önce `pnpm dev:infra` ve `pnpm db:migrate`; `pnpm dev` kapalı):
+  - kurulum: `/v1/weather?country=TR` METAR'lı istasyon döndürene ve LTFM kaydı dolana kadar beklenir
+  - API: toplu yanıtta 61 havalimanı (LTBQ'nun raporu yok), `/v1/airports/ist/weather` → LTFM, kayıt en yenisi önce ve METAR ile TAF içerir, 72 saat 24 saatten fazla döndürür, `hours=0`, `169` ve `abc` → 400, `ZZZZ` → 404
+  - `/istasyon/LTFM` ve `/en/istasyon/LTFM`: hava durumu bölümü ve açık rüzgâr (hamle, kuvvetli rüzgâr), yağmur, kar, gök gürültüsü ve sis satırları; yerel saat, gün doğumu ve batımı; uzman ayrıntısında ham METAR; METAR/TAF kaydında en az fixture'daki kadar kayıt, en yenisi önce; sefer sayısı, rötar ve iptal bölümü; başlık, açıklama ve JSON-LD'de hava durumu yok; "Tarifeli sefer" ve "İzlenen istasyon" hiçbir yerde yok (liste, liste açıklaması ve llms.txt dahil); 320 px'te yatay kayma yok
+  - harita: IST kutucuğuna tıklayınca pencere ad, kodlar, rakım, pistler, yerel saat, gün doğumu ve batımı, hava durumu ve "Havalimanı sayfası" bağlantısıyla açılır ve odak pencereye geçer; Escape kapatır ve odak haritaya döner; arama kutusundaki Escape kapatmaz; kapat düğmesi ve haritada boş yere tıklama kapatır; uçak seçmek pencereyi kapatır; bağlantı havalimanı sayfasını açar; 375 px'te pencere alttan açılan sayfadır; "Havalimanları" listesinden klavyeyle açılır ve hava durumu kibarca bildirilir; z10'da apronda IST kodu ve pini tıklanır
+  - açılış görünümü IST merkezlidir (görünümdeki ilk havalimanı IST, LTFM'deki taksi uçağı tabloda), yenilemede de; Esenboğa sayfasındaki "Canlı haritada aç" ESB'de açar
+  - mevcut onay bandı, canlı harita, dil, SEO, havalimanı ve kullanım koşulları testleri geçer
+- `pnpm dev:replay` üzerinde elle: `curl` ile `/v1/weather?country=TR`, `/v1/airports/LTFM/weather`, `/v1/airports/IST/weather/history?hours=24`; tarayıcıda `/istasyon/LTFM`, `/en/istasyon/LTFM`, `/istasyon/LTCW` (eski gözlem), `/istasyon/LTBQ` (rapor yok), haritada IST penceresi, admin Servisler'de hava durumu satırı
+- `pnpm ci:full` yeşil; PR'da CI (`e2e` dahil) yeşil
+- **Kullanıcıya bağlı (`[k]`):** yayından sonra üretimde gerçek METAR'ların geldiğinin doğrulanması (ACTIVATION).
+
+**Çıktı kaydı (2026-10-02):**
+- **Yöntem:** Araştırma notu (AWC API'si, MGM/WMO terimleri, kod tabanı) üzerine sözleşme yazıldı. 6 paralel ajan ayrışık dosyalarda uyguladı: çözümleyici, sağlayıcı/DB/işler, API, havalimanı sayfaları ve i18n, harita penceresi, E2E ve belgeler. Ardından tek ajan birleştirdi.
+- **İnceleme:** 6 açıdan inceleme ve bulgu başına 3 çürütücü doğrulayıcı. 16 bulgu doğrulandı; ilk turdaki dizin bulgusu da eklendi (migration yayımlanmadığı için 0004 yeniden üretildi). Hepsi düzeltildi. Başlıcaları:
+  - geçmiş önbelleğiyle API belleğini tüketme açığı (yüksek önem)
+  - ilgisiz BECMG ya da yeni TAF'ta süren olayı erken "bitiyor" gösteren TAF özeti
+  - uykudan dönen cihazda kayan saat
+  - klavyeyle açılamayan havalimanı penceresi
+  - OpenAPI'de `null` kaybeden enum'lar
+  - kesintiden sonra boşluk bırakan METAR kaydı
+- **Kullanıcının ek istekleri** (aynı turda, D-079): kırmızı toplu iğne simgesi, küçük harita yazıları, açılışta ve yenilemede IST merkezli görünüm, tıklama önceliği (havadaki uçak > havalimanı iğnesi ve kodu > yerdeki uçak), `/havalimanlari` kapsam cümlesi.
+- **Bağımsız denetim:**
+  - Bütün maddeler düzeltilmiş bulundu.
+  - Bellek açığına 6.160 isteklik saldırı denendi; heap ~30 MB'ta sabit kaldı.
+  - 20 mutasyonun 19'u testlerce yakalandı.
+  - Tarayıcıda IST açılışı, iğne ucunun konumu (0,5 px), yerdeki uçağın üstündeyken iğne ve kod tıklaması (5/5), Escape ve klavye yolu doğrulandı.
+  - Denetimin bulduğu üç küçük sorun da düzeltildi: pencere kapanınca odak, pencere saati, birleştirilen rüzgârın en kuvvetli değeri. Bu düzeltmelerin 18 mutasyonundan 14'ü yakalandı.
+- **Bilinen küçük boşluklar:** haritanın cihaz öncelikli saati kullandığını ve sekmeye dönüşte saatin yenilendiğini doğrulayan test yok; birleştirilen rüzgârda eşit hızda yön seçimi testsiz.
+- **`pnpm ci:full` → yeşil** (turbo önbelleği kapalı):
+  - Birim testleri: web 560, shared 380, api 236, worker 195, providers 118, tools 74, i18n 55, db 35, geo 31, scripts 31.
+  - Entegrasyon testleri: db 77, api 22, worker 12.
+  - Migration yükseltme 4 → 5; `compose:guard` 8 servis, 64 anahtar.
+  - E2E 78/78.
+- `pnpm stats` → 511 dosya, 81.929 satır (74.144 kod).
 
 ## M7 — Canlı araçlar ve kapsama raporu
 Ayrıntılar `docs/prompts/parca-1.md`'dedir. Başlarken bu dosyaya dizinler ve kabul komutları eklenir.

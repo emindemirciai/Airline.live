@@ -33,10 +33,12 @@ export const MAP_COLORS = {
   airTrack: '#FFB300',
   /** Seçili uçağın yerdeki izi (teker koyduktan sonra). */
   groundTrack: '#22D3EE',
-  /** Havalimanı noktası. */
-  airport: '#FFFFFF',
-  /** Havalimanı noktasının kenarı. */
-  airportOutline: '#0B1016',
+  /** Havalimanı pini (kırmızı iğne; THY kırmızısından ayrı ton). */
+  airport: '#E53935',
+  /** Havalimanı pininin beyaz kenarı ve başındaki nokta (uydu ve koyu altlıkta okunur). */
+  airportOutline: '#FFFFFF',
+  /** Pinin en dıştaki koyu hattı (açık altlıkta beyaz kenar kaybolmasın). */
+  airportHalo: '#0B1016',
   /** Havalimanı IATA kodu (koyu zemin üstünde). */
   airportLabel: '#B9C5D0',
 } as const

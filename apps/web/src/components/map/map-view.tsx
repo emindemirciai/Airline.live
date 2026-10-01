@@ -7,13 +7,21 @@ import type { AircraftStore } from '../../lib/live/store'
 import type { LabelSettings } from '../../lib/map/label-settings'
 import type { Basemap } from '../../lib/map-config'
 import { SELECT_MIN_ZOOM, type MapViewport } from './camera'
-import { MapController } from './map-controller'
+import { MapController, type ScreenPoint } from './map-controller'
 import { supportsWebGL2 } from './webgl'
 
-/** Üst bileşenin haritaya verdiği komutlar (kamera). */
+/** Üst bileşenin haritaya verdiği komutlar (kamera, havalimanı penceresinin dayanağı). */
 export interface MapViewHandle {
   /** Uçağa uçar; yakınlaştırma en az `minZoom` olur, daha yakınsa korunur. */
   flyTo: (target: { lat: number; lon: number }, minZoom?: number) => void
+  /**
+   * Noktanın ekrandaki yerini izler (`MapController.trackPoint`); harita yeniden kurulursa izleme
+   * yeni haritaya geçer. Dönen işlev izlemeyi bırakır.
+   */
+  trackPoint: (
+    target: { lat: number; lon: number },
+    listener: (point: ScreenPoint) => void,
+  ) => () => void
 }
 
 export interface MapViewProps {
@@ -33,6 +41,8 @@ export interface MapViewProps {
   /** Haritanın altını örten panelin yüksekliği (dar ekranda bilgi kartı), CSS px. */
   bottomInset: number
   onSelect: (hex: string) => void
+  onAirportSelect: (icao: string) => void
+  onEmptyClick: () => void
   onUserPan: () => void
   onViewportChange: (viewport: MapViewport) => void
   onBasemapFailedChange: (failed: boolean) => void
@@ -59,6 +69,8 @@ export function MapView({
   units,
   bottomInset,
   onSelect,
+  onAirportSelect,
+  onEmptyClick,
   onUserPan,
   onViewportChange,
   onBasemapFailedChange,
@@ -68,10 +80,16 @@ export function MapView({
   const containerRef = useRef<HTMLDivElement>(null)
   const labelsRef = useRef<HTMLCanvasElement>(null)
   const controllerRef = useRef<MapController | null>(null)
+  const trackedRef = useRef<{
+    target: { lat: number; lon: number }
+    listener: (point: ScreenPoint) => void
+  } | null>(null)
   const state = { selectedHex, following, labelSettings, airports, locale, units, bottomInset }
   const stateRef = useRef(state)
 
   const handleSelect = useEffectEvent((hex: string) => onSelect(hex))
+  const handleAirportSelect = useEffectEvent((icao: string) => onAirportSelect(icao))
+  const handleEmptyClick = useEffectEvent(() => onEmptyClick())
   const handleUserPan = useEffectEvent(() => onUserPan())
   const handleViewport = useEffectEvent((viewport: MapViewport) => onViewportChange(viewport))
   const handleBasemapFailed = useEffectEvent((failed: boolean) => onBasemapFailedChange(failed))
@@ -97,6 +115,8 @@ export function MapView({
       store,
       state: stateRef.current,
       onSelect: (hex) => handleSelect(hex),
+      onAirportSelect: (icao) => handleAirportSelect(icao),
+      onEmptyClick: () => handleEmptyClick(),
       onUserPan: () => handleUserPan(),
       onViewportChange: (viewport) => handleViewport(viewport),
       onBasemapFailedChange: (failed) => handleBasemapFailed(failed),
@@ -104,6 +124,8 @@ export function MapView({
       onFailure: (error) => handleFailure(error),
     })
     controllerRef.current = controller
+    const tracked = trackedRef.current
+    if (tracked) controller.trackPoint(tracked.target, tracked.listener)
     return () => {
       controllerRef.current = null
       controller.destroy()
@@ -114,6 +136,16 @@ export function MapView({
     ref,
     () => ({
       flyTo: (target, minZoom = SELECT_MIN_ZOOM) => controllerRef.current?.flyTo(target, minZoom),
+      trackPoint: (target, listener) => {
+        const entry = { target, listener }
+        trackedRef.current = entry
+        controllerRef.current?.trackPoint(target, listener)
+        return () => {
+          if (trackedRef.current !== entry) return
+          trackedRef.current = null
+          controllerRef.current?.trackPoint(null)
+        }
+      },
     }),
     [],
   )

@@ -6,7 +6,9 @@ import {
   type AirportDetail,
   type Locale,
 } from '@havayolu/shared'
-import { isIndexable, isMonitoredStation } from '../airports'
+// Göreli yollar: vitest `@/` takma adını çözmez.
+import { AVIATION_WEATHER_URL } from '../../components/airports/weather-links'
+import { isIndexable } from '../airports'
 import { localePath } from '../locale-routing'
 import { DATA_ATTRIBUTION } from '../map-config'
 import { TERMS_LINKS } from '../terms'
@@ -43,6 +45,7 @@ function facts(t: Messages): string[] {
   return [
     `- ${shows.map}`,
     `- ${shows.airports}`,
+    `- ${shows.weather} ${format(sources.weather, { source: link('aviationweather.gov', AVIATION_WEATHER_URL) })}`,
     `- ${limits.intro} ${[limits.times, limits.delays, limits.board].join('; ')}.`,
     `- ${privacy.military} ${privacy.registration}`,
     `- ${format(sources.live, {
@@ -79,7 +82,6 @@ export function buildLlmsTxt(input: LlmsInput): string {
       const notes = [
         provinceName(airport.isoRegion, 'tr'),
         format(tr.seo.airport.runwaysCount, { count: airport.runways.length }),
-        isMonitoredStation(airport) ? tr.airports.columns.station.toLocaleLowerCase('tr') : null,
       ].filter((note): note is string => Boolean(note))
       const english = `${tr.nav.switchTo}: ${link(airportDisplayName(airport, 'en'), url('en', path))}`
       return `- ${link(name, url('tr', path))}: ${[...notes, english].join('; ')}`

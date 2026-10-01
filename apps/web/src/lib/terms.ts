@@ -9,7 +9,7 @@
 export const TERMS_PATH = '/kullanim-kosullari'
 
 /** Yürürlük tarihi; metin değiştikçe güncellenir ("Değişiklikler" maddesi). */
-export const TERMS_EFFECTIVE_DATE = '2026-09-29'
+export const TERMS_EFFECTIVE_DATE = '2026-10-01'
 
 /**
  * Koşullarda anılan belgeler ve kaynaklar (data-sources.md §3, §6, §6a). ADSB.lol ve ODbL

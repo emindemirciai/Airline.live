@@ -5,7 +5,12 @@ import {
   type Database,
   type ReferenceOrigin,
 } from '@havayolu/db'
-import { assertProvidersAllowed, PROVIDER_LICENSES, providerUserAgent } from '@havayolu/providers'
+import {
+  assertProvidersAllowed,
+  createAviationWeatherClient,
+  PROVIDER_LICENSES,
+  providerUserAgent,
+} from '@havayolu/providers'
 import { Queue, Worker, type Job, type JobSchedulerTemplateOptions } from 'bullmq'
 import type { Logger } from 'pino'
 import type { Env } from '../env'
@@ -16,10 +21,23 @@ import {
   runReferenceImport,
   type ReferenceFetcher,
 } from './reference'
+import {
+  awcWeatherSource,
+  databaseWeatherStore,
+  recordWeatherSourcesDisabled,
+  runWeatherMetar,
+  runWeatherPrune,
+  runWeatherTaf,
+  type WeatherRunResult,
+  type WeatherSource,
+} from './weather'
+import { FIXTURE_APP_ENVS, fixtureWeatherSource, weatherFixturesDir } from './weather-fixture'
 
 /**
- * `jobs` rolü: günlük bakım işleri BullMQ job scheduler'larıyla (`upsertJobScheduler`; `repeat`
- * v6'da yok). Zamanlar UTC'dir. Aynı zamanlayıcıyı birden fazla süreç kaydetse de tek iş üretilir.
+ * `jobs` rolü: bakım ve hava durumu işleri BullMQ job scheduler'larıyla (`upsertJobScheduler`;
+ * `repeat` v6'da yok). Zamanlar UTC'dir. Aynı zamanlayıcıyı birden fazla süreç kaydetse de tek iş
+ * üretilir. Kuyruk tek eşzamanlıdır: uzun bir referans içe aktarımı hava durumu işini birkaç dakika
+ * geciktirebilir; zamanlayıcı başına tek "sıradaki" iş tutulduğu için işler birikmez.
  */
 export const MAINTENANCE_QUEUE = 'maintenance'
 /** Redis anahtarları projenin `hy:` önekiyle başlar. */
@@ -28,6 +46,9 @@ export const QUEUE_PREFIX = 'hy:bull'
 export const JOB_NAMES = {
   trackPartitions: 'track-partitions',
   referenceImport: 'reference-import',
+  weatherMetar: 'weather-metar',
+  weatherTaf: 'weather-taf',
+  weatherPrune: 'weather-prune',
 } as const
 export type JobName = (typeof JOB_NAMES)[keyof typeof JOB_NAMES]
 
@@ -46,6 +67,25 @@ export const JOB_SCHEDULES: Record<
     pattern: '40 4 * * *',
     tz: 'UTC',
     opts: { attempts: 3, backoff: { type: 'exponential', delay: 5 * 60_000 } },
+  },
+  // METAR 5 dk'da bir (:01, :06 …); Türk METAR'ları yarım saatte ya da saatte bir yayımlanır.
+  // Yeniden deneme 60 sn sonra tek kez (NWS: denemeler arası en az 1 dk). D-078.
+  'weather-metar': {
+    pattern: '1-59/5 * * * *',
+    tz: 'UTC',
+    opts: { attempts: 2, backoff: { type: 'fixed', delay: 60_000 } },
+  },
+  // TAF 15 dk'da bir (:03, :18 …): düzeltilmiş tahmin (AMD) en geç 15 dk'da görünür.
+  'weather-taf': {
+    pattern: '3-59/15 * * * *',
+    tz: 'UTC',
+    opts: { attempts: 2, backoff: { type: 'fixed', delay: 60_000 } },
+  },
+  // 03:25 TSİ: 30 günden eski METAR/TAF ve listeden çıkan istasyonlar silinir.
+  'weather-prune': {
+    pattern: '25 0 * * *',
+    tz: 'UTC',
+    opts: { attempts: 3, backoff: { type: 'exponential', delay: 60_000 } },
   },
 }
 
@@ -104,6 +144,50 @@ export function referenceMode(
   }
 }
 
+export type WeatherMode =
+  | { kind: 'remote'; origin: 'remote'; source: WeatherSource }
+  | { kind: 'fixture'; origin: 'fixture'; source: WeatherSource; dir: string }
+  | { kind: 'disabled'; reason: string }
+
+/**
+ * Hava durumu kaynağı (D-078): dış istek açıksa aviationweather.gov; kapalıysa yalnızca APP_ENV
+ * development ya da test iken commit'li, zamanı kaydırılan fixture; diğer durumlarda kapalı
+ * (nedeniyle; admin satırı "yapılandırılmamış" gösterir).
+ */
+export function weatherMode(
+  env: Env,
+  version: string,
+  fixturesDir = findFixturesDir(),
+  now?: () => Date,
+): WeatherMode {
+  try {
+    assertProvidersAllowed(env.DATA_USAGE_MODE, [PROVIDER_LICENSES.aviationWeather])
+  } catch (error) {
+    return { kind: 'disabled', reason: error instanceof Error ? error.message : String(error) }
+  }
+  if (!env.EXTERNAL_PROVIDERS_DISABLED) {
+    return {
+      kind: 'remote',
+      origin: 'remote',
+      source: awcWeatherSource(createAviationWeatherClient({ userAgent: userAgent(env, version) })),
+    }
+  }
+  const dir = weatherFixturesDir(fixturesDir)
+  if ((FIXTURE_APP_ENVS as readonly string[]).includes(env.APP_ENV) && dir) {
+    return {
+      kind: 'fixture',
+      origin: 'fixture',
+      source: fixtureWeatherSource({ dir, appEnv: env.APP_ENV, ...(now ? { now } : {}) }),
+      dir,
+    }
+  }
+  return {
+    kind: 'disabled',
+    reason:
+      "EXTERNAL_PROVIDERS_DISABLED=true ve commit'li hava durumu fixture'ı yok (üretim imajı)",
+  }
+}
+
 /** Kaynak sahiplerinin bizi tanıyabilmesi için açık User-Agent (Node'un varsayılanı değil). */
 export function userAgent(
   env: Pick<Env, 'APP_NAME' | 'WEB_HOST' | 'CONTACT_EMAIL'>,
@@ -153,6 +237,21 @@ export async function startJobs({
   if (mode.kind === 'disabled') log.warn({ reason: mode.reason }, 'referans içe aktarımı kapalı')
   else log.info({ mode: mode.kind }, 'referans içe aktarımı hazır')
 
+  const weather = weatherMode(env, version, undefined, now)
+  const weatherStore = databaseWeatherStore(database)
+  if (weather.kind === 'disabled') {
+    log.warn({ reason: weather.reason }, 'hava durumu (METAR/TAF) kapalı')
+    await recordWeatherSourcesDisabled(weatherStore, weather.reason, log)
+  } else {
+    log.info({ mode: weather.kind }, 'hava durumu (METAR/TAF) hazır')
+  }
+  /** Yazılan ya da güncellenen rapor varsa info, yoksa debug (5 dk'da bir iş log'u boğmasın). */
+  const logWeather = (job: string, result: WeatherRunResult) => {
+    const changed = 'written' in result && result.written.inserted + result.written.updated > 0
+    if (changed) log.info({ job, result }, 'hava durumu güncellendi')
+    else log.debug({ job, result }, 'hava durumu kontrol edildi')
+  }
+
   const retentionDays = {
     track_points_sampled: env.TRACK_SAMPLED_RETENTION_DAYS,
     track_points_fine: env.TRACK_FINE_RETENTION_DAYS,
@@ -197,6 +296,22 @@ export async function startJobs({
           )
         }
         return result
+      }
+      if (job.name === JOB_NAMES.weatherMetar || job.name === JOB_NAMES.weatherTaf) {
+        if (weather.kind === 'disabled') return { skipped: weather.reason }
+        const run = job.name === JOB_NAMES.weatherMetar ? runWeatherMetar : runWeatherTaf
+        const result = await run({
+          store: weatherStore,
+          source: weather.source,
+          origin: weather.origin,
+          log,
+          now,
+        })
+        logWeather(job.name, result)
+        return result
+      }
+      if (job.name === JOB_NAMES.weatherPrune) {
+        return await runWeatherPrune({ store: weatherStore, log, now })
       }
       throw new Error(`bilinmeyen iş: ${job.name}`)
     } catch (error) {
@@ -273,6 +388,18 @@ export async function startJobs({
       }
     } catch (error) {
       log.warn({ err: explain(error) }, 'referans durumu okunamadı; telafi içe aktarımı atlandı')
+    }
+  }
+
+  // Hava durumu açılışta hemen istenir (referans telafisinden sonra kuyruğa girer, böylece boş
+  // veritabanında istasyon listesi hazır olur); bir sonraki zamanlanmış çalışma beklenmez.
+  if (weather.kind !== 'disabled') {
+    for (const name of [JOB_NAMES.weatherMetar, JOB_NAMES.weatherTaf] as const) {
+      await queue.add(
+        name,
+        { reason: 'startup' },
+        { ...JOB_SCHEDULES[name].opts, ...KEEP_JOBS, deduplication: { id: `${name}-startup` } },
+      )
     }
   }
 

@@ -8,6 +8,7 @@ Testler, CI ve `EXTERNAL_PROVIDERS_DISABLED=true` iken yerel geliştirme bu dosy
 | `ourairports/runways.csv` | OurAirports `runways.csv` | Kamu malı (Unlicense) | Yukarıdaki havalimanlarının bütün pistleri (146) |
 | `vrs/airlines.csv` | VRS standing-data `airlines/schema-01/airlines.csv` | CC0-1.0 | Havayollarının tamamı (5.964) |
 | `adsblol/*.json` | adsb.lol API v2 (`/v2/point`, `/v2/hex`, `/v2/callsign`, `/v2/reg`) | ODbL-1.0 | 2026-09-27 08:49 UTC: LTFM çevresi 40 NM (18 uçak), 3 hex, 1 çağrı kodu, 1 tescil. `index.json` istek listesidir |
+| `weather/*.json` | Elle yazılmış, sentetik (aviationweather.gov Data API biçiminde; istek atılmadı) | Kayıt değil, projenin kendi verisi | 14 istasyonun METAR/SPECI'si, 7 istasyonun TAF'ı, LTFM'nin 3 günlük METAR/TAF geçmişi. Ayrıntı ve zaman kaydırma: [`weather/README.md`](weather/README.md) (D-078) |
 
 - **Alınma tarihi:** 2026-09-27, kullanıcı onayıyla tek seferlik indirme (CLAUDE.md DUR-SOR 6). adsb.lol için 4 istek, aralarında 12 sn (`scripts/record-adsblol-fixtures.mts`); User-Agent'taki iletişim adresi yalnızca ortam değişkenindeydi, hiçbir dosyaya yazılmadı.
 - **Kaynak adresleri:** `packages/providers/src/reference/ourairports.ts` (`OURAIRPORTS_URLS`) ve `vrs.ts` (`VRS_AIRLINES_URL`).

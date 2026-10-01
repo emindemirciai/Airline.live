@@ -3,9 +3,9 @@
 import 'maplibre-gl/dist/maplibre-gl.css'
 
 import { DEFAULT_UNIT_SYSTEM, type Messages } from '@havayolu/i18n'
-import type { Airport, Locale, PublicAircraft } from '@havayolu/shared'
+import type { Locale, PublicAircraft } from '@havayolu/shared'
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react'
-import { fetchAirports, fetchSearch } from '../../lib/live/api'
+import { fetchSearch } from '../../lib/live/api'
 import { monotonicNow } from '../../lib/live/clock'
 import type { TrackedAircraft } from '../../lib/live/store'
 import { visibleAircraft } from '../../lib/live/visible'
@@ -21,28 +21,41 @@ import {
 import { findAirportByCode, hexUrl } from '../../lib/map/url-state'
 import { localePath } from '../../lib/locale-routing'
 import { TERMS_PATH } from '../../lib/terms'
+import { useNow, useWallNow } from '../../lib/use-now'
+import { WallClock } from '../../lib/wall-clock'
 import { ConsentSettingsButton } from '../analytics-consent'
+import { airportsInView, fetchMapAirports, type MapAirport } from './airport-data'
+import { AirportPopup } from './airport-popup'
 import { mapCustomAttributionHtml } from './attribution'
 import {
   AIRPORT_MIN_ZOOM,
+  INITIAL_BOUNDS,
+  INITIAL_MAX_ZOOM,
+  PRIMARY_AIRPORT_VIEW,
   SELECT_MIN_ZOOM,
-  TURKEY_BOUNDS,
-  TURKEY_CENTER,
-  TURKEY_ZOOM,
   type MapViewport,
 } from './camera'
 import { DataAttributionNotice } from './data-attribution'
 import { MapView, type MapViewHandle } from './map-view'
-import { AircraftTable, InfoCard, LabelSettingsControl, SearchBox, StatusStrip } from './panels'
+import {
+  AircraftTable,
+  AirportListControl,
+  InfoCard,
+  LabelSettingsControl,
+  SearchBox,
+  StatusStrip,
+} from './panels'
+import { useBulkWeather } from './use-airport-weather'
 import { useLabelSettings } from './use-label-settings'
 import { useLive } from './use-live'
-import { useNow } from './use-now'
 import { supportsWebGL2 } from './webgl'
 
 export interface LiveMapProps {
   config: MapConfig
   locale: Locale
   messages: Messages['map']
+  /** Havalimanı penceresindeki hava durumu metinleri (havalimanı sayfasıyla aynı sözcükler). */
+  weatherMessages: Messages['weather']
   /** Paylaşılan bağlantıdaki seçili uçak (`/?hex=`), doğrulanmış. */
   initialHex: string | null
   /**
@@ -57,14 +70,17 @@ export interface LiveMapProps {
   consentSettingsLabel: string | null
 }
 
-/** Harita görünümü gelmeden (WebGL2 yok, harita yükleniyor) abonelik Türkiye için yapılır. */
+/**
+ * Harita görünümü gelmeden (WebGL2 yok, harita yükleniyor) abonelik açılış görünümünün (IST/LTFM
+ * çevresi, D-079) kutusu için yapılır; harita kurulunca gerçek görünüm izlenir.
+ */
 const INITIAL_VIEWPORT: MapViewport = {
-  bounds: TURKEY_BOUNDS,
-  center: TURKEY_CENTER,
-  zoom: TURKEY_ZOOM,
+  bounds: INITIAL_BOUNDS,
+  center: { lat: PRIMARY_AIRPORT_VIEW.lat, lon: PRIMARY_AIRPORT_VIEW.lon },
+  zoom: INITIAL_MAX_ZOOM,
 }
 
-const NO_AIRPORTS: readonly Airport[] = []
+const NO_AIRPORTS: readonly MapAirport[] = []
 
 /** Bilgi kartının alttan açılan sayfa olduğu genişlik (globals.css ile aynı kırılım). */
 const BOTTOM_SHEET_QUERY = '(max-width: 767px)'
@@ -80,16 +96,28 @@ const ATTRIB_GAP_PX = 6
 const subscribeNever = () => () => {}
 const webglServerSnapshot = () => null
 
+function subscribeSheet(onChange: () => void): () => void {
+  const query = window.matchMedia(BOTTOM_SHEET_QUERY)
+  query.addEventListener('change', onChange)
+  return () => query.removeEventListener('change', onChange)
+}
+const sheetSnapshot = () => window.matchMedia(BOTTOM_SHEET_QUERY).matches
+const sheetServerSnapshot = () => false
+
 /**
- * Canlı harita sayfasının durumu: seçili uçak (adreste `?hex=`), "Uçağı ortala", etiket ayarı
- * (cihazda), altlık hatası, bağlantı durumu ve saniyelik saat. Harita (`MapView`) ve paneller
- * buradan beslenir. Tablo ve kart en fazla saniyede ~2 kez yeniden çizilir; uçakların hareketi
- * React dışında, haritanın çizim döngüsündedir.
+ * Canlı harita sayfasının durumu: seçili uçak (adreste `?hex=`), "Uçağı ortala", açık havalimanı
+ * penceresi, etiket ayarı (cihazda), altlık hatası, bağlantı durumu ve saniyelik saat. Harita
+ * (`MapView`) ve paneller buradan beslenir. Tablo ve kart en fazla saniyede ~2 kez yeniden çizilir;
+ * uçakların hareketi React dışında, haritanın çizim döngüsündedir.
+ *
+ * Uçak bilgi kartı ile havalimanı penceresi aynı anda açık olmaz: uçak seçmek pencereyi kapatır,
+ * havalimanına tıklamak uçak seçimini kaldırır.
  */
 export function LiveMap({
   config,
   locale,
   messages,
+  weatherMessages,
   initialHex,
   initialAirport,
   consentSettingsLabel,
@@ -98,16 +126,26 @@ export function LiveMap({
   const live = useLive(config.wsUrl)
   const { store, setViewport: subscribeViewport } = live
   const now = useNow()
+  // Havalimanı penceresinin duvar saati, cihaz kipinde (lib/wall-clock.ts): cihaz saati toplu havanın
+  // `generatedAt`'ine göre akla yatkınsa (geride değil, en çok 10 dk ileride) o, değilse sunucu
+  // saati. Önbellekten gelen eski `generatedAt` yerel saati ve gözlem yaşını geride bırakmaz; cihaz
+  // uyusa ya da saati yanlış olsa da değerler doğrudur.
+  const [weatherClock] = useState(() => WallClock.preferDevice())
+  const popupNow = useWallNow(weatherClock, 1_000)
   const [labelSettings, setLabelSettings] = useLabelSettings()
   const webgl = useSyncExternalStore(subscribeNever, supportsWebGL2, webglServerSnapshot)
   const mapRef = useRef<MapViewHandle>(null)
   const cardRef = useRef<HTMLDivElement>(null)
+  const popupRef = useRef<HTMLDivElement>(null)
   const rootRef = useRef<HTMLDivElement>(null)
 
   const [selectedHex, setSelectedHex] = useState<string | null>(null)
   const [following, setFollowing] = useState(false)
   const [viewport, setViewport] = useState<MapViewport>(INITIAL_VIEWPORT)
-  const [airports, setAirports] = useState<readonly Airport[]>(NO_AIRPORTS)
+  const [airports, setAirports] = useState<readonly MapAirport[]>(NO_AIRPORTS)
+  /** Açık havalimanı penceresinin ICAO kodu. */
+  const [popupIcao, setPopupIcao] = useState<string | null>(null)
+  const sheetLayout = useSyncExternalStore(subscribeSheet, sheetSnapshot, sheetServerSnapshot)
   const [mapReady, setMapReady] = useState(false)
   const [mapFailed, setMapFailed] = useState(false)
   const [basemapFailed, setBasemapFailed] = useState(false)
@@ -117,14 +155,28 @@ export function LiveMap({
   // `?havalimani=` hedefi havalimanı listesi gelince bir kez uygulanır; seçim ya da sürükleme iptal eder.
   const pendingAirportRef = useRef<string | null>(initialHex === null ? initialAirport : null)
 
-  /** Seçim (kullanıcının ya da paylaşılan bağlantının); paylaşılan bağlantı süreci biter. */
+  /**
+   * Seçim (kullanıcının ya da paylaşılan bağlantının); paylaşılan bağlantı süreci biter. Uçak seçmek
+   * havalimanı penceresini kapatır.
+   */
   const select = useCallback((hex: string | null) => {
     setSelectedHex(hex)
     setSharedLink(SHARED_LINK_DONE)
     pendingAirportRef.current = null
     if (hex === null) setFollowing(false)
+    else setPopupIcao(null)
     window.history.replaceState(null, '', hexUrl(window.location.href, hex))
   }, [])
+
+  /** Havalimanı penceresini açar (tek pencere); uçak seçimi ve bilgi kartı kapanır. */
+  const openAirport = useCallback(
+    (icao: string) => {
+      select(null)
+      setPopupIcao(icao)
+    },
+    [select],
+  )
+  const closeAirport = useCallback(() => setPopupIcao(null), [])
 
   /** Arama sonucu ya da paylaşılan bağlantı: uçak depoya eklenir (görünüm dışında olabilir). */
   const showAircraft = useCallback(
@@ -169,22 +221,23 @@ export function LiveMap({
   }, [])
   const markReady = useCallback(() => setMapReady(true), [])
 
-  // Harita görünümü gelene kadar (ya da hiç gelmeyecekse) Türkiye'ye abone olunur.
+  // Harita görünümü gelene kadar (ya da hiç gelmeyecekse) açılış görünümüne abone olunur.
   useEffect(() => {
     subscribeViewport(INITIAL_VIEWPORT.bounds, INITIAL_VIEWPORT.zoom)
   }, [subscribeViewport])
 
-  // Havalimanları bir kez yüklenir; yüklenemezse harita onlarsız çalışır. `?havalimani=` hedefi
-  // listede varsa harita havalimanı merkezine gider (harita henüz kurulmadıysa doğrudan orada açılır).
+  // Havalimanları (pistleriyle, havalimanı penceresi için) bir kez yüklenir; yüklenemezse harita
+  // onlarsız çalışır. `?havalimani=` hedefi listede varsa harita havalimanı merkezine gider (harita
+  // henüz kurulmadıysa doğrudan orada açılır).
   useEffect(() => {
     const controller = new AbortController()
-    fetchAirports(config.apiBaseUrl, 'TR', controller.signal).then(
-      (response) => {
+    fetchMapAirports(config.apiBaseUrl, controller.signal).then(
+      (list) => {
         if (controller.signal.aborted) return
-        setAirports(response.airports)
+        setAirports(list)
         const code = pendingAirportRef.current
         pendingAirportRef.current = null
-        const airport = code === null ? undefined : findAirportByCode(response.airports, code)
+        const airport = code === null ? undefined : findAirportByCode(list, code)
         if (airport) mapRef.current?.flyTo({ lat: airport.lat, lon: airport.lon }, AIRPORT_MIN_ZOOM)
       },
       (error: unknown) => {
@@ -253,13 +306,17 @@ export function LiveMap({
   if (current !== undefined && current !== heldSelected) setHeldSelected(current)
   const selected = current ?? (heldSelected?.hex === selectedHex ? heldSelected : undefined)
   const cardOpen = selected !== undefined
+  const popupAirport =
+    popupIcao === null ? undefined : airports.find((airport) => airport.icao === popupIcao)
+  const popupOpen = popupAirport !== undefined
+  const weather = useBulkWeather(config.apiBaseUrl, popupOpen, weatherClock)
 
-  // Dar ekranda kart haritanın altını örter: yüksekliği haritaya alt boşluk olarak verilir, seçili
-  // uçak (ve "Uçağı ortala") kartın üstündeki görünür bölgede kalır.
+  // Dar ekranda kart ya da havalimanı penceresi haritanın altını örter: yüksekliği haritaya alt
+  // boşluk olarak verilir, seçili uçak (ve "Uçağı ortala") kartın üstündeki görünür bölgede kalır.
   useEffect(() => {
-    const card = cardRef.current
+    const card = cardOpen ? cardRef.current : popupOpen ? popupRef.current : null
     const root = card?.parentElement
-    if (!cardOpen || !card || !root) {
+    if (!card || !root) {
       setBottomInset(0)
       return
     }
@@ -277,7 +334,7 @@ export function LiveMap({
       observer.disconnect()
       sheet.removeEventListener('change', measure)
     }
-  }, [cardOpen])
+  }, [cardOpen, popupOpen])
   const { rows, total } = visibleAircraft(store.list(), viewport.bounds, viewport.center)
   const showLoading = webgl !== false && !mapReady
   // Atıf, harita çizildiğinde MapLibre'nin atıf kutusundadır; harita yokken (yükleniyor, WebGL2
@@ -327,6 +384,8 @@ export function LiveMap({
           units={units}
           bottomInset={bottomInset}
           onSelect={select}
+          onAirportSelect={openAirport}
+          onEmptyClick={closeAirport}
           onUserPan={handleUserPan}
           onViewportChange={handleViewportChange}
           onBasemapFailedChange={setBasemapFailed}
@@ -357,6 +416,21 @@ export function LiveMap({
           messages={messages.status}
         />
       </div>
+      {popupAirport && popupNow !== null ? (
+        <div ref={popupRef} className="live-map__popup">
+          <AirportPopup
+            airport={popupAirport}
+            weather={weather}
+            now={popupNow}
+            locale={locale}
+            sheet={sheetLayout}
+            mapRef={mapRef}
+            onClose={closeAirport}
+            messages={messages.airportPopup}
+            weatherMessages={weatherMessages}
+          />
+        </div>
+      ) : null}
       {selected ? (
         <div ref={cardRef} className="live-map__card">
           <InfoCard
@@ -386,6 +460,12 @@ export function LiveMap({
         {consentSettingsLabel ? (
           <ConsentSettingsButton label={consentSettingsLabel} className="map-button" />
         ) : null}
+        <AirportListControl
+          airports={airportsInView(airports, viewport)}
+          locale={locale}
+          onSelect={openAirport}
+          messages={messages.airportList}
+        />
         <LabelSettingsControl
           value={labelSettings}
           onChange={setLabelSettings}

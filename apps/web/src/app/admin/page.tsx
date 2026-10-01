@@ -37,6 +37,8 @@ function serviceLabel(id: string, t: AdminMessages): string {
       return t.services.analytics
     case 'reference-data':
       return t.services.referenceData
+    case 'weather':
+      return t.services.weather
     case 'track-partitions':
       return t.services.trackPartitions
     case 'provider:adsbLol':
@@ -102,8 +104,40 @@ function providerItems(d: ServiceStatus['detail'], t: AdminMessages, locale: Loc
   return items
 }
 
+/** Hava durumu satırının ayrıntıları (API: weather_sources özeti, D-078). */
+function weatherItems(d: ServiceStatus['detail'], t: AdminMessages, locale: Locale): string[] {
+  const count = (value: number) => value.toLocaleString(locale === 'tr' ? 'tr-TR' : 'en-GB')
+  const minutes = (value: unknown) =>
+    typeof value === 'number' ? ago(value * 60, t) : t.detail.never
+  const items: string[] = []
+  if (d.origin === 'disabled') {
+    items.push(`${t.detail.origin}: ${t.detail.originDisabled}`)
+    if (typeof d.reason === 'string') items.push(`${t.detail.reason}: ${d.reason}`)
+  } else if (d.origin === 'remote' || d.origin === 'fixture') {
+    items.push(
+      `${t.detail.origin}: ${d.origin === 'remote' ? t.detail.weatherOriginRemote : t.detail.weatherOriginFixture}`,
+    )
+  }
+  if (typeof d.stationsWithMetar === 'number') {
+    const total = typeof d.stationsTotal === 'number' ? ` / ${count(d.stationsTotal)}` : ''
+    items.push(`${t.detail.stationsWithMetar}: ${count(d.stationsWithMetar)}${total}`)
+  }
+  if ('newestObsAgeMin' in d) items.push(`${t.detail.newestObs}: ${minutes(d.newestObsAgeMin)}`)
+  if ('metarCheckAgeMin' in d) items.push(`${t.detail.metarCheck}: ${minutes(d.metarCheckAgeMin)}`)
+  if ('tafCheckAgeMin' in d) items.push(`${t.detail.tafCheck}: ${minutes(d.tafCheckAgeMin)}`)
+  if (typeof d.validTafCount === 'number') {
+    items.push(`${t.detail.validTafs}: ${count(d.validTafCount)}`)
+  }
+  if (typeof d.blockedUntil === 'string') {
+    items.push(`${t.detail.blockedUntil}: ${formatTime(d.blockedUntil, locale)}`)
+  }
+  if (typeof d.error === 'string') items.push(`${t.detail.error}: ${d.error}`)
+  return items
+}
+
 function detailItems(service: ServiceStatus, t: AdminMessages, locale: Locale): string[] {
   const d = service.detail
+  if (service.id === 'weather') return weatherItems(d, t, locale)
   const items: string[] = service.kind === 'provider' ? providerItems(d, t, locale) : []
   const count = (value: unknown) =>
     typeof value === 'number' ? value.toLocaleString(locale === 'tr' ? 'tr-TR' : 'en-GB') : '?'

@@ -1,0 +1,37 @@
+{
+  "origin": "synthetic, hand-written (not recorded)",
+  "liveRequest": false,
+  "note": "Not real weather. No request was made to aviationweather.gov. Entries are shaped like the AWC Data API JSON (format=json); rawOb and rawTAF are the source of truth, the decoded AWC fields only mirror them for cross-checks.",
+  "shape": {
+    "metar.json": "https://aviationweather.gov/api/data/metar?ids=<ids>&format=json&hours=2",
+    "taf.json": "https://aviationweather.gov/api/data/taf?ids=<ids>&format=json"
+  },
+  "fixtureNow": "2026-01-15T13:00:00Z",
+  "rebase": "In development and test the worker shifts every time (epochs and the raw DDHHMMZ, DDHH/DDHH, FMDDHHMM, TX/TN and trend FM/TL/AT groups) by a whole number of hours so that fixtureNow falls on the start of the current UTC hour. Unit tests use fixtureNow without rebasing.",
+  "history": {
+    "LTFM": "METAR every 30 min from 2026-01-12T13:20Z to 2026-01-15T12:50Z (144 reports), one SPECI (140705Z), one corrected report (140620Z: original and METAR COR, the COR wins) and 13 TAFs (every 6 h, plus AMD 140615Z)."
+  },
+  "cases": [
+    {
+      "station": "LTFM",
+      "case": "light showers, gust 32 kt (strong wind), CB, TEMPO trend; overlapping valid TAFs (the newest, 151040Z, supersedes 150440Z and older ones)"
+    },
+    { "station": "LTBA", "case": "CAVOK, NOSIG; TAF with BECMG and FM" },
+    { "station": "LTAC", "case": "snow, mist, below-zero temperature, 800 ft ceiling" },
+    {
+      "station": "LTAI",
+      "case": "heavy thunderstorm rain, variable sector, gust; TAF AMD with PROB40"
+    },
+    { "station": "LTBJ", "case": "VRB light wind; expired TAF (no current forecast)" },
+    { "station": "LTCG", "case": "fog, vertical visibility, calm, RVR; 9 h TAF" },
+    { "station": "LTFJ", "case": "drizzle, mist, recent rain; no TAF" },
+    { "station": "LTCE", "case": "heavy snow showers, blowing snow, strong wind" },
+    { "station": "LTDB", "case": "haze, NSC; no TAF" },
+    { "station": "LTAU", "case": "thunderstorm in the vicinity; no TAF" },
+    { "station": "LTBS", "case": "SPECI with hail; no TAF" },
+    { "station": "LTCF", "case": "freezing rain; no TAF" },
+    { "station": "LTAJ", "case": "delayed observation (1 h 40 min before fixtureNow)" },
+    { "station": "LTCW", "case": "stale observation (8 h 10 min before fixtureNow), no TAF" },
+    { "station": "LTBQ", "case": "no METAR and no TAF" }
+  ]
+}

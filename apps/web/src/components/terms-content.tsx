@@ -4,6 +4,7 @@ import type { ReactNode } from 'react'
 // Göreli yollar: vitest `@/` takma adını çözmez ve bu bileşen testte çizilir.
 import { DATA_ATTRIBUTION } from '../lib/map-config'
 import { TERMS_EFFECTIVE_DATE, TERMS_LINKS } from '../lib/terms'
+import { AVIATION_WEATHER_URL, NWS_DISCLAIMER_URL } from './airports/weather-links'
 import { richText } from './rich-text'
 
 export interface TermsContentProps {
@@ -23,8 +24,8 @@ function DocLink({ href, children }: { href: string; children: ReactNode }) {
 
 /**
  * Geçici kullanım koşullarının metni (D-075). Sunucu bileşenlerinden çizilir; kanca yoktur. Esri
- * maddesi (E204 §3.1c.5) ve ODbL maddesi (ODbL 4.7: koşullar ADS-B türevi verinin yeniden kullanımını
- * kısıtlamaz) buradadır.
+ * maddesi (E204 §3.1c.5), ODbL maddesi (ODbL 4.7: koşullar ADS-B türevi verinin yeniden kullanımını
+ * kısıtlamaz) ve hava durumu maddesi (D-078: bilgi amaçlı, NOAA/NWS onayı ima edilmez) buradadır.
  */
 export function TermsContent({ locale, app }: TermsContentProps) {
   const messages = getMessages(locale)
@@ -61,6 +62,12 @@ export function TermsContent({ locale, app }: TermsContentProps) {
         <p>
           {richText(t.data.airports, {
             source: <DocLink href={TERMS_LINKS.ourAirports}>OurAirports</DocLink>,
+          })}
+        </p>
+        <p>
+          {richText(t.data.weather, {
+            source: <DocLink href={AVIATION_WEATHER_URL}>aviationweather.gov</DocLink>,
+            disclaimer: <DocLink href={NWS_DISCLAIMER_URL}>{t.data.weatherDisclaimer}</DocLink>,
           })}
         </p>
       </section>

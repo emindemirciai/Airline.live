@@ -9,6 +9,7 @@ import { DATA_ATTRIBUTION } from '../../lib/map-config'
 import { airportPath } from '../../lib/seo/paths'
 import { TERMS_LINKS, TERMS_PATH } from '../../lib/terms'
 import { formatRadius } from '../airports/airport-text'
+import { AVIATION_WEATHER_URL } from '../airports/weather-links'
 import { richText } from '../rich-text'
 
 /** Havayolu kodlarının kaynağı (data-sources.md §4; ATTRIBUTION.md: nezaketen anılır). */
@@ -59,7 +60,8 @@ function SourceLink({ href, children }: { href: string; children: ReactNode }) {
 /**
  * Hakkında ve yöntem sayfası (`/hakkinda`, M6b). Siteyi kimin işlettiği, neyi gösterip neyi
  * göstermediği (domain.md → "v1 sınırları"), yöntem (ADS-B, MLAT, tazelik hedefleri: data-sources.md
- * §1 ve D-073), veri kaynakları ve lisanslar (data-sources.md §1, §3, §4, §6, §6a; ATTRIBUTION.md) ve
+ * §1 ve D-073), veri kaynakları ve lisanslar (data-sources.md §1, §3, §4, §5, §6, §6a; ATTRIBUTION.md;
+ * hava durumu D-078) ve
  * uçak gizliliği (D-071, CLAUDE.md → Gizlilik; engel listesi apps/api/src/admin/blocklist.ts).
  * Uydurma bilgi yoktur; sayılar bu belgelerdendir. İstasyon listesi ve çekim alanı dışındaki
  * havalimanları veriden gelir; birincil çemberin yarıçapı kapsama planındandır (packages/geo). Durum
@@ -89,6 +91,7 @@ export function AboutContent({ locale, app, stations, outside }: AboutContentPro
           <li>{t.shows.map}</li>
           <li>{t.shows.search}</li>
           <li>{t.shows.airports}</li>
+          <li>{t.shows.weather}</li>
         </ul>
       </section>
 
@@ -181,6 +184,11 @@ export function AboutContent({ locale, app, stations, outside }: AboutContentPro
             })}
           </li>
           <li>{richText(t.sources.satellite, { esri: <span lang="en">{ESRI_CREDIT}</span> })}</li>
+          <li>
+            {richText(t.sources.weather, {
+              source: <SourceLink href={AVIATION_WEATHER_URL}>aviationweather.gov</SourceLink>,
+            })}
+          </li>
         </ul>
       </section>
 
