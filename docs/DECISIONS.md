@@ -124,6 +124,7 @@ Her karar tarih, gerekçe ve varsa alternatifiyle yazılır. En yeni karar en ü
     - İki yedek birlikte alınır: masaüstündeki küçük `git archive` zip'i (kullanıcıya dosya olarak gönderilir) ve Drive'daki tam ZIP.
     - Betik o anki dalı push ettiği için `main`'de çalıştırılmaz; PR ve merge commit akışı değişmez.
   - **Gizli dosya denetimi:** betik, adı `credentials.*` olan izlenen her dosyayı hassas sayar. Yönetici girişini doğrulayan kaynak dosya `apps/api/src/auth/credentials.ts` bu yüzden `verify-login.ts` adını aldı (içerik aynı; sır yoktur). Denetim gevşetilmedi.
+  - **Turborepo önbelleği repo dışında** (kullanıcı kararı 2026-10-02): `turbo.json` → `"cacheDir": "../.turbo-cache/havayolu"`. Repo içindeki `.turbo` önbelleği her derlemede büyüyüp 6,2 GB'a ulaşmıştı; her tam Drive yedeği ~8 GB oluyor, 30 yedek ~240 GB tutuyordu. Önbellek yalnızca yeniden üretilebilir derleme çıktısıdır; yedek betiği ve kuralları değişmedi, ZIP yine repo kökündeki her şeyi içerir (yedek ~1,8 GB). Yerelde önbellek `C:\PROJELER\.turbo-cache\havayolu`, CI'da `/home/runner/work/havayolu/.turbo-cache/havayolu`, Docker derleme aşamasında `/.turbo-cache/havayolu` (root) olur.
 
 ## 2026-09-30 — Parça 1 M6b havalimanı sayfaları ve keşfedilebilirlik (SEO, GEO)
 - **D-076 Dil adreste, havalimanı sayfaları, arama motorları ve yapay zekâ tarayıcıları.**
