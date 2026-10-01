@@ -655,9 +655,10 @@ describe('GET /v1/airports/:code/weather/history', () => {
   })
 
   it('farklı saat ve istasyonlarla doldurulan önbellek anahtar ve bayt sınırında kalır (bellek tükenmez)', async () => {
-    // 40 istasyon, her biri 168 saatlik (~0,5 MB) kayıt; bütçe 2 MB.
+    // 12 istasyon, her biri 168 saatlik (~0,5 MB) kayıt; bütçe 2 MB, yani pencereler atılmak zorunda.
+    // Her yanıt kaydı çözümlediği için yük küçük tutulur (CI makinesinde 320 istek 20 sn sürüyordu).
     const week = weekOfRecords()
-    const icaos = Array.from({ length: 40 }, (_, i) => `Z${String(i).padStart(3, '0')}`)
+    const icaos = Array.from({ length: 12 }, (_, i) => `Z${String(i).padStart(3, '0')}`)
     const history = vi.fn(async (icao: string, from: Date, to: Date): Promise<WeatherRecords> => ({
       metars: week.metars
         .filter((m) => m.observedAt >= from && m.observedAt <= to)
@@ -680,12 +681,12 @@ describe('GET /v1/airports/:code/weather/history', () => {
     const get = (url: string, ip = '10.0.0.1') =>
       app.inject({ method: 'GET', url, remoteAddress: ip })
     for (const [i, icao] of icaos.entries()) {
-      for (const hours of [168, 167, 100, 48, 25, 24, 12, 1]) {
+      for (const hours of [168, 100, 24, 1]) {
         const res = await get(`/v1/airports/${icao}/weather/history?hours=${hours}`, `10.0.1.${i}`)
         expect(res.statusCode).toBe(200)
       }
     }
-    // 8 farklı saat değeri yalnızca iki pencere okur: istasyon başına 2 okuma (eskiden 8 anahtar).
+    // 4 farklı saat değeri yalnızca iki pencere okur: istasyon başına 2 okuma (eskiden 4 anahtar).
     expect(history).toHaveBeenCalledTimes(icaos.length * 2)
     // Bütçe birkaç tam pencere tutar: ilk istasyonun 168 saati çoktan atılmıştır, yeniden okunur;
     // son istasyonunki önbellektedir.
@@ -694,7 +695,7 @@ describe('GET /v1/airports/:code/weather/history', () => {
     await get(`/v1/airports/${icaos[0]}/weather/history?hours=168`)
     expect(history).toHaveBeenCalledTimes(icaos.length * 2 + 1)
     await app.close()
-  })
+  }, 30_000)
 
   it('pencere seçimi: 1–24 saat 24, 25–168 saat 168; anahtar sınırı küçüktür', () => {
     expect(historyCacheWindow(1)).toBe(24)
