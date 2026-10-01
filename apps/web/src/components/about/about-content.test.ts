@@ -5,6 +5,7 @@ import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
 import { DATA_ATTRIBUTION } from '../../lib/map-config'
 import { TERMS_LINKS } from '../../lib/terms'
+import { AVIATION_WEATHER_URL } from '../airports/weather-links'
 import { aboutDescription, AboutContent, VRS_STANDING_DATA_URL } from './about-content'
 
 const STATIONS = [
@@ -100,6 +101,14 @@ describe('AboutContent', () => {
     expect(html).toContain(`href="${VRS_STANDING_DATA_URL}"`)
     expect(html).toContain(`href="${TERMS_LINKS.openStreetMap}"`)
     expect(html).toContain('<span lang="en">Powered by Esri')
+    expect(html).toContain(`href="${AVIATION_WEATHER_URL}"`)
+  })
+
+  it('hava durumu: ne gösterildiği ve kaynağı, resmî brifing olmadığı (D-078)', () => {
+    const tr = text(render('tr'))
+    expect(tr).toContain('Hava durumu: her havalimanı sayfasında son havacılık hava raporu (METAR)')
+    expect(tr).toContain('resmî brifing yerine geçmez')
+    expect(text(render('en'))).toContain('not an official briefing')
   })
 
   it('izlenen istasyonlar veriden, bağlantılı; birincil işaretli', () => {

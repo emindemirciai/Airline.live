@@ -4,7 +4,8 @@ import type {
   AirportDetailsResponse,
   AirportsResponse,
 } from '@havayolu/shared'
-import type { FastifyBaseLogger, FastifyInstance } from 'fastify'
+import type { FastifyInstance } from 'fastify'
+import { CACHE_RETRY_MS, cachedReader } from './cache'
 
 export interface AirportRouteOptions {
   /** Ülkenin IATA kodlu havalimanları (`listAirportsWithIata`); `null`: veritabanı yok → 503. */
@@ -36,7 +37,7 @@ export const AIRPORTS_CACHE_MS = 10 * 60_000
  */
 export const AIRPORTS_EMPTY_CACHE_MS = 60_000
 /** Okuma başarısız olup eldeki kopya sunulunca veritabanı bu aralıktan önce yeniden denenmez. */
-export const AIRPORTS_RETRY_MS = 60_000
+export const AIRPORTS_RETRY_MS = CACHE_RETRY_MS
 /**
  * Önbellekteki anahtar sınırı (ülke ya da kod başına bir kayıt): rastgele kodlarla gelen istekler
  * belleği büyütemez; sınır aşılınca en eski kayıt atılır.
@@ -48,9 +49,9 @@ export const AIRPORTS_CACHE_CONTROL = 'public, max-age=300'
 export const AIRPORTS_INCLUDE = ['runways'] as const
 
 /** ISO 3166-1 alpha-2, büyük harf. */
-const COUNTRY = /^[A-Z]{2}$/
+export const COUNTRY = /^[A-Z]{2}$/
 /** ICAO (4) ya da IATA (3) kodu; büyük/küçük harf fark etmez. */
-const AIRPORT_CODE = /^[A-Za-z0-9]{3,4}$/
+export const AIRPORT_CODE = /^[A-Za-z0-9]{3,4}$/
 
 export const AIRPORT_ERRORS = {
   badCountry: {
@@ -184,75 +185,11 @@ const listResponse = <T>(items: T) =>
 const plainListSchema = listResponse(airportSchema)
 const detailListSchema = listResponse(airportDetailSchema)
 
-const errorSchema = {
+export const errorSchema = {
   type: 'object',
   required: ['error', 'message'],
   properties: { error: { type: 'string' }, message: { type: 'string' } },
 } as const
-
-interface CacheEntry<V> {
-  value: V
-  /** Bu ana kadar veritabanına gidilmez. */
-  freshUntil: number
-}
-
-/**
- * Anahtar başına süreç içi önbellek: taze kopya varsa o, yoksa tek bir okuma (eşzamanlı istekler
- * aynı okumayı bekler). Okuma başarısız olursa eldeki (süresi geçmiş) kopya sunulur ve
- * `AIRPORTS_RETRY_MS` boyunca yeniden denenmez; kopya yoksa `null` (→ 503).
- */
-function cachedReader<V>(options: {
-  read: ((key: string) => Promise<V>) | null
-  ttl: (value: V) => number
-  now: () => number
-  log: FastifyBaseLogger
-  what: string
-  maxEntries: number
-}): (key: string) => Promise<{ value: V } | null> {
-  const { read, ttl, now, log, what, maxEntries } = options
-  const cache = new Map<string, CacheEntry<V>>()
-  const pending = new Map<string, Promise<{ value: V } | null>>()
-
-  const remember = (key: string, entry: CacheEntry<V>) => {
-    cache.delete(key)
-    cache.set(key, entry)
-    while (cache.size > maxEntries) {
-      const oldest = cache.keys().next().value
-      if (oldest === undefined) break
-      cache.delete(oldest)
-    }
-  }
-
-  const refresh = async (
-    reader: (key: string) => Promise<V>,
-    key: string,
-    stale: CacheEntry<V> | undefined,
-  ): Promise<{ value: V } | null> => {
-    try {
-      const value = await reader(key)
-      remember(key, { value, freshUntil: now() + ttl(value) })
-      return { value }
-    } catch (error) {
-      log.warn({ err: error, key }, `${what} could not be read`)
-      if (stale === undefined) return null
-      stale.freshUntil = now() + AIRPORTS_RETRY_MS
-      return { value: stale.value }
-    }
-  }
-
-  return (key) => {
-    const entry = cache.get(key)
-    if (entry !== undefined && entry.freshUntil > now())
-      return Promise.resolve({ value: entry.value })
-    if (read === null) return Promise.resolve(null)
-    let inflight = pending.get(key)
-    if (inflight === undefined) {
-      inflight = refresh(read, key, entry).finally(() => pending.delete(key))
-      pending.set(key, inflight)
-    }
-    return inflight
-  }
-}
 
 const listTtl = (airports: readonly unknown[]) =>
   airports.length === 0 ? AIRPORTS_EMPTY_CACHE_MS : AIRPORTS_CACHE_MS

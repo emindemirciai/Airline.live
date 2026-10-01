@@ -1,19 +1,6 @@
-import type { Airport } from '@havayolu/shared'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { ApiError, fetchAirports, fetchSearch } from './api'
+import { ApiError, fetchSearch } from './api'
 import { aircraft, STATUS } from './test/fakes'
-
-const IST: Airport = {
-  icao: 'LTFM',
-  iata: 'IST',
-  name: 'İstanbul Havalimanı',
-  city: 'İstanbul',
-  lat: 41.2753,
-  lon: 28.7519,
-  elevationFt: 325,
-  type: 'large_airport',
-  scheduled: true,
-}
 
 function mockFetch(status: number, body: unknown) {
   const fetchMock = vi.fn(
@@ -82,34 +69,5 @@ describe('fetchSearch', () => {
       }),
     )
     await expect(fetchSearch('https://api.havayolu.live', 'x')).rejects.toBeInstanceOf(TypeError)
-  })
-})
-
-describe('fetchAirports', () => {
-  it('varsayılan ülke TR; uygun olmayan havalimanı kayıtlarını atlar', async () => {
-    const fetchMock = mockFetch(200, {
-      country: 'TR',
-      airports: [IST, { ...IST, iata: '' }, { ...IST, type: 'heliport' }, { ...IST, lat: 'x' }],
-    })
-    const result = await fetchAirports('https://api.havayolu.live')
-    expect(result).toEqual({ country: 'TR', airports: [IST] })
-    expect(String(fetchMock.mock.calls[0]?.[0])).toBe(
-      'https://api.havayolu.live/v1/airports?country=TR',
-    )
-  })
-
-  it('ülke kodunu iletir, hata ve bozuk biçimi reddeder', async () => {
-    const fetchMock = mockFetch(200, { country: 'CY', airports: [] })
-    await expect(fetchAirports('http://localhost:4100', 'CY')).resolves.toEqual({
-      country: 'CY',
-      airports: [],
-    })
-    expect(String(fetchMock.mock.calls[0]?.[0])).toBe(
-      'http://localhost:4100/v1/airports?country=CY',
-    )
-    mockFetch(503, { error: 'airports_unavailable' })
-    await expect(fetchAirports('http://localhost:4100')).rejects.toMatchObject({ status: 503 })
-    mockFetch(200, { country: 'TR' })
-    await expect(fetchAirports('http://localhost:4100')).rejects.toBeInstanceOf(ApiError)
   })
 })

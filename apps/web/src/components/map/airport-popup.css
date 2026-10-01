@@ -1,0 +1,165 @@
+/*
+ * Havalimanı penceresi (M6c, airport-popup.tsx). Geçici tema: renkler ve panel görünümü haritanın
+ * diğer panelleriyle aynıdır (globals.css `--map-*`, `.map-panel`). Geniş ekranda pencere havalimanı
+ * noktasının yanında durur; yeri satır içi `transform` ile verilir (popup-placement.ts). Dar ekranda
+ * (767 px ve altı) bilgi kartı gibi alttan açılan sayfadır.
+ */
+
+/* Pencerenin kalabileceği alan: harita eksi atıf şeridi. Tıklamalar haritaya geçer. */
+.live-map__popup {
+  position: absolute;
+  inset: 0 0 var(--map-attrib-space) 0;
+  z-index: 5;
+  pointer-events: none;
+}
+
+.map-popup {
+  position: absolute;
+  top: 0;
+  left: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: min(320px, calc(100% - 16px));
+  max-height: calc(100% - 16px);
+  padding: 10px 12px 12px;
+  overflow-y: auto;
+  font-size: 0.8125rem;
+  line-height: 1.35;
+  pointer-events: auto;
+}
+
+/* Yeri hesaplanmadan (ilk çizimden önce) görünmez; odak alabilir. */
+.map-popup[data-placed='false'] {
+  opacity: 0;
+}
+
+.map-popup:focus {
+  outline: none;
+}
+
+.map-popup:focus-visible {
+  outline: 3px solid var(--sign);
+  outline-offset: 2px;
+}
+
+.map-popup__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.map-popup__heading {
+  min-width: 0;
+}
+
+.map-popup__codes {
+  margin: 0;
+  color: var(--map-muted);
+  font-family: var(--font-data);
+  font-size: 0.8rem;
+  font-weight: 500;
+}
+
+.map-popup__title {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 800;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+
+.map-popup__place {
+  margin: 2px 0 0;
+  color: var(--map-muted);
+  font-size: 0.8rem;
+}
+
+.map-popup__facts,
+.map-popup__rows {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: 3px 10px;
+  margin: 0;
+}
+
+.map-popup__facts dt,
+.map-popup__rows dt {
+  color: var(--map-muted);
+}
+
+.map-popup__facts dd,
+.map-popup__rows dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.map-popup__weather {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-top: 6px;
+  border-top: 1px solid var(--map-line);
+}
+
+.map-popup__subheading {
+  margin: 0;
+  color: var(--map-muted);
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.map-popup__headline {
+  margin: 0;
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
+.map-popup__strong {
+  color: var(--map-selected);
+  font-weight: 700;
+}
+
+.map-popup__observed {
+  margin: 0;
+  color: var(--map-muted);
+  font-size: 0.8rem;
+}
+
+.map-popup__observed[data-age='delayed'] {
+  color: var(--map-selected);
+}
+
+.map-popup__note {
+  margin: 0;
+  color: var(--map-muted);
+}
+
+.map-popup__link {
+  align-self: flex-start;
+  color: var(--map-ink);
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+@media (max-width: 767px) {
+  .live-map__popup {
+    inset: auto 0 0 0;
+    display: flex;
+    flex-direction: column;
+    max-height: 55%;
+  }
+
+  /* `.map-panel` kenarını ezmek için kapsayıcıyla birlikte (yükleme sırasından bağımsız). */
+  .live-map__popup > .map-popup {
+    position: relative;
+    width: auto;
+    min-height: 0;
+    max-height: none;
+    padding-bottom: calc(var(--map-attrib-space) + 4px);
+    border-bottom: 0;
+    border-radius: 14px 14px 0 0;
+  }
+}

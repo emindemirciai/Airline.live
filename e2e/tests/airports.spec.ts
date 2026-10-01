@@ -7,10 +7,10 @@ import { jsonLdNodes, metaContents, nodesOfType, titles, type JsonLdNode } from 
 import {
   AIRPORT_COUNT,
   aircraftRow,
+  airportListCodes,
   declineAnalytics,
   enPath,
   expectRedirect,
-  FAR_AIRCRAFT,
   fetchRaw,
   PRIMARY_AIRPORT,
   PRIMARY_AIRPORT_NEIGHBOURS,
@@ -181,19 +181,23 @@ test.describe('tarayıcıda', () => {
     for (const neighbour of PRIMARY_AIRPORT_NEIGHBOURS) {
       await expect(main.locator(`a[href="/istasyon/${neighbour}"]`).first()).toBeVisible()
     }
-    // v1 sınırları notu yöntem sayfasına bağlanır.
+    // "Sefer sayısı, rötar ve iptal" bölümü ADS-B'nin sınırları için yöntem sayfasına bağlanır (M6c).
     await expect(main.locator('a[href="/hakkinda"]').first()).toBeVisible()
   })
 
-  test('"Canlı haritada aç" haritayı havalimanının çevresinde açar', async ({ page }) => {
-    await page.goto(STATION_PATH)
-    await page.locator(`main a[href="/?havalimani=${icao}"]`).click()
+  test('"Canlı haritada aç" haritayı havalimanının çevresinde açar (açılış görünümü IST’nin yerine)', async ({
+    page,
+  }) => {
+    // Açılış görünümü IST olduğundan (D-079) başka bir havalimanıyla denenir: Esenboğa.
+    await page.goto('/istasyon/LTAC')
+    await page.locator('main a[href="/?havalimani=LTAC"]').click()
     await page.waitForURL((url) => url.pathname === '/')
     await waitForMap(page)
-    // Tablo yalnızca haritada görünen uçakları listeler: LTFM'deki taksi uçağı görünür, Esenboğa ile
-    // Van arasında uçan uçak görünmez (Türkiye görünümünde ikisi de görünürdü).
-    await expect(aircraftRow(page, TAXI_AIRCRAFT.hex)).toBeVisible({ timeout: 30_000 })
-    await expect(aircraftRow(page, FAR_AIRCRAFT.hex)).toHaveCount(0)
+    // Harita ESB'dedir: görünümün ortasına en yakın havalimanı ESB, LTFM'deki taksi uçağı görünmez.
+    await expect
+      .poll(async () => (await airportListCodes(page))[0], { timeout: 30_000 })
+      .toBe('ESB')
+    await expect(aircraftRow(page, TAXI_AIRCRAFT.hex)).toHaveCount(0, { timeout: 30_000 })
   })
 
   test('İngilizce liste ve havalimanı sayfası /en altında kalır', async ({ page }) => {

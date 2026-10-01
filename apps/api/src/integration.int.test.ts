@@ -68,6 +68,7 @@ describe('gerçek bağımlılıklarla', () => {
       live: { source: null, codes: () => EMPTY_AIRLINE_CODES },
       blocklistRedis: null,
       airports: { list: null },
+      weather: { stations: null, latest: null },
     })
     try {
       const ready = await app.inject({ method: 'GET', url: '/ready' })

@@ -1,4 +1,11 @@
 import { describe, expect, it } from 'vitest'
+import {
+  AIRPORT_PIN_HEAD,
+  AIRPORT_PIN_ICON_ID,
+  AIRPORT_PIN_MARGIN,
+  AIRPORT_PIN_PATH,
+  AIRPORT_PIN_VIEWBOX,
+} from './airport-pin'
 import { MAP_COLORS } from './colors'
 import {
   AIRCRAFT_LAYER,
@@ -80,18 +87,33 @@ describe('katmanlar', () => {
     ])
   })
 
-  it('havalimanı katmanı: opak nokta, yakınlaştıkça büyür', () => {
-    const { paint } = AIRPORT_LAYER
-    expect(AIRPORT_LAYER.type).toBe('circle')
-    expect(paint['circle-color']).toBe(MAP_COLORS.airport)
-    expect(paint['circle-stroke-color']).toBe(MAP_COLORS.airportOutline)
-    expect(paint['circle-opacity']).toBe(1)
-    expect(paint['circle-stroke-opacity']).toBe(1)
-    const radius = stops(paint['circle-radius'])
-    for (let i = 1; i < radius.length; i++) {
-      expect(radius[i]?.[0]).toBeGreaterThan(radius[i - 1]?.[0] ?? Infinity)
-      expect(radius[i]?.[1]).toBeGreaterThan(radius[i - 1]?.[1] ?? Infinity)
+  it('havalimanı katmanı: kırmızı pin, ucu noktada (alt kenar + pay), hep çizilir, yakınlaştıkça büyür', () => {
+    expect(AIRPORT_LAYER.type).toBe('symbol')
+    expect(AIRPORT_LAYER.layout).toMatchObject({
+      'icon-image': AIRPORT_PIN_ICON_ID,
+      'icon-anchor': 'bottom',
+      'icon-offset': [0, AIRPORT_PIN_MARGIN],
+      'icon-allow-overlap': true,
+      'icon-ignore-placement': true,
+    })
+    const size = stops(AIRPORT_LAYER.layout['icon-size'])
+    for (let i = 1; i < size.length; i++) {
+      expect(size[i]?.[0]).toBeGreaterThan(size[i - 1]?.[0] ?? Infinity)
+      expect(size[i]?.[1]).toBeGreaterThan(size[i - 1]?.[1] ?? Infinity)
     }
+    // Kırmızı pin, beyaz kenar: THY kırmızısıyla aynı değildir.
+    expect(MAP_COLORS.airport).not.toBe(MAP_COLORS.thyRed)
+    expect(MAP_COLORS.airportOutline).toBe('#FFFFFF')
+  })
+
+  it('pin yolu: uç görünüm kutusunun altında ortada, baş yukarıda', () => {
+    expect(
+      AIRPORT_PIN_PATH.startsWith(
+        `M${AIRPORT_PIN_VIEWBOX.width / 2} ${AIRPORT_PIN_VIEWBOX.height}`,
+      ),
+    ).toBe(true)
+    expect(AIRPORT_PIN_HEAD.cy + AIRPORT_PIN_HEAD.r).toBeLessThan(AIRPORT_PIN_VIEWBOX.height)
+    expect(AIRPORT_PIN_HEAD.cy - AIRPORT_PIN_HEAD.r).toBeGreaterThanOrEqual(0)
   })
 
   it('iz katmanı: yerde camgöbeği, havada kehribar; düz ve opak', () => {

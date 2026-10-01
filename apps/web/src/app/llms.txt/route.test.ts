@@ -70,6 +70,10 @@ describe('GET /llms.txt', () => {
     ])
     expect(text).toContain('ADSB.lol')
     expect(text).toContain('ODbL')
+    // Hava durumu ve kaynağı (D-078); resmî brifing olmadığı iki dilde de yazılır.
+    expect(text).toContain('[aviationweather.gov](https://aviationweather.gov/)')
+    expect(text).toContain('resmî brifing yerine geçmez')
+    expect(text).toContain('not an official briefing')
   })
 
   it('her bağlantı sitenin mutlak adresidir (dış kaynak atıfları hariç)', async () => {
@@ -80,6 +84,7 @@ describe('GET /llms.txt', () => {
       'https://adsb.lol',
       'https://opendatacommons.org/',
       'https://ourairports.com/',
+      'https://aviationweather.gov/',
     ]
     for (const link of links) {
       const ok = link.startsWith(`${HOST}/`) || external.some((e) => link.startsWith(e))
@@ -94,7 +99,7 @@ describe('GET /llms.txt', () => {
     expect(airportLines).toHaveLength(2)
     expect(text).not.toContain('LTAG')
     expect(airportLines).toContain(
-      `- [İstanbul Havalimanı (IST/LTFM)](${HOST}/istasyon/LTFM): İstanbul; 6 pist; izlenen istasyon; English: [Istanbul Airport](${HOST}/en/istasyon/LTFM)`,
+      `- [İstanbul Havalimanı (IST/LTFM)](${HOST}/istasyon/LTFM): İstanbul; 6 pist; English: [Istanbul Airport](${HOST}/en/istasyon/LTFM)`,
     )
     // İl sırası Türkçe alfabeyle: Ankara, İstanbul.
     expect(airportLines[0]).toContain('(ESB/LTAC)')

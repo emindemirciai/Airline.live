@@ -1,0 +1,768 @@
+[
+  {
+    "icaoId": "LTAI",
+    "dbPopTime": "2026-01-15 12:17:00.000Z",
+    "bulletinTime": "2026-01-15 12:15:00.000Z",
+    "issueTime": "2026-01-15 12:15:00.000Z",
+    "validTimeFrom": 1768478400,
+    "validTimeTo": 1768586400,
+    "rawTAF": "TAF AMD LTAI 151215Z 1512/1618 20015G28KT 3000 TSRA SCT015CB BKN030 PROB40 1515/1518 1500 +TSRA BECMG 1600/1602 9999 NSW SCT025",
+    "mostRecent": 1,
+    "remarks": "",
+    "lat": 36.899,
+    "lon": 30.801,
+    "elev": 54,
+    "prior": 0,
+    "name": "Antalya Intl, AN, TR",
+    "fcsts": [
+      {
+        "timeFrom": 1768478400,
+        "timeTo": 1768586400,
+        "fcstChange": null,
+        "probability": null
+      },
+      {
+        "timeFrom": 1768489200,
+        "timeTo": 1768500000,
+        "fcstChange": "PROB",
+        "probability": 40
+      },
+      {
+        "timeFrom": 1768521600,
+        "timeTo": 1768528800,
+        "timeBec": 1768528800,
+        "fcstChange": "BECMG",
+        "probability": null
+      }
+    ]
+  },
+  {
+    "icaoId": "LTAC",
+    "dbPopTime": "2026-01-15 10:42:00.000Z",
+    "bulletinTime": "2026-01-15 10:40:00.000Z",
+    "issueTime": "2026-01-15 10:40:00.000Z",
+    "validTimeFrom": 1768478400,
+    "validTimeTo": 1768564800,
+    "rawTAF": "TAF LTAC 151040Z 1512/1612 32012KT 2000 SN BKN008 OVC015 TEMPO 1512/1516 0800 +SN VV005 BECMG 1518/1520 6000 NSW SCT020",
+    "mostRecent": 1,
+    "remarks": "",
+    "lat": 40.128,
+    "lon": 32.995,
+    "elev": 953,
+    "prior": 0,
+    "name": "Ankara/Esenboga Intl, AN, TR",
+    "fcsts": [
+      {
+        "timeFrom": 1768478400,
+        "timeTo": 1768564800,
+        "fcstChange": null,
+        "probability": null
+      },
+      {
+        "timeFrom": 1768478400,
+        "timeTo": 1768492800,
+        "fcstChange": "TEMPO",
+        "probability": null
+      },
+      {
+        "timeFrom": 1768500000,
+        "timeTo": 1768507200,
+        "timeBec": 1768507200,
+        "fcstChange": "BECMG",
+        "probability": null
+      }
+    ]
+  },
+  {
+    "icaoId": "LTBA",
+    "dbPopTime": "2026-01-15 10:42:00.000Z",
+    "bulletinTime": "2026-01-15 10:40:00.000Z",
+    "issueTime": "2026-01-15 10:40:00.000Z",
+    "validTimeFrom": 1768478400,
+    "validTimeTo": 1768564800,
+    "rawTAF": "TAF LTBA 151040Z 1512/1612 04010KT CAVOK BECMG 1600/1602 3000 BR NSC FM161000 05012KT 9999 FEW030",
+    "mostRecent": 1,
+    "remarks": "",
+    "lat": 40.976,
+    "lon": 28.821,
+    "elev": 50,
+    "prior": 0,
+    "name": "Istanbul/Ataturk Intl, IS, TR",
+    "fcsts": [
+      {
+        "timeFrom": 1768478400,
+        "timeTo": 1768564800,
+        "fcstChange": null,
+        "probability": null
+      },
+      {
+        "timeFrom": 1768521600,
+        "timeTo": 1768528800,
+        "timeBec": 1768528800,
+        "fcstChange": "BECMG",
+        "probability": null
+      },
+      {
+        "timeFrom": 1768557600,
+        "timeTo": 1768564800,
+        "fcstChange": "FM",
+        "probability": null
+      }
+    ]
+  },
+  {
+    "icaoId": "LTCE",
+    "dbPopTime": "2026-01-15 10:42:00.000Z",
+    "bulletinTime": "2026-01-15 10:40:00.000Z",
+    "issueTime": "2026-01-15 10:40:00.000Z",
+    "validTimeFrom": 1768478400,
+    "validTimeTo": 1768564800,
+    "rawTAF": "TAF LTCE 151040Z 1512/1612 27020G35KT 0800 +SHSN BLSN VV004 BECMG 1516/1518 25012KT 3000 -SN BKN010",
+    "mostRecent": 1,
+    "remarks": "",
+    "lat": 39.957,
+    "lon": 41.17,
+    "elev": 1756,
+    "prior": 0,
+    "name": "Erzurum Intl, ER, TR",
+    "fcsts": [
+      {
+        "timeFrom": 1768478400,
+        "timeTo": 1768564800,
+        "fcstChange": null,
+        "probability": null
+      },
+      {
+        "timeFrom": 1768492800,
+        "timeTo": 1768500000,
+        "timeBec": 1768500000,
+        "fcstChange": "BECMG",
+        "probability": null
+      }
+    ]
+  },
+  {
+    "icaoId": "LTCG",
+    "dbPopTime": "2026-01-15 10:42:00.000Z",
+    "bulletinTime": "2026-01-15 10:40:00.000Z",
+    "issueTime": "2026-01-15 10:40:00.000Z",
+    "validTimeFrom": 1768478400,
+    "validTimeTo": 1768510800,
+    "rawTAF": "TAF LTCG 151040Z 1512/1521 00000KT 0300 FG VV001 BECMG 1513/1515 3000 BR SCT005",
+    "mostRecent": 1,
+    "remarks": "",
+    "lat": 40.995,
+    "lon": 39.79,
+    "elev": 33,
+    "prior": 0,
+    "name": "Trabzon Intl, TR, TR",
+    "fcsts": [
+      {
+        "timeFrom": 1768478400,
+        "timeTo": 1768510800,
+        "fcstChange": null,
+        "probability": null
+      },
+      {
+        "timeFrom": 1768482000,
+        "timeTo": 1768489200,
+        "timeBec": 1768489200,
+        "fcstChange": "BECMG",
+        "probability": null
+      }
+    ]
+  },
+  {
+    "icaoId": "LTFM",
+    "dbPopTime": "2026-01-15 10:42:00.000Z",
+    "bulletinTime": "2026-01-15 10:40:00.000Z",
+    "issueTime": "2026-01-15 10:40:00.000Z",
+    "validTimeFrom": 1768478400,
+    "validTimeTo": 1768586400,
+    "rawTAF": "TAF LTFM 151040Z 1512/1618 03015G28KT 9999 SCT025 BKN035 TEMPO 1512/1518 4000 SHRA FEW025CB PROB30 TEMPO 1514/1518 TSRA BECMG 1520/1522 02008KT",
+    "mostRecent": 1,
+    "remarks": "",
+    "lat": 41.262,
+    "lon": 28.742,
+    "elev": 99,
+    "prior": 0,
+    "name": "Istanbul Arpt, IS, TR",
+    "fcsts": [
+      {
+        "timeFrom": 1768478400,
+        "timeTo": 1768586400,
+        "fcstChange": null,
+        "probability": null
+      },
+      {
+        "timeFrom": 1768478400,
+        "timeTo": 1768500000,
+        "fcstChange": "TEMPO",
+        "probability": null
+      },
+      {
+        "timeFrom": 1768485600,
+        "timeTo": 1768500000,
+        "fcstChange": "TEMPO",
+        "probability": 30
+      },
+      {
+        "timeFrom": 1768507200,
+        "timeTo": 1768514400,
+        "timeBec": 1768514400,
+        "fcstChange": "BECMG",
+        "probability": null
+      }
+    ]
+  },
+  {
+    "icaoId": "LTFM",
+    "dbPopTime": "2026-01-15 04:42:00.000Z",
+    "bulletinTime": "2026-01-15 04:40:00.000Z",
+    "issueTime": "2026-01-15 04:40:00.000Z",
+    "validTimeFrom": 1768456800,
+    "validTimeTo": 1768564800,
+    "rawTAF": "TAF LTFM 150440Z 1506/1612 04012KT 9999 SCT030 TEMPO 1510/1516 5000 -SHRA",
+    "mostRecent": 0,
+    "remarks": "",
+    "lat": 41.262,
+    "lon": 28.742,
+    "elev": 99,
+    "prior": 0,
+    "name": "Istanbul Arpt, IS, TR",
+    "fcsts": [
+      {
+        "timeFrom": 1768456800,
+        "timeTo": 1768564800,
+        "fcstChange": null,
+        "probability": null
+      },
+      {
+        "timeFrom": 1768471200,
+        "timeTo": 1768492800,
+        "fcstChange": "TEMPO",
+        "probability": null
+      }
+    ]
+  },
+  {
+    "icaoId": "LTFM",
+    "dbPopTime": "2026-01-14 22:42:00.000Z",
+    "bulletinTime": "2026-01-14 22:40:00.000Z",
+    "issueTime": "2026-01-14 22:40:00.000Z",
+    "validTimeFrom": 1768435200,
+    "validTimeTo": 1768543200,
+    "rawTAF": "TAF LTFM 142240Z 1500/1606 VRB03KT CAVOK BECMG 1506/1508 03014KT 9999 SCT035 BKN050 TEMPO 1510/1518 4000 SHRA FEW025CB BECMG 1600/1602 02008KT",
+    "mostRecent": 0,
+    "remarks": "",
+    "lat": 41.262,
+    "lon": 28.742,
+    "elev": 99,
+    "prior": 0,
+    "name": "Istanbul Arpt, IS, TR",
+    "fcsts": [
+      {
+        "timeFrom": 1768435200,
+        "timeTo": 1768543200,
+        "fcstChange": null,
+        "probability": null
+      },
+      {
+        "timeFrom": 1768456800,
+        "timeTo": 1768464000,
+        "timeBec": 1768464000,
+        "fcstChange": "BECMG",
+        "probability": null
+      },
+      {
+        "timeFrom": 1768471200,
+        "timeTo": 1768500000,
+        "fcstChange": "TEMPO",
+        "probability": null
+      },
+      {
+        "timeFrom": 1768521600,
+        "timeTo": 1768528800,
+        "timeBec": 1768528800,
+        "fcstChange": "BECMG",
+        "probability": null
+      }
+    ]
+  },
+  {
+    "icaoId": "LTFM",
+    "dbPopTime": "2026-01-14 16:42:00.000Z",
+    "bulletinTime": "2026-01-14 16:40:00.000Z",
+    "issueTime": "2026-01-14 16:40:00.000Z",
+    "validTimeFrom": 1768413600,
+    "validTimeTo": 1768521600,
+    "rawTAF": "TAF LTFM 141640Z 1418/1524 32008KT 9999 FEW035 BECMG 1500/1502 VRB03KT CAVOK BECMG 1506/1508 03014KT 9999 BKN035 TEMPO 1510/1518 4000 SHRA FEW025CB",
+    "mostRecent": 0,
+    "remarks": "",
+    "lat": 41.262,
+    "lon": 28.742,
+    "elev": 99,
+    "prior": 0,
+    "name": "Istanbul Arpt, IS, TR",
+    "fcsts": [
+      {
+        "timeFrom": 1768413600,
+        "timeTo": 1768521600,
+        "fcstChange": null,
+        "probability": null
+      },
+      {
+        "timeFrom": 1768435200,
+        "timeTo": 1768442400,
+        "timeBec": 1768442400,
+        "fcstChange": "BECMG",
+        "probability": null
+      },
+      {
+        "timeFrom": 1768456800,
+        "timeTo": 1768464000,
+        "timeBec": 1768464000,
+        "fcstChange": "BECMG",
+        "probability": null
+      },
+      {
+        "timeFrom": 1768471200,
+        "timeTo": 1768500000,
+        "fcstChange": "TEMPO",
+        "probability": null
+      }
+    ]
+  },
+  {
+    "icaoId": "LTFM",
+    "dbPopTime": "2026-01-14 10:42:00.000Z",
+    "bulletinTime": "2026-01-14 10:40:00.000Z",
+    "issueTime": "2026-01-14 10:40:00.000Z",
+    "validTimeFrom": 1768392000,
+    "validTimeTo": 1768500000,
+    "rawTAF": "TAF LTFM 141040Z 1412/1518 30012KT 9999 FEW030 SCT050 BECMG 1418/1420 33006KT CAVOK BECMG 1506/1508 03012KT 9999 BKN035 TEMPO 1509/1518 4000 SHRA",
+    "mostRecent": 0,
+    "remarks": "",
+    "lat": 41.262,
+    "lon": 28.742,
+    "elev": 99,
+    "prior": 0,
+    "name": "Istanbul Arpt, IS, TR",
+    "fcsts": [
+      {
+        "timeFrom": 1768392000,
+        "timeTo": 1768500000,
+        "fcstChange": null,
+        "probability": null
+      },
+      {
+        "timeFrom": 1768413600,
+        "timeTo": 1768420800,
+        "timeBec": 1768420800,
+        "fcstChange": "BECMG",
+        "probability": null
+      },
+      {
+        "timeFrom": 1768456800,
+        "timeTo": 1768464000,
+        "timeBec": 1768464000,
+        "fcstChange": "BECMG",
+        "probability": null
+      },
+      {
+        "timeFrom": 1768467600,
+        "timeTo": 1768500000,
+        "fcstChange": "TEMPO",
+        "probability": null
+      }
+    ]
+  },
+  {
+    "icaoId": "LTFM",
+    "dbPopTime": "2026-01-14 06:17:00.000Z",
+    "bulletinTime": "2026-01-14 06:15:00.000Z",
+    "issueTime": "2026-01-14 06:15:00.000Z",
+    "validTimeFrom": 1768370400,
+    "validTimeTo": 1768478400,
+    "rawTAF": "TAF AMD LTFM 140615Z 1406/1512 22020G32KT 3000 TSRA FEW015CB BKN025 TEMPO 1406/1409 1500 +TSRA BECMG 1410/1412 30012KT 9999 NSW FEW030 BECMG 1418/1420 33006KT CAVOK",
+    "mostRecent": 0,
+    "remarks": "",
+    "lat": 41.262,
+    "lon": 28.742,
+    "elev": 99,
+    "prior": 0,
+    "name": "Istanbul Arpt, IS, TR",
+    "fcsts": [
+      {
+        "timeFrom": 1768370400,
+        "timeTo": 1768478400,
+        "fcstChange": null,
+        "probability": null
+      },
+      {
+        "timeFrom": 1768370400,
+        "timeTo": 1768381200,
+        "fcstChange": "TEMPO",
+        "probability": null
+      },
+      {
+        "timeFrom": 1768384800,
+        "timeTo": 1768392000,
+        "timeBec": 1768392000,
+        "fcstChange": "BECMG",
+        "probability": null
+      },
+      {
+        "timeFrom": 1768413600,
+        "timeTo": 1768420800,
+        "timeBec": 1768420800,
+        "fcstChange": "BECMG",
+        "probability": null
+      }
+    ]
+  },
+  {
+    "icaoId": "LTBJ",
+    "dbPopTime": "2026-01-14 04:42:00.000Z",
+    "bulletinTime": "2026-01-14 04:40:00.000Z",
+    "issueTime": "2026-01-14 04:40:00.000Z",
+    "validTimeFrom": 1768370400,
+    "validTimeTo": 1768456800,
+    "rawTAF": "TAF LTBJ 140440Z 1406/1506 VRB03KT 9999 FEW040",
+    "mostRecent": 1,
+    "remarks": "",
+    "lat": 38.292,
+    "lon": 27.157,
+    "elev": 125,
+    "prior": 0,
+    "name": "Izmir/Adnan Menderes Intl, IZ, TR",
+    "fcsts": [
+      {
+        "timeFrom": 1768370400,
+        "timeTo": 1768456800,
+        "fcstChange": null,
+        "probability": null
+      }
+    ]
+  },
+  {
+    "icaoId": "LTFM",
+    "dbPopTime": "2026-01-14 04:42:00.000Z",
+    "bulletinTime": "2026-01-14 04:40:00.000Z",
+    "issueTime": "2026-01-14 04:40:00.000Z",
+    "validTimeFrom": 1768370400,
+    "validTimeTo": 1768478400,
+    "rawTAF": "TAF LTFM 140440Z 1406/1512 22018G28KT 5000 -TSRA FEW018CB BKN028 TEMPO 1406/1409 2000 +TSRA BECMG 1410/1412 30012KT 9999 NSW FEW030 SCT050 BECMG 1418/1420 33006KT CAVOK",
+    "mostRecent": 0,
+    "remarks": "",
+    "lat": 41.262,
+    "lon": 28.742,
+    "elev": 99,
+    "prior": 0,
+    "name": "Istanbul Arpt, IS, TR",
+    "fcsts": [
+      {
+        "timeFrom": 1768370400,
+        "timeTo": 1768478400,
+        "fcstChange": null,
+        "probability": null
+      },
+      {
+        "timeFrom": 1768370400,
+        "timeTo": 1768381200,
+        "fcstChange": "TEMPO",
+        "probability": null
+      },
+      {
+        "timeFrom": 1768384800,
+        "timeTo": 1768392000,
+        "timeBec": 1768392000,
+        "fcstChange": "BECMG",
+        "probability": null
+      },
+      {
+        "timeFrom": 1768413600,
+        "timeTo": 1768420800,
+        "timeBec": 1768420800,
+        "fcstChange": "BECMG",
+        "probability": null
+      }
+    ]
+  },
+  {
+    "icaoId": "LTFM",
+    "dbPopTime": "2026-01-13 22:42:00.000Z",
+    "bulletinTime": "2026-01-13 22:40:00.000Z",
+    "issueTime": "2026-01-13 22:40:00.000Z",
+    "validTimeFrom": 1768348800,
+    "validTimeTo": 1768456800,
+    "rawTAF": "TAF LTFM 132240Z 1400/1506 22012KT 6000 RA BKN012 OVC030 TEMPO 1404/1409 22020G32KT 2500 TSRA FEW018CB BECMG 1410/1412 30012KT 9999 NSW FEW030 BECMG 1418/1420 33006KT CAVOK",
+    "mostRecent": 0,
+    "remarks": "",
+    "lat": 41.262,
+    "lon": 28.742,
+    "elev": 99,
+    "prior": 0,
+    "name": "Istanbul Arpt, IS, TR",
+    "fcsts": [
+      {
+        "timeFrom": 1768348800,
+        "timeTo": 1768456800,
+        "fcstChange": null,
+        "probability": null
+      },
+      {
+        "timeFrom": 1768363200,
+        "timeTo": 1768381200,
+        "fcstChange": "TEMPO",
+        "probability": null
+      },
+      {
+        "timeFrom": 1768384800,
+        "timeTo": 1768392000,
+        "timeBec": 1768392000,
+        "fcstChange": "BECMG",
+        "probability": null
+      },
+      {
+        "timeFrom": 1768413600,
+        "timeTo": 1768420800,
+        "timeBec": 1768420800,
+        "fcstChange": "BECMG",
+        "probability": null
+      }
+    ]
+  },
+  {
+    "icaoId": "LTFM",
+    "dbPopTime": "2026-01-13 16:42:00.000Z",
+    "bulletinTime": "2026-01-13 16:40:00.000Z",
+    "issueTime": "2026-01-13 16:40:00.000Z",
+    "validTimeFrom": 1768327200,
+    "validTimeTo": 1768435200,
+    "rawTAF": "TAF LTFM 131640Z 1318/1424 21014KT 9999 -RA BKN025 OVC060 TEMPO 1320/1403 4000 RA BKN015 PROB40 TEMPO 1405/1409 22020G32KT 2500 TSRA FEW018CB BECMG 1411/1413 31012KT 9999 NSW FEW030",
+    "mostRecent": 0,
+    "remarks": "",
+    "lat": 41.262,
+    "lon": 28.742,
+    "elev": 99,
+    "prior": 0,
+    "name": "Istanbul Arpt, IS, TR",
+    "fcsts": [
+      {
+        "timeFrom": 1768327200,
+        "timeTo": 1768435200,
+        "fcstChange": null,
+        "probability": null
+      },
+      {
+        "timeFrom": 1768334400,
+        "timeTo": 1768359600,
+        "fcstChange": "TEMPO",
+        "probability": null
+      },
+      {
+        "timeFrom": 1768366800,
+        "timeTo": 1768381200,
+        "fcstChange": "TEMPO",
+        "probability": 40
+      },
+      {
+        "timeFrom": 1768388400,
+        "timeTo": 1768395600,
+        "timeBec": 1768395600,
+        "fcstChange": "BECMG",
+        "probability": null
+      }
+    ]
+  },
+  {
+    "icaoId": "LTFM",
+    "dbPopTime": "2026-01-13 10:42:00.000Z",
+    "bulletinTime": "2026-01-13 10:40:00.000Z",
+    "issueTime": "2026-01-13 10:40:00.000Z",
+    "validTimeFrom": 1768305600,
+    "validTimeTo": 1768413600,
+    "rawTAF": "TAF LTFM 131040Z 1312/1418 20010KT 9999 SCT030 BKN060 BECMG 1317/1319 21014KT 6000 -RA BKN025 OVC060 TEMPO 1320/1403 4000 RA BKN015 PROB30 TEMPO 1405/1409 22020G32KT 3000 TSRA FEW018CB",
+    "mostRecent": 0,
+    "remarks": "",
+    "lat": 41.262,
+    "lon": 28.742,
+    "elev": 99,
+    "prior": 0,
+    "name": "Istanbul Arpt, IS, TR",
+    "fcsts": [
+      {
+        "timeFrom": 1768305600,
+        "timeTo": 1768413600,
+        "fcstChange": null,
+        "probability": null
+      },
+      {
+        "timeFrom": 1768323600,
+        "timeTo": 1768330800,
+        "timeBec": 1768330800,
+        "fcstChange": "BECMG",
+        "probability": null
+      },
+      {
+        "timeFrom": 1768334400,
+        "timeTo": 1768359600,
+        "fcstChange": "TEMPO",
+        "probability": null
+      },
+      {
+        "timeFrom": 1768366800,
+        "timeTo": 1768381200,
+        "fcstChange": "TEMPO",
+        "probability": 30
+      }
+    ]
+  },
+  {
+    "icaoId": "LTFM",
+    "dbPopTime": "2026-01-13 04:42:00.000Z",
+    "bulletinTime": "2026-01-13 04:40:00.000Z",
+    "issueTime": "2026-01-13 04:40:00.000Z",
+    "validTimeFrom": 1768284000,
+    "validTimeTo": 1768392000,
+    "rawTAF": "TAF LTFM 130440Z 1306/1412 00000KT 0300 FG VV001 BECMG 1307/1309 05006KT 6000 SCT015 BKN035 BECMG 1311/1313 20010KT 9999 BKN060 BECMG 1318/1320 21014KT 6000 RA BKN020 OVC050 TEMPO 1404/1410 4000 SHRA FEW020CB",
+    "mostRecent": 0,
+    "remarks": "",
+    "lat": 41.262,
+    "lon": 28.742,
+    "elev": 99,
+    "prior": 0,
+    "name": "Istanbul Arpt, IS, TR",
+    "fcsts": [
+      {
+        "timeFrom": 1768284000,
+        "timeTo": 1768392000,
+        "fcstChange": null,
+        "probability": null
+      },
+      {
+        "timeFrom": 1768287600,
+        "timeTo": 1768294800,
+        "timeBec": 1768294800,
+        "fcstChange": "BECMG",
+        "probability": null
+      },
+      {
+        "timeFrom": 1768302000,
+        "timeTo": 1768309200,
+        "timeBec": 1768309200,
+        "fcstChange": "BECMG",
+        "probability": null
+      },
+      {
+        "timeFrom": 1768327200,
+        "timeTo": 1768334400,
+        "timeBec": 1768334400,
+        "fcstChange": "BECMG",
+        "probability": null
+      },
+      {
+        "timeFrom": 1768363200,
+        "timeTo": 1768384800,
+        "fcstChange": "TEMPO",
+        "probability": null
+      }
+    ]
+  },
+  {
+    "icaoId": "LTFM",
+    "dbPopTime": "2026-01-12 22:42:00.000Z",
+    "bulletinTime": "2026-01-12 22:40:00.000Z",
+    "issueTime": "2026-01-12 22:40:00.000Z",
+    "validTimeFrom": 1768262400,
+    "validTimeTo": 1768370400,
+    "rawTAF": "TAF LTFM 122240Z 1300/1406 VRB02KT 9999 NSC BECMG 1301/1303 1500 BR TEMPO 1303/1307 0200 FG VV001 BECMG 1308/1310 20010KT 9999 SCT030 BKN060 BECMG 1318/1320 21014KT 6000 -RA BKN025 OVC060",
+    "mostRecent": 0,
+    "remarks": "",
+    "lat": 41.262,
+    "lon": 28.742,
+    "elev": 99,
+    "prior": 0,
+    "name": "Istanbul Arpt, IS, TR",
+    "fcsts": [
+      {
+        "timeFrom": 1768262400,
+        "timeTo": 1768370400,
+        "fcstChange": null,
+        "probability": null
+      },
+      {
+        "timeFrom": 1768266000,
+        "timeTo": 1768273200,
+        "timeBec": 1768273200,
+        "fcstChange": "BECMG",
+        "probability": null
+      },
+      {
+        "timeFrom": 1768273200,
+        "timeTo": 1768287600,
+        "fcstChange": "TEMPO",
+        "probability": null
+      },
+      {
+        "timeFrom": 1768291200,
+        "timeTo": 1768298400,
+        "timeBec": 1768298400,
+        "fcstChange": "BECMG",
+        "probability": null
+      },
+      {
+        "timeFrom": 1768327200,
+        "timeTo": 1768334400,
+        "timeBec": 1768334400,
+        "fcstChange": "BECMG",
+        "probability": null
+      }
+    ]
+  },
+  {
+    "icaoId": "LTFM",
+    "dbPopTime": "2026-01-12 16:42:00.000Z",
+    "bulletinTime": "2026-01-12 16:40:00.000Z",
+    "issueTime": "2026-01-12 16:40:00.000Z",
+    "validTimeFrom": 1768240800,
+    "validTimeTo": 1768348800,
+    "rawTAF": "TAF LTFM 121640Z 1218/1324 04008KT CAVOK BECMG 1222/1224 00000KT 9999 NSC BECMG 1302/1304 2000 BR TEMPO 1303/1307 0300 FG VV001",
+    "mostRecent": 0,
+    "remarks": "",
+    "lat": 41.262,
+    "lon": 28.742,
+    "elev": 99,
+    "prior": 0,
+    "name": "Istanbul Arpt, IS, TR",
+    "fcsts": [
+      {
+        "timeFrom": 1768240800,
+        "timeTo": 1768348800,
+        "fcstChange": null,
+        "probability": null
+      },
+      {
+        "timeFrom": 1768255200,
+        "timeTo": 1768262400,
+        "timeBec": 1768262400,
+        "fcstChange": "BECMG",
+        "probability": null
+      },
+      {
+        "timeFrom": 1768269600,
+        "timeTo": 1768276800,
+        "timeBec": 1768276800,
+        "fcstChange": "BECMG",
+        "probability": null
+      },
+      {
+        "timeFrom": 1768273200,
+        "timeTo": 1768287600,
+        "fcstChange": "TEMPO",
+        "probability": null
+      }
+    ]
+  }
+]

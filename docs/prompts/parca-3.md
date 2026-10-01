@@ -101,7 +101,7 @@ Onay gelmeden sayfa yapımına geçilmez.
 
 **Diğer bölümler:**
 - son 2 saatin inişleri ve kalkışları (pist ve saatle)
-- çözümlenmiş METAR/TAF (yaşıyla birlikte)
+- çözümlenmiş METAR/TAF (yaşıyla birlikte): Parça 1 M6c'den beri havalimanı sayfasında ve harita penceresinde var (D-078); pano aynı API'yi kullanır
 - yaklaşma haritası
 - kapsama kalitesi göstergesi ve %70 altı uyarısı (domain.md)
 - filtreli istasyon takibi (saatlik bildirim tahminiyle)

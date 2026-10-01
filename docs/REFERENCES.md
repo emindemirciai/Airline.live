@@ -12,9 +12,29 @@ Bir şeyi doğrulaman gerekiyorsa önce buradaki kaynakları kullan. Yeni bir ka
 - OurAirports verisi: https://ourairports.com/data/ · CSV: https://davidmegginson.github.io/ourairports-data/
 - VRS standing-data: https://github.com/vradarserver/standing-data · ayna: https://vrs-standing-data.adsb.lol/
 - FAA JO 7340.2 (Contractions, Bölüm 3 telsiz çağrı adları): https://www.faa.gov/air_traffic/publications/atpubs/cnt_html/
-- AviationWeather Data API: https://aviationweather.gov/data/api/
+- AviationWeather Data API: https://aviationweather.gov/data/api/ (ayrıntı aşağıda, "Havacılık hava durumu")
 - OpenFreeMap: https://openfreemap.org/ (SSS ve kullanım şartları)
 - Protomaps (self-host yedek): https://docs.protomaps.com/
+
+## Havacılık hava durumu: METAR/TAF (erişim 2026-10-01; D-078)
+- **aviationweather.gov (NOAA Aviation Weather Center):**
+  - Data API (sınırlar, yanıt kodları, önbellek dosyaları, `www` kullanılmaz, CORS yok): https://aviationweather.gov/data/api/
+  - OpenAPI şeması (v4.0; METAR ve TAF parametreleri ve JSON alanları, birimler): https://aviationweather.gov/data/schema/openapi.yaml
+  - XML şemaları (bulut tabanı AGL, CB/TCU `cloud_type`, inHg basınç): https://aviationweather.gov/data/schema/metar2_0.xsd · https://aviationweather.gov/data/schema/taf2_0.xsd
+  - Veri yardımı (hava olayı kodları, bulut tabanı ft AGL, TAF rüzgârı gerçek kuzeye göre): https://aviationweather.gov/help/data/
+  - SSS (Eylül 2025 API yenilemesi): https://aviationweather.gov/help/ · planlanan değişiklikler: https://aviationweather.gov/help/upcoming/ · test ortamının Eylül 2025 değişiklik listesi: https://testbed.aviationweather.gov/help/upcoming/
+  - Değişiklik günlüğü (v4.25 `cgi-bin` kaldırıldı, v4.26 belgelenmemiş parametre yasağı, v4.30–v4.31 önbellek): https://aviationweather.gov/data/feed/changelog.json
+  - METAR sayfası (kendi isteği: düz virgüllü `ids`, `/taf`'ta `hours` yok, 204 = veri yok): https://aviationweather.gov/data/metar/
+- **NWS kullanım şartları** (kamu malı, onay ima etmeme, ad ve logo izni, yeniden deneme en az 1 dk arayla, engellenen kullanıcı sdm@noaa.gov): https://www.weather.gov/disclaimer
+- **MGM:**
+  - *Havacılık Meteorolojisi 1* (Ankara, 2018; METAR/TAF kodları, Türkiye'de TAF düzeni V.3.7, meydan uyarı eşikleri): https://www.mgm.gov.tr/FILES/genel/kitaplar/havacilikmeteorolojisi.pdf
+  - Halka açık simge adları: https://www.mgm.gov.tr/site/yardim1.aspx?=Simgeler · "gök gürültülü" kullanımı: https://www.mgm.gov.tr/tahmin/gunluk-tahmin.aspx?b=15
+  - Meteoroloji sözlüğü ("Kuru duman" ve "Kuru pus"): https://www.mgm.gov.tr/genel/meteorolojisozlugu.aspx?m=K&k=aa208 · https://www.mgm.gov.tr/genel/meteorolojisozlugu.aspx?m=K&k=aa213
+- **WMO-No. 782** *Aerodrome Reports and Forecasts* (2020, ICAO Ek 3 Değişiklik 79 ile uyumlu; kod biçimleri ve örnekler): https://archiwum.imgw.pl/sites/default/files/2021-06/aerodromereportsandforecasts.pdf · WMO Teknik Düzenlemeler Cilt II'nin kaldırılması (Ek 3 başvuru kaynağıdır): https://community.wmo.int/en/activity-areas/aviation/resources/tech-regs-v2-discontinuation
+- **DHMİ AIP AD 2** (meteoroloji biriminin çalışma saatleri ve TAF geçerliliği; `<ICAO>` havalimanı kodu): `https://www.dhmi.gov.tr/AIPDocuments/LT_AD_2_<ICAO>_en.pdf` · örnek: https://www.dhmi.gov.tr/AIPDocuments/LT_AD_2_LTCW_en.pdf
+- **Gün doğumu ve batımı:** NOAA güneş hesaplayıcısı (test değerleri buradan, ±1 dk): https://gml.noaa.gov/grad/solcalc/ · hesap ayrıntıları (zenit 90,833°): https://gml.noaa.gov/grad/solcalc/calcdetails.html
+- **Bağıl nem:** Lawrence, M. G. (2005), "The Relationship between Relative Humidity and the Dewpoint Temperature in Moist Air", *BAMS* 86(2), 225–233 (Magnus formülü, Alduchov–Eskridge katsayıları): https://doi.org/10.1175/BAMS-86-2-225
+- **Tavan tanımı:** SKYbrary "Ceiling": https://skybrary.aero/articles/ceiling
 
 ## Uydu altlığı (Esri World Imagery, erişim 2026-09-28)
 - ArcGIS Location Platform fiyatları ve ücretsiz katman: https://location.arcgis.com/pricing/

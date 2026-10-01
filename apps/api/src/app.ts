@@ -16,6 +16,7 @@ import type { LiveSource } from './live/types'
 import { registerLiveWs } from './live/ws'
 import { clientIp } from './net/client-ip'
 import { registerAirportRoutes, type AirportRouteOptions } from './reference/airports'
+import { registerWeatherRoutes, type WeatherRouteOptions } from './reference/weather'
 
 export interface VersionInfo {
   app: 'havayolu'
@@ -46,6 +47,11 @@ export interface AppDeps {
    * 503.
    */
   airports: AirportRouteOptions
+  /**
+   * Hava durumu uçları (`/v1/weather`, `/v1/airports/:code/weather`, `.../weather/history`);
+   * okuyucu null ise (veritabanı yok) 503.
+   */
+  weather: WeatherRouteOptions
 }
 
 /** CORS izinli origin'leri: web ve admin host'ları (yerelde http, diğerlerinde https). */
@@ -115,6 +121,11 @@ export async function buildApp(env: Env, deps: AppDeps): Promise<FastifyInstance
         { name: 'admin', description: 'Yönetim' },
         { name: 'live', description: 'Canlı uçaklar ve arama (WebSocket: /v1/ws)' },
         { name: 'reference', description: 'Referans verisi (havalimanları)' },
+        {
+          name: 'weather',
+          description:
+            'Havalimanı hava durumu: METAR/TAF (aviationweather.gov, NOAA Aviation Weather Center); resmî brifing yerine geçmez',
+        },
       ],
     },
   })
@@ -199,6 +210,8 @@ export async function buildApp(env: Env, deps: AppDeps): Promise<FastifyInstance
   registerLiveWs(app, { source: deps.live.source, ready: deps.live.ready, env, log: app.log })
   // Havalimanları: harita noktaları ve havalimanı sayfaları (OurAirports referans verisi).
   registerAirportRoutes(app, deps.airports)
+  // Hava durumu: worker'ın yazdığı METAR/TAF, okurken çözümlenir (D-078).
+  registerWeatherRoutes(app, deps.weather)
 
   return app
 }

@@ -94,8 +94,11 @@ export function SearchBox({ apiBaseUrl, messages, onFound, notice = null }: Sear
     onFound(ac)
   }
 
+  /** Escape sonuç listesini kapatır ve tüketilir: açık havalimanı penceresi aynı tuşla kapanmaz. */
   function closeOnEscape(event: KeyboardEvent<HTMLFormElement>) {
-    if (event.key === 'Escape' && state.phase === 'pick') setState({ phase: 'idle' })
+    if (event.key !== 'Escape' || state.phase !== 'pick') return
+    event.preventDefault()
+    setState({ phase: 'idle' })
   }
 
   const text = state.phase === 'idle' && notice ? notice : statusText(state, messages)

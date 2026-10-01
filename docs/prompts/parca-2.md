@@ -48,7 +48,7 @@ IST'de iniş bildiriminin hangi yoldan geleceğini `docs/reports/kapsama.md` bel
 - **VRS rota içe aktarımı** (data-sources.md §4): günlük, ETag ile. Havayolları Parça 1'de gelmiştir; bu kilometre taşında `usesAlphanumericCallsigns` bayrağı ve admin düzeltme tabloları eklenir.
 - **Rota tahmini:** Çağrı kodundan rota bulunur ve uygunluk yerelde hesaplanır. Sonuç "tahmini" olarak işaretlenir. Negatif önbellek her günlük içe aktarımda tazelenir.
 - **Sefer no → çağrı kodu adayı:** TK1985 → THY1985 (IATA tekil değildir; data-sources.md §4).
-- **METAR/TAF** (data-sources.md §5): Etkin istasyonlar tek istekte çekilir; METAR 10 dk'da bir, TAF 60 dk'da bir (`upsertJobScheduler`). Ayrıştırılan alanlar: QNH (`altim` hPa), rüzgâr, görüş, tavan, ham metin.
+- **METAR/TAF:** Parça 1 M6c'de geldi (D-078): 61 havalimanı, METAR 5 dk'da, TAF 15 dk'da bir, 30 günlük kayıt, `weather_metar.qnh_hpa`, havalimanı sayfasında ve harita penceresinde çözümlenmiş hava durumu. Bu kilometre taşında yalnızca AGL bağlantısı kalır: QNH `weather_metar.qnh_hpa`'dan, `observed_at` 90 dk'dan yeniyse.
 - **AGL girdileri:** M1'deki fonksiyon için METAR QNH'si ve istasyon geoid değeri sağlanır. Geoid değeri `egm96-universal` `meanSeaLevel(lat, lon)` ile istasyon başına bir kez hesaplanır ve `stations.geoid_undulation_m`'de saklanır. Paket yalnızca engine/worker'da kullanılır.
 - **Kabul:**
   - Geoid birim testleri: LTFM ≈ 37,05 m, SAW ≈ 37,61 m, AYT ≈ 27,36 m (±0,5 m).
@@ -180,7 +180,7 @@ IST'de iniş bildiriminin hangi yoldan geleceğini `docs/reports/kapsama.md` bel
   - liste
   - varış panosu: yaklaşanlar, mesafe, tahmini varış, durum, kapsama kalitesi
   - son 2 saatin inişleri ve kalkışları (pist ve saatle)
-  - METAR/TAF
+  - METAR/TAF (Parça 1 M6c'de geldi: `GET /v1/airports/:code/weather` ve `/weather/history`, D-078)
   - operasyon panosu için filtreli akış
   - kapsama kalitesi job'ı (domain.md → "Kapsama kalitesi")
 - **Admin:** kullanıcılar, sağlayıcı sağlığı, bildirim kayıtları, engel listesi ve kaldırma talepleri, havayolu ve pist düzeltmeleri, limitler, disk kullanımı, `coverage:report` tetikleme.

@@ -99,6 +99,26 @@ describe('layoutLabels — konumlar', () => {
   })
 })
 
+describe('layoutLabels — ayrılmış alanlar', () => {
+  it('ayrılmış dikdörtgeni (birincil istasyonun kodu) örtmez; seçili etiket yer yoksa örtebilir', () => {
+    const chip = { x: 400 + NEAR - 4, y: 300 - 30, width: 40, height: 16 }
+    const [label] = layoutLabels([box('a', 400, 300)], VIEW, { reserved: [chip] })
+    expect(label).toBeDefined()
+    const placed = label as PlacedLabel
+    const covers =
+      placed.x < chip.x + chip.width &&
+      placed.x + 80 > chip.x &&
+      placed.y < chip.y + chip.height &&
+      placed.y + 34 > chip.y
+    expect(covers).toBe(false)
+    // Ayrılmış alan yokken etiket aynı yere (sağ üst) gelirdi.
+    expect(layoutLabels([box('a', 400, 300)], VIEW)[0]).toMatchObject({
+      x: 400 + NEAR,
+      y: 300 - 35,
+    })
+  })
+})
+
 describe('layoutLabels — öncelik', () => {
   it('çekişmeli yeri yüksek öncelikli alır; eşitlikte kimlik sırası belirler', () => {
     const placed = layoutLabels(

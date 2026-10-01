@@ -37,3 +37,26 @@ Başka bir canlı kaynağa geçmek DUR-SOR'dur (lisans kaydı, data-sources.md).
    Bu canlı bir istektir; yalnızca kullanıcı çalıştırır.
 3. **Süreklilik:** 429 oranı saatlerce %20'nin üstünde kalırsa `ADSBLOL_RPS` düşürülebilir (en az 0,05); Dokploy env'i değişir ve worker yeniden başlar. Hızı 0,2'nin üstüne çıkarmak yalnızca 24 saatlik ölçüm ve DECISIONS kaydıyla yapılır (data-sources.md).
 4. **Kapsama raporu:** Kesinti uzarsa M7 kapsama raporu o saatleri ayrı gösterir; iniş kalitesi yorumlanırken dikkate alınır.
+
+## aviationweather.gov 403 ya da 429 (hava durumu)
+**Belirti:** admin Servisler'de "Hava durumu · aviationweather.gov" satırı "Sorunlu" (429 engeli, son denetimden yeni hata ya da taze gözlemli istasyon yok) ya da "Çalışmıyor" (METAR denetimi 2 sa'ten eski ya da 403 engeli). Ayrıntıda hata ve engelin bitiş saati yazar. hy-worker-bg logunda `weather` satırları var.
+
+**Ne olur (otomatik, D-078):**
+- **429:** İş içinde yeniden denenmez. Worker `max(Retry-After, 10 dk)` boyunca istek atmaz; zamanlanmış çalışmalar istek göndermeden atlanır, sonra kendiliğinden devam eder.
+- **403:** Worker 1 sa istek atmaz, satır "Çalışmıyor" olur. Bu bir kısıtlama değil, kaynağın davranışının değiştiği anlamına gelir (DUR-SOR 3): ajan kendiliğinden bir şey değiştirmez, kullanıcıya bildirir.
+- **5xx, zaman aşımı:** 60 sn sonra bir kez yeniden denenir; sonraki zamanlanmış çalışma yine dener.
+- Sayfa ve harita son geçerli raporu yaşıyla göstermeye devam eder; 3 sa'ten eski rapor "Eski gözlem", 12 sa'ten eskisi "güncel rapor yok" olur. Hiçbir rapor uydurulmaz ya da başka havalimanından alınmaz.
+- **Engel bitince kayıt dolar:** ilk başarılı METAR isteği son başarılı denetimden bu yana geçen süreyi (+1 sa, en çok 24 sa) ister; METAR/TAF kaydında delik kalmaz. Bu istek 61 istasyonu birkaç gruba böler (24 saatte 11 istek), sonra olağan tek isteğe döner. 24 saatten uzun kesintinin en eski kısmı ve kesintide yerini yenisine bırakan TAF'lar alınamaz.
+
+**Kontrol:**
+1. https://aviationweather.gov/data/api/ ve https://aviationweather.gov/data/feed/changelog.json: yeni bir kısıt, parametre değişikliği ya da duyuru var mı? Belgelenmemiş parametreler 400 döner (v4.26).
+2. Sıklık: worker saatte 16 istek atar (METAR 5 dk, TAF 15 dk); sınır dakikada 100'dür. 429 sürüyorsa aynı IP'den başka bir uygulamanın AWC'ye istek atıp atmadığına bak (sunucu başka projelerle paylaşılır).
+3. User-Agent: `havayolu/<sürüm> (+https://havayolu.live; <CONTACT_EMAIL>)` biçiminde gider. AWC özel User-Agent önerir.
+4. **Engel kalkmıyorsa:** NWS yönergesi engellenen kullanıcının sdm@noaa.gov'a yazmasıdır. Bu e-postayı kullanıcı gönderir; içerik: uygulamanın tanımı, istek sıklığı (saatte 16 istek, 61 istasyon tek istekte), User-Agent ve VPS IP'si.
+5. Tek istekle elle deneme canlı bir istektir; yalnızca kullanıcı çalıştırır:
+
+   ```bash
+   curl -s -o /dev/null -w '%{http_code}' -A 'havayolu/test (+https://havayolu.live)' 'https://aviationweather.gov/api/data/metar?ids=LTFM&format=json'
+   ```
+
+Toplu önbellek dosyalarına (`/data/cache/…`) ya da başka bir hava durumu kaynağına geçmek DUR-SOR'dur (lisans kaydı, data-sources.md §5; önbellek XML'inde basınç inHg'dir).

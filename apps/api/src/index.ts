@@ -5,6 +5,8 @@ import {
   findAirportDetail,
   listAirportDetails,
   listAirportsWithIata,
+  listLatestWeather,
+  listWeatherHistory,
   loadAirlineCodes,
   pingDb,
   pingRedis,
@@ -14,6 +16,7 @@ import {
   redisMemory,
   referenceStatus,
   trackPartitionStatus,
+  weatherStatus,
   type AirlineCodes,
 } from '@havayolu/db'
 import type { Redis } from 'ioredis'
@@ -124,6 +127,7 @@ const app = await buildApp(env, {
     referenceData: database ? () => referenceStatus(database.db) : null,
     trackPartitions: database ? () => trackPartitionStatus(database.sql, new Date()) : null,
     providers: database ? () => readProviderSummaries(database.sql, new Date()) : null,
+    weather: database ? () => weatherStatus(database.sql, new Date()) : null,
     http: httpJson,
     webUrl: new URL('/api/version', env.WEB_INTERNAL_URL).toString(),
     analyticsUrl: env.ANALYZE_URL ? new URL('/api/health', env.ANALYZE_URL).toString() : null,
@@ -138,6 +142,15 @@ const app = await buildApp(env, {
     list: database ? (country) => listAirportsWithIata(database.db, country) : null,
     details: database ? (country) => listAirportDetails(database.db, country) : null,
     find: database ? (code) => findAirportDetail(database.db, code) : null,
+  },
+  // Hava durumu: worker'ın yazdığı METAR/TAF kaydı; kod `/v1/airports/:code` kuralıyla çözülür.
+  weather: {
+    stations: database ? (country) => listAirportsWithIata(database.db, country) : null,
+    resolve: database
+      ? async (code) => (await findAirportDetail(database.db, code))?.icao ?? null
+      : null,
+    latest: database ? (icaos, now) => listLatestWeather(database.sql, icaos, now) : null,
+    history: database ? (icao, from, to) => listWeatherHistory(database.sql, icao, from, to) : null,
   },
 })
 liveLog = app.log.child({ component: 'live-cache' })

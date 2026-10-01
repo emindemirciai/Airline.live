@@ -4,6 +4,10 @@
  * örnek kurar, prop değişikliklerini `update` ile iletir ve söküldüğünde `destroy` çağırır.
  * MapLibre sayfa paketinde değildir; harita kurulurken yüklenir (maplibre-loader.ts).
  *
+ * Tıklama: uçak simgesi ya da etiketi uçağı seçer; havalimanı pini ya da IATA kodu havalimanı
+ * penceresini açar; boş harita pencereyi kapatır. Öncelik `resolveHit`'tedir (D-079). Pencerenin dayanağı `trackPoint` ile izlenir:
+ * yer yalnızca haritanın kendi `render` olayında hesaplanır, çizim döngüsüne iş eklenmez.
+ *
  * Harita koddaki düz arka plan stiliyle açılır; kendi katmanlarımız hemen eklenir ve uçaklar altlık
  * zinciri (basemap.ts) yüklenirken, yeniden denenirken ya da hiç yüklenemezken de çizilir.
  *
@@ -18,6 +22,8 @@ import {
   AIRCRAFT_LAYER,
   AIRCRAFT_LAYER_ID,
   AIRCRAFT_SOURCE_ID,
+  AIRPORT_LAYER,
+  AIRPORT_LAYER_ID,
   AIRPORT_SOURCE_ID,
   LIVE_MAP_LAYERS,
   TRAIL_SOURCE_ID,
@@ -40,18 +46,18 @@ import {
   type BasemapStep,
   type MapStyle,
 } from './basemap'
+import { initialZoom, PRIMARY_AIRPORT_VIEW, SELECT_MIN_ZOOM, type MapViewport } from './camera'
 import {
-  SELECT_MIN_ZOOM,
-  TURKEY_BOUNDS,
-  TURKEY_CENTER,
-  TURKEY_ZOOM,
-  type MapViewport,
-} from './camera'
-import { renderAircraftIcons, type AircraftIconImage } from './icons'
+  renderAircraftIcons,
+  renderAirportPin,
+  type AircraftIconImage,
+  type AirportPinImage,
+} from './icons'
 import {
   AIRPORT_LABEL_MIN_ZOOM,
   LabelPainter,
   NORMAL_THEME,
+  pinGeometry,
   SELECTED_THEME,
   type ScreenAircraft,
   type ScreenAirport,
@@ -68,15 +74,19 @@ import {
   trailCollection,
 } from './motion'
 
-/** Bu genişlikten itibaren açılışta ülke sınırlarına sığdırılır. */
-const FIT_BOUNDS_MIN_WIDTH = 768
-
 /** Çizim turları arasındaki en kısa süre (≈15 kare/sn). */
 export const TICK_MS = 66
 /** Görünüm değişikliği React'e en fazla bu aralıkla bildirilir ("Uçağı ortala" her turda kayar). */
 const VIEWPORT_EMIT_MS = 500
 /** Uçağa tıklamada kabul edilen uzaklık (dokunmatik için), px. */
 const CLICK_TOLERANCE = 8
+/** Havalimanı pinine tıklamada pinin kutusuna eklenen pay, px. */
+const AIRPORT_CLICK_TOLERANCE = 2
+/** İmlecin uçak ve havalimanı pini üstünde sayıldığı pay, px. */
+const HOVER_TOLERANCE = 3
+const AIRPORT_HOVER_TOLERANCE = 0
+/** İzlenen nokta (havalimanı penceresi) en az bu kadar kayınca bildirilir, CSS px. */
+const TRACK_MIN_SHIFT_PX = 0.5
 /** Ekranın bu kadar dışındaki uçağın etiketi hesaba katılmaz, px. */
 const LABEL_MARGIN = 48
 /** Simge çakışma yarıçapı `icon-size` 1'de (32 px ikonun silüeti), px. */
@@ -101,6 +111,54 @@ function isMultiTouch(event: unknown): boolean {
   return (
     typeof TouchEvent !== 'undefined' && event instanceof TouchEvent && event.touches.length >= 2
   )
+}
+
+/** Haritada tıklanan ya da imlecin altındaki hedef: uçak (simge ya da etiket) ya da havalimanı. */
+export type MapHit = { kind: 'aircraft'; hex: string } | { kind: 'airport'; icao: string }
+
+/** Noktadaki adaylar, her biri ayrı denetimden (yoksa null). */
+export interface HitCandidates {
+  /** Uçak etiketi (tuvalde en üstte). */
+  label: string | null
+  /** Havadaki uçağın simgesine tam isabet. */
+  airborne: string | null
+  /** Havalimanı kodu (tuvalde). */
+  chip: string | null
+  /** Havalimanı pini (GL katmanı). */
+  pin: string | null
+  /** Yerdeki uçağın simgesine tam isabet. */
+  ground: string | null
+  /** Uçak simgesinin dokunma payı (±8 px). */
+  near: string | null
+}
+
+/**
+ * Tıklama önceliği (kullanıcı kararı 2026-10-01, D-079): uçak etiketi > havadaki uçağın simgesi >
+ * havalimanı kodu ya da pini > yerdeki uçağın simgesi > dokunma payı. Apronda pinin ve kodun
+ * üstündeki yerdeki uçaklar havalimanı penceresini engellemez; havadaki uçak her zaman önce gelir.
+ */
+export function resolveHit(c: HitCandidates): MapHit | null {
+  if (c.label) return { kind: 'aircraft', hex: c.label }
+  if (c.airborne) return { kind: 'aircraft', hex: c.airborne }
+  if (c.chip) return { kind: 'airport', icao: c.chip }
+  if (c.pin) return { kind: 'airport', icao: c.pin }
+  if (c.ground) return { kind: 'aircraft', hex: c.ground }
+  if (c.near) return { kind: 'aircraft', hex: c.near }
+  return null
+}
+
+/** Ekrandaki nokta, harita kapsayıcısının sol üst köşesine göre CSS px. */
+export interface ScreenPoint {
+  x: number
+  y: number
+}
+
+/** Haritayla birlikte kayan nokta (havalimanı penceresinin dayanağı). */
+interface TrackedPoint {
+  lat: number
+  lon: number
+  listener: (point: ScreenPoint) => void
+  last: ScreenPoint | null
 }
 
 /** React'ten gelen, çizimi etkileyen durum. */
@@ -129,6 +187,10 @@ export interface MapControllerOptions {
   store: AircraftStore
   state: MapViewState
   onSelect: (hex: string) => void
+  /** Havalimanı noktasına ya da IATA koduna tıklandı. */
+  onAirportSelect: (icao: string) => void
+  /** Uçak ya da havalimanı olmayan bir yere tıklandı (havalimanı penceresi kapanır). */
+  onEmptyClick: () => void
   /** Kullanıcı haritayı sürükledi ("Uçağı ortala" kapanır). */
   onUserPan: () => void
   onViewportChange: (viewport: MapViewport) => void
@@ -191,6 +253,7 @@ export class MapController {
   private map: MaplibreMap | null = null
   private basemap: BasemapController | null = null
   private icons: AircraftIconImage[] | null = null
+  private pin: AirportPinImage | null = null
   private destroyed = false
   /** İlk stil yüklendi (`onReady` bildirildi). */
   private ready = false
@@ -208,6 +271,7 @@ export class MapController {
   private lastViewportEmit = -Infinity
   /** Harita hareket ederken değişen alt boşluk, hareket bitince uygulanır. */
   private paddingPending = false
+  private tracked: TrackedPoint | null = null
 
   constructor(options: MapControllerOptions) {
     this.options = options
@@ -255,8 +319,20 @@ export class MapController {
     map.flyTo({ center: [target.lon, target.lat], zoom: Math.max(map.getZoom(), minZoom) })
   }
 
+  /**
+   * Noktanın ekrandaki yerini izler: harita her çizildiğinde (kaydırma, yakınlaştırma, boyut) yer
+   * en az yarım piksel değiştiyse `listener` çağrılır; kayıt anında da bir kez (harita kuruluysa).
+   * Tek nokta izlenir; null izlemeyi bırakır. Dinleyici React durumu değil, doğrudan DOM yazar.
+   */
+  trackPoint(target: { lat: number; lon: number } | null, listener?: (point: ScreenPoint) => void) {
+    this.tracked =
+      target && listener ? { lat: target.lat, lon: target.lon, listener, last: null } : null
+    this.emitTracked()
+  }
+
   destroy(): void {
     this.destroyed = true
+    this.tracked = null
     cancelAnimationFrame(this.frameRequest)
     this.styleRequest?.abort()
     if (this.viewportTimer !== null) clearTimeout(this.viewportTimer)
@@ -269,19 +345,12 @@ export class MapController {
 
   private createMap(maplibregl: MaplibreModule): void {
     const { container } = this.options
-    const wide = container.clientWidth >= FIT_BOUNDS_MIN_WIDTH
-    const camera = wide
-      ? {
-          bounds: [
-            [TURKEY_BOUNDS.minLon, TURKEY_BOUNDS.minLat],
-            [TURKEY_BOUNDS.maxLon, TURKEY_BOUNDS.maxLat],
-          ] as [[number, number], [number, number]],
-          fitBoundsOptions: { padding: 24 },
-        }
-      : { center: [TURKEY_CENTER.lon, TURKEY_CENTER.lat] as [number, number], zoom: TURKEY_ZOOM }
+    // Açılış: IST/LTFM merkezli, yaklaşma alanını gösteren yakınlaştırma (D-079). `?hex=` ve
+    // `?havalimani=` hedefi varsa (`pendingCamera`) aşağıda doğrudan oraya atlanır.
     const map = new maplibregl.Map({
       container,
-      ...camera,
+      center: [PRIMARY_AIRPORT_VIEW.lon, PRIMARY_AIRPORT_VIEW.lat],
+      zoom: initialZoom(container.clientWidth, container.clientHeight),
       // Koddaki düz arka plan: kendi katmanlarımız hemen eklenir, uçaklar altlık beklenmeden çizilir.
       style: plainStyle(),
       // Uçak simgeleri yerleşime katılmaz; sembol geçişi yalnızca çizim döngüsünü boşuna döndürür.
@@ -318,7 +387,10 @@ export class MapController {
         this.basemap?.tileLoaded(event.sourceId)
       }
     })
-    map.on('render', () => this.drawLabels())
+    map.on('render', () => {
+      this.drawLabels()
+      this.emitTracked()
+    })
     map.on('resize', () => this.resizeLabels())
     map.on('moveend', () => {
       this.scheduleViewport()
@@ -331,7 +403,8 @@ export class MapController {
     })
     map.on('click', (event) => this.handleClick(map, event.point))
     map.on('mousemove', (event) => {
-      map.getCanvas().style.cursor = this.aircraftAt(map, event.point, 3) ? 'pointer' : ''
+      const hit = this.hitAt(map, event.point, HOVER_TOLERANCE, AIRPORT_HOVER_TOLERANCE)
+      map.getCanvas().style.cursor = hit ? 'pointer' : ''
     })
 
     const pending = this.pendingCamera
@@ -349,6 +422,7 @@ export class MapController {
     this.resizeLabels()
     this.configureFollow()
     this.emitViewport()
+    this.emitTracked()
     // Zincirin ilk adımı: nesne stili (uydu) açılış stilinin yerini hemen alır; adresli stil
     // indirilirken düz arka plan ve uçaklar ekranda kalır.
     this.basemap.start()
@@ -423,7 +497,8 @@ export class MapController {
    */
   private installOverlays(map: MaplibreMap): void {
     this.icons ??= renderAircraftIcons(window.devicePixelRatio)
-    for (const { id, image, pixelRatio } of this.icons) {
+    this.pin ??= renderAirportPin(window.devicePixelRatio)
+    for (const { id, image, pixelRatio } of [...this.icons, this.pin]) {
       if (!map.hasImage(id)) map.addImage(id, image, { pixelRatio })
     }
     const sources = [
@@ -585,31 +660,116 @@ export class MapController {
     })
   }
 
+  /**
+   * Noktadaki uçak simgeleri (çizim sırasının tersiyle, üstteki önce): havadaki ve yerdeki ilk
+   * uçak ayrı döner. `tolerance` 0 ise tam isabet; değilse kare dokunma payı.
+   */
   private aircraftAt(
     map: MaplibreMap,
     point: { x: number; y: number },
     tolerance: number,
-  ): string | null {
-    if (!this.overlaysReady || !map.getLayer(AIRCRAFT_LAYER_ID)) return null
+  ): { airborne: string | null; ground: string | null } {
+    const found: { airborne: string | null; ground: string | null } = {
+      airborne: null,
+      ground: null,
+    }
+    if (!this.overlaysReady || !map.getLayer(AIRCRAFT_LAYER_ID)) return found
     const features = map.queryRenderedFeatures(
-      [
-        [point.x - tolerance, point.y - tolerance],
-        [point.x + tolerance, point.y + tolerance],
-      ],
+      tolerance > 0
+        ? [
+            [point.x - tolerance, point.y - tolerance],
+            [point.x + tolerance, point.y + tolerance],
+          ]
+        : [point.x, point.y],
       { layers: [AIRCRAFT_LAYER_ID] },
     )
     for (const feature of features) {
       const hex: unknown = feature.properties.hex
-      if (typeof hex === 'string') return hex
+      if (typeof hex !== 'string') continue
+      const onGround = this.options.store.get(hex)?.gnd === true
+      if (onGround) found.ground ??= hex
+      else found.airborne ??= hex
+      if (found.airborne && found.ground) break
     }
-    return null
+    return found
   }
 
-  /** Uçağa ya da etiketine tıklama seçer; boş haritaya tıklama seçimi değiştirmez. */
-  private handleClick(map: MaplibreMap, point: { x: number; y: number }): void {
-    const hex =
-      this.aircraftAt(map, point, CLICK_TOLERANCE) ?? this.painter.hitTest(point.x, point.y)
-    if (hex) this.options.onSelect(hex)
+  /**
+   * Noktadaki havalimanı pininin ICAO kodu (`tolerance`: pinin kutusuna eklenen pay). Birden çok pin
+   * varsa başı noktaya en yakın olan; pinin ucu havalimanı noktasındadır, baş yukarıdadır.
+   */
+  private airportAt(map: MaplibreMap, point: ScreenPoint, tolerance: number): string | null {
+    if (!this.overlaysReady || !map.getLayer(AIRPORT_LAYER_ID)) return null
+    const features = map.queryRenderedFeatures(
+      tolerance > 0
+        ? [
+            [point.x - tolerance, point.y - tolerance],
+            [point.x + tolerance, point.y + tolerance],
+          ]
+        : [point.x, point.y],
+      { layers: [AIRPORT_LAYER_ID] },
+    )
+    const scale = iconScaleAt(map.getZoom(), AIRPORT_LAYER.layout['icon-size'])
+    let best: { icao: string; distance: number } | null = null
+    for (const feature of features) {
+      const icao: unknown = feature.properties.icao
+      const { geometry } = feature
+      if (typeof icao !== 'string' || geometry.type !== 'Point') continue
+      const [lon, lat] = geometry.coordinates
+      if (lon === undefined || lat === undefined) continue
+      const projected = map.project([lon, lat])
+      const head = pinGeometry(projected.x, projected.y, scale)
+      const distance = Math.hypot(head.headX - point.x, head.headY - point.y)
+      if (!best || distance < best.distance) best = { icao, distance }
+    }
+    return best?.icao ?? null
+  }
+
+  /** Noktadaki hedef; öncelik `resolveHit`'tedir. */
+  private hitAt(
+    map: MaplibreMap,
+    point: ScreenPoint,
+    tolerance: number,
+    airportTolerance: number,
+  ): MapHit | null {
+    const exact = this.aircraftAt(map, point, 0)
+    const near = tolerance > 0 ? this.aircraftAt(map, point, tolerance) : null
+    return resolveHit({
+      label: this.painter.hitTest(point.x, point.y),
+      airborne: exact.airborne,
+      chip: this.painter.airportHitTest(point.x, point.y),
+      pin: this.airportAt(map, point, airportTolerance),
+      ground: exact.ground,
+      near: near ? (near.airborne ?? near.ground) : null,
+    })
+  }
+
+  /**
+   * Uçağa ya da etiketine tıklama seçer; havalimanı noktası ya da koduna tıklama havalimanı
+   * penceresini açar. Boş haritaya tıklama uçak seçimini değiştirmez, pencereyi kapatır.
+   */
+  private handleClick(map: MaplibreMap, point: ScreenPoint): void {
+    const hit = this.hitAt(map, point, CLICK_TOLERANCE, AIRPORT_CLICK_TOLERANCE)
+    if (hit?.kind === 'aircraft') this.options.onSelect(hit.hex)
+    else if (hit?.kind === 'airport') this.options.onAirportSelect(hit.icao)
+    else this.options.onEmptyClick()
+  }
+
+  private emitTracked(): void {
+    const tracked = this.tracked
+    const map = this.map
+    if (!tracked || !map) return
+    const { x, y } = map.project([tracked.lon, tracked.lat])
+    const last = tracked.last
+    if (
+      last &&
+      Math.abs(last.x - x) < TRACK_MIN_SHIFT_PX &&
+      Math.abs(last.y - y) < TRACK_MIN_SHIFT_PX
+    ) {
+      return
+    }
+    tracked.last = { x, y }
+    tracked.listener({ x, y })
   }
 
   private resizeLabels(): void {
@@ -660,6 +820,8 @@ export class MapController {
       settings: this.state.labelSettings,
       locale: this.state.locale,
       units: this.state.units,
+      pinScale: iconScaleAt(zoom, AIRPORT_LAYER.layout['icon-size']),
+      primaryIcao: PRIMARY_AIRPORT_VIEW.icao,
     })
   }
 

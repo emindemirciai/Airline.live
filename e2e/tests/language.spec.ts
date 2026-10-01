@@ -16,6 +16,7 @@ import {
   languageToggle,
   openMap,
   PRIMARY_AIRPORT,
+  APPROACH_AIRCRAFT,
   REPLAY_AIRCRAFT,
   waitForMap,
   WEB_URL,
@@ -221,14 +222,16 @@ test.describe('tarayıcıda', () => {
 
   test('haritada seçim değişince adres ve anahtar önekini korur', async ({ page }) => {
     for (const home of ['/', '/en'] as const) {
+      // Açılış görünümü IST'dir (D-079): orada hep görünen yaklaşmadaki uçak seçilir.
+      const { hex: nearHex, callsign: nearCallsign } = APPROACH_AIRCRAFT
       await openMap(page, home)
-      const row = aircraftRow(page, hex)
+      const row = aircraftRow(page, nearHex)
       await expect(row).toBeVisible({ timeout: 30_000 })
       await row.locator('td').last().click()
-      await expect(infoCard(page)).toContainText(callsign)
-      await expect(page).toHaveURL(`${WEB_URL}${home}?hex=${hex}`)
-      await expect(page).toHaveURL(hexParam(hex))
-      const other = home === '/' ? `/en?hex=${hex}` : `/?hex=${hex}`
+      await expect(infoCard(page)).toContainText(nearCallsign)
+      await expect(page).toHaveURL(`${WEB_URL}${home}?hex=${nearHex}`)
+      await expect(page).toHaveURL(hexParam(nearHex))
+      const other = home === '/' ? `/en?hex=${nearHex}` : `/?hex=${nearHex}`
       await expect(languageToggle(page)).toHaveAttribute('href', other)
 
       await infoCard(page)

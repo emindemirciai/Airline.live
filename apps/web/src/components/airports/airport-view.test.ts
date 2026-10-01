@@ -46,7 +46,6 @@ describe('AirportView', () => {
     expect(body).toContain('İstanbul, Türkiye')
     expect(body).toContain('Havalimanında 6 pist var; en uzunu 4.100 m (13.451 ft) ile 17L/35R.')
     expect(body).toContain('Havalimanının rakımı 99 m (325 ft).')
-    expect(body).toContain('OurAirports kaydına göre tarifeli havayolu seferi yapılıyor.')
     // Aynı ildeki diğer havalimanları bağlantılıdır.
     expect(html).toContain('<a href="/istasyon/LTBA">İstanbul Atatürk Havalimanı (ISL)</a>')
     expect(html).toContain(
@@ -55,19 +54,14 @@ describe('AirportView', () => {
     expect(body).toContain('İstanbul ilindeki diğer havalimanları:')
   })
 
-  it('izlenen birincil istasyon: yarıçap metrik önce, canlı harita bağlantısı', () => {
+  it('canlı hava trafiği: kapsama cümlesi ve canlı harita bağlantısı; istasyon bilgisi yok (D-078)', () => {
     const html = renderAirport('LTFM')
     const body = text(html)
     expect(body).toContain(
-      'havayolu bu havalimanını izliyor: havalimanı merkezinin 111 km (60 NM) çevresindeki uçaklar öncelikli güncellenir.',
+      'Havalimanı canlı veri çekim alanının içinde; çevredeki uçaklar canlı haritada görünür (kapsama ADS-B alıcılarına bağlıdır).',
     )
-    // En sık güncellenen çember birincil çemberdir (40 NM, D-073); 60 NM'lik istasyon çemberi değil.
-    expect(body).toContain(
-      'Birincil istasyondur: havalimanı merkezinin 74 km (40 NM) çevresinin verisi en sık güncellenir.',
-    )
-    expect(body).not.toContain('bu çevrenin verisi en sık')
     expect(html).toContain('<a class="button" href="/?havalimani=LTFM">Canlı haritada aç</a>')
-    expect(body).toContain('Evet, birincil istasyon')
+    expect(body).not.toMatch(/izliyor|[Bb]irincil istasyon|İzlenen istasyon|111 km \(60 NM\)/)
   })
 
   it('İngilizce sayfa: bağlantılar /en önekli, metinler İngilizce', () => {
@@ -84,11 +78,10 @@ describe('AirportView', () => {
     expect(body).not.toMatch(/Havalimanı(nda|nın)|izliyor/)
   })
 
-  it('izlenmeyen, tarifesiz havalimanı ve tek pist (LTAG)', () => {
+  it('tarifesiz havalimanı ve tek pist (LTAG)', () => {
     const body = text(renderAirport('LTAG'))
     expect(body).toContain('Havalimanında tek pist var: 3.048 m (10.000 ft) uzunluğundaki 05/23.')
-    expect(body).toContain('OurAirports kaydında tarifeli havayolu seferi görünmüyor')
-    expect(body).toContain('Bu havalimanında varış izleme henüz açık değil')
+    expect(body).toContain('Havalimanı canlı veri çekim alanının içinde')
     expect(body).not.toContain('ilindeki diğer')
     expect(body).toContain('Ad: OurAirports')
   })
@@ -129,19 +122,51 @@ describe('AirportView', () => {
     expect(text(html)).toContain('Resmî Türkçe ad: İstanbul Havalimanı (havalimanı işletmecisi)')
   })
 
-  it('OurAirports tarifeli sefer bayrağı doğrulanmış bilgi gibi yazılmaz (Siirt, LTCL)', () => {
-    // OurAirports kaydı "tarifeli değil" der; Siirt'te AJet ve THY seferleri vardır.
-    const tr = text(renderAirport('LTCL'))
-    expect(tr).toContain(
-      'OurAirports kaydında tarifeli havayolu seferi görünmüyor; bu bilgi güncel olmayabilir.',
+  it('tarifeli sefer ve izlenen istasyon bilgisi gösterilmez (M6c, D-078; Siirt LTCL, LTFM)', () => {
+    for (const icao of ['LTCL', 'LTFM']) {
+      const tr = text(renderAirport(icao))
+      expect(tr, icao).not.toMatch(
+        /Tarifeli sefer|tarifeli havayolu seferi|İzlenen istasyon|izliyor/,
+      )
+      expect(tr, icao).not.toMatch(/\bYok\b/)
+      const en = text(renderAirport(icao, 'en'))
+      expect(en, icao).not.toMatch(
+        /Scheduled service|scheduled airline service|Monitored station|monitors this airport/,
+      )
+    }
+  })
+
+  it('sefer sayısı, rötar ve iptal bölümü: bu bilgilerin olmadığını açıkça söyler (brief §10)', () => {
+    const html = renderAirport('LTFM')
+    expect(html).toContain('<h2 id="airport-schedule">Sefer sayısı, rötar ve iptal</h2>')
+    const body = text(html)
+    expect(body).toContain('Bu bilgiler henüz yok.')
+    expect(body).toContain('havayolu şu an tarife verisi kullanmıyor.')
+    expect(body).toContain('“gözlenen” hareketler')
+    // Bölüm "Canlı hava trafiği"nden sonra gelir.
+    expect(html.indexOf('id="airport-schedule"')).toBeGreaterThan(html.indexOf('id="airport-live"'))
+    const en = renderAirport('LTFM', 'en')
+    expect(en).toContain('<h2 id="airport-schedule">Flight counts, delays and cancellations</h2>')
+    expect(text(en)).toContain('Not available yet.')
+    expect(en).toContain('<a href="/en/hakkinda">see the About page</a>')
+  })
+
+  it('hava durumu yuvası girişten sonra, canlı trafikten önce; kaynak satırı yalnızca onunla', () => {
+    const html = renderToStaticMarkup(
+      createElement(AirportView, {
+        locale: 'tr',
+        app: 'havayolu',
+        airport: byIcao('LTFM'),
+        airports: AIRPORTS,
+        weather: createElement('section', { id: 'weather-slot' }),
+      }),
     )
-    expect(tr).not.toContain('seferi yapılmıyor')
-    expect(tr).toContain('Tarifeli sefer (OurAirports) Kayıtlı değil')
-    expect(tr).not.toMatch(/\bYok\b/)
-    const en = text(renderAirport('LTCL', 'en'))
-    expect(en).toContain('OurAirports does not record scheduled airline service here')
-    expect(en).not.toContain('It has no scheduled airline service')
-    expect(en).toContain('Scheduled service (OurAirports) Not recorded')
+    const slot = html.indexOf('id="weather-slot"')
+    expect(slot).toBeGreaterThan(html.indexOf('airport-lead'))
+    expect(slot).toBeLessThan(html.indexOf('id="airport-live"'))
+    expect(html).toContain('href="https://aviationweather.gov/"')
+    expect(text(html)).toContain('resmî brifing yerine geçmez')
+    expect(renderAirport('LTFM')).not.toContain('aviationweather.gov')
   })
 
   it('pist ışıklandırması yalnızca kayıtlıysa "Var"; kayıtlı değilse "Yok" denmez (LTFJ 06R/24L)', () => {
@@ -157,7 +182,7 @@ describe('AirportView', () => {
 
   it('canlı veri çekim alanının dışındaki havalimanı çevredeki uçakları vaat etmez (LTCW)', () => {
     const outside = text(renderAirport('LTCW'))
-    expect(outside).toContain('havalimanı canlı veri çekim alanının dışında')
+    expect(outside).toContain('Havalimanı canlı veri çekim alanının dışında')
     expect(outside).not.toContain('çevredeki uçaklar canlı haritada görünür')
     expect(text(renderAirport('LTCW', 'en'))).toContain('outside the live data fetch area')
     // Van (LTCI) Doğu çemberinin içindedir.
@@ -220,31 +245,26 @@ describe('AirportsView', () => {
     expect(html).toContain(
       '<caption id="airports-caption">Havalimanları, ile göre sıralı</caption>',
     )
-    const rows = [
-      ...html.matchAll(
-        /<tr(?: class="is-unscheduled")?><th scope="row"><a href="(\/istasyon\/[A-Z0-9]+)">/g,
-      ),
-    ]
+    const rows = [...html.matchAll(/<tr><th scope="row"><a href="(\/istasyon\/[A-Z0-9]+)">/g)]
     expect(rows).toHaveLength(61)
     expect(rows[0]?.[1]).toBe('/istasyon/LTAG')
-    expect(html.match(/class="is-unscheduled"/g)).toHaveLength(10)
+    expect(html).not.toContain('is-unscheduled')
     expect(text(html)).toContain(
-      'Listede 61 havalimanı var: OurAirports kaydına göre 51 tanesinde tarifeli sefer yapılıyor; 5 tanesi izlenen istasyon.',
+      'Listede 61 havalimanı var; her havalimanının sayfasında pistleri, hava durumu ve canlı harita bağlantısı bulunur.',
     )
     expect(text(html)).toContain('son değişiklik 29 Eylül 2026')
   })
 
-  it('satırlar: il, kodlar, en uzun pist (m), tarifeli sefer, istasyon', () => {
+  it('satırlar: il, kodlar, en uzun pist (m); tarifeli sefer ve istasyon sütunu yok (D-078)', () => {
     const html = renderList('tr')
-    // OurAirports'ta tarifeli seferi kayıtlı olmayan havalimanında "Yok" değil "Kayıtlı değil" yazar.
     expect(html).toMatch(
-      /<a href="\/istasyon\/LTCL">Siirt Havalimanı<\/a>.*?<td>Kayıtlı değil<\/td>/,
+      /<a href="\/istasyon\/LTFM">İstanbul Havalimanı<\/a><\/th><td>İstanbul<\/td><td class="mono">IST<\/td><td class="mono">LTFM<\/td><td class="num">4\.100 m<\/td><\/tr>/,
     )
-    expect(html).not.toContain('<td>Yok</td>')
-    expect(html).toContain('<th scope="col">Tarifeli sefer (OurAirports)</th>')
-    expect(html).toMatch(
-      /<a href="\/istasyon\/LTFM">İstanbul Havalimanı<\/a><\/th><td>İstanbul<\/td><td class="mono">IST<\/td><td class="mono">LTFM<\/td><td class="num">4\.100 m<\/td><td>Var<\/td><td>Evet, birincil istasyon<\/td>/,
+    expect(html.match(/<th scope="col">/g)).toHaveLength(5)
+    expect(text(html)).not.toMatch(
+      /Tarifeli sefer|İzlenen istasyon|birincil istasyon|Kayıtlı değil/,
     )
+    expect(text(renderList('en'))).not.toMatch(/Scheduled service|Monitored station/)
   })
 
   it('İngilizce: /en bağlantıları ve İngilizce adlar', () => {

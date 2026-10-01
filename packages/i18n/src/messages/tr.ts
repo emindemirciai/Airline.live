@@ -28,7 +28,7 @@ export const tr = {
     airports: {
       title: 'Türkiye’deki havalimanları: IATA ve ICAO kodları',
       description:
-        'Türkiye’deki {count} havalimanının IATA ve ICAO kodları, illeri, en uzun pistleri ve tarifeli sefer bilgisi; her biri için canlı harita bağlantısı. Kaynak: OurAirports.',
+        'Türkiye’deki {count} havalimanının IATA ve ICAO kodları, illeri ve en uzun pistleri; her biri için canlı harita bağlantısı. Kaynak: OurAirports.',
     },
     airport: {
       title: '{name} ({iata}/{icao}) canlı hava trafiği ve pistler',
@@ -66,9 +66,8 @@ export const tr = {
   airports: {
     title: 'Türkiye’deki havalimanları',
     summary:
-      'Listede {count} havalimanı var: OurAirports kaydına göre {scheduled} tanesinde tarifeli sefer yapılıyor; {stations} tanesi izlenen istasyon.',
-    scope:
-      'Listede IATA kodu olan büyük ve orta boy havalimanları ile OurAirports’ta tarifeli seferi kayıtlı küçük havalimanları yer alır; diğer küçük havalimanları listelenmez.',
+      'Listede {count} havalimanı var; her havalimanının sayfasında pistleri, hava durumu ve canlı harita bağlantısı bulunur.',
+    scope: 'Listede IATA kodu olan havalimanları yer alır; bazı küçük havalimanları listelenmez.',
     names:
       'Resmî Türkçe adlar DHMİ’den ve havalimanı işletmecilerinden derlenmiştir; resmî adı doğrulanamayan havalimanları OurAirports’taki adıyla gösterilir.',
     caption: 'Havalimanları, ile göre sıralı',
@@ -78,9 +77,6 @@ export const tr = {
       iata: 'IATA',
       icao: 'ICAO',
       longestRunway: 'En uzun pist',
-      /** OurAirports `scheduled_service` bayrağı; doğrulanmış bilgi gibi sunulmaz (D-076). */
-      scheduled: 'Tarifeli sefer (OurAirports)',
-      station: 'İzlenen istasyon',
     },
     empty: 'Havalimanı verisi henüz yüklenmedi. Biraz sonra yeniden dene.',
   },
@@ -94,9 +90,6 @@ export const tr = {
       runwaysMany: 'Havalimanında {count} pist var; en uzunu {length} ile {designator}.',
       runwaysCount: 'Havalimanında {count} pist var.',
       elevation: 'Havalimanının rakımı {elevation}.',
-      scheduled: 'OurAirports kaydına göre tarifeli havayolu seferi yapılıyor.',
-      unscheduled:
-        'OurAirports kaydında tarifeli havayolu seferi görünmüyor; bu bilgi güncel olmayabilir.',
       otherOne: '{province} ilindeki diğer havalimanı: {airports}.',
       otherMany: '{province} ilindeki diğer havalimanları: {airports}.',
     },
@@ -110,8 +103,6 @@ export const tr = {
       sourceName: 'OurAirports’taki adı',
       reference: 'Havalimanı merkezi',
       elevation: 'Rakım',
-      scheduled: 'Tarifeli sefer (OurAirports)',
-      station: 'İzlenen istasyon',
       runways: 'Pist sayısı',
     },
     types: {
@@ -120,11 +111,8 @@ export const tr = {
       small_airport: 'Küçük havalimanı',
     },
     yes: 'Var',
-    /** Kaynakta "evet" işaretli değil: "yok" anlamına gelmez (OurAirports bayrakları, D-076). */
+    /** Kaynakta "evet" işaretli değil: "yok" anlamına gelmez (OurAirports pist ışıklandırması, D-076). */
     notRecorded: 'Kayıtlı değil',
-    stationYes: 'Evet',
-    stationPrimary: 'Evet, birincil istasyon',
-    stationNo: 'Hayır',
     /** Koordinat yön harfleri: kuzey, güney, doğu, batı. */
     hemisphere: {
       n: 'K',
@@ -146,27 +134,34 @@ export const tr = {
       displacedNote:
         'Kaydırılmış pist eşiği, inişin pistin başından değil bu mesafe kadar ileriden başladığını gösterir.',
     },
+    /**
+     * Canlı hava trafiği bölümü. İzlenen istasyon ve yarıçap bilgisi gösterilmez (M6c, D-078); kapsama
+     * cümlesi kalır: canlı haritada uçak vaat eden metin kapsama planına bakar (D-076).
+     */
     live: {
       heading: 'Canlı hava trafiği',
       open: 'Canlı haritada aç',
-      station:
-        '{app} bu havalimanını izliyor: havalimanı merkezinin {radius} çevresindeki uçaklar öncelikli güncellenir.',
-      /** `{radius}`: birincil istasyonun en sık çekilen çemberi (PRIMARY_EXTRA_RADIUS_NM, D-073). */
-      stationPrimary:
-        'Birincil istasyondur: havalimanı merkezinin {radius} çevresinin verisi en sık güncellenir.',
-      notStation:
-        'Bu havalimanında varış izleme henüz açık değil. Havalimanı canlı veri çekim alanının içinde; çevredeki uçaklar canlı haritada görünür (kapsama ADS-B alıcılarına bağlıdır).',
+      covered:
+        'Havalimanı canlı veri çekim alanının içinde; çevredeki uçaklar canlı haritada görünür (kapsama ADS-B alıcılarına bağlıdır).',
       outside:
-        'Bu havalimanında varış izleme açık değil ve havalimanı canlı veri çekim alanının dışında: çevresindeki uçaklar için veri çekilmez, bu yüzden canlı haritada görünmeyebilirler.',
+        'Havalimanı canlı veri çekim alanının dışında: çevresindeki uçaklar için veri çekilmez, bu yüzden canlı haritada görünmeyebilirler.',
+    },
+    /**
+     * Sefer sayısı, rötar ve iptal (M6c brief §10). Tarife verisi yoktur; gözlenen hareketler Parça 2
+     * motoruyla gelir. Bu kelimeler üst veri açıklamasına girmez (airport-text.test.ts).
+     */
+    schedule: {
+      heading: 'Sefer sayısı, rötar ve iptal',
+      body: 'Bu bilgiler henüz yok. Günlük kalkış ve varış sayısı, rötar ve iptal bilgisi havayolu tarifesi gerektirir; {app} şu an tarife verisi kullanmıyor. ADS-B yalnızca uçağın nerede olduğunu gösterir: bir seferin planlanan saatini, rötarını ya da iptal edildiğini bilemez. Bu yüzden bu sayfada bu bilgiler gösterilmez ve tahmin de edilmez. Uçuşunun durumu için havayoluna ya da havalimanı işletmecisine başvur.',
+      observed:
+        'ADS-B ile gözlenen iniş ve kalkış sayıları ile kullanılan pistler sonraki bir sürümde eklenecek; tarife olarak değil, “gözlenen” hareketler olarak gösterilecek. ADS-B’nin sınırları için {about}.',
+      aboutLink: 'Hakkında sayfasına bak',
     },
     nearby: {
       heading: 'En yakın havalimanları',
       item: '{airport}, {province}: {distance}',
       note: 'Mesafeler havalimanı merkezleri arasındaki kuş uçuşu mesafedir.',
     },
-    limits:
-      'Bu sayfa tarife, rötar, kapı ve iptal bilgisi içermez. ADS-B’nin sınırları ve veri kaynakları için {about}.',
-    limitsLink: 'Hakkında sayfasına bak',
     source: 'Havalimanı ve pist verisi: {source} (kamu malı) · son değişiklik {date}',
     /** `{name}`: resmî Türkçe ad (airport-names.ts). */
     nameSource: {
@@ -190,6 +185,423 @@ export const tr = {
     unknown: 'Bilinmiyor',
   },
   /**
+   * Havalimanı hava durumu (Parça 1 M6c, D-078). METAR ve TAF ham metinden çözülür
+   * (`@havayolu/shared` → weather); cümleler `packages/i18n/src/weather.ts`'te bu metinlerden kurulur.
+   * Sade görünümde kod ve kısaltma yoktur, birimler metriktir (D-072); uzman ayrıntıları kodları ve
+   * havacılık birimlerini de yazar. MGM'nin kamuya açık sözcükleri kullanılır: TS "gök gürültülü"dür,
+   * hiçbir zaman "fırtına" değildir; HZ "kuru pus", OVC "kapalı"dır. Olasılıklı tahminde "bekleniyor"
+   * yazılmaz.
+   */
+  weather: {
+    heading: 'Hava durumu',
+    loading: 'Hava durumu yükleniyor…',
+    observed: 'Gözlem {time}',
+    lastObserved: 'Son gözlem {time}',
+    ago: '{duration} önce',
+    justNow: 'az önce',
+    duration: {
+      minutes: '{m} dakika',
+      hours: '{h} saat',
+      hoursMinutes: '{h} saat {m} dakika',
+      days: '{d} gün',
+    },
+    /** Rapor notları (`summarizeMetar` → `weather.note.*`). */
+    note: {
+      auto: 'Otomatik gözlem; bazı hava olayları algılanmayabilir.',
+      undetermined: 'Raporun bir bölümü çözümlenemedi; ham metin ayrıntılarda.',
+      nil: 'Bu gözlem saati için rapor yayımlanmadı.',
+      corrected: 'Düzeltilmiş rapor.',
+      speci: 'Özel rapor: hava önemli ölçüde değiştiği için yayımlandı.',
+    },
+    /** Gözlemin yaşı: ≤ 90 dk normal, 90 dk – 3 sa gecikmiş, 3–12 sa eski, üstü yok sayılır. */
+    age: {
+      delayedBadge: 'Gecikmiş gözlem',
+      delayed: 'Yeni rapor gelmedi; değerler güncel olmayabilir.',
+      staleBadge: 'Eski gözlem',
+      stale: 'Şu an güncel gözlem yok.',
+      staleValues: 'Son gözlemin değerleri',
+      none: 'Şu an bu havalimanı için güncel bir havacılık hava raporu yok. Bazı havalimanlarında meteoroloji birimi yalnızca belirli saatlerde çalışır.',
+      unavailable: 'Hava durumu şu an alınamıyor.',
+    },
+    rows: {
+      wind: 'Rüzgâr',
+      rain: 'Yağmur',
+      snow: 'Kar',
+      thunder: 'Gök gürültüsü',
+      fog: 'Sis ve pus',
+      hail: 'Dolu',
+      other: 'Diğer hava olayları',
+      visibility: 'Görüş',
+      clouds: 'Bulut',
+      temperature: 'Sıcaklık',
+      humidity: 'Nem',
+      pressure: 'Basınç',
+      next2h: 'Önümüzdeki 2 saat',
+      /** Gözlem 30 dakikadan eskiyken eğilim satırının adı (pencere gözlemden başlar). */
+      trendAfterObservation: 'Gözlemden sonraki 2 saat',
+      forecast: 'Tahmin',
+    },
+    /** "Yok" yalnızca rapor temiz çözüldüyse yazılır; değilse "Belirlenemedi" (D-078). */
+    value: {
+      none: 'Yok',
+      undetermined: 'Belirlenemedi',
+      vicinity: 'Havalimanında yok; çevresinde {phrase}',
+      recent: 'Şu an yok; kısa süre önce {phrase}',
+      noneWithCb: 'Yok (kümülonimbüs bulutu var)',
+      notStated: 'Raporda belirtilmemiş',
+    },
+    /**
+     * Hava olayları, çözücünün metin kimlikleriyle (`weatherPhraseId`, `WX_PHRASE_IDS`): `_light`
+     * hafif (-), eksiz orta, `_heavy` kuvvetli/yoğun (+). Şiddet yağışı niteler.
+     */
+    wx: {
+      vicinity: 'Havalimanı çevresinde {phrase}',
+      DZ_light: 'Hafif çisenti',
+      DZ: 'Çisenti',
+      DZ_heavy: 'Yoğun çisenti',
+      RA_light: 'Hafif yağmur',
+      RA: 'Yağmur',
+      RA_heavy: 'Kuvvetli yağmur',
+      DZRA_light: 'Hafif çisenti ve yağmur',
+      DZRA: 'Çisenti ve yağmur',
+      DZRA_heavy: 'Yoğun çisenti ve yağmur',
+      SN_light: 'Hafif kar',
+      SN: 'Kar',
+      SN_heavy: 'Yoğun kar',
+      RASN_light: 'Hafif karla karışık yağmur',
+      RASN: 'Karla karışık yağmur',
+      RASN_heavy: 'Kuvvetli karla karışık yağmur',
+      SNRA_light: 'Hafif yağmurla karışık kar',
+      SNRA: 'Yağmurla karışık kar',
+      SNRA_heavy: 'Yoğun yağmurla karışık kar',
+      SG_light: 'Hafif kar taneleri',
+      SG: 'Kar taneleri',
+      SG_heavy: 'Yoğun kar taneleri',
+      PL_light: 'Hafif buz taneleri',
+      PL: 'Buz taneleri',
+      PL_heavy: 'Yoğun buz taneleri',
+      GR_light: 'Hafif dolu',
+      GR: 'Dolu',
+      GR_heavy: 'Kuvvetli dolu',
+      GS_light: 'Hafif küçük dolu',
+      GS: 'Küçük dolu',
+      GS_heavy: 'Kuvvetli küçük dolu',
+      UP_light: 'Hafif, türü belirlenemeyen yağış',
+      UP: 'Türü belirlenemeyen yağış',
+      UP_heavy: 'Kuvvetli, türü belirlenemeyen yağış',
+      SHRA_light: 'Hafif sağanak yağmur',
+      SHRA: 'Sağanak yağmur',
+      SHRA_heavy: 'Kuvvetli sağanak yağmur',
+      SHSN_light: 'Hafif kar sağanağı',
+      SHSN: 'Kar sağanağı',
+      SHSN_heavy: 'Kuvvetli kar sağanağı',
+      SHRASN_light: 'Hafif karla karışık sağanak',
+      SHRASN: 'Karla karışık sağanak',
+      SHRASN_heavy: 'Kuvvetli karla karışık sağanak',
+      SHSNRA_light: 'Hafif yağmurla karışık kar sağanağı',
+      SHSNRA: 'Yağmurla karışık kar sağanağı',
+      SHSNRA_heavy: 'Kuvvetli yağmurla karışık kar sağanağı',
+      SHGR_light: 'Hafif dolu sağanağı',
+      SHGR: 'Dolu sağanağı',
+      SHGR_heavy: 'Kuvvetli dolu sağanağı',
+      SHGS_light: 'Hafif küçük dolu sağanağı',
+      SHGS: 'Küçük dolu sağanağı',
+      SHGS_heavy: 'Kuvvetli küçük dolu sağanağı',
+      SHPL_light: 'Hafif buz taneli sağanak',
+      SHPL: 'Buz taneli sağanak',
+      SHPL_heavy: 'Kuvvetli buz taneli sağanak',
+      SHUP_light: 'Hafif, türü belirlenemeyen sağanak',
+      SHUP: 'Türü belirlenemeyen sağanak',
+      SHUP_heavy: 'Kuvvetli, türü belirlenemeyen sağanak',
+      TSRA_light: 'Gök gürültülü hafif sağanak',
+      TSRA: 'Gök gürültülü sağanak',
+      TSRA_heavy: 'Kuvvetli gök gürültülü sağanak',
+      TSSN_light: 'Gök gürültülü hafif kar',
+      TSSN: 'Gök gürültülü kar',
+      TSSN_heavy: 'Gök gürültülü yoğun kar',
+      TSRASN_light: 'Gök gürültülü, hafif karla karışık yağmur',
+      TSRASN: 'Gök gürültülü, karla karışık yağmur',
+      TSRASN_heavy: 'Gök gürültülü, kuvvetli karla karışık yağmur',
+      TSSNRA_light: 'Gök gürültülü, hafif yağmurla karışık kar',
+      TSSNRA: 'Gök gürültülü, yağmurla karışık kar',
+      TSSNRA_heavy: 'Gök gürültülü, yoğun yağmurla karışık kar',
+      TSGR_light: 'Dolulu, gök gürültülü hafif sağanak',
+      TSGR: 'Dolulu, gök gürültülü sağanak',
+      TSGR_heavy: 'Dolulu, kuvvetli gök gürültülü sağanak',
+      TSGS_light: 'Gök gürültülü, küçük dolulu hafif sağanak',
+      TSGS: 'Gök gürültülü, küçük dolulu sağanak',
+      TSGS_heavy: 'Gök gürültülü, küçük dolulu kuvvetli sağanak',
+      TSPL_light: 'Gök gürültülü, hafif buz taneleri',
+      TSPL: 'Gök gürültülü, buz taneleri',
+      TSPL_heavy: 'Gök gürültülü, yoğun buz taneleri',
+      TSUP_light: 'Gök gürültülü, hafif ve türü belirlenemeyen yağış',
+      TSUP: 'Gök gürültülü, türü belirlenemeyen yağış',
+      TSUP_heavy: 'Gök gürültülü, kuvvetli ve türü belirlenemeyen yağış',
+      FZRA_light: 'Hafif donan yağmur (buzlanma yapar)',
+      FZRA: 'Donan yağmur (buzlanma yapar)',
+      FZRA_heavy: 'Kuvvetli donan yağmur (buzlanma yapar)',
+      FZDZ_light: 'Hafif donan çisenti (buzlanma yapar)',
+      FZDZ: 'Donan çisenti (buzlanma yapar)',
+      FZDZ_heavy: 'Yoğun donan çisenti (buzlanma yapar)',
+      FZUP_light: 'Hafif, türü belirlenemeyen donan yağış (buzlanma yapar)',
+      FZUP: 'Türü belirlenemeyen donan yağış (buzlanma yapar)',
+      FZUP_heavy: 'Kuvvetli, türü belirlenemeyen donan yağış (buzlanma yapar)',
+      IC: 'Buz kristalleri',
+      TS: 'Gök gürültüsü ve şimşek, yağış yok',
+      /** Çevredeki sağanak ve oraj: ad olarak (`wx.vicinity` ve `value.vicinity` kalıplarına girer). */
+      VCSH: 'Sağanak',
+      VCTS: 'Gök gürültüsü',
+      BR: 'Pus',
+      FG: 'Sis',
+      FZFG: 'Donan sis',
+      MIFG: 'Sığ sis',
+      BCFG: 'Yer yer sis',
+      PRFG: 'Havalimanının bir bölümünde sis',
+      HZ: 'Kuru pus',
+      FU: 'Duman',
+      VA: 'Volkanik kül',
+      DU: 'Toz',
+      SA: 'Kum',
+      PY: 'Su serpintisi',
+      BLSN: 'Savrulan kar',
+      BLDU: 'Savrulan toz',
+      BLSA: 'Savrulan kum',
+      DRSN: 'Yerde sürüklenen kar',
+      DRDU: 'Yerde sürüklenen toz',
+      DRSA: 'Yerde sürüklenen kum',
+      PO: 'Toz ya da kum hortumu',
+      SQ: 'Ani ve sert rüzgâr',
+      FC: 'Hortum bulutu',
+      FC_heavy: 'Hortum',
+      SS: 'Kum fırtınası',
+      SS_heavy: 'Kuvvetli kum fırtınası',
+      DS: 'Toz fırtınası',
+      DS_heavy: 'Kuvvetli toz fırtınası',
+    },
+    cavok: 'Görüş 10 km ve üzeri, alçak bulut ve önemli hava olayı yok',
+    nsw: 'Önemli hava olayı sona eriyor',
+    headline: {
+      cavok: 'Görüş iyi, alçak bulut yok',
+      nsc: 'Alçak bulut yok',
+      noReport: 'Rapor yok',
+      undetermined: 'Hava olayı belirlenemedi',
+      unknown: 'Hava durumu belirlenemedi',
+    },
+    wind: {
+      calm: 'Sakin',
+      lightVariable: 'Hafif ve değişken yönlü',
+      variable: 'Değişken yönlü, {speed}',
+      /** `{direction}`: `compass.from` ("Kuzeydoğudan"). */
+      from: '{direction} {speed}',
+      speedOnly: 'Yönü bilinmiyor, {speed}',
+      gust: 'hamle {speed}',
+      varying: 'yönü {from} ile {to} arasında değişiyor',
+      above: '{speed} üzeri',
+      strong: 'Kuvvetli rüzgâr',
+    },
+    /** Sade görünümde 8 yön; uzman ayrıntılarında derece de yazılır. */
+    compass: {
+      from: {
+        N: 'Kuzeyden',
+        NE: 'Kuzeydoğudan',
+        E: 'Doğudan',
+        SE: 'Güneydoğudan',
+        S: 'Güneyden',
+        SW: 'Güneybatıdan',
+        W: 'Batıdan',
+        NW: 'Kuzeybatıdan',
+      },
+      name: {
+        N: 'kuzey',
+        NE: 'kuzeydoğu',
+        E: 'doğu',
+        SE: 'güneydoğu',
+        S: 'güney',
+        SW: 'güneybatı',
+        W: 'batı',
+        NW: 'kuzeybatı',
+      },
+    },
+    visibility: {
+      tenKmPlus: '10 km ve üzeri',
+      lessThan50: '50 m’den az',
+      above: '{visibility} üzeri',
+      below: '{visibility} altı',
+      minimum: 'en düşük {visibility}, {direction} yönünde',
+    },
+    clouds: {
+      FEW: 'Az bulutlu',
+      SCT: 'Parçalı bulutlu',
+      BKN: 'Çok bulutlu',
+      OVC: 'Kapalı',
+      lowest: 'en alçak bulut {height}',
+      nsc: 'Alçak bulut yok',
+      cavok: 'Alçak bulut yok',
+      ncd: 'Bulut algılanmadı (otomatik)',
+      skc: 'Açık',
+      vv: 'Gökyüzü görünmüyor (dikey görüş {height})',
+      vvUnknown: 'Gökyüzü görünmüyor',
+      cb: 'kümülonimbüs',
+      tcu: 'kule biçimli kümülüs',
+    },
+    humidity: 'Yaklaşık %{percent}',
+    /** METAR'ın sonundaki 2 saatlik eğilim (NOSIG, BECMG, TEMPO). */
+    trend: {
+      nosig: 'Önümüzdeki 2 saatte önemli değişiklik beklenmiyor',
+      becmg: 'Önümüzdeki 2 saatte giderek: {change}',
+      tempo: 'Önümüzdeki 2 saatte ara ara: {change}',
+      nosigUntil: '{to} saatine kadar önemli değişiklik beklenmiyor',
+      becmgUntil: '{to} saatine kadar giderek: {change}',
+      tempoUntil: '{to} saatine kadar ara ara: {change}',
+    },
+    /** Eğilim ve tahmindeki değişiklik parçaları (küçük harfle, virgülle birleşir). */
+    change: {
+      visibility: 'görüş {visibility}',
+      wind: 'rüzgâr {wind}',
+      cavok: 'görüş 10 km ve üzeri, alçak bulut ve önemli hava olayı yok',
+      nsw: 'önemli hava olayı sona eriyor',
+    },
+    /**
+     * Havalimanı tahmini (TAF), sade özet. `…Until` kalıpları başlamış dönemler içindir. Olasılıklı
+     * dönemde "bekleniyor" yazılmaz.
+     */
+    taf: {
+      base: '{from}–{to} arası {phrase}',
+      until: '{to} saatine kadar {phrase}',
+      fm: '{from} itibarıyla {phrase}',
+      becmg: '{from}–{to} arasında giderek {phrase}',
+      tempo: '{from}–{to} arası ara ara {phrase}',
+      tempoUntil: '{to} saatine kadar ara ara {phrase}',
+      prob: '{from}–{to} arası %{probability} olasılıkla {phrase}',
+      probUntil: '{to} saatine kadar %{probability} olasılıkla {phrase}',
+      probTempo: '{from}–{to} arası %{probability} olasılıkla ara ara {phrase}',
+      probTempoUntil: '{to} saatine kadar %{probability} olasılıkla ara ara {phrase}',
+      strongWind: 'kuvvetli rüzgâr, {wind}',
+      validUntil: 'Tahminin geçerlilik sonu: {time}.',
+      validPeriod: 'Tahmin {from} – {to} arası için.',
+      issued: 'Tahmin {time} yayımlandı.',
+      amended: 'Güncellenmiş tahmin.',
+      corrected: 'Düzeltilmiş tahmin.',
+      cancelled: 'Tahmin iptal edildi.',
+      nil: 'Tahmin yok.',
+      none: 'Bu havalimanı için geçerli bir tahmin (TAF) yok.',
+      nothingSignificant: 'Tahminde önemli hava olayı yok.',
+      more: 'Bütün tahmin dönemleri uzman ayrıntılarındadır.',
+    },
+    time: {
+      tomorrow: 'yarın {time}',
+      onDate: '{date} {time}',
+    },
+    localTime: 'Yerel saat {time} ({offset})',
+    sunrise: 'Gün doğumu {time}',
+    sunset: 'Gün batımı {time}',
+    sunNote:
+      'Gün doğumu ve batımı deniz seviyesi ve düz ufuk için hesaplanmıştır; dağlık arazide birkaç dakika farklı olabilir.',
+    /** `{source}`: aviationweather.gov bağlantısı. NOAA/NWS logosu ya da onay imajı kullanılmaz. */
+    source:
+      'Hava durumu: {source} (NOAA Aviation Weather Center). Raporları havalimanlarının meteoroloji birimleri hazırlar. Otomatik çözümlenmiştir; resmî brifing yerine geçmez, uçuş planlamasında kullanılmaz.',
+    /** Uzman ayrıntıları (`<details>`, varsayılan kapalı): kodlar ve havacılık birimleri. */
+    expert: {
+      heading: 'Ayrıntılar (uzman)',
+      caption: 'Gözlemin kod kod çözümü',
+      columns: {
+        code: 'Kod',
+        meaning: 'Anlamı',
+      },
+      metar: 'METAR (rutin gözlem)',
+      speci: 'SPECI (özel gözlem)',
+      station: 'Havalimanının ICAO kodu',
+      observedUtc: 'Gözlem zamanı: {utc} UTC (yerel saat {local})',
+      wind: 'Rüzgâr',
+      windValue: '{direction} {speed}',
+      variableDirection: 'değişken yönlü',
+      varying: 'yön {from}–{to} arası',
+      gust: 'hamle {speed}',
+      calm: 'sakin',
+      visibility: 'Görüş',
+      rvr: 'Pist görüş mesafesi (RVR)',
+      rvrItem: 'Pist {runway}: {value}',
+      rvrAbove: '{value} üzeri',
+      rvrBelow: '{value}’den az',
+      rvrVarying: '{from} ile {to} arası',
+      rvrTendency: {
+        up: 'artıyor',
+        down: 'azalıyor',
+        none: 'değişmiyor',
+      },
+      weather: 'Hava olayı',
+      recent: 'Son saatteki hava olayı',
+      clouds: 'Bulut',
+      layer: '{cover} {ft} ({m})',
+      layerType: '{layer}, {type}',
+      tempDew: 'Sıcaklık {temperature}, çiy noktası {dewPoint}',
+      pressure: 'Basınç (QNH)',
+      windShear: 'Rüzgâr kesmesi',
+      windShearAll: 'bütün pistlerde',
+      windShearRunway: 'pist {runway}',
+      notObserved: 'Hava olayı gözlenemedi (otomatik istasyon)',
+      recentNotObserved: 'Son saatteki hava olayı gözlenemedi (otomatik istasyon)',
+      runwayState: 'Pist yüzeyi durumu (ayrıntısı burada çözümlenmez)',
+      seaState: 'Deniz yüzeyi sıcaklığı ve durumu (burada çözümlenmez)',
+      colourState: 'Askerî renk durumu: görüş ve bulut tabanı sınıfı (burada çözümlenmez)',
+      unparsed: 'Çözümlenemeyen kısımlar',
+      remarks: 'Ek açıklamalar (çözümlenmez)',
+      trendNosig: 'Gözlemden sonraki 2 saatte önemli değişiklik beklenmiyor (NOSIG)',
+      trendBecmg: 'Gözlemden sonraki 2 saatte giderek: {change}',
+      trendTempo: 'Gözlemden sonraki 2 saatte ara ara: {change}',
+      flightCategory: 'Uçuş kategorisi (ABD sınıflandırması, aviationweather.gov)',
+      flightCategoryNote: 'Bu sınıflandırma uçuşların yapılıp yapılmadığı hakkında bilgi vermez.',
+      rawMetar: 'Ham METAR',
+      rawTaf: 'Ham TAF',
+      copy: 'Kopyala',
+      copied: 'Kopyalandı',
+      tafCaption: 'Tahmin dönemleri ({issued} yayımlanan TAF)',
+      tafColumns: {
+        period: 'Dönem',
+        change: 'Değişim',
+        wind: 'Rüzgâr',
+        visibility: 'Görüş',
+        weather: 'Hava olayı',
+        clouds: 'Bulut',
+      },
+      tafChange: {
+        base: 'Ana tahmin',
+        fm: 'İtibarıyla (FM)',
+        becmg: 'Giderek (BECMG)',
+        tempo: 'Ara ara (TEMPO)',
+        prob: '%{p} olasılık (PROB{p})',
+        probTempo: '%{p} olasılıkla ara ara (PROB{p} TEMPO)',
+      },
+      noTemperature: 'Havalimanı tahmini sıcaklık içermez.',
+    },
+    /** METAR/TAF kaydı: son 24 saatte saklanan bütün raporlar, en yenisi üstte (D-078). */
+    log: {
+      heading: 'METAR/TAF kaydı',
+      intro:
+        'Son 24 saatte yayımlanan havacılık hava raporları, en yenisi üstte. Saatler yerel saattir; UTC yanında yazılır. METAR rutin gözlem, SPECI hava önemli ölçüde değişince yayımlanan özel gözlem, TAF havalimanı tahminidir.',
+      caption: '{name}: son 24 saatin raporları',
+      columns: {
+        time: 'Saat',
+        type: 'Tür',
+        summary: 'Özet',
+        raw: 'Ham rapor',
+      },
+      utc: '{time} UTC',
+      tafSummary: '{from}–{to} arası için tahmin',
+      amended: 'güncellenmiş',
+      corrected: 'düzeltilmiş',
+      cancelled: 'iptal edildi',
+      /** Tekil ve çoğul (İngilizcede ayrı; Türkçede aynı). */
+      countOne: '{count} rapor',
+      countMany: '{count} rapor',
+      empty: 'Son 24 saatte kayıtlı rapor yok.',
+      unavailable: 'Rapor kaydı şu an alınamıyor.',
+      /** `{link}`: API adresi (son 7 gün, JSON). */
+      older: 'Raporlar 30 gün saklanır; son 7 günün kaydı {link}.',
+      olderLink: 'API’den alınabilir',
+    },
+  },
+  /**
    * Hakkında ve yöntem (`/hakkinda`). Kaynaklar: docs/spec/domain.md ("v1 sınırları"),
    * docs/spec/data-sources.md (§1 tazelik hedefleri, §3, §4, §6, §6a), D-066, D-071, D-073, ATTRIBUTION.md.
    */
@@ -203,6 +615,8 @@ export const tr = {
       search: 'Arama: havadaki uçağı sefer no, çağrı kodu, tescil ya da hex koduyla bulma.',
       airports:
         'Havalimanları: Türkiye’deki havalimanlarının kodları, pistleri ve en yakın havalimanları.',
+      weather:
+        'Hava durumu: her havalimanı sayfasında son havacılık hava raporu (METAR), havalimanı tahmini (TAF) ve son 24 saatin rapor kaydı; haritada havalimanına tıklayınca kısa özeti.',
     },
     limits: {
       heading: 'Neler gösterilmez',
@@ -241,6 +655,8 @@ export const tr = {
       vector:
         'Vektör harita: {openFreeMap} © {openMapTiles}, harita verisi © {openStreetMap} katkıcıları (ODbL).',
       satellite: 'Uydu görüntüsü (gösterildiğinde): {esri}.',
+      weather:
+        'Hava durumu: {source} (NOAA Aviation Weather Center); raporları havalimanlarının meteoroloji birimleri hazırlar. Otomatik çözümlenir; resmî brifing yerine geçmez.',
     },
     privacy: {
       heading: 'Uçak gizliliği',
@@ -328,6 +744,13 @@ export const tr = {
       full: 'Tam',
       hint: 'Kısa: yalnızca sefer no. Tam: sefer no, hız ve yükseklik.',
     },
+    /** Havalimanı penceresinin klavye yolu: görünümdeki havalimanları listesi (D-078). */
+    airportList: {
+      button: 'Havalimanları',
+      title: 'Görünümdeki havalimanları',
+      empty: 'Görünümde havalimanı yok; haritayı kaydır ya da uzaklaştır.',
+      hint: 'Seçtiğin havalimanının bilgi ve hava durumu penceresi açılır.',
+    },
     status: {
       freshness: 'Veri yaşı {s} sn',
       connecting: 'Canlı veriye bağlanılıyor…',
@@ -342,6 +765,28 @@ export const tr = {
       coveragePartial:
         'Bu bölgenin bir kısmı kapsama alanının dışında; bazı uçaklar görünmeyebilir.',
       basemapFailed: 'Harita altlığı yüklenemedi.',
+    },
+    /**
+     * Haritada havalimanına tıklanınca açılan küçük pencere (M6c). Hava durumu cümleleri üst düzey
+     * `weather` metinlerinden kurulur (packages/i18n/src/weather.ts).
+     */
+    airportPopup: {
+      /** Pencerenin erişilebilir adı; `{name}`: havalimanının adı. */
+      label: '{name} bilgileri',
+      elevation: 'Rakım',
+      runways: 'Pistler',
+      runwaysOne: 'Tek pist, {length}',
+      runwaysMany: '{count} pist, en uzunu {length}',
+      localTime: 'Yerel saat',
+      sunrise: 'Gün doğumu',
+      sunset: 'Gün batımı',
+      weather: 'Hava durumu',
+      noReport: 'Hava durumu raporu yok',
+      observed: 'Gözlem {time}',
+      loading: 'Hava durumu yükleniyor…',
+      unavailable: 'Hava durumu şu an alınamıyor.',
+      openAirportPage: 'Havalimanı sayfası →',
+      close: 'Kapat',
     },
   },
   status: {
@@ -418,6 +863,7 @@ export const tr = {
       trackPartitions: 'İz tabloları (günlük bölümler)',
       providerAdsbLol: 'Canlı veri · adsb.lol',
       providerLocalReceiver: 'Canlı veri · yerel alıcı',
+      weather: 'Hava durumu · aviationweather.gov',
     },
     detail: {
       memory: 'Bellek',
@@ -450,6 +896,17 @@ export const tr = {
       lastSuccess: 'Son başarılı yanıt',
       never: 'yok',
       healthRecord: 'Son sağlık kaydı',
+      stationsWithMetar: 'Güncel gözlemi olan havalimanı (son 3 sa)',
+      newestObs: 'En yeni gözlem',
+      metarCheck: 'Son METAR kontrolü',
+      tafCheck: 'Son TAF kontrolü',
+      validTafs: 'Geçerli TAF',
+      blockedUntil: 'İstek engeli bitişi',
+      originDisabled: 'Kapalı',
+      /** Hava durumu satırı (D-078): kaynak ve kapalıysa nedeni. */
+      weatherOriginRemote: 'aviationweather.gov (METAR 5 dk, TAF 15 dk)',
+      weatherOriginFixture: 'Elle yazılmış örnek raporlar (yerel geliştirme)',
+      reason: 'Neden',
       circuitStates: {
         closed: 'kapalı (normal)',
         open: 'açık',
@@ -495,6 +952,10 @@ export const tr = {
       live: 'Canlı uçak konumları {source} kaynağından gelir ve {license} ile lisanslıdır.',
       odbl: 'Bu koşullar, ADS-B’den türetilen veriler üzerinde ODbL’nin sana tanıdığı hakları kısıtlamaz.',
       airports: 'Havalimanı bilgileri {source} kaynağından gelir ve kamu malıdır.',
+      /** `{source}`: aviationweather.gov, `{disclaimer}`: NWS kullanım şartları (D-078). */
+      weather:
+        'Havalimanı hava durumu raporları (METAR ve TAF) {source} kaynağından (NOAA Aviation Weather Center) gelir; raporları havalimanlarının meteoroloji birimleri hazırlar. Raporlar otomatik çözümlenir ve yalnızca bilgi amaçlıdır: resmî brifing yerine geçmez, uçuş planlamasında kullanılamaz. NOAA ve NWS bu hizmeti onaylamış değildir ({disclaimer}).',
+      weatherDisclaimer: 'NWS kullanım şartları',
     },
     map: {
       heading: 'Harita görüntüleri',
