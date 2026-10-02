@@ -1,16 +1,19 @@
 import { compassKey8 } from './compass'
-import { isStrongWind, largestCover, lowestCloudBaseFt } from './derive'
+import { isStrongWind, largestCover, lowestCloudBaseFt, offScaleWind, windLevel } from './derive'
 import { list, phrase, type Measure, type Phrase, type WeatherText } from './phrase'
-import type {
-  DecodedMetar,
-  DecodedTaf,
-  Sky,
-  TafPeriod,
-  TrendGroup,
-  Visibility,
-  WeatherGroup,
-  WeatherIconCategory,
-  Wind,
+import {
+  WIND_LEVELS,
+  type DecodedMetar,
+  type DecodedTaf,
+  type LightningRisk,
+  type Sky,
+  type TafPeriod,
+  type TrendGroup,
+  type Visibility,
+  type WeatherGroup,
+  type WeatherIconCategory,
+  type Wind,
+  type WindLevel,
 } from './schema'
 import { localDayDifference, toDate, TURKEY_TIME_ZONE, type DateInput } from './time'
 import {
@@ -18,6 +21,7 @@ import {
   isFogGroup,
   isHailGroup,
   isOtherGroup,
+  isPrecipitationGroup,
   isRainGroup,
   isSnowGroup,
   isThunderGroup,
@@ -32,7 +36,10 @@ import {
  * - Yağmur, kar, oraj ve sis satırları her zaman vardır; "yok" yalnızca rapor temiz çözüldüyse
  *   yazılır. Rapor NIL ise ya da gövdede hava olayına benzeyen çözülemeyen parça varsa
  *   "belirlenemedi" yazılır (tanınan olaylar yine gösterilir).
- * - Çevredeki (VC) ve son saatteki (RE) olaylar "havalimanında yok" diye ayrıca söylenir.
+ * - Çevredeki (VC) ve son saatteki (RE) olaylar "havalimanında yok" diye ayrıca söylenir. Gök
+ *   gürültüsü satırı istisnadır: oraj ya da kümülonimbüs varken şimşek ve yıldırım uyarısını yazar
+ *   (`lightning`, D-083); "Yok" diyen metin de bulutu ve olasılığı söyler, uyarıyla çelişmez.
+ *   Kümülonimbüs ve havalimanında yağış varken "Yok" denmez, tehlike yazılır (`cloudPrecip`).
  * - Olasılıklı (PROB) tahmin "bekleniyor" diye yazılmaz; kalıp olasılığı söyler.
  */
 
@@ -57,8 +64,9 @@ export interface WeatherSummaryRows {
 
 /**
  * Olay satırının durumu: `present` havalimanında var, `vicinity` yalnız çevresinde, `recent` kısa
- * süre önce vardı, `none` yok, `undetermined` belirlenemedi. Arayüz yalnız `present` satırı vurgular
- * (kullanıcı kararı 2026-10-02); satırın metni her durumu ayrıca söyler.
+ * süre önce vardı, `none` yok, `undetermined` belirlenemedi. Arayüz `present` satırı vurgular
+ * (kullanıcı kararı 2026-10-02); gök gürültüsü satırının vurgusu `lightning`'den, rüzgârınki
+ * `windLevel`'dan gelir (D-083). Satırın metni her durumu ayrıca söyler.
  */
 export type PhenomenonPresence = 'present' | 'vicinity' | 'recent' | 'none' | 'undetermined'
 
@@ -94,8 +102,20 @@ export interface WeatherSummary {
    * `now` verilmezse her zaman `next2h`.
    */
   trend: TrendWindow
-  /** "Kuvvetli rüzgâr" etiketi (`weather.wind.strong`). */
+  /**
+   * Etkili rüzgârın şiddeti (D-083; `windLevel`): rüzgâr satırı vurgulanır, yanında şiddetin adı
+   * (`weather.wind.level.*`: "Kuvvetli rüzgâr", "Fırtına" …) yazılır. Eşiğin altında ya da NIL'de null.
+   */
+  windLevel: WindLevel | null
+  /** Geriye uyum: `windLevel !== null` (MGM meydan uyarısı eşiği aşıldı). */
   strongWind: boolean
+  /**
+   * Şimşek ve yıldırım uyarısı (D-083): gök gürültüsü satırı bunu yazar (`weather.thunder.*`) ve
+   * vurgulanır. Havalimanında oraj (yağışlı ya da yağışsız), çevrede oraj (VCTS) ya da kümülonimbüs
+   * bulutu (havalimanında yağışla birlikte ya da yağışsız); yoksa (TCU ve yalnız son saatteki oraj
+   * dahil) ya da NIL'de null.
+   */
+  lightning: LightningRisk | null
   /** Hava olayı satırları "belirlenemedi" diyebilir; ham metne yönlendiren not gösterilir. */
   undetermined: boolean
   /** Uyarı notları (NIL, çözülemeyen parça, otomatik gözlem, düzeltilmiş rapor, SPECI). */
@@ -118,19 +138,28 @@ export function weatherGroupText(g: WeatherGroup): WeatherText {
   return phrase('weather.wx.vicinity', { phrase: phrase(`weather.wx.${id}`) })
 }
 
-const speedMeasure = (kt: number): Measure => ({ measure: 'speed', kt })
+const speedMeasure = (kt: number, kmh: number | null | undefined): Measure =>
+  kmh === null || kmh === undefined ? { measure: 'speed', kt } : { measure: 'speed', kt, kmh }
 
-function speedText(kt: number, aboveMax: boolean): WeatherText {
-  return aboveMax && kt >= 100
-    ? phrase('weather.wind.above', { speed: speedMeasure(kt) })
-    : speedMeasure(kt)
+/**
+ * Hız; ölçek üstü "185 km/sa (100 kt) ve üzeri" (`P99KT`), "180 km/sa (97 kt) ve üzeri" (`P49MPS`).
+ * Hangi değerin ölçek üstü olduğu `offScaleWind`'dan gelir (uzman görünümüyle aynı kural).
+ */
+function speedText(kt: number, kmh: number | null | undefined, offScale: boolean): WeatherText {
+  return offScale
+    ? phrase('weather.wind.above', { speed: speedMeasure(kt, kmh) })
+    : speedMeasure(kt, kmh)
 }
 
-/** Rüzgâr: "Kuzeydoğudan 33 km/sa, hamle 59 km/sa, yönü batı ile kuzey arasında değişiyor". */
+/**
+ * Rüzgâr: "Kuzeydoğudan 33 km/sa (18 kt), hamle 59 km/sa (32 kt), yönü batı ile kuzey arasında
+ * değişiyor" (km/sa ve kt birlikte, D-083).
+ */
 export function windText(wind: Wind | null): WeatherText {
   if (!wind || wind.speedKt === null) return UNDETERMINED
   if (wind.calm) return phrase('weather.wind.calm')
-  const speed = speedText(wind.speedKt, wind.aboveMaxKt)
+  const offScale = offScaleWind(wind)
+  const speed = speedText(wind.speedKt, wind.speedKmh, offScale.speed)
   const items: WeatherText[] = []
   const direction = wind.directionDeg === null ? null : compassKey8(wind.directionDeg)
   if (wind.variable) {
@@ -150,7 +179,11 @@ export function windText(wind: Wind | null): WeatherText {
     )
   }
   if (wind.gustKt !== null) {
-    items.push(phrase('weather.wind.gust', { speed: speedText(wind.gustKt, wind.aboveMaxKt) }))
+    items.push(
+      phrase('weather.wind.gust', {
+        speed: speedText(wind.gustKt, wind.gustKmh, offScale.gust),
+      }),
+    )
   }
   if (wind.varyingFromDeg !== null && wind.varyingToDeg !== null) {
     const from = compassKey8(wind.varyingFromDeg)
@@ -238,7 +271,6 @@ interface PresenceInput {
   near: readonly WeatherGroup[]
   recent: readonly WeatherGroup[]
   undetermined: boolean
-  none?: WeatherText
 }
 
 /** Olay satırının durumu: havalimanında var / belirlenemedi / çevresinde / kısa süre önce / yok. */
@@ -266,8 +298,35 @@ function presenceRow(input: PresenceInput): WeatherText {
         phrase: list(input.recent.map(recentPhrase), 'comma'),
       })
     case 'none':
-      return input.none ?? NONE
+      return NONE
   }
+}
+
+/**
+ * Şimşek ve yıldırım uyarısı (D-083). Yıldırım yağmurun dışına da düşer: yağışsız oraj gerçek bir
+ * olaydır (METAR'da tek başına `TS`), yıldırım çoğu zaman oraj merkezinden 5 km'den uzağa, 16–24 km'ye
+ * kadar düşer (NWS), gök gürültüsü ~20 km'den uzakta nadiren duyulur (Met Office). Bu yüzden:
+ * havalimanında TS → tehlike (yağış olsun olmasın), VCTS (8–16 km) → havalimanına da düşebilir,
+ * kümülonimbüs ve havalimanında yağış (`-SHRA FEW025CB`) → tehlike (kullanıcının sözü, 2026-10-03),
+ * yalnız kümülonimbüs → olabilir. TCU (örssüz, gelişen bulut) ve yalnız son saatteki oraj (RETS) için
+ * iddia yazılmaz. "Yağış yok" (`hereDry`) yalnız rapor temiz çözüldüyse söylenir (D-078): hava olayı
+ * belirlenemediyse (`TS //`, görüşü eksik rapor, çözülemeyen parça) yağış bilinmez, `here` yazılır.
+ * Tanınan yağış grubu rapor belirlenemese de vardır: CB ile `cloudPrecip` yazılır (metni "Yok"
+ * demez); yalnız tanınan yağış yoksa `cloudUndetermined`.
+ */
+function lightningRisk(
+  here: readonly WeatherGroup[],
+  near: readonly WeatherGroup[],
+  cb: boolean,
+  undetermined: boolean,
+): LightningRisk | null {
+  if (here.some(isThunderGroup)) {
+    return here.some(isPrecipitationGroup) || undetermined ? 'here' : 'hereDry'
+  }
+  if (near.some(isThunderGroup)) return 'vicinity'
+  if (!cb) return null
+  if (here.some(isPrecipitationGroup)) return 'cloudPrecip'
+  return undetermined ? 'cloudUndetermined' : 'cloud'
 }
 
 /** Son saatteki olay: yağışsız oraj (`RETS`) "gök gürültüsü" diye yazılır (VCTS ile aynı ad). */
@@ -276,7 +335,13 @@ function recentPhrase(g: WeatherGroup): Phrase {
   return phrase(`weather.wx.${id === 'TS' ? 'VCTS' : id}`)
 }
 
-/** Başlık metni. */
+/**
+ * Başlık metni. Yağışsız oraj grubunun metni "yağış yok" der ("Gök gürültüsü ve şimşek, yağış
+ * yok"); bu yalnız rapor temiz çözüldüyse ve havalimanında yağış yoksa doğrudur. Hava olayı
+ * belirlenemediyse (yağış bilinmez; yağmur satırı "Belirlenemedi", D-078) ya da yağış ayrı bir
+ * grupta yazıldıysa (`TS RA`, `TS -SHRA`, `TS GS`; yağmur ya da dolu satırı yağışı yazar) başlık
+ * yalnız "Gök gürültüsü" yazar (`weather.wx.VCTS`, D-083).
+ */
 function headlineText(m: DecodedMetar): WeatherText {
   const h = m.derived.headline
   switch (h.kind) {
@@ -285,8 +350,14 @@ function headlineText(m: DecodedMetar): WeatherText {
     case 'undetermined':
       return phrase('weather.headline.undetermined')
     case 'weather': {
-      const worst = mostSevereGroup(m.weather.filter((g) => !g.vicinity))
-      return worst ? groupPhrase(worst) : phrase('weather.headline.unknown')
+      const here = m.weather.filter((g) => !g.vicinity)
+      const worst = mostSevereGroup(here)
+      if (!worst) return phrase('weather.headline.unknown')
+      const precipitationUnknownOrElsewhere =
+        m.derived.weatherUndetermined || here.some(isPrecipitationGroup)
+      return weatherPhraseId(worst) === 'TS' && precipitationUnknownOrElsewhere
+        ? phrase('weather.wx.VCTS')
+        : groupPhrase(worst)
     }
     default:
       break
@@ -451,8 +522,9 @@ export function summarizeMetar(
     near: pick(near, isThunderGroup),
     recent: pick(recent, isThunderGroup),
     undetermined,
-    none: m.derived.flags.cb ? phrase('weather.value.noneWithCb') : NONE,
   }
+  const lightning = m.nil ? null : lightningRisk(here, near, m.derived.flags.cb, undetermined)
+  const level = m.nil ? null : windLevel(m.wind)
   const fog: PresenceInput = {
     here: pick(here, fogLike),
     near: pick(near, isFogGroup),
@@ -468,7 +540,7 @@ export function summarizeMetar(
       wind: m.nil ? UNDETERMINED : windText(m.wind),
       rain: presenceRow(rain),
       snow: presenceRow(snow),
-      thunderstorm: presenceRow(thunderstorm),
+      thunderstorm: lightning ? phrase(`weather.thunder.${lightning}`) : presenceRow(thunderstorm),
       fog: presenceRow(fog),
       hail: hail.length > 0 ? list(hail.map(groupPhrase), 'comma') : null,
       other,
@@ -490,7 +562,9 @@ export function summarizeMetar(
     },
     next2h: next2hText(m, trend),
     trend: trend.window,
-    strongWind: !m.nil && m.derived.strongWind,
+    windLevel: level,
+    strongWind: level !== null,
+    lightning,
     undetermined,
     notes,
   }
@@ -503,7 +577,10 @@ export function summarizeMetar(
 export interface TafSummary {
   /** ok: geçerli tahmin var; none: yok; cancelled: en yeni tahmin iptal; nil: tahmin yayımlanmadı. */
   status: 'ok' | 'none' | 'cancelled' | 'nil'
-  /** Öne çıkan en fazla iki öğe (en önemli hava olayı ve varsa kuvvetli rüzgâr), her biri bir satır. */
+  /**
+   * Öne çıkan en fazla iki öğe (en önemli hava olayı ve varsa en şiddetli kuvvetli rüzgâr), her
+   * biri bir satır.
+   */
   items: WeatherText[]
   /** "Tahmin yarın 21:00 saatine kadar geçerli."; geçerli tahmin yoksa null. */
   validUntil: WeatherText | null
@@ -693,11 +770,13 @@ function sameSubject(a: Candidate, b: Candidate): boolean {
  */
 function strongestWind(a: Wind, b: Wind): Wind {
   const base = (b.speedKt ?? 0) > (a.speedKt ?? 0) ? b : a
-  const gusts = [a.gustKt, b.gustKt].filter((gust): gust is number => gust !== null)
-  const gust = gusts.length === 0 ? null : Math.max(...gusts)
+  const gusty = (b.gustKt ?? -1) > (a.gustKt ?? -1) ? b : a
+  const gust = gusty.gustKt
+  const kept = gust !== null && gust > (base.speedKt ?? 0)
   return {
     ...base,
-    gustKt: gust !== null && gust > (base.speedKt ?? 0) ? gust : null,
+    gustKt: kept ? gust : null,
+    gustKmh: kept ? (gusty.gustKmh ?? null) : null,
     aboveMaxKt: a.aboveMaxKt || b.aboveMaxKt,
   }
 }
@@ -735,6 +814,12 @@ const CERTAINTY: Record<Kind, number> = {
   PROB: 2,
 }
 
+/** Rüzgâr şiddetinin sırası (`WIND_LEVELS`, zayıftan güçlüye); eşiğin altında −1. */
+function windRank(wind: Wind | null): number {
+  const level = windLevel(wind)
+  return level === null ? -1 : WIND_LEVELS.indexOf(level)
+}
+
 function timeParam(at: number, now: number, timeZone: string): WeatherText {
   const iso = new Date(at).toISOString()
   const time: Measure = { measure: 'time', iso }
@@ -745,9 +830,13 @@ function timeParam(at: number, now: number, timeZone: string): WeatherText {
 }
 
 function itemText(c: Candidate, now: number, timeZone: string): WeatherText {
+  const level = windLevel(c.wind)
   const subject: WeatherText = c.group
     ? weatherGroupText(c.group)
-    : phrase('weather.taf.strongWind', { wind: windText(c.wind) })
+    : phrase('weather.taf.strongWind', {
+        level: phrase(`weather.wind.level.${level ?? 'strong'}`),
+        wind: windText(c.wind),
+      })
   const from = timeParam(c.from, now, timeZone)
   const to = timeParam(c.to, now, timeZone)
   const probability = c.probability ?? 30
@@ -787,7 +876,7 @@ function itemText(c: Candidate, now: number, timeZone: string): WeatherText {
  * Geçerli TAF'ların sade dil özeti: şimdiden itibaren (varsayılan 24 saat) her saat için en son
  * yayımlanan ve o saati kapsayan TAF kullanılır (WMO-782 s. 48); tahmin geçerlilik sonunun ötesine
  * uzatılmaz. En önemli hava olayı (TEMPO ve PROB dahil) zaman penceresi ve niteleyicisiyle, varsa
- * kuvvetli rüzgâr ikinci satırda verilir.
+ * en şiddetli kuvvetli rüzgâr ikinci satırda verilir.
  */
 export function summarizeTaf(
   tafs: readonly DecodedTaf[],
@@ -829,9 +918,17 @@ export function summarizeTaf(
         a.from - b.from ||
         CERTAINTY[a.kind] - CERTAINTY[b.kind],
     )
+  // Rüzgâr da hava olayı gibi önce şiddetine göre seçilir: sonra gelen daha güçlü rüzgâr (ör.
+  // kuvvetli temel rüzgârın ardından TEMPO fırtına) öncekinin arkasında kalmaz (D-083). Eşitse en
+  // erken, sonra en kesin olan.
   const windCandidates = candidates
     .filter((c) => c.wind !== null)
-    .sort((a, b) => a.from - b.from || CERTAINTY[a.kind] - CERTAINTY[b.kind])
+    .sort(
+      (a, b) =>
+        windRank(b.wind) - windRank(a.wind) ||
+        a.from - b.from ||
+        CERTAINTY[a.kind] - CERTAINTY[b.kind],
+    )
 
   const chosen: Candidate[] = []
   const first = weatherCandidates[0]

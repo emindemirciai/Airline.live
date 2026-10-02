@@ -1,5 +1,5 @@
 import type { Locale } from '../locale'
-import { COMPASS_POINTS_8, CLOUD_COVERS } from './schema'
+import { COMPASS_POINTS_8, CLOUD_COVERS, LIGHTNING_RISKS, WIND_LEVELS } from './schema'
 import { WX_PHRASE_IDS } from './wx'
 
 /**
@@ -10,8 +10,11 @@ import { WX_PHRASE_IDS } from './wx'
 
 /** Ham birimli ölçü; `renderWeatherText`'e verilen `measure` biçimleyicisi metne çevirir. */
 export type Measure =
-  /** Rüzgâr hızı, kt (sade görünüm km/sa). */
-  | { measure: 'speed'; kt: number }
+  /**
+   * Rüzgâr hızı, kt; sade görünüm "33 km/sa (18 kt)" yazar (D-083). `kmh` raporun kendi biriminden
+   * çevrilmiş km/sa'dır (MPS raporunda kt'den çevrilenden 1 farklı olabilir); yoksa kt'den çevrilir.
+   */
+  | { measure: 'speed'; kt: number; kmh?: number }
   /** Görüş, m (1 km altı m, 5 km altı bir ondalıklı km, üstü tam km; `visibilityDisplay`). */
   | { measure: 'visibility'; meters: number }
   /** Bulut tabanı ya da dikey görüş, ft (metre gösterimi `cloudBaseMeters` ile yuvarlanır). */
@@ -59,7 +62,6 @@ const FIXED_KEYS = {
   'weather.value.undetermined': [],
   'weather.value.vicinity': ['phrase'],
   'weather.value.recent': ['phrase'],
-  'weather.value.noneWithCb': [],
   // Hava olayı kalıpları
   'weather.wx.vicinity': ['phrase'],
   // Rüzgâr
@@ -119,7 +121,8 @@ const FIXED_KEYS = {
   'weather.taf.probUntil': ['to', 'probability', 'phrase'],
   'weather.taf.probTempo': ['from', 'to', 'probability', 'phrase'],
   'weather.taf.probTempoUntil': ['to', 'probability', 'phrase'],
-  'weather.taf.strongWind': ['wind'],
+  /** Etkili rüzgâr öğesi: şiddet adı (`weather.wind.level.*`) ve rüzgâr. */
+  'weather.taf.strongWind': ['level', 'wind'],
   'weather.taf.validUntil': ['time'],
   'weather.taf.nothingSignificant': [],
   'weather.taf.none': [],
@@ -141,10 +144,14 @@ const FIXED_KEYS = {
 type FixedKey = keyof typeof FIXED_KEYS
 type CompassKey = `weather.compass.${'from' | 'name'}.${(typeof COMPASS_POINTS_8)[number]}`
 type CoverKey = `weather.clouds.${(typeof CLOUD_COVERS)[number]}`
+/** Etkili rüzgârın şiddet adı (`WIND_LEVELS`; D-083). */
+type WindLevelKey = `weather.wind.level.${(typeof WIND_LEVELS)[number]}`
+/** Gök gürültüsü satırının şimşek ve yıldırım uyarısı (`LIGHTNING_RISKS`; D-083). */
+type ThunderKey = `weather.thunder.${(typeof LIGHTNING_RISKS)[number]}`
 /** `weather.wx.<id>`: hava olayı metinleri (`WX_PHRASE_IDS`). */
 type WxKey = `weather.wx.${string}`
 
-export type WeatherPhraseKey = FixedKey | CompassKey | CoverKey | WxKey
+export type WeatherPhraseKey = FixedKey | CompassKey | CoverKey | WindLevelKey | ThunderKey | WxKey
 
 /** Anahtar → beklenen değişken adları (sıralı). */
 export const WEATHER_PHRASE_KEYS: Readonly<Record<string, readonly string[]>> = {
@@ -156,6 +163,8 @@ export const WEATHER_PHRASE_KEYS: Readonly<Record<string, readonly string[]>> = 
     ]),
   ),
   ...Object.fromEntries(CLOUD_COVERS.map((cover) => [`weather.clouds.${cover}`, []])),
+  ...Object.fromEntries(WIND_LEVELS.map((level) => [`weather.wind.level.${level}`, []])),
+  ...Object.fromEntries(LIGHTNING_RISKS.map((risk) => [`weather.thunder.${risk}`, []])),
   ...Object.fromEntries(WX_PHRASE_IDS.map((id) => [`weather.wx.${id}`, []])),
 }
 

@@ -5,17 +5,21 @@ import type { WeatherRow } from './weather-rows'
 
 /**
  * Hava durumu satırları (harita penceresi ve havalimanı sayfası): gerçek `<dl>`, her satır bir
- * `<div>` içinde `<dt>` (simge + etiket) ve `<dd>` (değer, varsa kuvvetli rüzgâr etiketi). Var olan
- * olayın satırı `data-tone` ile renkli zemin ve kalın yazı alır; vurgu renkten ibaret değildir,
- * değer olayın adını yazar ("Yok" yerine "Hafif sağanak yağmur"). Kanca yoktur: sunucuda, adada ve
- * harita penceresinde aynı biçimde çizilir.
+ * `<div>` içinde `<dt>` (simge + etiket) ve `<dd>` (değer, varsa rüzgârın şiddet etiketi). Var olan
+ * olayın, etkili rüzgârın ve şimşek ve yıldırım riskinin satırı `data-tone` ile renkli zemin ve kalın
+ * yazı alır; vurgu renkten ibaret değildir, değer olayın adını ya da uyarıyı yazar ("Yok" yerine
+ * "Hafif sağanak yağmur"), rüzgârın şiddeti etiketle yazılır. Kanca yoktur: sunucuda, adada ve harita
+ * penceresinde aynı biçimde çizilir.
  */
 export function WeatherRowList({
   rows,
   className,
 }: {
   rows: readonly WeatherRow[]
-  /** Ek sınıf (`wx-rows--page`: dar sayfada etiket değerin üstüne geçer). */
+  /**
+   * Ek sınıf: `wx-rows--page` dar sayfada etiketi değerin üstüne alır; `wx-rows--center` (harita
+   * penceresi) etiketi sağa, değeri sola yaslayıp çiftleri orta eksende buluşturur.
+   */
   className?: string
 }) {
   return (

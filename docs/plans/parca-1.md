@@ -20,8 +20,15 @@ Durumlar: `[ ]` başlamadı, `[~]` sürüyor, `[k]` kod bitti ve kullanıcı do�
 | M6 | Web canlı harita | `p1/m6-map` | [x] tamam; üretimde uydu altlığı doğrulandı (2026-09-30) | #14 |
 | M6b | Havalimanı sayfaları, dil adreste (`/en`), SEO ve GEO | `p1/m6b-seo` | [k] kod bitti; Search Console, Bing ve Yandex doğrulaması kullanıcıda (ACTIVATION) | #15 |
 | M6c | Havalimanı hava durumu (METAR/TAF), METAR/TAF kaydı, haritada havalimanı penceresi | `p1/m6c-weather` | [x] tamam; üretimde gerçek METAR/TAF doğrulandı (2026-10-02) | #16 |
-| M6d | Türkiye dışındaki havalimanları, 1. halka (≤ 500 km, 75 havalimanı), açık turkuaz tema, hava durumu sunumu | `p1/m6d-ring1` | [k] kod bitti; üretimde 136 havalimanı ve yabancı METAR'ların doğrulanması bekliyor (ACTIVATION) | #17 |
-| M7 | Canlı araçlar ve kapsama raporu | `p1/m7-tools` | [ ] | — |
+| M6d | Türkiye dışındaki havalimanları, 1. halka (≤ 500 km, 75 havalimanı), açık turkuaz tema, hava durumu sunumu | `p1/m6d-ring1` | [x] tamam; üretimde 136 havalimanı, 122 istasyonda METAR (68'i yurt dışı) doğrulandı (2026-10-02) | #17 |
+| M6e | Hava durumu: pencere ortalı, rüzgâr km/sa ve kt, kuvvetli rüzgâr vurgusu, kümülonimbüs ve yıldırım uyarısı | `p1/m6e-weather-wind` | [k] kod bitti; üretimde pencere ve uyarıların görülmesi bekliyor | #18 |
+| M6f | Adlar ve saat: askerî ve sivil havalimanı adları TR/EN, haritada havalimanı adı etiketi, yurt dışında yerel saat ve UTC farkı | `p1/m6f-names-time` | [ ] | — |
+| M6g | Türkiye dışındaki havalimanları, 2. halka (≤ 1.000 km) | `p1/m6g-ring2` | [ ] | — |
+| M7a | Canlı araçlar: `smoke:live`, `record` | `p1/m7a-live-tools` | [ ] | — |
+| M6h | 3. halka (≤ 2.000 km) | `p1/m6h-ring3` | [ ] | — |
+| M7b | Kapsama ölçümü ve raporu (`coverage:probe`, `coverage:report`) | `p1/m7b-coverage` | [ ] | — |
+| M6i | 4. halka (≤ 5.000 km); haritada görünür alana göre havalimanı yükleme, AWC toplu dosyası | `p1/m6i-ring4` | [ ] | — |
+| M6j | 5. halka (dünyanın geri kalanı, ABD dahil) | `p1/m6j-ring5` | [ ] | — |
 
 ## M0 — Repo iskeleti ve yerel test ortamı
 **Dizinler:**
@@ -595,7 +602,7 @@ Kararlar ve gerekçeler D-080'dedir; site teması ve hava durumu sunumu D-081'de
   - tema ve sunum: odak halkası açık ve koyu tercihte ≥ 3:1, koyu tercihte de sayfa açık turkuaz; pencere ve sayfada sıcaklık kutucuğu, vurgulu yağmur satırı, gizli simgeler, sayıdan önce ayraç yok; IST kodu diğer uçak etiketleri görünürken de bulunur; 375×812'de pencerenin bağlantısı kaydırmadan görünür ve tıklanır; 412, 430 ve 560 px'te hava durumu satırlarında değer sütunu ≥ 150 px ve kuvvetli rüzgâr etiketi kutusunda; arama ipucu 1280 ve 375 px'te iki dilde kutuya sığar
 - `pnpm dev:replay` üzerinde elle: `curl` ile `/v1/airports?scope=listed` (136), `/v1/weather?scope=listed`; tarayıcıda `/havalimanlari`, `/istasyon/LGAV`, `/istasyon/LCEN`, `/en/istasyon/UGTB`, haritada Atina ve Ercan pencereleri
 - `pnpm ci:full` yeşil; PR'da CI (`e2e` dahil) yeşil
-- **Kullanıcıya bağlı (`[k]`):** yayından sonra üretimde `scope=listed` 136 havalimanı, yakın ülkeler tablosu 75 satır ve yabancı havalimanlarında gerçek METAR (ACTIVATION, "M6d yayın doğrulaması").
+- **Kullanıcıya bağlı (`[k]`):** yayından sonra üretimde `scope=listed` 136 havalimanı, yakın ülkeler tablosu 75 satır ve yabancı havalimanlarında gerçek METAR (ACTIVATION, "M6d yayın doğrulaması"). **2026-10-02 doğrulandı (v0.12.0):** 136 havalimanı (75 yurt dışı), 122 istasyonda METAR ve TAF (68'i yurt dışı), `/istasyon/LGAV` "Atina, Yunanistan", `/istasyon/LCEN` KKTC.
 
 **Çıktı kaydı (2026-10-02):**
 - **Yöntem:** Halka analizi (OurAirports'tan onaylı tek indirme) ve sözleşme üzerine 4 paralel ajan ayrışık dosyalarda uyguladı: shared/db/API, fixture ve worker, sayfalar/SEO/i18n, harita/E2E/belgeler. Ardından tek ajan birleştirdi; 75 ↔ 72 farkını uzaklık referansı kuralıyla çözdü (D-080). Kullanıcının 2026-10-02 istekleri (tema A, pencere ve hava durumu sunumu) iki paralel ajan ve bir birleştirici ile eklendi (D-081).
@@ -614,6 +621,59 @@ Kararlar ve gerekçeler D-080'dedir; site teması ve hava durumu sunumu D-081'de
   - Migration yükseltme 5 → 6; `compose:guard` 8 servis, 64 anahtar.
   - E2E 101/101.
 - `pnpm stats` → 526 dosya, 88.430 satır (80.437 kod).
+
+## M6e — Hava durumu: pencere ortalı, rüzgâr km/sa ve kt, kuvvetli rüzgâr, kümülonimbüs ve yıldırım uyarısı
+Onay: 2026-10-03 (kullanıcı istekleri, üretimdeki Gazipaşa ve İstanbul pencerelerinin ekran görüntüleriyle; küçük sürüm, D-082)
+
+Hedef sürüm 0.13.0. Kararlar D-083'tedir.
+
+**Kapsam:**
+- Haritadaki havalimanı penceresinde bütün yazılar ortalı.
+- Rüzgâr hızı km/sa'nın yanında knot olarak da yazılır ("Kuzeyden 46 km/sa (25 kt)"); pencerede, sayfada ve tahminlerde.
+- Etkili rüzgâr her havalimanında belirtilir: rüzgâr satırı eşiği geçince vurgulanır ve şiddeti adıyla yazılır.
+- Kümülonimbüs bulutu ya da gök gürültüsü varsa şimşek ve yıldırım riski açıkça yazılır (yağmursuz durum araştırmayla belirlenir).
+- **Araştırma sonucu (D-083):** yağmur yokken de yıldırım riski vardır (yağışsız oraj METAR'da tek başına `TS`; yıldırım çoğu zaman yağmurun dışına, 16–24 km'ye kadar düşer). Havalimanında TS → "şimşek ve yıldırım tehlikesi" (yağışlı ya da yağışsız), VCTS → "yıldırım havalimanına da düşebilir", CB ve havalimanında yağış → "şimşek ve yıldırım tehlikesi" (kullanıcının sözü, ikinci kontrol turunda düzeltildi), yağışsız CB → "şimşek ve yıldırım olabilir"; TCU ve yalnız son saatteki oraj için iddia yok; TAF ve eğilime ek cümle yok.
+- **Rüzgâr şiddeti (D-083):** eşik MGM meydan uyarısı (ortalama ≥ 20 kt ya da hamle ≥ 30 kt) değişmez; şiddetin adı MGM Beaufort ıskalasından (Kuvvetli rüzgâr, Fırtınamsı rüzgâr, Fırtına … Harikeyn (orkan)), hamle Met Office karşılıklarıyla; yalnız hamle eşiği aşılınca "Kuvvetli hamle". Satır kehribar, şiddet etiketle; TAF öğesi şiddetin adıyla başlar.
+- **Kapsam dışı:** pist yan rüzgâr bileşeni; yurt dışında yerel saat ve UTC farkı (M6f).
+
+**Dizinler ve dosyalar:**
+- **`packages/shared/src/weather/`:** `schema.ts` (`WIND_LEVELS`, `LIGHTNING_RISKS`; `Wind.speedKmh`/`gustKmh` isteğe bağlı), `groups.ts` (km/sa raporun biriminden), `derive.ts` (`windLevel`; `isStrongWind` = düzey var), `summary.ts` (`windLevel`, `lightning`, gök gürültüsü satırı, hız ölçüsünde km/sa, TAF öğesinde şiddet adı, birleşen dilimde hamlenin km/sa'sı), `phrase.ts` (`weather.wind.level.*`, `weather.thunder.*`, `weather.taf.strongWind` = level + wind; `weather.value.noneWithCb` kalktı), `index.ts`; testler `derive.test.ts`, `metar.test.ts`, `summary.test.ts`, `test/fake-text.ts`
+- **`packages/i18n/src/`:** `messages/tr.ts`, `messages/en.ts` (`weather.thunder.*`, `weather.wind.level.*`, "{speed} ve üzeri", "{level}, {wind}"; `weather.value.noneWithCb` ve `weather.wind.strong` kalktı), `weather.ts` (`formatWindSpeedDual`; `formatWindSpeed` ve `formatWindSpeedBoth` raporun km/sa'sını alır), `weather.test.ts`
+- **`apps/web/src/components/`:** `airports/weather-rows.ts` (rüzgâr ve gök gürültüsü vurgusu, şiddet etiketi), `airports/weather-rows.css` (kehribar rüzgâr, vurgulu satırda beyaz etiket, `wx-rows--center`), `airports/weather-row-list.tsx`, `airports/weather-expert.ts` (uzmanda raporun km/sa'sı), `map/airport-popup.tsx` ve `map/airport-popup.css` (bütün yazılar ortalı); testler `airports/airport-weather.test.ts`, `map/airport-popup.test.ts`, `map/airport-popup-model.test.ts`
+- **`e2e/tests/weather.spec.ts`:** km/sa ve kt, rüzgâr ve gök gürültüsü vurgusu ve metni, LTAI ve LTAU'da yıldırım uyarısı (TR/EN), pencerede ortalı yazılar (1280, 430, 375, 320 px), "Kuvvetli hamle" etiketi (412, 430, 560 px). Fixture değişmedi (LTFM CB ve hamle, LTAI havalimanında oraj, LTAU çevrede oraj, LGTS kuvvetli rüzgâr, UGTB MPS zaten vardı).
+- **Belgeler:** D-083; D-078 (madde 7, kelime seçimleri, TAF örneği) ve D-081 (ayraç örneği, vurgu kuralı) güncellendi. `docs/spec/domain.md` hava durumu sunum kuralı taşımadığı için değişmedi.
+
+**Kabul komutları:**
+- `pnpm --filter @havayolu/shared test` → `windLevel` sınırları (19/20/27/28/33/34 kt, 19G29/19G30, 25G42/25G43, 10G52, 40G61, 50G69, 64 kt, P99, 20GP99, 11/10 MPS, sakin ve bilinmeyen), km/sa raporun biriminden (11 MPS = 40 km/sa); 20 gerçek biçimli METAR'da rüzgâr satırı, şiddet, gök gürültüsü satırı ve `lightning` (Gazipaşa `-TSRA` → `here`, İstanbul `04026KT … SCT030CB` → `strong` ve `cloud`, `TS` → `hereDry`, `VCSH TS` → `hereDry`, `VCTS` → `vicinity`, `RETSRA` → yok, CB + `RETSRA` → `cloud`, TCU → yok, NIL, belirlenemeyen + CB → `cloudUndetermined`); TAF öğesinde şiddet adı (kuvvetli rüzgâr, fırtınamsı rüzgâr, fırtına, kuvvetli hamle) ve MPS hamlesinin km/sa'sı. Kontrol turu: 26 METAR (belirlenemeyen raporda oraj `AUTO … TS //`, görüşü eksik `TS`, `TS XXRA` → `here` ve başlık `weather.wx.VCTS`; `P49MPS` ve `GP49MPS` → "ve üzeri", `33090GP99KT` yalnız hamlede); `offScaleWind`; TAF'ta sonra gelen daha güçlü rüzgâr seçilir (temel 20 kt + TEMPO 45G65 → tam fırtına; iki TEMPO 15G30 ve 50G70 → çok şiddetli fırtına; hava olayıyla PROB 40G55 → kuvvetli fırtına ikinci satırda; eşit şiddette en erken)
+- `pnpm --filter @havayolu/i18n test` → yeni anahtarlar iki dilde aynı yer tutucularla; "33 km/sa (18 kt)", "40 km/sa (21 kt)" (MPS), "185 km/sa (100 kt) ve üzeri"; iki ekran görüntüsünün metinleri TR/EN; uyarılarda "güvenli" ya da "risk yok" yok, TS için "fırtına" yok; sayıdan önce "·" ya da "–" yok. Kontrol turu: hızda bölünmez boşluk ("48 km/sa (26 kt)" U+00A0 ile); "Batıdan 180 km/sa (97 kt) ve üzeri" (P49MPS); belirlenemeyen raporda başlık "Gök gürültüsü", satır "tehlikesi", "yağış yok" yok; TAF'ta "18:00 ile 21:00 arası ara ara tam fırtına …"
+- `pnpm --filter @havayolu/web test` → sayfa ve pencerede rüzgâr satırı `data-tone="wind"` ve "Kuvvetli hamle"; CB ve yağışta (fixture IST) gök gürültüsü satırı `data-tone="thunder"` ve "Kümülonimbüs (oraj bulutu) ve yağış var; şimşek ve yıldırım tehlikesi" (ilk uygulamada "Yok; … olabilir"); LTAU "düşebilir", LTAI ve LTBS "tehlikesi"; LGTS "Kuvvetli rüzgâr"; pencerede `wx-rows--center`; METAR/TAF kaydı özetinde kt. Kontrol turu: pencere ve sayfa HTML'inde hız bölünmez boşlukla; ölçek üstü rüzgâr (P49MPS, GP49MPS, P99KT, GP99KT) sade ve uzman görünümde aynı
+- `pnpm --filter @havayolu/api test` → OpenAPI şeması (yeni isteğe bağlı alanlarla) Ajv ile derlenir, fixture yanıtları doğrulanır
+- `pnpm test:e2e` → `weather.spec.ts`: sayfa ve pencerede km/sa ve kt, rüzgâr vurgusu ve şiddet etiketi, CB uyarısı; `/istasyon/LTAI` ve `/en/istasyon/LTAI`'de tehlike, LTAU'da "düşebilir"; pencerede başlık, bilgiler, hava başlığı, satırlar, gözlem satırı ve bağlantı ortalı (1280, 430, 375, 320 px), pencere genişliği 320 px, yatay taşma yok; 412, 430 ve 560 px'te etiket değerin kutusunda. Kontrol turu: hava başlığı satır satır ölçülür (öğeler bitişik ve satır eksende; eski `space-between` dört genişlikte kırmızı), rüzgâr hızı tek satırda (`Range.getClientRects`; bölünmez boşluk olmadan kırmızı), `speedDual` U+00A0 ister
+- `pnpm ci:full` yeşil; PR'da CI (`e2e` dahil) yeşil
+
+**Çıktı kaydı (2026-10-03, uygulama; sürüm, changelog ve README yayın adımındadır):**
+- **Yöntem:** araştırma (MGM, WMO, NWS/NOAA, FAA, Met Office; aviationweather.gov veri API'sine istek atılmadı) ve tek ajanla uygulama. Tarayıcıda (`pnpm dev:replay`, 1280 ve ~490 px) IST penceresi, `/istasyon/LTAI` ve `/en/istasyon/LGTS` denetlendi.
+- **`pnpm ci:full` → yeşil:**
+  - Birim testleri: web 616, shared 455 (+52), api 251, worker 200, providers 120, i18n 75 (+18), tools 74, db 44, geo 31, scripts 31.
+  - Entegrasyon testleri: db 82, api 26, worker 12.
+  - Migration yükseltme 6 → 6 (yeni migration yok); `compose:guard` 8 servis, 64 anahtar.
+  - E2E 106/106 (+5: LTAI/LTAU yıldırım uyarısı TR ve EN, pencere 375, 320 ve 430 px). İlk koşuda dar ekran satır testi bir kez sıfır genişlik okudu (etiket hidrasyondan önce DOM'da değiştiriliyordu); test adanın hidrasyonunu bekler, ardından blok 8 kez tekrarla 48/48 ve `ci:full` yeniden yeşil.
+- **Kontrol turu (2026-10-03, doğrulanmış 5 bulgu; ayrıntı D-083):**
+  - Belirlenemeyen raporda oraj (`AUTO … TS //`, görüşü eksik rapor, çözülemeyen parça): gök gürültüsü satırı `here` ("… tehlikesi", "yağış yok" demez), hava başlığı "Gök gürültüsü" (`weather.wx.VCTS`); yağmur satırı "Belirlenemedi".
+  - TAF özeti birden çok kuvvetli rüzgârdan şiddeti en büyük olanı yazar (eşitse en erken, sonra en kesin); sonra gelen TEMPO/PROB fırtınası artık görünür.
+  - Ölçek üstü rüzgâr `offScaleWind` ile (sade ve uzman görünüm aynı): `P49MPS` "Batıdan 180 km/sa (97 kt) ve üzeri".
+  - Rüzgâr hızında bölünmez boşluk (U+00A0): "48 km/sa (26 kt)" pencerenin dar değer sütununda iki satıra bölünmez.
+  - e2e pencere ölçümü: hava başlığı satır satır ölçülür (öğeler bitişik, satır eksende), rüzgâr hızı tek satırda.
+  - Her yeni test düzeltme geri alınınca kırmızı (denendi): `lightningRisk` 4, başlık 1, TAF seçimi 1, ölçek üstü 2 birim testi; bölünmez boşluk i18n testi ve e2e (dört genişlikte "33 km/sa (18 kt)" 2 satır); `justify-content: space-between` e2e'de dört genişlikte (öğeler arası 89–199 px).
+  - **`pnpm ci:full` → yeşil:** birim testleri web 620 (+4), shared 465 (+10), api 251, worker 200, providers 120, i18n 80 (+5), tools 74, db 44, geo 31, scripts 31; entegrasyon db 82, api 26, worker 12; migration yükseltme 6 → 6; `compose:guard` 8 servis, 64 anahtar; E2E 106/106 (test sayısı aynı, pencere testleri sıkılaştı).
+- **İkinci kontrol turu (2026-10-03, 3 düzeltme; ayrıntı D-083):**
+  - **Kümülonimbüs ve yağış (kullanıcının sözü):** "kümülonimbüs bulut aktivitesi varsa yağmurla beraber, şimşek ve yıldırım tehlikesi olduğunu belirt". Yeni `LIGHTNING_RISKS` değeri `cloudPrecip`: TS ve VCTS yok, CB var, havalimanında yağış grubu var → "Kümülonimbüs (oraj bulutu) ve yağış var; şimşek ve yıldırım tehlikesi" / "Cumulonimbus (thunderstorm cloud) and precipitation present; lightning danger", kehribar. Fixture IST (`-SHRA FEW025CB`) artık bunu yazar (önce "Yok; … olabilir"). Yağışsız CB `cloud`, tanınan yağışsız belirlenemeyen rapor `cloudUndetermined` kalır. API ve OpenAPI özeti taşımaz; değişmedi.
+  - **Başlıkta çelişki:** `TS RA`, `TS -SHRA`, `TS GS` (oraj ve yağış ayrı gruplarda) başlığı "Gök gürültüsü ve şimşek, yağış yok" yerine "Gök gürültüsü" (`weather.wx.VCTS`); yağmur ve dolu satırı yağışı yazmaya devam eder.
+  - **Pist uzunluğu kırılması:** penceredeki rakım ve en uzun pist sayı ile birim arasında U+00A0 ile (`formatAltitude(…, { nowrap: true })`, `NBSP` units.ts'te, rüzgâr hızıyla ortak). Yeni e2e: LTAI penceresi 1280 px'te ortalı ve "3.400 m" tek satırda; `expectPopupCentred` rakım ve pist uzunluğunun her "sayı birim" parçasını ölçer (U+00A0 ve tek satır).
+  - Her yeni test düzeltme geri alınınca kırmızı (denendi): `cloudPrecip` olmadan shared 4 birim testi; başlık kuralı olmadan shared 1; bölünmez boşluk olmadan e2e 4/4 pencere testi (IST 1280, 375, 320, 430 px) ve yalnız yerleşim ölçümüyle LTAI'de "3.400 m" 2 satır. i18n ve web birim testleri yeni metni ve U+00A0'ı ister.
+  - **`pnpm ci:full` → yeşil:** birim testleri web 620, shared 470 (+5), api 251, worker 200, providers 120, i18n 83 (+3), tools 74, db 44, geo 31, scripts 31; entegrasyon db 82, api 26, worker 12; migration yükseltme 6 → 6; `compose:guard` 8 servis, 64 anahtar; E2E 107/107 (+1: LTAI penceresi), kararsız test yok.
+- `pnpm stats` → 526 dosya, 90.247 satır (82.085 kod).
+- **Yayından sonra:** üretimde IST penceresi (ortalı yazılar, km/sa ve kt, rüzgâr ve yıldırım vurgusu) tarayıcıda görülür; sonra satır `[x]` olur.
 
 ## M7 — Canlı araçlar ve kapsama raporu
 Ayrıntılar `docs/prompts/parca-1.md`'dedir. Başlarken bu dosyaya dizinler ve kabul komutları eklenir.

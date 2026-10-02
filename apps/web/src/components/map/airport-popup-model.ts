@@ -58,18 +58,27 @@ export function formatClock(ms: number, timeZone: string = TURKEY_TIME_ZONE): st
   return Number.isFinite(ms) && ms > 0 ? localTime(ms, timeZone).hhmm : NO_VALUE
 }
 
-/** Rakım (ft girdi), metrik önce: "99 m (325 ft)". Bilinmiyorsa "—". */
+/**
+ * Rakım (ft girdi), metrik önce: "99 m (325 ft)". Bilinmiyorsa "—". Sayı ile birim arasında
+ * bölünmez boşluk vardır (`nowrap`): pencerenin ~140 px'lik değer sütununda "99" / "m" diye
+ * kırılmaz (D-083); satır yalnız "99 m" ile "(325 ft)" arasında kırılabilir.
+ */
 export function formatElevation(ft: number | null, locale: Locale): string {
   if (ft === null || !Number.isFinite(ft)) return NO_VALUE
-  return `${formatAltitude(ft, { locale })} (${formatAltitude(ft, { locale, units: 'aviation' })})`
+  const metric = formatAltitude(ft, { locale, nowrap: true })
+  return `${metric} (${formatAltitude(ft, { locale, units: 'aviation', nowrap: true })})`
 }
 
-/** Pist özeti: "Tek pist, 3.000 m" / "3 pist, en uzunu 4.100 m"; uzunluk yoksa sayı, pist yoksa "—". */
+/**
+ * Pist özeti: "Tek pist, 3.000 m" / "3 pist, en uzunu 4.100 m"; uzunluk yoksa sayı, pist yoksa "—".
+ * Uzunluk tek parçadır (bölünmez boşluk): 1280 px'te "3 pist, en uzunu 3.400" / "m" kırılıyordu
+ * (AYT, SKG; D-083).
+ */
 export function formatRunways(airport: MapAirport, locale: Locale, t: PopupMessages): string {
   const { count, longestFt } = runwaySummary(airport.runways)
   if (count === 0) return NO_VALUE
   if (longestFt === null) return String(count)
-  const length = formatAltitude(longestFt, { locale })
+  const length = formatAltitude(longestFt, { locale, nowrap: true })
   return count === 1 ? format(t.runwaysOne, { length }) : format(t.runwaysMany, { count, length })
 }
 

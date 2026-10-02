@@ -247,8 +247,16 @@ export const en: Messages = {
       undetermined: 'Could not be determined',
       vicinity: 'None at the airport; {phrase} nearby',
       recent: 'None now; recent {phrase}',
-      noneWithCb: 'None (cumulonimbus present)',
       notStated: 'Not stated in the report',
+    },
+    thunder: {
+      here: 'Thunderstorm at the airport; lightning danger',
+      hereDry: 'Thunderstorm at the airport, no precipitation; lightning danger',
+      vicinity: 'Thunderstorm near the airport; lightning can strike the airport too',
+      cloudPrecip: 'Cumulonimbus (thunderstorm cloud) and precipitation present; lightning danger',
+      cloud: 'None; cumulonimbus (thunderstorm cloud) present, lightning possible',
+      cloudUndetermined:
+        'Could not be determined; cumulonimbus (thunderstorm cloud) present, lightning possible',
     },
     wx: {
       vicinity: 'Near the airport: {phrase}',
@@ -390,8 +398,17 @@ export const en: Messages = {
       speedOnly: 'Direction unknown, {speed}',
       gust: 'gusts {speed}',
       varying: 'varying between {from} and {to}',
-      above: 'over {speed}',
-      strong: 'Strong wind',
+      above: '{speed} or more',
+      level: {
+        gusts: 'Strong gusts',
+        strong: 'Strong wind',
+        nearGale: 'Near gale',
+        gale: 'Gale',
+        severeGale: 'Severe gale',
+        storm: 'Storm',
+        violentStorm: 'Violent storm',
+        hurricane: 'Hurricane force',
+      },
     },
     compass: {
       from: {
@@ -463,7 +480,7 @@ export const en: Messages = {
       probUntil: '{probability}% chance until {to}: {phrase}',
       probTempo: '{probability}% chance at times between {from} and {to}: {phrase}',
       probTempoUntil: '{probability}% chance at times until {to}: {phrase}',
-      strongWind: 'strong wind, {wind}',
+      strongWind: '{level}, {wind}',
       validUntil: 'Forecast valid until {time}.',
       validPeriod: 'Forecast for {from} to {to}.',
       issued: 'Forecast issued {time}.',

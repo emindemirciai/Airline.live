@@ -1,8 +1,9 @@
 /*
- * Hava durumu satırları, sıcaklık kutucuğu ve kuvvetli rüzgâr etiketi (weather-row-list.tsx; harita
+ * Hava durumu satırları, sıcaklık kutucuğu ve rüzgâr şiddeti etiketi (weather-row-list.tsx; harita
  * penceresi ve havalimanı sayfası). "Açık turkuaz" teması (D-081): vurgu beyaz panelde açık zemin ve
  * koyu yazıdır; yazı zeminine karşı en az 4,5:1'dir (yağmur 7,2; kar 6,6; kehribar 6,4; gri 8,3).
- * Vurgu yalnız renkle verilmez: satırın etiketi ve değeri kalındır, değer olayın adını yazar.
+ * Vurgu yalnız renkle verilmez: satırın etiketi ve değeri kalındır, değer olayın adını, şimşek ve
+ * yıldırım uyarısını ya da (etiketle) rüzgârın şiddetini yazar (D-083).
  * Sıcaklık kutucuğu vurgu turkuazıdır (`--accent`): beyaz yazı 4,75:1 (#0b8f9b zeminde 3,9:1
  * kalırdı). Kehribar yazı sitenin uyarı rengidir (`--warn`). Temel token'lar globals.css → `:root`.
  */
@@ -90,6 +91,8 @@
   --wx-tone-ink: var(--wx-snow-ink);
 }
 
+/* Kehribar: etkili rüzgâr, şimşek ve yıldırım riski, dolu ve diğer olaylar (D-081, D-083). */
+.wx-row[data-tone='wind'],
 .wx-row[data-tone='thunder'],
 .wx-row[data-tone='hail'],
 .wx-row[data-tone='other'] {
@@ -102,7 +105,7 @@
   --wx-tone-ink: var(--wx-fog-ink);
 }
 
-/* "Kuvvetli rüzgâr" etiketi: sığmazsa alt satıra geçer, değerin kutusundan taşmaz. */
+/* Rüzgâr şiddeti etiketi ("Kuvvetli rüzgâr"): sığmazsa alt satıra geçer, değerin kutusundan taşmaz. */
 .wx-tag {
   display: inline-block;
   max-width: 100%;
@@ -112,6 +115,12 @@
   color: var(--wx-warn-ink);
   font-size: 0.92em;
   font-weight: 700;
+}
+
+/* Vurgulu satırın içindeki etiket zeminde kaybolmasın: beyaz zemin, kehribar kenar (7,09:1). */
+.wx-row[data-tone] .wx-tag {
+  background: var(--surface);
+  box-shadow: inset 0 0 0 1px currentColor;
 }
 
 /* Sıcaklık: başlığın yanında ayrı kutucuk; önünde ayraç yoktur, eksi U+2212 ile yazılır. */
@@ -133,6 +142,30 @@
   .wx-tag,
   .wx-temp {
     border: 1px solid CanvasText;
+  }
+}
+
+/*
+ * Ortalı satırlar (harita penceresi; kullanıcı isteği 2026-10-03, D-083): iki eşit sütun, etiket
+ * (simge ve ad) sağa, değer sola yaslıdır; her çift pencerenin orta ekseninde buluşur. Vurgu zemini
+ * yine bütün satırı kaplar. Havalimanı sayfası sola yaslı iki sütunla kalır (`wx-rows--page`).
+ */
+.wx-rows--center {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+}
+
+.wx-rows--center > .wx-row > dt {
+  justify-content: flex-end;
+  text-align: end;
+}
+
+.wx-rows--center > .wx-row > dd {
+  text-align: start;
+}
+
+@supports not (grid-template-columns: subgrid) {
+  .wx-rows--center > .wx-row {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   }
 }
 

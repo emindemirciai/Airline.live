@@ -12,6 +12,9 @@
 //   döner; Escape (başka bir katmanın değilse), boş yere tıklama ve uçak seçimi kapatır; dar
 //   ekranda pencere alttan açılan sayfadır; pencerede gün doğumu ve batımı yoktur, hava durumu
 //   sayfayla aynı satırları, sıcaklık kutucuğunu ve vurguyu taşır (kullanıcı kararı 2026-10-02)
+// - M6e (D-083): rüzgâr km/sa ve parantezde kt; etkili rüzgârın satırı kehribar ve şiddetin adı
+//   etiketle; havalimanında ve çevresinde oraj ile kümülonimbüste şimşek ve yıldırım uyarısı (metin ve
+//   kehribar vurgu); pencerede bütün yazılar ortalı (1280, 430, 375 ve 320 px), yatay taşma yok
 import { expect, test, type Locator, type Page } from '@playwright/test'
 import { jsonLdBlocks, metaContents, titles } from '../html'
 import {
@@ -62,11 +65,24 @@ const COPY = {
     },
     windFrom: 'Kuzeydoğudan',
     speedUnit: 'km/sa',
+    /**
+     * km/sa ve parantezde knot (D-083): "33 km/sa (18 kt)". Boşluklar bölünmezdir (U+00A0): hız dar
+     * sütunda iki satıra bölünmez (`expectPopupCentred` satırları ayrıca ölçer).
+     */
+    speedDual: /\d+\u00a0km\/sa\u00a0\(\d+\u00a0kt\)/,
     gust: 'hamle',
-    strongWind: 'Kuvvetli rüzgâr',
+    /** Fixture IST `03018G32KT`: ortalama eşiğin altında, hamle 32 kt → "Kuvvetli hamle" (D-083). */
+    windLevel: 'Kuvvetli hamle',
     rainValue: 'Hafif sağanak yağmur',
     none: 'Yok',
     cb: 'kümülonimbüs',
+    /**
+     * Fixture IST `-SHRA FEW025CB`: kümülonimbüs ve havalimanında yağış, oraj bildirilmedi. "Yok"
+     * denmez, tehlike yazılır (kullanıcının sözü, 2026-10-03; D-083).
+     */
+    lightningCbPrecip: 'Kümülonimbüs (oraj bulutu) ve yağış var; şimşek ve yıldırım tehlikesi',
+    lightningHere: 'Gök gürültüsü var; şimşek ve yıldırım tehlikesi',
+    lightningNear: 'Havalimanı çevresinde gök gürültüsü var; yıldırım havalimanına da düşebilir',
     observed: /Gözlem \d{2}:\d{2}/,
     observedAgo: /Gözlem \d{2}:\d{2}, (az önce|\d.* önce)/,
     localTime: /Yerel saat \d{2}:\d{2}/,
@@ -102,11 +118,16 @@ const COPY = {
     },
     windFrom: 'From the northeast',
     speedUnit: 'km/h',
+    speedDual: /\d+\u00a0km\/h\u00a0\(\d+\u00a0kt\)/,
     gust: 'gusts',
-    strongWind: 'Strong wind',
+    windLevel: 'Strong gusts',
     rainValue: 'Light rain showers',
     none: 'None',
     cb: 'cumulonimbus',
+    lightningCbPrecip:
+      'Cumulonimbus (thunderstorm cloud) and precipitation present; lightning danger',
+    lightningHere: 'Thunderstorm at the airport; lightning danger',
+    lightningNear: 'Thunderstorm near the airport; lightning can strike the airport too',
     observed: /Observed \d{2}:\d{2}/,
     observedAgo: /Observed \d{2}:\d{2}, (just now|\d.* ago)/,
     localTime: /Local time \d{2}:\d{2}/,
@@ -142,7 +163,8 @@ const TEMPERATURE_CHIP = /^\s*−?\d+ °C\s*$/
 
 /**
  * Hava durumu satırları (sayfa ve pencere ortak): sıcaklık kutucuğu başlığın yanındadır; yağmur
- * satırı vurgulu, "Yok" satırları sade; simgeler ekran okuyucudan gizli; sayıdan önce ayraç yok.
+ * satırı vurgulu, "Yok" satırları sade; etkili rüzgâr ve kümülonimbüsün yıldırım olasılığı kehribar
+ * vurgulu (D-083); simgeler ekran okuyucudan gizli; sayıdan önce ayraç yok.
  */
 async function expectWeatherPresentation(scope: Locator, locale: Locale): Promise<void> {
   const copy = COPY[locale]
@@ -151,6 +173,16 @@ async function expectWeatherPresentation(scope: Locator, locale: Locale): Promis
   await expect(rainRow).toHaveAttribute('data-tone', 'rain')
   // Vurgu yalnız renk değildir: değer kalındır ve olayın adını yazar.
   await expect(row(scope, copy.rows.rain)).toHaveCSS('font-weight', '700')
+  // Rüzgâr km/sa ve kt; hamle eşiği aşıldı: satır kehribar, şiddetin adı etiket olarak yazılır.
+  const wind = row(scope, copy.rows.wind)
+  await expect(wind).toContainText(copy.speedDual)
+  await expect(wind.locator('xpath=..')).toHaveAttribute('data-tone', 'wind')
+  await expect(wind.locator('.wx-tag')).toHaveText(copy.windLevel)
+  await expect(wind).toHaveCSS('font-weight', '700')
+  // Kümülonimbüs ve yağış var, gök gürültüsü bildirilmedi: tehlike yazılır; kehribar.
+  const thunder = row(scope, copy.rows.thunder)
+  await expect(thunder).toHaveText(new RegExp(`^\\s*${escapeRegExp(copy.lightningCbPrecip)}\\s*$`))
+  await expect(thunder.locator('xpath=..')).toHaveAttribute('data-tone', 'thunder')
   for (const label of [copy.rows.snow, copy.rows.fog]) {
     await expect(row(scope, label).locator('xpath=..'), label).not.toHaveAttribute('data-tone')
   }
@@ -290,15 +322,16 @@ test.describe('havalimanı sayfası', () => {
       // Bütün satırlar her zaman vardır; "Yok" yalnızca rapor temiz çözümlendiyse yazılır.
       const wind = row(section, copy.rows.wind)
       await expect(wind).toContainText(copy.windFrom)
-      await expect(wind).toContainText(copy.speedUnit)
+      await expect(wind).toContainText(copy.speedDual)
       await expect(wind).toContainText(copy.gust)
-      await expect(section).toContainText(copy.strongWind)
+      await expect(section).toContainText(copy.windLevel)
       await expect(row(section, copy.rows.rain)).toContainText(copy.rainValue)
       await expect(row(section, copy.rows.snow)).toHaveText(new RegExp(`^\\s*${copy.none}\\s*$`))
-      // Gök gürültüsü yok, ama kümülonimbüs bulutu var (FEW025CB).
+      // Gök gürültüsü bildirilmedi, ama kümülonimbüs bulutu ve yağış var (-SHRA FEW025CB): "Yok"
+      // denmez, şimşek ve yıldırım tehlikesi yazılır (kullanıcının sözü, 2026-10-03).
       const thunder = row(section, copy.rows.thunder)
-      await expect(thunder).toHaveText(new RegExp(`^\\s*${copy.none}\\b`))
-      await expect(thunder).toContainText(copy.cb)
+      await expect(thunder).not.toHaveText(new RegExp(`^\\s*${copy.none}\\b`))
+      await expect(thunder).toContainText(copy.lightningCbPrecip)
       await expect(row(section, copy.rows.fog)).toHaveText(new RegExp(`^\\s*${copy.none}\\s*$`))
 
       await expect(section).toContainText(copy.observed)
@@ -357,6 +390,40 @@ test.describe('havalimanı sayfası', () => {
       await expect(section).toBeVisible()
       await expect(section).toContainText(copy.scheduleBody)
       await expect(section.locator(`a[href="${copy.aboutPath}"]`)).toBeVisible()
+    })
+  }
+
+  for (const locale of ['tr', 'en'] as const) {
+    const copy = COPY[locale]
+    const path = (code: string) =>
+      locale === 'tr' ? `/istasyon/${code}` : enPath(`/istasyon/${code}`)
+
+    test(`${locale}: havalimanında ve çevresinde oraj, şimşek ve yıldırım uyarısı (D-083)`, async ({
+      page,
+    }) => {
+      // LTAI (fixture `+TSRA SCT015CB`): havalimanında oraj; tehlike metni ve kehribar vurgu. Yağmur
+      // satırı olayın kendisini mavi yazar. Rüzgâr (15 kt, hamle 28 kt) eşiğin altında: etiketsiz.
+      await page.goto(path('LTAI'))
+      const here = weatherSection(page, locale)
+      const thunder = row(here, copy.rows.thunder)
+      await expect(thunder).toHaveText(new RegExp(`^\\s*${escapeRegExp(copy.lightningHere)}\\s*$`))
+      await expect(thunder.locator('xpath=..')).toHaveAttribute('data-tone', 'thunder')
+      await expect(thunder).toHaveCSS('font-weight', '700')
+      await expect(row(here, copy.rows.rain).locator('xpath=..')).toHaveAttribute(
+        'data-tone',
+        'rain',
+      )
+      const calm = row(here, copy.rows.wind)
+      await expect(calm).toContainText(copy.speedDual)
+      await expect(calm.locator('xpath=..')).not.toHaveAttribute('data-tone')
+      await expect(calm.locator('.wx-tag')).toHaveCount(0)
+
+      // LTAU (fixture `VCTS SCT040CB`): çevrede oraj; yıldırım havalimanına da düşebilir.
+      await page.goto(path('LTAU'))
+      const near = row(weatherSection(page, locale), copy.rows.thunder)
+      await expect(near).toHaveText(new RegExp(`^\\s*${escapeRegExp(copy.lightningNear)}\\s*$`))
+      await expect(near.locator('xpath=..')).toHaveAttribute('data-tone', 'thunder')
+      expect(await weatherSection(page, locale).innerText()).not.toMatch(DASH_BEFORE_NUMBER)
     })
   }
 
@@ -480,8 +547,11 @@ test.describe('harita: havalimanı penceresi', () => {
     await expect(popup).toBeFocused()
     await expect(popup.getByRole('heading', { name: PRIMARY_AIRPORT.nameTr })).toBeVisible()
     await expect(popup).toContainText(`${iata} · ${icao}`)
-    await expect(row(popup, 'Rakım')).toContainText(/\d+ m/)
-    await expect(row(popup, 'Pistler')).toContainText(String(PRIMARY_AIRPORT.runways))
+    // Sayı ile birim bölünmez boşlukla (U+00A0): dar değer sütununda ayrı satıra düşmez (D-083).
+    await expect(row(popup, 'Rakım')).toHaveText(/^\s*\d+\u00a0m \(\d+\u00a0ft\)\s*$/)
+    await expect(row(popup, 'Pistler')).toHaveText(
+      new RegExp(`^\\s*${PRIMARY_AIRPORT.runways} pist, en uzunu [\\d.]+\u00a0m\\s*$`),
+    )
     await expect(row(popup, 'Yerel saat')).toHaveText(/\d{2}:\d{2}/)
     // Gün doğumu ve batımı yalnız havalimanı sayfasındadır (kullanıcı kararı 2026-10-02).
     await expect(popup).not.toContainText('Gün doğumu')
@@ -492,10 +562,10 @@ test.describe('harita: havalimanı penceresi', () => {
     await expect(row(weather, COPY.tr.rows.wind)).toContainText(COPY.tr.speedUnit, {
       timeout: 15_000,
     })
-    await expect(weather).toContainText(COPY.tr.strongWind)
+    await expect(weather).toContainText(COPY.tr.windLevel)
     await expect(row(weather, COPY.tr.rows.rain)).toContainText(COPY.tr.rainValue)
     await expect(row(weather, COPY.tr.rows.snow)).toContainText(COPY.tr.none)
-    await expect(row(weather, COPY.tr.rows.thunder)).toContainText(COPY.tr.none)
+    await expect(row(weather, COPY.tr.rows.thunder)).toContainText(COPY.tr.lightningCbPrecip)
     await expect(row(weather, COPY.tr.rows.fog)).toContainText(COPY.tr.none)
     await expect(weather).toContainText(COPY.tr.observedAgo)
     await expectWeatherPresentation(weather, 'tr')
@@ -503,6 +573,9 @@ test.describe('harita: havalimanı penceresi', () => {
       'href',
       STATION_PATH,
     )
+    // Bütün yazılar ortalı; pencerenin genişliği değişmedi (320 px).
+    const centred = await expectPopupCentred(popup)
+    expect(Math.abs(centred.width - 320)).toBeLessThanOrEqual(1)
 
     // Escape kapatır; odak haritaya döner.
     await page.keyboard.press('Escape')
@@ -528,6 +601,25 @@ test.describe('harita: havalimanı penceresi', () => {
     await input.press('Enter')
     await expect(infoCard(page)).toContainText(REPLAY_AIRCRAFT.callsign)
     await expect(popup).toBeHidden()
+  })
+
+  test('LTAI penceresi (1280 px): pist uzunluğu ve rakım birimiyle tek satırda, yazılar ortalı', async ({
+    page,
+  }) => {
+    // İkinci kontrol turu (D-083): 1280 px'te Antalya'da "3 pist, en uzunu 3.400" / "m" kırılıyordu.
+    // Pinin başı harita ortasının ~15 px yukarısındadır; Antalya'nın çevresinde taksi uçağı yoktur.
+    await page.goto('/?havalimani=LTAI')
+    await waitForMap(page)
+    const popup = page.locator('.live-map [role="dialog"].map-popup')
+    const center = await mapCenter(page)
+    await expect(async () => {
+      await page.mouse.click(center.x, center.y - PIN_HEAD_OFFSET_PX)
+      await expect(popup).toBeVisible({ timeout: 2_000 })
+    }).toPass({ timeout: 15_000 })
+    await expect(popup).toHaveAttribute('data-icao', 'LTAI')
+    await expect(row(popup, 'Pistler')).toContainText('en uzunu')
+    const centred = await expectPopupCentred(popup)
+    expect(Math.abs(centred.width - 320)).toBeLessThanOrEqual(1)
   })
 
   test('apronda (z10) IST kodu ve pini tıklanır; "Havalimanları" listesiyle klavyeden açılır', async ({
@@ -642,6 +734,24 @@ test.describe('harita: havalimanı penceresi', () => {
       await expect(popup).toBeHidden()
     })
 
+    for (const width of [375, 320, 430]) {
+      test(`${width} px: alt sayfada bütün yazılar ortalı, yatay taşma yok`, async ({ page }) => {
+        await page.setViewportSize({ width, height: 812 })
+        await openAtPrimaryAirport(page)
+        const popup = airportPopup(page)
+        await clickPrimaryChip(page)
+        await expect(popup).toBeVisible()
+        const centred = await expectPopupCentred(popup)
+        // Alt sayfa haritanın bütün genişliğindedir (pencerenin kendi genişliği yoktur).
+        const map = await page.locator('.live-map .maplibregl-canvas').boundingBox()
+        expect(centred.width).toBeGreaterThanOrEqual((map?.width ?? 0) - 2)
+        const overflow = await page.evaluate(
+          () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
+        )
+        expect(overflow).toBeLessThanOrEqual(0)
+      })
+    }
+
     test('"Havalimanı sayfası" bağlantısı alt sayfa kaydırılmadan görünür ve tıklanır', async ({
       page,
     }) => {
@@ -691,19 +801,24 @@ test.describe('harita: havalimanı penceresi', () => {
 test.describe('havalimanı sayfası: dar ekranda hava durumu satırları', () => {
   // Gözlem 30 dk'dan eskiyken eğilim satırının etiketi en uzun etikettir ("Gözlemden sonraki 2 saat");
   // fixture'ın saatine bağlı kalmasın diye ilk satırın etiketine yazılır. Etiket sütunu
-  // genişlemez, değer sütunu daralmaz, "Kuvvetli rüzgâr" etiketi değerin kutusundan taşmaz.
+  // genişlemez, değer sütunu daralmaz, rüzgâr şiddeti etiketi ("Kuvvetli hamle") değerin kutusundan
+  // taşmaz.
   const LONG_LABEL = { tr: 'Gözlemden sonraki 2 saat', en: '2 hours after the observation' }
 
   for (const width of [412, 430, 560]) {
     for (const locale of ['tr', 'en'] as const) {
-      test(`${width} px, ${locale}: değer sütunu ve kuvvetli rüzgâr etiketi kutusunda`, async ({
+      test(`${width} px, ${locale}: değer sütunu ve rüzgâr şiddeti etiketi kutusunda`, async ({
         page,
       }) => {
         await page.setViewportSize({ width, height: 900 })
         await page.goto(COPY[locale].path)
         const section = weatherSection(page, locale)
         const rows = section.locator('.wx-rows--page')
-        await expect(rows.locator('.wx-tag')).toHaveText(COPY[locale].strongWind)
+        await expect(rows.locator('.wx-tag')).toHaveText(COPY[locale].windLevel)
+        // Etiket DOM'da elle değiştirilir: önce ada çizilmiş olmalı (göreli yaş yalnız istemcide
+        // yazılır). Hidrasyondan önce değiştirilen metin uyuşmazlık sayılır, React satırları yeniden
+        // kurar ve ölçüm arada sıfır genişlik okuyabilirdi (yerelde 24 koşuda bir).
+        await expect(section).toContainText(COPY[locale].observedAgo)
         await rows
           .locator('.wx-row dt')
           .first()
@@ -745,6 +860,177 @@ test.describe('havalimanı sayfası: dar ekranda hava durumu satırları', () =>
 
 function airportPopup(page: Page): Locator {
   return page.locator('.live-map').getByRole('dialog', { name: new RegExp(PRIMARY_AIRPORT.nameTr) })
+}
+
+/**
+ * Pencerede bütün yazılar ortalı mı (kullanıcı isteği 2026-10-03, D-083): başlık, kodlar, yer satırı,
+ * alt başlık, hava başlığı ve sıcaklık kutucuğu, gözlem satırı ve bağlantı pencerenin orta ekseninde
+ * (`text-align: center`, yazının kutusu ±2 px); bilgi ve hava durumu satırlarında etiket sağa, değer
+ * sola yaslı, aradaki boşluğun ortası eksende (±1,5 px). Eksen, kaydırma çubuğu hariç iç kutunun
+ * ortasıdır. Pencere yatay kaymaz. Hava durumu satırları gelene kadar bekler.
+ *
+ * Hava başlığı esnek satırdır (başlık ve sıcaklık kutucuğu): içeriğinin kutusu öğeler kenarlara
+ * yaslansa da (`space-between`) eksende kalırdı. Bu yüzden her satırdaki öğeler ayrıca ölçülür:
+ * öğeler bitişik (aradaki boşluk `column-gap` kadar, +1 px) ve satırın ortası eksende (±2 px).
+ * Rüzgâr satırındaki her hız ("59 km/sa (32 kt)") ile rakım ve en uzun pistin her uzunluğu ("99 m",
+ * "325 ft", "4.100 m") tek satırdadır (bölünmez boşluk, D-083; 1280 px'te AYT ve SKG'de "3.400" /
+ * "m" kırılıyordu).
+ */
+async function expectPopupCentred(popup: Locator): Promise<{ width: number }> {
+  const weather = popup.getByRole('region', { name: 'Hava durumu' })
+  await expect(row(weather, COPY.tr.rows.wind)).toContainText(COPY.tr.speedUnit, {
+    timeout: 15_000,
+  })
+  const layout = await popup.evaluate((root) => {
+    const box = root.getBoundingClientRect()
+    const axis = box.left + root.clientLeft + root.clientWidth / 2
+    const textBox = (element: Element) => {
+      const range = document.createRange()
+      range.selectNodeContents(element)
+      const rect = range.getBoundingClientRect()
+      return { left: rect.left, right: rect.right }
+    }
+    const centred = [
+      '.map-popup__codes',
+      '.map-popup__title',
+      '.map-popup__place',
+      '.map-popup__subheading',
+      '.map-popup__headline',
+      '.map-popup__observed',
+      '.map-popup__link',
+    ].map((selector) => {
+      const element = root.querySelector(selector)
+      if (!element) return { selector, align: 'missing', offset: Number.NaN }
+      const text = textBox(element)
+      return {
+        selector,
+        align: getComputedStyle(element).textAlign,
+        offset: (text.left + text.right) / 2 - axis,
+      }
+    })
+    // Esnek satır: öğeler soldan sağa (DOM sırası); dikeyde örtüşen öğeler aynı satırdadır.
+    const flexLines = ['.map-popup__headline'].flatMap((selector) => {
+      const element = root.querySelector(selector)
+      if (!element) return [{ selector, items: 0, offset: Number.NaN, gap: Number.NaN, maxGap: 0 }]
+      const gap = Number.parseFloat(getComputedStyle(element).columnGap) || 0
+      const lines: {
+        top: number
+        bottom: number
+        left: number
+        right: number
+        items: number
+        maxGap: number
+      }[] = []
+      for (const child of element.children) {
+        const rect = child.getBoundingClientRect()
+        if (rect.width === 0) continue
+        const line = lines.find((l) => rect.top < l.bottom && rect.bottom > l.top)
+        if (!line) {
+          lines.push({
+            top: rect.top,
+            bottom: rect.bottom,
+            left: rect.left,
+            right: rect.right,
+            items: 1,
+            maxGap: 0,
+          })
+          continue
+        }
+        line.maxGap = Math.max(line.maxGap, rect.left - line.right)
+        line.left = Math.min(line.left, rect.left)
+        line.right = Math.max(line.right, rect.right)
+        line.top = Math.min(line.top, rect.top)
+        line.bottom = Math.max(line.bottom, rect.bottom)
+        line.items += 1
+      }
+      return lines.map((line) => ({
+        selector,
+        items: line.items,
+        offset: (line.left + line.right) / 2 - axis,
+        gap,
+        maxGap: line.maxGap,
+      }))
+    })
+    // Eşleşen her parçanın satır kutuları (Range.getClientRects) tek satırda mı. `\s` bölünmez
+    // boşluğu da kapsar: parça olağan boşlukla yazılsa da bulunur ve ölçülür.
+    const pieces = (selector: string, pattern: RegExp) =>
+      [...root.querySelectorAll(selector)].flatMap((element) => {
+        const found: { text: string; lines: number }[] = []
+        const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT)
+        for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+          for (const match of (node.textContent ?? '').matchAll(pattern)) {
+            const range = document.createRange()
+            range.setStart(node, match.index ?? 0)
+            range.setEnd(node, (match.index ?? 0) + match[0].length)
+            const tops = [...range.getClientRects()]
+              .filter((rect) => rect.width > 0)
+              .map((rect) => Math.round(rect.top))
+            found.push({ text: match[0], lines: new Set(tops).size })
+          }
+        }
+        return found
+      })
+    // Rüzgâr hızları ("59 km/sa (32 kt)").
+    const speeds = pieces('.wx-row[data-row="wind"] > dd', /\d+\s(?:km\/sa|km\/h)\s\(\d+\skt\)/g)
+    // Rakım ve en uzun pist: sayı ve birimi ("99 m", "325 ft", "4.100 m").
+    const lengths = pieces('.map-popup__facts > dd', /\d[\d.,]*\s(?:m|ft)(?![\p{L}])/gu)
+    const pairs = [...root.querySelectorAll('.map-popup__facts > dt, .wx-row > dt')].map((dt) => {
+      const dd = dt.nextElementSibling
+      const label = dt.getBoundingClientRect()
+      const value = dd?.getBoundingClientRect()
+      return {
+        label: dt.textContent?.trim() ?? '',
+        // Etiketin yazısı sütunun sağ kenarında, değerin yazısı sütunun sol kenarında.
+        labelGap: label.right - textBox(dt).right,
+        valueGap: dd && value ? textBox(dd).left - value.left : Number.NaN,
+        axisOffset: value ? (label.right + value.left) / 2 - axis : Number.NaN,
+      }
+    })
+    return {
+      width: box.width,
+      overflow: root.scrollWidth - root.clientWidth,
+      centred,
+      flexLines,
+      speeds,
+      lengths,
+      pairs,
+    }
+  })
+  expect(layout.overflow, 'pencere yatay kaymaz').toBeLessThanOrEqual(0)
+  for (const item of layout.centred) {
+    expect(item.align, item.selector).toBe('center')
+    expect(Math.abs(item.offset), `${item.selector}: eksenden uzaklık`).toBeLessThanOrEqual(2)
+  }
+  // Hava başlığı ve sıcaklık kutucuğu: her satır ortada, öğeler bitişik (kenarlara yaslı değil).
+  expect(layout.flexLines.length).toBeGreaterThanOrEqual(1)
+  for (const line of layout.flexLines) {
+    expect(
+      Math.abs(line.offset),
+      `${line.selector}: satırın eksenden uzaklığı`,
+    ).toBeLessThanOrEqual(2)
+    expect(line.maxGap, `${line.selector}: öğeler arası boşluk`).toBeLessThanOrEqual(line.gap + 1)
+  }
+  expect(
+    layout.flexLines.reduce((sum, line) => sum + line.items, 0),
+    'başlık ve sıcaklık kutucuğu',
+  ).toBe(2)
+  // Rüzgâr hızı iki satıra bölünmez ("48" ile "km/sa", "(7" ile "kt)" aynı satırda).
+  expect(layout.speeds.length, 'rüzgâr hızı').toBeGreaterThanOrEqual(1)
+  for (const speed of layout.speeds) expect(speed.lines, speed.text).toBe(1)
+  // Rakım ve pist uzunluğu da tek parça: bölünmez boşluk ve tek satır ("4.100" ile "m" aynı satırda).
+  expect(layout.lengths.length, 'rakım (m, ft) ve en uzun pist').toBeGreaterThanOrEqual(3)
+  for (const length of layout.lengths) {
+    expect(length.text, 'sayı ile birim arasında bölünmez boşluk').toMatch(/^[\d.,]+\u00a0(m|ft)$/)
+    expect(length.lines, length.text).toBe(1)
+  }
+  // Rakım, pistler, yerel saat; rüzgâr, yağmur, kar, gök gürültüsü, sis ve pus, görüş.
+  expect(layout.pairs.length).toBeGreaterThanOrEqual(9)
+  for (const pair of layout.pairs) {
+    expect(Math.abs(pair.axisOffset), `${pair.label}: eksen`).toBeLessThanOrEqual(1.5)
+    expect(Math.abs(pair.labelGap), `${pair.label}: etiket sağa yaslı`).toBeLessThanOrEqual(1.5)
+    expect(Math.abs(pair.valueGap), `${pair.label}: değer sola yaslı`).toBeLessThanOrEqual(1.5)
+  }
+  return { width: layout.width }
 }
 
 /** Harita kapsayıcısının ortası, sayfa koordinatıyla (CSS px). */
