@@ -2,13 +2,16 @@ import 'server-only'
 import { ftToM } from '@havayolu/geo'
 import { getMessages } from '@havayolu/i18n'
 import {
+  airportCountryCode,
   airportDisplayName,
-  airportDistrict,
+  airportLocality,
   LOCALES,
   provinceName,
   type AirportDetail,
   type Locale,
 } from '@havayolu/shared'
+// Göreli yol: vitest `@/` takma adını çözmez.
+import { isTurkish } from '../../components/airports/airport-text'
 import { appName, getServerEnv } from '../env'
 import { localePath } from '../locale-routing'
 import { absoluteUrl, siteUrl } from './metadata'
@@ -147,25 +150,32 @@ export function airportMapUrl(icao: string, locale: Locale): string {
 
 /**
  * `Airport` düğümü. Rakım schema.org'da birimsiz sayı olarak metre kabul edilir
- * (https://schema.org/elevation); sayfadaki gibi tam metreye yuvarlanır.
+ * (https://schema.org/elevation); sayfadaki gibi tam metreye yuvarlanır. Adreste Türkiye'de il
+ * (`addressRegion`), yakın ülkelerde yalnızca yerleşim ve ülke yazılır (sayfadaki yer satırı gibi).
  */
 export function airportNode(a: AirportDetail, locale: Locale): JsonLdNode {
   const name = airportDisplayName(a, locale)
-  const region = provinceName(a.isoRegion, locale)
+  const region = isTurkish(a) ? provinceName(a.isoRegion, locale) : null
+  // OurAirports'un ülke kodu; gösterilen ülke koddan ayrılıyorsa (Ercan/LCEN: KKTC, kod CY; D-080)
+  // yazılmaz: JSON-LD yalnızca sayfada görünen değerleri taşır.
+  const country = airportCountryCode(a)
   const geo: JsonLdNode = {
     '@type': 'GeoCoordinates',
     latitude: a.lat,
     longitude: a.lon,
     ...(a.elevationFt === null ? {} : { elevation: Math.round(ftToM(a.elevationFt)) }),
   }
-  // Ham OurAirports yerleşimi değil: yalnızca temiz biçimdeki ve ilden farklı ilçe (sayfadaki gibi).
-  const locality = airportDistrict(a)
-  const address: JsonLdNode = {
-    '@type': 'PostalAddress',
+  // Ham OurAirports yerleşimi değil, sayfadaki "Hizmet verdiği yerleşim": Türkiye’de temiz biçimdeki
+  // ve ilden farklı ilçe, yakın ülkelerde küratörlü şehir adı (sayfanın dilinde).
+  const locality = airportLocality(a, locale)
+  const fields: JsonLdNode = {
     ...(locality ? { addressLocality: locality } : {}),
     ...(region ? { addressRegion: region } : {}),
-    addressCountry: 'TR',
+    ...(country ? { addressCountry: country } : {}),
   }
+  // Hiçbir adres alanı yoksa boş adres yazılmaz (Ercan'da ülke kodu hiç yazılmaz).
+  const address: JsonLdNode | null =
+    Object.keys(fields).length > 0 ? { '@type': 'PostalAddress', ...fields } : null
   return {
     '@type': 'Airport',
     '@id': airportId(a.icao),
@@ -174,7 +184,7 @@ export function airportNode(a: AirportDetail, locale: Locale): JsonLdNode {
     ...(a.iata ? { iataCode: a.iata } : {}),
     icaoCode: a.icao,
     geo,
-    address,
+    ...(address ? { address } : {}),
     hasMap: airportMapUrl(a.icao, locale),
   }
 }

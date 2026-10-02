@@ -8,6 +8,7 @@ import {
   AIRPORTS_CACHE_MS,
   AIRPORTS_EMPTY_CACHE_MS,
   AIRPORTS_RETRY_MS,
+  airportSelection,
 } from './airports'
 
 const ist: Airport = {
@@ -20,6 +21,9 @@ const ist: Airport = {
   elevationFt: 325,
   type: 'large_airport',
   scheduled: true,
+  country: 'TR',
+  ring: 0,
+  distanceToTrKm: null,
 }
 const isl: Airport = {
   icao: 'LTBA',
@@ -31,6 +35,9 @@ const isl: Airport = {
   elevationFt: null,
   type: 'large_airport',
   scheduled: false,
+  country: 'TR',
+  ring: 0,
+  distanceToTrKm: null,
 }
 
 let clock = 1_000_000
@@ -177,6 +184,7 @@ describe('GET /v1/airports', () => {
 
 const istDetail: AirportDetail = {
   ...ist,
+  nearestTr: null,
   isoRegion: 'TR-34',
   municipality: 'Istanbul',
   station: { active: true, primary: true, fetchRadiusNm: 60 },
@@ -209,6 +217,7 @@ const istDetail: AirportDetail = {
 }
 const islDetail: AirportDetail = {
   ...isl,
+  nearestTr: null,
   isoRegion: 'TR-34',
   municipality: null,
   station: null,
@@ -220,6 +229,8 @@ async function setupDetails(options: {
   details?: ((country: string) => Promise<AirportDetail[]>) | null
   find?: ((code: string) => Promise<AirportDetail | null>) | null
   list?: ((country: string) => Promise<Airport[]>) | null
+  listed?: (() => Promise<Airport[]>) | null
+  listedDetails?: (() => Promise<AirportDetail[]>) | null
   cacheMaxEntries?: number
 }) {
   const { app } = await testApp({
@@ -227,6 +238,8 @@ async function setupDetails(options: {
       airports: {
         list: options.list ?? null,
         details: options.details,
+        listed: options.listed,
+        listedDetails: options.listedDetails,
         find: options.find,
         now: () => clock,
         cacheMaxEntries: options.cacheMaxEntries,
@@ -405,5 +418,149 @@ describe('GET /v1/airports/:code', () => {
       ...islDetail,
       runways: istDetail.runways,
     })
+  })
+})
+
+const ath: Airport = {
+  icao: 'LGAV',
+  iata: 'ATH',
+  name: 'Athens Eleftherios Venizelos International Airport',
+  city: 'Spata-Artemida',
+  lat: 37.936401,
+  lon: 23.9445,
+  elevationFt: 308,
+  type: 'large_airport',
+  scheduled: true,
+  country: 'GR',
+  ring: 1,
+  distanceToTrKm: 275,
+}
+const athDetail: AirportDetail = {
+  ...ath,
+  nearestTr: { icao: 'LTBL', iata: 'IGL', name: 'Çiğli Airbase' },
+  isoRegion: 'GR-I',
+  municipality: 'Spata-Artemida',
+  station: null,
+  dataUpdatedAt: '2026-10-01T23:03:49.000Z',
+  runways: [],
+}
+
+describe('GET /v1/airports?scope=listed (D-080)', () => {
+  it('listelenen havalimanları: zarfta scope, ülke yok; ayrı önbellek', async () => {
+    const list = vi.fn(async () => [ist])
+    const listed = vi.fn(async () => [ath, isl, ist])
+    const { get } = await setupDetails({ list, listed })
+    const res = await get('/v1/airports?scope=listed')
+    expect(res.statusCode).toBe(200)
+    expect(res.headers['content-type']).toBe('application/json; charset=utf-8')
+    expect(res.headers['cache-control']).toBe(AIRPORTS_CACHE_CONTROL)
+    expect(res.headers['x-ratelimit-limit']).toBe('60')
+    expect(res.json()).toEqual({ scope: 'listed', airports: [ath, isl, ist] })
+    expect(listed).toHaveBeenCalledTimes(1)
+    expect(list).not.toHaveBeenCalled()
+    // Varsayılan (ülke) isteği kendi okuyucusundan gelir.
+    expect((await get('/v1/airports')).json()).toEqual({ country: 'TR', airports: [ist] })
+    clock += AIRPORTS_CACHE_MS - 1
+    await get('/v1/airports?scope=listed')
+    expect(listed).toHaveBeenCalledTimes(1)
+    clock += 1
+    await get('/v1/airports?scope=listed')
+    expect(listed).toHaveBeenCalledTimes(2)
+  })
+
+  it('include=runways: ayrıntılı liste; düz listede ayrıntı alanı gitmez', async () => {
+    const listed = vi.fn(async () => [athDetail, istDetail])
+    const listedDetails = vi.fn(async () => [athDetail, istDetail])
+    const { get } = await setupDetails({ listed, listedDetails })
+    const res = await get('/v1/airports?scope=listed&include=runways')
+    expect(res.statusCode).toBe(200)
+    expect(res.json()).toEqual({ scope: 'listed', airports: [athDetail, istDetail] })
+    expect(listedDetails).toHaveBeenCalledTimes(1)
+    expect((await get('/v1/airports?include=runways&scope=listed')).json()).toEqual(res.json())
+    expect(listedDetails).toHaveBeenCalledTimes(1)
+    // Düz liste yalnızca Airport alanlarını serileştirir.
+    expect((await get('/v1/airports?scope=listed')).json()).toEqual({
+      scope: 'listed',
+      airports: [ath, ist],
+    })
+  })
+
+  it('country ile scope birlikte 400 scope_conflict; okuyucuya gidilmez', async () => {
+    const list = vi.fn(async () => [ist])
+    const listed = vi.fn(async () => [ath])
+    const { get } = await setupDetails({ list, listed })
+    for (const query of [
+      'country=TR&scope=listed',
+      'scope=listed&country=GR',
+      'country=tr&scope=listed',
+      'country=TR&scope=all',
+      'country=&scope=listed&include=runways',
+    ]) {
+      const res = await get(`/v1/airports?${query}`)
+      expect(res.statusCode, query).toBe(400)
+      expect(res.headers['cache-control'], query).toBe('no-store')
+      expect(res.json(), query).toEqual(AIRPORT_ERRORS.scopeConflict)
+    }
+    expect(list).not.toHaveBeenCalled()
+    expect(listed).not.toHaveBeenCalled()
+  })
+
+  it('bilinmeyen scope 400 bad_scope; include denetimi ondan sonra', async () => {
+    const listed = vi.fn(async () => [ath])
+    const { get } = await setupDetails({ listed })
+    for (const query of ['scope=', 'scope=all', 'scope=LISTED', 'scope=listed&scope=listed']) {
+      const res = await get(`/v1/airports?${query}`)
+      expect(res.statusCode, query).toBe(400)
+      expect(res.json(), query).toEqual(AIRPORT_ERRORS.badScope)
+    }
+    expect((await get('/v1/airports?scope=listed&include=x')).json()).toEqual(
+      AIRPORT_ERRORS.badInclude,
+    )
+    expect(listed).not.toHaveBeenCalled()
+  })
+
+  it('okuyucu yoksa 503; okuma başarısızsa eldeki kopya sunulur', async () => {
+    const none = await setupDetails({ list: async () => [ist] })
+    expect((await none.get('/v1/airports?scope=listed')).statusCode).toBe(503)
+    expect((await none.get('/v1/airports?scope=listed&include=runways')).statusCode).toBe(503)
+    const listed = vi
+      .fn<() => Promise<Airport[]>>()
+      .mockResolvedValueOnce([ath])
+      .mockRejectedValue(new Error('connection refused'))
+    const { get } = await setupDetails({ listed })
+    await get('/v1/airports?scope=listed')
+    clock += AIRPORTS_CACHE_MS
+    const stale = await get('/v1/airports?scope=listed')
+    expect(stale.statusCode).toBe(200)
+    expect(stale.json()).toEqual({ scope: 'listed', airports: [ath] })
+    expect(listed).toHaveBeenCalledTimes(2)
+  })
+
+  it('boş liste yalnızca 1 dk tutulur', async () => {
+    const listed = vi.fn<() => Promise<Airport[]>>(async () => [])
+    const { get } = await setupDetails({ listed })
+    expect((await get('/v1/airports?scope=listed')).json()).toEqual({
+      scope: 'listed',
+      airports: [],
+    })
+    listed.mockResolvedValue([ath])
+    clock += AIRPORTS_EMPTY_CACHE_MS
+    expect((await get('/v1/airports?scope=listed')).json()).toEqual({
+      scope: 'listed',
+      airports: [ath],
+    })
+  })
+})
+
+describe('airportSelection', () => {
+  it('ülke, kapsam, varsayılan ve hatalar', () => {
+    expect(airportSelection(undefined, undefined)).toEqual({ country: 'TR' })
+    expect(airportSelection('GR', undefined)).toEqual({ country: 'GR' })
+    expect(airportSelection(undefined, 'listed')).toEqual({ scope: 'listed' })
+    expect(airportSelection('TR', 'listed')).toEqual({ error: AIRPORT_ERRORS.scopeConflict })
+    expect(airportSelection(undefined, 'LISTED')).toEqual({ error: AIRPORT_ERRORS.badScope })
+    expect(airportSelection(undefined, ['listed'])).toEqual({ error: AIRPORT_ERRORS.badScope })
+    expect(airportSelection('tr', undefined)).toEqual({ error: AIRPORT_ERRORS.badCountry })
+    expect(airportSelection(['TR'], undefined)).toEqual({ error: AIRPORT_ERRORS.badCountry })
   })
 })

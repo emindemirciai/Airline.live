@@ -3,10 +3,13 @@ import {
   airports,
   createDb,
   listAirportsWithIata,
+  listListedAirportDetails,
+  listListedAirports,
   runMigrations,
   type AirportInsert,
   type Database,
 } from '@havayolu/db'
+import { AIRPORT_RING_CONFIG } from '@havayolu/shared'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { testApp } from '../test/helpers'
 import { AIRPORT_ERRORS, AIRPORTS_CACHE_CONTROL } from './airports'
@@ -63,7 +66,38 @@ beforeAll(async () => {
     }),
     airport(4, 'LTAE', null, { type: 'medium_airport', municipality: null }),
     airport(5, 'LTHX', 'HXX', { type: 'heliport' }),
-    airport(6, 'EGLL', 'LHR', { isoCountry: 'GB', isoRegion: 'GB-ENG', municipality: 'London' }),
+    airport(6, 'EGLL', 'LHR', {
+      isoCountry: 'GB',
+      isoRegion: 'GB-ENG',
+      municipality: 'London',
+      latitudeDeg: 51.4706,
+      longitudeDeg: -0.461941,
+    }),
+    // Yurt dışı: 1. halkada aday (Dedeağaç, en yakın test satırına 238 km); aday olmayan küçük ve tarifesiz
+    // orta havalimanı.
+    airport(7, 'LGAL', 'AXD', {
+      type: 'medium_airport',
+      isoCountry: 'GR',
+      isoRegion: 'GR-A',
+      municipality: 'Alexandroupolis',
+      latitudeDeg: 40.855869,
+      longitudeDeg: 25.956264,
+    }),
+    airport(8, 'LGXS', 'XSA', {
+      type: 'small_airport',
+      isoCountry: 'GR',
+      isoRegion: 'GR-A',
+      latitudeDeg: 40.9,
+      longitudeDeg: 26,
+    }),
+    airport(9, 'LGXM', 'XMA', {
+      type: 'medium_airport',
+      scheduledService: false,
+      isoCountry: 'GR',
+      isoRegion: 'GR-A',
+      latitudeDeg: 40.9,
+      longitudeDeg: 26.1,
+    }),
   ])
 })
 
@@ -74,9 +108,56 @@ afterAll(async () => {
 })
 
 describe('GET /v1/airports (gerçek PostgreSQL)', () => {
+  it('scope=listed: Türkiye ve 1. halkadaki yurt dışı adayı; pistli liste aynı sırada', async () => {
+    const { app } = await testApp({
+      deps: {
+        airports: {
+          list: (country) => listAirportsWithIata(database.db, country, AIRPORT_RING_CONFIG),
+          listed: () => listListedAirports(database.db, AIRPORT_RING_CONFIG),
+          listedDetails: () => listListedAirportDetails(database.db, AIRPORT_RING_CONFIG),
+        },
+      },
+    })
+    try {
+      const res = await app.inject({ method: 'GET', url: '/v1/airports?scope=listed' })
+      expect(res.statusCode).toBe(200)
+      const body = res.json() as { scope: string; airports: Record<string, unknown>[] }
+      expect(body.scope).toBe('listed')
+      expect(body).not.toHaveProperty('country')
+      expect(body.airports.map((a) => [a.iata, a.icao, a.country, a.ring])).toEqual([
+        ['AXD', 'LGAL', 'GR', 1],
+        ['IGL', 'LTBL', 'TR', 0],
+        ['IST', 'LTFM', 'TR', 0],
+        ['SAW', 'LTFJ', 'TR', 0],
+      ])
+      expect(body.airports[0]?.distanceToTrKm).toBe(238)
+      expect(body.airports[1]?.distanceToTrKm).toBeNull()
+      const detailed = await app.inject({
+        method: 'GET',
+        url: '/v1/airports?scope=listed&include=runways',
+      })
+      const details = detailed.json() as { scope: string; airports: Record<string, unknown>[] }
+      expect(details.scope).toBe('listed')
+      expect(details.airports.map((a) => a.icao)).toEqual(body.airports.map((a) => a.icao))
+      expect(details.airports[0]).toMatchObject({ isoRegion: 'GR-A', runways: [], station: null })
+      const conflict = await app.inject({
+        method: 'GET',
+        url: '/v1/airports?scope=listed&country=TR',
+      })
+      expect(conflict.statusCode).toBe(400)
+      expect(conflict.json()).toEqual(AIRPORT_ERRORS.scopeConflict)
+    } finally {
+      await app.close()
+    }
+  })
+
   it('IATA kodlu havalimanlarını sıralı döner; veritabanı kapanınca önbellekteki kopya sunulur', async () => {
     const { app } = await testApp({
-      deps: { airports: { list: (country) => listAirportsWithIata(database.db, country) } },
+      deps: {
+        airports: {
+          list: (country) => listAirportsWithIata(database.db, country, AIRPORT_RING_CONFIG),
+        },
+      },
     })
     try {
       const res = await app.inject({ method: 'GET', url: '/v1/airports' })
@@ -99,11 +180,18 @@ describe('GET /v1/airports (gerçek PostgreSQL)', () => {
         elevationFt: 325,
         type: 'large_airport',
         scheduled: true,
+        country: 'TR',
+        ring: 0,
+        distanceToTrKm: null,
       })
       const gb = await app.inject({ method: 'GET', url: '/v1/airports?country=GB' })
-      expect((gb.json() as { airports: { iata: string }[] }).airports.map((a) => a.iata)).toEqual([
-        'LHR',
-      ])
+      // Ülke isteğinde halka süzgeci yoktur; kayıt halkasını taşır (Londra 4. halkada).
+      expect(
+        (gb.json() as { airports: { iata: string; ring: number }[] }).airports.map((a) => [
+          a.iata,
+          a.ring,
+        ]),
+      ).toEqual([['LHR', 4]])
 
       await database.sql.end({ timeout: 5 })
       databaseClosed = true

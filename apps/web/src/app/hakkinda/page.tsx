@@ -9,7 +9,13 @@ import {
 } from '@/components/about/about-content'
 import { airportName } from '@/components/airports/airport-text'
 import { JsonLd } from '@/components/json-ld'
-import { getAirports, isInLiveCoverage, isMonitoredStation, liveCoveragePlan } from '@/lib/airports'
+import {
+  getAirports,
+  isInLiveCoverage,
+  isMonitoredStation,
+  isTurkish,
+  liveCoveragePlan,
+} from '@/lib/airports'
 import { appName, getServerEnv } from '@/lib/env'
 import { getLocale } from '@/lib/locale'
 import { pageMetadata } from '@/lib/seo/metadata'
@@ -35,8 +41,9 @@ interface AirportLists {
 
 /**
  * İzlenen istasyonlar (birincil önce, sonra ada göre) ve canlı veri çekim alanının dışında kalan
- * havalimanları (ada göre), veriden. Sayfanın asıl içeriği sabit metindir; API'ye ulaşılamazsa sayfa
- * 500 vermez, yalnızca bu listeler çıkmaz.
+ * Türkiye havalimanları (ada göre), veriden. Yakın ülkelerdeki havalimanlarının çoğu çekim alanının
+ * dışındadır; onlar listelenmez, yöntem bölümünde tek cümleyle anlatılır (D-080). Sayfanın asıl
+ * içeriği sabit metindir; API'ye ulaşılamazsa sayfa 500 vermez, yalnızca bu listeler çıkmaz.
  */
 async function airportLists(locale: Locale): Promise<AirportLists> {
   const collator = locale === 'tr' ? 'tr-TR' : 'en-GB'
@@ -56,7 +63,7 @@ async function airportLists(locale: Locale): Promise<AirportLists> {
           (a, b) => Number(b.primary) - Number(a.primary) || a.name.localeCompare(b.name, collator),
         ),
       outside: airports
-        .filter((airport) => !isInLiveCoverage(airport, plan))
+        .filter((airport) => isTurkish(airport) && !isInLiveCoverage(airport, plan))
         .map(link)
         .sort((a, b) => a.name.localeCompare(b.name, collator)),
     }

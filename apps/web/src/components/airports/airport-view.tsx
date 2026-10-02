@@ -1,8 +1,9 @@
 import { format, formatDistance, getMessages, NO_VALUE } from '@havayolu/i18n'
 import {
   airportDisplayName,
-  airportDistrict,
+  airportLocality,
   airportNameSource,
+  foreignAirportName,
   runwaySurfaceKey,
   type AirportDetail,
   type Locale,
@@ -15,6 +16,7 @@ import {
   isInLiveCoverage,
   liveCoveragePlan,
   nearestAirports,
+  nearestTurkishAirport,
   sameProvinceAirports,
 } from '../../lib/airports'
 import { localePath } from '../../lib/locale-routing'
@@ -22,7 +24,10 @@ import { airportMapPath, airportPath } from '../../lib/seo/paths'
 import { TERMS_LINKS } from '../../lib/terms'
 import { richText } from '../rich-text'
 import {
+  airportCountryFull,
+  airportLocation,
   airportName,
+  airportPlace,
   airportProvince,
   formatBearing,
   formatCoordinatesDecimal,
@@ -30,6 +35,7 @@ import {
   formatDataDate,
   formatLength,
   formatMeters,
+  isTurkish,
   longestRunway,
   runwayDesignator,
 } from './airport-text'
@@ -45,7 +51,10 @@ export interface AirportViewProps {
   /** Uygulamanın adı (`APP_NAME`). */
   app: string
   airport: AirportDetail
-  /** Tüm havalimanları: en yakınlar ve aynı ildeki diğerleri bunlardan hesaplanır. */
+  /**
+   * Listelenen bütün havalimanları (Türkiye ve yakın ülkeler): en yakınlar, aynı ildeki diğerleri ve
+   * Türkiye'deki en yakın havalimanı bunlardan hesaplanır.
+   */
   airports: readonly AirportDetail[]
   /**
    * Hava durumu ve METAR/TAF kaydı bölümleri (M6c). Sayfa bunları Suspense içinde verir: hava durumu
@@ -100,11 +109,16 @@ const displacedFt = (end: RunwayDetail['ends'][number]) =>
  * sefer ve izlenen istasyon bilgisi gösterilmez (D-078). OurAirports pist ışıklandırması kaynağa
  * atfedilir: "evet" değilse "kayıtlı değil" yazılır, "yok" denmez (D-076). Sunucuda çizilir, kanca
  * yoktur; hava durumu bölümü `weather` yuvasından gelir.
+ *
+ * Yakın ülkelerdeki havalimanı (M6d, D-080): yer satırı yerleşim ve ülkedir, il satırı yerine ülke ve
+ * Türkiye'deki en yakın havalimanı yazılır; "… ilindeki diğer havalimanları" cümlesi yalnızca
+ * Türkiye'dedir. En yakın havalimanları Türkiye ve yakın ülkeleri karışık içerebilir.
  */
 export function AirportView({ locale, app, airport, airports, weather }: AirportViewProps) {
   const messages = getMessages(locale)
   const t = messages.airport
   const name = airportName(airport, locale)
+  const turkish = isTurkish(airport)
   const province = airportProvince(airport, locale)
   const link = (target: AirportDetail) => localePath(locale, airportPath(target.icao))
 
@@ -112,10 +126,11 @@ export function AirportView({ locale, app, airport, airports, weather }: Airport
   const longest = longestRunway(airport)
   const others = sameProvinceAirports(airport, airports)
   const nearby = nearestAirports(airport, airports, NEARBY_COUNT)
+  const nearestTr = nearestTurkishAirport(airport, airports)
   const hasDisplaced = airport.runways.some((runway) => runway.ends.some((end) => displacedFt(end)))
   const nameSource = airportNameSource(airport.icao)
   const covered = isInLiveCoverage(airport, liveCoveragePlan(airports))
-  const district = airportDistrict(airport)
+  const district = airportLocality(airport, locale)
 
   const runwaySentence =
     count === 1 && longest
@@ -143,7 +158,7 @@ export function AirportView({ locale, app, airport, airports, weather }: Airport
             ({airport.iata}/{airport.icao})
           </span>
         </h1>
-        <p className="airport-location">{format(t.location, { province })}</p>
+        <p className="airport-location">{airportLocation(airport, locale)}</p>
       </header>
 
       <p className="lead airport-lead">
@@ -209,14 +224,41 @@ export function AirportView({ locale, app, airport, airports, weather }: Airport
             <dt>{t.facts.type}</dt>
             <dd>{t.types[airport.type]}</dd>
           </div>
-          <div>
-            <dt>{t.facts.province}</dt>
-            <dd>{province}</dd>
-          </div>
+          {turkish ? (
+            <div>
+              <dt>{t.facts.province}</dt>
+              <dd>{province}</dd>
+            </div>
+          ) : (
+            <div>
+              <dt>{t.facts.country}</dt>
+              <dd>{airportCountryFull(airport, locale)}</dd>
+            </div>
+          )}
           {district ? (
             <div>
               <dt>{t.facts.municipality}</dt>
               <dd>{district}</dd>
+            </div>
+          ) : null}
+          {nearestTr ? (
+            <div className="facts-wide">
+              <dt>{t.facts.nearestTr}</dt>
+              <dd>
+                {richText(t.facts.nearestTrValue, {
+                  // Listelenmeyen küçük alan (Gökçeada gibi) sayfasız, adıyla yazılır (D-080).
+                  airport: nearestTr.listed ? (
+                    <Link href={link(nearestTr.listed)}>
+                      {airportName(nearestTr.listed, locale)} ({nearestTr.listed.iata})
+                    </Link>
+                  ) : (
+                    format(t.facts.nearestTrUnlisted, {
+                      name: airportDisplayName(nearestTr.reference, locale),
+                    })
+                  ),
+                  distance: formatDistance(nearestTr.distanceKm, { locale }),
+                })}
+              </dd>
             </div>
           ) : null}
           {airport.name !== name ? (
@@ -314,7 +356,7 @@ export function AirportView({ locale, app, airport, airports, weather }: Airport
                       {airportName(other, locale)} ({other.iata})
                     </Link>
                   ),
-                  province: airportProvince(other, locale),
+                  place: airportPlace(other, locale),
                   distance: formatDistance(distanceKm, { locale }),
                 })}
               </li>
@@ -336,9 +378,14 @@ export function AirportView({ locale, app, airport, airports, weather }: Airport
           })}
         </p>
         <p>
-          {richText(t.nameSource[nameSource], {
-            name: <span lang="tr">{airportDisplayName(airport, 'tr')}</span>,
-          })}
+          {richText(
+            turkish
+              ? t.nameSource[nameSource]
+              : foreignAirportName(airport.icao) === undefined
+                ? t.nameSourceForeign.rule
+                : t.nameSourceForeign.curated,
+            { name: <span lang="tr">{airportDisplayName(airport, 'tr')}</span> },
+          )}
         </p>
         {weather === undefined ? null : (
           <p>

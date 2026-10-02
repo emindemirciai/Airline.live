@@ -171,6 +171,39 @@ test('etiket ayarı cihazda saklanır ve yeniden açılışta geri gelir; harita
   await expect(selected.getByRole('radio', { name: 'Tam' })).toBeChecked()
 })
 
+test.describe('arama kutusunun ipucu kesilmez', () => {
+  // İpucu (placeholder) kısa, erişilebilir ad tam metindir (packages/i18n → map.search).
+  const COPY = {
+    tr: { path: '/', name: 'Uçak ara: sefer no, çağrı kodu, tescil ya da hex' },
+    en: { path: '/en', name: 'Search aircraft: flight number, callsign, registration or hex' },
+  } as const
+
+  for (const width of [1280, 375]) {
+    for (const locale of ['tr', 'en'] as const) {
+      test(`${width} px, ${locale}: ipucu kutuya sığar; erişilebilir ad tam`, async ({ page }) => {
+        await page.setViewportSize({ width, height: 812 })
+        await page.goto(COPY[locale].path)
+        const input = page.getByRole('search').getByRole('searchbox')
+        await expect(input).toBeVisible()
+        await expect(input).toHaveAccessibleName(COPY[locale].name)
+        const placeholder = (await input.getAttribute('placeholder')) ?? ''
+        expect(placeholder.length).toBeGreaterThan(0)
+        await page.evaluate(() => document.fonts.ready)
+        // İpucu, ipucu ile aynı yazı tipindeki metin kutuya sığıyorsa sığar: aynı metin yazılır ve
+        // kutunun kaydırma genişliği ölçülür (tarayıcının iç düzeni, temizle düğmesi yeri dahil).
+        // M6d ilk sürümü: "…tescil ya da he" (1280) ve "…tescil ya" (375) kesiliyordu.
+        await input.fill(placeholder)
+        const overflow = await input.evaluate(
+          (element) => element.scrollWidth - element.clientWidth,
+        )
+        expect(overflow, placeholder).toBeLessThanOrEqual(0)
+        await input.fill('')
+        await expect(input).toHaveAttribute('placeholder', placeholder)
+      })
+    }
+  }
+})
+
 test.describe('telefon genişliği', () => {
   test.use({ viewport: { width: 375, height: 812 } })
 

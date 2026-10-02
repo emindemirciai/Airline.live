@@ -3,38 +3,59 @@
  * (`now`, istemci saati ms), React ve DOM yoktur; testler bileşeni çizmeden buradan sınanır.
  *
  * Birimler D-072'ye göre metrik önce yazılır; rakım ft ikinci olarak eklenir. Saatler havalimanının
- * yerel saatiyle (Europe/Istanbul, `Intl`) yazılır; sabit bir fark (UTC+3) kodda yoktur. Hava durumu
- * metinleri havalimanı sayfasıyla aynı işlevlerden gelir (`@havayolu/i18n` → weather).
+ * saat dilimiyle (`popupTimeZone`, `Intl`) yazılır; sabit bir fark (UTC+3) kodda yoktur. Hava durumu
+ * metinleri ve satırları havalimanı sayfasıyla aynı işlevlerden gelir (`@havayolu/i18n` → weather,
+ * `../airports/weather-rows`). Sayıdan önce "·" yazılmaz (eksi gibi okunur): sıcaklık ayrı kutucuktur,
+ * parçalar virgülle ayrılır (kullanıcı kararı 2026-10-02).
  */
 import {
   format,
   formatAgo,
   formatAltitude,
-  formatClock as formatLocalClock,
+  formatUtcClock,
   NO_VALUE,
   weatherText,
   type Messages,
 } from '@havayolu/i18n'
 import {
+  airportCountryName,
   airportDisplayName,
   airportDistrict,
+  localTime,
   metarAgeClass,
   provinceName,
   summarizeMetar,
-  sunTimes,
+  TURKEY_TIME_ZONE,
   type AirportMetar,
   type Locale,
-  type WeatherText,
 } from '@havayolu/shared'
+import { phenomenonRows, type WeatherRow } from '../airports/weather-rows'
 import { runwaySummary, type MapAirport } from './airport-data'
 import type { BulkWeatherState } from './use-airport-weather'
 
 export type PopupMessages = Messages['map']['airportPopup']
 export type WeatherMessages = Messages['weather']
 
-/** Saat ve dakika, havalimanının yerel saatiyle: "15:32". Saat henüz yoksa (0) ya da geçersizse "—". */
-export function formatClock(ms: number): string {
-  return Number.isFinite(ms) && ms > 0 ? formatLocalClock(ms) : NO_VALUE
+/** Türkiye'nin ISO 3166-1 alpha-2 kodu (`MapAirport.country`). */
+const TURKEY = 'TR'
+
+/**
+ * Pencerenin saat dilimi (IANA): Türkiye havalimanında Europe/Istanbul. Yakın ülkelerin
+ * havalimanları için saat dilimi verisi tutulmaz (OurAirports'ta yoktur; D-080): o havalimanlarında
+ * yerel saat satırı gösterilmez, gözlem saati UTC ile yazılır. Başka bir
+ * ülkenin saati Türkiye saatiyle "yerel saat" diye gösterilmez (Tiflis ve Bakü UTC+4, Tahran
+ * UTC+3:30, Yunanistan kışın UTC+2).
+ */
+export function popupTimeZone(airport: Pick<MapAirport, 'country'>): string | null {
+  return airport.country === TURKEY ? TURKEY_TIME_ZONE : null
+}
+
+/**
+ * Saat ve dakika, verilen saat diliminde (varsayılan Europe/Istanbul): "15:32". Saat henüz yoksa (0)
+ * ya da geçersizse "—".
+ */
+export function formatClock(ms: number, timeZone: string = TURKEY_TIME_ZONE): string {
+  return Number.isFinite(ms) && ms > 0 ? localTime(ms, timeZone).hhmm : NO_VALUE
 }
 
 /** Rakım (ft girdi), metrik önce: "99 m (325 ft)". Bilinmiyorsa "—". */
@@ -52,8 +73,12 @@ export function formatRunways(airport: MapAirport, locale: Locale, t: PopupMessa
   return count === 1 ? format(t.runwaysOne, { length }) : format(t.runwaysMany, { count, length })
 }
 
-/** İl adı; bölge kodu tanınmazsa temiz biçimdeki yerleşim adı; o da yoksa null. */
+/**
+ * Başlığın altındaki yer satırı. Türkiye'de il adı; bölge kodu tanınmazsa temiz biçimdeki yerleşim
+ * adı, o da yoksa null. Yakın ülkelerde ülke adı (D-080; Ercan için KKTC): "Yunanistan" / "Greece".
+ */
 export function airportPlace(airport: MapAirport, locale: Locale): string | null {
+  if (airport.country !== TURKEY) return airportCountryName(airport, locale)
   return provinceName(airport.isoRegion, locale) ?? airportDistrict(airport)
 }
 
@@ -61,8 +86,6 @@ export interface PopupRow {
   key: string
   label: string
   value: string
-  /** Değerin yanında vurgulanan ek (ör. "Kuvvetli rüzgâr"). */
-  strong?: string | null
 }
 
 export interface AirportFacts {
@@ -73,56 +96,43 @@ export interface AirportFacts {
   rows: PopupRow[]
 }
 
-/** Gün doğumu ve batımı (epoch ms); kutup günü/gecesinde ya da hesaplanamazsa null. */
-export interface SunTimesMs {
-  sunrise: number | null
-  sunset: number | null
-}
-
 /**
- * Havalimanının bugünkü (yerel takvim günü) gün doğumu ve batımı; NOAA hesabı, deniz seviyesi ve
- * düz ufuk (`sunTimes`). Saat henüz yoksa (0) null.
- */
-export function sunToday(airport: Pick<MapAirport, 'lat' | 'lon'>, now: number): SunTimesMs {
-  if (!Number.isFinite(now) || now <= 0) return { sunrise: null, sunset: null }
-  const sun = sunTimes(airport.lat, airport.lon, now)
-  return { sunrise: sun.sunrise?.getTime() ?? null, sunset: sun.sunset?.getTime() ?? null }
-}
-
-/**
- * Pencerenin üst bilgileri: ad, rakım, pist özeti, yerel saat, gün doğumu ve batımı. Hava durumu
- * ayrıdır (`popupWeatherView`).
+ * Pencerenin üst bilgileri: ad, rakım, pist özeti; saat dilimi biliniyorsa (`popupTimeZone`) yerel
+ * saat. Gün doğumu ve batımı pencerede yazılmaz, havalimanı sayfasındadır (kullanıcı kararı
+ * 2026-10-02). Hava durumu ayrıdır (`popupWeatherView`).
  */
 export function airportFacts(
   airport: MapAirport,
   now: number,
-  sun: SunTimesMs,
   locale: Locale,
   t: PopupMessages,
+  timeZone: string | null = popupTimeZone(airport),
 ): AirportFacts {
   const name = airportDisplayName(airport, locale)
-  return {
-    name,
-    label: format(t.label, { name }),
-    rows: [
-      { key: 'elevation', label: t.elevation, value: formatElevation(airport.elevationFt, locale) },
-      { key: 'runways', label: t.runways, value: formatRunways(airport, locale, t) },
-      { key: 'localTime', label: t.localTime, value: formatClock(now) },
-      { key: 'sunrise', label: t.sunrise, value: formatClock(sun.sunrise ?? Number.NaN) },
-      { key: 'sunset', label: t.sunset, value: formatClock(sun.sunset ?? Number.NaN) },
-    ],
+  const rows: PopupRow[] = [
+    { key: 'elevation', label: t.elevation, value: formatElevation(airport.elevationFt, locale) },
+    { key: 'runways', label: t.runways, value: formatRunways(airport, locale, t) },
+  ]
+  if (timeZone !== null) {
+    rows.push({ key: 'localTime', label: t.localTime, value: formatClock(now, timeZone) })
   }
+  return { name, label: format(t.label, { name }), rows }
 }
 
 export interface PopupWeatherReport {
   kind: 'report'
-  /** "Hafif sağanak yağmur · 9 °C"; eski gözlemde null (değerler güncel gibi gösterilmez). */
+  /** "Hafif sağanak yağmur"; eski gözlemde null (değerler güncel gibi gösterilmez). */
   headline: string | null
-  /** Rüzgâr, yağmur, kar, gök gürültüsü, sis ve pus, (dolu, diğer), görüş; eski gözlemde boş. */
-  rows: PopupRow[]
+  /** Başlığın yanındaki sıcaklık kutucuğu: "9 °C", "−3 °C"; bilinmiyorsa ya da eski gözlemde null. */
+  temperature: string | null
+  /**
+   * Rüzgâr, yağmur, kar, gök gürültüsü, sis ve pus, (dolu, diğer), görüş; var olan olay vurgulanır
+   * (`tone`). Eski gözlemde boş.
+   */
+  rows: WeatherRow[]
   /** Gecikmiş ya da eski gözlem uyarısı; normalde null. */
   note: string | null
-  /** "Gözlem 15:50 · 18 dakika önce" / "Son gözlem 09:50 · 6 saat önce". */
+  /** "Gözlem 15:50, 18 dakika önce" / "Son gözlem 09:50, 6 saat önce". */
   observed: string
   ageClass: 'fresh' | 'delayed' | 'stale'
 }
@@ -133,9 +143,10 @@ export type PopupWeatherView =
 /**
  * Pencerenin hava durumu bölümü: başlık ve sıcaklık, rüzgâr (hamle, kuvvetli rüzgâr), yağmur, kar,
  * gök gürültüsü, sis ve pus, (dolu, diğer), görüş ve gözlem yaşı. Özet havalimanı sayfasıyla aynı
- * kaynaktan gelir (`summarizeMetar` → `weatherText`); dürüstlük kuralları orada uygulanır: yağmur,
+ * kaynaktan gelir (`summarizeMetar` → `phenomenonRows`); dürüstlük kuralları orada uygulanır: yağmur,
  * kar, gök gürültüsü ve sis her zaman yazılır, rapor güvenle çözülemediyse "Belirlenemedi" denir.
  * Gözlem 12 saatten eskiyse rapor yok sayılır; 3–12 saat arası eski gözlemin değerleri gösterilmez.
+ * Gözlem saati havalimanının saat dilimiyle yazılır; dilim bilinmiyorsa (`null`) UTC ile ("12:50 UTC").
  */
 export function popupWeatherView(
   state: BulkWeatherState,
@@ -144,6 +155,7 @@ export function popupWeatherView(
   locale: Locale,
   w: WeatherMessages,
   t: PopupMessages,
+  timeZone: string | null = TURKEY_TIME_ZONE,
 ): PopupWeatherView {
   if (state.data === null) {
     return state.failed
@@ -156,7 +168,7 @@ export function popupWeatherView(
   if (age === 'none') return { kind: 'none', text: t.noReport }
   // Metin kurulamazsa (beklenmeyen rapor biçimi) harita düşmez: pencere "alınamıyor" der.
   try {
-    return metarReport(metar, age, now, locale, w, t)
+    return metarReport(metar, age, now, locale, w, t, timeZone)
   } catch (error) {
     console.error('Airport weather text could not be built', error)
     return { kind: 'unavailable', text: t.unavailable }
@@ -170,38 +182,31 @@ function metarReport(
   locale: Locale,
   w: WeatherMessages,
   t: PopupMessages,
+  timeZone: string | null,
 ): PopupWeatherReport {
   const options = { locale, t: w }
-  const time = formatLocalClock(metar.observedAt)
+  const observedAt = Date.parse(metar.observedAt)
+  const time =
+    timeZone === null ? `${formatUtcClock(observedAt)} UTC` : formatClock(observedAt, timeZone)
   const ago = formatAgo(metar.observedAt, now, options)
-  const observed = `${format(age === 'fresh' ? t.observed : w.lastObserved, { time })} · ${ago}`
+  const observed = `${format(age === 'fresh' ? t.observed : w.lastObserved, { time })}, ${ago}`
   if (age === 'stale') {
-    return { kind: 'report', headline: null, rows: [], note: w.age.stale, observed, ageClass: age }
+    return {
+      kind: 'report',
+      headline: null,
+      temperature: null,
+      rows: [],
+      note: w.age.stale,
+      observed,
+      ageClass: age,
+    }
   }
   const summary = summarizeMetar(metar)
-  const text = (value: WeatherText) => weatherText(value, options)
-  const { rows } = summary
-  const row = (key: string, label: string, value: WeatherText | null): PopupRow[] =>
-    value === null ? [] : [{ key, label, value: text(value) }]
-  const headline = text(summary.headline)
   return {
     kind: 'report',
-    headline: summary.temperature ? `${headline} · ${text(summary.temperature)}` : headline,
-    rows: [
-      {
-        key: 'wind',
-        label: w.rows.wind,
-        value: text(rows.wind),
-        strong: summary.strongWind ? w.wind.strong : null,
-      },
-      ...row('rain', w.rows.rain, rows.rain),
-      ...row('snow', w.rows.snow, rows.snow),
-      ...row('thunder', w.rows.thunder, rows.thunderstorm),
-      ...row('fog', w.rows.fog, rows.fog),
-      ...row('hail', w.rows.hail, rows.hail),
-      ...row('other', w.rows.other, rows.other),
-      ...row('visibility', w.rows.visibility, rows.visibility),
-    ],
+    headline: weatherText(summary.headline, options),
+    temperature: summary.temperature ? weatherText(summary.temperature, options) : null,
+    rows: phenomenonRows(summary, options),
     note: age === 'delayed' ? `${w.age.delayedBadge}: ${w.age.delayed}` : null,
     observed,
     ageClass: age,
@@ -241,9 +246,10 @@ export function returnFocusTarget<T>(
 
 /**
  * Ekran okuyucuya kibarca bildirilen hava durumu durumu (WCAG 4.1.3): yükleniyor, alınamıyor,
- * rapor yok ya da yüklenen raporun başlığı. Saniyelik yerel saat bu bölgede değildir.
+ * rapor yok ya da yüklenen raporun başlığı ve sıcaklığı. Saniyelik yerel saat bu bölgede değildir.
  */
 export function popupStatusText(view: PopupWeatherView): string {
   if (view.kind !== 'report') return view.text
-  return view.headline ?? view.note ?? view.observed
+  if (view.headline === null) return view.note ?? view.observed
+  return view.temperature ? `${view.headline}, ${view.temperature}` : view.headline
 }

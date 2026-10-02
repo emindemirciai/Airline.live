@@ -535,6 +535,29 @@ const stationList = (icaos: readonly string[]) =>
   )
 
 /**
+ * Verilen istasyonlardan gözlemi `since` ya da sonrası olan METAR/SPECI'si bulunanlar, sıralı ve
+ * tekil. Worker listeye yeni giren (kaydı olmayan) istasyonun son 24 saatini doldurmak için kullanır
+ * (`runWeatherMetar`, D-080). İstasyon başına dizinden en çok bir satır okunur (`exists`).
+ */
+export async function metarStationsSince(
+  sql: Sql,
+  icaos: readonly string[],
+  since: Date,
+): Promise<string[]> {
+  const stations = stationList(icaos)
+  if (stations.length === 0) return []
+  const rows = await sql<{ icao: string }[]>`
+    select s.icao
+    from unnest(${textArray(stations)}::text[]) as s(icao)
+    where exists (
+      select 1 from weather_metar m
+      where m.station_icao = s.icao and m.observed_at >= ${iso(since)}::timestamptz
+    )
+    order by s.icao`
+  return rows.map((row) => row.icao)
+}
+
+/**
  * Güncel hava: her istasyonun en yeni METAR/SPECI'si (raporu olmayan istasyon listede yer almaz)
  * ve geçerliliği bitmemiş (`valid_to > now`) bütün TAF'ları, yayın zamanına göre en yeni önce.
  */

@@ -1,16 +1,16 @@
-import { format, getMessages } from '@havayolu/i18n'
 import type { AirportDetail } from '@havayolu/shared'
 import { ImageResponse } from 'next/og'
 // Göreli yollar: vitest `@/` takma adını çözmez ve görsel testte çizilir.
 import { BrandMark, OG_COLORS, OG_SIZE } from '../../lib/seo/og'
 import { OG_FONT_STACK, ogFonts } from '../../lib/seo/og-fonts'
-import { airportName, airportProvince } from './airport-text'
+import { airportLocation, airportName } from './airport-text'
 
 /**
  * Havalimanı sayfasının paylaşım görseli (1200×630, M6b brief §c). Dilden bağımsızdır: kodlar,
- * resmî Türkçe ad, il ve alan adı. Görsel iç yoldan (`/istasyon/<ICAO>/opengraph-image`) sunulur,
- * TR ve EN sayfaları aynı görseli kullanır. Yazı tipleri yereldir (og-fonts.ts); görseldeki
- * metinlerde bu yazı tiplerinin kapsamadığı karakter (emoji, ok, ₺) yoktur, dış istek yapılmaz.
+ * Türkçe ad, il (yakın ülkelerde yerleşim ve ülke) ve alan adı. Görsel iç yoldan
+ * (`/istasyon/<ICAO>/opengraph-image`) sunulur, TR ve EN sayfaları aynı görseli kullanır. Yazı
+ * tipleri yereldir (og-fonts.ts); görseldeki metinlerde bu yazı tiplerinin kapsamadığı karakter
+ * (emoji, ok, ₺) yoktur, dış istek yapılmaz.
  */
 export interface AirportOgContent {
   app: string
@@ -21,7 +21,7 @@ export interface AirportOgContent {
   location: string
 }
 
-/** Görselin metinleri, veriden (resmî Türkçe ad ve il). */
+/** Görselin metinleri, veriden (Türkçe ad ve yer satırı: il ya da yakın ülkelerde yerleşim ve ülke). */
 export function airportOgContent(
   airport: AirportDetail,
   app: string,
@@ -32,9 +32,7 @@ export function airportOgContent(
     host,
     codes: `${airport.iata} · ${airport.icao}`,
     name: airportName(airport, 'tr'),
-    location: format(getMessages('tr').airport.location, {
-      province: airportProvince(airport, 'tr'),
-    }),
+    location: airportLocation(airport, 'tr'),
   }
 }
 

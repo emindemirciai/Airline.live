@@ -39,9 +39,14 @@ export interface WeatherLogProps {
   now: number
   /** Eski kayıt bağlantısı için API'nin genel adresi (`config.apiBaseUrl`). */
   apiBaseUrl: string
+  /** Türkiye dışındaki havalimanı: saatler "Türkiye saati" diye anlatılır (D-080). */
+  abroad?: boolean
 }
 
-/** Kayıt satırının tek satırlık özeti. */
+/**
+ * Kayıt satırının tek satırlık özeti, virgülle: "Hafif sağanak yağmur, 9 °C, kuzeydoğudan 33 km/sa,
+ * hamle 59 km/sa". Sayıdan önce "·" yazılmaz (eksi gibi okunur; kullanıcı kararı 2026-10-02).
+ */
 export function logSummary(entry: WeatherHistoryEntry, now: number, options: WeatherTextOptions) {
   const { t } = options
   if (entry.metar) {
@@ -49,8 +54,10 @@ export function logSummary(entry: WeatherHistoryEntry, now: number, options: Wea
     const summary = summarizeMetar(entry.metar)
     const parts = [weatherText(summary.headline, options)]
     if (summary.temperature) parts.push(weatherText(summary.temperature, options))
-    if (entry.metar.wind) parts.push(weatherText(summary.rows.wind, options))
-    return parts.join(' · ')
+    if (entry.metar.wind) {
+      parts.push(weatherText(summary.rows.wind, options, { capitalize: false }))
+    }
+    return parts.join(', ')
   }
   if (entry.taf) {
     const flags = [
@@ -67,15 +74,25 @@ export function logSummary(entry: WeatherHistoryEntry, now: number, options: Wea
   return ''
 }
 
-export function WeatherLog({ locale, t, icao, name, history, now, apiBaseUrl }: WeatherLogProps) {
+export function WeatherLog({
+  locale,
+  t,
+  icao,
+  name,
+  history,
+  now,
+  apiBaseUrl,
+  abroad = false,
+}: WeatherLogProps) {
   const options: WeatherTextOptions = { locale, t }
   const l = t.log
   const since = now - WEATHER_LOG_HOURS * 3_600_000
   const entries = (history?.entries ?? []).filter((entry) => Date.parse(entry.time) >= since)
+  const count = format(entries.length === 1 ? l.countOne : l.countMany, { count: entries.length })
   return (
     <section aria-labelledby="airport-weather-log" className="airport-weather-log">
       <h2 id="airport-weather-log">{l.heading}</h2>
-      <p className="weather-note">{l.intro}</p>
+      <p className="weather-note">{abroad ? l.introAbroad : l.intro}</p>
       {history === null ? (
         <p>{l.unavailable}</p>
       ) : entries.length === 0 ? (
@@ -89,8 +106,7 @@ export function WeatherLog({ locale, t, icao, name, history, now, apiBaseUrl }: 
         >
           <table className="table weather-log">
             <caption id="weather-log-caption">
-              {format(l.caption, { name })} ·{' '}
-              {format(entries.length === 1 ? l.countOne : l.countMany, { count: entries.length })}
+              {format(l.caption, { name })} ({count})
             </caption>
             <thead>
               <tr>

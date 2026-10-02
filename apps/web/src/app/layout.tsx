@@ -6,7 +6,7 @@ import '@fontsource/ibm-plex-mono/500.css'
 import './globals.css'
 
 import { getMessages } from '@havayolu/i18n'
-import { currentVersion, MAP_COLORS, PROJECT, type Locale } from '@havayolu/shared'
+import { currentVersion, PROJECT, type Locale } from '@havayolu/shared'
 import type { Metadata, Viewport } from 'next'
 import { cookies } from 'next/headers'
 import Link from 'next/link'
@@ -19,6 +19,7 @@ import { analyticsConfig, appName, getServerEnv, type ServerEnv } from '@/lib/en
 import { languageToggleHref } from '@/lib/language-href'
 import { getLocale, getLogicalPath } from '@/lib/locale'
 import { localePath } from '@/lib/locale-routing'
+import { THEME_COLORS } from '@/lib/seo/brand'
 import { siteUrl } from '@/lib/seo/metadata'
 import { sourceNoticeComment } from '@/lib/source-notice'
 import { TERMS_PATH } from '@/lib/terms'
@@ -67,9 +68,9 @@ export async function generateMetadata(): Promise<Metadata> {
   }
 }
 
-/** Tarayıcı arayüzünün rengi: haritanın zemini (ana sayfa), manifestteki `theme_color` ile aynı. */
+/** Tarayıcı arayüzünün rengi: sitenin başlık şeridi (D-081), manifestteki `theme_color` ile aynı. */
 export const viewport: Viewport = {
-  themeColor: MAP_COLORS.background,
+  themeColor: THEME_COLORS.header,
 }
 
 /**

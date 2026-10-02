@@ -5,13 +5,15 @@ import { aircraftTitle, labelContent } from './label-text'
 const tr = { locale: 'tr', units: 'metric' } as const
 
 describe('labelContent', () => {
-  it('Tam: sefer no ve "hız · yükseklik" (metrik, TR)', () => {
+  it('Tam: sefer no ve "hız, yükseklik" (metrik, TR); sayıdan önce "·" yok', () => {
     // 232,7 kt ≈ 431 km/sa, 1.093 ft ≈ 333 m (domain.md örneği).
     expect(labelContent(aircraft({ gs: 232.7, alt: 1_093 }), 'full', tr)).toEqual({
       primary: 'TK-974',
       primaryMuted: false,
-      lines: ['431 km/sa · 333 m'],
+      lines: ['431 km/sa, 333 m'],
     })
+    const [line] = labelContent(aircraft({ gs: 232.7, alt: 1_093 }), 'full', tr).lines
+    expect(line).not.toMatch(/[·–]s*[−-]?d/)
   })
 
   it('Kısa: yalnızca sefer no', () => {
@@ -24,7 +26,7 @@ describe('labelContent', () => {
 
   it('yerdeki uçakta yükseklik yerine "yerde" yazar', () => {
     expect(labelContent(aircraft({ gs: 0, alt: null, gnd: true }), 'full', tr).lines).toEqual([
-      '0 km/sa · yerde',
+      '0 km/sa, yerde',
     ])
   })
 
@@ -32,11 +34,11 @@ describe('labelContent', () => {
     expect(
       labelContent(aircraft({ gs: 232.7, alt: 1_093 }), 'full', { locale: 'en', units: 'aviation' })
         .lines,
-    ).toEqual(['233 kt · 1,093 ft'])
+    ).toEqual(['233 kt, 1,093 ft'])
     expect(
       labelContent(aircraft({ gnd: true, alt: null }), 'full', { locale: 'en', units: 'metric' })
         .lines[0],
-    ).toMatch(/ · on ground$/)
+    ).toMatch(/, on ground$/)
   })
 
   it('sefer no yoksa çağrı kodu, yoksa tescil, o da yoksa büyük harf hex; hepsi gri', () => {
@@ -82,8 +84,6 @@ describe('labelContent', () => {
 
   it('hız ve yükseklik bilinmiyorsa ikinci satır yazılmaz; biri bilinmiyorsa "—"', () => {
     expect(labelContent(aircraft({ gs: null, alt: null }), 'full', tr).lines).toEqual([])
-    expect(labelContent(aircraft({ gs: null, alt: 1_093 }), 'full', tr).lines).toEqual([
-      '— · 333 m',
-    ])
+    expect(labelContent(aircraft({ gs: null, alt: 1_093 }), 'full', tr).lines).toEqual(['—, 333 m'])
   })
 })

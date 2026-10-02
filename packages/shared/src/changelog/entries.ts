@@ -7,6 +7,41 @@ import type { ChangelogEntry } from './types'
  */
 export const CHANGELOG: readonly ChangelogEntry[] = [
   {
+    version: '0.12.0',
+    date: '2026-10-02',
+    title: {
+      tr: 'Yakın ülkelerdeki havalimanları ve yeni turkuaz görünüm',
+      en: 'Airports in nearby countries and a new turquoise look',
+    },
+    items: [
+      {
+        tr: 'Türkiye’deki en yakın havalimanına 500 km’den yakın 75 yabancı havalimanı eklendi: Yunanistan, Bulgaristan, Kıbrıs, Gürcistan, Ermenistan, Azerbaycan, İran, Irak, Suriye, Lübnan ve diğer komşu ülkelerden. Her birinin Türkçe adı, sayfası, pistleri ve canlı hava durumu var; haritada kırmızı iğneyle görünür. Ercan Havalimanı KKTC’de gösterilir. Uzak ülkeler sonraki sürümlerde halka halka gelecek.',
+        en: 'Added 75 airports abroad that lie within 500 km of the nearest airport in Türkiye: in Greece, Bulgaria, Cyprus, Georgia, Armenia, Azerbaijan, Iran, Iraq, Syria, Lebanon and other neighbouring countries. Each has its page, runways and live weather, and appears on the map with a red pin. Ercan Airport is shown in the TRNC. More distant countries will follow ring by ring in later releases.',
+      },
+      {
+        tr: 'Site yeni, açık turkuaz bir görünüme geçti. Bütün yazılar okunabilirlik ölçütünü karşılıyor; telefonun karanlık modu açıkken de site aynı görünür.',
+        en: 'The site has a new light turquoise look. All text meets the readability contrast guidelines, and the site looks the same when your phone is in dark mode.',
+      },
+      {
+        tr: 'Hava durumu daha kolay okunuyor: sıcaklık başlığın yanında ayrı bir kutucukta; rüzgâr, yağmur, kar, gök gürültüsü, sis ve görüş satırlarının başında simge var. O an yağmur, kar, gök gürültüsü ya da sis varsa satırı renkli ve kalın yazılır. Haritadaki havalimanı penceresinden gün doğumu ve batımı kaldırıldı; havalimanı sayfasında duruyor.',
+        en: 'Weather is easier to read: the temperature sits in its own badge next to the headline, and the wind, rain, snow, thunderstorm, fog and visibility rows have icons. If rain, snow, a thunderstorm or fog is happening right now, its row is coloured and bold. Sunrise and sunset were removed from the map’s airport window; they remain on the airport page.',
+      },
+      {
+        tr: 'Sayıların önünde artık eksi gibi okunabilecek “·” işareti yok: uçak etiketleri “431 km/sa, 333 m”, hava durumu “Kuzeydoğudan 33 km/sa, hamle 59 km/sa” biçiminde.',
+        en: 'Numbers are no longer preceded by a “·” that could be read as a minus sign: aircraft labels read “431 km/h, 333 m” and weather reads “From the northeast 33 km/h, gusts 59 km/h”.',
+      },
+      {
+        tr: 'Telefonda havalimanı penceresinin “Havalimanı sayfası” bağlantısı kaydırmadan görünüyor, arama kutusunun ipucu kesilmiyor. Beklenmedik bir hatada artık sitenin kendi Türkçe ve İngilizce hata sayfası açılıyor.',
+        en: 'On phones, the airport window’s “Airport page” link is visible without scrolling, and the search box hint is no longer cut off. Unexpected errors now show the site’s own error page in Turkish and English.',
+      },
+    ],
+    tryLinks: [
+      { path: '/havalimanlari', label: { tr: 'Havalimanları', en: 'Airports' } },
+      { path: '/istasyon/LGAV', label: { tr: 'Atina Havalimanı', en: 'Athens Airport' } },
+      { path: '/?havalimani=LTFM', label: { tr: 'Haritada İstanbul', en: 'Istanbul on the map' } },
+    ],
+  },
+  {
     version: '0.11.0',
     date: '2026-10-02',
     title: {

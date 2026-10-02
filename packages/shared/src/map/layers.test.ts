@@ -47,7 +47,47 @@ describe('MAP_COLORS', () => {
     expect(MAP_COLORS.groundTrack).toBe('#22D3EE')
     expect(MAP_COLORS.background).toBe('#0B1016')
   })
+
+  it('açık turkuaz tema (D-081): beyaz opak etiket kutusu, açık turkuaz kenar, koyu yazı', () => {
+    expect(MAP_COLORS.labelBox).toBe('#FFFFFF')
+    expect(MAP_COLORS.labelBorder).toBe('#B9E2E6')
+    expect(MAP_COLORS.labelInk).toBe('#0B2A33')
+    expect(MAP_COLORS.panel).toBe('#FFFFFF')
+    expect(MAP_COLORS.ink).toBe('#0B2A33')
+  })
+
+  it('harita yazıları zeminlerine karşı WCAG AA (en az 4,5:1)', () => {
+    const pairs: [string, string, string][] = [
+      ['labelInk/labelBox', MAP_COLORS.labelInk, MAP_COLORS.labelBox],
+      ['labelMuted/labelBox', MAP_COLORS.labelMuted, MAP_COLORS.labelBox],
+      ['labelInk/airportChipMinor', MAP_COLORS.labelInk, MAP_COLORS.airportChipMinor],
+      ['selectedInk/selected', MAP_COLORS.selectedInk, MAP_COLORS.selected],
+      ['ink/panel', MAP_COLORS.ink, MAP_COLORS.panel],
+      ['muted/panel', MAP_COLORS.muted, MAP_COLORS.panel],
+      ['muted/panelRaised', MAP_COLORS.muted, MAP_COLORS.panelRaised],
+    ]
+    for (const [name, text, background] of pairs) {
+      expect(contrastRatio(text, background), name).toBeGreaterThanOrEqual(4.5)
+    }
+    // Giriş kutusu kenarı (WCAG 1.4.11, en az 3:1).
+    expect(contrastRatio(MAP_COLORS.lineStrong, MAP_COLORS.panel)).toBeGreaterThanOrEqual(3)
+    expect(contrastRatio(MAP_COLORS.lineStrong, MAP_COLORS.panelRaised)).toBeGreaterThanOrEqual(3)
+  })
 })
+
+/** WCAG 2.1 kontrast oranı (`#RRGGBB`). */
+function contrastRatio(a: string, b: string): number {
+  const luminance = (hex: string) => {
+    const n = Number.parseInt(hex.slice(1), 16)
+    const [r, g, bl] = [(n >> 16) & 255, (n >> 8) & 255, n & 255].map((channel) => {
+      const c = channel / 255
+      return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4
+    }) as [number, number, number]
+    return 0.2126 * r + 0.7152 * g + 0.0722 * bl
+  }
+  const [light, dark] = [luminance(a), luminance(b)].sort((x, y) => y - x) as [number, number]
+  return (light + 0.05) / (dark + 0.05)
+}
 
 describe('katmanlar', () => {
   it('kimlikler ve kaynaklar', () => {

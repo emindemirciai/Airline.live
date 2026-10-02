@@ -39,8 +39,19 @@ const AIRPORTS = [
     scheduled: false,
     dataUpdatedAt: '2026-09-25T03:00:00.000Z',
   }),
+  // Yakın ülkelerdeki listelenen havalimanı (1. halka, D-080): aday kuralı gereği tarifeli, dizine
+  // eklenir.
+  airportFixture({
+    icao: 'LGAV',
+    iata: 'ATH',
+    country: 'GR',
+    isoRegion: 'GR-I',
+    ring: 1,
+    distanceToTrKm: 275,
+    dataUpdatedAt: '2026-09-22T03:00:00.000Z',
+  }),
 ]
-const INDEXABLE = ['LTAC', 'LTBU', 'LTFM']
+const INDEXABLE = ['LGAV', 'LTAC', 'LTBU', 'LTFM']
 const BASE = 'https://havayolu.live'
 
 beforeEach(() => {
@@ -87,6 +98,17 @@ describe('sitemap.xml', () => {
         ...INDEXABLE.flatMap((icao) => [`${BASE}/istasyon/${icao}`, `${BASE}/en/istasyon/${icao}`]),
       ]),
     )
+  })
+
+  it('yakın ülkelerdeki listelenen havalimanı iki dilde, kendi veri tarihiyle (LGAV, D-080)', async () => {
+    const entries = await sitemap()
+    const athens = entries.find((e) => e.url === `${BASE}/istasyon/LGAV`)
+    expect(athens?.lastModified).toBe('2026-09-22T03:00:00.000Z')
+    expect(athens?.alternates?.languages).toEqual({
+      tr: `${BASE}/istasyon/LGAV`,
+      en: `${BASE}/en/istasyon/LGAV`,
+      'x-default': `${BASE}/en/istasyon/LGAV`,
+    })
   })
 
   it('noindex adresler yok: tarifesiz havalimanı, /durum, yönetim', async () => {

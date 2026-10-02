@@ -10,7 +10,10 @@ import {
   type MapAirport,
 } from './airport-data'
 
-/** `GET /v1/airports?country=TR&include=runways` kaydı (AirportDetail), kısaltılmış pist uçlarıyla. */
+/**
+ * `GET /v1/airports?scope=listed&include=runways` kaydı (AirportDetail + listelenme alanları, D-080),
+ * kısaltılmış pist uçlarıyla.
+ */
 const IST_DETAIL = {
   icao: 'LTFM',
   iata: 'IST',
@@ -21,6 +24,9 @@ const IST_DETAIL = {
   elevationFt: 325,
   type: 'large_airport',
   scheduled: true,
+  country: 'TR',
+  ring: 0,
+  distanceToTrKm: null,
   isoRegion: 'TR-34',
   municipality: 'Arnavutköy',
   station: { active: true, primary: true, fetchRadiusNm: 60 },
@@ -29,6 +35,29 @@ const IST_DETAIL = {
     { id: 1, lengthFt: 12303, widthFt: 197, surface: 'ASP', lighted: true, ends: [{}, {}] },
     { id: 2, lengthFt: 13451, widthFt: 197, surface: 'ASP', lighted: true, ends: [{}, {}] },
     { id: 3, lengthFt: null, widthFt: null, surface: null, lighted: false, ends: [{}, {}] },
+  ],
+}
+
+/** Yakın ülkedeki listelenen havalimanı (1. halka): Atina, en yakın Türkiye havalimanına 275 km. */
+const ATH_DETAIL = {
+  icao: 'LGAV',
+  iata: 'ATH',
+  name: 'Athens Eleftherios Venizelos International Airport',
+  city: 'Spata-Artemida',
+  lat: 37.936401,
+  lon: 23.9445,
+  elevationFt: 308,
+  type: 'large_airport',
+  scheduled: true,
+  country: 'GR',
+  ring: 1,
+  distanceToTrKm: 275,
+  isoRegion: 'GR-I',
+  municipality: 'Spata-Artemida',
+  station: null,
+  dataUpdatedAt: '2026-10-01T23:03:49.000Z',
+  runways: [
+    { id: 4, lengthFt: 13123, widthFt: 148, surface: 'ASP', lighted: true, ends: [{}, {}] },
   ],
 }
 
@@ -60,10 +89,43 @@ describe('toMapAirport', () => {
       elevationFt: 325,
       type: 'large_airport',
       scheduled: true,
+      country: 'TR',
+      ring: 0,
+      distanceToTrKm: null,
       isoRegion: 'TR-34',
       municipality: 'Arnavutköy',
       runways: [{ lengthFt: 12303 }, { lengthFt: 13451 }, { lengthFt: null }],
     })
+  })
+
+  it('yakın ülkedeki havalimanı ülke koduyla gelir (D-080)', () => {
+    const athens = toMapAirport(ATH_DETAIL)
+    expect(athens?.country).toBe('GR')
+    expect(athens?.ring).toBe(1)
+    expect(athens?.distanceToTrKm).toBe(275)
+    expect(athens?.isoRegion).toBe('GR-I')
+    expect(athens?.runways).toEqual([{ lengthFt: 13123 }])
+  })
+
+  it('halka ve uzaklık: halkadan önceki API’de Türkiye 0; yurt dışında halkasız ya da bozuk kayıt düşer', () => {
+    const { ring: _ring, distanceToTrKm: _distance, ...turkeyOld } = IST_DETAIL
+    expect(toMapAirport(turkeyOld)).toMatchObject({ ring: 0, distanceToTrKm: null })
+    const { ring: _foreignRing, ...athensWithoutRing } = ATH_DETAIL
+    expect(toMapAirport(athensWithoutRing)).toBeNull()
+    expect(toMapAirport({ ...ATH_DETAIL, ring: -1 })).toBeNull()
+    expect(toMapAirport({ ...ATH_DETAIL, ring: 1.5 })).toBeNull()
+    expect(toMapAirport({ ...ATH_DETAIL, distanceToTrKm: '275' })).toBeNull()
+    expect(toMapAirport({ ...ATH_DETAIL, distanceToTrKm: -3 })).toBeNull()
+    expect(toMapAirport({ ...ATH_DETAIL, distanceToTrKm: null })?.distanceToTrKm).toBeNull()
+  })
+
+  it('ülke alanı yoksa (önceki API) bölge kodunun önekinden; geçersiz ülke reddedilir', () => {
+    const { country: _country, ...withoutCountry } = ATH_DETAIL
+    expect(toMapAirport(withoutCountry)?.country).toBe('GR')
+    expect(toMapAirport({ ...withoutCountry, country: null })?.country).toBe('GR')
+    expect(toMapAirport({ ...ATH_DETAIL, country: 'gr' })).toBeNull()
+    expect(toMapAirport({ ...ATH_DETAIL, country: 'GRC' })).toBeNull()
+    expect(toMapAirport({ ...withoutCountry, isoRegion: 'bilinmiyor' })).toBeNull()
   })
 
   it('pistsiz ya da ayrıntısız (eski API) kayıt ve bozuk pist reddedilir', () => {
@@ -94,18 +156,27 @@ describe('runwaySummary', () => {
 })
 
 describe('fetchMapAirports', () => {
-  it('pistlerle tek istek atar; bozuk kayıtları atlar', async () => {
-    const fetchMock = mockFetch(200, { country: 'TR', airports: [IST_DETAIL, { icao: 'LTXX' }] })
+  it('listelenen havalimanlarını pistlerle tek istekte alır; bozuk kayıtları atlar', async () => {
+    const fetchMock = mockFetch(200, {
+      scope: 'listed',
+      airports: [IST_DETAIL, ATH_DETAIL, { icao: 'LTXX' }],
+    })
     const controller = new AbortController()
     const airports = await fetchMapAirports('http://localhost:4100', controller.signal)
-    expect(airports.map((airport) => airport.icao)).toEqual(['LTFM'])
+    expect(airports.map((airport) => airport.icao)).toEqual(['LTFM', 'LGAV'])
     expect(fetchMock).toHaveBeenCalledTimes(1)
     const [url, init] = fetchMock.mock.calls[0] ?? []
-    expect(String(url)).toBe('http://localhost:4100/v1/airports?country=TR&include=runways')
+    expect(String(url)).toBe('http://localhost:4100/v1/airports?scope=listed&include=runways')
     expect(init?.signal).toBe(controller.signal)
-    expect(String(mapAirportsUrl('https://api.havayolu.live', 'CY'))).toBe(
-      'https://api.havayolu.live/v1/airports?country=CY&include=runways',
+    expect(String(mapAirportsUrl('https://api.havayolu.live'))).toBe(
+      'https://api.havayolu.live/v1/airports?scope=listed&include=runways',
     )
+  })
+
+  it('zarfın kapsam alanı ne olursa olsun `airports` dizisi okunur', async () => {
+    mockFetch(200, { country: 'TR', airports: [IST_DETAIL] })
+    const airports = await fetchMapAirports('http://localhost:4100')
+    expect(airports.map((airport) => airport.icao)).toEqual(['LTFM'])
   })
 
   it('2xx olmayan, JSON olmayan ya da zarfı bozuk yanıtta ApiError fırlatır', async () => {
@@ -116,7 +187,9 @@ describe('fetchMapAirports', () => {
     })
     mockFetch(200, '<html>')
     await expect(fetchMapAirports('http://localhost:4100')).rejects.toBeInstanceOf(ApiError)
-    mockFetch(200, { country: 'TR', airports: null })
+    mockFetch(200, { scope: 'listed', airports: null })
+    await expect(fetchMapAirports('http://localhost:4100')).rejects.toBeInstanceOf(ApiError)
+    mockFetch(200, [IST_DETAIL])
     await expect(fetchMapAirports('http://localhost:4100')).rejects.toBeInstanceOf(ApiError)
   })
 })
@@ -132,6 +205,9 @@ describe('airportsInView (Havalimanları listesi, klavye yolu)', () => {
     elevationFt: null,
     type: 'medium_airport',
     scheduled: true,
+    country: 'TR',
+    ring: 0,
+    distanceToTrKm: null,
     isoRegion: 'TR-34',
     municipality: null,
     runways: [],
@@ -152,6 +228,30 @@ describe('airportsInView (Havalimanları listesi, klavye yolu)', () => {
       viewport,
     )
     expect(list.map((a) => a.iata)).toEqual(['IST', 'SAW', 'TEQ'])
+  })
+
+  it('yakın ülke havalimanları da listelenir (Ege: Midilli, Edremit, Sakız)', () => {
+    const greek = (icao: string, distanceToTrKm: number) => ({
+      icao,
+      country: 'GR',
+      ring: 1,
+      distanceToTrKm,
+      isoRegion: 'GR-K',
+    })
+    const aegean = {
+      bounds: { minLon: 25.5, minLat: 38, maxLon: 27.5, maxLat: 39.8 },
+      center: { lat: 39, lon: 26.5 },
+    }
+    const list = airportsInView(
+      [
+        { ...airport('MJT', 39.057, 26.598), ...greek('LGMT', 65) },
+        airport('EDO', 39.555, 27.014),
+        { ...airport('JKH', 38.343, 26.141), ...greek('LGHI', 78) },
+        airport('IST', 41.275, 28.752),
+      ],
+      aegean,
+    )
+    expect(list.map((a) => a.iata)).toEqual(['MJT', 'EDO', 'JKH'])
   })
 
   it('en fazla sınır kadar', () => {

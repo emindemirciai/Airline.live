@@ -2,7 +2,8 @@
  * Harita etiketinin metni (domain.md → Harita etiketleri, D-072). v1'de (D-075 §4):
  * - 1. satır sefer no ("TK-974"); bilinmiyorsa çağrı kodu, o da yoksa tescil, o da yoksa hex;
  *   sefer no dışındakiler gri
- * - Tam etikette bir satır daha: hız ve yükseklik ("431 km/sa · 333 m", yerdeyse "yerde")
+ * - Tam etikette bir satır daha: hız ve yükseklik ("431 km/sa, 333 m", yerdeyse "28 km/sa, yerde").
+ *   Ayraç virgüldür: sayıdan önce "·" eksi gibi okunur (kullanıcı kararı 2026-10-02, D-081)
  *
  * Güzergâh ve pist satırları verileri gelince eklenir (güzergâh Parça 2 M2, pist hizası Parça 2
  * motoru); her uçakta "Güzergâh ?" yazmak yalnızca gürültü olurdu.
@@ -51,11 +52,11 @@ export function labelContent(
 ): LabelContent {
   const title = aircraftTitle(ac)
   const lines: string[] = []
-  // İkisi de bilinmiyorsa "— · —" yazılmaz.
+  // İkisi de bilinmiyorsa "—, —" yazılmaz.
   if (mode === 'full' && (ac.gs !== null || ac.alt !== null || ac.gnd)) {
     const speed = formatSpeed(ac.gs, opts)
     const altitude = formatAltitude(ac.alt, { ...opts, onGround: ac.gnd })
-    lines.push(`${speed} · ${altitude}`)
+    lines.push(`${speed}, ${altitude}`)
   }
   return { primary: title.text, primaryMuted: title.kind !== 'flight', lines }
 }

@@ -43,6 +43,42 @@ export const MISSING_HEX = 'fe0099'
  */
 export const AIRPORT_COUNT = 61
 export const INDEXABLE_AIRPORT_COUNT = 55
+
+/**
+ * Türkiye dışındaki listelenen havalimanları (M6d, D-080): 1. halka, yani IATA kodlu en yakın
+ * Türkiye havalimanına en çok 500 km olan, OurAirports'ta tarifeli seferi kayıtlı büyük ve orta boy
+ * havalimanları. Fixture'a 2026-10-01 indirmesinden eklenen 75 havalimanının hepsi bu kuraldadır ve
+ * hepsi dizine eklenir. Fixture'daki uzak havalimanları (EGLL, KJFK …) listelenmez.
+ */
+export const FOREIGN_AIRPORT_COUNT = 75
+/** `GET /v1/airports?scope=listed`: 61 Türkiye + 75 yakın ülke. */
+export const LISTED_AIRPORT_COUNT = AIRPORT_COUNT + FOREIGN_AIRPORT_COUNT
+/** Dizine eklenen havalimanı sayfaları: Türkiye'nin 55'i ve yakın ülkelerin hepsi. */
+export const INDEXABLE_LISTED_AIRPORT_COUNT = INDEXABLE_AIRPORT_COUNT + FOREIGN_AIRPORT_COUNT
+
+/**
+ * 1. halkadan örnek havalimanı: Atina (en yakın Türkiye havalimanına ~275 km). OurAirports ülkesi
+ * GR; hava durumu fixture'ında güncel METAR'ı ve TAF'ı vardır (tools/fixtures/weather).
+ */
+export const RING1_AIRPORT = {
+  icao: 'LGAV',
+  iata: 'ATH',
+  country: 'GR',
+  countryTr: 'Yunanistan',
+  countryEn: 'Greece',
+} as const
+/**
+ * Ercan: OurAirports'ta CY (Kıbrıs); KKTC olarak gösterilir (kullanıcı kararı 2026-10-02, D-080).
+ * Hava durumu fixture'ında METAR'ı var, TAF'ı yok.
+ */
+export const KKTC_AIRPORT = { icao: 'LCEN', iata: 'ECN', shortTr: 'KKTC', shortEn: 'TRNC' } as const
+/** Hava durumu fixture'ı elle yazılmış 1. halka havalimanları (M6d). */
+export const RING1_WEATHER_AIRPORTS = ['LGAV', 'LCLK', 'LCEN', 'UGTB', 'LBSF', 'LGTS'] as const
+/**
+ * Referans fixture'ında olan ama listelenmeyen uzak havalimanı (Londra Heathrow; Türkiye'ye
+ * ~2.500 km, 4. halka): sayfası 404'tür.
+ */
+export const UNLISTED_FOREIGN_AIRPORT = { icao: 'EGLL', iata: 'LHR' } as const
 /** Sitemap'teki havalimanı dışı sayfalar; her birinin `/en` ikizi de vardır (D-076). */
 export const STATIC_PUBLIC_PATHS = [
   '/',

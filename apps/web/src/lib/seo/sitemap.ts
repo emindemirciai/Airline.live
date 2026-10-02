@@ -10,6 +10,8 @@ import { airportPath } from './paths'
  *   karşılıklarını mutlak adresle listeler. Yandex dil sürümlerini site haritasından okumaz; HTML'deki
  *   hreflang etiketleri zorunludur, buradaki karşılıklar Google içindir.
  * - `noindex` sayfalar (`/durum`, tarifesiz havalimanları) ve yönetim sayfaları yer almaz.
+ * - Havalimanları listelenen havalimanlarıdır (D-080): Türkiye ve yakın ülkeler; listelenmeyen
+ *   yabancı havalimanının sayfası yoktur (404).
  * - `lastmod` yalnızca doğrulanabilir bir değişiklik tarihi varsa yazılır; `new Date()` kullanılmaz
  *   (Google lastmod'u yalnızca "tutarlı ve doğrulanabilir biçimde doğru" ise kullanır).
  * Kaynak: https://developers.google.com/search/docs/crawling-indexing/sitemaps/build-sitemap
@@ -27,7 +29,10 @@ export const SITEMAP_PAGES = [
 export interface SitemapInput {
   /** Sitenin kök adresi (`siteUrl()`). */
   base: URL
-  /** Tüm havalimanları (`getAirports()`); dizine eklenmeyenler (`isIndexable`) ayıklanır. */
+  /**
+   * Listelenen bütün havalimanları (`getAirports()`: Türkiye ve yakın ülkeler); dizine eklenmeyenler
+   * (`isIndexable`) ayıklanır.
+   */
   airports: readonly AirportDetail[]
   /** Changelog'daki en yeni kaydın tarihi (YYYY-MM-DD); `/yenilikler`'in içeriği ondan gelir. */
   changelogDate: string

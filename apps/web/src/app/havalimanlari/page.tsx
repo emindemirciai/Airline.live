@@ -1,7 +1,7 @@
 import { format, getMessages } from '@havayolu/i18n'
 import type { Metadata } from 'next'
-import { AirportsView, airportCounts } from '@/components/airports/airports-view'
-import { airportName, sortByProvince } from '@/components/airports/airport-text'
+import { AirportsView, airportCounts, listedAirportRows } from '@/components/airports/airports-view'
+import { airportName } from '@/components/airports/airport-text'
 import { AIRPORTS_PATH, airportsCrumbs, crumbsForJsonLd } from '@/components/airports/crumbs'
 import { JsonLd } from '@/components/json-ld'
 import { getAirports, latestDataUpdate } from '@/lib/airports'
@@ -15,25 +15,30 @@ import { breadcrumbId, breadcrumbList, itemList, webPageNode } from '@/lib/seo/s
 export async function generateMetadata(): Promise<Metadata> {
   const locale = await getLocale()
   const t = getMessages(locale).seo.airports
-  const { count } = airportCounts(await getAirports())
+  const counts = airportCounts(await getAirports())
   return pageMetadata({
     locale,
     path: AIRPORTS_PATH,
     title: t.title,
-    description: format(t.description, { count }),
+    description:
+      counts.foreign > 0
+        ? format(t.descriptionWithForeign, counts)
+        : format(t.description, { count: counts.count }),
   })
 }
 
 /**
- * Türkiye'deki havalimanlarının listesi (M6b). Veri tek toplu API çağrısından gelir
- * (`getAirports`, saatlik önbellek); API ulaşılamazsa sayfa 500 verir.
+ * Havalimanlarının listesi (M6b): Türkiye, sonra yakın ülkeler (M6d, D-080). Veri tek toplu API
+ * çağrısından gelir (`getAirports`, saatlik önbellek); API ulaşılamazsa sayfa 500 verir. JSON-LD
+ * `ItemList` iki tablonun satırlarını görünen sırayla taşır.
  */
 export default async function AirportsPage() {
   const locale = await getLocale()
   const messages = getMessages(locale)
   const app = appName(getServerEnv())
   const airports = await getAirports()
-  const rows = sortByProvince(airports, locale)
+  const { turkey, foreign } = listedAirportRows(airports, locale)
+  const rows = [...turkey, ...foreign]
   const crumbs = airportsCrumbs(locale, app)
   const latest = latestDataUpdate(airports)
 

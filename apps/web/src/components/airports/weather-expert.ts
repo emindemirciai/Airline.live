@@ -45,7 +45,10 @@ export interface CodeRow {
 
 const pad3 = (deg: number) => String(Math.round(deg)).padStart(3, '0')
 
-/** Uzman rüzgârı: "030° · 18 kt (33 km/sa) · hamle 32 kt (59 km/sa) · yön 160°–240° arası". */
+/**
+ * Uzman rüzgârı, virgülle: "030° 18 kt (33 km/sa), hamle 32 kt (59 km/sa), yön 160° ile 240° arası".
+ * Sayıdan önce "·" ya da "–" yazılmaz (eksi gibi okunur; kullanıcı kararı 2026-10-02).
+ */
 export function expertWind(wind: Wind | null, { t, locale }: WeatherTextOptions): string {
   const e = t.expert
   if (!wind) return t.value.undetermined
@@ -75,7 +78,7 @@ export function expertWind(wind: Wind | null, { t, locale }: WeatherTextOptions)
       }),
     )
   }
-  return parts.join(' · ')
+  return parts.join(', ')
 }
 
 /** Pist görüş mesafesi: "Pist 11: 350 m, değişmiyor". */
@@ -137,7 +140,12 @@ function label(name: string, value: string): string {
  * Gözlemin kod kod çözümü. Her parça bir satırdır; eğilim grupları (`TEMPO 4000 SHRA`) ve rüzgâr
  * kesmesi (`WS R35`) tek satırda toplanır. Tanınmayan parça "Belirlenemedi" yazar.
  */
-export function metarCodeRows(metar: AirportMetar, options: WeatherTextOptions): CodeRow[] {
+export function metarCodeRows(
+  metar: AirportMetar,
+  options: WeatherTextOptions,
+  /** Türkiye dışındaki havalimanı: gözlem saati "Türkiye saati" diye yazılır (D-080). */
+  { abroad = false }: { abroad?: boolean } = {},
+): CodeRow[] {
   const { t, locale } = options
   const e = t.expert
   const tokens = metar.raw
@@ -218,7 +226,7 @@ export function metarCodeRows(metar: AirportMetar, options: WeatherTextOptions):
     if (token === 'SKC' || token === 'CLR') return t.clouds.skc
     if (index <= 2 && token === metar.station) return e.station
     if (TIME.test(token)) {
-      return format(e.observedUtc, {
+      return format(abroad ? e.observedUtcTurkey : e.observedUtc, {
         utc: formatUtcClock(metar.observedAt),
         local: formatClock(metar.observedAt),
       })
@@ -308,7 +316,10 @@ function ddhh(iso: string): string {
   return `${String(date.getUTCDate()).padStart(2, '0')}${String(date.getUTCHours()).padStart(2, '0')}`
 }
 
-/** Dönem zamanı, yerel (gün değişirse "yarın") ve UTC: "15:00–yarın 21:00 (1512–1618Z)". */
+/**
+ * Dönem zamanı, yerel (gün değişirse "yarın") ve TAF'taki UTC gün-saat kodu: "15:00 ile yarın 21:00
+ * arası (1512/1618)".
+ */
 function periodTime(
   from: string | null,
   to: string | null,
@@ -318,7 +329,11 @@ function periodTime(
 ): string {
   const start = from ?? taf.validFrom
   const end = to ?? taf.validTo
-  return `${formatDayTime(start, now, options)}–${formatDayTime(end, now, options)} (${ddhh(start)}–${ddhh(end)}Z)`
+  return format(options.t.expert.tafPeriod, {
+    from: formatDayTime(start, now, options),
+    to: formatDayTime(end, now, options),
+    code: `${ddhh(start)}/${ddhh(end)}`,
+  })
 }
 
 export function tafPeriodRows(

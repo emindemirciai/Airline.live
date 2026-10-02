@@ -23,19 +23,28 @@ import {
   type MetarAgeClass,
   type WeatherText,
 } from '@havayolu/shared'
-import type { ReactNode } from 'react'
 import { CopyButton } from './copy-button'
 import { metarCodeRows, tafPeriodRows } from './weather-expert'
 import { WeatherIcon } from './weather-icon'
+import { WeatherRowList } from './weather-row-list'
+import { phenomenonRows, plainRow, type WeatherRow } from './weather-rows'
 
 /**
- * Havalimanı sayfasının hava durumu bölümü (M6c, brief §5): başlık durumu, sade satırlar (rüzgâr,
- * yağmur, kar, gök gürültüsü, sis ve pus her zaman), tahmin özeti, yerel saat ve gün doğumu/batımı,
- * kapalı "Ayrıntılar (uzman)" bölümü. Saf görünüm, kanca yoktur: sunucuda ve adada
+ * Havalimanı sayfasının hava durumu bölümü (M6c, brief §5): başlık durumu ve yanında sıcaklık
+ * kutucuğu, simgeli sade satırlar (rüzgâr, yağmur, kar, gök gürültüsü, sis ve pus her zaman; var olan
+ * olay vurgulanır; harita penceresiyle ortak `WeatherRowList`), tahmin özeti, yerel saat ve gün
+ * doğumu/batımı, kapalı "Ayrıntılar (uzman)" bölümü. Saf görünüm, kanca yoktur: sunucuda ve adada
  * (`airport-weather-live.tsx`) aynı biçimde çizilir. JavaScript olmadan da eksiksizdir.
+ *
+ * Sayıdan önce "·" yazılmaz (eksi gibi okunur; kullanıcı kararı 2026-10-02): sıcaklık ayrı
+ * kutucuktur, gözlem yaşı virgülle ayrılır ("Gözlem 15:50, 10 dakika önce").
  *
  * Saat: yaş sınıfı, tahmin ve yerel saat `now` ile hesaplanır. Sunucu ve hidrasyon çizim anını,
  * ada sonra istemci saatini verir; göreli yaş ("18 dakika önce") yalnızca `live` iken yazılır.
+ *
+ * Türkiye dışındaki havalimanı (`abroad`, D-080): saat dilimi verisi yoktur. Saatler Türkiye saatiyle
+ * yazılır ve öyle etiketlenir; "Yerel saat" ile gün doğumu/batımı satırı çizilmez (harita penceresi
+ * gibi), başka bir ülkenin saati Türkiye saatiyle "yerel" diye gösterilmez.
  */
 export interface WeatherPanelProps {
   locale: Locale
@@ -47,19 +56,8 @@ export interface WeatherPanelProps {
   now: number
   /** İstemci saati çalışıyor: göreli yaş yazılır. */
   live: boolean
-}
-
-function Rows({ rows }: { rows: readonly { key: string; label: string; value: ReactNode }[] }) {
-  return (
-    <dl className="weather-rows">
-      {rows.map((row) => (
-        <div key={row.key} data-row={row.key}>
-          <dt>{row.label}</dt>
-          <dd>{row.value}</dd>
-        </div>
-      ))}
-    </dl>
-  )
+  /** Türkiye dışındaki havalimanı: saatler "Türkiye saati" etiketiyle, yerel saat satırı yok. */
+  abroad?: boolean
 }
 
 function MetarReport({
@@ -85,47 +83,22 @@ function MetarReport({
   const headline = text(summary.headline)
   const temperature = summary.temperature ? text(summary.temperature) : null
 
-  const rows: { key: string; label: string; value: ReactNode }[] = [
-    {
-      key: 'wind',
-      label: t.rows.wind,
-      value: (
-        <>
-          {text(r.wind)}
-          {summary.strongWind ? (
-            <>
-              {' · '}
-              <span className="weather-chip">{t.wind.strong}</span>
-            </>
-          ) : null}
-        </>
-      ),
-    },
-    { key: 'rain', label: t.rows.rain, value: text(r.rain) },
-    { key: 'snow', label: t.rows.snow, value: text(r.snow) },
-    { key: 'thunder', label: t.rows.thunder, value: text(r.thunderstorm) },
-    { key: 'fog', label: t.rows.fog, value: text(r.fog) },
-    ...(r.hail ? [{ key: 'hail', label: t.rows.hail, value: text(r.hail) }] : []),
-    ...(r.other ? [{ key: 'other', label: t.rows.other, value: text(r.other) }] : []),
-    { key: 'visibility', label: t.rows.visibility, value: text(r.visibility) },
-    { key: 'clouds', label: t.rows.clouds, value: text(r.clouds) },
-    {
-      key: 'temperature',
-      label: t.rows.temperature,
-      value: r.temperature ? text(r.temperature) : NO_VALUE,
-    },
-    { key: 'humidity', label: t.rows.humidity, value: r.humidity ? text(r.humidity) : NO_VALUE },
-    { key: 'pressure', label: t.rows.pressure, value: r.pressure ? text(r.pressure) : NO_VALUE },
+  const rows: WeatherRow[] = [
+    ...phenomenonRows(summary, options),
+    plainRow('clouds', t.rows.clouds, text(r.clouds)),
+    plainRow('temperature', t.rows.temperature, r.temperature ? text(r.temperature) : NO_VALUE),
+    plainRow('humidity', t.rows.humidity, r.humidity ? text(r.humidity) : NO_VALUE),
+    plainRow('pressure', t.rows.pressure, r.pressure ? text(r.pressure) : NO_VALUE),
     // Eğilim gözlemden sonraki 2 saati kapsar: pencere geçtiyse satır yoktur (ileriye dönük iddia
     // kalmaz); gözlem eskiyse pencerenin bitiş saatiyle yazılır.
     ...(summary.trend === 'expired'
       ? []
       : [
-          {
-            key: 'next2h',
-            label: summary.trend === 'untilTime' ? t.rows.trendAfterObservation : t.rows.next2h,
-            value: summary.next2h ? text(summary.next2h) : t.value.notStated,
-          },
+          plainRow(
+            'next2h',
+            summary.trend === 'untilTime' ? t.rows.trendAfterObservation : t.rows.next2h,
+            summary.next2h ? text(summary.next2h) : t.value.notStated,
+          ),
         ]),
   ]
 
@@ -133,10 +106,13 @@ function MetarReport({
     <>
       <p className="weather-headline">
         <WeatherIcon category={iconCategory(metar, isDay)} />
-        <span>
-          <strong>{headline}</strong>
-          {temperature ? ` · ${temperature}` : null}
-        </span>
+        <strong>{headline}</strong>
+        {temperature ? (
+          <>
+            {' '}
+            <span className="wx-temp">{temperature}</span>
+          </>
+        ) : null}
       </p>
       {summary.notes.length > 0 ? (
         <ul className="weather-notes">
@@ -147,7 +123,7 @@ function MetarReport({
           ))}
         </ul>
       ) : null}
-      <Rows rows={rows} />
+      <WeatherRowList rows={rows} className="wx-rows--page" />
     </>
   )
 
@@ -163,7 +139,7 @@ function MetarReport({
           <time dateTime={metar.observedAt}>
             {format(age === 'fresh' ? t.observed : t.lastObserved, { time })}
           </time>
-          {live ? ` · ${formatAgo(metar.observedAt, now, options)}` : null}
+          {live ? `, ${formatAgo(metar.observedAt, now, options)}` : null}
         </span>
       </p>
       {age === 'delayed' ? <p className="weather-note">{t.age.delayed}</p> : null}
@@ -259,11 +235,13 @@ function Expert({
   tafs,
   options,
   now,
+  abroad,
 }: {
   metar: AirportMetar | null
   tafs: readonly AirportTaf[]
   options: WeatherTextOptions
   now: number
+  abroad: boolean
 }) {
   const { t } = options
   const e = t.expert
@@ -287,7 +265,7 @@ function Expert({
                 </tr>
               </thead>
               <tbody>
-                {metarCodeRows(metar, options).map((row, index) => (
+                {metarCodeRows(metar, options, { abroad }).map((row, index) => (
                   <tr key={`${row.code}-${index}`}>
                     <th scope="row" className="mono">
                       {row.code}
@@ -351,12 +329,21 @@ function Expert({
         )
       })}
       {tafs.length > 0 ? <p className="weather-note">{e.noTemperature}</p> : null}
-      <p className="weather-note">{t.sunNote}</p>
+      {abroad ? null : <p className="weather-note">{t.sunNote}</p>}
     </details>
   )
 }
 
-export function WeatherPanel({ locale, t, lat, lon, weather, now, live }: WeatherPanelProps) {
+export function WeatherPanel({
+  locale,
+  t,
+  lat,
+  lon,
+  weather,
+  now,
+  live,
+  abroad = false,
+}: WeatherPanelProps) {
   const options: WeatherTextOptions = { locale, t }
   const metar = weather?.metar ?? null
   const age: MetarAgeClass = metar ? metarAgeClass(metar.observedAt, now) : 'none'
@@ -387,9 +374,21 @@ export function WeatherPanel({ locale, t, lat, lon, weather, now, live }: Weathe
           <Forecast tafs={tafs} options={options} now={now} />
         </>
       )}
-      <Sun lat={lat} lon={lon} now={now} options={options} />
+      {abroad ? (
+        <p className="weather-note weather-time-note">
+          {format(t.turkeyTime, { offset: formatUtcOffset(now) })}
+        </p>
+      ) : (
+        <Sun lat={lat} lon={lon} now={now} options={options} />
+      )}
       {weather && (metar || tafs.length > 0) ? (
-        <Expert metar={age === 'none' ? null : metar} tafs={tafs} options={options} now={now} />
+        <Expert
+          metar={age === 'none' ? null : metar}
+          tafs={tafs}
+          options={options}
+          now={now}
+          abroad={abroad}
+        />
       ) : null}
     </section>
   )

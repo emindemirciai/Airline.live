@@ -36,6 +36,9 @@ const STATIONS = [
   'LTBQ',
 ] as const
 
+/** Fixture'daki yakın ülke havalimanları (1. halka, D-080). */
+const FOREIGN_STATIONS = ['LGAV', 'LGTS', 'LCLK', 'LCEN', 'LBSF', 'UGTB'] as const
+
 /** Her zaman yazılan satırlar (kullanıcı kararı 2026-10-01: rüzgâr, yağmur, kar, oraj, sis). */
 const ALWAYS = ['wind', 'rain', 'snow', 'thunder', 'fog', 'visibility', 'clouds'] as const
 
@@ -45,7 +48,8 @@ function panel(
     locale = 'tr',
     now = FIXTURE_NOW,
     live = false,
-  }: { locale?: Locale; now?: number; live?: boolean } = {},
+    abroad = false,
+  }: { locale?: Locale; now?: number; live?: boolean; abroad?: boolean } = {},
 ) {
   return renderToStaticMarkup(
     createElement(WeatherPanel, {
@@ -55,11 +59,12 @@ function panel(
       weather,
       now,
       live,
+      abroad,
     }),
   )
 }
 
-function log(history: WeatherHistoryResponse | null, locale: Locale = 'tr') {
+function log(history: WeatherHistoryResponse | null, locale: Locale = 'tr', abroad = false) {
   return renderToStaticMarkup(
     createElement(WeatherLog, {
       locale,
@@ -69,6 +74,7 @@ function log(history: WeatherHistoryResponse | null, locale: Locale = 'tr') {
       history,
       now: FIXTURE_NOW,
       apiBaseUrl: API,
+      abroad,
     }),
   )
 }
@@ -83,11 +89,24 @@ function text(html: string): string {
     .replace(/\s+/g, ' ')
 }
 
-/** Satırın değeri (`<div data-row="rain"><dt>…</dt><dd>…</dd></div>`). */
+/** Satırın değeri (`<div class="wx-row" data-row="rain" …><dt>…</dt><dd>…</dd></div>`). */
 function row(html: string, key: string): string | null {
-  const match = new RegExp(`<div data-row="${key}"><dt>[^<]*</dt><dd>(.*?)</dd></div>`).exec(html)
+  const match = new RegExp(
+    `<div class="wx-row" data-row="${key}"[^>]*><dt>.*?</dt><dd>(.*?)</dd></div>`,
+  ).exec(html)
   return match ? text(match[1] ?? '').trim() : null
 }
+
+/** Satırın vurgusu (`data-tone`); vurgusuz satırda null, satır yoksa undefined. */
+function tone(html: string, key: string): string | null | undefined {
+  const match = new RegExp(`<div class="wx-row" data-row="${key}"( data-tone="(\\w+)")?>`).exec(
+    html,
+  )
+  return match ? (match[2] ?? null) : undefined
+}
+
+/** Sayıdan (ya da eksi işaretinden) hemen önce "·" ya da "–" (eksi gibi okunur; 2026-10-02). */
+const DASH_BEFORE_NUMBER = /[·–]\s*[−-]?\d/
 
 describe('WeatherPanel: bütün fixture durumları', () => {
   it.each(STATIONS)('%s: başlık, dürüst satırlar, çözülmemiş yer tutucu yok (TR, EN)', (icao) => {
@@ -101,6 +120,9 @@ describe('WeatherPanel: bütün fixture durumları', () => {
       }
       // MGM sözcükleri: gök gürültülü olay "fırtına" değildir.
       if (locale === 'tr') expect(row(html, 'thunder') ?? '', icao).not.toMatch(/fırtına/)
+      // Sayıdan önce "·" ya da "–" yazılmaz (sıcaklık, rüzgâr, görüş, gözlem yaşı, tahmin, uzman).
+      const live = panel(weather, { locale, live: true })
+      expect(text(live), `${icao} ${locale}`).not.toMatch(DASH_BEFORE_NUMBER)
     }
   })
 
@@ -108,13 +130,14 @@ describe('WeatherPanel: bütün fixture durumları', () => {
     const weather = fixtureWeather('LTFM')
     const html = panel(weather)
     const body = text(html)
-    expect(body).toContain('Hafif sağanak yağmur · 9 °C')
-    expect(html).toContain('<span class="weather-chip">Kuvvetli rüzgâr</span>')
-    expect(row(html, 'wind')).toMatch(
-      /^Kuzeydoğudan 33 km\/sa · hamle 59 km\/sa · +Kuvvetli rüzgâr$/,
+    // Sıcaklık başlığın yanında ayrı kutucuktur; önünde ayraç yoktur.
+    expect(html).toContain(
+      '<strong>Hafif sağanak yağmur</strong> <span class="wx-temp">9 °C</span></p>',
     )
-    // Etiket metinden ayrılır (ekran okuyucu ve kopyalama "km/saKuvvetli" okumaz).
-    expect(html).toContain('hamle 59 km/sa · <span class="weather-chip">Kuvvetli rüzgâr</span>')
+    expect(html).toContain('<span class="wx-tag">Kuvvetli rüzgâr</span>')
+    expect(row(html, 'wind')).toBe('Kuzeydoğudan 33 km/sa, hamle 59 km/sa Kuvvetli rüzgâr')
+    // Etiket metinden boşlukla ayrılır (ekran okuyucu ve kopyalama "km/saKuvvetli" okumaz).
+    expect(html).toContain('hamle 59 km/sa <span class="wx-tag">Kuvvetli rüzgâr</span>')
     expect(row(html, 'rain')).toBe('Hafif sağanak yağmur')
     expect(row(html, 'snow')).toBe('Yok')
     expect(row(html, 'thunder')).toBe('Yok (kümülonimbüs bulutu var)')
@@ -123,8 +146,47 @@ describe('WeatherPanel: bütün fixture durumları', () => {
     expect(row(html, 'pressure')).toBe('1009 hPa')
     expect(body).toContain('Gözlem 15:50')
     expect(body).not.toContain('önce')
-    expect(text(panel(weather, { live: true }))).toContain('Gözlem 15:50 · 10 dakika önce')
+    expect(panel(weather, { live: true })).toContain('>Gözlem 15:50</time>, 10 dakika önce</span>')
     expect(html).toMatch(/<svg class="weather-icon" data-icon="showers"/)
+  })
+
+  it('satır simgeleri süslemedir; yalnız var olan olay vurgulanır', () => {
+    const html = panel(fixtureWeather('LTFM'))
+    for (const key of ['wind', 'rain', 'snow', 'thunder', 'fog', 'visibility', 'clouds']) {
+      expect(html, key).toMatch(
+        new RegExp(
+          `data-row="${key}"[^>]*><dt><svg class="wx-icon" data-icon="${key}"[^>]* aria-hidden="true" focusable="false">`,
+        ),
+      )
+    }
+    // Simgesi olmayan satırda hizalama için boş, gizli yer tutucu.
+    expect(html).toContain(
+      '<div class="wx-row" data-row="pressure"><dt><span class="wx-icon" aria-hidden="true"></span>Basınç</dt>',
+    )
+    expect(html).toContain('<dl class="wx-rows wx-rows--page">')
+    // LTFM: hafif sağanak var (mavi); kar, gök gürültüsü (CB'li "Yok") ve sis yok.
+    expect(['wind', 'rain', 'snow', 'thunder', 'fog'].map((key) => tone(html, key))).toEqual([
+      null,
+      'rain',
+      null,
+      null,
+      null,
+    ])
+    const snow = panel(fixtureWeather('LTAC'))
+    expect([tone(snow, 'snow'), tone(snow, 'fog'), tone(snow, 'rain')]).toEqual([
+      'snow',
+      'fog',
+      null,
+    ])
+    expect(tone(panel(fixtureWeather('LTCG')), 'fog')).toBe('fog')
+    const storm = panel(fixtureWeather('LTBS'))
+    expect([tone(storm, 'thunder'), tone(storm, 'hail'), tone(storm, 'rain')]).toEqual([
+      'thunder',
+      'hail',
+      'rain',
+    ])
+    // Çevredeki gök gürültüsü havalimanında yoktur: vurgulanmaz.
+    expect(tone(panel(fixtureWeather('LTAU')), 'thunder')).toBeNull()
   })
 
   it('LTFM: tahmin özeti niteleyicisiyle, geçerlilik sonu; yerel saat ve gün doğumu/batımı', () => {
@@ -137,7 +199,7 @@ describe('WeatherPanel: bütün fixture durumları', () => {
     expect(body).toMatch(/Gün doğumu \d{2}:\d{2}/)
     expect(body).toMatch(/Gün batımı \d{2}:\d{2}/)
     const en = text(panel(fixtureWeather('LTFM'), { locale: 'en' }))
-    expect(en).toContain('Light rain showers · 9 °C')
+    expect(en).toContain('Light rain showers 9 °C')
     expect(en).toContain('30% chance')
     expect(en).toContain('Forecast valid until 21:00 tomorrow.')
     expect(en).toMatch(/Sunrise \d{2}:\d{2}/)
@@ -149,7 +211,14 @@ describe('WeatherPanel: bütün fixture durumları', () => {
     expect(html).not.toMatch(/<details[^>]* open/)
     expect(html).toContain('<caption id="weather-codes-caption">Gözlemin kod kod çözümü</caption>')
     expect(html).toContain(
-      '<th scope="row" class="mono">03018G32KT</th><td>Rüzgâr: 030° 18 kt (33 km/sa) · hamle 32 kt (59 km/sa)</td>',
+      '<th scope="row" class="mono">03018G32KT</th><td>Rüzgâr: 030° 18 kt (33 km/sa), hamle 32 kt (59 km/sa)</td>',
+    )
+    // Tahmin dönemi: yerel saatler "ile … arası", TAF'taki gün-saat kodu eğik çizgiyle.
+    expect(html).toContain(
+      '<th scope="row" class="num">15:00 ile yarın 21:00 arası (1512/1618)</th>',
+    )
+    expect(panel(fixtureWeather('LTFM'), { locale: 'en' })).toContain(
+      '<th scope="row" class="num">15:00 to 21:00 tomorrow (1512/1618)</th>',
     )
     expect(html).toContain(
       '<th scope="row" class="mono">-SHRA</th><td>Hava olayı: Hafif sağanak yağmur</td>',
@@ -221,15 +290,58 @@ describe('WeatherPanel: bütün fixture durumları', () => {
     const html = panel(weather)
     for (const key of ['rain', 'snow', 'thunder', 'fog']) {
       expect(row(html, key), key).toBe('Belirlenemedi')
+      // "Belirlenemedi" nötrdür: vurgulanmaz.
+      expect(tone(html, key), key).toBeNull()
     }
     expect(text(html)).toContain('Otomatik gözlem; bazı hava olayları algılanmayabilir.')
+  })
+})
+
+describe('WeatherPanel: Türkiye dışındaki havalimanı (D-080)', () => {
+  it.each(FOREIGN_STATIONS)('%s: satırlar çizilir, yer tutucu yok (TR, EN)', (icao) => {
+    for (const locale of ['tr', 'en'] as const) {
+      const weather = fixtureWeather(icao)
+      const html = panel(weather, { locale, abroad: true })
+      expect(html, `${icao} ${locale}`).not.toMatch(/\{\w+\}|undefined|NaN/)
+      if (weather.metar) {
+        for (const key of ALWAYS) expect(row(html, key), `${icao} ${locale} ${key}`).not.toBeNull()
+      }
+    }
+  })
+
+  it('saatler Türkiye saati diye etiketlenir; yerel saat ve gün doğumu/batımı yazılmaz', () => {
+    const html = panel(fixtureWeather('LGAV'), { abroad: true })
+    const body = text(html)
+    expect(body).toContain(
+      'Saatler Türkiye saatidir (UTC+3); havalimanının yerel saati farklı olabilir.',
+    )
+    expect(body).not.toMatch(/[Yy]erel saat \d|Gün doğumu|Gün batımı/)
+    expect(body).toMatch(/Gözlem zamanı: \d{2}:\d{2} UTC \(Türkiye saati \d{2}:\d{2}\)/)
+    const en = text(panel(fixtureWeather('LGAV'), { locale: 'en', abroad: true }))
+    expect(en).toContain('Times are Türkiye time (UTC+3); the airport’s local time may differ.')
+    expect(en).not.toMatch(/Local time|local time\)|Sunrise|Sunset/)
+    // Türkiye'deki havalimanında değişmez.
+    expect(text(panel(fixtureWeather('LTFM')))).toContain('Yerel saat 16:00 (UTC+3)')
+  })
+
+  it('kayıt: saatler Türkiye saati, UTC yanında', () => {
+    expect(text(log(fixtureHistory('LTFM'), 'tr', true))).toContain(
+      'Saatler Türkiye saatidir; UTC yanında yazılır.',
+    )
+    expect(text(log(fixtureHistory('LTFM'), 'en', true))).toContain(
+      'Times are Türkiye time, with UTC alongside.',
+    )
+    expect(text(log(fixtureHistory('LTFM')))).toContain('Saatler yerel saattir')
   })
 })
 
 describe('WeatherPanel: eğilim (TREND) penceresi', () => {
   // LTFM'nin son METAR'ı 12:50Z'de gözlendi, eğilimi TEMPO; pencere 14:50Z'de biter.
   const observed = Date.parse('2026-01-15T12:50:00Z')
-  const label = (html: string) => /<div data-row="next2h"><dt>([^<]*)<\/dt>/.exec(html)?.[1] ?? null
+  const label = (html: string) =>
+    /<div class="wx-row" data-row="next2h"><dt><span class="wx-icon" aria-hidden="true"><\/span>([^<]*)<\/dt>/.exec(
+      html,
+    )?.[1] ?? null
 
   it('gözlem tazeyken "Önümüzdeki 2 saat"', () => {
     const html = panel(fixtureWeather('LTFM'), { now: observed + 10 * 60_000 })
@@ -266,13 +378,16 @@ describe('WeatherLog: METAR/TAF kaydı', () => {
     expect(rows.length).toBe(history.entries.length)
     expect(rows.filter((kind) => kind === 'METAR').length).toBeGreaterThanOrEqual(48)
     expect(rows).toContain('TAF')
-    expect(html).toContain(`· ${history.entries.length} rapor</caption>`)
+    expect(html).toContain(`(${history.entries.length} rapor)</caption>`)
     // En yeni rapor üstte: 12:50 UTC = 15:50.
     const first = html.slice(
       html.indexOf('<tbody>'),
       html.indexOf('</tr>', html.indexOf('<tbody>')),
     )
-    expect(text(first)).toContain('15:50 12:50 UTC METAR Hafif sağanak yağmur · 9 °C')
+    expect(text(first)).toContain(
+      '15:50 12:50 UTC METAR Hafif sağanak yağmur, 9 °C, kuzeydoğudan 33 km/sa, hamle 59 km/sa',
+    )
+    expect(text(html)).not.toMatch(DASH_BEFORE_NUMBER)
     expect(html).toContain('<span class="weather-type is-taf">TAF</span>')
     expect(text(html)).toMatch(/arası için tahmin/)
     expect(html).toContain(
@@ -307,16 +422,17 @@ describe('WeatherLog: METAR/TAF kaydı', () => {
     expect(times.length).toBeGreaterThan(0)
     expect(times.length).toBeLessThan(history.entries.length)
     expect(Math.min(...times)).toBeGreaterThanOrEqual(later - 24 * 3_600_000)
-    expect(html).toContain(`· ${times.length} rapor</caption>`)
+    expect(html).toContain(`(${times.length} rapor)</caption>`)
   })
 
   it('tek rapor: İngilizcede tekil ("1 report"), çoğulda "reports"', () => {
     const full = fixtureHistory('LTFM')
     const one = { ...full, entries: full.entries.slice(0, 1) }
-    expect(log(one, 'en')).toContain('· 1 report</caption>')
+    expect(log(one, 'en')).toContain('(1 report)</caption>')
     expect(log(one, 'en')).not.toContain('1 reports')
-    expect(log(one)).toContain('· 1 rapor</caption>')
-    expect(log(full, 'en')).toContain(`· ${full.entries.length} reports</caption>`)
+    expect(log(one)).toContain('(1 rapor)</caption>')
+    expect(log(full, 'en')).toContain(`(${full.entries.length} reports)</caption>`)
+    expect(text(log(full, 'en'))).not.toMatch(DASH_BEFORE_NUMBER)
   })
 })
 

@@ -2,13 +2,16 @@
 // sentetik fixture'dan gelir (tools/fixtures/weather; worker zamanları bugüne kaydırır). Denetlenenler:
 // - API: toplu güncel hava, tek havalimanının havası ve METAR/TAF kaydı (`hours` 1–168)
 // - havalimanı sayfası TR ve EN: rüzgâr, yağmur, kar, gök gürültüsü ve sis satırları her zaman açıkça
-//   yazılır; uzman ayrıntısında ham METAR; METAR/TAF kaydı en yenisi önce; "Sefer sayısı, rötar ve
-//   iptal" bölümü; hava durumu başlık, açıklama ve JSON-LD'ye girmez
+//   yazılır; sıcaklık başlığın yanında ayrı kutucuktur, sayıdan önce "·" ya da "–" yoktur; var olan
+//   olayın satırı vurguludur, simgeler ekran okuyucudan gizlidir; uzman ayrıntısında ham METAR;
+//   METAR/TAF kaydı en yenisi önce; "Sefer sayısı, rötar ve iptal" bölümü; hava durumu başlık,
+//   açıklama ve JSON-LD'ye girmez
 // - kaldırılan iki bilgi ("Tarifeli sefer (OurAirports)", "İzlenen istasyon") hiçbir sayfada yok
 // - harita: IST koduna ya da pinine tıklayınca havalimanı penceresi açılır (apronda yerdeki uçaklar
 //   engellemez, D-079); "Havalimanları" listesiyle klavyeden açılır ve kapanınca odak o düğmeye
 //   döner; Escape (başka bir katmanın değilse), boş yere tıklama ve uçak seçimi kapatır; dar
-//   ekranda pencere alttan açılan sayfadır
+//   ekranda pencere alttan açılan sayfadır; pencerede gün doğumu ve batımı yoktur, hava durumu
+//   sayfayla aynı satırları, sıcaklık kutucuğunu ve vurguyu taşır (kullanıcı kararı 2026-10-02)
 import { expect, test, type Locator, type Page } from '@playwright/test'
 import { jsonLdBlocks, metaContents, titles } from '../html'
 import {
@@ -65,6 +68,7 @@ const COPY = {
     none: 'Yok',
     cb: 'kümülonimbüs',
     observed: /Gözlem \d{2}:\d{2}/,
+    observedAgo: /Gözlem \d{2}:\d{2}, (az önce|\d.* önce)/,
     localTime: /Yerel saat \d{2}:\d{2}/,
     sunrise: /Gün doğumu \d{2}:\d{2}/,
     sunset: /Gün batımı \d{2}:\d{2}/,
@@ -104,6 +108,7 @@ const COPY = {
     none: 'None',
     cb: 'cumulonimbus',
     observed: /Observed \d{2}:\d{2}/,
+    observedAgo: /Observed \d{2}:\d{2}, (just now|\d.* ago)/,
     localTime: /Local time \d{2}:\d{2}/,
     sunrise: /Sunrise \d{2}:\d{2}/,
     sunset: /Sunset \d{2}:\d{2}/,
@@ -128,6 +133,36 @@ const COPY = {
 
 function escapeRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+}
+
+/** Sayıdan (ya da eksi işaretinden) hemen önce "·" ya da "–": eksi gibi okunur (2026-10-02). */
+const DASH_BEFORE_NUMBER = /[·–]\s*[−-]?\d/
+/** Sıcaklık kutucuğu: "9 °C", eksi U+2212 ile "−3 °C". */
+const TEMPERATURE_CHIP = /^\s*−?\d+ °C\s*$/
+
+/**
+ * Hava durumu satırları (sayfa ve pencere ortak): sıcaklık kutucuğu başlığın yanındadır; yağmur
+ * satırı vurgulu, "Yok" satırları sade; simgeler ekran okuyucudan gizli; sayıdan önce ayraç yok.
+ */
+async function expectWeatherPresentation(scope: Locator, locale: Locale): Promise<void> {
+  const copy = COPY[locale]
+  await expect(scope.locator('.wx-temp').first()).toHaveText(TEMPERATURE_CHIP)
+  const rainRow = row(scope, copy.rows.rain).locator('xpath=..')
+  await expect(rainRow).toHaveAttribute('data-tone', 'rain')
+  // Vurgu yalnız renk değildir: değer kalındır ve olayın adını yazar.
+  await expect(row(scope, copy.rows.rain)).toHaveCSS('font-weight', '700')
+  for (const label of [copy.rows.snow, copy.rows.fog]) {
+    await expect(row(scope, label).locator('xpath=..'), label).not.toHaveAttribute('data-tone')
+  }
+  for (const label of Object.values(copy.rows)) {
+    const icon = scope
+      .locator('dt')
+      .filter({ hasText: new RegExp(`^\\s*${escapeRegExp(label)}\\s*$`), visible: true })
+      .first()
+      .locator('svg.wx-icon')
+    await expect(icon, label).toHaveAttribute('aria-hidden', 'true')
+  }
+  expect(await scope.innerText()).not.toMatch(DASH_BEFORE_NUMBER)
 }
 
 /** `<dl>` satırının değeri: etiketi tam olarak `label` olan görünür `<dt>`'nin ardındaki `<dd>`. */
@@ -267,10 +302,13 @@ test.describe('havalimanı sayfası', () => {
       await expect(row(section, copy.rows.fog)).toHaveText(new RegExp(`^\\s*${copy.none}\\s*$`))
 
       await expect(section).toContainText(copy.observed)
+      // Gözlem yaşı istemci saatiyle gelir; saatten virgülle ayrılır.
+      await expect(section).toContainText(copy.observedAgo)
       await expect(section).toContainText(copy.localTime)
       await expect(section).toContainText(copy.sunrise)
       await expect(section).toContainText(copy.sunset)
       await expect(page.locator('main')).toContainText(copy.source)
+      await expectWeatherPresentation(section, locale)
 
       // Uzman ayrıntısı kapalı açılır; içinde ham METAR (kaydırılmayan gruplarıyla) vardır.
       const details = section.locator('details').filter({ hasText: copy.expert }).first()
@@ -279,6 +317,8 @@ test.describe('havalimanı sayfası', () => {
       const raw = details.locator('pre').filter({ hasText: LATEST_GROUP }).first()
       await expect(raw).toBeVisible()
       for (const group of PRIMARY_WEATHER.latestMetarGroups) await expect(raw).toContainText(group)
+      // Uzman tablosunda da (rüzgâr, tahmin dönemleri) sayıdan önce ayraç yoktur.
+      expect(await details.innerText()).not.toMatch(DASH_BEFORE_NUMBER)
     })
 
     test(`${copy.path}: METAR/TAF kaydı son 24 saati en yenisi önce listeler`, async ({ page }) => {
@@ -375,10 +415,12 @@ test.describe('kaldırılan bilgiler', () => {
       page,
     }) => {
       await page.goto(listPath)
-      const table = page.locator('main table')
+      // Türkiye tablosu ilk tablodur; yakın ülkelerin tablosu (M6d) onu izler.
+      const tables = page.locator('main table')
+      const table = tables.first()
       await expect(table.locator('tbody tr').first()).toBeVisible()
       await expect(table.locator('thead th')).toHaveText([...copy.listHeaders])
-      await expect(table.locator('tbody tr.is-unscheduled')).toHaveCount(0)
+      await expect(tables.locator('tbody tr.is-unscheduled')).toHaveCount(0)
       const listText = await page.locator('main').innerText()
       for (const text of copy.removed) expect(listText, `${listPath}: ${text}`).not.toContain(text)
 
@@ -441,8 +483,9 @@ test.describe('harita: havalimanı penceresi', () => {
     await expect(row(popup, 'Rakım')).toContainText(/\d+ m/)
     await expect(row(popup, 'Pistler')).toContainText(String(PRIMARY_AIRPORT.runways))
     await expect(row(popup, 'Yerel saat')).toHaveText(/\d{2}:\d{2}/)
-    await expect(row(popup, 'Gün doğumu')).toHaveText(/\d{2}:\d{2}/)
-    await expect(row(popup, 'Gün batımı')).toHaveText(/\d{2}:\d{2}/)
+    // Gün doğumu ve batımı yalnız havalimanı sayfasındadır (kullanıcı kararı 2026-10-02).
+    await expect(popup).not.toContainText('Gün doğumu')
+    await expect(popup).not.toContainText('Gün batımı')
 
     // Hava durumu ilk açılışta toplu istekle gelir; havalimanı sayfasıyla aynı sözcükler.
     const weather = popup.getByRole('region', { name: 'Hava durumu' })
@@ -454,7 +497,8 @@ test.describe('harita: havalimanı penceresi', () => {
     await expect(row(weather, COPY.tr.rows.snow)).toContainText(COPY.tr.none)
     await expect(row(weather, COPY.tr.rows.thunder)).toContainText(COPY.tr.none)
     await expect(row(weather, COPY.tr.rows.fog)).toContainText(COPY.tr.none)
-    await expect(weather).toContainText(COPY.tr.observed)
+    await expect(weather).toContainText(COPY.tr.observedAgo)
+    await expectWeatherPresentation(weather, 'tr')
     await expect(popup.getByRole('link', { name: /Havalimanı sayfası/ })).toHaveAttribute(
       'href',
       STATION_PATH,
@@ -544,6 +588,21 @@ test.describe('harita: havalimanı penceresi', () => {
     await expect(toggle).toBeFocused()
   })
 
+  test('IST kodu diğer uçak etiketleri görünürken de bulunur (etiketler de beyaz kutudur)', async ({
+    page,
+  }) => {
+    // beforeEach'in ayarını ezer: diğer uçakların etiketleri de çizilir (taksi uçağı IST'nin yanında).
+    await page.addInitScript((key) => {
+      window.localStorage.setItem(key, JSON.stringify({ selected: 'full', others: 'full' }))
+    }, LABEL_SETTINGS_KEY)
+    await openAtPrimaryAirport(page)
+    const popup = airportPopup(page)
+    await clickPrimaryChip(page)
+    await expect(popup).toHaveAttribute('data-icao', icao)
+    await page.keyboard.press('Escape')
+    await expect(popup).toBeHidden()
+  })
+
   test('kapat düğmesi kapatır; bağlantı havalimanı sayfasını açar', async ({ page }) => {
     await openAtPrimaryAirport(page)
     const popup = airportPopup(page)
@@ -582,7 +641,106 @@ test.describe('harita: havalimanı penceresi', () => {
       await page.keyboard.press('Escape')
       await expect(popup).toBeHidden()
     })
+
+    test('"Havalimanı sayfası" bağlantısı alt sayfa kaydırılmadan görünür ve tıklanır', async ({
+      page,
+    }) => {
+      await openAtPrimaryAirport(page)
+      const popup = airportPopup(page)
+      await clickPrimaryChip(page)
+      await expect(popup).toBeVisible()
+      // Hava durumu satırları gelince alt sayfa en uzun hâlindedir.
+      const weather = popup.getByRole('region', { name: 'Hava durumu' })
+      await expect(row(weather, COPY.tr.rows.wind)).toContainText(COPY.tr.speedUnit, {
+        timeout: 15_000,
+      })
+      const link = popup.getByRole('link', { name: /Havalimanı sayfası/ })
+      const layout = await popup.evaluate((sheet) => {
+        const anchor = sheet.querySelector<HTMLElement>('.map-popup__link')
+        if (!anchor) return null
+        // Yazının kendi kutusu (bağlantı şeridi bütün genişliktedir).
+        const range = document.createRange()
+        range.selectNodeContents(anchor)
+        const text = range.getBoundingClientRect()
+        const box = sheet.getBoundingClientRect()
+        const hit = document.elementFromPoint(
+          text.left + text.width / 2,
+          text.top + text.height / 2,
+        )
+        return {
+          scrollTop: sheet.scrollTop,
+          text: { top: text.top, bottom: text.bottom },
+          sheet: { top: box.top, bottom: box.bottom },
+          viewport: window.innerHeight,
+          hit: hit?.closest('.map-popup__link') === anchor,
+        }
+      })
+      expect(layout, 'bağlantı').not.toBeNull()
+      if (!layout) return
+      expect(layout.scrollTop).toBe(0)
+      expect(layout.text.top).toBeGreaterThanOrEqual(layout.sheet.top)
+      expect(layout.text.bottom).toBeLessThanOrEqual(Math.min(layout.sheet.bottom, layout.viewport))
+      // Bağlantının üstünde başka öğe (atıf şeridi, kayan satırlar) yoktur.
+      expect(layout.hit, 'bağlantı tıklanabilir').toBe(true)
+      await link.click()
+      await page.waitForURL((url) => url.pathname === STATION_PATH)
+    })
   })
+})
+
+test.describe('havalimanı sayfası: dar ekranda hava durumu satırları', () => {
+  // Gözlem 30 dk'dan eskiyken eğilim satırının etiketi en uzun etikettir ("Gözlemden sonraki 2 saat");
+  // fixture'ın saatine bağlı kalmasın diye ilk satırın etiketine yazılır. Etiket sütunu
+  // genişlemez, değer sütunu daralmaz, "Kuvvetli rüzgâr" etiketi değerin kutusundan taşmaz.
+  const LONG_LABEL = { tr: 'Gözlemden sonraki 2 saat', en: '2 hours after the observation' }
+
+  for (const width of [412, 430, 560]) {
+    for (const locale of ['tr', 'en'] as const) {
+      test(`${width} px, ${locale}: değer sütunu ve kuvvetli rüzgâr etiketi kutusunda`, async ({
+        page,
+      }) => {
+        await page.setViewportSize({ width, height: 900 })
+        await page.goto(COPY[locale].path)
+        const section = weatherSection(page, locale)
+        const rows = section.locator('.wx-rows--page')
+        await expect(rows.locator('.wx-tag')).toHaveText(COPY[locale].strongWind)
+        await rows
+          .locator('.wx-row dt')
+          .first()
+          .evaluate((dt, label) => {
+            const text = [...dt.childNodes].findLast((node) => node.nodeType === Node.TEXT_NODE)
+            if (text) text.textContent = label
+          }, LONG_LABEL[locale])
+        const boxes = await rows.evaluate((list) => {
+          const right = list.getBoundingClientRect().right
+          return [...list.querySelectorAll('.wx-row')].map((row) => {
+            const dd = row.querySelector('dd')?.getBoundingClientRect()
+            const tag = row.querySelector('.wx-tag')?.getBoundingClientRect()
+            return {
+              key: row.getAttribute('data-row'),
+              ddWidth: dd?.width ?? 0,
+              ddRight: dd?.right ?? 0,
+              tagRight: tag?.right ?? null,
+              listRight: right,
+            }
+          })
+        })
+        expect(boxes.length).toBeGreaterThan(5)
+        for (const box of boxes) {
+          // M6d ilk sürümü: 412 px'te değer sütunu 79–102 px'e düşüyor, etiket kutudan taşıyordu.
+          expect(box.ddWidth, `${box.key}: değer genişliği`).toBeGreaterThanOrEqual(150)
+          expect(box.ddRight, `${box.key}: liste içinde`).toBeLessThanOrEqual(box.listRight + 0.5)
+          if (box.tagRight !== null) {
+            expect(box.tagRight, `${box.key}: etiket`).toBeLessThanOrEqual(box.ddRight + 0.5)
+          }
+        }
+        const overflow = await page.evaluate(
+          () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
+        )
+        expect(overflow).toBeLessThanOrEqual(0)
+      })
+    }
+  }
 })
 
 function airportPopup(page: Page): Locator {
@@ -615,55 +773,108 @@ async function openAtPrimaryAirport(page: Page): Promise<void> {
   for (let i = 0; i < 5; i++) await page.keyboard.press('Equal')
 }
 
+/** IATA kod kutusunun kenar rengi (`MAP_COLORS.labelBorder`, D-081): #B9E2E6. */
+const CHIP_BORDER = { r: 185, g: 226, b: 230 }
+/** Pinin başı ucunun (havalimanı merkezi) ~15 px yukarısındadır (airport-pin.ts). */
+const PIN_HEAD_OFFSET_PX = 15
+
 /**
- * IST kodunun ortasına tıklar. Kodlar `.live-map__labels` tuvaline çizilir (DOM'da yoktur); büyük
- * havalimanı kodunun zemini beyazdır (#FFFFFF). Diğer etiketler gizli ve görünümde başka havalimanı
- * yokken tuvaldeki beyaz pikseller yalnızca IST kodudur: kutusu bulunup ortasına tıklanır. Taksi
- * uçağı ilerledikçe kod yer değiştirebileceği için tıklama pencere açılana kadar yinelenir.
+ * IST kodunun ortasına tıklar. Kodlar `.live-map__labels` tuvaline çizilir (DOM'da yoktur). Uçak
+ * etiketleri de kod kutusu gibi beyaz zeminli ve #B9E2E6 kenarlıdır (D-081): tuvaldeki beyaz
+ * pikseller tek bir kutu sayılmaz. Bunun yerine beyaz pikseller bağlı bölgelere ayrılır; kod kutusu
+ * boyutunda (iç beyazı 11–15 px yüksek, en çok 48 px geniş; uçak etiketi daha yüksektir) ve sol ile
+ * sağ kenarı #B9E2E6 tonunda olan bölgeler aday sayılır; IST pininin başına (harita ortası:
+ * `?havalimani=LTFM` ve klavyeyle yakınlaştırma merkezi korur) en yakın aday tıklanır. Taksi uçağı
+ * ilerledikçe kod yer değiştirebileceği için tıklama pencere açılana kadar yinelenir.
  */
 async function clickPrimaryChip(page: Page): Promise<void> {
   const popup = airportPopup(page)
   await expect(async () => {
-    const chip = await page.locator('.live-map .live-map__labels').evaluate((element) => {
-      const canvas = element as HTMLCanvasElement
-      const ctx = canvas.getContext('2d')
-      if (!ctx || canvas.width === 0) return null
-      const { data, width, height } = ctx.getImageData(0, 0, canvas.width, canvas.height)
-      let minX = Infinity
-      let minY = Infinity
-      let maxX = -Infinity
-      let maxY = -Infinity
-      for (let y = 0; y < height; y++) {
-        for (let x = 0; x < width; x++) {
-          const i = (y * width + x) * 4
-          if (
-            data[i] === 255 &&
-            data[i + 1] === 255 &&
-            data[i + 2] === 255 &&
-            data[i + 3] === 255
-          ) {
-            if (x < minX) minX = x
-            if (x > maxX) maxX = x
-            if (y < minY) minY = y
-            if (y > maxY) maxY = y
+    const center = await mapCenter(page)
+    const head = { x: center.x, y: center.y - PIN_HEAD_OFFSET_PX }
+    const chip = await page.locator('.live-map .live-map__labels').evaluate(
+      (element, { head, border }) => {
+        const canvas = element as HTMLCanvasElement
+        const ctx = canvas.getContext('2d')
+        if (!ctx || canvas.width === 0) return null
+        const { data, width, height } = ctx.getImageData(0, 0, canvas.width, canvas.height)
+        const rect = canvas.getBoundingClientRect()
+        const scale = canvas.width / rect.width
+        const isWhite = (p: number) =>
+          data[p * 4] === 255 &&
+          data[p * 4 + 1] === 255 &&
+          data[p * 4 + 2] === 255 &&
+          data[p * 4 + 3] === 255
+        // Kenar: beyaz bölgenin dışındaki ilk 3 pikselden biri #B9E2E6 tonundadır. Kutu kesirli
+        // konumdaysa kenar çizgisi kenarı yumuşatılır: ilk piksel beyaza yakın, kenar rengi bir
+        // sonrakinde, tuvalin saydam zemininde de yarı saydam kalır.
+        const hasEdge = (x0: number, y: number, step: -1 | 1) => {
+          for (let k = 1; k <= 3; k++) {
+            const x = x0 + step * k
+            if (x < 0 || y < 0 || x >= width || y >= height) return false
+            const i = (y * width + x) * 4
+            const [r = 0, g = 0, b = 0, a = 0] = [data[i], data[i + 1], data[i + 2], data[i + 3]]
+            if (
+              a >= 30 &&
+              g - r >= 12 &&
+              b - r >= 12 &&
+              Math.abs(g - border.g) <= 30 &&
+              Math.abs(b - border.b) <= 30
+            ) {
+              return true
+            }
           }
+          return false
         }
-      }
-      if (maxX < 0) return null
-      const rect = canvas.getBoundingClientRect()
-      const scale = canvas.width / rect.width
-      return {
-        x: rect.left + (minX + maxX) / 2 / scale,
-        y: rect.top + (minY + maxY) / 2 / scale,
-        width: (maxX - minX + 1) / scale,
-        height: (maxY - minY + 1) / scale,
-      }
-    })
+        const seen = new Uint8Array(width * height)
+        const candidates: { x: number; y: number; width: number; height: number }[] = []
+        for (let start = 0; start < width * height; start++) {
+          if (seen[start] || !isWhite(start)) continue
+          seen[start] = 1
+          const stack = [start]
+          let minX = width
+          let minY = height
+          let maxX = -1
+          let maxY = -1
+          while (stack.length > 0) {
+            const p = stack.pop() ?? 0
+            const x = p % width
+            const y = (p - x) / width
+            minX = Math.min(minX, x)
+            maxX = Math.max(maxX, x)
+            minY = Math.min(minY, y)
+            maxY = Math.max(maxY, y)
+            for (const q of [p - 1, p + 1, p - width, p + width]) {
+              if (q < 0 || q >= width * height || seen[q]) continue
+              if (Math.abs((q % width) - x) > 1) continue
+              if (!isWhite(q)) continue
+              seen[q] = 1
+              stack.push(q)
+            }
+          }
+          const w = (maxX - minX + 1) / scale
+          const h = (maxY - minY + 1) / scale
+          // Kod kutusu 16 px yüksektir (iç beyazı ~14 px); uçak etiketi en az 20 px (iç beyazı ~18 px).
+          if (h < 11 || h > 15 || w < 14 || w > 48) continue
+          const midY = Math.round((minY + maxY) / 2)
+          if (!hasEdge(minX, midY, -1) || !hasEdge(maxX, midY, 1)) continue
+          candidates.push({
+            x: rect.left + (minX + maxX + 1) / 2 / scale,
+            y: rect.top + (minY + maxY + 1) / 2 / scale,
+            width: w,
+            height: h,
+          })
+        }
+        const distance = (c: { x: number; y: number }) => Math.hypot(c.x - head.x, c.y - head.y)
+        return candidates.sort((a, b) => distance(a) - distance(b))[0] ?? null
+      },
+      { head, border: CHIP_BORDER },
+    )
     expect(chip, 'IST kodu tuvalde çizili').not.toBeNull()
-    // Tek bir kod kutusu: 16 px yüksekliğinde, üç harf genişliğinde.
-    expect(chip?.height ?? 0).toBeLessThanOrEqual(18)
-    expect(chip?.width ?? 0).toBeLessThanOrEqual(48)
-    await page.mouse.click(chip?.x ?? 0, chip?.y ?? 0)
+    if (!chip) return
+    // Kod pin başının yanındadır (sağında, solunda, üstünde ya da noktanın altında; D-079).
+    expect(Math.hypot(chip.x - head.x, chip.y - head.y)).toBeLessThanOrEqual(80)
+    await page.mouse.click(chip.x, chip.y)
     await expect(popup).toBeVisible({ timeout: 2_000 })
   }).toPass({ timeout: 20_000 })
 }

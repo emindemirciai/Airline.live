@@ -43,7 +43,7 @@ describe('summarizeMetar: brief §2 fixture’ları', () => {
     expect(fake(s.headline)).toBe('weather.wx.SHRA_light')
     expect(s.temperature).toEqual({ measure: 'temperature', celsius: 9 })
     expect(rows(s)).toEqual({
-      wind: 'weather.wind.from(weather.compass.from.NE,18kt) · weather.wind.gust(32kt)',
+      wind: 'weather.wind.from(weather.compass.from.NE,18kt), weather.wind.gust(32kt)',
       rain: 'weather.wx.SHRA_light',
       snow: NONE,
       thunderstorm: 'weather.value.noneWithCb',
@@ -51,7 +51,7 @@ describe('summarizeMetar: brief §2 fixture’ları', () => {
       hail: null,
       other: null,
       visibility: 'weather.visibility.tenKmPlus',
-      clouds: 'weather.clouds.BKN · weather.clouds.lowest(2500ft) · weather.clouds.cb',
+      clouds: 'weather.clouds.BKN, weather.clouds.lowest(2500ft), weather.clouds.cb',
       temperature: '9C',
       dewPoint: '5C',
       humidity: 'weather.humidity(75)',
@@ -88,7 +88,7 @@ describe('summarizeMetar: brief §2 fixture’ları', () => {
       snow: 'weather.wx.SN',
       fog: 'weather.wx.BR',
       visibility: '1500m',
-      clouds: 'weather.clouds.OVC · weather.clouds.lowest(800ft)',
+      clouds: 'weather.clouds.OVC, weather.clouds.lowest(800ft)',
       temperature: '-1C',
     })
     expect(fake(s.next2h)).toBe(
@@ -103,7 +103,7 @@ describe('summarizeMetar: brief §2 fixture’ları', () => {
       ),
     )
     expect(rows(s)).toMatchObject({
-      wind: 'weather.wind.from(weather.compass.from.S,15kt) · weather.wind.gust(28kt) · weather.wind.varying(weather.compass.name.S,weather.compass.name.SW)',
+      wind: 'weather.wind.from(weather.compass.from.S,15kt), weather.wind.gust(28kt), weather.wind.varying(weather.compass.name.S,weather.compass.name.SW)',
       rain: 'weather.wx.TSRA_heavy',
       thunderstorm: 'weather.wx.TSRA_heavy',
       snow: NONE,
@@ -140,7 +140,7 @@ describe('summarizeMetar: brief §2 fixture’ları', () => {
       metar('LTCE 151250Z 27022G35KT 0800 +SHSN BLSN VV004 M08/M10 Q1021 TEMPO 0400 +SHSN'),
     )
     expect(rows(s)).toMatchObject({
-      wind: 'weather.wind.from(weather.compass.from.W,22kt) · weather.wind.gust(35kt)',
+      wind: 'weather.wind.from(weather.compass.from.W,22kt), weather.wind.gust(35kt)',
       snow: 'weather.wx.SHSN_heavy, weather.wx.BLSN',
       rain: NONE,
     })
@@ -281,6 +281,52 @@ describe('summarizeMetar: dürüstlük kuralları', () => {
   })
 })
 
+describe('summarizeMetar: olay satırının durumu (vurgu)', () => {
+  const presence = (raw: string) => summarizeMetar(metar(raw)).presence
+
+  it('havalimanında var olan olay "present"; yok ve CB’li yok "none"', () => {
+    expect(
+      presence('LTFM 151250Z 03018G32KT 9999 -SHRA FEW025CB BKN035 09/05 Q1009 TEMPO 4000 SHRA'),
+    ).toEqual({
+      rain: 'present',
+      snow: 'none',
+      thunderstorm: 'none',
+      fog: 'none',
+      hail: 'none',
+      other: 'none',
+    })
+    expect(
+      presence('SPECI LTBS 151242Z 25015G27KT 2000 +TSRAGR SCT012CB BKN025 12/10 Q1007'),
+    ).toMatchObject({ rain: 'present', thunderstorm: 'present', hail: 'present', fog: 'none' })
+    expect(presence('LTAC 151250Z 32012KT 1500 SN BR BKN008 OVC015 M01/M02 Q1018')).toMatchObject({
+      rain: 'none',
+      snow: 'present',
+      fog: 'present',
+    })
+    expect(presence('LTDB 151250Z 18006KT 4000 HZ NSC 19/08 Q1008 NOSIG').fog).toBe('present')
+  })
+
+  it('çevredeki ve son saatteki olay vurgulanmaz; belirlenemeyen satır "undetermined"', () => {
+    expect(presence('LTAU 151250Z 23008KT 9999 VCTS SCT040CB 07/M01 Q1013').thunderstorm).toBe(
+      'vicinity',
+    )
+    expect(presence('LTXX 151250Z 18005KT 9999 FEW030 10/05 Q1010 RERA RETS')).toMatchObject({
+      rain: 'recent',
+      thunderstorm: 'recent',
+      snow: 'none',
+    })
+    expect(presence('LTXX 151250Z 18005KT 4000 DU VCPO NSC 30/05 Q1010').other).toBe('present')
+    expect(presence('LTXX 151250Z 18005KT 9999 VCPO NSC 30/05 Q1010').other).toBe('vicinity')
+    const auto = presence('LTXX 151250Z AUTO 18005KT 9999 // NCD 10/05 Q1010')
+    expect([auto.rain, auto.snow, auto.thunderstorm, auto.fog]).toEqual(
+      Array(4).fill('undetermined'),
+    )
+    // Tanınan olay belirlenemeyen raporda da "present"tır (metni de yazılır).
+    expect(presence('LTXX 151250Z 22010KT 9999 -RA XYZRA FEW030 10/05 Q1010').rain).toBe('present')
+    expect(presence('METAR LTBQ 151250Z NIL=').rain).toBe('undetermined')
+  })
+})
+
 describe('summarizeMetar: rüzgâr, görüş, bulut biçimleri', () => {
   const wind = (group: string) =>
     rows(summarizeMetar(metar(`LTXX 151250Z ${group} 9999 FEW030 10/05 Q1010`))).wind
@@ -289,15 +335,15 @@ describe('summarizeMetar: rüzgâr, görüş, bulut biçimleri', () => {
     ['VRB02KT', 'weather.wind.lightVariable'],
     ['VRB03KT', 'weather.wind.lightVariable'],
     ['VRB05KT', 'weather.wind.variable(5kt)'],
-    ['VRB02G12KT', 'weather.wind.variable(2kt) · weather.wind.gust(12kt)'],
+    ['VRB02G12KT', 'weather.wind.variable(2kt), weather.wind.gust(12kt)'],
     [
       'VRB25KT 220V010',
-      'weather.wind.variable(25kt) · weather.wind.varying(weather.compass.name.SW,weather.compass.name.N)',
+      'weather.wind.variable(25kt), weather.wind.varying(weather.compass.name.SW,weather.compass.name.N)',
     ],
     ['220P99KT', 'weather.wind.from(weather.compass.from.SW,weather.wind.above(100kt))'],
     [
       '33090GP99KT',
-      'weather.wind.from(weather.compass.from.NW,90kt) · weather.wind.gust(weather.wind.above(100kt))',
+      'weather.wind.from(weather.compass.from.NW,90kt), weather.wind.gust(weather.wind.above(100kt))',
     ],
     ['/////KT', UNDETERMINED],
     ['270//KT', UNDETERMINED],
@@ -312,7 +358,7 @@ describe('summarizeMetar: rüzgâr, görüş, bulut biçimleri', () => {
     [
       '6000 1400SW BR NSC',
       'visibility',
-      '6000m · weather.visibility.minimum(1400m,weather.compass.name.SW)',
+      '6000m, weather.visibility.minimum(1400m,weather.compass.name.SW)',
     ],
     ['0000 FG VV///', 'visibility', 'weather.visibility.lessThan50'],
     ['//// NCD', 'visibility', UNDETERMINED],
@@ -322,11 +368,11 @@ describe('summarizeMetar: rüzgâr, görüş, bulut biçimleri', () => {
     ['9999 NCD', 'clouds', 'weather.clouds.ncd'],
     ['0100 FG VV///', 'clouds', 'weather.clouds.vvUnknown'],
     ['9999', 'clouds', UNDETERMINED],
-    ['9999 //////CB', 'clouds', `${UNDETERMINED} · weather.clouds.cb`],
+    ['9999 //////CB', 'clouds', `${UNDETERMINED}, weather.clouds.cb`],
     [
       '9999 FEW015TCU SCT030 BKN100',
       'clouds',
-      'weather.clouds.BKN · weather.clouds.lowest(1500ft) · weather.clouds.tcu',
+      'weather.clouds.BKN, weather.clouds.lowest(1500ft), weather.clouds.tcu',
     ],
   ] as const)('%s → %s', (body, name, expected) => {
     expect(field(body, name)).toBe(expected)
@@ -422,7 +468,7 @@ describe('summarizeTaf', () => {
       ]),
     ).toEqual([
       'weather.taf.until(t16:00,weather.wx.SHSN_heavy)',
-      'weather.taf.until(t16:00,weather.taf.strongWind(weather.wind.from(weather.compass.from.W,20kt) · weather.wind.gust(35kt)))',
+      'weather.taf.until(t16:00,weather.taf.strongWind(weather.wind.from(weather.compass.from.W,20kt), weather.wind.gust(35kt)))',
     ])
   })
 
@@ -463,7 +509,7 @@ describe('summarizeTaf', () => {
       'TAF LTFM 151040Z 1512/1618 04028G40KT 9999 BKN030 BECMG 1520/1522 04010KT',
     )
     expect(items([windyNew, windyOld], '2026-01-15T11:00:00Z')).toEqual([
-      'weather.taf.until(t20:00,weather.taf.strongWind(weather.wind.from(weather.compass.from.NE,28kt) · weather.wind.gust(40kt)))',
+      'weather.taf.until(t20:00,weather.taf.strongWind(weather.wind.from(weather.compass.from.NE,28kt), weather.wind.gust(40kt)))',
     ])
   })
 
@@ -472,13 +518,13 @@ describe('summarizeTaf', () => {
     expect(
       items([taf('TAF LTXX 151040Z 1512/1618 04028G40KT 9999 BKN030 BECMG 1514/1516 04025G35KT')]),
     ).toEqual([
-      'weather.taf.until(weather.time.tomorrow(t18:00),weather.taf.strongWind(weather.wind.from(weather.compass.from.NE,28kt) · weather.wind.gust(40kt)))',
+      'weather.taf.until(weather.time.tomorrow(t18:00),weather.taf.strongWind(weather.wind.from(weather.compass.from.NE,28kt), weather.wind.gust(40kt)))',
     ])
     // Ortalama bir dilimden, hamle ötekinden; yön ortalaması en yüksek dilimin yönüdür.
     expect(
       items([taf('TAF LTXX 151040Z 1512/1618 27030KT 9999 BKN030 BECMG 1514/1516 25022G45KT')]),
     ).toEqual([
-      'weather.taf.until(weather.time.tomorrow(t18:00),weather.taf.strongWind(weather.wind.from(weather.compass.from.W,30kt) · weather.wind.gust(45kt)))',
+      'weather.taf.until(weather.time.tomorrow(t18:00),weather.taf.strongWind(weather.wind.from(weather.compass.from.W,30kt), weather.wind.gust(45kt)))',
     ])
     // Ortalamadan büyük olmayan hamle yazılmaz.
     expect(
@@ -643,8 +689,8 @@ describe('renderWeatherText', () => {
 
   it('iç içe parçalar küçük harfle, bütün metin büyük harfle başlar', () => {
     const wind = summarizeMetar(metar('LTFM 151250Z 03018G32KT 9999 FEW025 09/05 Q1009')).rows.wind
-    expect(tr(wind)).toBe('Kuzeydoğudan 33 km/sa · hamle 59 km/sa')
-    expect(en(wind)).toBe('From the northeast 33 km/h · gusts 59 km/h')
+    expect(tr(wind)).toBe('Kuzeydoğudan 33 km/sa, hamle 59 km/sa')
+    expect(en(wind)).toBe('From the northeast 33 km/h, gusts 59 km/h')
     const rain = summarizeMetar(metar('LTXX 151250Z 18005KT 9999 VCSH FEW030 10/05 Q1010')).rows
       .rain
     expect(tr(rain)).toBe('Havalimanında yok; çevresinde sağanak')

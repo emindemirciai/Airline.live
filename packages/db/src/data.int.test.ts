@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { eq } from 'drizzle-orm'
 import { drizzle, type PostgresJsDatabase } from 'drizzle-orm/postgres-js'
@@ -338,5 +339,42 @@ describe('referans verisinin yazılması', () => {
     status = await referenceStatus(db)
     expect(status.sources[0]).toMatchObject({ lastError: null, rowCount: 2 })
     expect(status.sources[0]?.importedAt?.toISOString()).toBe(now.toISOString())
+  })
+
+  it("0005 veri migration'ı OurAirports doğrulayıcılarını sıfırlar (D-080); VRS'e dokunmaz, tekrarı zararsız", async () => {
+    const now = new Date('2026-10-02T04:40:00Z')
+    for (const source of ['ourairports-airports', 'ourairports-runways', 'vrs-airlines'] as const) {
+      await recordReferenceCheck(db, source, {
+        origin: 'remote',
+        now,
+        etag: `"${source}"`,
+        lastModified: 'Thu, 01 Oct 2026 23:03:49 GMT',
+        imported: { rowCount: 3, skippedCount: 0 },
+      })
+    }
+    const migration = readFileSync(
+      fileURLToPath(new URL('../drizzle/0005_ourairports_reimport.sql', import.meta.url)),
+      'utf8',
+    )
+    // Migration iki kez çalışsa da sonuç aynıdır.
+    await sql.unsafe(migration)
+    await sql.unsafe(migration)
+    const { sources } = await referenceStatus(db)
+    const bySource = new Map(sources.map((s) => [s.source, s]))
+    for (const source of ['ourairports-airports', 'ourairports-runways']) {
+      // Worker koşulsuz indirir (`importedAt` yok) ve açılışta telafi ister (`checkedAt` yok).
+      expect(bySource.get(source), source).toMatchObject({
+        etag: null,
+        lastModified: null,
+        importedAt: null,
+        checkedAt: null,
+        rowCount: 3,
+      })
+    }
+    expect(bySource.get('vrs-airlines')).toMatchObject({
+      etag: '"vrs-airlines"',
+      importedAt: now,
+      checkedAt: now,
+    })
   })
 })

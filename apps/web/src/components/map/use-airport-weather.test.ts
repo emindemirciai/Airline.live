@@ -23,10 +23,19 @@ const LTFM: AirportWeather = {
   tafs: [],
 }
 const LTBQ: AirportWeather = { ...LTFM, icao: 'LTBQ', metar: null }
+/** Yakın ülkedeki listelenen havalimanı (1. halka, D-080): aynı toplu yanıtta gelir. */
+const LGAV: AirportWeather = {
+  ...LTFM,
+  icao: 'LGAV',
+  metar: {
+    ...decodeMetar('LGAV 011250Z 36012KT CAVOK 22/10 Q1015 NOSIG', { observedAt: OBSERVED }),
+    observedAt: OBSERVED,
+  },
+}
 const BODY = {
   generatedAt: '2026-10-01T13:00:00.000Z',
   attribution: { text: 'NOAA Aviation Weather Center', url: 'https://aviationweather.gov/' },
-  stations: [LTFM, LTBQ, { icao: 'bozuk' }],
+  stations: [LTFM, LTBQ, LGAV, { icao: 'bozuk' }],
 }
 
 afterEach(() => {
@@ -61,12 +70,12 @@ describe('nextWeatherFetchAt', () => {
 })
 
 describe('weatherUrl', () => {
-  it('toplu uç nokta, Türkiye', () => {
+  it('toplu uç nokta, haritadaki havalimanlarıyla aynı küme (listelenenler, D-080)', () => {
     expect(String(weatherUrl('http://localhost:4100'))).toBe(
-      'http://localhost:4100/v1/weather?country=TR',
+      'http://localhost:4100/v1/weather?scope=listed',
     )
-    expect(String(weatherUrl('https://api.havayolu.live/', 'CY'))).toBe(
-      'https://api.havayolu.live/v1/weather?country=CY',
+    expect(String(weatherUrl('https://api.havayolu.live/'))).toBe(
+      'https://api.havayolu.live/v1/weather?scope=listed',
     )
   })
 })
@@ -76,9 +85,10 @@ describe('parseBulkWeather', () => {
     // JSON gidiş-dönüşü: API yanıtındaki biçim.
     const parsed = parseBulkWeather(JSON.parse(JSON.stringify(BODY)))
     expect(parsed?.generatedAt).toBe(BODY.generatedAt)
-    expect([...(parsed?.stations.keys() ?? [])]).toEqual(['LTFM', 'LTBQ'])
+    expect([...(parsed?.stations.keys() ?? [])]).toEqual(['LTFM', 'LTBQ', 'LGAV'])
     expect(parsed?.stations.get('LTFM')?.metar?.wind?.gustKt).toBe(32)
     expect(parsed?.stations.get('LTBQ')?.metar).toBeNull()
+    expect(parsed?.stations.get('LGAV')?.metar?.raw).toContain('CAVOK')
   })
 
   it('zarf bozuksa null', () => {
@@ -105,9 +115,9 @@ describe('fetchBulkWeather', () => {
     const fetchMock = mockFetch(200, BODY)
     const controller = new AbortController()
     const result = await fetchBulkWeather('http://localhost:4100', controller.signal)
-    expect(result.stations.size).toBe(2)
+    expect(result.stations.size).toBe(3)
     const [url, init] = fetchMock.mock.calls[0] ?? []
-    expect(String(url)).toBe('http://localhost:4100/v1/weather?country=TR')
+    expect(String(url)).toBe('http://localhost:4100/v1/weather?scope=listed')
     expect(init?.signal).toBe(controller.signal)
   })
 

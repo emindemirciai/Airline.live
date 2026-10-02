@@ -61,8 +61,9 @@ describe('parseMetarResponse', () => {
   it("fixture'daki bütün METAR/SPECI kayıtları geçer; tür, istasyon ve zaman doğru", () => {
     const { items, skipped } = parseMetarResponse(fixture('metar.json'), { now: FIXTURE_NOW })
     expect(skipped).toEqual([])
-    expect(items).toHaveLength(159)
-    expect(new Set(items.map((m) => m.station)).size).toBe(14)
+    // 14 Türkiye istasyonu ve 1. halkadan 6 istasyon (LGAV, LGTS, LCLK, LCEN, LBSF, UGTB; D-080).
+    expect(items).toHaveLength(165)
+    expect(new Set(items.map((m) => m.station)).size).toBe(20)
     expect(items.some((m) => m.station === 'LTBQ')).toBe(false)
     const ltbs = items.find((m) => m.station === 'LTBS')
     expect(ltbs).toMatchObject({ type: 'SPECI', flightCategory: 'IFR' })
@@ -77,6 +78,8 @@ describe('parseMetarResponse', () => {
   })
 
   it('fixture\'daki AWC alanları ham metinle tutarlı (Q = altim, sıcaklık, rüzgâr, 9999 → "6+")', () => {
+    // AWC rüzgâr hızını knot verir; MPS raporunda (UGTB) ham değer knota çevrilip karşılaştırılır.
+    const KT_PER_MPS = 1.943844
     for (const m of fixture('metar.json') as FixtureMetar[]) {
       const raw = m.rawOb.split(/ (?:NOSIG|BECMG|TEMPO) /)[0] ?? ''
       expect(raw).toContain(m.icaoId)
@@ -84,11 +87,14 @@ describe('parseMetarResponse', () => {
       const t = (v: number | null) =>
         v === null ? '' : v < 0 ? `M${String(-v).padStart(2, '0')}` : String(v).padStart(2, '0')
       expect(raw).toContain(` ${t(m.temp)}/${t(m.dewp)} `)
-      const wind =
-        m.wdir === 'VRB'
-          ? `VRB${String(m.wspd).padStart(2, '0')}`
-          : `${String(m.wdir).padStart(3, '0')}${String(m.wspd).padStart(2, '0')}`
-      expect(raw).toContain(`${wind}${m.wgst ? `G${m.wgst}` : ''}KT`)
+      const direction = m.wdir === 'VRB' ? 'VRB' : String(m.wdir).padStart(3, '0')
+      const mps = new RegExp(` ${direction}(\\d{2})MPS `).exec(raw)
+      if (mps) {
+        expect(Math.round(Number(mps[1]) * KT_PER_MPS)).toBe(m.wspd)
+      } else {
+        const wind = `${direction}${String(m.wspd).padStart(2, '0')}`
+        expect(raw).toContain(`${wind}${m.wgst ? `G${m.wgst}` : ''}KT`)
+      }
       if (/ (9999|CAVOK) /.test(raw)) expect(m.visib).toBe('6+')
       else expect(typeof m.visib).toBe('number')
     }
@@ -193,7 +199,8 @@ describe('parseTafResponse', () => {
   it("fixture'daki bütün TAF'lar geçer; yayın ve geçerlilik zamanları doğru", () => {
     const { items, skipped } = parseTafResponse(fixture('taf.json'), { now: FIXTURE_NOW })
     expect(skipped).toEqual([])
-    expect(items).toHaveLength(19)
+    // 7 Türkiye istasyonu (LTFM 13 TAF) ve 1. halkadan 4 istasyon (LGAV, LCLK, LBSF, UGTB).
+    expect(items).toHaveLength(23)
     expect(items.filter((t) => t.station === 'LTFM')).toHaveLength(13)
     const ltfm = items.find((t) => t.station === 'LTFM' && t.mostRecent)
     expect(ltfm).toMatchObject({

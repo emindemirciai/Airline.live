@@ -38,9 +38,9 @@ describe('measureLabel', () => {
   })
 
   it('tam etiket: en geniş satır belirler; THY şeridi genişliğe eklenir', () => {
-    const content = { primary: 'TK-4', primaryMuted: false, lines: ['431 km/sa · 333 m'] }
+    const content = { primary: 'TK-4', primaryMuted: false, lines: ['431 km/sa, 333 m'] }
     const size = measureLabel(content, NORMAL_THEME, true, measure)
-    expect(size.width).toBe(Math.ceil(17 * 11 * 0.6 + NORMAL_THEME.padX * 2 + THY_BAR_WIDTH))
+    expect(size.width).toBe(Math.ceil(16 * 11 * 0.6 + NORMAL_THEME.padX * 2 + THY_BAR_WIDTH))
     expect(size.height).toBe(
       NORMAL_THEME.padTop +
         NORMAL_THEME.primaryLine +
@@ -93,6 +93,9 @@ describe('layoutAirportChips', () => {
     elevationFt: null,
     type,
     scheduled: true,
+    country: 'TR',
+    ring: 0,
+    distanceToTrKm: null,
   })
   const at = (iata: string, type: Airport['type'], x: number, y: number): ScreenAirport => ({
     airport: airport(iata, type),
@@ -302,6 +305,9 @@ describe('LabelPainter.airportHitTest', () => {
     elevationFt: 325,
     type: 'large_airport',
     scheduled: true,
+    country: 'TR',
+    ring: 0,
+    distanceToTrKm: null,
   }
 
   const frame = (zoom: number): LabelFrame => ({

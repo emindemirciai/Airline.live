@@ -5,7 +5,8 @@
   "license": "MIT",
   "type": "module",
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./error-page": "./src/error-page.ts"
   },
   "scripts": {
     "lint": "eslint . --max-warnings 0",

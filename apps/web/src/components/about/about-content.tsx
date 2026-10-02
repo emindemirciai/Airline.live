@@ -1,5 +1,5 @@
 import { PRIMARY_EXTRA_RADIUS_NM } from '@havayolu/geo/coverage'
-import { format, getMessages } from '@havayolu/i18n'
+import { format, formatDistance, getMessages } from '@havayolu/i18n'
 import { PROJECT, type Locale } from '@havayolu/shared'
 import Link from 'next/link'
 import { Fragment, type ReactNode } from 'react'
@@ -8,7 +8,7 @@ import { localePath } from '../../lib/locale-routing'
 import { DATA_ATTRIBUTION } from '../../lib/map-config'
 import { airportPath } from '../../lib/seo/paths'
 import { TERMS_LINKS, TERMS_PATH } from '../../lib/terms'
-import { formatRadius } from '../airports/airport-text'
+import { formatRadius, listedRadiusKm } from '../airports/airport-text'
 import { AVIATION_WEATHER_URL } from '../airports/weather-links'
 import { richText } from '../rich-text'
 
@@ -42,8 +42,9 @@ export interface AboutContentProps {
    */
   stations: readonly MonitoredStation[] | null
   /**
-   * Canlı veri çekim alanının dışında kalan havalimanları (kapsama planı, `isInLiveCoverage`),
-   * veriden. API'ye ulaşılamazsa null.
+   * Canlı veri çekim alanının dışında kalan Türkiye havalimanları (kapsama planı, `isInLiveCoverage`),
+   * veriden. Yakın ülkelerdeki havalimanları burada sayılmaz; onlar için ayrı cümle vardır (D-080).
+   * API'ye ulaşılamazsa null.
    */
   outside: readonly AirportLink[] | null
 }
@@ -63,6 +64,8 @@ function SourceLink({ href, children }: { href: string; children: ReactNode }) {
  * §1 ve D-073), veri kaynakları ve lisanslar (data-sources.md §1, §3, §4, §5, §6, §6a; ATTRIBUTION.md;
  * hava durumu D-078) ve
  * uçak gizliliği (D-071, CLAUDE.md → Gizlilik; engel listesi apps/api/src/admin/blocklist.ts).
+ * Yakın ülkelerdeki havalimanlarının listelendiği ve canlı uçak verisinin Türkiye odaklı olduğu
+ * yöntem bölümünde yazılır; uzaklık sınırı açık halkalardandır (`listedRadiusKm`, D-080).
  * Uydurma bilgi yoktur; sayılar bu belgelerdendir. İstasyon listesi ve çekim alanı dışındaki
  * havalimanları veriden gelir; birincil çemberin yarıçapı kapsama planındandır (packages/geo). Durum
  * satırının gösterdiği yaş: components/map/panels/status-strip.tsx → `dataAgeSeconds`.
@@ -70,6 +73,7 @@ function SourceLink({ href, children }: { href: string; children: ReactNode }) {
 export function AboutContent({ locale, app, stations, outside }: AboutContentProps) {
   const messages = getMessages(locale)
   const t = messages.about
+  const radiusKm = listedRadiusKm()
 
   return (
     <article className="page about">
@@ -144,6 +148,12 @@ export function AboutContent({ locale, app, stations, outside }: AboutContentPro
             .
           </p>
         ) : null}
+        <p>
+          {radiusKm === null
+            ? t.method.abroadAll
+            : format(t.method.abroad, { km: formatDistance(radiusKm, { locale }) })}{' '}
+          {t.method.abroadCoverage}
+        </p>
         <p>{t.method.reference}</p>
       </section>
 

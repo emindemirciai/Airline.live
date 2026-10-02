@@ -1,11 +1,34 @@
 import { describe, expect, it } from 'vitest'
 import {
+  greatCircleKm,
+  nearestDistanceKm,
+  nearestReference,
+  ringForDistance,
+  selectListedAirports,
   toAirportDetails,
   toListedAirports,
+  turkishReferencePoints,
   type AirportDetailSourceRow,
   type AirportSourceRow,
+  type RingContext,
   type RunwaySourceRow,
+  type StationSourceRow,
 } from './airports'
+
+/** `@havayolu/shared` `AIRPORT_RINGS_KM` (bu paket shared'a bağımlı değildir; API testi eşitliği denetler). */
+const RINGS_KM = [500, 1000, 2000, 5000]
+/** Türkiye referansları: İstanbul (LTFM) ve Antalya (LTAI). */
+const TURKEY = [
+  { lat: 41.2611, lon: 28.7419, icao: 'LTFM', iata: 'IST', name: 'Istanbul Airport' },
+  { lat: 36.8987, lon: 30.8005, icao: 'LTAI', iata: 'AYT', name: 'Antalya International Airport' },
+]
+const CONTEXT: RingContext = { turkey: TURKEY, ringsKm: RINGS_KM }
+const listed = (rows: readonly AirportSourceRow[]) => toListedAirports(rows, CONTEXT)
+const withDetails = (
+  airportRows: readonly AirportDetailSourceRow[],
+  runwayRows: readonly RunwaySourceRow[],
+  stationRows: readonly StationSourceRow[],
+) => toAirportDetails(airportRows, runwayRows, stationRows, CONTEXT)
 
 let nextId = 1
 
@@ -17,6 +40,7 @@ const row = (overrides: Partial<AirportSourceRow> = {}): AirportSourceRow => ({
   latitudeDeg: 41.2611,
   longitudeDeg: 28.7419,
   elevationFt: 325,
+  isoCountry: 'TR',
   municipality: 'Istanbul',
   scheduledService: true,
   icaoCode: 'LTFM',
@@ -27,7 +51,7 @@ const row = (overrides: Partial<AirportSourceRow> = {}): AirportSourceRow => ({
 
 describe('toListedAirports', () => {
   it('satırı ortak Airport biçimine çevirir', () => {
-    expect(toListedAirports([row()])).toEqual([
+    expect(listed([row()])).toEqual([
       {
         icao: 'LTFM',
         iata: 'IST',
@@ -38,12 +62,15 @@ describe('toListedAirports', () => {
         elevationFt: 325,
         type: 'large_airport',
         scheduled: true,
+        country: 'TR',
+        ring: 0,
+        distanceToTrKm: null,
       },
     ])
   })
 
   it('ICAO: icao_code, yoksa gps_code, o da yoksa ident', () => {
-    const list = toListedAirports([
+    const list = listed([
       row({ ident: 'LTBL', icaoCode: null, gpsCode: 'LTBL', iataCode: 'IGL' }),
       row({ ident: 'TR-0099', icaoCode: ' ', gpsCode: null, iataCode: 'XXA' }),
       row({ ident: 'LTXX', icaoCode: 'ltyy', gpsCode: 'LTZZ', iataCode: 'XXB' }),
@@ -56,7 +83,7 @@ describe('toListedAirports', () => {
   })
 
   it('IATA kırpılır ve büyük harfe çevrilir; üç harf değilse satır atlanır', () => {
-    const list = toListedAirports([
+    const list = listed([
       row({ ident: 'LTAA', icaoCode: 'LTAA', iataCode: ' saw ' }),
       row({ ident: 'LTAB', icaoCode: 'LTAB', iataCode: '' }),
       row({ ident: 'LTAC', icaoCode: 'LTAC', iataCode: null }),
@@ -67,8 +94,29 @@ describe('toListedAirports', () => {
     expect(list.map((a) => [a.icao, a.iata])).toEqual([['LTAA', 'SAW']])
   })
 
+  it('küçük havalimanı yalnızca tarifeliyse (içe aktarım koşulu); büyük ve orta her zaman', () => {
+    const list = listed([
+      row({ ident: 'L1', icaoCode: 'L1', iataCode: 'AAA', type: 'small_airport' }),
+      row({
+        ident: 'L2',
+        icaoCode: 'L2',
+        iataCode: 'BBB',
+        type: 'small_airport',
+        scheduledService: false,
+      }),
+      row({
+        ident: 'L3',
+        icaoCode: 'L3',
+        iataCode: 'CCC',
+        type: 'medium_airport',
+        scheduledService: false,
+      }),
+    ])
+    expect(list.map((a) => a.icao)).toEqual(['L1', 'L3'])
+  })
+
   it('yalnızca büyük, orta ve küçük havalimanları', () => {
-    const list = toListedAirports([
+    const list = listed([
       row({ ident: 'L1', icaoCode: 'L1', iataCode: 'AAA', type: 'large_airport' }),
       row({ ident: 'L2', icaoCode: 'L2', iataCode: 'BBB', type: 'medium_airport' }),
       row({ ident: 'L3', icaoCode: 'L3', iataCode: 'CCC', type: 'small_airport' }),
@@ -80,7 +128,7 @@ describe('toListedAirports', () => {
   })
 
   it('IATA’ya, eşitse ICAO’ya göre sıralar; aynı ICAO’da önce gelen satır kalır', () => {
-    const list = toListedAirports([
+    const list = listed([
       row({ ident: 'LTFM', icaoCode: 'LTFM', iataCode: 'IST', name: 'İlk' }),
       row({ ident: 'LTFJ', icaoCode: 'LTFJ', iataCode: 'SAW' }),
       row({ ident: 'LTAC', icaoCode: 'LTAC', iataCode: 'ESB' }),
@@ -97,7 +145,7 @@ describe('toListedAirports', () => {
   })
 
   it('boş şehir null; ad kırpılır; yükseklik bilinmiyorsa null', () => {
-    const [airport] = toListedAirports([
+    const [airport] = listed([
       row({ municipality: '  ', name: ' Kapadokya ', elevationFt: null, scheduledService: false }),
     ])
     expect(airport).toMatchObject({
@@ -109,7 +157,7 @@ describe('toListedAirports', () => {
   })
 
   it('satır yoksa liste boş', () => {
-    expect(toListedAirports([])).toEqual([])
+    expect(listed([])).toEqual([])
   })
 })
 
@@ -145,7 +193,7 @@ const runwayRow = (overrides: Partial<RunwaySourceRow> = {}): RunwaySourceRow =>
 describe('toAirportDetails', () => {
   it('havalimanına pistleri, istasyonu ve veri tarihini ekler', () => {
     const airport = detailRow({ id: 10, municipality: ' Istanbul ', isoRegion: ' tr-34 ' })
-    const [detail] = toAirportDetails(
+    const [detail] = withDetails(
       [airport],
       [runwayRow({ id: 5, airportId: 10, surface: ' ', leIdent: null })],
       [{ icao: 'LTFM', isActive: true, isPrimary: true, fetchRadiusNm: 60 }],
@@ -160,6 +208,10 @@ describe('toAirportDetails', () => {
       elevationFt: 325,
       type: 'large_airport',
       scheduled: true,
+      country: 'TR',
+      ring: 0,
+      distanceToTrKm: null,
+      nearestTr: null,
       isoRegion: 'TR-34',
       municipality: 'Istanbul',
       station: { active: true, primary: true, fetchRadiusNm: 60 },
@@ -193,7 +245,7 @@ describe('toAirportDetails', () => {
   })
 
   it('istasyon değilse null; istasyon kodu büyük/küçük harf ve boşluk farkıyla eşleşir', () => {
-    const [ist, saw] = toAirportDetails(
+    const [ist, saw] = withDetails(
       [
         detailRow({ id: 1, ident: 'LTFM', icaoCode: 'LTFM', iataCode: 'IST' }),
         detailRow({ id: 2, ident: 'LTFJ', icaoCode: 'LTFJ', iataCode: 'SAW' }),
@@ -208,7 +260,7 @@ describe('toAirportDetails', () => {
   })
 
   it('pistler pist adına göre sayısal sıralanır; adı olmayan sona, eşitlikte kimlik', () => {
-    const [detail] = toAirportDetails(
+    const [detail] = withDetails(
       [detailRow({ id: 1 })],
       [
         runwayRow({ id: 1, leIdent: '18' }),
@@ -226,7 +278,7 @@ describe('toAirportDetails', () => {
 
   it('veri tarihi: havalimanı, pist ve pist düzeltmesinin en yenisi', () => {
     const at = (iso: string) => new Date(iso)
-    const [detail] = toAirportDetails(
+    const [detail] = withDetails(
       [detailRow({ id: 1, updatedAt: at('2026-09-01T00:00:00Z') })],
       [
         runwayRow({ id: 1, updatedAt: at('2026-09-02T00:00:00Z') }),
@@ -239,12 +291,12 @@ describe('toAirportDetails', () => {
       [],
     )
     expect(detail?.dataUpdatedAt).toBe('2026-09-03T12:00:00.000Z')
-    const [plain] = toAirportDetails([detailRow({ updatedAt: at('2026-09-05T00:00:00Z') })], [], [])
+    const [plain] = withDetails([detailRow({ updatedAt: at('2026-09-05T00:00:00Z') })], [], [])
     expect(plain?.dataUpdatedAt).toBe('2026-09-05T00:00:00.000Z')
   })
 
   it('liste kuralı aynen uygulanır: IATA sırası, tekil ICAO, IATA kodu olmayan yok', () => {
-    const details = toAirportDetails(
+    const details = withDetails(
       [
         detailRow({ id: 1, ident: 'LTFM', icaoCode: 'LTFM', iataCode: 'IST', name: 'İlk' }),
         detailRow({ id: 2, ident: 'LTAC', icaoCode: 'LTAC', iataCode: 'ESB' }),
@@ -263,12 +315,199 @@ describe('toAirportDetails', () => {
   })
 
   it('sürücü sayıyı metin verirse sayıya çevrilir', () => {
-    const [detail] = toAirportDetails(
+    const [detail] = withDetails(
       [detailRow({ id: 1 })],
       [runwayRow({ leTrueBearingDeg: '175.5' as unknown as number, heThresholdLat: null })],
       [],
     )
     expect(detail?.runways[0]?.ends[0].trueBearingDeg).toBe(175.5)
     expect(detail?.runways[0]?.ends[1].thresholdLat).toBeNull()
+  })
+})
+
+describe('halka hesabı', () => {
+  it('greatCircleKm ve nearestDistanceKm: ekvatorda 1° ≈ 111,2 km; referans yoksa sonsuz', () => {
+    expect(greatCircleKm({ lat: 0, lon: 0 }, { lat: 0, lon: 1 })).toBeCloseTo(111.195, 2)
+    expect(greatCircleKm({ lat: 41, lon: 29 }, { lat: 41, lon: 29 })).toBe(0)
+    const refs = [
+      { lat: 0, lon: 0 },
+      { lat: 0, lon: 3 },
+    ]
+    expect(nearestDistanceKm({ lat: 0, lon: 4 }, refs)).toBeCloseTo(111.195, 2)
+    expect(nearestDistanceKm({ lat: 0, lon: 4 }, [])).toBe(Number.POSITIVE_INFINITY)
+  })
+
+  it('ringForDistance: sınır dahil; sınırların ötesi son halka (shared airportRing ile aynı)', () => {
+    expect(ringForDistance(0, RINGS_KM)).toBe(1)
+    expect(ringForDistance(500, RINGS_KM)).toBe(1)
+    expect(ringForDistance(500.01, RINGS_KM)).toBe(2)
+    expect(ringForDistance(2000, RINGS_KM)).toBe(3)
+    expect(ringForDistance(5000.1, RINGS_KM)).toBe(5)
+    expect(ringForDistance(Number.POSITIVE_INFINITY, RINGS_KM)).toBe(5)
+    expect(ringForDistance(10, [])).toBe(1)
+  })
+
+  it('turkishReferencePoints: Türkiye, IATA kodlu büyük/orta/küçük alanlar (tarifesiz dahil)', () => {
+    const points = turkishReferencePoints([
+      row({ latitudeDeg: 1, iataCode: 'IST' }),
+      row({ latitudeDeg: 2, iataCode: ' gkd ', type: 'small_airport', scheduledService: false }),
+      row({ latitudeDeg: 3, iataCode: null }),
+      row({ latitudeDeg: 4, iataCode: 'A1B' }),
+      row({ latitudeDeg: 5, iataCode: 'HPX', type: 'heliport' }),
+      row({ latitudeDeg: 6, iataCode: 'ATH', isoCountry: 'GR' }),
+      row({ latitudeDeg: 7, iataCode: 'XXA', isoCountry: ' tr ' }),
+    ])
+    expect(points.map((p) => p.lat)).toEqual([1, 2, 7])
+    // Kimlik listedeki kuralla: ICAO, yoksa GPS kodu, o da yoksa ident; IATA büyük harf.
+    expect(points[1]).toEqual({
+      lat: 2,
+      lon: 28.7419,
+      icao: 'LTFM',
+      iata: 'GKD',
+      name: 'Istanbul Airport',
+    })
+    const [byGps, byIdent] = turkishReferencePoints([
+      row({ icaoCode: null, gpsCode: ' ltxa ', ident: 'TR-0001', name: ' Gökçeada Airport ' }),
+      row({ icaoCode: null, gpsCode: null, ident: ' tr-0002 ' }),
+    ])
+    expect(byGps).toMatchObject({ icao: 'LTXA', name: 'Gökçeada Airport' })
+    expect(byIdent?.icao).toBe('TR-0002')
+  })
+
+  it('nearestReference: en yakın referans ve uzaklığı; eşitlikte önce gelen; referans yoksa null', () => {
+    const refs = [
+      { lat: 0, lon: -1, id: 'west' },
+      { lat: 0, lon: 1, id: 'east' },
+      { lat: 0, lon: 3, id: 'far' },
+    ]
+    expect(nearestReference({ lat: 0, lon: 0 }, refs)?.reference.id).toBe('west')
+    const near = nearestReference({ lat: 0, lon: 2.9 }, refs)
+    expect(near?.reference.id).toBe('far')
+    expect(near?.km).toBeCloseTo(11.12, 1)
+    expect(nearestReference({ lat: 0, lon: 0 }, [])).toBeNull()
+  })
+})
+
+/** Ekvatorda tek Türkiye referansı (0, 0): boylam farkı × 111,195 km. */
+const EQUATOR_REFERENCE = { lat: 0, lon: 0, icao: 'LTFK', iata: 'GKD', name: 'Gökçeada Airport' }
+const EQUATOR: RingContext = { turkey: [EQUATOR_REFERENCE], ringsKm: RINGS_KM }
+
+const foreign = (overrides: Partial<AirportSourceRow>): AirportSourceRow =>
+  row({
+    isoCountry: 'GR',
+    latitudeDeg: 0,
+    municipality: null,
+    ...overrides,
+  })
+
+describe('yurt dışı kayıtları', () => {
+  it('toListedAirports: ülke kırpılıp büyük harfe çevrilir; halka ve tam km uzaklık', () => {
+    const list = toListedAirports(
+      [
+        foreign({ ident: 'LGAV', icaoCode: 'LGAV', iataCode: 'ATH', longitudeDeg: 4 }),
+        foreign({
+          ident: 'EGLL',
+          icaoCode: 'EGLL',
+          iataCode: 'LHR',
+          longitudeDeg: 10,
+          isoCountry: ' gb ',
+        }),
+        // Türkiye satırı halka 0, uzaklık null (konumu ne olursa olsun).
+        row({ longitudeDeg: 50, latitudeDeg: 0 }),
+      ],
+      EQUATOR,
+    )
+    expect(list.map((a) => [a.icao, a.country, a.ring, a.distanceToTrKm])).toEqual([
+      ['LGAV', 'GR', 1, 445],
+      ['LTFM', 'TR', 0, null],
+      ['EGLL', 'GB', 3, 1112],
+    ])
+  })
+
+  it('Türkiye referansı yoksa yurt dışı kaydı son halkada, uzaklığı null', () => {
+    const [airport] = toListedAirports(
+      [foreign({ ident: 'LGAV', icaoCode: 'LGAV', iataCode: 'ATH' })],
+      { turkey: [], ringsKm: RINGS_KM },
+    )
+    expect(airport).toMatchObject({ ring: 5, distanceToTrKm: null })
+  })
+
+  it('selectListedAirports: Türkiye + açık halkadaki adaylar; aday kuralı ve halka süzgeci', () => {
+    const rows = [
+      row({ id: 1, ident: 'LTFM', icaoCode: 'LTFM', iataCode: 'IST' }),
+      // Tarifesiz orta Türkiye havalimanı listelenir (bugünkü 61 kuralı).
+      row({
+        id: 2,
+        ident: 'LTBA',
+        icaoCode: 'LTBA',
+        iataCode: 'ISL',
+        type: 'medium_airport',
+        scheduledService: false,
+      }),
+      foreign({ id: 3, ident: 'LGAV', icaoCode: 'LGAV', iataCode: 'ATH', longitudeDeg: 4 }),
+      // 500 km'nin hemen ötesi: 2. halka.
+      foreign({ id: 4, ident: 'LGTS', icaoCode: 'LGTS', iataCode: 'SKG', longitudeDeg: 4.6 }),
+      // Aday değil: küçük havalimanı, tarifesiz orta havalimanı, IATA kodu bozuk.
+      foreign({ id: 5, ident: 'LGXA', icaoCode: 'LGXA', iataCode: 'XAA', type: 'small_airport' }),
+      foreign({
+        id: 6,
+        ident: 'LGXB',
+        icaoCode: 'LGXB',
+        iataCode: 'XBB',
+        type: 'medium_airport',
+        scheduledService: false,
+      }),
+      foreign({ id: 7, ident: 'LGXC', icaoCode: 'LGXC', iataCode: 'X1' }),
+      // Yurt dışı orta, tarifeli: aday; 1. halkada.
+      foreign({
+        id: 8,
+        ident: 'ORSU',
+        icaoCode: 'ORSJ',
+        iataCode: 'isu',
+        type: 'medium_airport',
+        longitudeDeg: -2,
+        isoCountry: 'IQ',
+      }),
+    ]
+    const ringOne = selectListedAirports(rows, { ...EQUATOR, enabledRing: 1 })
+    expect(ringOne.map((a) => `${a.iata}/${a.icao}/${a.ring}`)).toEqual([
+      'ATH/LGAV/1',
+      'ISL/LTBA/0',
+      'IST/LTFM/0',
+      'ISU/ORSJ/1',
+    ])
+    const ringTwo = selectListedAirports(rows, { ...EQUATOR, enabledRing: 2 })
+    expect(ringTwo.map((a) => a.icao)).toEqual(['LGAV', 'LTBA', 'LTFM', 'ORSJ', 'LGTS'])
+    expect(ringTwo.find((a) => a.icao === 'LGTS')).toMatchObject({ ring: 2, distanceToTrKm: 511 })
+    expect(selectListedAirports(rows, { ...EQUATOR, enabledRing: 0 }).map((a) => a.icao)).toEqual([
+      'LTBA',
+      'LTFM',
+    ])
+  })
+
+  it('toAirportDetails: yurt dışı kaydı ülke, halka, uzaklık ve uzaklığın ölçüldüğü Türkiye havalimanını taşır', () => {
+    const [detail] = toAirportDetails(
+      [
+        {
+          ...foreign({ id: 3, ident: 'LCEN', icaoCode: 'LCEN', iataCode: 'ECN', longitudeDeg: 2 }),
+          isoCountry: 'CY',
+          isoRegion: 'CY-02',
+          updatedAt: new Date('2026-10-01T23:03:00Z'),
+        },
+      ],
+      [],
+      [],
+      EQUATOR,
+    )
+    expect(detail).toMatchObject({
+      icao: 'LCEN',
+      country: 'CY',
+      ring: 1,
+      distanceToTrKm: 222,
+      // Uzaklık listelenmeyen küçük alana da ölçülebilir (Gökçeada; D-080).
+      nearestTr: { icao: 'LTFK', iata: 'GKD', name: 'Gökçeada Airport' },
+      isoRegion: 'CY-02',
+      station: null,
+    })
   })
 })

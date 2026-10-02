@@ -31,10 +31,14 @@ export interface Phrase {
   params?: Readonly<Record<string, WeatherParam>>
 }
 
-/** Ayraçla birleşen parçalar: virgül ", ", nokta " · ", noktalı virgül "; ". */
+/**
+ * Ayraçla birleşen parçalar: virgül ", " ya da noktalı virgül "; ". Orta nokta " · " kullanılmaz:
+ * sayıdan önce eksi işareti gibi okunur ("Çok bulutlu · 16 °C" → "−16"; kullanıcı kararı
+ * 2026-10-02).
+ */
 export interface PhraseList {
   list: readonly WeatherText[]
-  separator: 'comma' | 'dot' | 'semicolon'
+  separator: 'comma' | 'semicolon'
 }
 
 export type WeatherText = Phrase | PhraseList | Measure
@@ -42,7 +46,6 @@ export type WeatherParam = WeatherText | string | number
 
 const SEPARATORS: Record<PhraseList['separator'], string> = {
   comma: ', ',
-  dot: ' · ',
   semicolon: '; ',
 }
 
@@ -224,7 +227,7 @@ function renderInner(value: WeatherParam, ctx: WeatherRenderContext): string {
 
 /**
  * Özet parçasını metne çevirir: iç içe parçalar küçük harfle başlar, bütün metnin ilk harfi büyür
- * ("Kuzeydoğudan 33 km/sa · hamle 59 km/sa"). Eksik değişken hata fırlatır (sessiz boş metin olmaz).
+ * ("Kuzeydoğudan 33 km/sa, hamle 59 km/sa"). Eksik değişken hata fırlatır (sessiz boş metin olmaz).
  */
 export function renderWeatherText(
   value: WeatherText,

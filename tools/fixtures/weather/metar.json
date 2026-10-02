@@ -1,5 +1,123 @@
 [
   {
+    "icaoId": "LCEN",
+    "receiptTime": "2026-01-15 12:53:00.000Z",
+    "obsTime": 1768481400,
+    "reportTime": "2026-01-15 12:50:00.000Z",
+    "temp": 18,
+    "dewp": 9,
+    "wdir": 270,
+    "wspd": 10,
+    "visib": "6+",
+    "altim": 1012,
+    "metarType": "METAR",
+    "rawOb": "LCEN 151250Z 27010KT 9999 FEW030 SCT100 18/09 Q1012 NOSIG",
+    "lat": 35.155,
+    "lon": 33.496,
+    "elev": 123,
+    "name": "Ercan, CY",
+    "clouds": [
+      {
+        "cover": "FEW",
+        "base": 3000
+      },
+      {
+        "cover": "SCT",
+        "base": 10000
+      }
+    ],
+    "fltCat": "VFR"
+  },
+  {
+    "icaoId": "LCLK",
+    "receiptTime": "2026-01-15 12:53:00.000Z",
+    "obsTime": 1768481400,
+    "reportTime": "2026-01-15 12:50:00.000Z",
+    "temp": 17,
+    "dewp": 12,
+    "wdir": 240,
+    "wspd": 14,
+    "visib": "6+",
+    "altim": 1011,
+    "wxString": "-SHRA",
+    "metarType": "METAR",
+    "rawOb": "LCLK 151250Z 24014KT 9999 -SHRA FEW018CB SCT025 BKN080 17/12 Q1011 NOSIG",
+    "lat": 34.875,
+    "lon": 33.625,
+    "elev": 2,
+    "name": "Larnaca Intl, CY",
+    "clouds": [
+      {
+        "cover": "FEW",
+        "base": 1800
+      },
+      {
+        "cover": "SCT",
+        "base": 2500
+      },
+      {
+        "cover": "BKN",
+        "base": 8000
+      }
+    ],
+    "fltCat": "VFR"
+  },
+  {
+    "icaoId": "LGAV",
+    "receiptTime": "2026-01-15 12:53:00.000Z",
+    "obsTime": 1768481400,
+    "reportTime": "2026-01-15 12:50:00.000Z",
+    "temp": 13,
+    "dewp": 4,
+    "wdir": 20,
+    "wspd": 16,
+    "visib": "6+",
+    "altim": 1019,
+    "metarType": "METAR",
+    "rawOb": "LGAV 151250Z 02016KT 9999 FEW025 SCT040 13/04 Q1019 NOSIG",
+    "lat": 37.936,
+    "lon": 23.944,
+    "elev": 94,
+    "name": "Athens/Venizelos Intl, AT, GR",
+    "clouds": [
+      {
+        "cover": "FEW",
+        "base": 2500
+      },
+      {
+        "cover": "SCT",
+        "base": 4000
+      }
+    ],
+    "fltCat": "VFR"
+  },
+  {
+    "icaoId": "LGTS",
+    "receiptTime": "2026-01-15 12:53:00.000Z",
+    "obsTime": 1768481400,
+    "reportTime": "2026-01-15 12:50:00.000Z",
+    "temp": 5,
+    "dewp": -6,
+    "wdir": 320,
+    "wspd": 26,
+    "wgst": 38,
+    "visib": "6+",
+    "altim": 1024,
+    "metarType": "METAR",
+    "rawOb": "LGTS 151250Z 32026G38KT 9999 FEW030 05/M06 Q1024 NOSIG",
+    "lat": 40.52,
+    "lon": 22.971,
+    "elev": 5,
+    "name": "Thessaloniki/Makedonia, GR",
+    "clouds": [
+      {
+        "cover": "FEW",
+        "base": 3000
+      }
+    ],
+    "fltCat": "VFR"
+  },
+  {
     "icaoId": "LTAC",
     "receiptTime": "2026-01-15 12:53:00.000Z",
     "obsTime": 1768481400,
@@ -336,6 +454,59 @@
       }
     ],
     "fltCat": "IFR"
+  },
+  {
+    "icaoId": "LBSF",
+    "receiptTime": "2026-01-15 12:33:00.000Z",
+    "obsTime": 1768480200,
+    "reportTime": "2026-01-15 12:30:00.000Z",
+    "temp": -3,
+    "dewp": -3,
+    "wdir": "VRB",
+    "wspd": 1,
+    "visib": 0.19,
+    "altim": 1032,
+    "wxString": "FZFG",
+    "vertVis": 100,
+    "metarType": "METAR",
+    "rawOb": "LBSF 151230Z VRB01KT 0300 R09/0550N R27/0450D FZFG VV001 M03/M03 Q1032 BECMG 0800 BR",
+    "lat": 42.695,
+    "lon": 23.406,
+    "elev": 531,
+    "name": "Sofia, SF, BG",
+    "clouds": [
+      {
+        "cover": "OVX",
+        "base": 0
+      }
+    ],
+    "fltCat": "LIFR"
+  },
+  {
+    "icaoId": "UGTB",
+    "receiptTime": "2026-01-15 12:33:00.000Z",
+    "obsTime": 1768480200,
+    "reportTime": "2026-01-15 12:30:00.000Z",
+    "temp": 3,
+    "dewp": -1,
+    "wdir": 310,
+    "wspd": 12,
+    "visib": 3.73,
+    "altim": 1027,
+    "wxString": "BR",
+    "metarType": "METAR",
+    "rawOb": "UGTB 151230Z 31006MPS 6000 BR BKN025 03/M01 Q1027 NOSIG",
+    "lat": 41.669,
+    "lon": 44.955,
+    "elev": 495,
+    "name": "Tbilisi Intl, GE",
+    "clouds": [
+      {
+        "cover": "BKN",
+        "base": 2500
+      }
+    ],
+    "fltCat": "MVFR"
   },
   {
     "icaoId": "LTFM",

@@ -4,12 +4,17 @@ import { coveragePlan, planCoversPoint, type PlannedCircle } from '@havayolu/geo
 import { airportNameSource, type AirportDetail } from '@havayolu/shared'
 import { cache } from 'react'
 import { z } from 'zod'
-// Göreli yol: vitest `@/` takma adını çözmez; bu modül ve onu kullanan SEO dosyaları testte yüklenir.
+// Göreli yollar: vitest `@/` takma adını çözmez; bu modül ve onu kullanan SEO dosyaları testte yüklenir.
+import { isTurkish } from '../components/airports/airport-text'
 import { getServerEnv } from './env'
 
+export { isTurkish } from '../components/airports/airport-text'
+
 /**
- * Havalimanı sayfalarının (M6b) tek veri çağrısı: `GET /v1/airports?country=TR&include=runways`.
- * Sayfa, üst veri, site haritası, llms.txt ve paylaşım görseli hepsi bu listeden türetilir.
+ * Havalimanı sayfalarının (M6b) tek veri çağrısı: `GET /v1/airports?scope=listed&include=runways`.
+ * "Listelenen havalimanları" (D-080): IATA kodlu Türkiye havalimanları ve açık halkalardaki
+ * (`ENABLED_AIRPORT_RING`) yakın ülke havalimanları; halka üyeliğini API hesaplar. Sayfa, üst veri,
+ * site haritası, llms.txt ve paylaşım görseli hepsi bu listeden türetilir.
  *
  * - Next veri önbelleği: 1 saat (`revalidate`), etiket `airports`. İçe aktarım günde bir çalışır;
  *   API'nin kendi 10 dk önbelleği de vardır. Saatte bir istek, web konteynerinin API'deki tek hız
@@ -25,7 +30,8 @@ import { getServerEnv } from './env'
  *   en çok dakikada bir istek gider ve içe aktarım bitince sayfalar bir dakika içinde dolar.
  */
 
-export const AIRPORTS_COUNTRY = 'TR'
+/** Listenin kapsamı (`GET /v1/airports?scope=listed`, D-080); hava durumu da aynı kapsamla istenir. */
+export const AIRPORTS_SCOPE = 'listed'
 /** Next veri önbelleği süresi, saniye. */
 export const AIRPORTS_REVALIDATE_S = 3600
 /** Saatlik kayıttaki liste boşsa kullanılan kısa süreli önbellek kaydının süresi, saniye. */
@@ -77,6 +83,12 @@ const airportSchema: z.ZodType<AirportDetail> = z.object({
   scheduled: z.boolean(),
   isoRegion: z.string(),
   municipality: z.string().nullable(),
+  country: z.string().regex(/^[A-Z]{2}$/),
+  ring: z.number().int().min(0),
+  distanceToTrKm: finite.min(0).nullable(),
+  nearestTr: z
+    .object({ icao: z.string().min(1), iata: z.string(), name: z.string().min(1) })
+    .nullable(),
   station: z
     .object({ active: z.boolean(), primary: z.boolean(), fetchRadiusNm: finite.positive() })
     .nullable(),
@@ -84,12 +96,13 @@ const airportSchema: z.ZodType<AirportDetail> = z.object({
   runways: z.array(runwaySchema),
 })
 
-const responseSchema = z.object({ country: z.string(), airports: z.array(z.unknown()) })
+/** Zarf: `scope=listed` yanıtında `country` yoktur; yalnızca liste denetlenir. */
+const responseSchema = z.object({ airports: z.array(z.unknown()) })
 
 /** API'nin iç adresinden liste adresi (`API_INTERNAL_URL`, D-060). */
 export function airportsUrl(apiInternalUrl: string): string {
   const url = new URL('/v1/airports', apiInternalUrl)
-  url.searchParams.set('country', AIRPORTS_COUNTRY)
+  url.searchParams.set('scope', AIRPORTS_SCOPE)
   url.searchParams.set('include', 'runways')
   return url.toString()
 }
@@ -128,9 +141,9 @@ async function fetchAirports(url: string, revalidateS: number): Promise<AirportD
 }
 
 /**
- * Türkiye'nin IATA kodlu havalimanları, pistleri ve istasyon bilgisiyle. Saatlik kayıttaki liste
- * boşsa (ilk kurulumda içe aktarım bitmeden alınmış) dakikalık kayda bakılır; önbelleksiz istek
- * atılmaz. Saatlik kayıt süresi dolunca kendiliğinden dolu listeyle yenilenir.
+ * Listelenen havalimanları (Türkiye ve yakın ülkeler), pistleri ve istasyon bilgisiyle. Saatlik
+ * kayıttaki liste boşsa (ilk kurulumda içe aktarım bitmeden alınmış) dakikalık kayda bakılır;
+ * önbelleksiz istek atılmaz. Saatlik kayıt süresi dolunca kendiliğinden dolu listeyle yenilenir.
  */
 export const getAirports = cache(async (): Promise<AirportDetail[]> => {
   const url = airportsUrl(getServerEnv().API_INTERNAL_URL)
@@ -182,7 +195,8 @@ function redirect(airport: AirportDetail): AirportCodeResolution {
  * işletmeci kaynağından doğrulanan sivil havalimanları, izlenen istasyonlar ve OurAirports'ta tarifeli
  * seferi kayıtlı olanlar. OurAirports `scheduled_service` bayrağı tek başına ölçüt değildir: bazı
  * sivil havalimanlarında güncel değildir (Siirt, Kocaeli). Kalanlar (resmî adı doğrulanamayan askerî
- * üsler) `noindex, follow` alır ve site haritasına girmez.
+ * üsler) `noindex, follow` alır ve site haritasına girmez. Yakın ülkelerdeki listelenen havalimanları
+ * aday kuralı gereği tarifelidir (`isForeignCandidate`), hepsi dizine eklenir (D-080).
  */
 export function isIndexable(airport: AirportDetail): boolean {
   return (
@@ -190,6 +204,16 @@ export function isIndexable(airport: AirportDetail): boolean {
     airport.station !== null ||
     airportNameSource(airport.icao) !== 'ourairports'
   )
+}
+
+/** Listenin Türkiye kısmı ve yakın ülkeler kısmı, listedeki sırayla. */
+export function splitByCountry<T extends Pick<AirportDetail, 'country'>>(
+  airports: readonly T[],
+): { turkey: T[]; foreign: T[] } {
+  const turkey: T[] = []
+  const foreign: T[] = []
+  for (const airport of airports) (isTurkish(airport) ? turkey : foreign).push(airport)
+  return { turkey, foreign }
 }
 
 /** Havalimanı şu an izlenen (etkin) bir istasyon mu. */
@@ -242,14 +266,48 @@ export function nearestAirports(
     .slice(0, Math.max(0, n))
 }
 
-/** Aynı ildeki diğer havalimanları (ISO 3166-2 koduna göre), ICAO sırasıyla. */
+/**
+ * Aynı ildeki diğer havalimanları (ISO 3166-2 koduna göre), ICAO sırasıyla. Yalnızca Türkiye'de:
+ * "… ilindeki diğer havalimanları" cümlesi yabancı havalimanında kurulmaz (D-080).
+ */
 export function sameProvinceAirports(
   airport: AirportDetail,
   all: readonly AirportDetail[],
 ): AirportDetail[] {
+  if (!isTurkish(airport)) return []
   return all
-    .filter((other) => other.isoRegion === airport.isoRegion && other.icao !== airport.icao)
+    .filter(
+      (other) =>
+        isTurkish(other) && other.isoRegion === airport.isoRegion && other.icao !== airport.icao,
+    )
     .sort((a, b) => a.icao.localeCompare(b.icao))
+}
+
+/** Yabancı havalimanına Türkiye'deki en yakın havalimanı ve listedeki kaydı. */
+export interface NearestTurkishAirportView {
+  /** API'nin `nearestTr` kaydı: Türkiye'deki en yakın IATA kodlu havalimanı. */
+  reference: NonNullable<AirportDetail['nearestTr']>
+  /** Listedeki kaydı (sayfası olan havalimanı); listelenmeyen küçük alanda null. */
+  listed: AirportDetail | null
+  /** Uzaklık, km: API'nin `distanceToTrKm`'i (listedeki tabloyla aynı sayı). */
+  distanceKm: number
+}
+
+/**
+ * Yabancı havalimanına Türkiye'deki en yakın IATA kodlu havalimanı (D-080). API hesaplar
+ * (`nearestTr`, `distanceToTrKm`); bu, listelenmeyen küçük bir alan da olabilir
+ * (Gökçeada gibi): o zaman `listed` null'dır ve sayfa bağlantı vermez. Türkiye havalimanında ya da
+ * API bu alanları vermediyse null.
+ */
+export function nearestTurkishAirport(
+  airport: AirportDetail,
+  all: readonly AirportDetail[],
+): NearestTurkishAirportView | null {
+  const reference = airport.nearestTr
+  if (isTurkish(airport) || reference === null || airport.distanceToTrKm === null) return null
+  const listed =
+    all.find((other) => isTurkish(other) && other.icao === reference.icao.toUpperCase()) ?? null
+  return { reference, listed, distanceKm: airport.distanceToTrKm }
 }
 
 /** Listedeki en yeni veri değişikliği (ISO 8601); liste boşsa null. */
