@@ -239,6 +239,8 @@ export async function startJobs({
 
   const weather = weatherMode(env, version, undefined, now)
   const weatherStore = databaseWeatherStore(database)
+  /** METAR kaydı denetlenmiş ya da doldurulmuş istasyonlar; süreç boyunca (runWeatherMetar). */
+  const metarBackfilled = new Set<string>()
   if (weather.kind === 'disabled') {
     log.warn({ reason: weather.reason }, 'hava durumu (METAR/TAF) kapalı')
     await recordWeatherSourcesDisabled(weatherStore, weather.reason, log)
@@ -306,6 +308,7 @@ export async function startJobs({
           origin: weather.origin,
           log,
           now,
+          backfilled: metarBackfilled,
         })
         logWeather(job.name, result)
         return result

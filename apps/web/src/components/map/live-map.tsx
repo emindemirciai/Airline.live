@@ -226,9 +226,9 @@ export function LiveMap({
     subscribeViewport(INITIAL_VIEWPORT.bounds, INITIAL_VIEWPORT.zoom)
   }, [subscribeViewport])
 
-  // Havalimanları (pistleriyle, havalimanı penceresi için) bir kez yüklenir; yüklenemezse harita
-  // onlarsız çalışır. `?havalimani=` hedefi listede varsa harita havalimanı merkezine gider (harita
-  // henüz kurulmadıysa doğrudan orada açılır).
+  // Listelenen havalimanları (Türkiye ve yakın ülkeler, D-080; pistleriyle, havalimanı penceresi
+  // için) bir kez yüklenir; yüklenemezse harita onlarsız çalışır. `?havalimani=` hedefi listede
+  // varsa harita havalimanı merkezine gider (harita henüz kurulmadıysa doğrudan orada açılır).
   useEffect(() => {
     const controller = new AbortController()
     fetchMapAirports(config.apiBaseUrl, controller.signal).then(

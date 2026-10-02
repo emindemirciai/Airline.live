@@ -36,9 +36,10 @@ interface LoadedAirport {
 
 /**
  * Adresteki kodu çözer. Kanonik biçim büyük harfli ICAO'dur (D-076): küçük harfli kod ve IATA kodu
- * kalıcı yönlendirme (308), bilinmeyen kod gerçek 404 alır. Bu karar Suspense sınırından ve akıştan
- * önce verilir; akış başladıktan sonra durum kodu 200'e kilitlenir (yumuşak 404). Bu yüzden bu
- * klasörde `loading.tsx` yoktur (M6b brief §g).
+ * kalıcı yönlendirme (308), bilinmeyen kod gerçek 404 alır. Kod listelenen havalimanlarında
+ * (Türkiye ve yakın ülkeler, D-080) aranır: veritabanında olup listelenmeyen yabancı havalimanı da
+ * 404'tür. Bu karar Suspense sınırından ve akıştan önce verilir; akış başladıktan sonra durum kodu
+ * 200'e kilitlenir (yumuşak 404). Bu yüzden bu klasörde `loading.tsx` yoktur (M6b brief §g).
  */
 async function loadAirport(params: Promise<{ icao: string }>): Promise<LoadedAirport> {
   const [{ icao }, locale, airports] = await Promise.all([params, getLocale(), getAirports()])
@@ -72,7 +73,8 @@ export async function generateMetadata({
 }
 
 /**
- * Havalimanı sayfası (`/istasyon/<ICAO>`, EN `/en/istasyon/<ICAO>`), M6b brief §g. Hava durumu ve
+ * Havalimanı sayfası (`/istasyon/<ICAO>`, EN `/en/istasyon/<ICAO>`), M6b brief §g; yakın ülkelerdeki
+ * listelenen havalimanları da aynı sayfayla açılır (M6d, D-080). Hava durumu ve
  * METAR/TAF kaydı (M6c) Suspense içinde gelir: 404/308 kararı ondan önce verilir, hava durumu isteği
  * gövdenin geri kalanını bekletmez. Başlık, açıklama, JSON-LD ve paylaşım görseli hava durumu
  * içermez (D-078).

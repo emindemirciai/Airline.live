@@ -8,9 +8,14 @@ import {
   type Messages,
 } from '@havayolu/i18n'
 import {
+  airportCountryName,
   airportDisplayName,
   airportDistrict,
+  airportLocality,
+  airportRingLimitKm,
+  ENABLED_AIRPORT_RING,
   provinceName,
+  TURKEY_COUNTRY,
   type AirportDetail,
   type Locale,
   type RunwayDetail,
@@ -24,6 +29,20 @@ import {
 
 const INTL_LOCALE: Record<Locale, string> = { tr: 'tr-TR', en: 'en-GB' }
 
+/** Havalimanı Türkiye'de mi (`country`, OurAirports `iso_country`; D-080). */
+export function isTurkish(airport: Pick<AirportDetail, 'country'>): boolean {
+  return airport.country === TURKEY_COUNTRY
+}
+
+/**
+ * Listelenen yabancı havalimanlarının Türkiye'ye en büyük uzaklığı, km: açık son halkanın sınırı
+ * (`airportRingLimitKm(ENABLED_AIRPORT_RING)`, D-080; 1. halkada 500). Son halka (dünyanın geri
+ * kalanı) açıksa sınır yoktur: null.
+ */
+export function listedRadiusKm(): number | null {
+  return airportRingLimitKm(ENABLED_AIRPORT_RING)
+}
+
 /** Havalimanının görünen adı: resmî Türkçe ad (TR) ya da İngilizce karşılığı; yoksa OurAirports adı. */
 export function airportName(airport: AirportDetail, locale: Locale): string {
   return airportDisplayName(airport, locale)
@@ -31,7 +50,7 @@ export function airportName(airport: AirportDetail, locale: Locale): string {
 
 /**
  * İl adı; bölge kodu tanınmazsa temiz biçimdeki OurAirports yerleşim adı (`airportDistrict`), o da
- * yoksa ülke adı.
+ * yoksa ülke adı. Yalnızca Türkiye havalimanları içindir; genel yer etiketi `airportPlace`'tir.
  */
 export function airportProvince(airport: AirportDetail, locale: Locale): string {
   return (
@@ -39,6 +58,50 @@ export function airportProvince(airport: AirportDetail, locale: Locale): string 
     airportDistrict(airport) ??
     getMessages(locale).airport.country
   )
+}
+
+/**
+ * Ülke adı, sayfanın dilinde (`Intl.DisplayNames`; Ercan için KKTC, D-080): "Yunanistan" / "Greece".
+ * Kısa biçim (varsayılan) tablolarda ve yer satırında, uzun biçim olgu listesinde kullanılır.
+ */
+export function airportCountry(
+  airport: AirportDetail,
+  locale: Locale,
+  style: 'short' | 'long' = 'short',
+): string {
+  return airportCountryName(airport, locale, style)
+}
+
+/**
+ * Olgu listesindeki ülke: uzun ad; kısaltması ayrıysa ayraç içinde ("Kuzey Kıbrıs Türk Cumhuriyeti
+ * (KKTC)"). Diğer ülkelerde tek ad ("Yunanistan").
+ */
+export function airportCountryFull(airport: AirportDetail, locale: Locale): string {
+  const long = airportCountry(airport, locale, 'long')
+  const short = airportCountry(airport, locale, 'short')
+  return long === short ? long : `${long} (${short})`
+}
+
+/**
+ * Havalimanının yer etiketi: Türkiye'de il, yakın ülkelerde ülke (D-080). Liste tablosunun il ve
+ * ülke sütunları, en yakın havalimanları ve üst veri açıklaması bunu yazar.
+ */
+export function airportPlace(airport: AirportDetail, locale: Locale): string {
+  return isTurkish(airport) ? airportProvince(airport, locale) : airportCountry(airport, locale)
+}
+
+/**
+ * Başlığın altındaki yer satırı: "İstanbul, Türkiye". Yakın ülkelerde şehir ve ülke, sayfanın
+ * dilinde ("Selanik, Yunanistan" / "Thessaloniki, Greece"; `airportLocality`, küratörlü şehir
+ * tablosu). Şehir bilinmiyorsa (tabloda olmayan havalimanının Türkçe sayfası) yalnızca ülke yazılır:
+ * OurAirports'un İngilizce yerleşim adı Türkçe adın altına düşmez.
+ */
+export function airportLocation(airport: AirportDetail, locale: Locale): string {
+  const t = getMessages(locale).airport
+  if (isTurkish(airport)) return format(t.location, { province: airportProvince(airport, locale) })
+  const country = airportCountry(airport, locale)
+  const city = airportLocality(airport, locale)
+  return city === null ? country : format(t.locationAbroad, { city, country })
 }
 
 /** Uzunluk (ft girdi), metrik önce: "3.750 m (12.303 ft)". Bilinmiyorsa "—". */
@@ -137,9 +200,10 @@ export function airportTitle(airport: AirportDetail, locale: Locale): string {
 }
 
 /**
- * Arama sonucu açıklaması, veriden: il, pist sayısı ve en uzun pist, rakım. Tarife, rötar ya da
- * hava durumu vaat etmez (M6b brief §b, §i). Havalimanı canlı veri çekim alanının dışındaysa
- * (`covered` false; lib/airports.ts → `isInLiveCoverage`) çevredeki uçakları da vaat etmez.
+ * Arama sonucu açıklaması, veriden: il (yakın ülkelerde ülke), pist sayısı ve en uzun pist, rakım.
+ * Tarife, rötar ya da hava durumu vaat etmez (M6b brief §b, §i). Havalimanı canlı veri çekim
+ * alanının dışındaysa (`covered` false; lib/airports.ts → `isInLiveCoverage`) çevredeki uçakları da
+ * vaat etmez.
  */
 export function airportDescription(
   airport: AirportDetail,
@@ -161,11 +225,11 @@ export function airportDescription(
     facts.push(format(t.elevation, { elevation: formatMeters(airport.elevationFt, locale) }))
   }
   const name = airportName(airport, locale)
-  const province = airportProvince(airport, locale)
+  const place = airportPlace(airport, locale)
   const live = covered ? t.liveCovered : t.liveOutside
   return facts.length > 0
-    ? format(t.description, { name, province, facts: facts.join('; '), live })
-    : format(t.descriptionNoFacts, { name, province, live })
+    ? format(t.description, { name, place, facts: facts.join('; '), live })
+    : format(t.descriptionNoFacts, { name, place, live })
 }
 
 /** Havalimanlarını ile, sonra ada göre sayfanın dilinin alfabesiyle sıralar. */
@@ -177,6 +241,20 @@ export function sortByProvince(
   return airports.toSorted(
     (a, b) =>
       collator.compare(airportProvince(a, locale), airportProvince(b, locale)) ||
+      collator.compare(airportName(a, locale), airportName(b, locale)) ||
+      a.icao.localeCompare(b.icao),
+  )
+}
+
+/**
+ * Yakın ülkelerdeki havalimanlarını ülkeye, sonra ada göre sayfanın dilinin alfabesiyle sıralar
+ * (Türkçe sayfada Türkçe sıralama; D-080).
+ */
+export function sortByCountry(airports: readonly AirportDetail[], locale: Locale): AirportDetail[] {
+  const collator = new Intl.Collator(INTL_LOCALE[locale])
+  return airports.toSorted(
+    (a, b) =>
+      collator.compare(airportCountry(a, locale), airportCountry(b, locale)) ||
       collator.compare(airportName(a, locale), airportName(b, locale)) ||
       a.icao.localeCompare(b.icao),
   )

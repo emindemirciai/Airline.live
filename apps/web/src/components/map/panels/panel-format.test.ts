@@ -11,17 +11,19 @@ import {
 const messages = { secondsAgo: '{s} sn önce', minutesAgo: '{m} dk önce' }
 
 describe('searchResultText', () => {
-  it('ad · tip · tescil yazar, bilinmeyenleri atlar', () => {
+  it('ad, tip, tescil yazar, bilinmeyenleri atlar; sayıdan önce "·" yok', () => {
     const base = { hex: '4bb26c', cs: 'THY974', fn: { airline: 'TK', number: '974' } }
-    expect(searchResultText({ ...base, type: 'A21N', reg: 'TC-LSA' })).toBe(
-      'TK-974 · A21N · TC-LSA',
-    )
-    expect(searchResultText({ ...base, type: null, reg: 'TC-LSA' })).toBe('TK-974 · TC-LSA')
-    expect(searchResultText({ ...base, fn: null, type: 'B738', reg: null })).toBe('THY974 · B738')
+    expect(searchResultText({ ...base, type: 'A21N', reg: 'TC-LSA' })).toBe('TK-974, A21N, TC-LSA')
+    expect(searchResultText({ ...base, type: null, reg: 'TC-LSA' })).toBe('TK-974, TC-LSA')
+    expect(searchResultText({ ...base, fn: null, type: 'B738', reg: null })).toBe('THY974, B738')
     // Ad tescilse (sefer no ve çağrı kodu yok) tescil bir kez yazılır.
     expect(searchResultText({ ...base, fn: null, cs: null, type: 'B738', reg: 'TC-JVI' })).toBe(
-      'TC-JVI · B738',
+      'TC-JVI, B738',
     )
+    // Rakamla başlayan tescil (Malta 9H-): önünde "·" yok.
+    const malta = searchResultText({ ...base, type: 'A320', reg: '9H-NEB' })
+    expect(malta).toBe('TK-974, A320, 9H-NEB')
+    expect(malta).not.toMatch(/[·–]s*d/)
   })
 })
 

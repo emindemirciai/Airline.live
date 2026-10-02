@@ -1,3 +1,4 @@
+import { ERROR_PAGE_MESSAGES } from '../error-page'
 import type { Messages } from './tr'
 
 export const en: Messages = {
@@ -25,11 +26,13 @@ export const en: Messages = {
       title: 'Airports in Türkiye: IATA and ICAO codes',
       description:
         'IATA and ICAO codes, provinces and longest runways for {count} airports in Türkiye, each with a link to the live map. Source: OurAirports.',
+      descriptionWithForeign:
+        'IATA and ICAO codes and longest runways for {count} airports in Türkiye and {foreign} airports in neighbouring countries, each with a link to the live map. Source: OurAirports.',
     },
     airport: {
       title: '{name} ({iata}/{icao}) live air traffic and runways',
-      description: '{name}, {province}: {facts}. {live}',
-      descriptionNoFacts: '{name}, {province}. {live}',
+      description: '{name}, {place}: {facts}. {live}',
+      descriptionNoFacts: '{name}, {place}. {live}',
       liveCovered: 'See nearby aircraft on the live map; no schedule data.',
       liveOutside: 'Outside the live data fetch area; no schedule data.',
       runwaysOne: 'one runway, {length}',
@@ -55,19 +58,38 @@ export const en: Messages = {
     ogTagline: 'Live flight tracking',
   },
   airports: {
-    title: 'Airports in Türkiye',
+    title: 'Airports',
     summary:
       'The list has {count} airports; each airport’s page shows its runways, the weather and a link to the live map.',
+    summaryWithForeign:
+      'The list has {count} airports in Türkiye and {foreign} airports in neighbouring countries; each airport’s page shows its runways, the weather and a link to the live map.',
+    turkeyHeading: 'Airports in Türkiye',
     scope: 'The list includes airports with an IATA code; some small airports are not listed.',
     names:
       'Official Turkish names come from DHMİ and the airport operators; the English names shown here are translations of them. Airports whose official name could not be confirmed are shown with their OurAirports name.',
-    caption: 'Airports, sorted by province',
+    caption: 'Airports in Türkiye, sorted by province name',
     columns: {
       name: 'Airport',
       province: 'Province',
+      country: 'Country',
       iata: 'IATA',
       icao: 'ICAO',
+      distanceToTr: 'Distance to Türkiye',
       longestRunway: 'Longest runway',
+    },
+    foreign: {
+      heading: 'Airports in neighbouring countries',
+      scope:
+        'Large and medium airports with an IATA code, at most {km} from the nearest airport in Türkiye; some airports are not listed.',
+      scopeAll: 'Large and medium airports with an IATA code; some airports are not listed.',
+      coverage:
+        'Live aircraft data is focused on Türkiye: most of these airports are outside the live data fetch area, so aircraft around them may not appear on the live map. Each airport’s page says so as well.',
+      caption: 'Airports in neighbouring countries, sorted by country name',
+      distanceNote:
+        'Distance to Türkiye is the straight-line distance to the nearest airport in Türkiye with an IATA code; that airport may be a small airfield that is not listed (such as Gökçeada).',
+      distance: 'distance to Türkiye {distance}',
+      names:
+        'English names are the airports’ names in OurAirports; the Turkish names use the established Turkish place names (Atina, Selanik, Tiflis). Country names come from the airport’s OurAirports record; Ercan Airport is shown in the TRNC.',
     },
     empty: 'Airport data has not loaded yet. Please try again shortly.',
   },
@@ -75,6 +97,7 @@ export const en: Messages = {
     breadcrumbLabel: 'Breadcrumb',
     country: 'Türkiye',
     location: '{province}, Türkiye',
+    locationAbroad: '{city}, {country}',
     lead: {
       runwaysOne: 'The airport has a single runway, {designator}, {length} long.',
       runwaysMany: 'The airport has {count} runways; the longest is {designator} at {length}.',
@@ -89,7 +112,12 @@ export const en: Messages = {
       icao: 'ICAO code',
       type: 'Type',
       province: 'Province',
+      country: 'Country',
       municipality: 'Municipality served',
+      nearestTr: 'Nearest airport in Türkiye',
+      nearestTrValue: '{airport}, {distance}',
+      /** The nearest airport is an unlisted small airfield, such as Gökçeada (D-080). */
+      nearestTrUnlisted: '{name} (small airfield, not listed)',
       sourceName: 'Name in OurAirports',
       reference: 'Airport reference point',
       elevation: 'Elevation',
@@ -140,7 +168,7 @@ export const en: Messages = {
     },
     nearby: {
       heading: 'Nearest airports',
-      item: '{airport}, {province}: {distance}',
+      item: '{airport}, {place}: {distance}',
       note: 'Distances are straight-line distances between airport reference points.',
     },
     source: 'Airport and runway data: {source} (public domain) · last changed {date}',
@@ -150,6 +178,11 @@ export const en: Messages = {
       operator:
         'Official Turkish name: {name} (airport operator); the English name is a translation.',
       ourairports: 'Name: OurAirports',
+    },
+    nameSourceForeign: {
+      curated:
+        'English name: OurAirports · Turkish name: {name} (compiled with the Turkish place name, not an official name)',
+      rule: 'Name: OurAirports',
     },
   },
   surface: {
@@ -432,7 +465,7 @@ export const en: Messages = {
       probTempoUntil: '{probability}% chance at times until {to}: {phrase}',
       strongWind: 'strong wind, {wind}',
       validUntil: 'Forecast valid until {time}.',
-      validPeriod: 'Forecast for {from} – {to}.',
+      validPeriod: 'Forecast for {from} to {to}.',
       issued: 'Forecast issued {time}.',
       amended: 'Amended forecast.',
       corrected: 'Corrected forecast.',
@@ -447,6 +480,7 @@ export const en: Messages = {
       onDate: '{date} {time}',
     },
     localTime: 'Local time {time} ({offset})',
+    turkeyTime: 'Times are Türkiye time ({offset}); the airport’s local time may differ.',
     sunrise: 'Sunrise {time}',
     sunset: 'Sunset {time}',
     sunNote:
@@ -464,10 +498,11 @@ export const en: Messages = {
       speci: 'SPECI (special report)',
       station: 'Airport ICAO code',
       observedUtc: 'Observed at {utc} UTC ({local} local time)',
+      observedUtcTurkey: 'Observed at {utc} UTC ({local} Türkiye time)',
       wind: 'Wind',
       windValue: '{direction} {speed}',
       variableDirection: 'variable',
-      varying: 'direction {from}–{to}',
+      varying: 'direction between {from} and {to}',
       gust: 'gusts {speed}',
       calm: 'calm',
       visibility: 'Visibility',
@@ -508,6 +543,7 @@ export const en: Messages = {
       copy: 'Copy',
       copied: 'Copied',
       tafCaption: 'Forecast periods (TAF issued {issued})',
+      tafPeriod: '{from} to {to} ({code})',
       tafColumns: {
         period: 'Period',
         change: 'Change',
@@ -530,6 +566,8 @@ export const en: Messages = {
       heading: 'METAR/TAF log',
       intro:
         'Aviation weather reports issued in the last 24 hours, newest first. Times are local, with UTC alongside. METAR is the routine report, SPECI a special report issued when the weather changes significantly, and TAF the aerodrome forecast.',
+      introAbroad:
+        'Aviation weather reports issued in the last 24 hours, newest first. Times are Türkiye time, with UTC alongside. METAR is the routine report, SPECI a special report issued when the weather changes significantly, and TAF the aerodrome forecast.',
       caption: '{name}: reports from the last 24 hours',
       columns: {
         time: 'Time',
@@ -538,7 +576,7 @@ export const en: Messages = {
         raw: 'Raw report',
       },
       utc: '{time} UTC',
-      tafSummary: 'Forecast for {from}–{to}',
+      tafSummary: 'Forecast for {from} to {to}',
       amended: 'amended',
       corrected: 'corrected',
       cancelled: 'cancelled',
@@ -559,7 +597,8 @@ export const en: Messages = {
       map: 'Live map: aircraft position, altitude, ground speed, vertical rate and identity (flight number, callsign, registration, aircraft type).',
       search:
         'Search: find an airborne aircraft by flight number, callsign, registration or hex code.',
-      airports: 'Airports: codes, runways and nearest airports for the airports in Türkiye.',
+      airports:
+        'Airports: codes, runways and nearest airports for the airports in Türkiye and in neighbouring countries.',
       weather:
         'Weather: on every airport page, the latest aviation weather report (METAR), the aerodrome forecast (TAF) and a log of the last 24 hours of reports; a short summary when you click an airport on the map.',
     },
@@ -581,7 +620,13 @@ export const en: Messages = {
         'Target data age: about 20 s within {radius} of the primary station, about 30 s around the other monitored airports and about 90 s in the data fetch area over eastern Türkiye. The status line on the map shows the actual data age around the primary station (or, if that is unavailable, the age of the newest data); the area you are viewing may differ.',
       stations: 'Monitored airports:',
       outside:
-        'Airports outside the live data fetch area; aircraft around them may not appear on the map:',
+        'Airports in Türkiye outside the live data fetch area; aircraft around them may not appear on the map:',
+      abroad:
+        'Airports in neighbouring countries are listed too: large and medium airports with an IATA code, at most {km} from the nearest airport in Türkiye.',
+      abroadAll:
+        'Airports outside Türkiye are listed too: large and medium airports with an IATA code.',
+      abroadCoverage:
+        'Live aircraft data is focused on Türkiye: most airports outside Türkiye are outside the live data fetch area, so aircraft around them may not appear on the map.',
       primary: 'primary station',
       reference:
         'Airport and runway data is updated daily from OurAirports. Runway bearings are true bearings, computed from the runway end coordinates where available.',
@@ -624,8 +669,8 @@ export const en: Messages = {
     dataAttributionPrefix: 'Live flight data:',
     termsLink: 'Terms',
     search: {
-      label: 'Search aircraft',
-      placeholder: 'Flight number, callsign, registration or hex',
+      label: 'Search aircraft: flight number, callsign, registration or hex',
+      placeholder: 'Flight no., callsign, reg., hex',
       submit: 'Search',
       searching: 'Searching…',
       notFound:
@@ -712,8 +757,6 @@ export const en: Messages = {
       runwaysOne: 'One runway, {length}',
       runwaysMany: '{count} runways, longest {length}',
       localTime: 'Local time',
-      sunrise: 'Sunrise',
-      sunset: 'Sunset',
       weather: 'Weather',
       noReport: 'No weather report',
       observed: 'Observed {time}',
@@ -810,7 +853,7 @@ export const en: Messages = {
       secondsAgo: '{n} s ago',
       seconds: '{n} s',
       megabytes: '{used} / {max} MB',
-      counts: '{airports} airports · {runways} runways · {airlines} airlines',
+      counts: '{airports} airports, {runways} runways, {airlines} airlines',
       lastCheck: 'Last check',
       hoursAgo: '{n} h ago',
       origin: 'Source',
@@ -861,6 +904,7 @@ export const en: Messages = {
     notFoundBody:
       'The page you are looking for does not exist or has moved. Continue from the live map.',
     goToMap: 'Back to the map',
+    page: ERROR_PAGE_MESSAGES.en,
   },
   terms: {
     title: 'Terms of use',

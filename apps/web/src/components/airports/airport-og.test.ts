@@ -1,11 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { guardNetwork } from '../../lib/seo/test/network-guard'
-import { fixtureTurkishAirports } from '../../lib/test/ourairports-fixture'
+import { fixtureListedAirports, fixtureTurkishAirports } from '../../lib/test/ourairports-fixture'
 import { airportOgContent, renderAirportOgPng } from './airport-og'
 
 vi.mock('server-only', () => ({}))
 
 const AIRPORTS = fixtureTurkishAirports()
+/** Yakın ülkelerdeki listelenen havalimanları (D-080). */
+const FOREIGN = fixtureListedAirports().filter((a) => a.country !== 'TR')
 
 /** PNG imzası ve IHDR'deki genişlik/yükseklik. */
 function pngSize(buffer: ArrayBuffer): { width: number; height: number } {
@@ -38,11 +40,31 @@ describe('airportOgContent', () => {
       location: 'İstanbul, Türkiye',
     })
   })
+
+  it('yakın ülkelerde Türkçe ad, Türkçe şehir adı ve ülke; Ercan için KKTC (D-080)', () => {
+    const athens = FOREIGN.find((a) => a.icao === 'LGAV')
+    const ercan = FOREIGN.find((a) => a.icao === 'LCEN')
+    const thessaloniki = FOREIGN.find((a) => a.icao === 'LGTS')
+    expect(athens && airportOgContent(athens, 'havayolu', null)).toMatchObject({
+      codes: 'ATH · LGAV',
+      name: 'Atina Eleftherios Venizelos Havalimanı',
+      location: 'Atina, Yunanistan',
+    })
+    expect(ercan && airportOgContent(ercan, 'havayolu', null).location).toBe('Lefkoşa, KKTC')
+    // OurAirports'un İngilizce yerleşimi ("Thessaloniki", "Kos Island") görselde yazılmaz.
+    expect(thessaloniki && airportOgContent(thessaloniki, 'havayolu', null).location).toBe(
+      'Selanik, Yunanistan',
+    )
+    for (const airport of FOREIGN) {
+      const { location } = airportOgContent(airport, 'havayolu', null)
+      expect(location, airport.icao).not.toMatch(/Island|Thessaloniki|Damascus|Baghdad/)
+    }
+  })
 })
 
 describe('renderAirportOgPng', () => {
   it('fixture’daki her havalimanı 1200×630 PNG olarak ağa çıkmadan çizilir', async () => {
-    for (const airport of AIRPORTS) {
+    for (const airport of [...AIRPORTS, ...FOREIGN]) {
       const png = await renderAirportOgPng(airportOgContent(airport, 'havayolu', 'havayolu.live'))
       expect(pngSize(png), airport.icao).toEqual({ width: 1200, height: 630 })
     }

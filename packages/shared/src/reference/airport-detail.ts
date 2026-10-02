@@ -1,4 +1,4 @@
-import type { Airport } from '../live'
+import type { Airport, AirportListScope } from '../live'
 
 /**
  * Havalimanı sayfalarının (M6b) ve `GET /v1/airports?include=runways`, `GET /v1/airports/:code`
@@ -45,9 +45,28 @@ export interface AirportStationInfo {
   fetchRadiusNm: number
 }
 
+/**
+ * Türkiye'deki en yakın IATA kodlu havalimanı (D-080): yurt dışı havalimanının `distanceToTrKm`'i
+ * ona ölçülür. Listelenmeyen, tarifesiz küçük bir alan olabilir (Gökçeada gibi); o zaman sayfası
+ * yoktur.
+ */
+export interface NearestTurkishAirport {
+  /** ICAO kodu (listedeki kural: ICAO, yoksa GPS kodu, o da yoksa OurAirports kimliği). */
+  icao: string
+  /** IATA kodu. */
+  iata: string
+  /** OurAirports adı; görünen ad için `airportDisplayName`. */
+  name: string
+}
+
 /** Havalimanı sayfasının verisi: harita kaydı (`Airport`) + bölge, istasyon ve pistler. */
 export interface AirportDetail extends Airport {
-  /** ISO 3166-2 bölge kodu (Türkiye'de il: TR-34); ad için `provinceName`. */
+  /**
+   * Türkiye'deki en yakın IATA kodlu havalimanı (D-080); Türkiye havalimanında (ve veritabanında
+   * Türkiye havalimanı yokken) null.
+   */
+  nearestTr: NearestTurkishAirport | null
+  /** ISO 3166-2 bölge kodu (Türkiye'de il: TR-34; ad için `provinceName`), yurt dışında GR-I gibi. */
   isoRegion: string
   /** OurAirports `municipality`: çoğu zaman ilçe (Gaziemir, Tarsus); `city` ile aynı değer. */
   municipality: string | null
@@ -66,5 +85,11 @@ export interface AirportDetail extends Airport {
 export interface AirportDetailsResponse {
   /** ISO 3166-1 alpha-2 ülke kodu. */
   country: string
+  airports: AirportDetail[]
+}
+
+/** `GET /v1/airports?scope=listed&include=runways`: listelenen havalimanları (D-080), IATA sırasıyla. */
+export interface ListedAirportDetailsResponse {
+  scope: AirportListScope
   airports: AirportDetail[]
 }

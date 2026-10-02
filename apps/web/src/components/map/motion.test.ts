@@ -249,6 +249,9 @@ describe('airportCollection', () => {
       elevationFt: 325,
       type: 'large_airport',
       scheduled: true,
+      country: 'TR',
+      ring: 0,
+      distanceToTrKm: null,
     }
     expect(airportCollection([ist])).toEqual({
       type: 'FeatureCollection',

@@ -1,38 +1,40 @@
-/* Geçici, sade görünüm. Asıl tasarım sistemi Parça 3'te docs/DESIGN.md ile gelir. */
+/*
+ * "Açık turkuaz" teması (kullanıcı kararı 2026-10-02, D-081). Tek temadır: işletim sisteminin koyu
+ * tercihi renkleri değiştirmez (koyu geçici tema kaldırıldı). Asıl tasarım sistemi Parça 3'te
+ * docs/DESIGN.md ile gelir; renkler `lib/seo/brand.ts` → `THEME_COLORS` ile aynıdır. Karşıtlıklar
+ * (WCAG 2.1, D-081'de tam liste): yazı sayfa ve panel zeminine karşı en az 4,5:1 (ana yazı 13,75,
+ * ikincil 5,52, bağlantı 5,45), başlık şeridinde beyaz 4,57:1.
+ */
 :root {
-  color-scheme: light dark;
-  --bg: #f5f6f8;
+  color-scheme: light;
+  --bg: #eaf7f8;
   --surface: #ffffff;
-  --ink: #0f1a2b;
-  --muted: #56637a;
-  --line: #d9dee7;
-  --accent: #1f5fd1;
+  --ink: #0b2a33;
+  --muted: #4b6770;
+  --line: #b9e2e6;
+  /* Giriş kutusu kenarı: beyaza 3,32:1, sayfa zeminine 3,03:1 (WCAG 1.4.11). */
+  --line-strong: #6a949c;
+  /* Düğme zemini (beyaz yazı 4,75:1). Açık zeminde yazı rengi olarak kullanılmaz (4,34:1). */
+  --accent: #0b7f8a;
+  --accent-ink: #ffffff;
+  --link: #0a6e78;
+  /* Başlık şeridi: seçilen #0b8f9b beyaz yazıyla 3,88:1 kalıyordu; tonu korunarak koyulaştırıldı. */
+  --header: #0a828d;
+  --header-ink: #ffffff;
   --ok: #18794e;
   --down: #b42318;
+  /* Uyarı yazısı (gecikmiş gözlem, SPECI): beyaza 7,09:1, sayfa zeminine 6,47:1. */
+  --warn: #92400e;
   --sign: #f2c230;
   --sign-ink: #111111;
   /*
-   * Klavye odak halkası. WCAG 2.1 SC 1.4.11: zemine (--bg, --surface) karşı en az 3:1. Açık temada
-   * sarı işaret rengi 1,6:1 kalır; koyu mavi 5,4:1'dir. Koyu temada ve haritada işaret rengi (11:1).
+   * Klavye odak halkası. WCAG 2.1 SC 1.4.11: zemine karşı en az 3:1 (sayfa 5,45, panel 5,98). Başlık
+   * şeridinde halka beyazdır (4,57:1); harita üstünde beyaz bir iç hale ile çizilir.
    */
-  --focus: #1f5fd1;
+  --focus: #0a6e78;
   --radius: 6px;
   --font-ui: 'Overpass', system-ui, sans-serif;
   --font-data: 'IBM Plex Mono', ui-monospace, monospace;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --bg: #0b1220;
-    --surface: #111a2c;
-    --ink: #e6ebf3;
-    --muted: #9aa7bd;
-    --line: #24324b;
-    --accent: #7fb0ff;
-    --ok: #4cc38a;
-    --down: #ff6b5e;
-    --focus: var(--sign);
-  }
 }
 
 * {
@@ -50,7 +52,7 @@ body {
 }
 
 a {
-  color: var(--accent);
+  color: var(--link);
 }
 
 a:focus-visible {
@@ -84,8 +86,8 @@ a:focus-visible {
   gap: 1rem;
   flex-wrap: wrap;
   padding: 0.9rem 1.25rem;
-  background: var(--surface);
-  border-bottom: 1px solid var(--line);
+  background: var(--header);
+  color: var(--header-ink);
 }
 
 .brand {
@@ -93,18 +95,19 @@ a:focus-visible {
   align-items: center;
   gap: 0.6rem;
   font-weight: 800;
-  color: var(--ink);
+  color: var(--header-ink);
   text-decoration: none;
   letter-spacing: 0.01em;
 }
 
+/* Marka işareti: beyaz halka, şerit renginde boşluk, ince açık dış çizgi (lib/seo/brand.ts). */
 .brand-mark {
   width: 14px;
   height: 14px;
   border-radius: 50%;
-  border: 3px solid var(--accent);
+  border: 3px solid var(--header-ink);
   box-shadow:
-    0 0 0 3px var(--surface),
+    0 0 0 3px var(--header),
     0 0 0 5px var(--line);
 }
 
@@ -116,13 +119,24 @@ a:focus-visible {
 }
 
 .site-nav a {
+  color: var(--header-ink);
   font-weight: 600;
   text-decoration: none;
 }
 
+.site-nav a:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+/* Başlık şeridinde odak halkası beyazdır (şeride karşı 4,57:1). */
+.site-header a:focus-visible {
+  outline-color: var(--header-ink);
+}
+
 .lang-toggle {
   padding: 0.15rem 0.55rem;
-  border: 1px solid var(--line);
+  border: 1.5px solid var(--header-ink);
   border-radius: var(--radius);
 }
 
@@ -293,6 +307,23 @@ a:focus-visible {
   font-weight: 600;
 }
 
+/*
+ * Beklenmeyen hata sayfası (components/error-content.tsx): metin iki dilde çizilir, `<html lang>`
+ * dışındaki dil gizlenir (sunucu çiziminde de doğru; gizli blok ekran okuyucuya ulaşmaz).
+ */
+html:not([lang='en']) .error-page__copy[lang='en'],
+html[lang='en'] .error-page__copy:not([lang='en']) {
+  display: none;
+}
+
+.error-page__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem 1.25rem;
+  margin: 0;
+}
+
 /* Kullanım koşulları (geçici metin, D-075). */
 .terms-notice {
   margin: 0 0 1.5rem;
@@ -382,7 +413,7 @@ a:focus-visible {
   border-radius: var(--radius);
   border: 1px solid var(--accent);
   background: var(--accent);
-  color: var(--bg);
+  color: var(--accent-ink);
   font: inherit;
   font-weight: 600;
   text-decoration: none;
@@ -394,9 +425,11 @@ a:focus-visible {
   cursor: progress;
 }
 
+/* İkincil düğme sayfa zemininde de durur: yazısı bağlantı rengidir (vurgu rengi 4,34:1 kalırdı). */
 .button-secondary {
-  background: transparent;
-  color: var(--accent);
+  background: var(--surface);
+  border-color: var(--link);
+  color: var(--link);
 }
 
 .button:focus-visible,
@@ -430,7 +463,7 @@ a:focus-visible {
 .field input {
   min-height: 2.5rem;
   padding: 0.45rem 0.7rem;
-  border: 1px solid var(--line);
+  border: 1px solid var(--line-strong);
   border-radius: var(--radius);
   background: var(--surface);
   color: var(--ink);
@@ -518,27 +551,32 @@ a:focus-visible {
 }
 
 /*
- * Canlı harita (Parça 1 M6, kök sayfa). Geçici tema; renkler kullanıcının tasarım tuvalindendir
- * (MAP_COLORS ile aynı). Harita sayfası işletim sistemi temasından bağımsız olarak koyudur. Paneller
- * opaktır (yarı saydam zemin yok). Yerleşim: `.live-map__*` kapsayıcıları (live-map.tsx) yalnızca
- * konumu belirler; panel görünümü `.map-panel` ve bileşen sınıflarındadır (components/map/panels).
+ * Canlı harita (Parça 1 M6, kök sayfa). Altlık uydu görüntüsüdür; zemini (`--map-bg`, karolar
+ * gelmeden ve düz altlıkta) koyudur. Paneller, atıf ve etiketler "Açık turkuaz" temasındadır (D-081;
+ * MAP_COLORS ile aynı): opak beyaz panel, açık turkuaz kenar, koyu yazı. Seçili uçağın kehribarı ve
+ * THY kırmızısı kalır. Paneller opaktır (yarı saydam zemin yok). Yerleşim: `.live-map__*`
+ * kapsayıcıları (live-map.tsx) yalnızca konumu belirler; panel görünümü `.map-panel` ve bileşen
+ * sınıflarındadır (components/map/panels).
  */
 :root {
   --map-bg: #0b1016;
-  --map-panel: #141c25;
-  --map-panel-raised: #17212b;
-  --map-panel-hover: #1b2530;
-  --map-line: #243240;
-  --map-line-strong: #34424f;
-  --map-ink: #eef3f7;
-  --map-muted: #a9b6c2;
-  --map-muted-2: #8795a3;
+  --map-panel: #ffffff;
+  --map-panel-raised: #eaf7f8;
+  --map-panel-hover: #ddf1f3;
+  --map-line: #b9e2e6;
+  --map-line-strong: #6a949c;
+  --map-ink: #0b2a33;
+  --map-muted: #4b6770;
+  --map-muted-2: #4b6770;
   --map-selected: #ffb300;
   --map-selected-ink: #111111;
-  --map-selected-soft: #2e2611;
+  --map-selected-soft: #fff1cc;
+  /* Kehribar seçimin beyaz panelde görünen kenarı (beyaza 5,02:1). */
+  --map-selected-edge: #b45309;
   --map-thy: #e30a17;
-  --map-ok: #3ddc84;
-  --map-down: #ff6b5e;
+  --map-ok: #18794e;
+  --map-warn: #b45309;
+  --map-down: #b42318;
   --map-gutter: 12px;
   /* MapLibre atıf şeridinin yüksekliği; alt paneller bunun üstünde durur. */
   --map-attrib-space: 36px;
@@ -546,14 +584,6 @@ a:focus-visible {
 
 /* Sayfa: başlığın altındaki bütün alan, sayfa kaymaz, alt bilgi gizlenir. */
 body:has(.map-page) {
-  color-scheme: dark;
-  --bg: var(--map-bg);
-  --surface: var(--map-bg);
-  --ink: var(--map-ink);
-  --muted: var(--map-muted);
-  --line: var(--map-line);
-  --accent: #7fb0ff;
-  --focus: var(--sign);
   display: flex;
   flex-direction: column;
   height: 100dvh;
@@ -684,7 +714,7 @@ body:has(.map-page) .site-footer {
   max-width: 100%;
   margin: 0;
   padding: 0 5px;
-  background: var(--map-bg);
+  background: var(--map-panel);
   border-top-left-radius: 4px;
   color: var(--map-muted);
   font-family: var(--font-ui);
@@ -731,12 +761,17 @@ body:has(.map-page) .site-footer {
   border: 1px solid var(--map-line);
   border-radius: 10px;
   color: var(--map-ink);
-  box-shadow: 0 6px 20px rgb(0 0 0 / 0.35);
+  box-shadow: 0 6px 20px rgb(0 0 0 / 0.25);
 }
 
+/*
+ * Odak halkası paneldeki zemine karşı 5,98:1'dir. Harita üstündeki denetimlerde (uydu görüntüsü)
+ * halka ile denetim arasına beyaz bir hale girer: halka en az bir komşu renge karşı 3:1 kalır.
+ */
 .live-map :is(button, input, a, summary):focus-visible {
-  outline: 3px solid var(--sign);
+  outline: 3px solid var(--focus);
   outline-offset: 2px;
+  box-shadow: 0 0 0 2px var(--map-panel);
 }
 
 .map-button {
@@ -748,7 +783,7 @@ body:has(.map-page) .site-footer {
   padding: 0 0.85rem;
   border: 1px solid var(--map-line-strong);
   border-radius: 8px;
-  background: var(--map-panel-raised);
+  background: var(--map-panel);
   color: var(--map-ink);
   font: inherit;
   font-size: 0.9rem;
@@ -761,10 +796,11 @@ body:has(.map-page) .site-footer {
   background: var(--map-panel-hover);
 }
 
+/* Basılı ya da açık: seçili uçağın kehribarı, koyu kehribar kenarla beyaz panelden ayrılır. */
 .map-button[aria-pressed='true'],
 .map-button[aria-expanded='true'] {
   background: var(--map-selected);
-  border-color: var(--map-selected);
+  border-color: var(--map-selected-edge);
   color: var(--map-selected-ink);
 }
 
@@ -785,7 +821,7 @@ body:has(.map-page) .site-footer {
 }
 
 .map-icon-button:hover {
-  background: var(--map-panel-raised);
+  background: var(--map-panel-hover);
   color: var(--map-ink);
 }
 
@@ -824,7 +860,7 @@ body:has(.map-page) .site-footer {
   min-width: 0;
   height: 40px;
   padding: 0 10px 0 36px;
-  background: var(--map-bg);
+  background: var(--map-panel-raised);
   border: 1px solid var(--map-line-strong);
   border-radius: 8px;
   color: var(--map-ink);
@@ -836,6 +872,15 @@ body:has(.map-page) .site-footer {
 .map-search__input::placeholder {
   color: var(--map-muted-2);
   opacity: 1;
+}
+
+/*
+ * Chromium ve Safari arama kutusunun sağında, kutu boşken bile görünmez temizle düğmesine ~16 px yer
+ * ayırır; ipucu 375 px'te bu yüzden kesiliyordu. Yerel düğme yoktur (Firefox'ta da yok): kutu Escape
+ * ya da silme tuşuyla temizlenir.
+ */
+.map-search__input::-webkit-search-cancel-button {
+  display: none;
 }
 
 .map-search__status {
@@ -904,7 +949,7 @@ body:has(.map-page) .site-footer {
 }
 
 .map-status[data-tone='warn'] .map-status__dot {
-  background: var(--map-selected);
+  background: var(--map-warn);
 }
 
 .map-status[data-tone='down'] .map-status__dot {
@@ -1105,9 +1150,10 @@ body:has(.map-page) .site-footer {
   background: var(--map-panel-raised);
 }
 
+/* Seçili uçağın satırı: açık kehribar zemin ve koyu kehribar şerit (beyaza 5,02:1). */
 .map-table__table tbody tr.is-selected {
   background: var(--map-selected-soft);
-  box-shadow: inset 3px 0 0 var(--map-selected);
+  box-shadow: inset 4px 0 0 var(--map-selected-edge);
 }
 
 .map-table__select {
@@ -1170,7 +1216,7 @@ body:has(.map-page) .site-footer {
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 2px;
   padding: 3px;
-  background: var(--map-bg);
+  background: var(--map-panel-raised);
   border: 1px solid var(--map-line-strong);
   border-radius: 8px;
 }
@@ -1203,13 +1249,14 @@ body:has(.map-page) .site-footer {
   color: var(--map-ink);
 }
 
+/* Seçili seçenek: vurgu turkuazı, beyaz yazı (4,75:1). */
 .map-seg__option:has(.map-seg__input:checked) {
-  background: var(--map-ink);
-  color: var(--map-bg);
+  background: var(--accent);
+  color: var(--accent-ink);
 }
 
 .map-seg__option:has(.map-seg__input:focus-visible) {
-  outline: 3px solid var(--sign);
+  outline: 3px solid var(--focus);
   outline-offset: 1px;
 }
 
@@ -1257,7 +1304,7 @@ body:has(.map-page) .site-footer {
 }
 
 .map-airports__item:focus-visible {
-  outline: 3px solid var(--sign);
+  outline: 3px solid var(--focus);
   outline-offset: 1px;
 }
 
@@ -1268,14 +1315,17 @@ body:has(.map-page) .site-footer {
   font-weight: 700;
 }
 
-/* MapLibre atıfı: koyu, opak ve her zaman panellerin üstünde; bağlantılar altı çizili. */
+/*
+ * MapLibre atıfı: beyaz, opak ve her zaman panellerin üstünde; bağlantılar altı çizili. Bilgi
+ * düğmesinin koyu simgesi (MapLibre'nin kendi görseli) beyaz zeminde okunur.
+ */
 .live-map .maplibregl-ctrl-bottom-left,
 .live-map .maplibregl-ctrl-bottom-right {
   z-index: 6;
 }
 
 .live-map .maplibregl-ctrl.maplibregl-ctrl-attrib {
-  background-color: var(--map-bg);
+  background-color: var(--map-panel);
   color: var(--map-muted);
   font-family: var(--font-ui);
   font-size: 11px;
@@ -1283,7 +1333,7 @@ body:has(.map-page) .site-footer {
 }
 
 .live-map .maplibregl-ctrl-attrib.maplibregl-compact {
-  background-color: var(--map-bg);
+  background-color: var(--map-panel);
   border: 1px solid var(--map-line-strong);
   color: var(--map-muted);
 }
@@ -1296,7 +1346,7 @@ body:has(.map-page) .site-footer {
 
 .live-map .maplibregl-ctrl-attrib-button,
 .live-map .maplibregl-ctrl-attrib.maplibregl-compact-show .maplibregl-ctrl-attrib-button {
-  background-color: var(--map-ink);
+  background-color: var(--map-panel);
 }
 
 /* Telefon ve dar ekran: arama üstte tam genişlik, kart alttan açılan sayfa, liste kapalı. */
@@ -1309,6 +1359,11 @@ body:has(.map-page) .site-footer {
     top: 12px;
     right: var(--map-gutter);
     width: auto;
+  }
+
+  /* Arama ipucu 375 px'te de kesilmesin: gönder düğmesinin yan boşluğu daralır, kutu genişler. */
+  .map-search__submit {
+    padding-inline: 0.6rem;
   }
 
   .live-map__status {
@@ -1388,8 +1443,8 @@ body:has(.map-page) .site-footer {
 }
 
 /*
- * Havalimanı listesi, havalimanı sayfaları ve Hakkında (Parça 1 M6b). Geçici tema: yukarıdaki sade
- * görünümün token'ları kullanılır (WCAG AA karşıtlık). Geniş tablolar sayfayı değil kendi
+ * Havalimanı listesi, havalimanı sayfaları ve Hakkında (Parça 1 M6b). "Açık turkuaz" teması (D-081):
+ * yukarıdaki `:root` token'ları kullanılır (WCAG AA karşıtlık). Geniş tablolar sayfayı değil kendi
  * kutularını yatay kaydırır (`.table-wrap`, klavyeyle odaklanabilir); 320 px'te sayfa kaymaz.
  */
 .breadcrumbs ol {
@@ -1527,13 +1582,29 @@ body:has(.map-page) .site-footer {
 }
 
 /*
- * Havalimanı hava durumu ve METAR/TAF kaydı (Parça 1 M6c). Geçici tema token'ları; uyarı rengi
- * (gecikmiş gözlem, kuvvetli rüzgâr) iki temada da zemine karşı en az 4,5:1'dir (WCAG AA). Satırlar
- * gerçek `<dl>`, kayıt gerçek `<table>`; ham metin satır kırar, 320 px'te sayfa yatay kaymaz.
+ * Havalimanı listesinin bölümleri (Parça 1 M6d, D-080): önce Türkiye, sonra yakın ülkeler. Kapsama
+ * notu (canlı uçak verisi Türkiye odaklıdır) sefer bölümüyle aynı işaret çizgisini taşır.
+ */
+.airports-section + .airports-section {
+  margin-top: 2.5rem;
+}
+
+.airports-coverage {
+  padding: 0.6rem 1rem;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-left: 4px solid var(--sign);
+  border-radius: var(--radius);
+}
+
+/*
+ * Havalimanı hava durumu ve METAR/TAF kaydı (Parça 1 M6c). Açık turkuaz tema (D-081); uyarı rengi
+ * (gecikmiş gözlem, SPECI) beyaz kartta 7,09:1'dir (WCAG AA). Satırlar gerçek `<dl>`, kayıt gerçek
+ * `<table>`; ham metin satır kırar, 320 px'te sayfa yatay kaymaz.
  */
 .airport-weather,
 .airport-weather-log {
-  --weather-warn: #8a5a00;
+  --weather-warn: var(--warn);
 
   margin-top: 1.5rem;
   padding: 0.25rem 1rem 0.75rem;
@@ -1545,13 +1616,6 @@ body:has(.map-page) .site-footer {
 
 .airport-weather {
   border-left: 4px solid var(--accent);
-}
-
-@media (prefers-color-scheme: dark) {
-  .airport-weather,
-  .airport-weather-log {
-    --weather-warn: #f0b94a;
-  }
 }
 
 .airport-weather h2,
@@ -1582,8 +1646,7 @@ body:has(.map-page) .site-footer {
   font-weight: 600;
 }
 
-.weather-badge.is-delayed,
-.weather-chip {
+.weather-badge.is-delayed {
   color: var(--weather-warn);
 }
 
@@ -1591,10 +1654,12 @@ body:has(.map-page) .site-footer {
   color: var(--muted);
 }
 
+/* Simge, başlık ve sıcaklık kutucuğu (weather-rows.css → `.wx-temp`); dar ekranda kutucuk alta iner. */
 .weather-headline {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 0.6rem;
+  gap: 0.4rem 0.6rem;
   margin: 0 0 0.9rem;
   font-size: 1.2rem;
 }
@@ -1608,36 +1673,6 @@ body:has(.map-page) .site-footer {
   width: 32px;
   height: 32px;
   color: var(--accent);
-}
-
-.weather-rows {
-  display: grid;
-  grid-template-columns: minmax(8.5rem, max-content) minmax(0, 1fr);
-  gap: 0.35rem 1rem;
-  margin: 0;
-}
-
-.weather-rows > div {
-  display: contents;
-}
-
-.weather-rows dt {
-  color: var(--muted);
-}
-
-.weather-rows dd {
-  margin: 0;
-  overflow-wrap: anywhere;
-}
-
-.weather-chip {
-  display: inline-block;
-  padding: 0 0.4rem;
-  border: 1px solid currentColor;
-  border-radius: 3px;
-  font-size: 0.85rem;
-  font-weight: 700;
-  white-space: nowrap;
 }
 
 .weather-forecast {
@@ -1673,7 +1708,7 @@ body:has(.map-page) .site-footer {
 .weather-details > summary {
   cursor: pointer;
   font-weight: 600;
-  color: var(--accent);
+  color: var(--link);
 }
 
 .weather-details > summary:focus-visible {
@@ -1762,21 +1797,15 @@ body:has(.map-page) .site-footer {
 }
 
 .weather-type.is-taf {
-  color: var(--accent);
+  color: var(--link);
   border-color: currentColor;
 }
 
-/* Dar ekran: satır etiketleri değerin üstüne geçer; kayıt tablosunun ham metin sütunu satır kırar. */
+/*
+ * Dar ekran: başlık küçülür. Hava durumu satırlarının dar ekran düzeni ortak dosyadadır
+ * (components/airports/weather-rows.css → `.wx-rows--page`).
+ */
 @media (max-width: 400px) {
-  .weather-rows {
-    grid-template-columns: minmax(0, 1fr);
-    gap: 0;
-  }
-
-  .weather-rows dd {
-    margin-bottom: 0.45rem;
-  }
-
   .weather-headline {
     font-size: 1.1rem;
   }

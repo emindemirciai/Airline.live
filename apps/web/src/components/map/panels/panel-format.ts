@@ -8,7 +8,11 @@ import { aircraftTitle } from '../../../lib/map/label-text'
  * burada yalnızca panellere özgü olanlar vardır.
  */
 
-/** Arama sonucu satırı: ad · tip · tescil (bilinmeyenler atlanır; ad tescilse bir kez yazılır). */
+/**
+ * Arama sonucu satırı: "ad, tip, tescil" (bilinmeyenler atlanır; ad tescilse bir kez yazılır). Ayraç
+ * virgüldür: tescil rakamla başlayabilir (9H-, 4X-, 5B-) ve önündeki "·" eksi gibi okunur
+ * (kullanıcı kararı 2026-10-02, D-081).
+ */
 export function searchResultText(
   ac: Pick<PublicAircraft, 'fn' | 'cs' | 'hex' | 'type' | 'reg'>,
 ): string {
@@ -16,7 +20,7 @@ export function searchResultText(
   const parts = [title.text, ac.type, title.kind === 'registration' ? null : ac.reg].filter(
     (part): part is string => typeof part === 'string' && part.trim() !== '',
   )
-  return parts.join(' · ')
+  return parts.join(', ')
 }
 
 /** Konum kaynağı: bilinen iki değer okunur hâle getirilir, diğerleri olduğu gibi gösterilir. */

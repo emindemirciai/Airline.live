@@ -23,11 +23,11 @@ import {
   AIRPORT_ERRORS,
   AIRPORTS_CACHE_MAX_ENTRIES,
   AIRPORTS_CACHE_MS,
-  AIRPORTS_DEFAULT_COUNTRY,
   AIRPORTS_EMPTY_CACHE_MS,
   AIRPORTS_RATE_LIMIT,
-  COUNTRY,
+  airportSelection,
   errorSchema,
+  selectionQueryProperties,
 } from './airports'
 import { cachedReader } from './cache'
 
@@ -63,6 +63,11 @@ export interface WeatherRouteOptions {
    */
   stations: ((country: string) => Promise<readonly { icao: string }[]>) | null
   /**
+   * Listelenen havalimanları, liste sırasıyla (`listListedAirports`; `scope=listed`, D-080).
+   * Verilmezse ya da `null` ise `scope=listed` isteği 503.
+   */
+  listedStations?: (() => Promise<readonly { icao: string }[]>) | null
+  /**
    * Kodu (büyük harfli ICAO ya da IATA) `/v1/airports/:code` ile aynı kuralla kanonik ICAO'ya
    * çevirir; bulunamazsa null. Verilmezse ya da `null` ise 503.
    */
@@ -85,6 +90,9 @@ export interface WeatherRouteOptions {
   historyCacheMaxBytes?: number
 }
 
+/** Toplu yanıt önbelleğinde `scope=listed` anahtarı (ülke kodları iki harftir, çakışmaz). */
+const LISTED_KEY = 'listed'
+
 /** Hava durumu yanıtları 60 sn süreç içinde tutulur; METAR en sık 5 dk'da bir yenilenir. */
 export const WEATHER_CACHE_MS = 60_000
 /** Tarayıcı ve web veri önbelleği: 60 sn. */
@@ -103,8 +111,11 @@ export const WEATHER_HISTORY_CACHE_WINDOWS = [
   WEATHER_HISTORY_DEFAULT_HOURS,
   WEATHER_HISTORY_MAX_HOURS,
 ] as const
-/** Geçmiş önbelleğindeki anahtar sınırı: ~61 istasyon × 2 pencere. */
-export const WEATHER_HISTORY_CACHE_MAX_ENTRIES = 128
+/**
+ * Geçmiş önbelleğindeki anahtar sınırı: listelenen havalimanları × 2 pencere (1. halkada ~136 × 2;
+ * D-080), sonraki halkalar için pay bırakılır. Belleği asıl sınırlayan bayt bütçesidir.
+ */
+export const WEATHER_HISTORY_CACHE_MAX_ENTRIES = 512
 /**
  * Geçmiş önbelleğinin bayt bütçesi. 168 saatlik bir yanıt 0,5–0,7 MB'tır; API yığını 270 MB
  * (compose) olduğundan önbellek en çok 24 MB tutar, aşılınca en eski pencere atılır.
@@ -256,7 +267,8 @@ interface CachedHistory {
 
 /**
  * Hava durumu uçları (aviationweather.gov METAR/TAF; worker yazar, API okurken çözümler):
- * - `GET /v1/weather?country=TR`: listedeki her havalimanı için güncel hava (web sayfaları, harita).
+ * - `GET /v1/weather?country=TR` ya da `?scope=listed` (D-080): listedeki her havalimanı için güncel
+ *   hava (web sayfaları, harita `scope=listed` ister).
  * - `GET /v1/airports/:code/weather`: tek havalimanı (tarayıcı yenilemesi, API ve mobil).
  * - `GET /v1/airports/:code/weather/history?hours=24`: METAR/SPECI/TAF kaydı, en yeni önce.
  * Yanıtlar 60 sn süreç içinde tutulur; veritabanı okunamazsa eldeki kopya, o da yoksa 503.
@@ -265,6 +277,7 @@ export function registerWeatherRoutes(
   app: FastifyInstance,
   {
     stations,
+    listedStations = null,
     resolve = null,
     latest,
     history = null,
@@ -295,13 +308,19 @@ export function registerWeatherRoutes(
     return { icao, generatedAt, metar, tafs }
   }
 
+  /** Toplu yanıtın istasyon okuyucusu: ülke kodu ya da `LISTED_KEY`; okuyucu yoksa null. */
+  const bulkStations = (key: string) =>
+    key === LISTED_KEY ? listedStations : stations === null ? null : () => stations(key)
+
   const loadBulk = cachedReader<CachedBody>({
     read:
-      stations === null || latest === null
+      latest === null
         ? null
-        : async (country) => {
+        : async (key) => {
+            const read = bulkStations(key)
+            if (read === null) throw new Error(`no station reader for ${key}`)
             // ICAO'su olmayan (GPS kodu ya da OurAirports kimliğiyle listelenen) havalimanı atlanır.
-            const icaos = (await stations(country)).map((s) => s.icao).filter(isIcao)
+            const icaos = (await read()).map((s) => s.icao).filter(isIcao)
             const at = new Date(now())
             const generatedAt = at.toISOString()
             const records = icaos.length === 0 ? { metars: [], tafs: [] } : await latest(icaos, at)
@@ -500,20 +519,10 @@ export function registerWeatherRoutes(
       attachValidation: true,
       schema: {
         tags: ['weather'],
-        summary: 'Ülkenin havalimanlarında güncel hava (METAR/TAF, çözümlenmiş)',
+        summary: 'Ülkenin ya da listelenen havalimanlarının güncel havası (METAR/TAF, çözümlenmiş)',
         description:
           'Listedeki her havalimanı için bir kayıt, liste sırasıyla; raporu olmayan havalimanında metar null. Kaynak: aviationweather.gov (NOAA Aviation Weather Center); resmî brifing yerine geçmez.',
-        querystring: {
-          type: 'object',
-          properties: {
-            country: {
-              type: 'string',
-              pattern: COUNTRY.source,
-              default: AIRPORTS_DEFAULT_COUNTRY,
-              description: 'ISO 3166-1 alpha-2 ülke kodu, büyük harf (varsayılan TR)',
-            },
-          },
-        },
+        querystring: { type: 'object', properties: selectionQueryProperties },
         response: {
           200: openApiSchema(WeatherBulkResponseSchema),
           400: errorSchema,
@@ -522,15 +531,19 @@ export function registerWeatherRoutes(
       },
     },
     async (request, reply) => {
-      const { country = AIRPORTS_DEFAULT_COUNTRY } = (request.query ?? {}) as { country?: unknown }
-      if (
-        request.validationError !== undefined ||
-        typeof country !== 'string' ||
-        !COUNTRY.test(country)
-      ) {
-        return fail(reply, 400, AIRPORT_ERRORS.badCountry)
+      const { country, scope } = (request.query ?? {}) as { country?: unknown; scope?: unknown }
+      const selection = airportSelection(country, scope)
+      if ('error' in selection) return fail(reply, 400, selection.error)
+      if (request.validationError !== undefined) {
+        return fail(
+          reply,
+          400,
+          'scope' in selection ? AIRPORT_ERRORS.badScope : AIRPORT_ERRORS.badCountry,
+        )
       }
-      const loaded = await loadBulk(country)
+      const key = 'scope' in selection ? LISTED_KEY : selection.country
+      if (bulkStations(key) === null) return fail(reply, 503, WEATHER_ERRORS.unavailable)
+      const loaded = await loadBulk(key)
       if (loaded === null) return fail(reply, 503, WEATHER_ERRORS.unavailable)
       return sendBody(reply, loaded.value)
     },

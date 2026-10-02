@@ -32,7 +32,7 @@ Olay motoru, bildirimler ve arayüz bu dosyadaki tanımlara uyar. **Motorun büt
 - **Etiket alanları (Tam):**
   1. sefer no; bilinmiyorsa çağrı kodu gri yazılır
   2. güzergâh, IATA kodlarıyla (JFK-IST); tahminidir, bilinmiyorsa "Güzergâh ?"
-  3. hız ve yükseklik (431 km/sa · 333 m); uçak yerdeyse yükseklik yerine "yerde"
+  3. hız ve yükseklik (431 km/sa, 333 m); uçak yerdeyse yükseklik yerine "yerde" (28 km/sa, yerde). Ayraç virgüldür: sayıdan önce "·" eksi gibi okunur (D-081)
   4. ineceği pist (Pist 35L); yalnızca bir piste hizalanmış yaklaşmada
 - **Kısa:** yalnızca sefer no (yoksa çağrı kodu).
 - **Göster/gizle:** Seçili uçak ve diğer uçaklar için ayrı ayrı Gizle, Kısa ya da Tam seçilir. Varsayılan ikisi için de Tam'dır. Ayar haritadaki "Etiketler" düğmesinden açılır ve cihazda saklanır.

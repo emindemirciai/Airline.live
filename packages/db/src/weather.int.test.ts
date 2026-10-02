@@ -7,6 +7,7 @@ import {
   getWeatherSource,
   listLatestWeather,
   listWeatherHistory,
+  metarStationsSince,
   pruneWeather,
   recordWeatherCheck,
   recordWeatherDisabled,
@@ -195,6 +196,18 @@ describe('okuma', () => {
     ])
     expect(result.tafs[0]?.validTo.toISOString()).toBe('2026-01-16T18:00:00.000Z')
     expect(await listLatestWeather(sql, [], NOW)).toEqual({ metars: [], tafs: [] })
+  })
+
+  it('metarStationsSince: listeden, o andan sonra gözlemi olan istasyonlar (yeni istasyon doldurma)', async () => {
+    const day = at('2026-01-14T13:00:00Z')
+    expect(await metarStationsSince(sql, ['LTFM', 'ltbs', 'LTBJ', 'LGAV', 'bozuk!'], day)).toEqual([
+      'LTBS',
+      'LTFM',
+    ])
+    // Sınır dahil: 12:50'deki gözlem 12:50'den sonra sayılır, 12:51'den sonra sayılmaz.
+    expect(await metarStationsSince(sql, ['LTFM'], at('2026-01-15T12:50:00Z'))).toEqual(['LTFM'])
+    expect(await metarStationsSince(sql, ['LTFM'], at('2026-01-15T12:51:00Z'))).toEqual([])
+    expect(await metarStationsSince(sql, [], day)).toEqual([])
   })
 
   it('geçmiş: aralıktaki METAR/SPECI (gözlem) ve TAFlar (yayın), en yeni önce', async () => {

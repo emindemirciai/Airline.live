@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
-import { MAP_COLORS } from '@havayolu/shared'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { THEME_COLORS } from '../lib/seo/brand'
 import { guardNetwork } from '../lib/seo/test/network-guard'
 import AppleIcon, { size as appleIconSize } from './apple-icon'
 import Icon, { generateImageMetadata } from './icon'
@@ -43,8 +43,9 @@ describe('manifest.webmanifest', () => {
       lang: 'tr',
       start_url: '/',
       display: 'browser',
-      theme_color: MAP_COLORS.background,
-      background_color: MAP_COLORS.background,
+      // Açık turkuaz tema (D-081): tarayıcı arayüzü başlık şeridinin, açılış ekranı sayfanın rengi.
+      theme_color: THEME_COLORS.header,
+      background_color: THEME_COLORS.page,
     })
     expect(m.icons?.map((icon) => [icon.src, icon.sizes, icon.purpose])).toEqual([
       ['/icon/192', '192x192', 'any'],

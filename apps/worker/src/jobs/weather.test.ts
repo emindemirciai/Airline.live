@@ -8,8 +8,10 @@ import type {
   WeatherSourceState,
 } from '@havayolu/db'
 import {
+  AWC_MAX_ENTRIES,
   AWC_METAR_MAX_HOURS,
   AviationWeatherError,
+  createAviationWeatherClient,
   parseMetarResponse,
   parseTafResponse,
   type MetarReport,
@@ -21,6 +23,7 @@ import { parseEnv } from '../env'
 import { weatherMode } from './index'
 import { findFixturesDir } from './reference'
 import {
+  awcWeatherSource,
   FORBIDDEN_BLOCK_SEC,
   metarLookbackHours,
   metarQnhHpa,
@@ -31,6 +34,7 @@ import {
   type WeatherFetch,
   type WeatherSource,
   type WeatherStore,
+  weatherStations,
 } from './weather'
 import {
   fixtureShiftMs,
@@ -186,6 +190,56 @@ describe('fixture zaman kaydırması', () => {
     })
     expect((await source.tafs(['LTBJ'])).items).toHaveLength(1)
   })
+
+  it("1. halka fixture'ları (D-080): yabancı istasyonların raporları kaydırılır ve ayrıştırılır", async () => {
+    const source = fixtureWeatherSource({
+      dir: weatherDir,
+      appEnv: 'test',
+      now: () => at('2026-10-01T09:37:00Z'),
+    })
+    const ring1 = ['LGAV', 'LGTS', 'LCLK', 'LCEN', 'LBSF', 'UGTB']
+    const metars = await source.metars(ring1, { hours: 2 })
+    expect(metars.skipped).toEqual([])
+    expect(metars.items.map((m) => m.station).sort()).toEqual([...ring1].sort())
+    const observed = Object.fromEntries(
+      metars.items.map((m) => [m.station, m.observedAt.toISOString()]),
+    )
+    // :50 gözlemleri 10 dk, :30 gözlemleri (LBSF, UGTB) 30 dk önce (kaydırılmış saat 09:00).
+    expect(observed).toMatchObject({
+      LGAV: '2026-10-01T08:50:00.000Z',
+      LCEN: '2026-10-01T08:50:00.000Z',
+      LBSF: '2026-10-01T08:30:00.000Z',
+      UGTB: '2026-10-01T08:30:00.000Z',
+    })
+    expect(metars.items.find((m) => m.station === 'UGTB')?.raw).toBe(
+      'UGTB 010830Z 31006MPS 6000 BR BKN025 03/M01 Q1027 NOSIG',
+    )
+    const tafs = await source.tafs(ring1)
+    expect(tafs.skipped).toEqual([])
+    expect(new Set(tafs.items.map((t) => t.station))).toEqual(
+      new Set(['LGAV', 'LCLK', 'LBSF', 'UGTB']),
+    )
+    expect(tafs.items.find((t) => t.station === 'LGAV')?.raw).toBe(
+      'TAF LGAV 010700Z 0108/0208 02015KT 9999 FEW025 TEMPO 0108/0114 02020G30KT BECMG 0116/0118 36008KT',
+    )
+  })
+})
+
+describe('weatherStations', () => {
+  it('listelenen havalimanlarının ICAO kodları: liste sırasıyla, tekil; ICAO olmayan kod atlanır', () => {
+    expect(
+      weatherStations([
+        { icao: 'LTFM' },
+        { icao: 'LGAV' },
+        { icao: 'LCEN' },
+        { icao: 'TR-0042' },
+        { icao: '5A8' },
+        { icao: 'LTFM' },
+        { icao: 'UGTB' },
+      ]),
+    ).toEqual(['LTFM', 'LGAV', 'LCEN', 'UGTB'])
+    expect(weatherStations([])).toEqual([])
+  })
 })
 
 describe('metarQnhHpa', () => {
@@ -202,8 +256,20 @@ describe('metarQnhHpa', () => {
 // ---------------------------------------------------------------------------------------------
 // İş akışları: bellek içi sahte depo ve kaynak.
 
-function fakeStore(options: { stations?: string[]; source?: Partial<WeatherSourceState> } = {}) {
+function fakeStore(
+  options: {
+    stations?: string[] | (() => string[])
+    source?: Partial<WeatherSourceState>
+    /** Son 24 saatte METAR'ı saklı istasyonlar; verilmezse bütün istasyonlar. */
+    stored?: readonly string[]
+  } = {},
+) {
+  const stationsOf = () =>
+    typeof options.stations === 'function'
+      ? options.stations()
+      : (options.stations ?? ['LTFM', 'LTBA', 'LTBQ'])
   const calls = {
+    since: [] as [readonly string[], Date][],
     metars: [] as MetarWrite[][],
     tafs: [] as TafWrite[][],
     checks: [] as [WeatherKind, WeatherCheck][],
@@ -230,7 +296,11 @@ function fakeStore(options: { stations?: string[]; source?: Partial<WeatherSourc
       }
     : null
   const store: WeatherStore = {
-    stations: async () => options.stations ?? ['LTFM', 'LTBA', 'LTBQ'],
+    stations: async () => stationsOf(),
+    metarStationsSince: async (stations, since) => {
+      calls.since.push([stations, since])
+      return stations.filter((s) => (options.stored ?? stationsOf()).includes(s))
+    },
     source: async () => state,
     upsertMetars: async (rows) => {
       calls.metars.push([...rows])
@@ -358,6 +428,166 @@ describe('runWeatherMetar', () => {
     const { source, hours } = fakeSource(async () => ({ status: 204, items: [], skipped: [] }))
     await runWeatherMetar({ store, source, origin: 'remote', log, now })
     expect(hours).toEqual([AWC_METAR_MAX_HOURS])
+  })
+
+  it('Türkiye + 1. halka (136 istasyon): olağan 2 saatlik METAR 80 istasyonluk iki isteğe bölünür', async () => {
+    // 136 istasyon × 2 saatte 4 METAR/SPECI = 544 kayıt; tek istek 400 sınırına takılırdı (D-080).
+    const stations = Array.from({ length: 136 }, (_, i) => {
+      const letter = (n: number) => String.fromCharCode(65 + (Math.floor(i / 26 ** n) % 26))
+      return `X${letter(1)}${letter(0)}A`
+    })
+    const { store, calls } = fakeStore({
+      stations,
+      source: { checkedAt: new Date(FIXTURE_NOW.getTime() - 5 * 60_000) },
+    })
+    const requests: URL[] = []
+    const fetch = (async (input: string | URL | Request) => {
+      const url = new URL(String(input))
+      requests.push(url)
+      const ids = url.searchParams.get('ids')?.split(',') ?? []
+      const body = ids.flatMap((id) =>
+        [10, 40, 70, 100].map((minutesAgo) => {
+          const observed = new Date(FIXTURE_NOW.getTime() - minutesAgo * 60_000)
+          const ddhhmm = [observed.getUTCDate(), observed.getUTCHours(), observed.getUTCMinutes()]
+            .map((n) => String(n).padStart(2, '0'))
+            .join('')
+          return {
+            icaoId: id,
+            obsTime: observed.getTime() / 1000,
+            metarType: 'METAR',
+            rawOb: `${id} ${ddhhmm}Z 00000KT 9999 Q1010`,
+          }
+        }),
+      )
+      return new Response(JSON.stringify(body), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      })
+    }) as typeof globalThis.fetch
+    const client = createAviationWeatherClient({
+      userAgent: 'havayolu/0.12.0 (+https://havayolu.live)',
+      fetch,
+      now: () => FIXTURE_NOW.getTime(),
+    })
+    const result = await runWeatherMetar({
+      store,
+      source: awcWeatherSource(client),
+      origin: 'remote',
+      log,
+      now,
+    })
+    expect(requests.map((u) => u.searchParams.get('hours'))).toEqual(['2', '2'])
+    expect(requests.map((u) => u.searchParams.get('ids')?.split(',').length)).toEqual([80, 56])
+    expect(80 * 4).toBeLessThan(AWC_MAX_ENTRIES)
+    expect(result).toMatchObject({
+      status: 200,
+      stations: 136,
+      reports: 136 * 4,
+      stationsWithReport: 136,
+      truncated: false,
+    })
+    expect(calls.metars[0]).toHaveLength(136 * 4)
+    expect(calls.metars[0]?.[0]?.rawText).toBe('XAAA 151250Z 00000KT 9999 Q1010')
+  })
+
+  it('listeye yeni giren istasyonun son 24 saati istenir; diğerleri olağan geriye bakışla (D-080)', async () => {
+    // Yayından önce 3 Türkiye istasyonu; yeni halka 2 yabancı istasyon ekler. METAR kaynağı 5 dk
+    // önce denetlenmişti: olağan geriye bakış 2 saattir, yeni istasyonların kaydı boştur.
+    let stations = ['LTFM', 'LTBA', 'LTBQ']
+    const { store, calls } = fakeStore({
+      stations: () => stations,
+      stored: ['LTFM', 'LTBA', 'LTBQ'],
+      source: { checkedAt: new Date(FIXTURE_NOW.getTime() - 5 * 60_000) },
+    })
+    const backfilled = new Set<string>()
+    const { source, requested, hours } = fakeSource(async () => ({
+      status: 200,
+      items: [],
+      skipped: [],
+    }))
+    const run = () => runWeatherMetar({ store, source, origin: 'remote', log, now, backfilled })
+
+    await run()
+    expect(requested).toEqual([['LTFM', 'LTBA', 'LTBQ']])
+    expect(hours).toEqual([2])
+
+    stations = ['LTFM', 'LTBA', 'LGAV', 'LTBQ', 'UGTB']
+    requested.length = 0
+    hours.length = 0
+    const result = await run()
+    // Kaydı olan istasyonlar 2 saatle, yeni iki istasyon ayrı istekte 24 saatle.
+    expect(requested).toEqual([
+      ['LTFM', 'LTBA', 'LTBQ'],
+      ['LGAV', 'UGTB'],
+    ])
+    expect(hours).toEqual([2, AWC_METAR_MAX_HOURS])
+    expect(result).toMatchObject({ status: 200, stations: 5 })
+    // Kayıt yalnızca denetlenmemiş istasyonlar için sorulur; pencere son 24 saattir.
+    expect(calls.since.map(([ids]) => ids)).toEqual([
+      ['LTFM', 'LTBA', 'LTBQ'],
+      ['LGAV', 'UGTB'],
+    ])
+    expect(calls.since[1]?.[1]).toEqual(new Date(FIXTURE_NOW.getTime() - 24 * 3_600_000))
+
+    // Sonraki çalışmada (rapor gelmemiş olsa da) yeniden doldurulmaz: tek olağan istek.
+    requested.length = 0
+    hours.length = 0
+    await run()
+    expect(requested).toEqual([stations])
+    expect(hours).toEqual([2])
+    expect(calls.since).toHaveLength(2)
+  })
+
+  it('doldurma isteğinin raporları olağan istekle birleşir; ilk açılışta tek 24 saatlik istek', async () => {
+    const { store, calls } = fakeStore({
+      stations: ['LTFM', 'LGAV'],
+      stored: ['LTFM'],
+      source: { checkedAt: new Date(FIXTURE_NOW.getTime() - 5 * 60_000) },
+    })
+    let call = 0
+    const { source, hours } = fakeSource(async () => {
+      call += 1
+      return call === 1
+        ? {
+            status: 200,
+            items: [report('LTFM', '2026-01-15T12:50:00Z', 'LTFM 151250Z 03018KT 9999 Q1009')],
+            skipped: [],
+            requests: 1,
+          }
+        : {
+            status: 200,
+            items: [
+              report('LGAV', '2026-01-15T12:50:00Z', 'LGAV 151250Z 01010KT 9999 Q1012'),
+              report('LGAV', '2026-01-14T13:50:00Z', 'LGAV 141350Z 01008KT 9999 Q1013'),
+            ],
+            skipped: [{ station: 'LGAV', reason: 'raw_invalid' }],
+            truncated: true,
+            requests: 4,
+          }
+    })
+    const result = await runWeatherMetar({ store, source, origin: 'remote', log, now })
+    expect(hours).toEqual([2, AWC_METAR_MAX_HOURS])
+    expect(result).toMatchObject({
+      status: 200,
+      reports: 3,
+      stationsWithReport: 2,
+      skipped: 1,
+      truncated: true,
+    })
+    expect(calls.metars[0]?.map((m) => m.stationIcao)).toEqual(['LTFM', 'LGAV', 'LGAV'])
+
+    // Hiç başarılı kontrol yoksa bütün istasyonlar zaten 24 saatle istenir: kayıt sorulmaz.
+    const first = fakeStore({ stations: ['LTFM', 'LGAV'], stored: [] })
+    const firstSource = fakeSource(async () => ({ status: 204, items: [], skipped: [] }))
+    await runWeatherMetar({
+      store: first.store,
+      source: firstSource.source,
+      origin: 'remote',
+      log,
+      now,
+    })
+    expect(firstSource.hours).toEqual([AWC_METAR_MAX_HOURS])
+    expect(first.calls.since).toEqual([])
   })
 
   it('metarLookbackHours: 2–24 saat, geçen süre + 1 saat pay', () => {

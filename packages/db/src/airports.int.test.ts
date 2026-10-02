@@ -3,7 +3,14 @@ import { fileURLToPath } from 'node:url'
 import { sql } from 'drizzle-orm'
 import postgres from 'postgres'
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
-import { findAirportDetail, listAirportDetails, listAirportsWithIata } from './airports'
+import {
+  findAirportDetail,
+  listAirportDetails,
+  listAirportsWithIata,
+  listListedAirportDetails,
+  listListedAirports,
+  type AirportRingConfig,
+} from './airports'
 import { createDb, type Database } from './client'
 import { runMigrations } from './migrate'
 import type { AirportInsert, RunwayInsert } from './reference'
@@ -18,6 +25,9 @@ const migrationsFolder = fileURLToPath(new URL('../drizzle', import.meta.url))
 const airportsFixture = fileURLToPath(
   new URL('../../../tools/fixtures/ourairports/airports.csv', import.meta.url),
 )
+
+/** `@havayolu/shared` `AIRPORT_RING_CONFIG` (M6d: 1. halka açık). */
+const RINGS: AirportRingConfig = { ringsKm: [500, 1000, 2000, 5000], enabledRing: 1 }
 
 const admin = postgres(adminUrl, { max: 1, onnotice: () => undefined })
 let database: Database
@@ -43,9 +53,12 @@ const orNull = (value: string | undefined) => (value === undefined || value === 
 
 /**
  * OurAirports airports.csv fixture'ı: her alan tırnaklı, ayraç `","`. Worker'ın içe aktarım
- * süzgeci uygulanır (büyük ve orta havalimanları ile tarifeli sefer alanlar; data-sources.md §3).
+ * süzgeci uygulanır (data-sources.md §3; `@havayolu/providers` `isImportedAirport`): büyük ve orta
+ * havalimanları, tarifeli sefer alanlar ve Türkiye'nin IATA kodlu küçük alanları (Gökçeada gibi
+ * tarifesiz alanlar; yalnızca uzaklık referansıdırlar, listeye girmezler, D-080).
+ * `turkishIata: false`: o alanlar olmadan (M6d öncesi süzgeç).
  */
-function readFixture(): AirportInsert[] {
+function readFixture({ turkishIata = true }: { turkishIata?: boolean } = {}): AirportInsert[] {
   const [header = '', ...lines] = readFileSync(airportsFixture, 'utf8').split(/\r?\n/)
   const columns = header.slice(1, -1).split('","')
   const records = lines
@@ -58,7 +71,10 @@ function readFixture(): AirportInsert[] {
       (r) =>
         r.get('type') === 'large_airport' ||
         r.get('type') === 'medium_airport' ||
-        r.get('scheduled_service') === 'yes',
+        r.get('scheduled_service') === 'yes' ||
+        (turkishIata &&
+          r.get('iso_country') === 'TR' &&
+          /^[A-Z]{3}$/.test(r.get('iata_code') ?? '')),
     )
   return records.map((r) => ({
     id: Number(r.get('id')),
@@ -100,15 +116,17 @@ const extra = (id: number, overrides: Partial<AirportInsert>): AirportInsert => 
 
 describe('listAirportsWithIata', () => {
   it('tablo boşken liste boş', async () => {
-    expect(await listAirportsWithIata(database.db, 'TR')).toEqual([])
+    expect(await listAirportsWithIata(database.db, 'TR', RINGS)).toEqual([])
   })
 
-  it("fixture: Türkiye'nin 68 havalimanından IATA kodlu 61'i, IATA sırasıyla", async () => {
+  it("fixture: Türkiye'nin içe aktarılan 73 alanından IATA kodlu 61'i, IATA sırasıyla", async () => {
     const rows = readFixture()
-    expect(rows.filter((r) => r.isoCountry === 'TR')).toHaveLength(68)
+    // 68 büyük, orta ya da tarifeli alan + IATA kodlu 5 tarifesiz küçük alan (uzaklık referansı,
+    // D-080; listeye girmez).
+    expect(rows.filter((r) => r.isoCountry === 'TR')).toHaveLength(73)
     await database.db.insert(airports).values(rows)
 
-    const list = await listAirportsWithIata(database.db, 'TR')
+    const list = await listAirportsWithIata(database.db, 'TR', RINGS)
     expect(list).toHaveLength(61)
     const codes = list.map((a) => a.iata)
     expect(codes).toEqual([...codes].sort())
@@ -130,6 +148,9 @@ describe('listAirportsWithIata', () => {
       elevationFt: ltfm?.elevationFt,
       type: 'large_airport',
       scheduled: true,
+      country: 'TR',
+      ring: 0,
+      distanceToTrKm: null,
     })
     // icao_code'u boş kayıt: ICAO gps_code'dan gelir.
     expect(list.find((a) => a.iata === 'IGL')?.icao).toBe('LTBL')
@@ -138,23 +159,29 @@ describe('listAirportsWithIata', () => {
     // IATA kodu olmayan askeri alanlar yoktur.
     expect(list.map((a) => a.icao)).not.toContain('LTAE')
 
-    expect((await listAirportsWithIata(database.db, 'GB')).map((a) => a.iata)).toEqual(['LHR'])
-    expect((await listAirportsWithIata(database.db, 'US')).map((a) => a.iata)).toEqual(['JFK'])
-    expect(await listAirportsWithIata(database.db, 'ZZ')).toEqual([])
+    // Başka ülke: kayıt halkasını ve Türkiye'ye uzaklığını taşır (halka süzgeci yok; Londra 4.
+    // halkada, 2.000–5.000 km).
+    const gb = await listAirportsWithIata(database.db, 'GB', RINGS)
+    expect(gb.map((a) => [a.iata, a.country, a.ring])).toEqual([['LHR', 'GB', 4]])
+    expect(gb[0]?.distanceToTrKm).toBeGreaterThan(1500)
+    expect((await listAirportsWithIata(database.db, 'US', RINGS)).map((a) => a.iata)).toEqual([
+      'JFK',
+    ])
+    expect(await listAirportsWithIata(database.db, 'ZZ', RINGS)).toEqual([])
   })
 
-  it('heliport, kapalı alan ve boş IATA süzülür; ICAO yoksa ident kullanılır', async () => {
-    await database.db
-      .insert(airports)
-      .values([
-        extra(900_001, { type: 'heliport', iataCode: 'HPX', icaoCode: 'LTHP' }),
-        extra(900_002, { type: 'closed', iataCode: 'CLX', icaoCode: 'LTCL' }),
-        extra(900_003, { iataCode: '   ', icaoCode: 'LTBK' }),
-        extra(900_004, { iataCode: 'smx' }),
-        extra(900_005, { iataCode: 'MDX', type: 'medium_airport', gpsCode: 'LTGP' }),
-        extra(900_006, { iataCode: 'FRX', isoCountry: 'FR', icaoCode: 'LFXX' }),
-      ])
-    const list = await listAirportsWithIata(database.db, 'TR')
+  it('heliport, kapalı alan, boş IATA ve tarifesiz küçük alan süzülür; ICAO yoksa ident', async () => {
+    await database.db.insert(airports).values([
+      extra(900_001, { type: 'heliport', iataCode: 'HPX', icaoCode: 'LTHP' }),
+      extra(900_002, { type: 'closed', iataCode: 'CLX', icaoCode: 'LTCL' }),
+      extra(900_003, { iataCode: '   ', icaoCode: 'LTBK' }),
+      extra(900_004, { iataCode: 'smx', scheduledService: true }),
+      extra(900_005, { iataCode: 'MDX', type: 'medium_airport', gpsCode: 'LTGP' }),
+      extra(900_006, { iataCode: 'FRX', isoCountry: 'FR', icaoCode: 'LFXX' }),
+      // İçe aktarım süzgecinden geçmeyen biçim (tarifesiz küçük alan): listeye girmez.
+      extra(900_007, { iataCode: 'GKX', icaoCode: 'LTGK' }),
+    ])
+    const list = await listAirportsWithIata(database.db, 'TR', RINGS)
     expect(list.map((a) => [a.iata, a.icao, a.type])).toEqual([
       ['MDX', 'LTGP', 'medium_airport'],
       ['SMX', 'TR-900004', 'small_airport'],
@@ -205,13 +232,104 @@ const runway = (
   ...overrides,
 })
 
+describe('listListedAirports (D-080)', () => {
+  it('tablo boşken liste boş', async () => {
+    expect(await listListedAirports(database.db, RINGS)).toEqual([])
+    expect(await listListedAirportDetails(database.db, RINGS)).toEqual([])
+  })
+
+  it('fixture, içe aktarım süzgeciyle: 61 Türkiye + 75 yurt dışı (1. halka) = 136, IATA sırasıyla', async () => {
+    const rows = readFixture()
+    // Gökçeada, Selçuk-Efes, Bodrum-İmsık, Aydın Çıldır, Adana Şakirpaşa: tarifesiz küçük alanlar,
+    // yalnızca uzaklık referansı.
+    expect(rows.filter((r) => r.isoCountry === 'TR')).toHaveLength(73)
+    await database.db.insert(airports).values(rows)
+    const list = await listListedAirports(database.db, RINGS)
+    const codes = list.map((a) => a.iata)
+    expect(codes).toEqual([...codes].sort())
+    expect(new Set(list.map((a) => a.icao)).size).toBe(list.length)
+
+    const turkish = list.filter((a) => a.country === 'TR')
+    const tr = await listAirportsWithIata(database.db, 'TR', RINGS)
+    expect(turkish.map((a) => a.icao)).toEqual(tr.map((a) => a.icao))
+    expect(turkish.every((a) => a.ring === 0 && a.distanceToTrKm === null)).toBe(true)
+
+    expect(list.map((a) => a.icao)).not.toContain('LTFK')
+    const foreign = list.filter((a) => a.country !== 'TR')
+    expect(foreign).toHaveLength(75)
+    expect(list).toHaveLength(136)
+    for (const airport of foreign) {
+      expect(airport.ring, airport.icao).toBe(1)
+      expect(airport.distanceToTrKm, airport.icao).toBeLessThanOrEqual(500)
+      expect(['large_airport', 'medium_airport']).toContain(airport.type)
+      expect(airport.scheduled, airport.icao).toBe(true)
+    }
+    expect(list.find((a) => a.icao === 'LGAV')).toMatchObject({
+      iata: 'ATH',
+      country: 'GR',
+      ring: 1,
+      distanceToTrKm: 275,
+    })
+    expect(list.find((a) => a.icao === 'LCEN')).toMatchObject({ iata: 'ECN', country: 'CY' })
+    // Süleymaniye: OurAirports kimliği ORSU, ICAO'su ORSJ.
+    expect(list.find((a) => a.iata === 'ISU')?.icao).toBe('ORSJ')
+    // Priştine, Preveze ve Niş Türkiye'deki en yakın IATA kodlu alana (Gökçeada) 500 km içinde;
+    // Gökçeada listelenmez ama uzaklık referansıdır (Çanakkale'den ölçülse 500 km'yi aşarlardı).
+    expect(list.find((a) => a.icao === 'BKPR')).toMatchObject({
+      country: 'XK',
+      ring: 1,
+      distanceToTrKm: 482,
+    })
+    expect(list.find((a) => a.icao === 'LGPZ')?.distanceToTrKm).toBe(461)
+    expect(list.find((a) => a.icao === 'LYNI')?.distanceToTrKm).toBe(482)
+    // Uzak fixture havalimanları (EGLL, KJFK …) listede değildir.
+    expect(list.map((a) => a.icao)).not.toContain('EGLL')
+
+    const details = await listListedAirportDetails(database.db, RINGS)
+    expect(details.map((a) => a.icao)).toEqual(list.map((a) => a.icao))
+    expect(details.find((a) => a.icao === 'LGAV')).toMatchObject({
+      isoRegion: 'GR-I',
+      country: 'GR',
+      ring: 1,
+      distanceToTrKm: 275,
+      nearestTr: { icao: 'LTBL', iata: 'IGL' },
+      station: null,
+    })
+    // Uzaklığın ölçüldüğü havalimanı listelenmeyen küçük alan olabilir (Selanik → Gökçeada).
+    expect(details.find((a) => a.icao === 'LGTS')?.nearestTr).toEqual({
+      icao: 'LTFK',
+      iata: 'GKD',
+      name: 'Gökçeada Airport',
+    })
+    expect(details.filter((a) => a.country === 'TR').every((a) => a.nearestTr === null)).toBe(true)
+    // Açık halka genişlerse liste büyür; Türkiye kısmı değişmez.
+    const wider = await listListedAirports(database.db, { ...RINGS, enabledRing: 5 })
+    expect(wider.length).toBeGreaterThan(list.length)
+    expect(wider.filter((a) => a.country === 'TR')).toHaveLength(61)
+  })
+
+  it('uzaklık referansı küçük alanlar olmadan (M6d öncesi süzgeç) 1. halka daralır: 61 + 72', async () => {
+    await database.db.insert(airports).values(readFixture({ turkishIata: false }))
+    const list = await listListedAirports(database.db, RINGS)
+    expect(list.filter((a) => a.country === 'TR')).toHaveLength(61)
+    expect(list.filter((a) => a.country !== 'TR')).toHaveLength(72)
+    for (const icao of ['BKPR', 'LGPZ', 'LYNI']) {
+      expect(
+        list.map((a) => a.icao),
+        icao,
+      ).not.toContain(icao)
+    }
+    expect(await listAirportsWithIata(database.db, 'TR', RINGS)).toHaveLength(61)
+  })
+})
+
 describe('listAirportDetails', () => {
   it('fixture: listeyle aynı 61 havalimanı; pisti olmayanın listesi boş, tarih havalimanınınki', async () => {
     await database.db
       .insert(airports)
       .values(readFixture().map((r) => ({ ...r, updatedAt: at('2026-09-01T00:00:00Z') })))
-    const details = await listAirportDetails(database.db, 'TR')
-    const list = await listAirportsWithIata(database.db, 'TR')
+    const details = await listAirportDetails(database.db, 'TR', RINGS)
+    const list = await listAirportsWithIata(database.db, 'TR', RINGS)
     expect(details).toHaveLength(61)
     expect(details.map((d) => d.icao)).toEqual(list.map((a) => a.icao))
     for (const detail of details) {
@@ -226,7 +344,7 @@ describe('listAirportDetails', () => {
       isoRegion: 'TR-33',
       municipality: 'Tarsus',
     })
-    expect(await listAirportDetails(database.db, 'ZZ')).toEqual([])
+    expect(await listAirportDetails(database.db, 'ZZ', RINGS)).toEqual([])
   })
 
   it('pistler sıralı; düzeltme alan alan uygulanır; istasyon ve en yeni değişiklik tarihi', async () => {
@@ -264,7 +382,7 @@ describe('listAirportDetails', () => {
       { icao: 'LTFJ', iata: 'SAW', isActive: false, fetchRadiusNm: 45 },
     ])
 
-    const [ist, saw] = await listAirportDetails(database.db, 'TR')
+    const [ist, saw] = await listAirportDetails(database.db, 'TR', RINGS)
     expect(ist?.icao).toBe('LTFM')
     expect(ist?.station).toEqual({ active: true, primary: true, fetchRadiusNm: 60 })
     expect(ist?.runways.map((r) => `${r.ends[0].ident}/${r.ends[1].ident}`)).toEqual([
@@ -300,23 +418,32 @@ describe('listAirportDetails', () => {
 
 describe('findAirportDetail', () => {
   beforeEach(async () => {
-    await database.db
-      .insert(airports)
-      .values([
-        extra(1, { ident: 'LTFM', icaoCode: 'LTFM', iataCode: 'IST', type: 'large_airport' }),
-        extra(2, { ident: 'LTBL', gpsCode: 'LTBL', iataCode: 'IGL', type: 'medium_airport' }),
-        extra(3, { ident: 'LTAE', icaoCode: 'LTAE', type: 'medium_airport' }),
-        extra(4, { ident: 'EGLL', icaoCode: 'EGLL', iataCode: 'LHR', isoCountry: 'GB' }),
-        extra(5, { ident: 'LTXA', icaoCode: 'LTXX', iataCode: 'AAA' }),
-        extra(6, { ident: 'LTXB', icaoCode: 'LTXX', iataCode: 'BBB' }),
-        extra(7, { ident: 'LTHP', icaoCode: 'LTHP', iataCode: 'HPX', type: 'heliport' }),
-      ])
+    await database.db.insert(airports).values([
+      extra(1, { ident: 'LTFM', icaoCode: 'LTFM', iataCode: 'IST', type: 'large_airport' }),
+      extra(2, { ident: 'LTBL', gpsCode: 'LTBL', iataCode: 'IGL', type: 'medium_airport' }),
+      extra(3, { ident: 'LTAE', icaoCode: 'LTAE', type: 'medium_airport' }),
+      extra(4, {
+        ident: 'EGLL',
+        icaoCode: 'EGLL',
+        iataCode: 'LHR',
+        isoCountry: 'GB',
+        type: 'large_airport',
+        latitudeDeg: 51.4706,
+        longitudeDeg: -0.461941,
+      }),
+      extra(5, { ident: 'LTXA', icaoCode: 'LTXX', iataCode: 'AAA', scheduledService: true }),
+      extra(6, { ident: 'LTXB', icaoCode: 'LTXX', iataCode: 'BBB', scheduledService: true }),
+      // Türkiye'nin tarifesiz, IATA kodlu küçük alanı içe aktarılır ama yalnızca uzaklık
+      // referansıdır (D-080): bulunmaz.
+      extra(8, { ident: 'LTGK', icaoCode: 'LTGK', iataCode: 'GKX' }),
+      extra(7, { ident: 'LTHP', icaoCode: 'LTHP', iataCode: 'HPX', type: 'heliport' }),
+    ])
     await database.db.insert(runways).values([runway(11, 1, '16L', '34R')])
   })
 
   it('ICAO ya da IATA ile, büyük/küçük harf ve boşluk fark etmeden bulur', async () => {
     for (const code of ['LTFM', 'ltfm', 'IST', 'ist', ' Ist ']) {
-      const detail = await findAirportDetail(database.db, code)
+      const detail = await findAirportDetail(database.db, code, RINGS)
       expect(detail?.icao, code).toBe('LTFM')
       expect(
         detail?.runways.map((r) => r.id),
@@ -324,17 +451,24 @@ describe('findAirportDetail', () => {
       ).toEqual([11])
     }
     // ICAO gps_code'dan gelir; başka ülke de bulunur.
-    expect((await findAirportDetail(database.db, 'igl'))?.icao).toBe('LTBL')
-    expect((await findAirportDetail(database.db, 'LTBL'))?.iata).toBe('IGL')
-    expect((await findAirportDetail(database.db, 'lhr'))?.icao).toBe('EGLL')
+    expect((await findAirportDetail(database.db, 'igl', RINGS))?.icao).toBe('LTBL')
+    expect((await findAirportDetail(database.db, 'LTBL', RINGS))?.iata).toBe('IGL')
+    // Halka süzgeci yok: 1. halkanın dışındaki havalimanı da bulunur, halkasını taşır (Londra 4.
+    // halkada).
+    expect(await findAirportDetail(database.db, 'lhr', RINGS)).toMatchObject({
+      icao: 'EGLL',
+      country: 'GB',
+      ring: 4,
+    })
+    expect((await findAirportDetail(database.db, 'LTFM', RINGS))?.distanceToTrKm).toBeNull()
   })
 
   it('listede görünmeyen kayıt bulunmaz: IATA kodu yok, heliport, gölgelenen ICAO, bilinmeyen kod', async () => {
-    for (const code of ['LTAE', 'LTHP', 'HPX', 'BBB', 'ZZZ', 'ZZZZ', '']) {
-      expect(await findAirportDetail(database.db, code), code).toBeNull()
+    for (const code of ['LTAE', 'LTHP', 'HPX', 'BBB', 'LTGK', 'GKX', 'ZZZ', 'ZZZZ', '']) {
+      expect(await findAirportDetail(database.db, code, RINGS), code).toBeNull()
     }
     // Aynı ICAO'daki iki kayıttan küçük kimlikli olan listede görünür.
-    expect(await findAirportDetail(database.db, 'LTXX')).toMatchObject({ iata: 'AAA' })
-    expect(await findAirportDetail(database.db, 'aaa')).toMatchObject({ icao: 'LTXX' })
+    expect(await findAirportDetail(database.db, 'LTXX', RINGS)).toMatchObject({ iata: 'AAA' })
+    expect(await findAirportDetail(database.db, 'aaa', RINGS)).toMatchObject({ icao: 'LTXX' })
   })
 })

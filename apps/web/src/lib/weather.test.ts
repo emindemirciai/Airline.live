@@ -42,7 +42,7 @@ const json =
 describe('adresler', () => {
   it('toplu hava durumu ve 24 saatlik kayıt, API iç adresinden', () => {
     expect(weatherBulkUrl('http://api.internal:4000')).toBe(
-      'http://api.internal:4000/v1/weather?country=TR',
+      'http://api.internal:4000/v1/weather?scope=listed',
     )
     expect(weatherHistoryUrl('http://api.internal:4000', 'LTFM')).toBe(
       'http://api.internal:4000/v1/airports/LTFM/weather/history?hours=24',
@@ -76,7 +76,7 @@ describe('getWeather', () => {
     const bulk = await getWeather()
     expect(bulk?.stations.size).toBe(2)
     expect(calls).toHaveLength(1)
-    expect(calls[0]?.url).toBe('http://api.internal:4000/v1/weather?country=TR')
+    expect(calls[0]?.url).toBe('http://api.internal:4000/v1/weather?scope=listed')
     expect(calls[0]?.init.next).toEqual({ revalidate: 60, tags: [WEATHER_CACHE_TAG] })
     expect(calls[0]?.init.headers).toEqual({ accept: 'application/json' })
   })

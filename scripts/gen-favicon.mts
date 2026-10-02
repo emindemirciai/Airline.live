@@ -2,13 +2,13 @@
 // yeni bağımlılık gerektirmez: şekiller burada örneklenerek çizilir, PNG node:zlib ile kodlanır.
 // Marka işareti ya da renkleri değişince bir kez çalıştırılır ve çıktı commit'lenir:
 //   pnpm exec tsx scripts/gen-favicon.mts
-// Görünüm app/icon.tsx ile aynıdır (apps/web/src/lib/seo/brand.ts): koyu zemin, ince dış çizgi,
-// vurgu halkası. Sekme simgesi küçük olduğundan zemin yuvarlatılmış karedir ve işaret daha büyüktür.
+// Görünüm app/icon.tsx ile aynıdır (apps/web/src/lib/seo/brand.ts, D-081): başlık renginde zemin,
+// ince açık dış çizgi, beyaz halka. Sekme simgesi küçük olduğundan zemin yuvarlatılmış karedir ve
+// işaret daha büyüktür.
 import { writeFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { crc32, deflateSync } from 'node:zlib'
-import { BRAND_ACCENT, BRAND_MARK_DIAMETERS } from '../apps/web/src/lib/seo/brand.ts'
-import { MAP_COLORS } from '../packages/shared/src/map/colors.ts'
+import { BRAND_MARK_DIAMETERS, THEME_COLORS } from '../apps/web/src/lib/seo/brand.ts'
 
 const OUTPUT = fileURLToPath(new URL('../apps/web/src/app/favicon.ico', import.meta.url))
 const SIZES = [16, 32, 48] as const
@@ -27,9 +27,9 @@ function hex(value: string): Rgba {
   return [(n >> 16) & 255, (n >> 8) & 255, n & 255, 255]
 }
 
-const BACKGROUND = hex(MAP_COLORS.background)
-const OUTLINE = hex(MAP_COLORS.lineStrong)
-const ACCENT = hex(BRAND_ACCENT)
+const BACKGROUND = hex(THEME_COLORS.header)
+const OUTLINE = hex(THEME_COLORS.line)
+const RING = hex(THEME_COLORS.headerInk)
 const TRANSPARENT: Rgba = [0, 0, 0, 0]
 
 /** Yuvarlatılmış karenin içinde mi (merkez 0,0; kenar 1). */
@@ -46,7 +46,7 @@ function colorAt(x: number, y: number): Rgba {
   const r = Math.hypot(x, y)
   const radius = (diameter: number) => (diameter / BRAND_MARK_DIAMETERS.outline) * (MARK_RATIO / 2)
   if (r <= radius(BRAND_MARK_DIAMETERS.hole)) return BACKGROUND
-  if (r <= radius(BRAND_MARK_DIAMETERS.ring)) return ACCENT
+  if (r <= radius(BRAND_MARK_DIAMETERS.ring)) return RING
   if (r <= radius(BRAND_MARK_DIAMETERS.gap)) return BACKGROUND
   if (r <= radius(BRAND_MARK_DIAMETERS.outline)) return OUTLINE
   return BACKGROUND

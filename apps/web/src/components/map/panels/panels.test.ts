@@ -290,7 +290,9 @@ describe('SearchBox', () => {
     expect(html).toMatch(/<form role="search"/)
     const inputId = /<input id="([^"]+)" type="search"/.exec(html)?.[1]
     expect(inputId).toBeTruthy()
-    expect(html).toContain(`<label for="${inputId}" class="sr-only">Uçak ara</label>`)
+    expect(html).toContain(
+      `<label for="${inputId}" class="sr-only">Uçak ara: sefer no, çağrı kodu, tescil ya da hex</label>`,
+    )
     // API sorgu sınırı (SEARCH_QUERY_MAX_LENGTH); HTML öznitelik adı büyük-küçük harf duyarsızdır.
     expect(html).toMatch(/maxlength="32"/i)
     expect(html).toMatch(/<button type="submit"[^>]*>Ara<\/button>/)

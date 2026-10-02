@@ -100,6 +100,24 @@ describe('hava durumu metin anahtarları', () => {
     expect(t.wx.HZ).toBe('Kuru pus')
     expect(t.clouds.OVC).toBe('Kapalı')
   })
+
+  it('sayıdan ya da sayı yazan yer tutucudan önce "·" ya da "–" yok (eksi gibi okunur; 2026-10-02)', () => {
+    const offending: string[] = []
+    const walk = (node: unknown, path: string) => {
+      if (typeof node === 'string') {
+        if (/[·–]\s*(?:\{|[−-]?\d)/.test(node)) offending.push(path)
+        return
+      }
+      if (node === null || typeof node !== 'object') return
+      for (const [key, value] of Object.entries(node)) walk(value, `${path}.${key}`)
+    }
+    for (const locale of ['tr', 'en'] as const) {
+      const messages = getMessages(locale)
+      walk(messages.weather, `${locale}:weather`)
+      walk(messages.map.airportPopup, `${locale}:map.airportPopup`)
+    }
+    expect(offending).toEqual([])
+  })
 })
 
 describe('birimler (metrik, D-072)', () => {
@@ -170,14 +188,14 @@ describe('METAR özetleri: fixture durumları (brief §2), sade ve metrik', () =
   it('LTFM: hafif sağanak, hamleli kuvvetli rüzgâr, CB, TEMPO', () => {
     const r = rows('LTFM 151250Z 03018G32KT 9999 -SHRA FEW025CB BKN035 09/05 Q1009 TEMPO 4000 SHRA')
     expect(r.headline).toBe('Hafif sağanak yağmur')
-    expect(r.wind).toBe('Kuzeydoğudan 33 km/sa · hamle 59 km/sa')
+    expect(r.wind).toBe('Kuzeydoğudan 33 km/sa, hamle 59 km/sa')
     expect(r.strongWind).toBe(true)
     expect(r.rain).toBe('Hafif sağanak yağmur')
     expect(r.snow).toBe('Yok')
     expect(r.thunder).toBe('Yok (kümülonimbüs bulutu var)')
     expect(r.fog).toBe('Yok')
     expect(r.visibility).toBe('10 km ve üzeri')
-    expect(r.clouds).toBe('Çok bulutlu · en alçak bulut 760 m · kümülonimbüs')
+    expect(r.clouds).toBe('Çok bulutlu, en alçak bulut 760 m, kümülonimbüs')
     expect(r.temperature).toBe('9 °C')
     expect(r.humidity).toBe('Yaklaşık %75')
     expect(r.pressure).toBe('1009 hPa')
@@ -187,9 +205,9 @@ describe('METAR özetleri: fixture durumları (brief §2), sade ve metrik', () =
       EN,
     )
     expect(en.headline).toBe('Light rain showers')
-    expect(en.wind).toBe('From the northeast 33 km/h · gusts 59 km/h')
+    expect(en.wind).toBe('From the northeast 33 km/h, gusts 59 km/h')
     expect(en.thunder).toBe('None (cumulonimbus present)')
-    expect(en.clouds).toBe('Mostly cloudy · lowest cloud 760 m · cumulonimbus')
+    expect(en.clouds).toBe('Mostly cloudy, lowest cloud 760 m, cumulonimbus')
     expect(en.humidity).toBe('About 75%')
     expect(en.next2h).toBe('At times in the next 2 hours: visibility 4 km, rain showers')
   })
@@ -212,7 +230,7 @@ describe('METAR özetleri: fixture durumları (brief §2), sade ve metrik', () =
     expect(r.rain).toBe('Yok')
     expect(r.visibility).toBe('1,5 km')
     expect(r.temperature).toBe(`${MINUS}1 °C`)
-    expect(r.clouds).toBe('Kapalı · en alçak bulut 240 m')
+    expect(r.clouds).toBe('Kapalı, en alçak bulut 240 m')
   })
 
   it('LTAI: kuvvetli gök gürültülü sağanak, değişken yön aralığı', () => {
@@ -221,7 +239,7 @@ describe('METAR özetleri: fixture durumları (brief §2), sade ve metrik', () =
     )
     expect(r.thunder).toBe('Kuvvetli gök gürültülü sağanak')
     expect(r.wind).toBe(
-      'Güneyden 28 km/sa · hamle 52 km/sa · yönü güney ile güneybatı arasında değişiyor',
+      'Güneyden 28 km/sa, hamle 52 km/sa, yönü güney ile güneybatı arasında değişiyor',
     )
     expect(r.visibility).toBe('3 km')
     expect(
@@ -346,10 +364,10 @@ describe('TAF özeti', () => {
     const summary = summarizeTaf([newer, older], Date.parse('2026-01-15T11:00:00.000Z'))
     // 28 kt = 52 km/sa, 40 kt = 74 km/sa; 25 kt (46) ve 38 kt (70) yazılmaz, knot sade metinde yok.
     expect(summary.items.map((item) => weatherText(item, TR))).toEqual([
-      '23:00 saatine kadar kuvvetli rüzgâr, kuzeydoğudan 52 km/sa · hamle 74 km/sa',
+      '23:00 saatine kadar kuvvetli rüzgâr, kuzeydoğudan 52 km/sa, hamle 74 km/sa',
     ])
     expect(summary.items.map((item) => weatherText(item, EN))).toEqual([
-      'Until 23:00: strong wind, from the northeast 52 km/h · gusts 74 km/h',
+      'Until 23:00: strong wind, from the northeast 52 km/h, gusts 74 km/h',
     ])
   })
 

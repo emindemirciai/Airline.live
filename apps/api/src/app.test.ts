@@ -161,6 +161,7 @@ describe('arama motorları (M6b)', () => {
     expect(spec.paths['/v1/airports']?.get?.parameters?.map((p) => p.name).sort()).toEqual([
       'country',
       'include',
+      'scope',
     ])
     expect(spec.paths['/robots.txt']).toBeUndefined()
   })

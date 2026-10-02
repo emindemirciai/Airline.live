@@ -37,6 +37,154 @@
     ]
   },
   {
+    "icaoId": "LBSF",
+    "dbPopTime": "2026-01-15 11:02:00.000Z",
+    "bulletinTime": "2026-01-15 11:00:00.000Z",
+    "issueTime": "2026-01-15 11:00:00.000Z",
+    "validTimeFrom": 1768478400,
+    "validTimeTo": 1768564800,
+    "rawTAF": "TAF LBSF 151100Z 1512/1612 VRB02KT 0300 FZFG VV001 BECMG 1513/1515 1500 BR OVC003 TEMPO 1600/1609 0200 FZFG VV001",
+    "mostRecent": 1,
+    "remarks": "",
+    "lat": 42.695,
+    "lon": 23.406,
+    "elev": 531,
+    "prior": 0,
+    "name": "Sofia, SF, BG",
+    "fcsts": [
+      {
+        "timeFrom": 1768478400,
+        "timeTo": 1768564800,
+        "fcstChange": null,
+        "probability": null
+      },
+      {
+        "timeFrom": 1768482000,
+        "timeTo": 1768489200,
+        "timeBec": 1768489200,
+        "fcstChange": "BECMG",
+        "probability": null
+      },
+      {
+        "timeFrom": 1768521600,
+        "timeTo": 1768554000,
+        "fcstChange": "TEMPO",
+        "probability": null
+      }
+    ]
+  },
+  {
+    "icaoId": "LCLK",
+    "dbPopTime": "2026-01-15 11:02:00.000Z",
+    "bulletinTime": "2026-01-15 11:00:00.000Z",
+    "issueTime": "2026-01-15 11:00:00.000Z",
+    "validTimeFrom": 1768478400,
+    "validTimeTo": 1768564800,
+    "rawTAF": "TAF LCLK 151100Z 1512/1612 24012KT 9999 SCT025 BKN080 TEMPO 1512/1518 4000 SHRA FEW018CB BECMG 1600/1602 VRB05KT FEW030",
+    "mostRecent": 1,
+    "remarks": "",
+    "lat": 34.875,
+    "lon": 33.625,
+    "elev": 2,
+    "prior": 0,
+    "name": "Larnaca Intl, CY",
+    "fcsts": [
+      {
+        "timeFrom": 1768478400,
+        "timeTo": 1768564800,
+        "fcstChange": null,
+        "probability": null
+      },
+      {
+        "timeFrom": 1768478400,
+        "timeTo": 1768500000,
+        "fcstChange": "TEMPO",
+        "probability": null
+      },
+      {
+        "timeFrom": 1768521600,
+        "timeTo": 1768528800,
+        "timeBec": 1768528800,
+        "fcstChange": "BECMG",
+        "probability": null
+      }
+    ]
+  },
+  {
+    "icaoId": "LGAV",
+    "dbPopTime": "2026-01-15 11:02:00.000Z",
+    "bulletinTime": "2026-01-15 11:00:00.000Z",
+    "issueTime": "2026-01-15 11:00:00.000Z",
+    "validTimeFrom": 1768478400,
+    "validTimeTo": 1768564800,
+    "rawTAF": "TAF LGAV 151100Z 1512/1612 02015KT 9999 FEW025 TEMPO 1512/1518 02020G30KT BECMG 1520/1522 36008KT",
+    "mostRecent": 1,
+    "remarks": "",
+    "lat": 37.936,
+    "lon": 23.944,
+    "elev": 94,
+    "prior": 0,
+    "name": "Athens/Venizelos Intl, AT, GR",
+    "fcsts": [
+      {
+        "timeFrom": 1768478400,
+        "timeTo": 1768564800,
+        "fcstChange": null,
+        "probability": null
+      },
+      {
+        "timeFrom": 1768478400,
+        "timeTo": 1768500000,
+        "fcstChange": "TEMPO",
+        "probability": null
+      },
+      {
+        "timeFrom": 1768507200,
+        "timeTo": 1768514400,
+        "timeBec": 1768514400,
+        "fcstChange": "BECMG",
+        "probability": null
+      }
+    ]
+  },
+  {
+    "icaoId": "UGTB",
+    "dbPopTime": "2026-01-15 11:02:00.000Z",
+    "bulletinTime": "2026-01-15 11:00:00.000Z",
+    "issueTime": "2026-01-15 11:00:00.000Z",
+    "validTimeFrom": 1768478400,
+    "validTimeTo": 1768564800,
+    "rawTAF": "TAF UGTB 151100Z 1512/1612 31006MPS 6000 BR BKN025 BECMG 1518/1520 VRB02MPS 2000 BR OVC008 TEMPO 1600/1606 0500 FG VV002",
+    "mostRecent": 1,
+    "remarks": "",
+    "lat": 41.669,
+    "lon": 44.955,
+    "elev": 495,
+    "prior": 0,
+    "name": "Tbilisi Intl, GE",
+    "fcsts": [
+      {
+        "timeFrom": 1768478400,
+        "timeTo": 1768564800,
+        "fcstChange": null,
+        "probability": null
+      },
+      {
+        "timeFrom": 1768500000,
+        "timeTo": 1768507200,
+        "timeBec": 1768507200,
+        "fcstChange": "BECMG",
+        "probability": null
+      },
+      {
+        "timeFrom": 1768521600,
+        "timeTo": 1768543200,
+        "fcstChange": "TEMPO",
+        "probability": null
+      }
+    ]
+  },
+  {
     "icaoId": "LTAC",
     "dbPopTime": "2026-01-15 10:42:00.000Z",
     "bulletinTime": "2026-01-15 10:40:00.000Z",

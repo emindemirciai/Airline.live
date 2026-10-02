@@ -19,7 +19,8 @@ Durumlar: `[ ]` başlamadı, `[~]` sürüyor, `[k]` kod bitti ve kullanıcı do�
 | M5 | Canlı API | `p1/m5-live-api` | [x] tamam; üretimde 5 dk boşta WS bağlantısı doğrulandı (2026-09-29) | #13 |
 | M6 | Web canlı harita | `p1/m6-map` | [x] tamam; üretimde uydu altlığı doğrulandı (2026-09-30) | #14 |
 | M6b | Havalimanı sayfaları, dil adreste (`/en`), SEO ve GEO | `p1/m6b-seo` | [k] kod bitti; Search Console, Bing ve Yandex doğrulaması kullanıcıda (ACTIVATION) | #15 |
-| M6c | Havalimanı hava durumu (METAR/TAF), METAR/TAF kaydı, haritada havalimanı penceresi | `p1/m6c-weather` | [k] kod bitti; yayından sonra üretimde gerçek METAR doğrulaması (ACTIVATION) | #16 |
+| M6c | Havalimanı hava durumu (METAR/TAF), METAR/TAF kaydı, haritada havalimanı penceresi | `p1/m6c-weather` | [x] tamam; üretimde gerçek METAR/TAF doğrulandı (2026-10-02) | #16 |
+| M6d | Türkiye dışındaki havalimanları, 1. halka (≤ 500 km, 75 havalimanı), açık turkuaz tema, hava durumu sunumu | `p1/m6d-ring1` | [k] kod bitti; üretimde 136 havalimanı ve yabancı METAR'ların doğrulanması bekliyor (ACTIVATION) | #17 |
 | M7 | Canlı araçlar ve kapsama raporu | `p1/m7-tools` | [ ] | — |
 
 ## M0 — Repo iskeleti ve yerel test ortamı
@@ -511,7 +512,7 @@ Kararlar ve gerekçeler D-078'dedir; düzeltme turundaki harita ek istekleri (pi
   - mevcut onay bandı, canlı harita, dil, SEO, havalimanı ve kullanım koşulları testleri geçer
 - `pnpm dev:replay` üzerinde elle: `curl` ile `/v1/weather?country=TR`, `/v1/airports/LTFM/weather`, `/v1/airports/IST/weather/history?hours=24`; tarayıcıda `/istasyon/LTFM`, `/en/istasyon/LTFM`, `/istasyon/LTCW` (eski gözlem), `/istasyon/LTBQ` (rapor yok), haritada IST penceresi, admin Servisler'de hava durumu satırı
 - `pnpm ci:full` yeşil; PR'da CI (`e2e` dahil) yeşil
-- **Kullanıcıya bağlı (`[k]`):** yayından sonra üretimde gerçek METAR'ların geldiğinin doğrulanması (ACTIVATION).
+- **Kullanıcıya bağlı (`[k]`):** yayından sonra üretimde gerçek METAR'ların geldiğinin doğrulanması (ACTIVATION). **2026-10-02 doğrulandı:** 61 havalimanının 54'ünde METAR, 55'inde TAF; IST geçmişi 48 rapor.
 
 **Çıktı kaydı (2026-10-02):**
 - **Yöntem:** Araştırma notu (AWC API'si, MGM/WMO terimleri, kod tabanı) üzerine sözleşme yazıldı. 6 paralel ajan ayrışık dosyalarda uyguladı: çözümleyici, sağlayıcı/DB/işler, API, havalimanı sayfaları ve i18n, harita penceresi, E2E ve belgeler. Ardından tek ajan birleştirdi.
@@ -536,6 +537,83 @@ Kararlar ve gerekçeler D-078'dedir; düzeltme turundaki harita ek istekleri (pi
   - Migration yükseltme 4 → 5; `compose:guard` 8 servis, 64 anahtar.
   - E2E 78/78.
 - `pnpm stats` → 511 dosya, 81.929 satır (74.144 kod).
+
+## M6d — Türkiye dışındaki havalimanları, 1. halka (≤ 500 km)
+Onay: 2026-10-01 (kullanıcı: Türkiye dışı havalimanları halka halka, ABD ve ötesi dahil)
+
+Kararlar ve gerekçeler D-080'dedir; site teması ve hava durumu sunumu D-081'dedir. Kilometre taşı Parça 1'e sonradan eklendi. Halkalar yakından uzağa ayrı sürümlerle açılır; bu kilometre taşı yalnızca 1. halkayı açar. Hedef sürüm 0.12.0; tek migration veri migration'ıdır (`0005_ourairports_reimport`: içe aktarım süzgeci değiştiği için OurAirports bir kez koşulsuz yeniden içe aktarılır; şema değişmez).
+
+**Kapsam:**
+- **Halkalar:** uzaklık, IATA kodlu en yakın Türkiye havalimanına büyük daire mesafesidir. 1 ≤ 500 km, 2 ≤ 1.000 km, 3 ≤ 2.000 km, 4 ≤ 5.000 km, 5 = dünyanın geri kalanı (ABD dahil). Sonraki halka yalnızca `ENABLED_AIRPORT_RING`'i büyütür.
+- **Uzaklık referansı (entegrasyonda, D-080):** analizdeki gibi Türkiye'nin IATA kodlu 66 alanı. İçe aktarım tarifesiz 5 küçük alanı (Gökçeada, Selçuk-Efes, Bodrum-İmsık, Aydın Çıldır, Adana Şakirpaşa) yalnızca referans olarak alır; Türkiye listesi 61'de kalır. Onlarsız 1. halka 72'ye düşüyordu (Priştine, Preveze, Niş dışarıda). Ayrıntılı kayıt uzaklığın ölçüldüğü havalimanını taşır (`nearestTr`); sayfa onu yazar.
+- **Aday:** OurAirports `large_airport`/`medium_airport`, tarifeli seferi kayıtlı, 3 harfli IATA kodlu; 1. halkada 75 havalimanı.
+- **"Listelenen havalimanları" tek tanım:** IATA kodlu Türkiye havalimanları (61) + açık halkalardaki yabancı adaylar. Her biri `country`, `ring` (Türkiye 0) ve `distanceToTrKm` (Türkiye null) taşır; halka üyeliği sunucuda hesaplanır.
+- **API:** `GET /v1/airports?scope=listed` (`include=runways` ile ve onsuz), `GET /v1/weather?scope=listed`. Varsayılan `country=TR` kalır; ikisi birlikte 400. Tek havalimanı ve hava durumu uç noktaları listelenen yabancı havalimanlarını da çözer.
+- **Worker:** hava durumu istasyonları listelenen havalimanlarıdır (~136). AWC istemcisi istasyonları baştan gruplara böler: 400 kayıt sınırına göre olağan 2 saatlik METAR'da 80 istasyon (136 istasyon = 2 istek), her istekte en çok 200 istasyon; ikiye bölme yalnızca yedektir. Son 24 saatte METAR'ı saklanmamış (listeye yeni giren) istasyon, worker süreci başına bir kez ayrı bir istekle 24 saat istenir.
+- **Harita:** listelenen havalimanları ve onların toplu havası; yabancı havalimanları da pin, IATA kodu ve pencereyle gösterilir. Pencere il yerine ülkeyi yazar (Ercan: KKTC). IST açılış görünümü ve performans kuralları değişmez.
+- **Sayfalar:** `/havalimanlari`'da Türkiye tablosundan sonra "Yakın ülkelerdeki havalimanları" tablosu (ad, ülke, IATA, ICAO, Türkiye'ye uzaklık, en uzun pist; ülkeye sonra ada göre Türkçe sıralı). `/istasyon/<ICAO>` listelenen yabancı havalimanlarında aynı bölümlerle açılır; il satırı yerine şehir ve ülke (şehir küratörlü tablodan, sayfanın dilinde: "Selanik, Yunanistan"; OurAirports'un İngilizce yerleşimi gösterilmez). Listelenmeyen havalimanı 404.
+- **SEO:** yabancı sayfalar dizine eklenir (TR/EN hreflang), site haritasına ve llms.txt'e (ayrı "Yakın ülkeler" listesi) girer; JSON-LD `addressCountry` LCEN'de yazılmaz.
+- **Adlar ve ülkeler:** 75 havalimanının TR/EN adı ve şehri küratörlü tabloda (Türkçe yer adlarıyla); uzaklık referansı 5 küçük alanın adı ayrı tabloda ("Bodrum-İmsık Havalimanı"); ülke adı `Intl.DisplayNames` (XK ve LCEN istisnaları).
+- **Fixture:** OurAirports'tan onaylı tek indirme (2026-10-01T23:03:49Z); 75 havalimanı ve 89 açık pist fixture'ın sonuna eklendi. LGAV, LCLK, LCEN, UGTB, LBSF ve LGTS için elle yazılmış hava durumu.
+- **`/hakkinda`:** yakın ülkelerdeki havalimanlarının listelendiği ve canlı uçak kapsamasının Türkiye odaklı olduğu yazılır.
+- **Tema A "Açık turkuaz" (kullanıcı kararı 2026-10-02, D-081):** koyu lacivert geçici temanın yerine tek tema; işletim sisteminin koyu tercihi rengi değiştirmez. Sayfalar, harita panelleri, havalimanı penceresi, etiket ve IATA kutuları (beyaz, #B9E2E6 kenar), paylaşım görselleri, uygulama simgeleri, manifest. Next'in yerleşik hata sayfası yerine temalı ve iki dilli `error.tsx` / `global-error.tsx`.
+- **Hava durumu sunumu (kullanıcı istekleri 2026-10-02, D-081 ek):** pencerede gün doğumu ve batımı yok; sıcaklık başlığın yanında ayrı kutucuk (eksi U+2212); sayıdan önce "·" ya da "–" yok (hava durumu metinleri, uçak etiketi "431 km/sa, 333 m", arama sonucu, yönetim sayım satırı); satır simgeleri; var olan olayın satırı vurgulu. Düzeltme turunda: dar ekranda satır düzeni (etiket sütunu en çok 11rem, 480 px'te tek sütun), telefonda pencerenin "Havalimanı sayfası →" bağlantısı kaydırmadan görünür, arama ipucu 1280 ve 375 px'te kesilmez, liste tablosu başlıkları ("il adına göre sıralı").
+- **Kapsam dışı:** 2–5. halkalar (ayrı sürümler); yakın ülkelerde canlı uçak verisi (kapsama planı değişmez).
+
+**Dizinler ve dosyalar:**
+- **`packages/shared`:** halka sabitleri ve işlevleri (`AIRPORT_RINGS_KM`, `ENABLED_AIRPORT_RING`, `airportRing`, `isForeignCandidate`), `reference/foreign-airport-names.ts` (75 havalimanının TR/EN adı ve şehri, `FOREIGN_AIRPORT_CITIES`), `reference/airport-names.ts` (`REFERENCE_AIRFIELD_NAMES`, `airportLocality`), ülke adları (`airportCountryName`, `countryName`), `AirportDetail`'e `country`, `ring`, `distanceToTrKm`; `map/colors.ts` (tema A etiket renkleri), `weather/phrase.ts` (virgül ayraç)
+- **`tools/fixtures/`:** `ourairports/airports.csv` ve `runways.csv` (1. halka satırları sonda), `weather/` (altı 1. halka istasyonu), `README.md` (indirme anı)
+- **`packages/db`, `apps/api/src/reference/`:** listelenen havalimanları okuyucusu (halka üyeliği, önbellek), `scope=listed`, OpenAPI
+- **`packages/providers`, `apps/worker/src/jobs/`, `packages/db/src/weather.ts`:** hava durumu istasyon kümesi = listelenen havalimanları; 80 istasyonluk baştan gruplama (400 kayıt sınırı); yeni istasyonun 24 saatlik doldurması (`metarStationsSince`); içe aktarım süzgeci Türkiye'nin IATA kodlu küçük alanlarını da alır (uzaklık referansı)
+- **`apps/web/src/`:**
+  - `lib/airports.ts`, `lib/weather.ts`: `scope=listed`
+  - `components/airports/`, `app/havalimanlari/`, `app/istasyon/[icao]/`: yakın ülkeler tablosu, yabancı havalimanı sayfası (şehir ve ülke, yakın havalimanları karışık)
+  - `lib/seo/`: site haritası, llms.txt "Yakın ülkeler" listesi, JSON-LD ülke kodu
+  - `components/map/`: `airport-data.ts` (`scope=listed`, `country`), `use-airport-weather.ts` (`scope=listed`), `airport-popup-model.ts` ve `airport-popup.tsx` (il yerine ülke; saat dilimi bilinmeyen havalimanında saat satırları yok, gözlem saati UTC)
+  - `components/about/`: komşu ülkeler ve Türkiye odaklı kapsama
+  - tema A: `app/globals.css`, `app/layout.tsx`, `app/manifest.ts`, `app/favicon.ico` (`scripts/gen-favicon.mts`), `lib/seo/brand.ts`, `lib/seo/og.tsx`, `components/map/labels.ts`; hata sayfaları `app/error.tsx`, `app/global-error.tsx`, `components/error-content.tsx`
+  - hava durumu sunumu: `components/airports/weather-rows.ts`, `weather-row-list.tsx`, `weather-rows.css`, `weather-icon.tsx`, `weather-panel.tsx`, `weather-log.tsx`, `weather-expert.ts`; `components/map/airport-popup.tsx`, `airport-popup.css`, `airport-popup-model.ts`; `lib/map/label-text.ts`, `components/map/panels/panel-format.ts`
+- **`packages/i18n`:** liste, havalimanı sayfası, hakkında ve llms.txt metinleri (TR/EN); hava durumu ayraçları; arama ipucu ve erişilebilir ad; hata sayfası metinleri (`src/error-page.ts`, `@havayolu/i18n/error-page`)
+- **`e2e/`:** `tests/foreign-airports.spec.ts`; kurulum `scope=listed` havalimanı ve hava yanıtlarını bekler; `support.ts`'te 1. halka sabitleri; liste, site haritası ve llms.txt sayıları 136/130'a güncellendi; `airports.spec.ts` (odak halkası açık ve koyu tercihte), `weather.spec.ts` (hava durumu sunumu, IST kodunun tuvalde bulunması, telefonda pencere bağlantısı, dar ekranda satır düzeni), `live-map.spec.ts` (arama ipucu)
+- **Belgeler:** D-080, D-081; D-078'in pencere bölümü ve örnekleri; `docs/spec/data-sources.md` §3 ve §5; `docs/RUNBOOK.md` (aviationweather.gov istek sayıları); `docs/ACTIVATION.md` (M6d yayın doğrulaması, web önbelleği); `tools/fixtures/README.md`
+
+**Kabul komutları:**
+- `pnpm --filter @havayolu/shared test` → `airportRing` sınırları (500 dahil, 500,1 2. halka), `isForeignCandidate`; fixture'daki her 1. halka havalimanının küratörlü adı ve şehri var, listelenmeyen her Türkiye referansının adı var ("Bodrum-İmsık"); `airportLocality`; tema A palet ve karşıtlık testi (`map/layers.test.ts`); ülke adları (Yunanistan/Greece, Kosova, Ercan → KKTC/TRNC); tabloda olmayan ad için kural ("International Airport" → "Uluslararası Havalimanı")
+- `pnpm --filter @havayolu/api test` → `scope=listed` (61 + 75, halka ve uzaklık), `include=runways` ile, `country` ile birlikte 400, OpenAPI; tek havalimanı ve hava durumu yabancı havalimanını çözer
+- `pnpm --filter @havayolu/worker test` ve `@havayolu/providers` → istasyon kümesi listelenen havalimanları; 136 istasyonluk olağan istek iki isteğe (80 + 56) bölünür; istasyon listesi büyüyünce yeni istasyonlar ayrı istekte 24 saatle istenir
+- `pnpm --filter @havayolu/i18n test` → hiçbir metinde sayıdan ya da yer tutucudan önce "·" ya da "–" yok; hata sayfası metinleri iki dilde
+- `pnpm --filter @havayolu/web test` → liste tabloları, yabancı havalimanı sayfası, site haritası ve llms.txt; harita: `scope=listed` adresleri, ülke alanı (eski API'de bölge kodundan), pencerede il yerine ülke (Ercan KKTC), saat dilimi bilinmeyen havalimanında saat satırları yok ve gözlem saati UTC; yabancı sayfada yer satırı, yerleşim satırı, paylaşım görseli ve JSON-LD küratörlü şehri yazar ("Selanik, Yunanistan", "Athens, Greece"); uçak etiketi ve arama sonucu virgülle; hata sayfaları (`app/error.test.ts`); simgeler (`app-icons.test.ts`)
+- `pnpm test:integration` → listelenen havalimanları gerçek PostgreSQL'le; `metarStationsSince`
+- `pnpm test:e2e`:
+  - kurulum: `/v1/airports?scope=listed` 136 havalimanı, `/v1/weather?scope=listed`'de LGAV'nin METAR'ı
+  - API: `scope=listed` 61 + 75, yabancıların hepsi 1. halkada ve ≤ 500 km, EGLL yok, `country` + `scope` → 400; `/v1/airports/ath` → LGAV; toplu havada altı 1. halka istasyonunun METAR'ı
+  - `/havalimanlari` ve `/en/havalimanlari`: iki tablo; yakın ülkeler tablosu 75 satır, ülkeye göre sıralı, Atina satırında Yunanistan/Greece ve km, Ercan satırında KKTC; ItemList 136
+  - `/istasyon/LGAV` ve `/en/istasyon/LGAV`: ülke, hava durumu, harita bağlantısı, dizine eklenir, JSON-LD `addressCountry` GR; `/istasyon/LCEN` KKTC'yi gösterir, JSON-LD'de ülke kodu yok; `/istasyon/ath` → 308; `/istasyon/EGLL` ve `/istasyon/LHR` → 404
+  - site haritası 130 havalimanı (LGAV ve LCEN dahil, EGLL yok); llms.txt 130 havalimanı satırı, yakın ülkeler ayrı başlık altında
+  - harita: `?havalimani=LGAV` Atina'da açar, pin ve "Havalimanları"/"Airports" listesi pencereyi açar; pencerede Yunanistan/Greece ve hava durumu
+  - mevcut testler geçer (IST açılışı, IST penceresi, M6c hava durumu)
+  - tema ve sunum: odak halkası açık ve koyu tercihte ≥ 3:1, koyu tercihte de sayfa açık turkuaz; pencere ve sayfada sıcaklık kutucuğu, vurgulu yağmur satırı, gizli simgeler, sayıdan önce ayraç yok; IST kodu diğer uçak etiketleri görünürken de bulunur; 375×812'de pencerenin bağlantısı kaydırmadan görünür ve tıklanır; 412, 430 ve 560 px'te hava durumu satırlarında değer sütunu ≥ 150 px ve kuvvetli rüzgâr etiketi kutusunda; arama ipucu 1280 ve 375 px'te iki dilde kutuya sığar
+- `pnpm dev:replay` üzerinde elle: `curl` ile `/v1/airports?scope=listed` (136), `/v1/weather?scope=listed`; tarayıcıda `/havalimanlari`, `/istasyon/LGAV`, `/istasyon/LCEN`, `/en/istasyon/UGTB`, haritada Atina ve Ercan pencereleri
+- `pnpm ci:full` yeşil; PR'da CI (`e2e` dahil) yeşil
+- **Kullanıcıya bağlı (`[k]`):** yayından sonra üretimde `scope=listed` 136 havalimanı, yakın ülkeler tablosu 75 satır ve yabancı havalimanlarında gerçek METAR (ACTIVATION, "M6d yayın doğrulaması").
+
+**Çıktı kaydı (2026-10-02):**
+- **Yöntem:** Halka analizi (OurAirports'tan onaylı tek indirme) ve sözleşme üzerine 4 paralel ajan ayrışık dosyalarda uyguladı: shared/db/API, fixture ve worker, sayfalar/SEO/i18n, harita/E2E/belgeler. Ardından tek ajan birleştirdi; 75 ↔ 72 farkını uzaklık referansı kuralıyla çözdü (D-080). Kullanıcının 2026-10-02 istekleri (tema A, pencere ve hava durumu sunumu) iki paralel ajan ve bir birleştirici ile eklendi (D-081).
+- **İnceleme:** 6 açıdan inceleme (referans verisi, API/worker, sayfalar/SEO, tema/erişilebilirlik, hava durumu sunumu, testler/belgeler) ve bulgu başına 3 çürütücü doğrulayıcı. 22 bulgunun 13'ü doğrulandı (11 ayrı madde), 9'u çürütüldü. Hepsi düzeltildi. Başlıcaları:
+  - Türkçe sayfalarda OurAirports'un İngilizce şehir adı (küratörlü TR/EN şehir tablosu)
+  - uzaklık referansı küçük alanların adı ("Bodrum-İmsık")
+  - listeye yeni giren istasyonun yalnızca 2 saatlik METAR'la başlaması (24 saatlik tek seferlik doldurma)
+  - Next'in koyu ve İngilizce yerleşik hata sayfası (temalı, iki dilli hata sayfaları)
+  - 412–430 px telefonlarda sıkışan hava durumu satırları
+  - RUNBOOK, D-078/D-080/D-081 ve ACTIVATION'daki eski sayılar ve web önbelleği notu
+- **Düzenleyicinin ek düzeltmeleri:** uçak etiketi ve arama sonucunda sayıdan önce "·" yok (i18n testi bütün metinleri denetler), telefonda pencere bağlantısı kaydırmadan görünür, arama ipucu kesilmez, liste tablosu başlıkları, E2E'de IST kodunun tuvalde bulunması.
+- **Bağımsız denetim:** bütün maddeler düzeltilmiş bulundu. 11 mutasyon grubunun hepsi testlerce yakalandı (560 px EN e2e vakası ayırt edici değil). Tarayıcıda (1280 ve 375 px, TR ve EN) IST açılışı, etiketler, IST penceresi, telefonda bağlantı, LTFM ve LGAV sayfaları, liste tabloları ve arama ipucu doğrulandı; konsol hatası yok.
+- **`pnpm ci:full` → yeşil:**
+  - Birim testleri: web 616, shared 403, api 251, worker 200, providers 120, tools 74, i18n 57, db 44, geo 31, scripts 31.
+  - Entegrasyon testleri: db 82, api 26, worker 12.
+  - Migration yükseltme 5 → 6; `compose:guard` 8 servis, 64 anahtar.
+  - E2E 101/101.
+- `pnpm stats` → 526 dosya, 88.430 satır (80.437 kod).
 
 ## M7 — Canlı araçlar ve kapsama raporu
 Ayrıntılar `docs/prompts/parca-1.md`'dedir. Başlarken bu dosyaya dizinler ve kabul komutları eklenir.

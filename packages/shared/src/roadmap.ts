@@ -96,6 +96,15 @@ export const ROADMAP: readonly Milestone[] = [
     },
   },
   {
+    id: 'p1-m6d',
+    part: '1',
+    status: 'done',
+    title: {
+      tr: 'Yakın ülkelerdeki havalimanları ve turkuaz görünüm',
+      en: 'Airports in nearby countries and turquoise look',
+    },
+  },
+  {
     id: 'p1-m7',
     part: '1',
     status: 'planned',

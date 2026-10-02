@@ -255,6 +255,72 @@ function shape(category: WeatherIconCategory): ReactNode {
   }
 }
 
+/**
+ * Satır simgeleri (M6d ek istekleri, 2026-10-02): rüzgâr, yağmur, kar, gök gürültüsü, sis ve pus,
+ * görüş, bulut ve dolu satırının önünde, 18 px, kendi çizimimiz (kullanıcının onayladığı tasarım
+ * tuvalindeki çizgi simgeler).
+ */
+const ROW_SHAPES: Readonly<Partial<Record<string, ReactNode>>> = {
+  wind: (
+    <>
+      <path d="M3 8h11a3 3 0 1 0-3-3" />
+      <path d="M3 12h15a3 3 0 1 1-3 3" />
+      <path d="M3 16h7" />
+    </>
+  ),
+  rain: (
+    <>
+      <path d="M7 15a4 4 0 0 1-.6-8 5 5 0 0 1 9.7 1.1A3.5 3.5 0 0 1 17 15" />
+      <path d="M8 18l-1 3M12 18l-1 3M16 18l-1 3" />
+    </>
+  ),
+  snow: <path d="M12 2v20M4.9 6.5l14.2 11M4.9 17.5l14.2-11" />,
+  thunder: <path d="M13 2L5 13h6l-1 9 8-11h-6l1-9z" />,
+  fog: <path d="M3 9h18M5 13h14M3 17h18" />,
+  visibility: (
+    <>
+      <path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12z" />
+      <circle cx={12} cy={12} r={3} />
+    </>
+  ),
+  clouds: <path d={CLOUD} />,
+  hail: (
+    <>
+      <path d={CLOUD_HIGH} />
+      {[8, 12, 16].map((x, i) => (
+        <circle key={x} cx={x} cy={i === 1 ? 19.5 : 18} r={1.4} />
+      ))}
+    </>
+  ),
+}
+
+/**
+ * Hava durumu satırının simgesi; süsleme amaçlıdır (`aria-hidden`), anlamı satırın etiketi taşır.
+ * Simgesi olmayan satırda (sıcaklık, nem, basınç…) etiketler hizalı kalsın diye boş yer tutucu.
+ */
+export function WeatherRowIcon({ row }: { row: string }) {
+  const shape = ROW_SHAPES[row]
+  if (shape === undefined) return <span className="wx-icon" aria-hidden="true" />
+  return (
+    <svg
+      className="wx-icon"
+      data-icon={row}
+      viewBox="0 0 24 24"
+      width={18}
+      height={18}
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      focusable="false"
+    >
+      {shape}
+    </svg>
+  )
+}
+
 export function WeatherIcon({ category }: { category: WeatherIconCategory }) {
   return (
     <svg

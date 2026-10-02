@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it } from 'vitest'
 import {
   AVIATIONWEATHER_BASE_URL,
   AWC_MAX_ENTRIES,
+  AWC_MAX_IDS,
   AWC_MAX_RETRY_AFTER_SEC,
   AWC_METAR_MAX_HOURS,
   AWC_METAR_PER_STATION_HOUR,
@@ -79,8 +80,8 @@ describe('istek biçimi', () => {
     // Listede olmayan istasyonların raporları atlanır.
     expect(new Set(result.items.map((m) => m.station))).toEqual(new Set(['LTFM', 'LTBA', 'LTAC']))
     expect(result.items.filter((m) => m.station === 'LTFM')).toHaveLength(146)
-    expect(result.entryCount).toBe(159)
-    expect(result.skipped.filter((s) => s.reason === 'unlisted_station')).toHaveLength(11)
+    expect(result.entryCount).toBe(165)
+    expect(result.skipped.filter((s) => s.reason === 'unlisted_station')).toHaveLength(17)
   })
 
   it('TAF: hours gönderilmez (bu uçta yoktur)', async () => {
@@ -103,13 +104,6 @@ describe('istek biçimi', () => {
     expect((await failure(awc.metars(['LTFM'], { hours: AWC_METAR_MAX_HOURS + 1 }))).kind).toBe(
       'request',
     )
-    expect(
-      (
-        await failure(
-          awc.tafs(Array.from({ length: 201 }, (_, i) => `K${String(i).padStart(3, '0')}`)),
-        )
-      ).kind,
-    ).toBe('request')
     expect(calls).toHaveLength(0)
     expect(normalizeStationIds(['ltfm', 'LTFM ', 'ltba'])).toEqual(['LTFM', 'LTBA'])
   })
@@ -258,6 +252,12 @@ describe('boyut sınırı ve zaman aşımı (yerel stub sunucu)', () => {
 })
 
 describe('400 kayıt sınırı', () => {
+  /** Sentetik, benzersiz dört harfli istasyon kodları (XAAA, XAAB …). */
+  const stationIds = (count: number) =>
+    Array.from({ length: count }, (_, i) => {
+      const letter = (n: number) => String.fromCharCode(65 + (Math.floor(i / 26 ** n) % 26))
+      return `X${letter(2)}${letter(1)}${letter(0)}`
+    })
   const entries = (ids: string[], count: number) =>
     JSON.stringify(
       Array.from({ length: count }, (_, i) => {
@@ -307,6 +307,37 @@ describe('400 kayıt sınırı', () => {
     const usual = stubFetch(() => json('[]'))
     await client(usual.fetch).metars(ids)
     expect(usual.calls).toHaveLength(1)
+  })
+
+  it('olağan 2 saatlik istek: Türkiye + 1. halka (136 istasyon) 80 istasyonluk iki isteğe bölünür', async () => {
+    // 136 istasyon × 2 saatte ~4 METAR/SPECI ≈ 540 kayıt: tek istek 400 sınırını aşardı (D-080).
+    const ids = stationIds(136)
+    const { fetch, calls } = stubFetch((url) => {
+      const asked = url.searchParams.get('ids')?.split(',') ?? []
+      return json(entries(asked, asked.length * 4))
+    })
+    const result = await client(fetch).metars(ids)
+    const perRequest = Math.floor(AWC_MAX_ENTRIES / (2 * AWC_METAR_PER_STATION_HOUR))
+    expect(perRequest).toBe(80)
+    const sent = calls.map((c) => new URL(c.url).searchParams)
+    expect(sent.map((q) => q.get('ids')?.split(',').length)).toEqual([80, 56])
+    expect(sent.every((q) => q.get('hours') === '2')).toBe(true)
+    expect(sent.flatMap((q) => q.get('ids')?.split(',') ?? [])).toEqual(ids)
+    expect(result).toMatchObject({ requests: 2, truncated: false, entryCount: 136 * 4 })
+    expect(new Set(result.items.map((m) => m.station)).size).toBe(136)
+  })
+
+  it('TAF ve uzun liste: istek başına en çok AWC_MAX_IDS istasyon (sonraki halkalar)', async () => {
+    const ids = stationIds(AWC_MAX_IDS * 2 + 1)
+    const tafs = stubFetch(() => json('[]'))
+    const result = await client(tafs.fetch).tafs(ids)
+    const sizes = tafs.calls.map((c) => new URL(c.url).searchParams.get('ids')?.split(',').length)
+    expect(sizes).toEqual([AWC_MAX_IDS, AWC_MAX_IDS, 1])
+    expect(result).toMatchObject({ status: 200, requests: 3, truncated: false })
+    // METAR'da kayıt sınırına göre grup zaten daha küçüktür (2 saatte 80).
+    const metars = stubFetch(() => json('[]'))
+    await client(metars.fetch).metars(ids)
+    expect(metars.calls).toHaveLength(Math.ceil(ids.length / 80))
   })
 
   it('en fazla iki düzey bölünür; yine sınırdaysa eksik olabileceği bildirilir', async () => {
