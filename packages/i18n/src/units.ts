@@ -29,6 +29,12 @@ export interface UnitOptions {
 /** Değeri bilinmeyen alanın gösterimi. */
 export const NO_VALUE = '—'
 
+/**
+ * Bölünmez boşluk (U+00A0): dar sütunda sayı biriminden ayrı satıra düşmez ("3.400 m" tek parça;
+ * D-083). Ekran okuyucu ve arama için olağan boşluk gibidir.
+ */
+export const NBSP = '\u00a0'
+
 // Dönüşüm katsayıları: packages/geo ile aynı değerler (i18n yalnızca shared'e bağımlıdır).
 const M_PER_FT = 0.3048
 const KMH_PER_KT = 1.852
@@ -104,17 +110,21 @@ function formatNumber(
 
 /**
  * Barometrik yükseklik (ft girdi). Metrikte tam metre ("333 m", "1.093 m"), havacılıkta ft.
- * Uçak yerdeyse değer ne olursa olsun "yerde" / "on ground" yazılır.
+ * Uçak yerdeyse değer ne olursa olsun "yerde" / "on ground" yazılır. `nowrap` sayı ile birimi
+ * bölünmez boşlukla (`NBSP`) birleştirir: dar sütunda "3.400" / "m" diye kırılmaz (haritadaki
+ * havalimanı penceresinde rakım ve pist uzunluğu, D-083). Varsayılan olağan boşluktur (harita
+ * etiketleri tuvalde ölçülür).
  */
 export function formatAltitude(
   ft: number | null,
-  opts?: UnitOptions & { onGround?: boolean },
+  opts?: UnitOptions & { onGround?: boolean; nowrap?: boolean },
 ): string {
   const { units, locale } = resolve(opts)
   if (opts?.onGround) return LABELS[locale].onGround
   if (!known(ft)) return NO_VALUE
   const value = units === 'metric' ? ft * M_PER_FT : ft
-  return `${formatNumber(value, locale, 0, 'negative')} ${LABELS[locale].altitude[units]}`
+  const space = opts?.nowrap ? NBSP : ' '
+  return `${formatNumber(value, locale, 0, 'negative')}${space}${LABELS[locale].altitude[units]}`
 }
 
 /** Yer hızı (kt girdi). Metrikte "431 km/sa" (en "431 km/h"), havacılıkta "233 kt". */

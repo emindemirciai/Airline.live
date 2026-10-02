@@ -33,17 +33,33 @@ const WIND_RE = /^(VRB|\d{3}|\/{3})(P?\d{2,3}|\/{2,3})(?:G(P?\d{2,3}|\/{2,3}))?(
 const WIND_MISSING_RE = /^\/{2,6}(?:KT|MPS|KMH)$/
 const WIND_VARYING_RE = /^(\d{3})V(\d{3})$/
 
+const KMH_PER_MPS = 3.6
+
 function toKt(value: number, unit: string): number {
   if (unit === 'MPS') return Math.round(value * KT_PER_MPS)
   if (unit === 'KMH') return Math.round(value / KMH_PER_KT)
   return value
 }
 
+/** km/sa, raporun biriminden tek yuvarlamayla (kt'den yeniden çevrilmez; D-083). */
+function toKmh(value: number, unit: string): number {
+  if (unit === 'MPS') return Math.round(value * KMH_PER_MPS)
+  if (unit === 'KMH') return value
+  return Math.round(value * KMH_PER_KT)
+}
+
+interface Speed {
+  kt: number | null
+  kmh: number | null
+  above: boolean
+}
+
 /** Hız parçası: `P99` ölçek üstüdür (100 kt ve üzeri); `//` bilinmiyor. */
-function speed(part: string | undefined, unit: string): { kt: number | null; above: boolean } {
-  if (part === undefined || part.startsWith('/')) return { kt: null, above: false }
-  if (part.startsWith('P')) return { kt: toKt(Number(part.slice(1)) + 1, unit), above: true }
-  return { kt: toKt(Number(part), unit), above: false }
+function speed(part: string | undefined, unit: string): Speed {
+  if (part === undefined || part.startsWith('/')) return { kt: null, kmh: null, above: false }
+  const above = part.startsWith('P')
+  const value = above ? Number(part.slice(1)) + 1 : Number(part)
+  return { kt: toKt(value, unit), kmh: toKmh(value, unit), above }
 }
 
 /**
@@ -67,6 +83,8 @@ export function parseWind(token: string): { wind: Wind | null } | undefined {
       directionDeg,
       speedKt: mean.kt,
       gustKt: gust.kt,
+      speedKmh: mean.kmh,
+      gustKmh: gust.kmh,
       varyingFromDeg: null,
       varyingToDeg: null,
       aboveMaxKt: mean.above || gust.above,

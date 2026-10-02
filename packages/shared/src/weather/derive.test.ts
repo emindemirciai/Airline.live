@@ -5,10 +5,12 @@ import {
   isStrongWind,
   largestCover,
   lowestCloudBaseFt,
+  offScaleWind,
   relativeHumidity,
+  windLevel,
 } from './derive'
 import { decodeMetar } from './metar'
-import type { Sky, Wind } from './schema'
+import { WIND_LEVELS, type Sky, type Wind, type WindLevel } from './schema'
 
 const layers = (...items: [string | null, number | null, string | null][]): Sky => ({
   kind: 'layers',
@@ -83,6 +85,75 @@ describe('kuvvetli rüzgâr (ortalama ≥ 20 kt ya da hamle ≥ 30 kt)', () => {
     [null, false],
   ] as const)('%o → %s', (w, strong) => {
     expect(isStrongWind(w)).toBe(strong)
+  })
+})
+
+describe('rüzgâr şiddeti (D-083: MGM eşiği ve Beaufort adları, hamlede Met Office karşılıkları)', () => {
+  const decode = (group: string) =>
+    decodeMetar(`LTXX 031250Z ${group} 9999 FEW030 10/05 Q1010`, {
+      referenceTime: '2026-10-03T13:00:00Z',
+    }).wind
+  it.each([
+    ['19KT', null],
+    ['20KT', 'strong'],
+    ['27KT', 'strong'],
+    ['28KT', 'nearGale'],
+    ['33KT', 'nearGale'],
+    ['34KT', 'gale'],
+    ['40KT', 'gale'],
+    ['41KT', 'severeGale'],
+    ['48KT', 'storm'],
+    ['56KT', 'violentStorm'],
+    ['63KT', 'violentStorm'],
+    ['64KT', 'hurricane'],
+    ['19G29KT', null],
+    ['19G30KT', 'gusts'],
+    ['10G42KT', 'gusts'],
+    ['25G42KT', 'strong'],
+    ['25G43KT', 'gale'],
+    ['10G52KT', 'severeGale'],
+    ['40G61KT', 'storm'],
+    ['50G69KT', 'violentStorm'],
+    ['P99KT', 'hurricane'],
+    ['20GP99KT', 'violentStorm'],
+    ['11MPS', 'strong'],
+    ['10MPS', null],
+    ['00KT', null],
+  ] as const)('%s → %s', (group, level) => {
+    const w = decode(`270${group}`)
+    expect(windLevel(w)).toBe(level)
+    // Vurgu eşiği aynı kalır: düzey varsa MGM meydan uyarısı eşiği aşılmıştır.
+    expect(isStrongWind(w)).toBe(level !== null)
+  })
+
+  it('sakin, bilinmeyen ve eksik rüzgârda düzey yok', () => {
+    expect(windLevel(decode('00000KT'))).toBeNull()
+    expect(windLevel(decode('/////KT'))).toBeNull()
+    expect(windLevel(decode('270//KT'))).toBeNull()
+    expect(windLevel(null)).toBeNull()
+    expect(windLevel(wind(null, 35))).toBe('gusts')
+  })
+
+  it('düzeyler zayıftan güçlüye sıralıdır; büyük olan kazanır', () => {
+    const order = (level: WindLevel) => WIND_LEVELS.indexOf(level)
+    expect(order('gusts')).toBeLessThan(order('strong'))
+    expect(order('strong')).toBeLessThan(order('nearGale'))
+    expect(order('violentStorm')).toBeLessThan(order('hurricane'))
+    expect(windLevel(wind(64, 69))).toBe('hurricane')
+    expect(windLevel(wind(28, 43))).toBe('gale')
+  })
+})
+
+describe('ölçek üstü değer (P99KT, P49MPS; D-083)', () => {
+  it('hamle varsa ölçek üstü hamledir, yoksa ortalama; kt eşiği yoktur', () => {
+    expect(offScaleWind(wind(100, null, true))).toEqual({ speed: true, gust: false })
+    // P49MPS: 50 m/s = 97 kt; 100 kt'nin altında da ölçek üstüdür.
+    expect(offScaleWind(wind(97, null, true))).toEqual({ speed: true, gust: false })
+    expect(offScaleWind(wind(39, 97, true))).toEqual({ speed: false, gust: true })
+    expect(offScaleWind(wind(90, 100, true))).toEqual({ speed: false, gust: true })
+    expect(offScaleWind(wind(100, 100, true))).toEqual({ speed: true, gust: true })
+    expect(offScaleWind(wind(100, null, false))).toEqual({ speed: false, gust: false })
+    expect(offScaleWind(wind(20, 35))).toEqual({ speed: false, gust: false })
   })
 })
 

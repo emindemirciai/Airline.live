@@ -1,5 +1,10 @@
-import { getMessages } from '@havayolu/i18n'
-import type { AirportWeather, Locale, WeatherHistoryResponse } from '@havayolu/shared'
+import { getMessages, weatherText } from '@havayolu/i18n'
+import {
+  windText,
+  type AirportWeather,
+  type Locale,
+  type WeatherHistoryResponse,
+} from '@havayolu/shared'
 import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
@@ -10,6 +15,7 @@ import {
   metarFromRaw,
 } from '../../lib/test/weather-fixture'
 import { AirportWeatherLive } from './airport-weather-live'
+import { expertWind } from './weather-expert'
 import { WeatherLog } from './weather-log'
 import { WeatherPanel } from './weather-panel'
 
@@ -126,7 +132,7 @@ describe('WeatherPanel: bütün fixture durumları', () => {
     }
   })
 
-  it('LTFM: başlık, kuvvetli rüzgâr, satırlar, gözlem saati; göreli yaş yalnızca istemcide', () => {
+  it('LTFM: başlık, rüzgâr şiddeti, satırlar, gözlem saati; göreli yaş yalnızca istemcide', () => {
     const weather = fixtureWeather('LTFM')
     const html = panel(weather)
     const body = text(html)
@@ -134,13 +140,22 @@ describe('WeatherPanel: bütün fixture durumları', () => {
     expect(html).toContain(
       '<strong>Hafif sağanak yağmur</strong> <span class="wx-temp">9 °C</span></p>',
     )
-    expect(html).toContain('<span class="wx-tag">Kuvvetli rüzgâr</span>')
-    expect(row(html, 'wind')).toBe('Kuzeydoğudan 33 km/sa, hamle 59 km/sa Kuvvetli rüzgâr')
-    // Etiket metinden boşlukla ayrılır (ekran okuyucu ve kopyalama "km/saKuvvetli" okumaz).
-    expect(html).toContain('hamle 59 km/sa <span class="wx-tag">Kuvvetli rüzgâr</span>')
+    // km/sa ve parantezde kt; yalnız hamle eşiği (32 kt) aşıldığı için "Kuvvetli hamle" (D-083).
+    expect(html).toContain('<span class="wx-tag">Kuvvetli hamle</span>')
+    expect(row(html, 'wind')).toBe(
+      'Kuzeydoğudan 33 km/sa (18 kt), hamle 59 km/sa (32 kt) Kuvvetli hamle',
+    )
+    // Etiket metinden boşlukla ayrılır (ekran okuyucu ve kopyalama "kt)Kuvvetli" okumaz). Hızın
+    // içinde bölünmez boşluk: sayı birimden, knot km/sa'dan ayrı satıra düşmez (D-083).
+    expect(html).toContain(
+      'hamle 59\u00a0km/sa\u00a0(32\u00a0kt) <span class="wx-tag">Kuvvetli hamle</span>',
+    )
     expect(row(html, 'rain')).toBe('Hafif sağanak yağmur')
     expect(row(html, 'snow')).toBe('Yok')
-    expect(row(html, 'thunder')).toBe('Yok (kümülonimbüs bulutu var)')
+    // Kümülonimbüs ve yağış: şimşek ve yıldırım tehlikesi (kullanıcının sözü, 2026-10-03).
+    expect(row(html, 'thunder')).toBe(
+      'Kümülonimbüs (oraj bulutu) ve yağış var; şimşek ve yıldırım tehlikesi',
+    )
     expect(row(html, 'fog')).toBe('Yok')
     expect(row(html, 'visibility')).toBe('10 km ve üzeri')
     expect(row(html, 'pressure')).toBe('1009 hPa')
@@ -150,7 +165,7 @@ describe('WeatherPanel: bütün fixture durumları', () => {
     expect(html).toMatch(/<svg class="weather-icon" data-icon="showers"/)
   })
 
-  it('satır simgeleri süslemedir; yalnız var olan olay vurgulanır', () => {
+  it('satır simgeleri süslemedir; var olan olay, etkili rüzgâr ve yıldırım riski vurgulanır', () => {
     const html = panel(fixtureWeather('LTFM'))
     for (const key of ['wind', 'rain', 'snow', 'thunder', 'fog', 'visibility', 'clouds']) {
       expect(html, key).toMatch(
@@ -164,12 +179,13 @@ describe('WeatherPanel: bütün fixture durumları', () => {
       '<div class="wx-row" data-row="pressure"><dt><span class="wx-icon" aria-hidden="true"></span>Basınç</dt>',
     )
     expect(html).toContain('<dl class="wx-rows wx-rows--page">')
-    // LTFM: hafif sağanak var (mavi); kar, gök gürültüsü (CB'li "Yok") ve sis yok.
+    // LTFM: hamle 32 kt (kehribar rüzgâr), hafif sağanak (mavi), CB ve yağışta şimşek ve yıldırım
+    // tehlikesi (kehribar); kar ve sis yok (D-083).
     expect(['wind', 'rain', 'snow', 'thunder', 'fog'].map((key) => tone(html, key))).toEqual([
-      null,
+      'wind',
       'rain',
       null,
-      null,
+      'thunder',
       null,
     ])
     const snow = panel(fixtureWeather('LTAC'))
@@ -185,8 +201,17 @@ describe('WeatherPanel: bütün fixture durumları', () => {
       'hail',
       'rain',
     ])
-    // Çevredeki gök gürültüsü havalimanında yoktur: vurgulanmaz.
-    expect(tone(panel(fixtureWeather('LTAU')), 'thunder')).toBeNull()
+    // Çevredeki gök gürültüsü: yıldırım havalimanına da düşebilir, vurgulanır (D-083).
+    expect(tone(panel(fixtureWeather('LTAU')), 'thunder')).toBe('thunder')
+    // Rüzgâr eşiğin altında vurgusuz ve etiketsiz (LTAC 12 kt); kuvvetli kuzeybatı (LGTS 26G38).
+    const calm = panel(fixtureWeather('LTAC'))
+    expect(tone(calm, 'wind')).toBeNull()
+    expect(calm).not.toContain('wx-tag')
+    const vardar = panel(fixtureWeather('LGTS'), { abroad: true })
+    expect(tone(vardar, 'wind')).toBe('wind')
+    expect(row(vardar, 'wind')).toBe(
+      'Kuzeybatıdan 48 km/sa (26 kt), hamle 70 km/sa (38 kt) Kuvvetli rüzgâr',
+    )
   })
 
   it('LTFM: tahmin özeti niteleyicisiyle, geçerlilik sonu; yerel saat ve gün doğumu/batımı', () => {
@@ -211,7 +236,7 @@ describe('WeatherPanel: bütün fixture durumları', () => {
     expect(html).not.toMatch(/<details[^>]* open/)
     expect(html).toContain('<caption id="weather-codes-caption">Gözlemin kod kod çözümü</caption>')
     expect(html).toContain(
-      '<th scope="row" class="mono">03018G32KT</th><td>Rüzgâr: 030° 18 kt (33 km/sa), hamle 32 kt (59 km/sa)</td>',
+      '<th scope="row" class="mono">03018G32KT</th><td>Rüzgâr: 030° 18\u00a0kt\u00a0(33\u00a0km/sa), hamle 32\u00a0kt\u00a0(59\u00a0km/sa)</td>',
     )
     // Tahmin dönemi: yerel saatler "ile … arası", TAF'taki gün-saat kodu eğik çizgiyle.
     expect(html).toContain(
@@ -232,7 +257,10 @@ describe('WeatherPanel: bütün fixture durumları', () => {
 
   it('LTAU: çevrede gök gürültüsü; LTAC: kar; LTCG: sis ve dikey görüş; LTBS: dolu ve özel rapor', () => {
     expect(row(panel(fixtureWeather('LTAU')), 'thunder')).toBe(
-      'Havalimanında yok; çevresinde gök gürültüsü',
+      'Havalimanı çevresinde gök gürültüsü var; yıldırım havalimanına da düşebilir',
+    )
+    expect(row(panel(fixtureWeather('LTAI')), 'thunder')).toBe(
+      'Gök gürültüsü var; şimşek ve yıldırım tehlikesi',
     )
     expect(row(panel(fixtureWeather('LTAC')), 'snow')).toBe('Kar')
     const fog = panel(fixtureWeather('LTCG'))
@@ -385,7 +413,7 @@ describe('WeatherLog: METAR/TAF kaydı', () => {
       html.indexOf('</tr>', html.indexOf('<tbody>')),
     )
     expect(text(first)).toContain(
-      '15:50 12:50 UTC METAR Hafif sağanak yağmur, 9 °C, kuzeydoğudan 33 km/sa, hamle 59 km/sa',
+      '15:50 12:50 UTC METAR Hafif sağanak yağmur, 9 °C, kuzeydoğudan 33 km/sa (18 kt), hamle 59 km/sa (32 kt)',
     )
     expect(text(html)).not.toMatch(DASH_BEFORE_NUMBER)
     expect(html).toContain('<span class="weather-type is-taf">TAF</span>')
@@ -456,5 +484,32 @@ describe('AirportWeatherLive (sunucu çizimi)', () => {
     expect(text(html)).toContain('Gözlem 15:50')
     expect(text(html)).not.toContain('dakika önce')
     expect(html).not.toContain('<button')
+  })
+})
+
+describe('ölçek üstü rüzgâr: sade ve uzman görünüm aynı (P99KT, P49MPS; D-083)', () => {
+  const options = { locale: 'tr' as const, t: getMessages('tr').weather }
+  // Bölünmez boşluklar (D-083) okunurluk için olağan boşluğa çevrilir.
+  const spaced = (value: string) => value.replace(/\u00a0/g, ' ')
+  const observedAt = new Date(FIXTURE_NOW).toISOString()
+
+  it.each([
+    // P49MPS: 50 m/s ve üzeri = 97 kt; sade görünüm 100 kt'nin altında "ve üzeri"yi düşürüyordu.
+    ['270P49MPS', 'Batıdan 180 km/sa (97 kt) ve üzeri', '270° 97 kt (180 km/sa) ve üzeri'],
+    [
+      '27020GP49MPS',
+      'Batıdan 72 km/sa (39 kt), hamle 180 km/sa (97 kt) ve üzeri',
+      '270° 39 kt (72 km/sa), hamle 97 kt (180 km/sa) ve üzeri',
+    ],
+    ['270P99KT', 'Batıdan 185 km/sa (100 kt) ve üzeri', '270° 100 kt (185 km/sa) ve üzeri'],
+    [
+      '33090GP99KT',
+      'Kuzeybatıdan 167 km/sa (90 kt), hamle 185 km/sa (100 kt) ve üzeri',
+      '330° 90 kt (167 km/sa), hamle 100 kt (185 km/sa) ve üzeri',
+    ],
+  ])('%s', (group, plain, expert) => {
+    const { wind } = metarFromRaw(`UUXX 011250Z ${group} 9999 FEW030 15/08 Q1015`, observedAt)
+    expect(spaced(weatherText(windText(wind), options))).toBe(plain)
+    expect(spaced(expertWind(wind, options))).toBe(expert)
   })
 })

@@ -1,4 +1,5 @@
 import {
+  ktToKmh,
   renderWeatherText,
   WEATHER_PHRASE_KEYS,
   type Measure,
@@ -20,7 +21,8 @@ export function keyTemplate(key: WeatherPhraseKey): string {
 export function fakeMeasure(m: Measure): string {
   switch (m.measure) {
     case 'speed':
-      return `${m.kt}kt`
+      // km/sa yalnız kt'den çevrilenden farklıysa yazılır (MPS raporu: "21kt/40kmh").
+      return m.kmh === undefined || m.kmh === ktToKmh(m.kt) ? `${m.kt}kt` : `${m.kt}kt/${m.kmh}kmh`
     case 'visibility':
       return `${m.meters}m`
     case 'height':

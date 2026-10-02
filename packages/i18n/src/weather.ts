@@ -12,7 +12,7 @@ import {
   type WeatherText,
 } from '@havayolu/shared'
 import type { Messages } from './messages/tr'
-import { NO_VALUE } from './units'
+import { NBSP, NO_VALUE } from './units'
 
 /**
  * Hava durumu metinleri (Parça 1 M6c, D-078). Çözücünün özetleri (`summarizeMetar`,
@@ -37,6 +37,9 @@ export interface WeatherTextOptions {
 const MINUS = '−'
 const INTL_LOCALE: Record<Locale, string> = { tr: 'tr-TR', en: 'en-GB' }
 const SPEED_UNIT: Record<Locale, string> = { tr: 'km/sa', en: 'km/h' }
+// Rüzgâr hızındaki boşluklar bölünmezdir (`NBSP`, units.ts): sayı biriminden, knot karşılığı
+// km/sa'dan ayrı satıra düşmez ("48 km/sa (26 kt)" tek parça; pencerenin dar değer sütununda "48" /
+// "km/sa" kırılıyordu, D-083).
 
 const numberFormats = new Map<string, Intl.NumberFormat>()
 
@@ -99,16 +102,39 @@ export function formatFeet(ft: number | null, locale: Locale): string {
   return `${numberFormat(locale, 0).format(Math.round(ft))} ft`
 }
 
-/** Rüzgâr hızı (kt girdi), km/sa: 18 kt → "33 km/sa" (en "33 km/h"). */
-export function formatWindSpeed(kt: number | null, locale: Locale): string {
+/**
+ * Rüzgâr hızı (kt girdi), km/sa: 18 kt → "33 km/sa" (en "33 km/h"). `kmh` raporun kendi biriminden
+ * çevrilmiş değerdir (MPS raporu; `Wind.speedKmh`); verilmezse kt'den çevrilir.
+ */
+export function formatWindSpeed(kt: number | null, locale: Locale, kmh?: number | null): string {
   if (!known(kt)) return NO_VALUE
-  return `${numberFormat(locale, 0).format(ktToKmh(kt))} ${SPEED_UNIT[locale]}`
+  const value = known(kmh) ? kmh : ktToKmh(kt)
+  return `${numberFormat(locale, 0).format(value)}${NBSP}${SPEED_UNIT[locale]}`
 }
 
-/** Rüzgâr hızı, uzman görünümü: "18 kt (33 km/sa)". */
-export function formatWindSpeedBoth(kt: number | null, locale: Locale): string {
+/**
+ * Rüzgâr hızı, sade görünüm (D-083): km/sa önce, knot parantezde: "33 km/sa (18 kt)" / "33 km/h
+ * (18 kt)". kt rapordaki tam sayıdır.
+ */
+export function formatWindSpeedDual(
+  kt: number | null,
+  locale: Locale,
+  kmh?: number | null,
+): string {
   if (!known(kt)) return NO_VALUE
-  return `${numberFormat(locale, 0).format(Math.round(kt))} kt (${formatWindSpeed(kt, locale)})`
+  const knots = numberFormat(locale, 0).format(Math.round(kt))
+  return `${formatWindSpeed(kt, locale, kmh)}${NBSP}(${knots}${NBSP}kt)`
+}
+
+/** Rüzgâr hızı, uzman görünümü: knot önce, "18 kt (33 km/sa)". */
+export function formatWindSpeedBoth(
+  kt: number | null,
+  locale: Locale,
+  kmh?: number | null,
+): string {
+  if (!known(kt)) return NO_VALUE
+  const knots = numberFormat(locale, 0).format(Math.round(kt))
+  return `${knots}${NBSP}kt${NBSP}(${formatWindSpeed(kt, locale, kmh)})`
 }
 
 /** Görüş ve RVR (m girdi): "350 m", "1,5 km", "4 km", "7 km" (`visibilityDisplay`). */
@@ -210,7 +236,7 @@ export function formatAgo(at: DateLike, now: number, options: WeatherTextOptions
 export function formatMeasure(value: Measure, locale: Locale): string {
   switch (value.measure) {
     case 'speed':
-      return formatWindSpeed(value.kt, locale)
+      return formatWindSpeedDual(value.kt, locale, value.kmh)
     case 'visibility':
       return formatVisibility(value.meters, locale)
     case 'height':

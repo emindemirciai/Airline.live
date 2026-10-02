@@ -300,8 +300,25 @@ export const tr = {
       undetermined: 'Belirlenemedi',
       vicinity: 'Havalimanında yok; çevresinde {phrase}',
       recent: 'Şu an yok; kısa süre önce {phrase}',
-      noneWithCb: 'Yok (kümülonimbüs bulutu var)',
       notStated: 'Raporda belirtilmemiş',
+    },
+    /**
+     * Gök gürültüsü satırının şimşek ve yıldırım uyarısı (D-083; `summarizeMetar` → `lightning`).
+     * Yıldırım yağmurun dışına da düşer: havalimanında oraj varsa yağış olsun olmasın "tehlike",
+     * çevrede (VCTS) "düşebilir", kümülonimbüs bulutu havalimanındaki yağışla birlikteyse "tehlike"
+     * (`cloudPrecip`; kullanıcının sözü, 2026-10-03: "yağmurla beraber, şimşek ve yıldırım
+     * tehlikesi"), yağışsız kümülonimbüste "olabilir" denir. "Güvenli" ya da "risk yok" hiçbir zaman
+     * yazılmaz. "Oraj" yalnız bulutun açıklamasında geçer (MGM: oraj hücresi); TS için "fırtına"
+     * denmez.
+     */
+    thunder: {
+      here: 'Gök gürültüsü var; şimşek ve yıldırım tehlikesi',
+      hereDry: 'Gök gürültüsü var, yağış yok; şimşek ve yıldırım tehlikesi',
+      vicinity: 'Havalimanı çevresinde gök gürültüsü var; yıldırım havalimanına da düşebilir',
+      cloudPrecip: 'Kümülonimbüs (oraj bulutu) ve yağış var; şimşek ve yıldırım tehlikesi',
+      cloud: 'Yok; kümülonimbüs (oraj bulutu) var, şimşek ve yıldırım olabilir',
+      cloudUndetermined:
+        'Belirlenemedi; kümülonimbüs (oraj bulutu) var, şimşek ve yıldırım olabilir',
     },
     /**
      * Hava olayları, çözücünün metin kimlikleriyle (`weatherPhraseId`, `WX_PHRASE_IDS`): `_light`
@@ -449,8 +466,23 @@ export const tr = {
       speedOnly: 'Yönü bilinmiyor, {speed}',
       gust: 'hamle {speed}',
       varying: 'yönü {from} ile {to} arasında değişiyor',
-      above: '{speed} üzeri',
-      strong: 'Kuvvetli rüzgâr',
+      /** Ölçek üstü: P99KT 100 kt, P49MPS 50 m/s (97 kt) ya da daha fazla. */
+      above: '{speed} ve üzeri',
+      /**
+       * Etkili rüzgârın şiddeti (D-083): rüzgâr satırının etiketi ve TAF öğesi. Eşik MGM meydan
+       * uyarısıdır (ortalama ≥ 20 kt ya da hamle ≥ 30 kt); adlar MGM Beaufort ıskalasındandır.
+       * `gusts`: yalnız hamle eşiği aşıldı.
+       */
+      level: {
+        gusts: 'Kuvvetli hamle',
+        strong: 'Kuvvetli rüzgâr',
+        nearGale: 'Fırtınamsı rüzgâr',
+        gale: 'Fırtına',
+        severeGale: 'Kuvvetli fırtına',
+        storm: 'Tam fırtına',
+        violentStorm: 'Çok şiddetli fırtına',
+        hurricane: 'Harikeyn (orkan)',
+      },
     },
     /** Sade görünümde 8 yön; uzman ayrıntılarında derece de yazılır. */
     compass: {
@@ -530,7 +562,8 @@ export const tr = {
       probUntil: '{to} saatine kadar %{probability} olasılıkla {phrase}',
       probTempo: '{from} ile {to} arası %{probability} olasılıkla ara ara {phrase}',
       probTempoUntil: '{to} saatine kadar %{probability} olasılıkla ara ara {phrase}',
-      strongWind: 'kuvvetli rüzgâr, {wind}',
+      /** Etkili rüzgâr: "fırtına, kuzeydoğudan 70 km/sa (38 kt), hamle 93 km/sa (50 kt)". */
+      strongWind: '{level}, {wind}',
       validUntil: 'Tahminin geçerlilik sonu: {time}.',
       validPeriod: 'Tahmin {from} ile {to} arası için.',
       issued: 'Tahmin {time} yayımlandı.',

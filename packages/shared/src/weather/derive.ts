@@ -1,13 +1,15 @@
-import type {
-  CloudCover,
-  DecodedMetar,
-  Headline,
-  MetarDerived,
-  Sky,
-  WeatherFlags,
-  WeatherGroup,
-  WeatherIconCategory,
-  Wind,
+import {
+  WIND_LEVELS,
+  type CloudCover,
+  type DecodedMetar,
+  type Headline,
+  type MetarDerived,
+  type Sky,
+  type WeatherFlags,
+  type WeatherGroup,
+  type WeatherIconCategory,
+  type Wind,
+  type WindLevel,
 } from './schema'
 import {
   isDustSandGroup,
@@ -85,11 +87,74 @@ export function relativeHumidity(
   return Math.min(100, Math.round(rh / 5) * 5)
 }
 
-/** Ortalama ≥ 20 kt ya da hamle ≥ 30 kt; ölçek üstü (P99) her zaman kuvvetlidir. */
+/**
+ * Ortalama rüzgârın şiddet adı (kt alt sınırı, büyükten küçüğe). MGM Beaufort ıskalası: 7 Fırtınamsı
+ * Rüzgâr 28, 8 Fırtına 34, 9 Kuvvetli Fırtına 41, 10 Tam Fırtına 48, 11 Çok Şiddetli Fırtına 56, 12
+ * Harikeyn (Orkan) 64 kt. 20–27 kt tek bant, "Kuvvetli rüzgâr"dır: alt sınır MGM meydan uyarısının
+ * eşiğidir (Beaufort 5'in üst ucu 20–21 kt da vurgulu satırda "Sert" değil "Kuvvetli" okunur; D-083).
+ */
+const MEAN_LEVELS: readonly (readonly [number, WindLevel])[] = [
+  [64, 'hurricane'],
+  [56, 'violentStorm'],
+  [48, 'storm'],
+  [41, 'severeGale'],
+  [34, 'gale'],
+  [28, 'nearGale'],
+  [STRONG_WIND_MEAN_KT, 'strong'],
+]
+
+/**
+ * Hamlenin şiddet adı (kt alt sınırı). MGM ıskalası hamle karşılığı vermez; fırtına düzeyleri Met
+ * Office'in deniz tahmini sözlüğündeki hamle karşılıklarıdır (Gale 43, Severe gale 52, Storm 61,
+ * Violent storm 69 kt; Hurricane force yalnız ortalamayla). Hamle yalnız MGM meydan uyarısı eşiğini
+ * (30 kt) geçtiyse `gusts`.
+ */
+const GUST_LEVELS: readonly (readonly [number, WindLevel])[] = [
+  [69, 'violentStorm'],
+  [61, 'storm'],
+  [52, 'severeGale'],
+  [43, 'gale'],
+  [STRONG_WIND_GUST_KT, 'gusts'],
+]
+
+function levelFor(kt: number | null, table: readonly (readonly [number, WindLevel])[]) {
+  if (kt === null || !Number.isFinite(kt)) return null
+  return table.find(([min]) => kt >= min)?.[1] ?? null
+}
+
+/**
+ * Etkili rüzgârın şiddeti (D-083): ortalamanın ve hamlenin düzeyinden büyüğü (`WIND_LEVELS` sırası);
+ * eşiğin altında, sakin ya da bilinmeyen rüzgârda null. Ölçek üstü değer (P99) 100 kt sayılır
+ * (çözücü öyle yazar). Örnek: 25G43 → `gale`, 19G30 → `gusts`, 20 → `strong`.
+ */
+export function windLevel(wind: Wind | null): WindLevel | null {
+  if (!wind || wind.calm) return null
+  const mean = levelFor(wind.speedKt, MEAN_LEVELS)
+  const gust = levelFor(wind.gustKt, GUST_LEVELS)
+  if (mean === null) return gust
+  if (gust === null) return mean
+  return WIND_LEVELS.indexOf(gust) > WIND_LEVELS.indexOf(mean) ? gust : mean
+}
+
+/**
+ * Ölçeğin üstündeki değer (D-083): `aboveMaxKt` ortalama ile hamleyi birlikte söyler. Hamle
+ * ortalamadan büyüktür; ortalama ölçeğin üstündeyse hamlesi de öyledir. Bu yüzden ölçek üstü değer,
+ * hamle varsa hamledir (ortalama hamleye eşitse ikisi), yoksa ortalamadır. Ölçeğin sınırı birime
+ * göredir (`P99KT` 100 kt, `P49MPS` 50 m/s = 97 kt); kt eşiğiyle karar verilmez. Sade ve uzman
+ * görünüm aynı kuralı kullanır ("… ve üzeri").
+ */
+export function offScaleWind(wind: Wind): { speed: boolean; gust: boolean } {
+  if (!wind.aboveMaxKt) return { speed: false, gust: false }
+  if (wind.gustKt === null) return { speed: true, gust: false }
+  return { speed: wind.speedKt !== null && wind.speedKt >= wind.gustKt, gust: true }
+}
+
+/**
+ * MGM meydan uyarısı eşiği: ortalama ≥ 20 kt ya da hamle ≥ 30 kt (ölçek üstü P99 da). Satır vurgusu
+ * ve TAF'ın rüzgâr öğesi bununla seçilir; `windLevel` boş değilse doğrudur.
+ */
 export function isStrongWind(wind: Wind | null): boolean {
-  if (!wind) return false
-  if (wind.aboveMaxKt) return true
-  return (wind.speedKt ?? 0) >= STRONG_WIND_MEAN_KT || (wind.gustKt ?? 0) >= STRONG_WIND_GUST_KT
+  return windLevel(wind) !== null
 }
 
 /** Hava olayı bayrakları (havalimanındaki ve çevredeki gruplar ayrı). */

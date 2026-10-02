@@ -67,8 +67,12 @@ function focusPlaceIn(root: HTMLElement | null): FocusPlace {
  * biliniyorsa, `popupTimeZone`), güncel hava durumu ve havalimanı sayfası bağlantısı. Gün doğumu ve
  * batımı yalnız havalimanı sayfasındadır (kullanıcı kararı 2026-10-02).
  * - Hava durumu: başlığın yanında ayrı sıcaklık kutucuğu (önünde "·" yok; eksi U+2212), simgeli
- *   satırlar; var olan olayın satırı renkli zemin ve kalın yazıyla vurgulanır (`WeatherRowList`,
- *   havalimanı sayfasıyla ortak).
+ *   satırlar; var olan olayın, etkili rüzgârın (şiddet etiketiyle) ve şimşek ve yıldırım riskinin
+ *   satırı renkli zemin ve kalın yazıyla vurgulanır (`WeatherRowList`, havalimanı sayfasıyla ortak).
+ * - Bütün yazılar ortalıdır (kullanıcı isteği 2026-10-03, D-083): başlık, kodlar ve yer satırı
+ *   pencerenin ortasında (kapat düğmesi sağ sütunda, solunda eşit boş sütun); bilgi ve hava durumu
+ *   satırlarında etiket sağa, değer sola yaslıdır, çiftler orta eksende buluşur; hava başlığı ile
+ *   sıcaklık kutucuğu, notlar, gözlem satırı ve bağlantı ortalıdır.
  *
  * - Erişilebilirlik: kipsiz `dialog`; açılınca odak pencereye geçer, Escape ya da Kapat odağı
  *   pencereyi açan denetime (harita tuvali ya da "Havalimanları" düğmesi; yoksa harita tuvali) geri
@@ -247,7 +251,9 @@ export function AirportPopup({
               </p>
             ) : null}
             {view.note ? <p className="map-popup__note">{view.note}</p> : null}
-            {view.rows.length > 0 ? <WeatherRowList rows={view.rows} /> : null}
+            {view.rows.length > 0 ? (
+              <WeatherRowList rows={view.rows} className="wx-rows--center" />
+            ) : null}
             <p className="map-popup__observed" data-age={view.ageClass}>
               {view.observed}
             </p>

@@ -113,16 +113,18 @@ const DASH_BEFORE_NUMBER = /[·–]\s*[−-]?\d/
 
 describe('havalimanı bilgileri', () => {
   it('rakım metrik önce, ft ikinci', () => {
-    expect(formatElevation(325, 'tr')).toBe('99 m (325 ft)')
-    expect(formatElevation(3281, 'en')).toBe('1,000 m (3,281 ft)')
+    // Sayı ile birim arasında bölünmez boşluk: dar değer sütununda "99" / "m" kırılmaz (D-083).
+    expect(formatElevation(325, 'tr')).toBe('99\u00a0m (325\u00a0ft)')
+    expect(formatElevation(3281, 'en')).toBe('1,000\u00a0m (3,281\u00a0ft)')
     expect(formatElevation(null, 'tr')).toBe(NO_VALUE)
   })
 
   it('pist özeti: sayı ve en uzun pist (m)', () => {
-    expect(formatRunways(IST, 'tr', tr.map.airportPopup)).toBe('3 pist, en uzunu 4.100 m')
-    expect(formatRunways(IST, 'en', en.map.airportPopup)).toBe('3 runways, longest 4,100 m')
+    // Uzunluk tek parça: 1280 px'te "3 pist, en uzunu 3.400" / "m" kırılıyordu (AYT, SKG; D-083).
+    expect(formatRunways(IST, 'tr', tr.map.airportPopup)).toBe('3 pist, en uzunu 4.100\u00a0m')
+    expect(formatRunways(IST, 'en', en.map.airportPopup)).toBe('3 runways, longest 4,100\u00a0m')
     const one = { ...IST, runways: [{ lengthFt: 9843 }] }
-    expect(formatRunways(one, 'tr', tr.map.airportPopup)).toBe('Tek pist, 3.000 m')
+    expect(formatRunways(one, 'tr', tr.map.airportPopup)).toBe('Tek pist, 3.000\u00a0m')
     const unknown = { ...IST, runways: [{ lengthFt: null }, { lengthFt: null }] }
     expect(formatRunways(unknown, 'tr', tr.map.airportPopup)).toBe('2')
     expect(formatRunways({ ...IST, runways: [] }, 'tr', tr.map.airportPopup)).toBe(NO_VALUE)
@@ -175,7 +177,9 @@ describe('havalimanı bilgileri', () => {
   it('saat dilimi bilinmeyen yakın ülke havalimanında yerel saat yazılmaz', () => {
     const facts = airportFacts(ATH, NOW, 'tr', tr.map.airportPopup)
     expect(facts.rows.map((row) => row.key)).toEqual(['elevation', 'runways'])
-    expect(facts.rows.find((row) => row.key === 'runways')?.value).toBe('2 pist, en uzunu 4.000 m')
+    expect(facts.rows.find((row) => row.key === 'runways')?.value).toBe(
+      '2 pist, en uzunu 4.000\u00a0m',
+    )
     // Saat dilimi verilirse satırlar o dilimle yazılır.
     const zoned = airportFacts(ATH, NOW, 'tr', tr.map.airportPopup, 'Europe/Athens')
     expect(zoned.rows.find((row) => row.key === 'localTime')?.value).toBe('16:00')
@@ -205,7 +209,7 @@ describe('popupWeatherView', () => {
     expect(popupWeatherView(state([station('LTCW', old)]), 'LTCW', NOW, 'tr', w, t)).toEqual(none)
   })
 
-  it('yağmur, kar, gök gürültüsü ve sis her zaman yazılır; hamle ve kuvvetli rüzgâr', () => {
+  it('yağmur, kar, gök gürültüsü ve sis her zaman yazılır; hamle, rüzgâr şiddeti, yıldırım', () => {
     const m = metar(
       'LTFM 011250Z 03018G32KT 9999 -SHRA FEW025CB BKN035 09/05 Q1009 TEMPO 4000 SHRA',
       minutesAgo(10),
@@ -224,20 +228,26 @@ describe('popupWeatherView', () => {
       'fog',
       'visibility',
     ])
-    expect(value(view, 'wind')).toBe('Kuzeydoğudan 33 km/sa, hamle 59 km/sa')
-    expect(view.rows[0]?.strong).toBe('Kuvvetli rüzgâr')
+    // Sayı ile birim, km/sa ile knot arasında bölünmez boşluk (D-083).
+    expect(value(view, 'wind')).toBe(
+      'Kuzeydoğudan 33\u00a0km/sa\u00a0(18\u00a0kt), hamle 59\u00a0km/sa\u00a0(32\u00a0kt)',
+    )
+    // Ortalama 18 kt eşiğin altında, hamle 32 kt üstünde: "Kuvvetli hamle" (D-083).
+    expect(view.rows[0]?.strong).toBe('Kuvvetli hamle')
     expect(value(view, 'rain')).toBe('Hafif sağanak yağmur')
     expect(value(view, 'snow')).toBe('Yok')
-    expect(value(view, 'thunder')).toBe('Yok (kümülonimbüs bulutu var)')
+    expect(value(view, 'thunder')).toBe(
+      'Kümülonimbüs (oraj bulutu) ve yağış var; şimşek ve yıldırım tehlikesi',
+    )
     expect(value(view, 'fog')).toBe('Yok')
     expect(value(view, 'visibility')).toBe('10 km ve üzeri')
     expect(view.observed).toBe('Gözlem 15:50, 10 dakika önce')
-    // Yalnız var olan olay vurgulanır: yağmur; "Yok" ve CB'li "Yok" sade.
+    // Var olan olay (yağmur), etkili rüzgâr ve yıldırım tehlikesi (CB ve yağış) vurgulanır; "Yok" sade.
     expect(view.rows.map((row) => [row.key, row.tone])).toEqual([
-      ['wind', null],
+      ['wind', 'wind'],
       ['rain', 'rain'],
       ['snow', null],
-      ['thunder', null],
+      ['thunder', 'thunder'],
       ['fog', null],
       ['visibility', null],
     ])
@@ -276,8 +286,9 @@ describe('popupWeatherView', () => {
     expect(f.rows[0]?.strong).toBeNull()
     expect(value(f, 'visibility')).toBe('200 m')
     const h = report(popupWeatherView(data, 'LTBS', NOW, 'tr', w, t))
-    // Sözcük seçimi havalimanı sayfasıyla ortaktır (summarizeMetar); "fırtına" denmez.
-    expect(value(h, 'thunder')).toMatch(/^Dolulu, .*gök gürültülü sağanak$/)
+    // Sözcük seçimi havalimanı sayfasıyla ortaktır (summarizeMetar); TS için "fırtına" denmez.
+    expect(value(h, 'rain')).toMatch(/^Dolulu, .*gök gürültülü sağanak$/)
+    expect(value(h, 'thunder')).toBe('Gök gürültüsü var; şimşek ve yıldırım tehlikesi')
     expect(value(h, 'thunder')).not.toMatch(/fırtına/i)
     expect(h.rows.some((row) => row.key === 'hail')).toBe(true)
     expect([tone(h, 'rain'), tone(h, 'thunder'), tone(h, 'hail')]).toEqual([
@@ -287,13 +298,15 @@ describe('popupWeatherView', () => {
     ])
   })
 
-  it('çevredeki olay ve "Belirlenemedi" vurgulanmaz', () => {
+  it('çevredeki oraj yıldırım uyarısıyla vurgulanır; "Belirlenemedi" vurgulanmaz', () => {
     const near = metar('LTAU 011250Z 23008KT 9999 VCTS SCT040CB 07/M01 Q1013 NOSIG', minutesAgo(5))
     const auto = metar('LTXX 011250Z AUTO 03010KT 9999 // NCD 10/05 Q1010', minutesAgo(5))
     const data = state([station('LTAU', near), station('LTXX', auto)])
     const v = report(popupWeatherView(data, 'LTAU', NOW, 'tr', w, t))
-    expect(value(v, 'thunder')).toBe('Havalimanında yok; çevresinde gök gürültüsü')
-    expect(tone(v, 'thunder')).toBeNull()
+    expect(value(v, 'thunder')).toBe(
+      'Havalimanı çevresinde gök gürültüsü var; yıldırım havalimanına da düşebilir',
+    )
+    expect(tone(v, 'thunder')).toBe('thunder')
     const a = report(popupWeatherView(data, 'LTXX', NOW, 'tr', w, t))
     for (const key of ['rain', 'snow', 'thunder', 'fog']) {
       expect(value(a, key), key).toBe('Belirlenemedi')

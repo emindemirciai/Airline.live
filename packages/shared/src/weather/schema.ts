@@ -86,6 +86,40 @@ export const COMPASS_POINTS_16 = [
 ] as const
 export type CompassPoint16 = (typeof COMPASS_POINTS_16)[number]
 
+/**
+ * Etkili rüzgârın şiddeti (D-083), zayıftan güçlüye. Eşik MGM meydan uyarısıdır (ortalama ≥ 20 kt ya
+ * da hamle ≥ 30 kt); adlar MGM Beaufort ıskalasından, hamle karşılıkları Met Office'in fırtına
+ * tanımından gelir (`windLevel`). `gusts`: yalnız hamle eşiği aşıldı ("Kuvvetli hamle").
+ */
+export const WIND_LEVELS = [
+  'gusts',
+  'strong',
+  'nearGale',
+  'gale',
+  'severeGale',
+  'storm',
+  'violentStorm',
+  'hurricane',
+] as const
+export type WindLevel = (typeof WIND_LEVELS)[number]
+
+/**
+ * Şimşek ve yıldırım uyarısı (D-083), güncel gözlemden: `here` havalimanında oraj ve yağış (ya da
+ * yağış belirlenemedi), `hereDry` havalimanında yağışsız oraj (rapor temiz çözüldü), `vicinity`
+ * çevrede oraj (VCTS), `cloudPrecip` kümülonimbüs ve havalimanında yağış var ama oraj bildirilmedi
+ * (kullanıcı isteği 2026-10-03: "yağmurla beraber … tehlikesi"), `cloud` kümülonimbüs var, oraj ve
+ * yağış bildirilmedi, `cloudUndetermined` kümülonimbüs var ve hava olayı belirlenemedi.
+ */
+export const LIGHTNING_RISKS = [
+  'here',
+  'hereDry',
+  'vicinity',
+  'cloudPrecip',
+  'cloud',
+  'cloudUndetermined',
+] as const
+export type LightningRisk = (typeof LIGHTNING_RISKS)[number]
+
 /** AWC uçuş kategorisi (ABD sınıflandırması; yalnızca uzman görünümünde, brief §5). */
 export const FLIGHT_CATEGORIES = ['VFR', 'MVFR', 'IFR', 'LIFR'] as const
 export type FlightCategory = (typeof FLIGHT_CATEGORIES)[number]
@@ -152,10 +186,20 @@ export const WindSchema = z.object({
   speedKt: z.number().nullable(),
   /** Hamle, kt. */
   gustKt: z.number().nullable(),
+  /**
+   * Ortalama hız ve hamle, km/sa, raporun kendi biriminden tek yuvarlamayla (KT × 1,852; MPS × 3,6;
+   * KMH olduğu gibi). kt'den yeniden çevrilseydi MPS raporunda 1 km/sa sapabilirdi (11 MPS = 21 kt
+   * → 39 km/sa; doğrusu 40). M6e'de eklendi (D-083): eski API yanıtında yoktur, yoksa kt'den çevrilir.
+   */
+  speedKmh: z.number().nullable().optional(),
+  gustKmh: z.number().nullable().optional(),
   /** `dddVddd`: yönün değiştiği aralık, saat yönünde. */
   varyingFromDeg: z.number().nullable(),
   varyingToDeg: z.number().nullable(),
-  /** `P99KT` (ya da `P49MPS`): ortalama ya da hamle ölçeğin üstünde (100 kt ve üzeri). */
+  /**
+   * `P99KT` (100 kt ve üzeri) ya da `P49MPS` (50 m/s ve üzeri, 97 kt): ortalama ya da hamle ölçeğin
+   * üstünde. Hangisi olduğu `offScaleWind`'dan okunur.
+   */
   aboveMaxKt: z.boolean(),
 })
 export type Wind = z.infer<typeof WindSchema>
