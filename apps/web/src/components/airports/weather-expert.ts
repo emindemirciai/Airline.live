@@ -19,6 +19,7 @@ import {
   isColourState,
   isRunwayStateGroup,
   isSeaStateGroup,
+  offScaleWind,
   visibilityText,
   windShearRunway,
   weatherGroupText,
@@ -57,17 +58,19 @@ export function expertWind(wind: Wind | null, { t, locale }: WeatherTextOptions)
     wind.variable || wind.directionDeg === null
       ? e.variableDirection
       : `${pad3(wind.directionDeg)}°`
-  const speed = formatWindSpeedBoth(wind.speedKt, locale)
+  // Ölçek üstü değer sade görünümle aynı kuralla (`offScaleWind`; P99KT 100 kt, P49MPS 97 kt).
+  const offScale = offScaleWind(wind)
+  const speed = formatWindSpeedBoth(wind.speedKt, locale, wind.speedKmh)
   const parts = [
     format(e.windValue, {
       direction,
-      speed: wind.aboveMaxKt && wind.gustKt === null ? format(t.wind.above, { speed }) : speed,
+      speed: offScale.speed ? format(t.wind.above, { speed }) : speed,
     }),
   ]
   if (wind.gustKt !== null) {
-    const gust = formatWindSpeedBoth(wind.gustKt, locale)
+    const gust = formatWindSpeedBoth(wind.gustKt, locale, wind.gustKmh)
     parts.push(
-      format(e.gust, { speed: wind.aboveMaxKt ? format(t.wind.above, { speed: gust }) : gust }),
+      format(e.gust, { speed: offScale.gust ? format(t.wind.above, { speed: gust }) : gust }),
     )
   }
   if (wind.varyingFromDeg !== null && wind.varyingToDeg !== null) {

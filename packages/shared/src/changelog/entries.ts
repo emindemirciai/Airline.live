@@ -7,6 +7,42 @@ import type { ChangelogEntry } from './types'
  */
 export const CHANGELOG: readonly ChangelogEntry[] = [
   {
+    version: '0.13.0',
+    date: '2026-10-03',
+    title: {
+      tr: 'Rüzgâr knot ile, şimşek ve yıldırım uyarısı, ortalı havalimanı penceresi',
+      en: 'Wind in knots, lightning warnings and a centred airport window',
+    },
+    items: [
+      {
+        tr: 'Rüzgâr hızı km/sa’nın yanında knot olarak da yazılıyor: “Kuzeydoğudan 48 km/sa (26 kt), hamle 59 km/sa (32 kt)”. Pencerede, havalimanı sayfasında, tahminlerde ve METAR/TAF kaydında aynı biçim kullanılıyor.',
+        en: 'Wind speed is now given in knots as well as km/h: “From the northeast 48 km/h (26 kt), gusts 59 km/h (32 kt)”. The same format is used in the map window, on the airport page, in forecasts and in the METAR/TAF log.',
+      },
+      {
+        tr: 'Etkili rüzgâr her havalimanında belirtiliyor: ortalama rüzgâr 20 knotu ya da hamle 30 knotu geçince (MGM’nin meydan uyarı ölçütü) rüzgâr satırı renkli ve kalın yazılıyor, şiddeti de adıyla söyleniyor: “Kuvvetli rüzgâr”, “Fırtınamsı rüzgâr”, “Fırtına” … Yalnızca hamle güçlüyse “Kuvvetli hamle”. Tahmin özeti de dönemin en güçlü rüzgârını gösteriyor.',
+        en: 'Significant wind is flagged at every airport: when the mean wind reaches 20 knots or gusts reach 30 knots (the Turkish aerodrome warning threshold), the wind row is coloured and bold and the strength is named: “Strong wind”, “Near gale”, “Gale” … If only the gusts are strong it says “Strong gusts”. The forecast summary now shows the strongest wind of the period.',
+      },
+      {
+        tr: 'Şimşek ve yıldırım uyarısı: havalimanında gök gürültüsü varsa “şimşek ve yıldırım tehlikesi”, çevresinde varsa “yıldırım havalimanına da düşebilir” yazıyor. Kümülonimbüs (oraj bulutu) yağışla birlikteyse tehlike, yağışsızsa olasılık olarak belirtiliyor. Yıldırım yağmurun dışına, fırtınadan kilometrelerce uzağa da düşebildiği için uyarı yağmur yokken de gösteriliyor.',
+        en: 'Lightning warnings: a thunderstorm at the airport shows “lightning danger”, one nearby shows “lightning can strike the airport too”. Cumulonimbus (thunderstorm cloud) with precipitation is shown as a danger, without precipitation as a possibility. Lightning can strike well away from the rain and kilometres from the storm, so the warning also appears when it is not raining.',
+      },
+      {
+        tr: 'Haritadaki havalimanı penceresinde bütün yazılar ortalı; sayılar birimlerinden ayrılmıyor.',
+        en: 'All text in the map’s airport window is centred, and numbers no longer break away from their units.',
+      },
+    ],
+    tryLinks: [
+      {
+        path: '/?havalimani=LTFM',
+        label: { tr: 'Haritada İstanbul penceresi', en: 'Istanbul window on the map' },
+      },
+      {
+        path: '/istasyon/LTFM',
+        label: { tr: 'İstanbul Havalimanı hava durumu', en: 'Istanbul Airport weather' },
+      },
+    ],
+  },
+  {
     version: '0.12.0',
     date: '2026-10-02',
     title: {

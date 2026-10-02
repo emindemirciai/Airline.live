@@ -6,9 +6,11 @@ export {
   isStrongWind,
   largestCover,
   lowestCloudBaseFt,
+  offScaleWind,
   relativeHumidity,
   STRONG_WIND_GUST_KT,
   STRONG_WIND_MEAN_KT,
+  windLevel,
 } from './derive'
 export { isColourState } from './groups'
 export {

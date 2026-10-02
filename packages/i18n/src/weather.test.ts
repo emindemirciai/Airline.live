@@ -5,6 +5,7 @@ import {
   summarizeMetar,
   summarizeTaf,
   WEATHER_PHRASE_KEYS,
+  WIND_LEVELS,
   WX_PHRASE_IDS,
   type AirportTaf,
   type Locale,
@@ -25,6 +26,7 @@ import {
   formatVisibility,
   formatWindSpeed,
   formatWindSpeedBoth,
+  formatWindSpeedDual,
   weatherText,
   type WeatherTextOptions,
 } from './weather'
@@ -38,15 +40,22 @@ const EN = opts('en')
 const OBSERVED = '2026-01-15T12:50:00.000Z'
 const NOW = Date.parse('2026-01-15T13:00:00.000Z')
 
+/**
+ * Rüzgâr hızındaki bölünmez boşluklar (U+00A0; sayı birimiyle, knot karşılığı km/sa ile aynı satırda
+ * kalır, D-083) olağan boşluğa çevrilir: beklenen metinler okunur kalır. Bölünmez boşlukların yeri
+ * "birimler" testinde ve `M6e` bölümünde ayrıca denetlenir.
+ */
+const spaced = (text: string) => text.replace(/\u00a0/g, ' ')
+
 function placeholders(template: string): string[] {
   return [...template.matchAll(/\{(\w+)\}/g)].map((m) => m[1] ?? '').sort()
 }
 
-/** METAR'ın sade satırları, verilen dilde. */
+/** METAR'ın sade satırları, verilen dilde; rüzgâr şiddeti etiketi (`level`) arayüzdeki gibi. */
 function rows(raw: string, options = TR) {
   const summary = summarizeMetar(decodeMetar(raw, { observedAt: OBSERVED }))
   const text = (value: Parameters<typeof weatherText>[0] | null) =>
-    value === null ? null : weatherText(value, options)
+    value === null ? null : spaced(weatherText(value, options))
   return {
     headline: text(summary.headline),
     wind: text(summary.rows.wind),
@@ -62,8 +71,10 @@ function rows(raw: string, options = TR) {
     humidity: text(summary.rows.humidity),
     pressure: text(summary.rows.pressure),
     next2h: text(summary.next2h),
-    notes: summary.notes.map((note) => weatherText(note, options)),
+    notes: summary.notes.map((note) => spaced(weatherText(note, options))),
     strongWind: summary.strongWind,
+    level: summary.windLevel ? options.t.wind.level[summary.windLevel] : null,
+    lightning: summary.lightning,
   }
 }
 
@@ -99,6 +110,43 @@ describe('hava durumu metin anahtarları', () => {
     }
     expect(t.wx.HZ).toBe('Kuru pus')
     expect(t.clouds.OVC).toBe('Kapalı')
+  })
+
+  it('şimşek ve yıldırım uyarısı her durumda yazılır; "güvenli" ya da "risk yok" denmez (D-083)', () => {
+    for (const locale of ['tr', 'en'] as const) {
+      const thunder = getMessages(locale).weather.thunder
+      for (const [id, text] of Object.entries(thunder)) {
+        expect(text, `${locale}:${id}`).toMatch(locale === 'tr' ? /yıldırım/ : /lightning/)
+        expect(text, `${locale}:${id}`).not.toMatch(/güvenli|risk yok|\bsafe\b|no risk/i)
+        // TS için "fırtına" denmez (D-078); "oraj" yalnız bulutun açıklamasında.
+        expect(text, `${locale}:${id}`).not.toMatch(/fırtına/i)
+      }
+      // Tehlike havalimanında oraj ya da kümülonimbüs ve yağış varken; çevrede "düşebilir",
+      // yağışsız bulutta "olabilir". Tehlike yazan metin "Yok" ile başlamaz.
+      expect(thunder.here).toMatch(locale === 'tr' ? /tehlikesi$/ : /danger$/)
+      expect(thunder.hereDry).toMatch(locale === 'tr' ? /yağış yok/ : /no precipitation/)
+      expect(thunder.vicinity).toMatch(locale === 'tr' ? /düşebilir$/ : /too$/)
+      expect(thunder.cloudPrecip).toMatch(
+        locale === 'tr'
+          ? /^Kümülonimbüs .*yağış var; .*tehlikesi$/
+          : /^Cumulonimbus .*precipitation.*danger$/,
+      )
+      expect(thunder.cloud).toMatch(locale === 'tr' ? /^Yok; .*olabilir$/ : /^None; .*possible$/)
+    }
+  })
+
+  it('rüzgâr şiddeti adları MGM Beaufort ıskalasındandır (D-083)', () => {
+    expect(Object.values(getMessages('tr').weather.wind.level)).toEqual([
+      'Kuvvetli hamle',
+      'Kuvvetli rüzgâr',
+      'Fırtınamsı rüzgâr',
+      'Fırtına',
+      'Kuvvetli fırtına',
+      'Tam fırtına',
+      'Çok şiddetli fırtına',
+      'Harikeyn (orkan)',
+    ])
+    expect(Object.keys(getMessages('en').weather.wind.level)).toEqual([...WIND_LEVELS])
   })
 
   it('sayıdan ya da sayı yazan yer tutucudan önce "·" ya da "–" yok (eksi gibi okunur; 2026-10-02)', () => {
@@ -150,10 +198,39 @@ describe('birimler (metrik, D-072)', () => {
     expect(formatVisibility(null, 'tr')).toBe('—')
   })
 
-  it('rüzgâr km/sa; uzman görünümünde kt de', () => {
-    expect(formatWindSpeed(18, 'tr')).toBe('33 km/sa')
-    expect(formatWindSpeed(32, 'en')).toBe('59 km/h')
-    expect(formatWindSpeedBoth(18, 'tr')).toBe('18 kt (33 km/sa)')
+  it('rüzgâr: sade görünümde km/sa ve parantezde kt (D-083); uzman görünümünde kt önce', () => {
+    expect(spaced(formatWindSpeed(18, 'tr'))).toBe('33 km/sa')
+    expect(spaced(formatWindSpeed(32, 'en'))).toBe('59 km/h')
+    expect(spaced(formatWindSpeedDual(18, 'tr'))).toBe('33 km/sa (18 kt)')
+    expect(spaced(formatWindSpeedDual(32, 'en'))).toBe('59 km/h (32 kt)')
+    expect(spaced(formatWindSpeedDual(100, 'tr'))).toBe('185 km/sa (100 kt)')
+    // MPS raporu: km/sa raporun biriminden (11 m/s = 40 km/sa), kt yuvarlanmış.
+    expect(spaced(formatWindSpeedDual(21, 'tr', 40))).toBe('40 km/sa (21 kt)')
+    expect(formatWindSpeedDual(null, 'tr')).toBe('—')
+    expect(spaced(formatWindSpeedBoth(18, 'tr'))).toBe('18 kt (33 km/sa)')
+    expect(spaced(formatWindSpeedBoth(21, 'en', 40))).toBe('21 kt (40 km/h)')
+  })
+
+  it('rüzgâr hızı tek parça: sayı ile birim ve knot karşılığı bölünmez boşlukla (D-083)', () => {
+    // Pencerenin dar değer sütununda "48" ile "km/sa", "(7" ile "kt)" ayrı satıra düşüyordu.
+    const NB = '\u00a0'
+    expect(formatWindSpeed(18, 'tr')).toBe(`33${NB}km/sa`)
+    expect(formatWindSpeedDual(26, 'tr')).toBe(`48${NB}km/sa${NB}(26${NB}kt)`)
+    expect(formatWindSpeedDual(7, 'en')).toBe(`13${NB}km/h${NB}(7${NB}kt)`)
+    expect(formatWindSpeedDual(21, 'tr', 40)).toBe(`40${NB}km/sa${NB}(21${NB}kt)`)
+    expect(formatWindSpeedBoth(18, 'tr')).toBe(`18${NB}kt${NB}(33${NB}km/sa)`)
+    // Bütün satırda kırılma yalnız sözcükler arasındadır.
+    const raw = 'LTFM 151250Z 03018G32KT 9999 -SHRA FEW025CB BKN035 09/05 Q1009'
+    const wind = (options: WeatherTextOptions) =>
+      weatherText(summarizeMetar(decodeMetar(raw, { observedAt: OBSERVED })).rows.wind, options)
+    expect(wind(TR)).toBe(
+      `Kuzeydoğudan 33${NB}km/sa${NB}(18${NB}kt), hamle 59${NB}km/sa${NB}(32${NB}kt)`,
+    )
+    expect(wind(EN)).toBe(
+      `From the northeast 33${NB}km/h${NB}(18${NB}kt), gusts 59${NB}km/h${NB}(32${NB}kt)`,
+    )
+    for (const text of [wind(TR), wind(EN)])
+      expect(text).not.toMatch(/\d (km|kt)|(km\/sa|km\/h) \(/)
   })
 })
 
@@ -188,11 +265,14 @@ describe('METAR özetleri: fixture durumları (brief §2), sade ve metrik', () =
   it('LTFM: hafif sağanak, hamleli kuvvetli rüzgâr, CB, TEMPO', () => {
     const r = rows('LTFM 151250Z 03018G32KT 9999 -SHRA FEW025CB BKN035 09/05 Q1009 TEMPO 4000 SHRA')
     expect(r.headline).toBe('Hafif sağanak yağmur')
-    expect(r.wind).toBe('Kuzeydoğudan 33 km/sa, hamle 59 km/sa')
+    expect(r.wind).toBe('Kuzeydoğudan 33 km/sa (18 kt), hamle 59 km/sa (32 kt)')
     expect(r.strongWind).toBe(true)
+    expect(r.level).toBe('Kuvvetli hamle')
     expect(r.rain).toBe('Hafif sağanak yağmur')
     expect(r.snow).toBe('Yok')
-    expect(r.thunder).toBe('Yok (kümülonimbüs bulutu var)')
+    // Kümülonimbüs ve havalimanında yağış: "Yok" denmez, tehlike yazılır (kullanıcının sözü,
+    // 2026-10-03: "yağmurla beraber, şimşek ve yıldırım tehlikesi").
+    expect(r.thunder).toBe('Kümülonimbüs (oraj bulutu) ve yağış var; şimşek ve yıldırım tehlikesi')
     expect(r.fog).toBe('Yok')
     expect(r.visibility).toBe('10 km ve üzeri')
     expect(r.clouds).toBe('Çok bulutlu, en alçak bulut 760 m, kümülonimbüs')
@@ -205,8 +285,11 @@ describe('METAR özetleri: fixture durumları (brief §2), sade ve metrik', () =
       EN,
     )
     expect(en.headline).toBe('Light rain showers')
-    expect(en.wind).toBe('From the northeast 33 km/h, gusts 59 km/h')
-    expect(en.thunder).toBe('None (cumulonimbus present)')
+    expect(en.wind).toBe('From the northeast 33 km/h (18 kt), gusts 59 km/h (32 kt)')
+    expect(en.level).toBe('Strong gusts')
+    expect(en.thunder).toBe(
+      'Cumulonimbus (thunderstorm cloud) and precipitation present; lightning danger',
+    )
     expect(en.clouds).toBe('Mostly cloudy, lowest cloud 760 m, cumulonimbus')
     expect(en.humidity).toBe('About 75%')
     expect(en.next2h).toBe('At times in the next 2 hours: visibility 4 km, rain showers')
@@ -224,7 +307,7 @@ describe('METAR özetleri: fixture durumları (brief §2), sade ve metrik', () =
   it('LTAC: kar ve pus, sıfırın altı, 1,5 km', () => {
     const r = rows('LTAC 151250Z 32012KT 1500 SN BR BKN008 OVC015 M01/M02 Q1018 BECMG 3000 -SN')
     expect(r.headline).toBe('Kar')
-    expect(r.wind).toBe('Kuzeybatıdan 22 km/sa')
+    expect(r.wind).toBe('Kuzeybatıdan 22 km/sa (12 kt)')
     expect(r.snow).toBe('Kar')
     expect(r.fog).toBe('Pus')
     expect(r.rain).toBe('Yok')
@@ -233,18 +316,20 @@ describe('METAR özetleri: fixture durumları (brief §2), sade ve metrik', () =
     expect(r.clouds).toBe('Kapalı, en alçak bulut 240 m')
   })
 
-  it('LTAI: kuvvetli gök gürültülü sağanak, değişken yön aralığı', () => {
+  it('LTAI: kuvvetli gök gürültülü sağanak, değişken yön aralığı; yıldırım tehlikesi', () => {
     const r = rows(
       'LTAI 151250Z 20015G28KT 160V240 3000 +TSRA SCT015CB BKN030 16/14 Q1006 TEMPO 1500 +TSRA',
     )
-    expect(r.thunder).toBe('Kuvvetli gök gürültülü sağanak')
+    expect(r.rain).toBe('Kuvvetli gök gürültülü sağanak')
+    expect(r.thunder).toBe('Gök gürültüsü var; şimşek ve yıldırım tehlikesi')
     expect(r.wind).toBe(
-      'Güneyden 28 km/sa, hamle 52 km/sa, yönü güney ile güneybatı arasında değişiyor',
+      'Güneyden 28 km/sa (15 kt), hamle 52 km/sa (28 kt), yönü güney ile güneybatı arasında değişiyor',
     )
+    expect(r.level).toBeNull()
     expect(r.visibility).toBe('3 km')
-    expect(
-      rows('LTAI 151250Z 20015G28KT 160V240 3000 +TSRA SCT015CB 16/14 Q1006', EN).thunder,
-    ).toBe('Thunderstorm with heavy rain')
+    const en = rows('LTAI 151250Z 20015G28KT 160V240 3000 +TSRA SCT015CB 16/14 Q1006', EN)
+    expect(en.rain).toBe('Thunderstorm with heavy rain')
+    expect(en.thunder).toBe('Thunderstorm at the airport; lightning danger')
   })
 
   it('LTBJ: hafif değişken rüzgâr; LTCG: sakin, sis, dikey görüş', () => {
@@ -260,17 +345,20 @@ describe('METAR özetleri: fixture durumları (brief §2), sade ve metrik', () =
     expect(fog.humidity).toBe('Yaklaşık %100')
   })
 
-  it('LTAU: çevrede gök gürültüsü; havalimanında "yok" denir ama çevresi söylenir', () => {
+  it('LTAU: çevrede gök gürültüsü; yıldırım havalimanına da düşebilir', () => {
     const r = rows('LTAU 151250Z 23008KT 9999 VCTS SCT040CB BKN100 07/M01 Q1013 NOSIG')
-    expect(r.thunder).toBe('Havalimanında yok; çevresinde gök gürültüsü')
+    expect(r.thunder).toBe(
+      'Havalimanı çevresinde gök gürültüsü var; yıldırım havalimanına da düşebilir',
+    )
     expect(rows('LTAU 151250Z 23008KT 9999 VCTS SCT040CB 07/M01 Q1013', EN).thunder).toBe(
-      'None at the airport; thunderstorm nearby',
+      'Thunderstorm near the airport; lightning can strike the airport too',
     )
   })
 
   it('LTBS SPECI: dolulu gök gürültülü sağanak; dolu satırı ve özel rapor notu', () => {
     const r = rows('SPECI LTBS 151242Z 25015G27KT 2000 +TSRAGR SCT012CB BKN025 12/10 Q1007')
-    expect(r.thunder).toBe('Dolulu, kuvvetli gök gürültülü sağanak')
+    expect(r.rain).toBe('Dolulu, kuvvetli gök gürültülü sağanak')
+    expect(r.thunder).toBe('Gök gürültüsü var; şimşek ve yıldırım tehlikesi')
     expect(r.hail).not.toBeNull()
     expect(r.notes).toContain(getMessages('tr').weather.note.speci)
   })
@@ -316,6 +404,197 @@ describe('METAR özetleri: fixture durumları (brief §2), sade ve metrik', () =
   })
 })
 
+describe('M6e: km/sa ve kt, rüzgâr şiddeti, şimşek ve yıldırım (D-083)', () => {
+  /** Üretimdeki ekran görüntülerinin durumları (2026-10-03) ve sınır durumları, iki dilde. */
+  it('Gazipaşa: gök gürültülü hafif sağanak; rüzgâr etiketsiz, yıldırım tehlikesi', () => {
+    const raw = 'LTFG 031250Z 14007KT 9999 -TSRA FEW025CB SCT030 BKN100 24/19 Q1012'
+    const r = rows(raw)
+    expect(r.wind).toBe('Güneydoğudan 13 km/sa (7 kt)')
+    expect(r.level).toBeNull()
+    expect(r.rain).toBe('Gök gürültülü hafif sağanak')
+    expect(r.thunder).toBe('Gök gürültüsü var; şimşek ve yıldırım tehlikesi')
+    const en = rows(raw, EN)
+    expect(en.wind).toBe('From the southeast 13 km/h (7 kt)')
+    expect(en.thunder).toBe('Thunderstorm at the airport; lightning danger')
+  })
+
+  it('İstanbul: kuzeydoğudan 48 km/sa (26 kt), kuvvetli rüzgâr; kümülonimbüs, yıldırım olabilir', () => {
+    const raw = 'LTFM 031250Z 04026KT 9999 SCT030CB BKN040 17/12 Q1014 NOSIG'
+    const r = rows(raw)
+    expect(r.wind).toBe('Kuzeydoğudan 48 km/sa (26 kt)')
+    expect(r.level).toBe('Kuvvetli rüzgâr')
+    expect(r.thunder).toBe('Yok; kümülonimbüs (oraj bulutu) var, şimşek ve yıldırım olabilir')
+    const en = rows(raw, EN)
+    expect(en.wind).toBe('From the northeast 48 km/h (26 kt)')
+    expect(en.level).toBe('Strong wind')
+    expect(en.thunder).toBe('None; cumulonimbus (thunderstorm cloud) present, lightning possible')
+  })
+
+  it('yağışsız oraj ve çevrede sağanak: tehlike yine yazılır', () => {
+    expect(rows('LTAF 031250Z 22012KT 9999 TS SCT035CB 31/12 Q1009').thunder).toBe(
+      'Gök gürültüsü var, yağış yok; şimşek ve yıldırım tehlikesi',
+    )
+    const vcsh = rows('LTBJ 031250Z 25010KT 9999 VCSH TS FEW030CB 27/18 Q1010', EN)
+    expect(vcsh.thunder).toBe('Thunderstorm at the airport, no precipitation; lightning danger')
+    expect(vcsh.rain).toBe('None at the airport; showers nearby')
+  })
+
+  it('oraj var, hava olayı belirlenemedi: "yağış yok" yazılmaz (D-078, D-083)', () => {
+    for (const raw of [
+      'LTAF 031250Z AUTO 22012KT 9999 TS // NCD 31/12 Q1009',
+      'LTAF 031250Z 22012KT TS SCT035CB 31/12 Q1009',
+      'LTAF 031250Z 22012KT 9999 TS XXRA SCT035CB 31/12 Q1009',
+    ]) {
+      const r = rows(raw)
+      expect(r.rain, raw).toBe('Belirlenemedi')
+      expect(r.headline, raw).toBe('Gök gürültüsü')
+      expect(r.thunder, raw).toBe('Gök gürültüsü var; şimşek ve yıldırım tehlikesi')
+      const en = rows(raw, EN)
+      expect(en.rain, raw).toBe('Could not be determined')
+      expect(en.headline, raw).toBe('Thunderstorm')
+      expect(en.thunder, raw).toBe('Thunderstorm at the airport; lightning danger')
+      for (const text of [r.headline, r.thunder, en.headline, en.thunder]) {
+        expect(text, raw).not.toMatch(/yağış yok|no precipitation/)
+      }
+    }
+    // Temiz raporda yağışsız oraj olduğu gibi söylenir.
+    const clean = rows('LTAF 031250Z 22012KT 9999 TS SCT035CB 31/12 Q1009')
+    expect(clean.headline).toBe('Gök gürültüsü ve şimşek, yağış yok')
+    expect(clean.rain).toBe('Yok')
+  })
+
+  it('kümülonimbüs ve yağış: şimşek ve yıldırım tehlikesi (kullanıcının sözü, 2026-10-03)', () => {
+    // Fixture İstanbul: hafif sağanak yağmur ve kümülonimbüs, oraj bildirilmedi.
+    const raw = 'LTFM 151250Z 03018G32KT 9999 -SHRA FEW025CB BKN035 09/05 Q1009'
+    const r = rows(raw)
+    expect(r.thunder).toBe('Kümülonimbüs (oraj bulutu) ve yağış var; şimşek ve yıldırım tehlikesi')
+    expect(r.lightning).toBe('cloudPrecip')
+    expect(rows(raw, EN).thunder).toBe(
+      'Cumulonimbus (thunderstorm cloud) and precipitation present; lightning danger',
+    )
+    // Kar da yağıştır; tanınan yağış belirlenemeyen raporda da vardır.
+    expect(rows('LTCE 031250Z 27010KT 3000 -SN SCT020CB OVC030 M02/M04 Q1012').thunder).toBe(
+      'Kümülonimbüs (oraj bulutu) ve yağış var; şimşek ve yıldırım tehlikesi',
+    )
+    expect(rows('LTXX 031250Z 22010KT 9999 -RA XYZRA FEW030CB 10/05 Q1010').lightning).toBe(
+      'cloudPrecip',
+    )
+    // Yağış yalnız çevrede: bulutun olasılığı.
+    expect(rows('LTXX 031250Z 22010KT 9999 VCSH FEW030CB 10/05 Q1010').thunder).toBe(
+      'Yok; kümülonimbüs (oraj bulutu) var, şimşek ve yıldırım olabilir',
+    )
+  })
+
+  it('oraj ve yağış ayrı gruplarda (`TS RA`): başlık "yağış yok" demez', () => {
+    for (const [raw, rain, rainEn] of [
+      ['LTXX 031250Z 18008KT 6000 TS RA BKN020CB 20/18 Q1008', 'Yağmur', 'Rain'],
+      [
+        'LTXX 031250Z 18008KT 6000 TS -SHRA BKN020CB 20/18 Q1008',
+        'Hafif sağanak yağmur',
+        'Light rain showers',
+      ],
+    ] as const) {
+      const r = rows(raw)
+      expect(r.headline, raw).toBe('Gök gürültüsü')
+      expect(r.rain, raw).toBe(rain)
+      expect(r.thunder, raw).toBe('Gök gürültüsü var; şimşek ve yıldırım tehlikesi')
+      const en = rows(raw, EN)
+      expect(en.headline, raw).toBe('Thunderstorm')
+      expect(en.rain, raw).toBe(rainEn)
+      for (const text of [r.headline, r.thunder, en.headline, en.thunder]) {
+        expect(text, raw).not.toMatch(/yağış yok|no precipitation/)
+      }
+    }
+    const hail = rows('LTXX 031250Z 18008KT 6000 TS GS BKN020CB 20/18 Q1008')
+    expect(hail.headline).toBe('Gök gürültüsü')
+    expect(hail.hail).not.toBeNull()
+  })
+
+  it('kümülonimbüs ve belirlenemeyen rapor; TCU ve yalnız son saatteki oraj iddiasız', () => {
+    expect(rows('LTXX 031250Z 22010KT 9999 XYZRA FEW030CB 10/05 Q1010').thunder).toBe(
+      'Belirlenemedi; kümülonimbüs (oraj bulutu) var, şimşek ve yıldırım olabilir',
+    )
+    expect(rows('LTXX 031250Z 22010KT 9999 XYZRA FEW030CB 10/05 Q1010', EN).thunder).toBe(
+      'Could not be determined; cumulonimbus (thunderstorm cloud) present, lightning possible',
+    )
+    const tcu = rows('LTFM 141020Z 27014KT 9999 -SHRA FEW020TCU BKN030 11/08 Q1008 NOSIG')
+    expect(tcu.thunder).toBe('Yok')
+    expect(tcu.lightning).toBeNull()
+    const recent = rows('LTBA 031320Z 30012KT 9999 FEW030 SCT040 22/15 Q1013 RETSRA')
+    expect(recent.thunder).toBe('Şu an yok; kısa süre önce gök gürültülü sağanak')
+    expect(recent.lightning).toBeNull()
+  })
+
+  it.each([
+    ['00000KT', 'Sakin', 'Calm', null],
+    ['VRB02KT', 'Hafif ve değişken yönlü', 'Light and variable', null],
+    ['VRB05KT', 'Değişken yönlü, 9 km/sa (5 kt)', 'Variable, 9 km/h (5 kt)', null],
+    ['36025KT', 'Kuzeyden 46 km/sa (25 kt)', 'From the north 46 km/h (25 kt)', 'Kuvvetli rüzgâr'],
+    [
+      '20015G28KT 160V240',
+      'Güneyden 28 km/sa (15 kt), hamle 52 km/sa (28 kt), yönü güney ile güneybatı arasında değişiyor',
+      'From the south 28 km/h (15 kt), gusts 52 km/h (28 kt), varying between south and southwest',
+      null,
+    ],
+    ['///10KT', 'Yönü bilinmiyor, 19 km/sa (10 kt)', 'Direction unknown, 19 km/h (10 kt)', null],
+    [
+      '270P99KT',
+      'Batıdan 185 km/sa (100 kt) ve üzeri',
+      'From the west 185 km/h (100 kt) or more',
+      'Harikeyn (orkan)',
+    ],
+    [
+      // P49MPS: 50 m/s ve üzeri (97 kt); kt eşiği (100) yüzünden "ve üzeri" düşüyordu.
+      '270P49MPS',
+      'Batıdan 180 km/sa (97 kt) ve üzeri',
+      'From the west 180 km/h (97 kt) or more',
+      'Harikeyn (orkan)',
+    ],
+    [
+      '27020GP49MPS',
+      'Batıdan 72 km/sa (39 kt), hamle 180 km/sa (97 kt) ve üzeri',
+      'From the west 72 km/h (39 kt), gusts 180 km/h (97 kt) or more',
+      'Çok şiddetli fırtına',
+    ],
+    [
+      '31011MPS',
+      'Kuzeybatıdan 40 km/sa (21 kt)',
+      'From the northwest 40 km/h (21 kt)',
+      'Kuvvetli rüzgâr',
+    ],
+    [
+      '04026G45KT',
+      'Kuzeydoğudan 48 km/sa (26 kt), hamle 83 km/sa (45 kt)',
+      'From the northeast 48 km/h (26 kt), gusts 83 km/h (45 kt)',
+      'Fırtına',
+    ],
+    [
+      '32030KT',
+      'Kuzeybatıdan 56 km/sa (30 kt)',
+      'From the northwest 56 km/h (30 kt)',
+      'Fırtınamsı rüzgâr',
+    ],
+  ] as const)('%s → %s', (group, tr, en, level) => {
+    const raw = `LTXX 031250Z ${group} 9999 FEW030 10/05 Q1010`
+    expect(rows(raw).wind).toBe(tr)
+    expect(rows(raw, EN).wind).toBe(en)
+    expect(rows(raw).level).toBe(level)
+  })
+
+  it('rüzgâr ve uyarı metinlerinde sayıdan önce ayraç yok', () => {
+    for (const raw of [
+      'LTFM 151250Z 03018G32KT 9999 -SHRA FEW025CB BKN035 09/05 Q1009',
+      'LTXX 031250Z 270P99KT 0800 +TSRA BKN010CB 20/18 Q0990',
+      'UGTB 031230Z 31011MPS 9999 FEW030 15/08 Q1015 NOSIG',
+    ]) {
+      for (const options of [TR, EN]) {
+        const r = rows(raw, options)
+        for (const text of [r.wind, r.thunder]) expect(text).not.toMatch(/[·–]\s*[−-]?\d/)
+      }
+    }
+  })
+})
+
 describe('TAF özeti', () => {
   const taf = (raw: string, issuedAt: string, validFrom: string, validTo: string): AirportTaf => ({
     ...decodeTaf(raw, { issuedAt, validFrom, validTo }),
@@ -333,7 +612,7 @@ describe('TAF özeti', () => {
     )
     const summary = summarizeTaf([ltfm], NOW)
     expect(summary.status).toBe('ok')
-    const items = summary.items.map((item) => weatherText(item, TR))
+    const items = summary.items.map((item) => spaced(weatherText(item, TR)))
     expect(items.join(' | ')).toContain('%30 olasılıkla')
     expect(items.join(' | ')).toContain('gök gürültülü sağanak')
     expect(items.join(' ')).not.toMatch(/bekleniyor/)
@@ -343,7 +622,7 @@ describe('TAF özeti', () => {
     expect(summary.validUntil && weatherText(summary.validUntil, EN)).toBe(
       'Forecast valid until 21:00 tomorrow.',
     )
-    const en = summary.items.map((item) => weatherText(item, EN)).join(' | ')
+    const en = summary.items.map((item) => spaced(weatherText(item, EN))).join(' | ')
     expect(en).toContain('30% chance')
   })
 
@@ -362,12 +641,63 @@ describe('TAF özeti', () => {
       '2026-01-16T18:00:00.000Z',
     )
     const summary = summarizeTaf([newer, older], Date.parse('2026-01-15T11:00:00.000Z'))
-    // 28 kt = 52 km/sa, 40 kt = 74 km/sa; 25 kt (46) ve 38 kt (70) yazılmaz, knot sade metinde yok.
-    expect(summary.items.map((item) => weatherText(item, TR))).toEqual([
-      '23:00 saatine kadar kuvvetli rüzgâr, kuzeydoğudan 52 km/sa, hamle 74 km/sa',
+    // 28 kt = 52 km/sa, 40 kt = 74 km/sa; 25 kt (46) ve 38 kt (70) yazılmaz. 28 kt fırtınamsı
+    // rüzgârdır (Beaufort 7); knot parantezde (D-083).
+    expect(summary.items.map((item) => spaced(weatherText(item, TR)))).toEqual([
+      '23:00 saatine kadar fırtınamsı rüzgâr, kuzeydoğudan 52 km/sa (28 kt), hamle 74 km/sa (40 kt)',
     ])
-    expect(summary.items.map((item) => weatherText(item, EN))).toEqual([
-      'Until 23:00: strong wind, from the northeast 52 km/h, gusts 74 km/h',
+    expect(summary.items.map((item) => spaced(weatherText(item, EN)))).toEqual([
+      'Until 23:00: near gale, from the northeast 52 km/h (28 kt), gusts 74 km/h (40 kt)',
+    ])
+  })
+
+  it('olasılıklı oraj ve etkili rüzgâr; tahmine yıldırım cümlesi eklenmez (D-083)', () => {
+    const ltfm = taf(
+      'TAF LTFM 031100Z 0312/0418 04025G38KT 9999 SCT030 BKN040 PROB30 TEMPO 0315/0318 TSRA BKN020CB',
+      '2026-10-03T11:00:00.000Z',
+      '2026-10-03T12:00:00.000Z',
+      '2026-10-04T18:00:00.000Z',
+    )
+    const summary = summarizeTaf([ltfm], Date.parse('2026-10-03T12:00:00.000Z'))
+    expect(summary.items.map((item) => spaced(weatherText(item, TR)))).toEqual([
+      '18:00 ile 21:00 arası %30 olasılıkla ara ara gök gürültülü sağanak',
+      'Yarın 21:00 saatine kadar kuvvetli rüzgâr, kuzeydoğudan 46 km/sa (25 kt), hamle 70 km/sa (38 kt)',
+    ])
+    expect(summary.items.map((item) => spaced(weatherText(item, EN)))[1]).toBe(
+      'Until 21:00 tomorrow: strong wind, from the northeast 46 km/h (25 kt), gusts 70 km/h (38 kt)',
+    )
+    const gale = taf(
+      'TAF LTFM 031100Z 0312/0418 04030G45KT 9999 SCT030',
+      '2026-10-03T11:00:00.000Z',
+      '2026-10-03T12:00:00.000Z',
+      '2026-10-04T18:00:00.000Z',
+    )
+    expect(
+      summarizeTaf([gale], Date.parse('2026-10-03T12:00:00.000Z')).items.map((item) =>
+        spaced(weatherText(item, TR)),
+      ),
+    ).toEqual([
+      'Yarın 21:00 saatine kadar fırtına, kuzeydoğudan 56 km/sa (30 kt), hamle 83 km/sa (45 kt)',
+    ])
+  })
+
+  it('birden çok kuvvetli rüzgâr: en şiddetlisi yazılır, sonra gelse de (D-083)', () => {
+    const windy = taf(
+      'TAF LTFM 031100Z 0312/0418 18020KT 9999 SCT030 TEMPO 0315/0318 27045G65KT',
+      '2026-10-03T11:00:00.000Z',
+      '2026-10-03T12:00:00.000Z',
+      '2026-10-04T18:00:00.000Z',
+    )
+    const items = (options: WeatherTextOptions) =>
+      summarizeTaf([windy], Date.parse('2026-10-03T12:00:00.000Z')).items.map((item) =>
+        spaced(weatherText(item, options)),
+      )
+    // 45 kt kuvvetli fırtına, hamle 65 kt tam fırtına → tam fırtına; temel 20 kt geride kalır.
+    expect(items(TR)).toEqual([
+      '18:00 ile 21:00 arası ara ara tam fırtına, batıdan 83 km/sa (45 kt), hamle 120 km/sa (65 kt)',
+    ])
+    expect(items(EN)).toEqual([
+      'At times between 18:00 and 21:00: storm, from the west 83 km/h (45 kt), gusts 120 km/h (65 kt)',
     ])
   })
 

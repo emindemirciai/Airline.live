@@ -105,6 +105,15 @@ export const ROADMAP: readonly Milestone[] = [
     },
   },
   {
+    id: 'p1-m6e',
+    part: '1',
+    status: 'done',
+    title: {
+      tr: 'Rüzgâr knot ile, şimşek ve yıldırım uyarısı',
+      en: 'Wind in knots and lightning warnings',
+    },
+  },
+  {
     id: 'p1-m7',
     part: '1',
     status: 'planned',

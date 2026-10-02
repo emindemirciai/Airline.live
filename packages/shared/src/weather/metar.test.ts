@@ -304,9 +304,43 @@ describe('kenar durumlar', () => {
     expect(gust.derived.strongWind).toBe(true)
   })
 
+  it('P49MPS ve GP49MPS: 50 m/s ve üzeri (97 kt, 180 km/sa)', () => {
+    expect(decode('UUXX 151250Z 270P49MPS 0800 +TSRA BKN010CB 20/18 Q0990').wind).toMatchObject({
+      directionDeg: 270,
+      speedKt: 97,
+      speedKmh: 180,
+      gustKt: null,
+      aboveMaxKt: true,
+    })
+    expect(decode('UUXX 151250Z 27020GP49MPS 9999 FEW030 15/08 Q1015').wind).toMatchObject({
+      speedKt: 39,
+      speedKmh: 72,
+      gustKt: 97,
+      gustKmh: 180,
+      aboveMaxKt: true,
+    })
+  })
+
   it('MPS ve KMH rüzgâr kt’ye çevrilir', () => {
     expect(decode('UUEE 151250Z 27005MPS 9999 FEW030 10/05 Q1010').wind?.speedKt).toBe(10)
     expect(decode('XXXX 151250Z 27037KMH 9999 FEW030 10/05 Q1010').wind?.speedKt).toBe(20)
+  })
+
+  it('km/sa raporun biriminden tek yuvarlamayla (D-083)', () => {
+    // 11 m/s = 39,6 km/sa → 40; kt'den (21 kt × 1,852 = 38,9) çevrilseydi 39 olurdu.
+    expect(decode('UGTB 151230Z 31011G16MPS 9999 FEW030 10/05 Q1010').wind).toMatchObject({
+      speedKt: 21,
+      speedKmh: 40,
+      gustKt: 31,
+      gustKmh: 58,
+    })
+    expect(decode('LTXX 151250Z 03018G32KT 9999 FEW030 10/05 Q1010').wind).toMatchObject({
+      speedKmh: 33,
+      gustKmh: 59,
+    })
+    expect(decode('XXXX 151250Z 27037KMH 9999 FEW030 10/05 Q1010').wind?.speedKmh).toBe(37)
+    expect(decode('LTXX 151250Z 220P99KT 9999 FEW030 10/05 Q1010').wind?.speedKmh).toBe(185)
+    expect(decode('LTXX 151250Z 270//KT 9999 FEW030 10/05 Q1010').wind?.speedKmh).toBeNull()
   })
 
   it('VRB25KT ile oraj (MGM: yön 180° ve üzeri değişir)', () => {

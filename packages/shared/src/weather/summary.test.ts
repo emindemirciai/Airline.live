@@ -16,7 +16,7 @@ import {
   type WeatherPhraseKey,
   type WeatherText,
 } from './phrase'
-import type { DecodedMetar, DecodedTaf } from './schema'
+import type { DecodedMetar, DecodedTaf, LightningRisk, WindLevel } from './schema'
 import { summarizeMetar, summarizeTaf, type WeatherSummary } from './summary'
 import { decodeTaf } from './taf'
 import { fake, fakeMeasure, keyTemplate } from './test/fake-text'
@@ -46,7 +46,7 @@ describe('summarizeMetar: brief §2 fixture’ları', () => {
       wind: 'weather.wind.from(weather.compass.from.NE,18kt), weather.wind.gust(32kt)',
       rain: 'weather.wx.SHRA_light',
       snow: NONE,
-      thunderstorm: 'weather.value.noneWithCb',
+      thunderstorm: 'weather.thunder.cloudPrecip',
       fog: NONE,
       hail: null,
       other: null,
@@ -60,7 +60,14 @@ describe('summarizeMetar: brief §2 fixture’ları', () => {
     expect(fake(s.next2h)).toBe(
       'weather.trend.tempo(weather.change.visibility(4000m), weather.wx.SHRA)',
     )
-    expect(s).toMatchObject({ strongWind: true, undetermined: false, notes: [], icon: 'showers' })
+    expect(s).toMatchObject({
+      windLevel: 'gusts',
+      strongWind: true,
+      lightning: 'cloudPrecip',
+      undetermined: false,
+      notes: [],
+      icon: 'showers',
+    })
   })
 
   it('LTBA: CAVOK, NOSIG', () => {
@@ -96,7 +103,7 @@ describe('summarizeMetar: brief §2 fixture’ları', () => {
     )
   })
 
-  it('LTAI: kuvvetli oraj; yağmur ve oraj satırı aynı grubu söyler; değişken sektör', () => {
+  it('LTAI: kuvvetli oraj; yağmur satırı olayı, gök gürültüsü satırı yıldırım tehlikesini söyler', () => {
     const s = summarizeMetar(
       metar(
         'LTAI 151250Z 20015G28KT 160V240 3000 +TSRA SCT015CB BKN030 16/14 Q1006 TEMPO 1500 +TSRA',
@@ -105,10 +112,12 @@ describe('summarizeMetar: brief §2 fixture’ları', () => {
     expect(rows(s)).toMatchObject({
       wind: 'weather.wind.from(weather.compass.from.S,15kt), weather.wind.gust(28kt), weather.wind.varying(weather.compass.name.S,weather.compass.name.SW)',
       rain: 'weather.wx.TSRA_heavy',
-      thunderstorm: 'weather.wx.TSRA_heavy',
+      thunderstorm: 'weather.thunder.here',
       snow: NONE,
     })
     expect(s.strongWind).toBe(false)
+    expect(s.windLevel).toBeNull()
+    expect(s.lightning).toBe('here')
   })
 
   it('LTBJ: hafif ve değişken; LTCG: sakin, sis, VV', () => {
@@ -145,6 +154,7 @@ describe('summarizeMetar: brief §2 fixture’ları', () => {
       rain: NONE,
     })
     expect(s.strongWind).toBe(true)
+    expect(s.windLevel).toBe('strong')
   })
 
   it('LTDB: kuru pus sis/pus satırında; NSC', () => {
@@ -157,7 +167,8 @@ describe('summarizeMetar: brief §2 fixture’ları', () => {
     const s = summarizeMetar(
       metar('LTAU 151250Z 23008KT 9999 VCTS SCT040CB BKN100 07/M01 Q1013 NOSIG'),
     )
-    expect(rows(s).thunderstorm).toBe('weather.value.vicinity(weather.wx.VCTS)')
+    expect(rows(s).thunderstorm).toBe('weather.thunder.vicinity')
+    expect(s.lightning).toBe('vicinity')
     expect(fake(s.headline)).toBe('weather.clouds.BKN')
   })
 
@@ -167,7 +178,7 @@ describe('summarizeMetar: brief §2 fixture’ları', () => {
     )
     expect(rows(s)).toMatchObject({
       hail: 'weather.wx.TSGR_heavy',
-      thunderstorm: 'weather.wx.TSGR_heavy',
+      thunderstorm: 'weather.thunder.here',
       rain: 'weather.wx.TSGR_heavy',
     })
     expect(s.notes.map(fake)).toEqual(['weather.note.speci'])
@@ -327,6 +338,320 @@ describe('summarizeMetar: olay satırının durumu (vurgu)', () => {
   })
 })
 
+describe('summarizeMetar: rüzgâr şiddeti ve şimşek-yıldırım uyarısı (M6e, D-083)', () => {
+  /**
+   * Gerçek biçimli METAR'lar (2026-10-03). İlk ikisi üretimdeki ekran görüntülerindeki durumlardır:
+   * Gazipaşa'da gök gürültülü hafif sağanak (rüzgâr 13 km/sa), İstanbul'da kuzeydoğudan 48 km/sa ve
+   * kümülonimbüs. Sütunlar: METAR, rüzgâr satırı, şiddet, gök gürültüsü satırı, `lightning`.
+   */
+  const CASES: readonly (readonly [
+    string,
+    string,
+    WindLevel | null,
+    string,
+    LightningRisk | null,
+  ])[] = [
+    [
+      'LTFG 031250Z 14007KT 9999 -TSRA FEW025CB SCT030 BKN100 24/19 Q1012',
+      'weather.wind.from(weather.compass.from.SE,7kt)',
+      null,
+      'weather.thunder.here',
+      'here',
+    ],
+    [
+      'LTFM 031250Z 04026KT 9999 SCT030CB BKN040 17/12 Q1014 NOSIG',
+      'weather.wind.from(weather.compass.from.NE,26kt)',
+      'strong',
+      'weather.thunder.cloud',
+      'cloud',
+    ],
+    [
+      'LTFM 031250Z 36025KT 9999 FEW040 18/10 Q1015',
+      'weather.wind.from(weather.compass.from.N,25kt)',
+      'strong',
+      NONE,
+      null,
+    ],
+    [
+      'LTAF 031250Z 22012KT 9999 TS SCT035CB 31/12 Q1009',
+      'weather.wind.from(weather.compass.from.SW,12kt)',
+      null,
+      'weather.thunder.hereDry',
+      'hereDry',
+    ],
+    [
+      'LTBJ 031250Z 25010KT 9999 VCSH TS FEW030CB 27/18 Q1010',
+      'weather.wind.from(weather.compass.from.W,10kt)',
+      null,
+      'weather.thunder.hereDry',
+      'hereDry',
+    ],
+    [
+      'LTAU 151250Z 23008KT 9999 VCTS SCT040CB BKN100 07/M01 Q1013 NOSIG',
+      'weather.wind.from(weather.compass.from.SW,8kt)',
+      null,
+      'weather.thunder.vicinity',
+      'vicinity',
+    ],
+    [
+      'LTBA 031320Z 30012KT 9999 FEW030 SCT040 22/15 Q1013 RETSRA',
+      'weather.wind.from(weather.compass.from.NW,12kt)',
+      null,
+      'weather.value.recent(weather.wx.TSRA)',
+      null,
+    ],
+    [
+      'LTBA 031320Z 30012KT 9999 FEW030CB SCT040 22/15 Q1013 RETSRA',
+      'weather.wind.from(weather.compass.from.NW,12kt)',
+      null,
+      'weather.thunder.cloud',
+      'cloud',
+    ],
+    [
+      'LTFM 141020Z 27014KT 9999 -SHRA FEW020TCU BKN030 11/08 Q1008 NOSIG',
+      'weather.wind.from(weather.compass.from.W,14kt)',
+      null,
+      NONE,
+      null,
+    ],
+    [
+      // Kümülonimbüs ve havalimanında yağış, oraj bildirilmedi (fixture IST): "Yok" denmez,
+      // şimşek ve yıldırım tehlikesi yazılır (kullanıcının sözü, 2026-10-03).
+      'LTFM 151250Z 03018G32KT 9999 -SHRA FEW025CB BKN035 09/05 Q1009 TEMPO 4000 SHRA',
+      'weather.wind.from(weather.compass.from.NE,18kt), weather.wind.gust(32kt)',
+      'gusts',
+      'weather.thunder.cloudPrecip',
+      'cloudPrecip',
+    ],
+    [
+      'LTCE 031250Z 27010KT 3000 -SN SCT020CB OVC030 M02/M04 Q1012',
+      'weather.wind.from(weather.compass.from.W,10kt)',
+      null,
+      'weather.thunder.cloudPrecip',
+      'cloudPrecip',
+    ],
+    [
+      // Tanınan yağış rapor belirlenemese de vardır: tehlike yazılır ("Yok" ya da "Belirlenemedi"
+      // demeyen metin).
+      'LTXX 031250Z 22010KT 9999 -RA XYZRA FEW030CB 10/05 Q1010',
+      'weather.wind.from(weather.compass.from.SW,10kt)',
+      null,
+      'weather.thunder.cloudPrecip',
+      'cloudPrecip',
+    ],
+    [
+      // Yağış yalnız çevrede (VCSH) ya da yağış değil (pus): bulut olasılığı.
+      'LTXX 031250Z 22010KT 9999 VCSH FEW030CB 10/05 Q1010',
+      'weather.wind.from(weather.compass.from.SW,10kt)',
+      null,
+      'weather.thunder.cloud',
+      'cloud',
+    ],
+    [
+      'LTXX 031250Z 22010KT 4000 BR FEW030CB 10/09 Q1010',
+      'weather.wind.from(weather.compass.from.SW,10kt)',
+      null,
+      'weather.thunder.cloud',
+      'cloud',
+    ],
+    [
+      'LTFJ 031250Z 04026G45KT 9999 SCT030 17/10 Q1012',
+      'weather.wind.from(weather.compass.from.NE,26kt), weather.wind.gust(45kt)',
+      'gale',
+      NONE,
+      null,
+    ],
+    [
+      'LGTS 031250Z 32030KT 9999 FEW030 05/M06 Q1024 NOSIG',
+      'weather.wind.from(weather.compass.from.NW,30kt)',
+      'nearGale',
+      NONE,
+      null,
+    ],
+    [
+      'LTAI 031250Z VRB25G40KT 3000 +TSRA SCT015CB 18/16 Q1006',
+      'weather.wind.variable(25kt), weather.wind.gust(40kt)',
+      'strong',
+      'weather.thunder.here',
+      'here',
+    ],
+    [
+      'LTAI 151250Z 20015G28KT 160V240 3000 +TSRA SCT015CB BKN030 16/14 Q1006',
+      'weather.wind.from(weather.compass.from.S,15kt), weather.wind.gust(28kt), weather.wind.varying(weather.compass.name.S,weather.compass.name.SW)',
+      null,
+      'weather.thunder.here',
+      'here',
+    ],
+    [
+      // 11 m/s = 21,4 kt → 21 kt; km/sa m/s'den (39,6 → 40), kt'den çevrilseydi 39 olurdu.
+      'UGTB 031230Z 31011MPS 9999 FEW030 15/08 Q1015 NOSIG',
+      'weather.wind.from(weather.compass.from.NW,21kt/40kmh)',
+      'strong',
+      NONE,
+      null,
+    ],
+    [
+      'LTXX 031250Z 270P99KT 0800 +TSRA BKN010CB 20/18 Q0990',
+      'weather.wind.from(weather.compass.from.W,weather.wind.above(100kt))',
+      'hurricane',
+      'weather.thunder.here',
+      'here',
+    ],
+    [
+      // Ölçek üstü m/s: 50 m/s ve üzeri = 97 kt; "ve üzeri" kt eşiğine (100) bağlı değildir.
+      'UUXX 031250Z 270P49MPS 0800 +TSRA BKN010CB 20/18 Q0990',
+      'weather.wind.from(weather.compass.from.W,weather.wind.above(97kt))',
+      'hurricane',
+      'weather.thunder.here',
+      'here',
+    ],
+    [
+      // Ölçek üstü hamle: yalnız hamle "ve üzeri"dir, ortalama değil.
+      'UUXX 031250Z 27020GP49MPS 9999 FEW030 15/08 Q1015',
+      'weather.wind.from(weather.compass.from.W,39kt), weather.wind.gust(weather.wind.above(97kt))',
+      'violentStorm',
+      NONE,
+      null,
+    ],
+    [
+      'LTXX 031250Z 33090GP99KT 9999 FEW030 10/05 Q1010',
+      'weather.wind.from(weather.compass.from.NW,90kt), weather.wind.gust(weather.wind.above(100kt))',
+      'hurricane',
+      NONE,
+      null,
+    ],
+    ['LTXX 031250Z NIL', UNDETERMINED, null, UNDETERMINED, null],
+    [
+      // Hava olayına benzeyen çözülemeyen parça: "Yok" denemez, bulut yine söylenir.
+      'LTXX 031250Z 22010KT 9999 XYZRA FEW030CB 10/05 Q1010',
+      'weather.wind.from(weather.compass.from.SW,10kt)',
+      null,
+      'weather.thunder.cloudUndetermined',
+      'cloudUndetermined',
+    ],
+    [
+      // Ayrı gruplar: havalimanında oraj ve yağmur.
+      'LTXX 031250Z 18008KT 6000 TS RA BKN020CB 20/18 Q1008',
+      'weather.wind.from(weather.compass.from.S,8kt)',
+      null,
+      'weather.thunder.here',
+      'here',
+    ],
+    [
+      // Havalimanında oraj, hava olayı belirlenemedi (otomatik istasyonun hava duyargası `//`,
+      // şimşek algılayıcısı çalışıyor): yağış bilinmez, "yağış yok" (`hereDry`) denemez.
+      'LTAF 031250Z AUTO 22012KT 9999 TS // NCD 31/12 Q1009',
+      'weather.wind.from(weather.compass.from.SW,12kt)',
+      null,
+      'weather.thunder.here',
+      'here',
+    ],
+    [
+      // Görüşü eksik (kesik) rapor ve hava olayına benzeyen çözülemeyen parça: aynı kural.
+      'LTAF 031250Z 22012KT TS SCT035CB 31/12 Q1009',
+      'weather.wind.from(weather.compass.from.SW,12kt)',
+      null,
+      'weather.thunder.here',
+      'here',
+    ],
+    [
+      'LTAF 031250Z 22012KT 9999 TS XXRA SCT035CB 31/12 Q1009',
+      'weather.wind.from(weather.compass.from.SW,12kt)',
+      null,
+      'weather.thunder.here',
+      'here',
+    ],
+    [
+      // Çevrede oraj, rapor belirlenemedi: çevredeki oraj yine söylenir.
+      'LTXX 031250Z 18008KT 9999 VCTS XYZRA SCT030CB 20/18 Q1008',
+      'weather.wind.from(weather.compass.from.S,8kt)',
+      null,
+      'weather.thunder.vicinity',
+      'vicinity',
+    ],
+  ]
+
+  it.each(CASES)('%s', (raw, wind, level, thunder, lightning) => {
+    const s = summarizeMetar(metar(raw))
+    const r = rows(s)
+    expect(r.wind).toBe(wind)
+    expect(r.thunderstorm).toBe(thunder)
+    expect(s.windLevel).toBe(level)
+    expect(s.strongWind).toBe(level !== null)
+    expect(s.lightning).toBe(lightning)
+  })
+
+  it('yağmur satırı olayı ayrıca söyler (Gazipaşa, yağışsız oraj, çevrede sağanak)', () => {
+    const rain = (raw: string) => rows(summarizeMetar(metar(raw))).rain
+    expect(rain('LTFG 031250Z 14007KT 9999 -TSRA FEW025CB SCT030 BKN100 24/19 Q1012')).toBe(
+      'weather.wx.TSRA_light',
+    )
+    expect(rain('LTAF 031250Z 22012KT 9999 TS SCT035CB 31/12 Q1009')).toBe(NONE)
+    expect(rain('LTBJ 031250Z 25010KT 9999 VCSH TS FEW030CB 27/18 Q1010')).toBe(
+      'weather.value.vicinity(weather.wx.VCSH)',
+    )
+  })
+
+  it('oraj var, hava olayı belirlenemedi: başlık ve satırlar "yağış yok" demez (D-078)', () => {
+    for (const raw of [
+      'LTAF 031250Z AUTO 22012KT 9999 TS // NCD 31/12 Q1009',
+      'LTAF 031250Z 22012KT TS SCT035CB 31/12 Q1009',
+      'LTAF 031250Z 22012KT 9999 TS XXRA SCT035CB 31/12 Q1009',
+    ]) {
+      const s = summarizeMetar(metar(raw))
+      expect(s.undetermined, raw).toBe(true)
+      // `weather.wx.TS` "yağış yok" der; başlık yalnız gök gürültüsünü söyler.
+      expect(fake(s.headline), raw).toBe('weather.wx.VCTS')
+      expect(rows(s).rain, raw).toBe(UNDETERMINED)
+      expect(s.lightning, raw).toBe('here')
+    }
+    // Temiz raporda yağışsız oraj olduğu gibi: başlık grubun metni, yağmur "Yok".
+    const clean = summarizeMetar(metar('LTAF 031250Z 22012KT 9999 TS SCT035CB 31/12 Q1009'))
+    expect(fake(clean.headline)).toBe('weather.wx.TS')
+    expect(rows(clean).rain).toBe(NONE)
+    expect(clean.lightning).toBe('hereDry')
+    // Yağışlı orajda belirlenemeyen parça başlığı değiştirmez.
+    const wet = summarizeMetar(metar('LTAF 031250Z 22012KT 9999 -TSRA XXRA SCT035CB 31/12 Q1009'))
+    expect(fake(wet.headline)).toBe('weather.wx.TSRA_light')
+  })
+
+  it('oraj ve yağış ayrı gruplarda (`TS RA`): başlık "yağış yok" demez, yağış satırı yağışı yazar', () => {
+    for (const [raw, row, value] of [
+      ['LTXX 031250Z 18008KT 6000 TS RA BKN020CB 20/18 Q1008', 'rain', 'weather.wx.RA'],
+      ['LTXX 031250Z 18008KT 6000 TS -SHRA BKN020CB 20/18 Q1008', 'rain', 'weather.wx.SHRA_light'],
+      ['LTXX 031250Z 18008KT 6000 TS GS BKN020CB 20/18 Q1008', 'hail', 'weather.wx.GS'],
+      ['LTXX 031250Z 18008KT 6000 -RA TS BKN020CB 20/18 Q1008', 'rain', 'weather.wx.RA_light'],
+    ] as const) {
+      const s = summarizeMetar(metar(raw))
+      expect(s.undetermined, raw).toBe(false)
+      // `weather.wx.TS` "yağış yok" der; yağış başka grupta olduğu için başlık yalnız gök gürültüsü.
+      expect(fake(s.headline), raw).toBe('weather.wx.VCTS')
+      expect(rows(s)[row], raw).toBe(value)
+      expect(s.lightning, raw).toBe('here')
+    }
+    // Yağış yalnız çevrede (VCSH): havalimanında yağış yok, yağışsız orajın metni kalır.
+    const vcsh = summarizeMetar(metar('LTBJ 031250Z 25010KT 9999 VCSH TS FEW030CB 27/18 Q1010'))
+    expect(fake(vcsh.headline)).toBe('weather.wx.TS')
+    // Yağış oraj grubunun içinde (`TSRA`): grubun kendi metni.
+    const tsra = summarizeMetar(metar('LTXX 031250Z 18008KT 6000 -TSRA BKN020CB 20/18 Q1008'))
+    expect(fake(tsra.headline)).toBe('weather.wx.TSRA_light')
+  })
+
+  it('olay satırının durumu değişmez: yağışsız oraj havalimanında "present"', () => {
+    const p = summarizeMetar(metar('LTAF 031250Z 22012KT 9999 TS SCT035CB 31/12 Q1009')).presence
+    expect(p).toMatchObject({ thunderstorm: 'present', rain: 'none' })
+    const cb = summarizeMetar(metar('LTFM 031250Z 04026KT 9999 SCT030CB BKN040 17/12 Q1014'))
+    expect(cb.presence.thunderstorm).toBe('none')
+  })
+
+  it('kümülonimbüs varken gök gürültüsü satırı uyarısız "Yok" demez', () => {
+    for (const [raw] of CASES) {
+      const m = metar(raw)
+      if (!m.nil && m.derived.flags.cb) expect(summarizeMetar(m).lightning, raw).not.toBeNull()
+    }
+  })
+})
+
 describe('summarizeMetar: rüzgâr, görüş, bulut biçimleri', () => {
   const wind = (group: string) =>
     rows(summarizeMetar(metar(`LTXX 151250Z ${group} 9999 FEW030 10/05 Q1010`))).wind
@@ -468,7 +793,7 @@ describe('summarizeTaf', () => {
       ]),
     ).toEqual([
       'weather.taf.until(t16:00,weather.wx.SHSN_heavy)',
-      'weather.taf.until(t16:00,weather.taf.strongWind(weather.wind.from(weather.compass.from.W,20kt), weather.wind.gust(35kt)))',
+      'weather.taf.until(t16:00,weather.taf.strongWind(weather.wind.level.strong,weather.wind.from(weather.compass.from.W,20kt), weather.wind.gust(35kt)))',
     ])
   })
 
@@ -508,8 +833,9 @@ describe('summarizeTaf', () => {
     const windyNew = taf(
       'TAF LTFM 151040Z 1512/1618 04028G40KT 9999 BKN030 BECMG 1520/1522 04010KT',
     )
+    // 28 kt fırtınamsı rüzgârdır (Beaufort 7; D-083).
     expect(items([windyNew, windyOld], '2026-01-15T11:00:00Z')).toEqual([
-      'weather.taf.until(t20:00,weather.taf.strongWind(weather.wind.from(weather.compass.from.NE,28kt), weather.wind.gust(40kt)))',
+      'weather.taf.until(t20:00,weather.taf.strongWind(weather.wind.level.nearGale,weather.wind.from(weather.compass.from.NE,28kt), weather.wind.gust(40kt)))',
     ])
   })
 
@@ -518,19 +844,78 @@ describe('summarizeTaf', () => {
     expect(
       items([taf('TAF LTXX 151040Z 1512/1618 04028G40KT 9999 BKN030 BECMG 1514/1516 04025G35KT')]),
     ).toEqual([
-      'weather.taf.until(weather.time.tomorrow(t18:00),weather.taf.strongWind(weather.wind.from(weather.compass.from.NE,28kt), weather.wind.gust(40kt)))',
+      'weather.taf.until(weather.time.tomorrow(t18:00),weather.taf.strongWind(weather.wind.level.nearGale,weather.wind.from(weather.compass.from.NE,28kt), weather.wind.gust(40kt)))',
     ])
-    // Ortalama bir dilimden, hamle ötekinden; yön ortalaması en yüksek dilimin yönüdür.
+    // Ortalama bir dilimden, hamle ötekinden; yön ortalaması en yüksek dilimin yönüdür. Şiddet
+    // birleşen değerden: ortalama 30 kt fırtınamsı, hamle 45 kt fırtına → fırtına.
     expect(
       items([taf('TAF LTXX 151040Z 1512/1618 27030KT 9999 BKN030 BECMG 1514/1516 25022G45KT')]),
     ).toEqual([
-      'weather.taf.until(weather.time.tomorrow(t18:00),weather.taf.strongWind(weather.wind.from(weather.compass.from.W,30kt), weather.wind.gust(45kt)))',
+      'weather.taf.until(weather.time.tomorrow(t18:00),weather.taf.strongWind(weather.wind.level.gale,weather.wind.from(weather.compass.from.W,30kt), weather.wind.gust(45kt)))',
     ])
     // Ortalamadan büyük olmayan hamle yazılmaz.
     expect(
       items([taf('TAF LTXX 151040Z 1512/1618 27020G30KT 9999 BKN030 BECMG 1514/1516 27035KT')]),
     ).toEqual([
-      'weather.taf.until(weather.time.tomorrow(t18:00),weather.taf.strongWind(weather.wind.from(weather.compass.from.W,35kt)))',
+      'weather.taf.until(weather.time.tomorrow(t18:00),weather.taf.strongWind(weather.wind.level.gale,weather.wind.from(weather.compass.from.W,35kt)))',
+    ])
+  })
+
+  it('etkili rüzgâr öğesi şiddetin adıyla (D-083): fırtına, kuvvetli hamle; MPS dilimi', () => {
+    expect(items([taf('TAF LTXX 151040Z 1512/1618 04030G45KT 9999 SCT030 BKN040')])).toEqual([
+      'weather.taf.until(weather.time.tomorrow(t18:00),weather.taf.strongWind(weather.wind.level.gale,weather.wind.from(weather.compass.from.NE,30kt), weather.wind.gust(45kt)))',
+    ])
+    expect(items([taf('TAF LTXX 151040Z 1512/1618 04015G30KT 9999 SCT030')])).toEqual([
+      'weather.taf.until(weather.time.tomorrow(t18:00),weather.taf.strongWind(weather.wind.level.gusts,weather.wind.from(weather.compass.from.NE,15kt), weather.wind.gust(30kt)))',
+    ])
+    // 11 m/s: km/sa raporun biriminden (40), kt yuvarlanmış (21).
+    expect(items([taf('TAF UGTB 151040Z 1512/1618 31011MPS 9999 SCT030')])).toEqual([
+      'weather.taf.until(weather.time.tomorrow(t18:00),weather.taf.strongWind(weather.wind.level.strong,weather.wind.from(weather.compass.from.NW,21kt/40kmh)))',
+    ])
+    // Birleşen dilimlerde hamlenin km/sa'sı hamleyle birlikte gelir: ortalama ilk dilimden (11 m/s),
+    // hamle ikinciden (16 m/s = 31 kt; 57,6 → 58 km/sa, kt'den çevrilseydi 57).
+    expect(
+      items([taf('TAF UGTB 151040Z 1512/1618 31011MPS 9999 SCT030 BECMG 1514/1516 31008G16MPS')]),
+    ).toEqual([
+      'weather.taf.until(weather.time.tomorrow(t18:00),weather.taf.strongWind(weather.wind.level.strong,weather.wind.from(weather.compass.from.NW,21kt/40kmh), weather.wind.gust(31kt/58kmh)))',
+    ])
+  })
+
+  it('birden çok kuvvetli rüzgâr: en şiddetlisi yazılır, sonra gelse de (D-083)', () => {
+    // Temel 20 kt kuvvetli rüzgâr, TEMPO 45G65 tam fırtına: en erken olan değil en şiddetli olan.
+    expect(
+      items([taf('TAF LTXX 151040Z 1512/1618 18020KT 9999 SCT030 TEMPO 1515/1518 27045G65KT')]),
+    ).toEqual([
+      'weather.taf.tempo(t15:00,t18:00,weather.taf.strongWind(weather.wind.level.storm,weather.wind.from(weather.compass.from.W,45kt), weather.wind.gust(65kt)))',
+    ])
+    // İki TEMPO: önce kuvvetli hamle (15G30), sonra çok şiddetli fırtına (50G70).
+    expect(
+      items([
+        taf(
+          'TAF LTXX 151040Z 1512/1618 18010KT 9999 SCT030 TEMPO 1514/1516 18015G30KT TEMPO 1516/1520 27050G70KT',
+        ),
+      ]),
+    ).toEqual([
+      'weather.taf.tempo(t16:00,t20:00,weather.taf.strongWind(weather.wind.level.violentStorm,weather.wind.from(weather.compass.from.W,50kt), weather.wind.gust(70kt)))',
+    ])
+    // Hava olayıyla birlikte: olay ilk, en şiddetli rüzgâr ikinci satırda.
+    expect(
+      items([
+        taf('TAF LTXX 151040Z 1512/1618 18022KT 9999 -SHRA SCT030 PROB30 1516/1519 27040G55KT'),
+      ]),
+    ).toEqual([
+      'weather.taf.until(weather.time.tomorrow(t18:00),weather.wx.SHRA_light)',
+      'weather.taf.prob(t16:00,t19:00,30,weather.taf.strongWind(weather.wind.level.severeGale,weather.wind.from(weather.compass.from.W,40kt), weather.wind.gust(55kt)))',
+    ])
+    // Şiddet eşitse en erken olan (sonra en kesin).
+    expect(
+      items([
+        taf(
+          'TAF LTXX 151040Z 1512/1618 18010KT 9999 SCT030 TEMPO 1514/1516 18022KT TEMPO 1517/1519 27024KT',
+        ),
+      ]),
+    ).toEqual([
+      'weather.taf.tempo(t14:00,t16:00,weather.taf.strongWind(weather.wind.level.strong,weather.wind.from(weather.compass.from.S,22kt)))',
     ])
   })
 

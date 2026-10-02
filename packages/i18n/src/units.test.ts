@@ -56,6 +56,19 @@ describe('formatAltitude', () => {
     expect(formatAltitude(35000.4, aviation)).toBe('35.000 ft')
   })
 
+  it('nowrap: sayı ile birim arasında bölünmez boşluk (pencerede pist uzunluğu, D-083)', () => {
+    // 11.155 ft = 3.400 m (AYT): dar sütunda "3.400" ile "m" ayrı satıra düşmez.
+    expect(formatAltitude(11155, { nowrap: true })).toBe('3.400\u00a0m')
+    expect(formatAltitude(11155, { nowrap: true, units: 'aviation', locale: 'en' })).toBe(
+      '11,155\u00a0ft',
+    )
+    expect(formatAltitude(-1234, { nowrap: true })).toBe('−376\u00a0m')
+    expect(formatAltitude(null, { nowrap: true })).toBe('—')
+    // Varsayılan olağan boşluktur (harita etiketleri ve tablolar değişmez).
+    expect(formatAltitude(11155)).toBe('3.400 m')
+    expect(formatAltitude(11155, { nowrap: false })).toBe('3.400 m')
+  })
+
   it('yerdeyse değerden bağımsız "yerde" / "on ground"', () => {
     expect(formatAltitude(null, { onGround: true })).toBe('yerde')
     expect(formatAltitude(125, { onGround: true, units: 'aviation' })).toBe('yerde')

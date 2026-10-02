@@ -110,8 +110,9 @@ describe('AirportPopup', () => {
     expect(html).toContain('IST · LTFM')
     expect(html).toContain('<h2 class="map-popup__title">İstanbul Havalimanı</h2>')
     expect(html).toContain('İstanbul</p>')
-    expect(html).toContain('<dt>Rakım</dt><dd>99 m (325 ft)</dd>')
-    expect(html).toContain('<dt>Pistler</dt><dd>2 pist, en uzunu 4.100 m</dd>')
+    // Rakım ve pist uzunluğunda sayı ile birim bölünmez boşlukla (D-083).
+    expect(html).toContain('<dt>Rakım</dt><dd>99\u00a0m (325\u00a0ft)</dd>')
+    expect(html).toContain('<dt>Pistler</dt><dd>2 pist, en uzunu 4.100\u00a0m</dd>')
     expect(html).toContain('<dt>Yerel saat</dt><dd>16:00</dd>')
     // Gün doğumu ve batımı yalnız havalimanı sayfasındadır (kullanıcı kararı 2026-10-02).
     expect(html).not.toMatch(/Gün doğumu|Gün batımı/)
@@ -127,11 +128,11 @@ describe('AirportPopup', () => {
     expect(html).toContain('aria-label="Istanbul Airport details"')
     expect(html).toContain('href="/en/istasyon/LTFM"')
     expect(html).toContain('Airport page →')
-    expect(html).toContain('2 runways, longest 4,100 m')
+    expect(html).toContain('2 runways, longest 4,100\u00a0m')
     expect(html).not.toMatch(/Sunrise|Sunset/)
   })
 
-  it('hava durumu: başlığın yanında sıcaklık kutucuğu, simgeli satırlar, var olan olay vurgulu', () => {
+  it('hava durumu: başlığın yanında sıcaklık kutucuğu, simgeli ortalı satırlar, vurgular', () => {
     const html = render(
       'tr',
       weatherState('LTFM 011250Z 03018G32KT 9999 -SHRA FEW025CB BKN035 09/05 Q1009'),
@@ -141,18 +142,30 @@ describe('AirportPopup', () => {
       '<p class="map-popup__headline"><span>Hafif sağanak yağmur</span> <span class="wx-temp">9 °C</span></p>',
     )
     expect(html).not.toMatch(/[·–]\s*[−-]?\d/)
-    // Rüzgâr virgülle; kuvvetli rüzgâr etiketi ayraçsız, boşlukla ayrılır.
+    // Rüzgâr km/sa ve parantezde kt, virgülle; şiddet etiketi ayraçsız, boşlukla ayrılır (D-083).
     expect(weatherRow(html, 'wind')?.value).toBe(
-      'Kuzeydoğudan 33 km/sa, hamle 59 km/sa Kuvvetli rüzgâr',
+      'Kuzeydoğudan 33 km/sa (18 kt), hamle 59 km/sa (32 kt) Kuvvetli hamle',
     )
-    expect(html).toContain('hamle 59 km/sa <span class="wx-tag">Kuvvetli rüzgâr</span>')
+    // Hızın içinde bölünmez boşluk: dar değer sütununda "59" ile "km/sa" ayrı satıra düşmez.
+    expect(html).toContain(
+      'hamle 59\u00a0km/sa\u00a0(32\u00a0kt) <span class="wx-tag">Kuvvetli hamle</span>',
+    )
     expect(text(html)).toContain('Gözlem 15:50, 10 dakika önce')
-    // Var olan olay (yağmur) vurgulu; "Yok" satırları sade.
+    // Satırlar ortalı düzendedir: etiket sağa, değer sola, çiftler orta eksende.
+    expect(html).toContain('<dl class="wx-rows wx-rows--center">')
+    // Var olan olay (yağmur), etkili rüzgâr ve CB ile yağışın yıldırım tehlikesi vurgulu; "Yok" sade.
     expect(weatherRow(html, 'rain')).toEqual({
       open: '<div class="wx-row" data-row="rain" data-tone="rain">',
       value: 'Hafif sağanak yağmur',
     })
-    for (const key of ['wind', 'snow', 'thunder', 'fog', 'visibility']) {
+    expect(weatherRow(html, 'wind')?.open).toBe(
+      '<div class="wx-row" data-row="wind" data-tone="wind">',
+    )
+    expect(weatherRow(html, 'thunder')).toEqual({
+      open: '<div class="wx-row" data-row="thunder" data-tone="thunder">',
+      value: 'Kümülonimbüs (oraj bulutu) ve yağış var; şimşek ve yıldırım tehlikesi',
+    })
+    for (const key of ['snow', 'fog', 'visibility']) {
       expect(weatherRow(html, key)?.open, key).toBe(`<div class="wx-row" data-row="${key}">`)
     }
     // Simgeler süslemedir: ekran okuyucudan gizli; etiket metni değişmez.
@@ -210,7 +223,7 @@ describe('AirportPopup', () => {
     expect(html).toContain('data-icao="LGAV"')
     expect(html).toContain('ATH · LGAV')
     expect(html).toContain('<p class="map-popup__place">Yunanistan</p>')
-    expect(html).toContain('<dt>Pistler</dt><dd>Tek pist, 4.000 m</dd>')
+    expect(html).toContain('<dt>Pistler</dt><dd>Tek pist, 4.000\u00a0m</dd>')
     expect(html).not.toContain('Yerel saat')
     expect(html).not.toContain('Gün doğumu')
     expect(html).toContain('href="/istasyon/LGAV"')
