@@ -14,8 +14,10 @@ import {
  * `jobs` rolü çağırır; web ve mobil istemci bu servise gitmez.
  * - Yalnızca belgelenmiş parametreler gönderilir (belgelenmemiş parametre 400 döner, AWC v4.26):
  *   METAR `ids`, `format=json`, `hours`; TAF `ids`, `format=json` (TAF'ta `hours` yoktur).
- * - İstasyon listesi tek istekte, düz virgülle ayrılmış gider (`ids=LTFM,LTBA`); yanıt belgelenen
- *   400 kayıt sınırına ulaşırsa liste ikiye bölünüp yeniden istenir (en fazla 2 düzey).
+ * - İstasyonlar düz virgülle ayrılmış gider (`ids=LTFM,LTBA`). Liste baştan gruplara bölünür: bir
+ *   istekte en çok `AWC_MAX_IDS` istasyon, METAR'da ayrıca geriye bakışa göre belgelenen 400 kayıt
+ *   sınırının altında kalacak kadar istasyon (2 saatte 80). Yanıt yine de sınıra ulaşırsa grup ikiye
+ *   bölünüp yeniden istenir (en fazla 2 düzey).
  * - Durum kodu JSON ayrıştırmadan önce denetlenir: 204 veri yok (gövde yok), 400 bizim hatamız,
  *   403 erişim engeli, 429 hız sınırı (Retry-After varsa okunur), 5xx sunucu hatası.
  * - Yönlendirme izlenmez, yanıt boyutu sınırlıdır, içerik türü JSON olmalıdır.
@@ -35,15 +37,16 @@ export const AWC_METAR_HOURS = 2
  */
 export const AWC_METAR_MAX_HOURS = 24
 /**
- * Saat ve istasyon başına beklenen en çok METAR/SPECI (yarım saatte bir rapor + SPECI payı). Uzun
- * geriye bakışta istasyonlar, bir istek 400 kayıt sınırının altında kalacak küçüklükte gruplara
- * bölünür; 2 saatlik olağan istek 80 istasyona kadar tek istektir.
+ * Saat ve istasyon başına beklenen en çok METAR/SPECI (yarım saatte bir rapor + SPECI payı).
+ * İstasyonlar, bir istek 400 kayıt sınırının altında kalacak küçüklükte gruplara bölünür: 2 saatlik
+ * olağan istekte grup 80 istasyondur (Türkiye ve 1. halka, 136 istasyon: iki istek), 24 saatlik
+ * doldurmada 6 istasyon.
  */
 export const AWC_METAR_PER_STATION_HOUR = 2.5
-/** Bir çağrıdaki en fazla istasyon (URL ~1.000 karakter). */
+/** Bir istekteki en fazla istasyon (URL ~1.000 karakter); daha uzun liste birkaç isteğe bölünür. */
 export const AWC_MAX_IDS = 200
 export const AWC_REQUEST_TIMEOUT_MS = 15_000
-/** Açılmış yanıt üst sınırı; 61 istasyonun 2 saatlik METAR'ı ~150 KB'tır. */
+/** Açılmış yanıt üst sınırı; 80 istasyonluk bir grubun 2 saatlik METAR'ı ~200 KB'tır. */
 export const AWC_MAX_RESPONSE_BYTES = 2_000_000
 /** Retry-After üst sınırı (sn); daha uzun değer yanlış yapılandırma sayılır ve kırpılır. */
 export const AWC_MAX_RETRY_AFTER_SEC = 6 * 3_600
@@ -116,9 +119,6 @@ export function normalizeStationIds(ids: readonly string[]): string[] {
   const invalid = cleaned.filter((id) => !STATION_ID.test(id))
   if (invalid.length > 0) {
     throw new AviationWeatherError('request', `geçersiz istasyon kodu: ${invalid.join(', ')}`)
-  }
-  if (cleaned.length > AWC_MAX_IDS) {
-    throw new AviationWeatherError('request', `tek çağrıda en fazla ${AWC_MAX_IDS} istasyon`)
   }
   return cleaned
 }
@@ -298,11 +298,15 @@ export function createAviationWeatherClient(options: AviationWeatherOptions) {
     parse: (body: unknown, stations: ReadonlySet<string>) => ParsedReports<T>,
   ): Promise<AwcFetchResult<T>> {
     const ids = normalizeStationIds(rawIds)
-    // Uzun METAR geriye bakışında liste baştan gruplara bölünür (sınıra çarpıp yinelemek yerine).
+    // Liste baştan gruplara bölünür (sınıra çarpıp yinelemek yerine): istek başına en çok
+    // AWC_MAX_IDS istasyon; METAR'da ayrıca geriye bakışa göre 400 kayıt sınırının altında kalacak kadar.
     const size =
       hours === null
-        ? ids.length
-        : Math.max(1, Math.floor(AWC_MAX_ENTRIES / (hours * AWC_METAR_PER_STATION_HOUR)))
+        ? AWC_MAX_IDS
+        : Math.min(
+            AWC_MAX_IDS,
+            Math.max(1, Math.floor(AWC_MAX_ENTRIES / (hours * AWC_METAR_PER_STATION_HOUR))),
+          )
     const responses: RawResponse[] = []
     let requests = 0
     let truncated = false
@@ -336,8 +340,9 @@ export function createAviationWeatherClient(options: AviationWeatherOptions) {
   return {
     userAgent,
     /**
-     * METAR ve SPECI; `hours` geriye bakış (varsayılan 2, en çok `AWC_METAR_MAX_HOURS` saat). Uzun
-     * geriye bakışta istasyonlar 400 kayıt sınırına göre birkaç isteğe bölünür.
+     * METAR ve SPECI; `hours` geriye bakış (varsayılan 2, en çok `AWC_METAR_MAX_HOURS` saat).
+     * İstasyonlar geriye bakışa göre 400 kayıt sınırının altında kalan gruplarla istenir (2 saatte
+     * 80, 24 saatte 6 istasyon).
      */
     async metars(
       ids: readonly string[],
@@ -353,7 +358,10 @@ export function createAviationWeatherClient(options: AviationWeatherOptions) {
         parseMetarResponse(body, { stations, now: now() }),
       )
     },
-    /** Geçerli TAF'lar (AWC varsayılanı `time=valid`); bu uç `hours` almaz. */
+    /**
+     * Geçerli TAF'lar (AWC varsayılanı `time=valid`); bu uç `hours` almaz. İstek başına en çok
+     * `AWC_MAX_IDS` istasyon.
+     */
     async tafs(ids: readonly string[]): Promise<AwcFetchResult<TafReport>> {
       return fetchProduct('taf', ids, null, (body, stations) =>
         parseTafResponse(body, { stations, now: now() }),

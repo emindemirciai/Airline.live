@@ -32,6 +32,30 @@
     { "station": "LTCF", "case": "freezing rain; no TAF" },
     { "station": "LTAJ", "case": "delayed observation (1 h 40 min before fixtureNow)" },
     { "station": "LTCW", "case": "stale observation (8 h 10 min before fixtureNow), no TAF" },
-    { "station": "LTBQ", "case": "no METAR and no TAF" }
+    { "station": "LTBQ", "case": "no METAR and no TAF" },
+    {
+      "station": "LGAV",
+      "case": "ring 1 (outside Türkiye): northerly wind, FEW/SCT; TAF with TEMPO gusts and BECMG"
+    },
+    {
+      "station": "LGTS",
+      "case": "ring 1: strong northwesterly wind (Vardar), gust 38 kt, dry air; no TAF"
+    },
+    {
+      "station": "LCLK",
+      "case": "ring 1: light showers, FEW CB; TAF with TEMPO showers and BECMG"
+    },
+    {
+      "station": "LCEN",
+      "case": "ring 1, shown as KKTC (D-080); quiet VFR; no TAF"
+    },
+    {
+      "station": "LBSF",
+      "case": "ring 1: freezing fog, two RVR groups (one falling), vertical visibility, below-zero temperature; observation at :30; TAF with BECMG and TEMPO fog"
+    },
+    {
+      "station": "UGTB",
+      "case": "ring 1: wind in MPS (6 MPS = 12 kt), mist, MVFR ceiling; observation at :30; TAF in MPS"
+    }
   ]
 }

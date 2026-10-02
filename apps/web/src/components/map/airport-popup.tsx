@@ -15,15 +15,16 @@ import {
   type RefObject,
 } from 'react'
 import { localePath } from '../../lib/locale-routing'
+import { WeatherRowList } from '../airports/weather-row-list'
 import type { MapAirport } from './airport-data'
 import {
   airportFacts,
   airportPlace,
   escapeClosesPopup,
   popupStatusText,
+  popupTimeZone,
   popupWeatherView,
   returnFocusTarget,
-  sunToday,
   type FocusPlace,
 } from './airport-popup-model'
 import type { MapViewHandle } from './map-view'
@@ -37,7 +38,7 @@ export interface AirportPopupProps {
   weather: BulkWeatherState
   /**
    * Saniyelik duvar saati (cihaz kipindeki `WallClock`: akla yatkınsa cihaz saati, değilse sunucu
-   * saati; ms): yerel saat, gün doğumu ve gözlem yaşı bununla hesaplanır. Geri gitmeyen
+   * saati; ms): yerel saat ve gözlem yaşı bununla hesaplanır. Geri gitmeyen
    * `monotonicNow` sunucu zamanlarıyla karşılaştırılmaz.
    */
   now: number
@@ -62,8 +63,12 @@ function focusPlaceIn(root: HTMLElement | null): FocusPlace {
 
 /**
  * Canlı haritada havalimanı noktasına ya da IATA koduna tıklanınca açılan küçük pencere (M6c):
- * resmî ad, IATA/ICAO, il, rakım, pist özeti, yerel saat, gün doğumu ve batımı, güncel hava durumu ve
- * havalimanı sayfası bağlantısı.
+ * resmî ad, IATA/ICAO, il (yakın ülkelerde ülke, D-080), rakım, pist özeti, yerel saat (saat dilimi
+ * biliniyorsa, `popupTimeZone`), güncel hava durumu ve havalimanı sayfası bağlantısı. Gün doğumu ve
+ * batımı yalnız havalimanı sayfasındadır (kullanıcı kararı 2026-10-02).
+ * - Hava durumu: başlığın yanında ayrı sıcaklık kutucuğu (önünde "·" yok; eksi U+2212), simgeli
+ *   satırlar; var olan olayın satırı renkli zemin ve kalın yazıyla vurgulanır (`WeatherRowList`,
+ *   havalimanı sayfasıyla ortak).
  *
  * - Erişilebilirlik: kipsiz `dialog`; açılınca odak pencereye geçer, Escape ya da Kapat odağı
  *   pencereyi açan denetime (harita tuvali ya da "Havalimanları" düğmesi; yoksa harita tuvali) geri
@@ -169,9 +174,18 @@ export function AirportPopup({
     }
   }, [sheet, airport.lat, airport.lon, mapRef])
 
-  const facts = airportFacts(airport, now, sunToday(airport, now), locale, messages)
+  const timeZone = popupTimeZone(airport)
+  const facts = airportFacts(airport, now, locale, messages, timeZone)
   const place = airportPlace(airport, locale)
-  const view = popupWeatherView(weather, airport.icao, now, locale, weatherMessages, messages)
+  const view = popupWeatherView(
+    weather,
+    airport.icao,
+    now,
+    locale,
+    weatherMessages,
+    messages,
+    timeZone,
+  )
 
   return (
     <section
@@ -221,26 +235,19 @@ export function AirportPopup({
         </p>
         {view.kind === 'report' ? (
           <>
-            {view.headline ? <p className="map-popup__headline">{view.headline}</p> : null}
-            {view.note ? <p className="map-popup__note">{view.note}</p> : null}
-            {view.rows.length > 0 ? (
-              <dl className="map-popup__rows">
-                {view.rows.map((row) => (
-                  <Fragment key={row.key}>
-                    <dt>{row.label}</dt>
-                    <dd>
-                      {row.value}
-                      {row.strong ? (
-                        <>
-                          {' · '}
-                          <span className="map-popup__strong">{row.strong}</span>
-                        </>
-                      ) : null}
-                    </dd>
-                  </Fragment>
-                ))}
-              </dl>
+            {view.headline ? (
+              <p className="map-popup__headline">
+                <span>{view.headline}</span>
+                {view.temperature ? (
+                  <>
+                    {' '}
+                    <span className="wx-temp">{view.temperature}</span>
+                  </>
+                ) : null}
+              </p>
             ) : null}
+            {view.note ? <p className="map-popup__note">{view.note}</p> : null}
+            {view.rows.length > 0 ? <WeatherRowList rows={view.rows} /> : null}
             <p className="map-popup__observed" data-age={view.ageClass}>
               {view.observed}
             </p>

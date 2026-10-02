@@ -1,13 +1,22 @@
 import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
-import { initialBearing } from '@havayolu/geo'
-import type { AirportDetail, RunwayDetail, RunwayEnd } from '@havayolu/shared'
+import { distanceKm, initialBearing } from '@havayolu/geo'
+import {
+  airportRing,
+  ENABLED_AIRPORT_RING,
+  isForeignCandidate,
+  type AirportDetail,
+  type RunwayDetail,
+  type RunwayEnd,
+} from '@havayolu/shared'
 
 /**
- * Commit'li OurAirports fixture'ından (üretim dökümünün Türkiye kesiti) API'nin döndüreceği
- * `AirportDetail` listesine yakın bir liste kurar: IATA kodlu Türkiye havalimanları, içe aktarım
- * filtresi (büyük/orta ya da tarifeli; data-sources.md §3), açık pistler ve tohum istasyonları.
- * Sayfa metinlerinin her gerçek havalimanı için sınırlar içinde kaldığını denetlemek içindir.
+ * Commit'li OurAirports fixture'ından (üretim dökümünün Türkiye kesiti ve 1. halkanın yakın ülke
+ * havalimanları, D-080) API'nin döndüreceği `AirportDetail` listesine yakın bir liste kurar: IATA
+ * kodlu Türkiye havalimanları, içe aktarım filtresi (büyük/orta ya da tarifeli; data-sources.md §3),
+ * açık pistler ve tohum istasyonları; `fixtureListedAirports` bunlara açık halkalardaki yabancı
+ * adayları ekler. Sayfa metinlerinin her gerçek havalimanı için sınırlar içinde kaldığını denetlemek
+ * içindir.
  */
 const FIXTURE_DIR = new URL('../../../../../tools/fixtures/ourairports/', import.meta.url)
 
@@ -81,48 +90,115 @@ function end(row: Row, prefix: 'le' | 'he', other: 'le' | 'he'): RunwayEnd {
 }
 
 let cached: AirportDetail[] | undefined
+let cachedListed: AirportDetail[] | undefined
+let cachedRunways: Row[] | undefined
 
+function openRunways(): Row[] {
+  cachedRunways ??= read('runways.csv').filter((row) => row.closed !== '1')
+  return cachedRunways
+}
+
+const importable = (row: Row) =>
+  row.type === 'large_airport' || row.type === 'medium_airport' || row.scheduled_service === 'yes'
+
+/** Listedeki kimlik kuralı: ICAO, yoksa GPS kodu, o da yoksa OurAirports kimliği. */
+const icaoOf = (row: Row) => row.icao_code || row.gps_code || row.ident || ''
+
+function toDetail(
+  row: Row,
+  ring: number,
+  distanceToTrKm: number | null,
+  nearestTr: AirportDetail['nearestTr'] = null,
+): AirportDetail {
+  const icao = icaoOf(row)
+  const station = STATIONS[icao]
+  return {
+    icao,
+    iata: row.iata_code ?? '',
+    name: row.name ?? '',
+    city: row.municipality || null,
+    lat: Number(row.latitude_deg),
+    lon: Number(row.longitude_deg),
+    elevationFt: num(row.elevation_ft),
+    type: row.type as AirportDetail['type'],
+    scheduled: row.scheduled_service === 'yes',
+    isoRegion: row.iso_region ?? '',
+    municipality: row.municipality || null,
+    country: row.iso_country ?? '',
+    ring,
+    distanceToTrKm,
+    nearestTr,
+    station: station ? { active: true, primary: station.primary, fetchRadiusNm: 60 } : null,
+    dataUpdatedAt: '2026-09-29T04:40:00.000Z',
+    runways: openRunways()
+      .filter((r) => r.airport_ident === row.ident)
+      .map((r): RunwayDetail => ({
+        id: Number(r.id),
+        lengthFt: num(r.length_ft),
+        widthFt: num(r.width_ft),
+        surface: r.surface || null,
+        lighted: r.lighted === '1',
+        ends: [end(r, 'le', 'he'), end(r, 'he', 'le')],
+      }))
+      .sort((a, b) => (a.ends[0].ident < b.ends[0].ident ? -1 : 1)),
+  }
+}
+
+/** IATA kodlu Türkiye havalimanları (bugünkü 61; içe aktarım filtresiyle). */
 export function fixtureTurkishAirports(): AirportDetail[] {
-  if (cached) return cached
-  const runways = read('runways.csv').filter((row) => row.closed !== '1')
-  cached = read('airports.csv')
+  cached ??= read('airports.csv')
+    .filter((row) => row.iso_country === 'TR' && row.iata_code !== '' && importable(row))
+    .map((row) => toDetail(row, 0, null))
+  return cached
+}
+
+/**
+ * Türkiye'deki uzaklık referansları (API'nin kuralı, D-080): IATA kodlu büyük, orta ve küçük
+ * alanlar; tarifesiz küçük alanlar da (Gökçeada gibi; listelenmezler).
+ */
+function turkishReferences(): Row[] {
+  return read('airports.csv').filter(
+    (row) =>
+      row.iso_country === 'TR' &&
+      /^[A-Z]{3}$/.test(row.iata_code ?? '') &&
+      ['large_airport', 'medium_airport', 'small_airport'].includes(row.type ?? ''),
+  )
+}
+
+/**
+ * Listelenen havalimanları (D-080): Türkiye havalimanları ve halkası `ENABLED_AIRPORT_RING`'i aşmayan
+ * yabancı adaylar (`isForeignCandidate`). Uzaklık, Türkiye'deki en yakın IATA kodlu havalimanına
+ * büyük daire mesafesidir (API'nin `distanceToTrKm`'i ve `nearestTr`'si gibi, tam km); fixture'daki
+ * uzak halkalar listeye girmez.
+ */
+export function fixtureListedAirports(): AirportDetail[] {
+  if (cachedListed) return cachedListed
+  const turkey = fixtureTurkishAirports()
+  const references = turkishReferences().map((row) => ({
+    lat: Number(row.latitude_deg),
+    lon: Number(row.longitude_deg),
+    nearest: { icao: icaoOf(row), iata: row.iata_code ?? '', name: row.name ?? '' },
+  }))
+  const foreign = read('airports.csv')
     .filter(
       (row) =>
-        row.iso_country === 'TR' &&
-        row.iata_code !== '' &&
-        (row.type === 'large_airport' ||
-          row.type === 'medium_airport' ||
-          row.scheduled_service === 'yes'),
+        row.iso_country !== 'TR' &&
+        isForeignCandidate(row.type ?? '', row.scheduled_service === 'yes', row.iata_code ?? ''),
     )
-    .map((row): AirportDetail => {
-      const icao = row.icao_code || row.gps_code || row.ident || ''
-      const station = STATIONS[icao]
-      return {
-        icao,
-        iata: row.iata_code ?? '',
-        name: row.name ?? '',
-        city: row.municipality || null,
-        lat: Number(row.latitude_deg),
-        lon: Number(row.longitude_deg),
-        elevationFt: num(row.elevation_ft),
-        type: row.type as AirportDetail['type'],
-        scheduled: row.scheduled_service === 'yes',
-        isoRegion: row.iso_region ?? '',
-        municipality: row.municipality || null,
-        station: station ? { active: true, primary: station.primary, fetchRadiusNm: 60 } : null,
-        dataUpdatedAt: '2026-09-29T04:40:00.000Z',
-        runways: runways
-          .filter((r) => r.airport_ident === row.ident)
-          .map((r): RunwayDetail => ({
-            id: Number(r.id),
-            lengthFt: num(r.length_ft),
-            widthFt: num(r.width_ft),
-            surface: r.surface || null,
-            lighted: r.lighted === '1',
-            ends: [end(r, 'le', 'he'), end(r, 'he', 'le')],
-          }))
-          .sort((a, b) => (a.ends[0].ident < b.ends[0].ident ? -1 : 1)),
+    .flatMap((row) => {
+      const point = { lat: Number(row.latitude_deg), lon: Number(row.longitude_deg) }
+      let best: { km: number; nearest: AirportDetail['nearestTr'] } | null = null
+      for (const reference of references) {
+        const km = distanceKm(point, reference)
+        if (best === null || km < best.km) best = { km, nearest: reference.nearest }
       }
+      if (best === null) return []
+      const ring = airportRing(best.km)
+      // API gibi: halka tam uzaklıktan, `distanceToTrKm` tam sayıya yuvarlı.
+      return ring <= ENABLED_AIRPORT_RING
+        ? [toDetail(row, ring, Math.round(best.km), best.nearest)]
+        : []
     })
-  return cached
+  cachedListed = [...turkey, ...foreign]
+  return cachedListed
 }

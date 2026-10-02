@@ -23,12 +23,33 @@ const RUNWAYS_HEADER =
 describe('OurAirports airports', () => {
   it('fixture eksiksiz ayrışır; tohum istasyonları ve ARP bilgileri vardır', () => {
     expect(airports.skipped).toEqual([])
-    // Fixture bütün TR alanlarını içerir; filtre büyük/orta ve tarifeli olanları tutar.
+    // Fixture bütün TR alanlarını (429), sekiz uzak havalimanını ve 1. halkanın 75 havalimanını
+    // (D-080) içerir; filtre büyük/orta ve tarifeli olanları ve Türkiye'nin IATA kodlu 5 küçük
+    // alanını (yurt dışı havalimanlarının uzaklık referansı, D-080) tutar.
     const all = parseAirports(fixture('ourairports/airports.csv'), () => true)
     expect(all.skipped).toEqual([])
-    expect(all.rows.length).toBe(437)
-    expect(airports.rows.length + airports.ignored).toBe(437)
+    expect(all.rows.length).toBe(512)
+    expect(all.rows.filter((a) => a.isoCountry === 'TR')).toHaveLength(429)
+    expect(airports.rows.length + airports.ignored).toBe(512)
+    expect(airports.rows.find((a) => a.ident === 'LGAV')).toMatchObject({
+      iataCode: 'ATH',
+      isoCountry: 'GR',
+      type: 'large_airport',
+      scheduledService: true,
+    })
+    expect(airports.rows.find((a) => a.ident === 'LCEN')).toMatchObject({
+      iataCode: 'ECN',
+      isoCountry: 'CY',
+    })
     expect(airports.rows.every(isImportedAirport)).toBe(true)
+    const turkishWithIata = airports.rows.filter((a) => a.isoCountry === 'TR' && a.iataCode)
+    expect(turkishWithIata).toHaveLength(66)
+    expect(
+      turkishWithIata
+        .filter((a) => a.type === 'small_airport' && !a.scheduledService)
+        .map((a) => a.ident)
+        .sort(),
+    ).toEqual(['LTAF', 'LTBD', 'LTBV', 'LTFB', 'LTFK'])
     const ltfm = airports.rows.find((a) => a.ident === 'LTFM')
     expect(ltfm).toMatchObject({ iataCode: 'IST', isoCountry: 'TR', type: 'large_airport' })
     for (const ident of STATIONS)
@@ -52,7 +73,7 @@ describe('OurAirports airports', () => {
     expect(skipped.map((s) => s.line)).toEqual([3, 4, 5, 6])
   })
 
-  it('filtre: büyük/orta alan ya da tarifeli sefer; filtre dışı satır doğrulanmadan sayılır', () => {
+  it('filtre: büyük/orta alan, tarifeli sefer ya da Türkiye’nin IATA kodlu küçük alanı; filtre dışı satır doğrulanmadan sayılır', () => {
     const csv = [
       AIRPORTS_HEADER,
       '1,LARG,large_airport,L,41,29,,EU,TR,TR-34,,yes,,,,,,,',
@@ -61,11 +82,18 @@ describe('OurAirports airports', () => {
       '4,SMAL,small_airport,S,41,29,,EU,TR,TR-34,,no,,,,,,,',
       '5,HELI,heliport,H,,,,EU,TR,TR-34,,no,,,,,,,',
       '6,CLSD,closed,C,41,29,,EU,TR,TR-34,,no,,,,,,,',
+      // D-080: Türkiye'nin IATA kodlu küçük alanı uzaklık referansıdır (Gökçeada gibi).
+      '7,SMIA,small_airport,S,41,29,,EU,TR,TR-17,,no,,gkd,,,,,',
+      // Yurt dışındaki IATA kodlu küçük alan, IATA kodu biçimsiz küçük alan ve IATA kodlu heliport
+      // alınmaz.
+      '8,SMGR,small_airport,S,41,29,,EU,GR,GR-I,,no,,AAA,,,,,',
+      '9,SMBD,small_airport,S,41,29,,EU,TR,TR-34,,no,,0,,,,,',
+      '10,HEIA,heliport,H,41,29,,EU,TR,TR-34,,no,,HHH,,,,,',
     ].join('\n')
     const { rows, skipped, ignored } = parseAirports(csv)
-    expect(rows.map((r) => r.ident)).toEqual(['LARG', 'MEDI', 'SMSC'])
+    expect(rows.map((r) => r.ident)).toEqual(['LARG', 'MEDI', 'SMSC', 'SMIA'])
     expect(skipped).toEqual([])
-    expect(ignored).toBe(3)
+    expect(ignored).toBe(6)
   })
 
   it('aynı satır aynı özeti üretir, alan değişince özet değişir', () => {

@@ -1,8 +1,10 @@
 /*
- * Havalimanı penceresi (M6c, airport-popup.tsx). Geçici tema: renkler ve panel görünümü haritanın
- * diğer panelleriyle aynıdır (globals.css `--map-*`, `.map-panel`). Geniş ekranda pencere havalimanı
- * noktasının yanında durur; yeri satır içi `transform` ile verilir (popup-placement.ts). Dar ekranda
- * (767 px ve altı) bilgi kartı gibi alttan açılan sayfadır.
+ * Havalimanı penceresi (M6c, airport-popup.tsx). Renkler ve panel görünümü haritanın diğer
+ * panelleriyle aynıdır (globals.css `--map-*`, `.map-panel`; "Açık turkuaz" teması, D-081). Hava
+ * durumu satırları, sıcaklık kutucuğu ve vurgu renkleri havalimanı sayfasıyla ortaktır
+ * (components/airports/weather-rows.css). Geniş ekranda pencere havalimanı noktasının yanında durur;
+ * yeri satır içi `transform` ile verilir (popup-placement.ts). Dar ekranda (767 px ve altı) bilgi
+ * kartı gibi alttan açılan sayfadır.
  */
 
 /* Pencerenin kalabileceği alan: harita eksi atıf şeridi. Tıklamalar haritaya geçer. */
@@ -14,6 +16,8 @@
 }
 
 .map-popup {
+  --wx-label: var(--map-muted);
+
   position: absolute;
   top: 0;
   left: 0;
@@ -38,9 +42,13 @@
   outline: none;
 }
 
+/*
+ * Pencerenin kendi odak halkası içe çizilir: beyaz panelin üstünde kalır (5,98:1); dışarıda uydu
+ * görüntüsünün üstüne düşerdi.
+ */
 .map-popup:focus-visible {
-  outline: 3px solid var(--sign);
-  outline-offset: 2px;
+  outline: 3px solid var(--focus);
+  outline-offset: -3px;
 }
 
 .map-popup__header {
@@ -76,21 +84,18 @@
   font-size: 0.8rem;
 }
 
-.map-popup__facts,
-.map-popup__rows {
+.map-popup__facts {
   display: grid;
   grid-template-columns: max-content minmax(0, 1fr);
   gap: 3px 10px;
   margin: 0;
 }
 
-.map-popup__facts dt,
-.map-popup__rows dt {
+.map-popup__facts dt {
   color: var(--map-muted);
 }
 
-.map-popup__facts dd,
-.map-popup__rows dd {
+.map-popup__facts dd {
   margin: 0;
   overflow-wrap: anywhere;
 }
@@ -110,15 +115,21 @@
   font-weight: 600;
 }
 
+/* Başlık ve yanında sıcaklık kutucuğu (ayraç yok). */
 .map-popup__headline {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px 8px;
   margin: 0;
-  font-size: 0.9rem;
-  font-weight: 700;
+  font-size: 0.9375rem;
+  font-weight: 800;
 }
 
-.map-popup__strong {
-  color: var(--map-selected);
-  font-weight: 700;
+/* Satırlar pencerenin kenarına hizalı: vurgu zemininin iç boşluğu kenar boşluğuna taşar. */
+.map-popup__weather .wx-rows {
+  margin-inline: -6px;
 }
 
 .map-popup__observed {
@@ -127,8 +138,9 @@
   font-size: 0.8rem;
 }
 
+/* Gecikmiş gözlem: kehribar yazı (beyaz panelde 7,1:1). */
 .map-popup__observed[data-age='delayed'] {
-  color: var(--map-selected);
+  color: var(--wx-warn-ink);
 }
 
 .map-popup__note {
@@ -138,8 +150,8 @@
 
 .map-popup__link {
   align-self: flex-start;
-  color: var(--map-ink);
-  font-weight: 600;
+  color: var(--link);
+  font-weight: 700;
   text-decoration: underline;
   text-underline-offset: 3px;
 }
@@ -161,5 +173,29 @@
     padding-bottom: calc(var(--map-attrib-space) + 4px);
     border-bottom: 0;
     border-radius: 14px 14px 0 0;
+  }
+
+  /*
+   * "Havalimanı sayfası →" alt sayfa kaydırılmadan görünür: pencerenin kaydırma kutusunda altta
+   * yapışıktır (sticky; kutunun alt iç boşluğunun, yani atıf şeridinin hemen üstünde durur). Bütün
+   * genişlikte opak bir şerittir; altındaki örtü (`::after`) atıf şeridine kadar iner, arkadan kayan
+   * satırlar görünmez. DOM sırası değişmez (bağlantı pencerenin son öğesidir); geniş ekran aynıdır.
+   */
+  .live-map__popup > .map-popup > .map-popup__link {
+    position: sticky;
+    bottom: 0;
+    align-self: stretch;
+    margin-inline: -12px;
+    padding: 8px 12px 0;
+    background: var(--map-panel);
+    border-top: 1px solid var(--map-line);
+  }
+
+  .live-map__popup > .map-popup > .map-popup__link::after {
+    content: '';
+    position: absolute;
+    inset: 100% 0 auto;
+    height: calc(var(--map-attrib-space) + 4px);
+    background: var(--map-panel);
   }
 }

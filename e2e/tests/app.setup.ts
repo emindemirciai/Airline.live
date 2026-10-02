@@ -6,9 +6,11 @@ import { expect, test as setup } from '@playwright/test'
 import {
   AIRPORT_COUNT,
   API_URL,
+  LISTED_AIRPORT_COUNT,
   PRIMARY_AIRPORT,
   PRIMARY_WEATHER,
   REPLAY_AIRCRAFT,
+  RING1_AIRPORT,
 } from '../support'
 
 setup('uygulama havayolu ve replay verisi API’de', async ({ request }) => {
@@ -64,6 +66,27 @@ setup('havalimanı referans verisi API’de', async ({ request }) => {
       },
     )
     .toBe(AIRPORT_COUNT)
+
+  // Listelenen havalimanları (M6d, D-080): Türkiye + 1. halka. Sayfalar, site haritası ve harita bu
+  // listeyi kullanır; halka üyeliği API'de hesaplanıp önbelleğe alınır.
+  await expect
+    .poll(
+      async () => {
+        const response = await request
+          .get(`${API_URL}/v1/airports?scope=listed`, { failOnStatusCode: false })
+          .catch(() => null)
+        if (!response?.ok()) return -1
+        const data = (await response.json()) as { airports?: unknown[] }
+        return data.airports?.length ?? -1
+      },
+      {
+        message:
+          'API listelenen havalimanlarını (Türkiye + 1. halka) döndürmedi (GET /v1/airports?scope=listed)',
+        timeout: 90_000,
+        intervals: [3_000],
+      },
+    )
+    .toBe(LISTED_AIRPORT_COUNT)
 
   const detail = await request.get(`${API_URL}/v1/airports/${PRIMARY_AIRPORT.iata.toLowerCase()}`)
   expect(detail.status(), 'GET /v1/airports/ist').toBe(200)
@@ -123,6 +146,29 @@ setup('hava durumu verisi API’de', async ({ request }) => {
       },
     )
     .toContain(PRIMARY_WEATHER.latestMetarGroups[0])
+
+  // Haritanın penceresi ve yakın ülke sayfaları listelenen havalimanlarının toplu yanıtını kullanır
+  // (`scope=listed`, ayrı önbellek kaydı): 1. halkadaki fixture istasyonu da görünmeli.
+  await expect
+    .poll(
+      async () => {
+        const response = await request
+          .get(`${API_URL}/v1/weather?scope=listed`, { failOnStatusCode: false })
+          .catch(() => null)
+        if (!response?.ok()) return null
+        const data = (await response.json()) as {
+          stations?: { icao?: unknown; metar?: { raw?: unknown } | null }[]
+        }
+        const station = data.stations?.find((entry) => entry.icao === RING1_AIRPORT.icao)
+        return typeof station?.metar?.raw === 'string' ? station.metar.raw : null
+      },
+      {
+        message: `Toplu hava durumu yanıtında ${RING1_AIRPORT.icao}'ın METAR'ı yok (GET /v1/weather?scope=listed)`,
+        timeout: 90_000,
+        intervals: [3_000],
+      },
+    )
+    .toContain(RING1_AIRPORT.icao)
 })
 
 // next dev her yolu ilk istekte derler; testlerin kendi süre sınırları derlemeyi kapsamasın.
@@ -130,6 +176,7 @@ const WARM_PATHS = [
   '/',
   '/havalimanlari',
   `/istasyon/${PRIMARY_AIRPORT.icao}`,
+  `/istasyon/${RING1_AIRPORT.icao}`,
   '/hakkinda',
   '/yenilikler',
   '/kullanim-kosullari',

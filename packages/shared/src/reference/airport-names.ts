@@ -1,5 +1,11 @@
 import type { Airport } from '../live'
-import type { Locale } from '../locale'
+import type { Locale, LocalizedText } from '../locale'
+import {
+  foreignAirportCity,
+  foreignAirportName,
+  translatedAirportName,
+} from './foreign-airport-names'
+import { airportDistrict } from './tr-provinces'
 
 /**
  * Havalimanlarının resmî Türkçe adları ve İngilizce görünen adları (kullanıcı kararı 2026-09-29,
@@ -37,7 +43,8 @@ const OURAIRPORTS: AirportNameEntry = { source: 'ourairports' }
 
 /**
  * Veritabanındaki IATA kodlu 61 Türkiye havalimanı, ICAO koduna göre sıralı. OurAirports yeni bir
- * havalimanı eklerse tabloda olmayan kod da OurAirports adına düşer (`airportDisplayName`).
+ * havalimanı eklerse tabloda olmayan kod OurAirports adından kuralla Türkçeleştirilir
+ * (`airportDisplayName`). Yurt dışı havalimanları `foreign-airport-names.ts`'tedir.
  */
 export const AIRPORT_NAMES: Readonly<Record<string, AirportNameEntry>> = {
   LTAC: dhmi('Ankara Esenboğa Havalimanı', 'Ankara Esenboğa Airport'),
@@ -109,25 +116,87 @@ export const AIRPORT_NAMES: Readonly<Record<string, AirportNameEntry>> = {
   LTFO: dhmi('Rize Artvin Havalimanı', 'Rize Artvin Airport'),
 }
 
+/**
+ * Türkiye'nin yalnızca uzaklık referansı olan, IATA kodlu ve tarifesiz 5 küçük alanı (D-080):
+ * listelenmezler, sayfaları yoktur; yabancı havalimanı sayfasındaki "Türkiye’deki en yakın
+ * havalimanı" satırında adlarıyla yazılırlar ("Bodrum-İmsık Havalimanı (küçük alan, listede yok)").
+ * Kaynaklar (erişim 2026-09-30): Gökçeada DHMİ listesinde "Çanakkale Gökçeada Havalimanı" adıyla
+ * yer alır. Diğer dördünün adı OurAirports adının Türkçe yazımıdır ("Airport" → "Havalimanı"): köyün
+ * adı İmsık'tır (OurAirports noktasız "Imsık" yazar), Selçuk-Efes kısa çizgiyle yazılır; Adana
+ * Şakirpaşa DHMİ listesinde yalnızca "Adana Havalimanı"dır, Şakirpaşa adı onu Çukurova'dan ayırır.
+ * İngilizce ad aynı adın çevirisidir ("Havalimanı" → "Airport"; Türkçe harfler korunur).
+ */
+export const REFERENCE_AIRFIELD_NAMES: Readonly<Record<string, LocalizedText>> = {
+  LTAF: { tr: 'Adana Şakirpaşa Havalimanı', en: 'Adana Şakirpaşa Airport' },
+  LTBD: { tr: 'Aydın Çıldır Havalimanı', en: 'Aydın Çıldır Airport' },
+  LTBV: { tr: 'Bodrum-İmsık Havalimanı', en: 'Bodrum-İmsık Airport' },
+  LTFB: { tr: 'Selçuk-Efes Havalimanı', en: 'Selçuk-Efes Airport' },
+  LTFK: { tr: 'Çanakkale Gökçeada Havalimanı', en: 'Çanakkale Gökçeada Airport' },
+}
+
 /** Tablodaki kayıt; kod tabloda yoksa undefined. ICAO kırpılıp büyük harfe çevrilir. */
 export function airportName(icao: string): AirportNameEntry | undefined {
   const code = icao.trim().toUpperCase()
   return Object.hasOwn(AIRPORT_NAMES, code) ? AIRPORT_NAMES[code] : undefined
 }
 
-/** Adın kaynağı; tabloda olmayan havalimanı OurAirports adıyla gösterildiği için `ourairports`. */
+/**
+ * Resmî Türkçe adın kaynağı; tabloda olmayan havalimanında `ourairports` (İngilizce ad OurAirports
+ * adıdır). Yurt dışı havalimanlarının Türkçe adı resmî ad değil, derlemedir: `foreignAirportName`
+ * kaydı olsa da kaynak `ourairports` kalır.
+ */
 export function airportNameSource(icao: string): AirportNameSource {
   return airportName(icao)?.source ?? 'ourairports'
 }
 
 /**
- * Havalimanının görünen adı: resmî ad (TR) ya da İngilizce karşılığı (EN); resmî ad
- * doğrulanamadıysa ya da havalimanı tabloda yoksa OurAirports adı (`name`).
+ * Havalimanının görünen adı, sırayla:
+ * 1. Türkiye tablosu (`AIRPORT_NAMES`): resmî ad (TR) ya da İngilizce karşılığı (EN); resmî adı
+ *    doğrulanamayan askerî alanlarda iki dilde de OurAirports adı (`name`).
+ * 2. Uzaklık referansı küçük alanlar (`REFERENCE_AIRFIELD_NAMES`, D-080).
+ * 3. Yurt dışı tablosu (`FOREIGN_AIRPORT_NAMES`, D-080): Türkçe yer adlı derleme ya da İngilizce ad.
+ * 4. Tablolarda yoksa (OurAirports'a sonradan eklenen ya da sonraki halkalardaki havalimanı)
+ *    OurAirports adı; Türkçede `translatedAirportName` kuralıyla ("Airport" → "Havalimanı").
  */
 export function airportDisplayName(
   airport: Pick<Airport, 'icao' | 'name'>,
   locale: Locale,
 ): string {
   const entry = airportName(airport.icao)
-  return entry === undefined || entry.source === 'ourairports' ? airport.name : entry[locale]
+  if (entry !== undefined) return entry.source === 'ourairports' ? airport.name : entry[locale]
+  const reference = referenceAirfieldName(airport.icao)
+  if (reference !== undefined) return reference[locale]
+  const foreign = foreignAirportName(airport.icao)
+  if (foreign !== undefined) return foreign[locale]
+  return translatedAirportName(airport.name, locale)
+}
+
+/** Uzaklık referansı tablosundaki kayıt; kod tabloda yoksa undefined. */
+export function referenceAirfieldName(icao: string): LocalizedText | undefined {
+  const code = icao.trim().toUpperCase()
+  return Object.hasOwn(REFERENCE_AIRFIELD_NAMES, code) ? REFERENCE_AIRFIELD_NAMES[code] : undefined
+}
+
+/**
+ * Havalimanının hizmet verdiği yerleşim, sayfanın dilinde; yoksa null. Başlığın altındaki yer satırı,
+ * "Hizmet verdiği yerleşim" satırı, paylaşım görseli ve JSON-LD `addressLocality` bunu yazar.
+ * - Türkiye'de temiz biçimdeki ve ilden farklı OurAirports yerleşimi (`airportDistrict`).
+ * - Yakın ülkelerde küratörlü şehir adı (`FOREIGN_AIRPORT_CITIES`, D-080): "Selanik" / "Thessaloniki".
+ * - Tabloda olmayan yabancı havalimanında (sonraki halkalar) İngilizce sayfada temiz biçimdeki
+ *   OurAirports yerleşimi; Türkçe sayfada null: o değer İngilizce ya da yereldir ve Türkçe adın altına
+ *   yazılmaz (yer satırında yalnızca ülke kalır).
+ */
+export function airportLocality(
+  airport: {
+    icao: string
+    country: string
+    isoRegion: string
+    municipality: string | null
+  },
+  locale: Locale,
+): string | null {
+  if (airport.country === 'TR') return airportDistrict(airport)
+  const curated = foreignAirportCity(airport.icao)
+  if (curated !== undefined) return curated[locale]
+  return locale === 'en' ? airportDistrict(airport) : null
 }

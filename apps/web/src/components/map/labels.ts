@@ -13,10 +13,11 @@
  *   havalimanı penceresini açar (M6c).
  * - Uçak etiketleri etiket ayarına göre kurulur (seçili uçak `selected`, diğerleri `others`;
  *   Gizle → etiket yok, simge yine engel sayılır), `layoutLabels` ile çakışmasız yerleşir.
- * - Görünüm kullanıcının tasarım tuvalindendir (Etiket.dc.html): opak koyu kutu, ince kenar; sefer
- *   no beyaz, bilinmiyorsa çağrı kodu gri; seçili uçağın etiketi kehribar zemin, koyu kenar ve koyu
- *   yazı; THY etiketinin sol kenarında kırmızı şerit; uzaktaki etiketi simgeye koyu kenarlı ince
- *   bir çizgi bağlar (seçilide kehribar).
+ * - Görünüm kullanıcının tasarım tuvalindendir (Etiket.dc.html), renkler "Açık turkuaz" temasından
+ *   (D-081): opak beyaz kutu, ince açık turkuaz kenar; sefer no koyu, bilinmiyorsa çağrı kodu gri;
+ *   seçili uçağın etiketi kehribar zemin, koyu kenar ve koyu yazı; THY etiketinin sol kenarında
+ *   kırmızı şerit; uzaktaki etiketi simgeye beyaz kenarlı ince koyu bir çizgi bağlar (seçilide koyu
+ *   kenarlı kehribar). Havalimanı kodu beyaz (büyük havalimanı) ya da açık turkuaz kutuda koyu yazılır.
  */
 import type { UnitSystem } from '@havayolu/i18n'
 import {
@@ -77,18 +78,23 @@ export const SELECTED_THEME: LabelTheme = {
 /** THY etiketinin sol kenarındaki kırmızı şeridin genişliği. */
 export const THY_BAR_WIDTH = 3
 
-/** Etiket renkleri (tasarım tuvali v2). */
+/**
+ * Etiket renkleri (D-081). Yazılar beyaz kutuya karşı en az 6,05:1, küçük havalimanının kutusuna
+ * karşı 11,69:1; seçili etiketin yazısı kehribara karşı 10,52:1'dir (WCAG AA, 11 px yazı).
+ */
 const COLORS = {
-  box: MAP_COLORS.background,
-  border: MAP_COLORS.lineStrong,
-  primary: '#FFFFFF',
-  primaryMuted: '#B9C5D0',
-  secondary: '#D3DBE2',
-  selectedInk: '#111111',
-  leader: '#FFFFFF',
-  airportChip: '#FFFFFF',
-  airportChipMinor: '#C5CED6',
-  airportInk: MAP_COLORS.background,
+  box: MAP_COLORS.labelBox,
+  border: MAP_COLORS.labelBorder,
+  primary: MAP_COLORS.labelInk,
+  primaryMuted: MAP_COLORS.labelMuted,
+  secondary: MAP_COLORS.labelInk,
+  selectedInk: MAP_COLORS.selectedInk,
+  selectedBorder: MAP_COLORS.labelInk,
+  leader: MAP_COLORS.labelInk,
+  airportChip: MAP_COLORS.labelBox,
+  airportChipMinor: MAP_COLORS.airportChipMinor,
+  airportBorder: MAP_COLORS.labelBorder,
+  airportInk: MAP_COLORS.labelInk,
 } as const
 
 /** Havalimanı kodları bu yakınlaştırmadan itibaren yazılır. */
@@ -520,7 +526,7 @@ export class LabelPainter {
     ctx.fillStyle = chip.major ? COLORS.airportChip : COLORS.airportChipMinor
     ctx.fill()
     ctx.lineWidth = 1
-    ctx.strokeStyle = COLORS.airportInk
+    ctx.strokeStyle = COLORS.airportBorder
     ctx.stroke()
     ctx.font = AIRPORT_FONT
     ctx.fillStyle = COLORS.airportInk
@@ -553,7 +559,8 @@ export class LabelPainter {
     ctx.moveTo(startX, startY)
     ctx.lineTo(end.x, end.y)
     ctx.lineWidth = 3.5
-    ctx.strokeStyle = COLORS.box
+    // Kenar: koyu çizgiye beyaz, seçilinin kehribar çizgisine koyu (uydu görüntüsünden ayrılsın).
+    ctx.strokeStyle = selected ? COLORS.selectedBorder : COLORS.box
     ctx.stroke()
     ctx.lineWidth = 1.5
     ctx.strokeStyle = selected ? MAP_COLORS.selected : COLORS.leader
@@ -569,7 +576,7 @@ export class LabelPainter {
     ctx.fillStyle = selected ? MAP_COLORS.selected : COLORS.box
     ctx.fill()
     ctx.lineWidth = theme.border
-    ctx.strokeStyle = selected ? MAP_COLORS.background : COLORS.border
+    ctx.strokeStyle = selected ? COLORS.selectedBorder : COLORS.border
     ctx.stroke()
 
     let textX = x + theme.padX

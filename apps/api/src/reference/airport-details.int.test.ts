@@ -5,20 +5,28 @@ import {
   findAirportDetail,
   listAirportDetails,
   listAirportsWithIata,
+  listListedAirportDetails,
+  listListedAirports,
   runMigrations,
   seedStations,
   syncOurAirports,
   type Database,
   type RunwayInsert,
 } from '@havayolu/db'
-import { bearingDifference, initialBearing, type LatLon } from '@havayolu/geo'
+import { bearingDifference, distanceKm, initialBearing, type LatLon } from '@havayolu/geo'
 import { parseAirports, parseRunways, type RunwayRow } from '@havayolu/providers'
 import {
+  AIRPORT_RING_CONFIG,
+  airportCountryName,
   airportName,
+  countryName,
+  foreignAirportName,
+  isForeignCandidate,
   provinceName,
   runwaySurfaceKey,
   type AirportDetail,
   type AirportDetailsResponse,
+  type ListedAirportDetailsResponse,
 } from '@havayolu/shared'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { testApp } from '../test/helpers'
@@ -26,7 +34,7 @@ import { AIRPORT_ERRORS, AIRPORTS_CACHE_CONTROL } from './airports'
 
 // Gerçek PostgreSQL (yerelde `pnpm dev:infra`, CI'da dev compose); bu teste ait veritabanı. Veri,
 // worker'ın içe aktarımıyla aynı ayrıştırıcıdan geçen commit'li OurAirports alt kümesidir
-// (tools/fixtures/README.md: Türkiye'nin bütün kayıtları).
+// (tools/fixtures/README.md: Türkiye'nin bütün kayıtları, birkaç uzak havalimanı ve 1. halka).
 const adminUrl =
   process.env.TEST_DATABASE_ADMIN_URL ??
   'postgres://havayolu:havayolu_dev_only@localhost:45432/postgres'
@@ -85,6 +93,24 @@ const arps = new Map<number, LatLon>(
 )
 const runwayRows = parseRunways(fixture('ourairports/runways.csv'), arps).rows
 
+/** 1. halkanın beklenen ICAO'ları, içe aktarılan satırlardan (veritabanından bağımsız hesap). */
+function expectedRingOne(): string[] {
+  const iata = (row: (typeof airportRows)[number]) => row.iataCode?.trim().toUpperCase() ?? ''
+  const listable = ['large_airport', 'medium_airport', 'small_airport']
+  const turkey = airportRows
+    .filter((r) => r.isoCountry === 'TR' && listable.includes(r.type) && /^[A-Z]{3}$/.test(iata(r)))
+    .map((r) => ({ lat: r.latitudeDeg, lon: r.longitudeDeg }))
+  return airportRows
+    .filter(
+      (r) => r.isoCountry !== 'TR' && isForeignCandidate(r.type, r.scheduledService, r.iataCode),
+    )
+    .filter((r) =>
+      turkey.some((tr) => distanceKm({ lat: r.latitudeDeg, lon: r.longitudeDeg }, tr) <= 500),
+    )
+    .map((r) => (r.icaoCode ?? r.gpsCode ?? r.ident).trim().toUpperCase())
+    .sort()
+}
+
 beforeAll(async () => {
   admin = createDb(adminUrl, { max: 1 })
   await admin.sql.unsafe(`drop database if exists ${testDbName} with (force)`)
@@ -108,9 +134,11 @@ async function app() {
   const { app: instance } = await testApp({
     deps: {
       airports: {
-        list: (country) => listAirportsWithIata(database.db, country),
-        details: (country) => listAirportDetails(database.db, country),
-        find: (code) => findAirportDetail(database.db, code),
+        list: (country) => listAirportsWithIata(database.db, country, AIRPORT_RING_CONFIG),
+        details: (country) => listAirportDetails(database.db, country, AIRPORT_RING_CONFIG),
+        listed: () => listListedAirports(database.db, AIRPORT_RING_CONFIG),
+        listedDetails: () => listListedAirportDetails(database.db, AIRPORT_RING_CONFIG),
+        find: (code) => findAirportDetail(database.db, code, AIRPORT_RING_CONFIG),
       },
     },
   })
@@ -174,7 +202,7 @@ describe('havalimanı ayrıntıları (gerçek PostgreSQL, OurAirports fixture)',
   })
 
   it('LTFM: 6 pist, pist adına göre sıralı; yönler heading alanından değil koordinatlardan', async () => {
-    const details = await listAirportDetails(database.db, 'TR')
+    const details = await listAirportDetails(database.db, 'TR', AIRPORT_RING_CONFIG)
     const ltfm = details.find((a) => a.icao === 'LTFM') as AirportDetail
     expect(ltfm.runways).toHaveLength(6)
     const idents = ltfm.runways.map((r) => r.ends[0].ident)
@@ -208,7 +236,9 @@ describe('havalimanı ayrıntıları (gerçek PostgreSQL, OurAirports fixture)',
   it('GET /v1/airports/:code: ICAO ya da IATA, büyük/küçük harf fark etmez; kanonik ICAO döner', async () => {
     const instance = await app()
     try {
-      const list = (await listAirportDetails(database.db, 'TR')).find((a) => a.icao === 'LTFM')
+      const list = (await listAirportDetails(database.db, 'TR', AIRPORT_RING_CONFIG)).find(
+        (a) => a.icao === 'LTFM',
+      )
       for (const code of ['LTFM', 'ltfm', 'IST', 'ist']) {
         const res = await instance.inject({ method: 'GET', url: `/v1/airports/${code}` })
         expect(res.statusCode, code).toBe(200)
@@ -223,6 +253,91 @@ describe('havalimanı ayrıntıları (gerçek PostgreSQL, OurAirports fixture)',
         expect(res.statusCode, code).toBe(404)
         expect(res.json(), code).toEqual(AIRPORT_ERRORS.notFound)
       }
+    } finally {
+      await instance.close()
+    }
+  })
+
+  it('scope=listed&include=runways: 61 Türkiye + 1. halka; yurt dışı adları, ülkeleri, pistleri', async () => {
+    const instance = await app()
+    try {
+      const res = await instance.inject({
+        method: 'GET',
+        url: '/v1/airports?scope=listed&include=runways',
+      })
+      expect(res.statusCode).toBe(200)
+      expect(res.headers['cache-control']).toBe(AIRPORTS_CACHE_CONTROL)
+      const body = res.json() as ListedAirportDetailsResponse
+      expect(body.scope).toBe('listed')
+      const turkish = body.airports.filter((a) => a.country === 'TR')
+      const foreign = body.airports.filter((a) => a.country !== 'TR')
+      expect(turkish).toHaveLength(61)
+      // Beklenen küme içe aktarılan satırlardan bağımsız hesaplanır (halka analizinin kuralı,
+      // @havayolu/geo): uzaklık referansı Türkiye'nin içe aktarılmış IATA kodlu alanlarıdır. Bugünkü
+      // süzgeçle 72; Türkiye'nin IATA kodlu tarifesiz küçük alanları da (Gökçeada …) içe aktarılırsa
+      // Priştine, Preveze ve Niş de girer: 75 (D-080; packages/db airports.int.test.ts iki durumu
+      // ayrı sınar).
+      expect(foreign.map((a) => a.icao).sort()).toEqual(expectedRingOne())
+      expect([72, 75]).toContain(foreign.length)
+
+      const plain = (
+        await instance.inject({ method: 'GET', url: '/v1/airports?scope=listed' })
+      ).json() as { scope: string; airports: { icao: string }[] }
+      expect(plain.airports.map((a) => a.icao)).toEqual(body.airports.map((a) => a.icao))
+
+      for (const airport of foreign) {
+        expect(airport.ring, airport.icao).toBe(1)
+        expect(airport.distanceToTrKm, airport.icao).toBeLessThanOrEqual(500)
+        expect(airport.scheduled, airport.icao).toBe(true)
+        expect(foreignAirportName(airport.icao), airport.icao).toBeDefined()
+        expect(countryName(airport.country, 'tr'), airport.icao).not.toBe(airport.country)
+        expect(Number.isNaN(Date.parse(airport.dataUpdatedAt)), airport.icao).toBe(false)
+        for (const runway of airport.runways) {
+          if (runway.surface !== null) {
+            expect(runwaySurfaceKey(runway.surface), `${airport.icao} ${runway.surface}`).not.toBe(
+              'unknown',
+            )
+          }
+        }
+      }
+      // Laçın'ın (UBLC) OurAirports'ta açık pisti yoktur; diğerlerinin hepsinde vardır.
+      expect(foreign.filter((a) => a.runways.length === 0).map((a) => a.icao)).toEqual(['UBLC'])
+      expect(foreign.every((a) => a.station === null)).toBe(true)
+
+      const lgav = body.airports.find((a) => a.icao === 'LGAV')
+      expect(lgav).toMatchObject({
+        iata: 'ATH',
+        country: 'GR',
+        isoRegion: 'GR-I',
+        ring: 1,
+        distanceToTrKm: 275,
+      })
+      expect(lgav?.runways.length).toBeGreaterThan(0)
+      const lcen = body.airports.find((a) => a.icao === 'LCEN') as AirportDetail
+      expect(lcen.country).toBe('CY')
+      expect(airportCountryName(lcen, 'tr')).toBe('KKTC')
+      expect(airportCountryName(lcen, 'en', 'long')).toBe('Turkish Republic of Northern Cyprus')
+    } finally {
+      await instance.close()
+    }
+  })
+
+  it('GET /v1/airports/:code yurt dışı havalimanını da bulur; liste kaydıyla aynı', async () => {
+    const instance = await app()
+    try {
+      const listed = await listListedAirportDetails(database.db, AIRPORT_RING_CONFIG)
+      const lgav = listed.find((a) => a.icao === 'LGAV')
+      for (const code of ['LGAV', 'lgav', 'ATH']) {
+        const res = await instance.inject({ method: 'GET', url: `/v1/airports/${code}` })
+        expect(res.statusCode, code).toBe(200)
+        expect(res.json(), code).toEqual(lgav)
+      }
+      const isu = await instance.inject({ method: 'GET', url: '/v1/airports/isu' })
+      expect((isu.json() as AirportDetail).icao).toBe('ORSJ')
+      // Halka süzgeci yok: listede olmayan Londra bulunur ve halkasını taşır.
+      const lhr = await instance.inject({ method: 'GET', url: '/v1/airports/LHR' })
+      expect(lhr.statusCode).toBe(200)
+      expect(lhr.json()).toMatchObject({ icao: 'EGLL', country: 'GB', ring: 4 })
     } finally {
       await instance.close()
     }

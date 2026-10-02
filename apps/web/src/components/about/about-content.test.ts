@@ -85,12 +85,28 @@ describe('AboutContent', () => {
   it('çekim alanının dışındaki havalimanları veriden, bağlantılı', () => {
     const html = render('tr')
     expect(text(html)).toMatch(
-      /Canlı veri çekim alanının dışında kalan havalimanları; çevrelerindeki uçaklar haritada görünmeyebilir: Hakkari Yüksekova Selahaddin Eyyubi Havalimanı \(YKO\)\s?\./,
+      /Türkiye’de canlı veri çekim alanının dışında kalan havalimanları; çevrelerindeki uçaklar haritada görünmeyebilir: Hakkari Yüksekova Selahaddin Eyyubi Havalimanı \(YKO\)\s?\./,
     )
     expect(html).toContain('<a href="/istasyon/LTCW">')
     expect(render('en')).toContain('<a href="/en/istasyon/LTCW">')
     expect(text(render('tr', STATIONS, []))).not.toContain('çekim alanının dışında kalan')
     expect(text(render('tr', STATIONS, null))).not.toContain('çekim alanının dışında kalan')
+  })
+
+  it('yakın ülkelerdeki havalimanları listelenir; canlı uçak verisi Türkiye odaklıdır (D-080)', () => {
+    const tr = text(render('tr'))
+    expect(tr).toContain(
+      'Havalimanları: Türkiye’deki ve yakın ülkelerdeki havalimanlarının kodları, pistleri ve en yakın havalimanları.',
+    )
+    expect(tr).toContain(
+      'Yakın ülkelerdeki havalimanları da listelenir: Türkiye’deki en yakın havalimanına uzaklığı en fazla 500 km olan, IATA kodlu büyük ve orta boy havalimanları. Canlı uçak verisi Türkiye odaklıdır:',
+    )
+    // OurAirports'un tarifeli sefer bilgisi gösterilmez (D-078, kullanıcı kararı).
+    expect(tr).not.toMatch(/tarifeli sefer/i)
+    const en = text(render('en'))
+    expect(en).toContain('at most 500 km from the nearest airport in Türkiye')
+    expect(en).toContain('Live aircraft data is focused on Türkiye')
+    expect(en).not.toMatch(/scheduled service/i)
   })
 
   it('kaynaklar ve lisanslar bağlantılı', () => {

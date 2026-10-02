@@ -6,6 +6,7 @@ import {
   findAirportDetail,
   listAirportsWithIata,
   listLatestWeather,
+  listListedAirports,
   listWeatherHistory,
   runMigrations,
   upsertMetars,
@@ -14,6 +15,7 @@ import {
 } from '@havayolu/db'
 import { parseAirports } from '@havayolu/providers'
 import {
+  AIRPORT_RING_CONFIG,
   AirportWeatherSchema,
   WeatherBulkResponseSchema,
   WeatherHistoryResponseSchema,
@@ -100,6 +102,9 @@ const metars: MetarRow[] = [
   metarRow('LTFM', 'METAR', ago(200 * HOUR), '04010KT CAVOK 12/04 Q1012 NOSIG'),
   metarRow('LTBA', 'METAR', ago(10 * MIN), '04008KT CAVOK 10/03 Q1010 NOSIG'),
   metarRow('LTCW', 'METAR', ago(8 * HOUR), '36004KT 9999 FEW050 M05/M09 Q1024'),
+  // 1. halka (D-080): yurt dışı listelenen havalimanları.
+  metarRow('LGAV', 'METAR', ago(20 * MIN), '36012KT CAVOK 22/12 Q1015 NOSIG'),
+  metarRow('LCEN', 'METAR', ago(50 * MIN), '27008KT 9999 FEW030 26/15 Q1012'),
 ]
 const tafs: TafRow[] = [
   tafRow(
@@ -128,8 +133,10 @@ beforeAll(async () => {
     await testApp({
       deps: {
         weather: {
-          stations: (country) => listAirportsWithIata(db.db, country),
-          resolve: async (code) => (await findAirportDetail(db.db, code))?.icao ?? null,
+          stations: (country) => listAirportsWithIata(db.db, country, AIRPORT_RING_CONFIG),
+          listedStations: () => listListedAirports(db.db, AIRPORT_RING_CONFIG),
+          resolve: async (code) =>
+            (await findAirportDetail(db.db, code, AIRPORT_RING_CONFIG))?.icao ?? null,
           latest: (icaos, now) => listLatestWeather(db.sql, icaos, now),
           history: (icao, from, to) => listWeatherHistory(db.sql, icao, from, to),
         },
@@ -197,6 +204,26 @@ describe('hava durumu uçları (gerçek PostgreSQL)', () => {
     expect(byIcao.get('LTBQ')).toMatchObject({ metar: null, tafs: [] })
     const withMetar = body.stations.filter((s) => s.metar !== null).map((s) => s.icao)
     expect(withMetar.sort()).toEqual(['LTBA', 'LTCW', 'LTFM'])
+  })
+
+  it('GET /v1/weather?scope=listed: Türkiye ve 1. halka, liste sırasıyla; yurt dışı raporları', async () => {
+    const res = await get('/v1/weather?scope=listed')
+    expect(res.statusCode).toBe(200)
+    const body = res.json() as WeatherBulkResponse
+    expect(WeatherBulkResponseSchema.parse(body)).toEqual(body)
+    const listed = await listListedAirports(database.db, AIRPORT_RING_CONFIG)
+    expect(body.stations.map((s) => s.icao)).toEqual(listed.map((a) => a.icao))
+    expect(body.stations.length).toBeGreaterThan(61)
+    expect(Buffer.byteLength(res.body)).toBeLessThan(1_000_000)
+    const withMetar = body.stations.filter((s) => s.metar !== null).map((s) => s.icao)
+    expect(withMetar.sort()).toEqual(['LCEN', 'LGAV', 'LTBA', 'LTCW', 'LTFM'])
+    // Yurt dışı tek havalimanı ve kaydı da çözülür (ICAO ya da IATA).
+    const ath = (await get('/v1/airports/ATH/weather')).json() as AirportWeather
+    expect(ath).toMatchObject({ icao: 'LGAV', metar: { raw: metars[7]?.raw } })
+    const ecn = (await get('/v1/airports/ecn/weather/history')).json() as WeatherHistoryResponse
+    expect(ecn.icao).toBe('LCEN')
+    expect(ecn.entries.map((e) => e.raw)).toEqual([metars[8]?.raw])
+    expect((await get('/v1/weather?scope=listed&country=TR')).statusCode).toBe(400)
   })
 
   it('GET /v1/airports/:code/weather: ICAO ya da IATA; raporsuz havalimanı 200; bilinmeyen 404', async () => {

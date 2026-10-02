@@ -148,9 +148,16 @@ describe('AIRPORT_NAMES', () => {
     const incirlik = { icao: 'LTAG', name: 'İncirlik Air Base' }
     expect(airportDisplayName(incirlik, 'tr')).toBe('İncirlik Air Base')
     expect(airportDisplayName(incirlik, 'en')).toBe('İncirlik Air Base')
-    // Tabloda olmayan havalimanı (ör. OurAirports'a sonradan eklenen) kendi adıyla görünür.
+    // Tabloda olmayan havalimanı (ör. OurAirports'a sonradan eklenen ya da sonraki halkalardaki)
+    // OurAirports adıyla görünür; Türkçede "Airport" kuralla "Havalimanı" olur (D-080).
     expect(airportDisplayName({ icao: 'EGLL', name: 'London Heathrow Airport' }, 'tr')).toBe(
+      'London Heathrow Havalimanı',
+    )
+    expect(airportDisplayName({ icao: 'EGLL', name: 'London Heathrow Airport' }, 'en')).toBe(
       'London Heathrow Airport',
+    )
+    expect(airportDisplayName({ icao: 'LTZZ', name: 'Yozgat Airport' }, 'tr')).toBe(
+      'Yozgat Havalimanı',
     )
     expect(airportDisplayName({ icao: 'ltfj', name: 'x' }, 'tr')).toBe(
       'İstanbul Sabiha Gökçen Uluslararası Havalimanı',
@@ -197,6 +204,8 @@ describe('runwaySurfaceKey', () => {
       expect(runwaySurfaceKey(code), code).toBe('concrete')
     }
     expect(runwaySurfaceKey('PEM')).toBe('mixed')
+    expect(runwaySurfaceKey('Asphalt/Concrete')).toBe('mixed')
+    expect(runwaySurfaceKey('CON/ASP')).toBe('mixed')
     expect(runwaySurfaceKey('PER')).toBe('paved')
     expect(runwaySurfaceKey('GRASS')).toBe('grass')
     expect(runwaySurfaceKey('TURF')).toBe('grass')

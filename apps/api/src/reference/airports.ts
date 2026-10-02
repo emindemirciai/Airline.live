@@ -1,8 +1,14 @@
-import type {
-  Airport,
-  AirportDetail,
-  AirportDetailsResponse,
-  AirportsResponse,
+import {
+  AIRPORT_LIST_SCOPES,
+  airportRingLimitKm,
+  ENABLED_AIRPORT_RING,
+  type Airport,
+  type AirportDetail,
+  type AirportDetailsResponse,
+  type AirportListScope,
+  type AirportsResponse,
+  type ListedAirportDetailsResponse,
+  type ListedAirportsResponse,
 } from '@havayolu/shared'
 import type { FastifyInstance } from 'fastify'
 import { CACHE_RETRY_MS, cachedReader } from './cache'
@@ -15,6 +21,13 @@ export interface AirportRouteOptions {
    * Verilmezse ya da `null` ise (veritabanı yok) 503.
    */
   details?: ((country: string) => Promise<AirportDetail[]>) | null
+  /**
+   * Listelenen havalimanları (`listListedAirports`; `scope=listed`, D-080): Türkiye ve açık
+   * halkalardaki yurt dışı adayları. Verilmezse ya da `null` ise 503.
+   */
+  listed?: (() => Promise<Airport[]>) | null
+  /** Aynı liste pistlerle (`listListedAirportDetails`; `scope=listed&include=runways`). */
+  listedDetails?: (() => Promise<AirportDetail[]>) | null
   /**
    * Tek havalimanı, büyük harfli ICAO ya da IATA koduyla (`findAirportDetail`); yoksa null.
    * Verilmezse ya da `null` ise (veritabanı yok) 503.
@@ -58,6 +71,14 @@ export const AIRPORT_ERRORS = {
     error: 'bad_country',
     message: 'country iki büyük harfli ISO 3166-1 ülke kodu olmalı (ör. TR).',
   },
+  badScope: {
+    error: 'bad_scope',
+    message: 'scope yalnızca listed olabilir.',
+  },
+  scopeConflict: {
+    error: 'scope_conflict',
+    message: 'country ve scope birlikte verilemez; birini seçin.',
+  },
   badInclude: {
     error: 'bad_include',
     message: 'include yalnızca runways olabilir.',
@@ -76,6 +97,50 @@ export const AIRPORT_ERRORS = {
   },
 } as const
 
+/** Liste seçimi: ülke (varsayılan TR) ya da kapsam (`scope=listed`). */
+export type AirportSelection = { country: string } | { scope: AirportListScope }
+
+/**
+ * `country` ve `scope` sorgu değerlerinden seçim (`/v1/airports` ve `/v1/weather` ortak kuralı):
+ * ikisi birlikte verilemez; hiçbiri yoksa ülke TR. Biçim hatasında hata gövdesi döner.
+ */
+export function airportSelection(
+  country: unknown,
+  scope: unknown,
+): AirportSelection | { error: (typeof AIRPORT_ERRORS)[keyof typeof AIRPORT_ERRORS] } {
+  if (country !== undefined && scope !== undefined) return { error: AIRPORT_ERRORS.scopeConflict }
+  if (scope !== undefined) {
+    return typeof scope === 'string' && (AIRPORT_LIST_SCOPES as readonly string[]).includes(scope)
+      ? { scope: scope as AirportListScope }
+      : { error: AIRPORT_ERRORS.badScope }
+  }
+  const code = country ?? AIRPORTS_DEFAULT_COUNTRY
+  return typeof code === 'string' && COUNTRY.test(code)
+    ? { country: code }
+    : { error: AIRPORT_ERRORS.badCountry }
+}
+
+/** Açık halkanın sınırı, açıklama metni için (": Türkiye'ye ≤ 500 km"); son halkada boş. */
+function enabledRingLimit(): string {
+  const limit = airportRingLimitKm(ENABLED_AIRPORT_RING)
+  return limit === null ? '' : `: Türkiye'ye ≤ ${limit} km`
+}
+
+/** Sorgu şemasının ortak alanları; varsayılan şemada değil kodda uygulanır (çakışma denetimi). */
+export const selectionQueryProperties = {
+  country: {
+    type: 'string',
+    pattern: COUNTRY.source,
+    description:
+      'ISO 3166-1 alpha-2 ülke kodu, büyük harf. scope ile birlikte verilemez; ikisi de yoksa TR',
+  },
+  scope: {
+    type: 'string',
+    enum: [...AIRPORT_LIST_SCOPES],
+    description: `listed: listelenen havalimanları (Türkiye'nin IATA kodlu havalimanları ve açık halkalardaki yurt dışı havalimanları; açık halka ${ENABLED_AIRPORT_RING}${enabledRingLimit()}). country ile birlikte verilemez`,
+  },
+} as const
+
 const nullable = (type: string) => ({ type: [type, 'null'] })
 
 const airportProperties = {
@@ -88,6 +153,22 @@ const airportProperties = {
   elevationFt: { ...nullable('integer'), description: 'Yükseklik, ft' },
   type: { type: 'string', enum: ['large_airport', 'medium_airport', 'small_airport'] },
   scheduled: { type: 'boolean', description: 'Tarifeli sefer var mı' },
+  country: {
+    type: 'string',
+    description: 'ISO 3166-1 alpha-2 ülke kodu (OurAirports iso_country)',
+  },
+  ring: {
+    type: 'integer',
+    minimum: 0,
+    description:
+      "Halka: Türkiye'de 0; yurt dışında Türkiye'deki en yakın IATA kodlu havalimanına uzaklığa göre 1 (≤ 500 km), 2 (≤ 1.000), 3 (≤ 2.000), 4 (≤ 5.000), 5 (ötesi)",
+  },
+  distanceToTrKm: {
+    ...nullable('integer'),
+    minimum: 0,
+    description:
+      "Türkiye'deki en yakın IATA kodlu havalimanına büyük daire uzaklığı, km; Türkiye'de null",
+  },
 } as const
 const airportRequired = Object.keys(airportProperties)
 
@@ -126,7 +207,18 @@ const runwaySchema = {
 } as const
 
 const detailProperties = {
-  isoRegion: { type: 'string', description: 'ISO 3166-2 bölge kodu (TR-34)' },
+  nearestTr: {
+    type: ['object', 'null'],
+    description:
+      "Türkiye'deki en yakın IATA kodlu havalimanı (distanceToTrKm ona ölçülür; listelenmeyen küçük alan olabilir); Türkiye'de null",
+    required: ['icao', 'iata', 'name'],
+    properties: {
+      icao: { type: 'string', description: 'ICAO kodu' },
+      iata: { type: 'string', description: 'IATA kodu' },
+      name: { type: 'string', description: 'OurAirports adı' },
+    },
+  },
+  isoRegion: { type: 'string', description: 'ISO 3166-2 bölge kodu (TR-34, GR-I)' },
   municipality: {
     ...nullable('string'),
     description: 'OurAirports municipality (çoğu zaman ilçe)',
@@ -171,19 +263,48 @@ const airportDetailSchema = {
   properties: { ...airportProperties, ...detailProperties },
 } as const
 
-const listResponse = <T>(items: T) =>
+const countryListResponse = <T>(items: T) =>
   ({
     type: 'object',
     required: ['country', 'airports'],
     properties: { country: { type: 'string' }, airports: { type: 'array', items } },
   }) as const
 
+const scopeListResponse = <T>(items: T) =>
+  ({
+    type: 'object',
+    required: ['scope', 'airports'],
+    properties: {
+      scope: { type: 'string', enum: [...AIRPORT_LIST_SCOPES] },
+      airports: { type: 'array', items },
+    },
+  }) as const
+
+/** OpenAPI belgesi: ülke isteğinde `country`, `scope=listed` isteğinde `scope` alanı gelir. */
+const documentedListResponse = {
+  type: 'object',
+  description:
+    'country isteğinde zarf { country, airports }, scope=listed isteğinde { scope, airports }',
+  required: ['airports'],
+  properties: {
+    country: { type: 'string', description: 'İstenen ülke (yalnızca country isteğinde)' },
+    scope: {
+      type: 'string',
+      enum: [...AIRPORT_LIST_SCOPES],
+      description: 'İstenen kapsam (yalnızca scope isteğinde)',
+    },
+    airports: { type: 'array', items: airportListItemSchema },
+  },
+} as const
+
 /**
  * Yanıtlar kipine göre kendi şemasıyla serileştirilir: düz listede yalnızca `Airport` alanları,
  * ayrıntılı listede `AirportDetail` alanları gider; fazla alan gönderilmez.
  */
-const plainListSchema = listResponse(airportSchema)
-const detailListSchema = listResponse(airportDetailSchema)
+const plainListSchema = countryListResponse(airportSchema)
+const detailListSchema = countryListResponse(airportDetailSchema)
+const plainScopeSchema = scopeListResponse(airportSchema)
+const detailScopeSchema = scopeListResponse(airportDetailSchema)
 
 export const errorSchema = {
   type: 'object',
@@ -196,17 +317,21 @@ const listTtl = (airports: readonly unknown[]) =>
 
 /**
  * Havalimanı uçları (OurAirports, kamu malı):
- * - `GET /v1/airports?country=TR`: haritadaki havalimanı noktaları ve IATA kodları.
- * - `GET /v1/airports?country=TR&include=runways`: aynı liste pistler, istasyon ve veri tarihiyle
- *   (web'in havalimanı sayfaları, site haritası ve llms.txt bu tek çağrıdan beslenir).
+ * - `GET /v1/airports?country=TR`: ülkenin havalimanı noktaları ve IATA kodları.
+ * - `GET /v1/airports?scope=listed`: listelenen havalimanları (D-080): Türkiye'nin IATA kodlu
+ *   havalimanları ve açık halkalardaki yurt dışı havalimanları (harita).
+ * - `include=runways`: aynı liste pistler, istasyon ve veri tarihiyle (web'in havalimanı sayfaları,
+ *   site haritası ve llms.txt `scope=listed&include=runways` çağrısından beslenir).
  * - `GET /v1/airports/:code`: tek havalimanı, ICAO ya da IATA koduyla (API ve mobil istemciler).
- * Ülke ya da kod başına 10 dk süreç içi önbellek (boş liste ve bulunamayan kod 1 dk).
+ * Ülke, kapsam ya da kod başına 10 dk süreç içi önbellek (boş liste ve bulunamayan kod 1 dk).
  */
 export function registerAirportRoutes(
   app: FastifyInstance,
   {
     list,
     details = null,
+    listed = null,
+    listedDetails = null,
     find = null,
     now = Date.now,
     cacheMaxEntries: maxEntries = AIRPORTS_CACHE_MAX_ENTRIES,
@@ -229,6 +354,29 @@ export function registerAirportRoutes(
     what: 'airport details',
     maxEntries,
   })
+  // Kapsam başına tek anahtar (bugün yalnızca `listed`).
+  const loadListed = cachedReader<ListedAirportsResponse>({
+    read:
+      listed === null
+        ? null
+        : async (scope) => ({ scope: scope as AirportListScope, airports: await listed() }),
+    ttl: (body) => listTtl(body.airports),
+    now,
+    log: app.log,
+    what: 'listed airports',
+    maxEntries: AIRPORT_LIST_SCOPES.length,
+  })
+  const loadListedDetails = cachedReader<ListedAirportDetailsResponse>({
+    read:
+      listedDetails === null
+        ? null
+        : async (scope) => ({ scope: scope as AirportListScope, airports: await listedDetails() }),
+    ttl: (body) => listTtl(body.airports),
+    now,
+    log: app.log,
+    what: 'listed airport details',
+    maxEntries: AIRPORT_LIST_SCOPES.length,
+  })
   const loadOne = cachedReader<AirportDetail | null>({
     read: find,
     ttl: (airport) => (airport === null ? AIRPORTS_EMPTY_CACHE_MS : AIRPORTS_CACHE_MS),
@@ -245,16 +393,12 @@ export function registerAirportRoutes(
       attachValidation: true,
       schema: {
         tags: ['reference'],
-        summary: 'Ülkenin IATA kodlu havalimanları (harita noktaları; istenirse pistlerle)',
+        summary:
+          'Havalimanı listesi: ülkenin IATA kodlu havalimanları ya da listelenen havalimanları (istenirse pistlerle)',
         querystring: {
           type: 'object',
           properties: {
-            country: {
-              type: 'string',
-              pattern: COUNTRY.source,
-              default: AIRPORTS_DEFAULT_COUNTRY,
-              description: 'ISO 3166-1 alpha-2 ülke kodu, büyük harf (varsayılan TR)',
-            },
+            ...selectionQueryProperties,
             include: {
               type: 'string',
               enum: [...AIRPORTS_INCLUDE],
@@ -264,20 +408,22 @@ export function registerAirportRoutes(
           },
         },
         response: {
-          200: listResponse(airportListItemSchema),
+          200: documentedListResponse,
           400: errorSchema,
           503: errorSchema,
         },
       },
     },
     async (request, reply) => {
-      const { country: raw = AIRPORTS_DEFAULT_COUNTRY, include } = (request.query ?? {}) as {
+      const { country, scope, include } = (request.query ?? {}) as {
         country?: unknown
+        scope?: unknown
         include?: unknown
       }
-      if (typeof raw !== 'string' || !COUNTRY.test(raw)) {
+      const selection = airportSelection(country, scope)
+      if ('error' in selection) {
         reply.header('cache-control', 'no-store')
-        return reply.code(400).send(AIRPORT_ERRORS.badCountry)
+        return reply.code(400).send(selection.error)
       }
       if (include !== undefined && include !== 'runways') {
         reply.header('cache-control', 'no-store')
@@ -285,16 +431,29 @@ export function registerAirportRoutes(
       }
       if (request.validationError !== undefined) {
         reply.header('cache-control', 'no-store')
-        return reply.code(400).send(AIRPORT_ERRORS.badCountry)
+        return reply
+          .code(400)
+          .send('scope' in selection ? AIRPORT_ERRORS.badScope : AIRPORT_ERRORS.badCountry)
       }
       const withRunways = include === 'runways'
-      const loaded = withRunways ? await loadDetails(raw) : await loadList(raw)
+      let loaded: { value: unknown } | null
+      let schema: Record<string, unknown>
+      if ('scope' in selection) {
+        loaded = withRunways
+          ? await loadListedDetails(selection.scope)
+          : await loadListed(selection.scope)
+        schema = withRunways ? detailScopeSchema : plainScopeSchema
+      } else {
+        loaded = withRunways
+          ? await loadDetails(selection.country)
+          : await loadList(selection.country)
+        schema = withRunways ? detailListSchema : plainListSchema
+      }
       if (loaded === null) {
         reply.header('cache-control', 'no-store')
         return reply.code(503).send(AIRPORT_ERRORS.unavailable)
       }
       reply.header('cache-control', AIRPORTS_CACHE_CONTROL)
-      const schema = withRunways ? detailListSchema : plainListSchema
       // Özel serileştiricide Fastify içerik türünü kendisi yazmaz.
       return reply
         .type('application/json; charset=utf-8')
@@ -311,6 +470,8 @@ export function registerAirportRoutes(
       schema: {
         tags: ['reference'],
         summary: 'Tek havalimanı: pistler, istasyon ve veri tarihiyle',
+        description:
+          "Her ülkenin IATA kodlu havalimanı bulunur (halka süzgeci uygulanmaz); kayıt ülkesini, halkasını ve Türkiye'ye uzaklığını taşır.",
         params: {
           type: 'object',
           required: ['code'],

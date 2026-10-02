@@ -34,6 +34,19 @@ describe('i18n', () => {
     expect(empty(en)).toEqual([])
   })
 
+  it('hiçbir metinde sayıdan ya da sayı yer tutucusundan önce "·" veya "–" yoktur', () => {
+    // "Çok bulutlu · 16 °C" eksi 16 gibi okunur (kullanıcı kararı 2026-10-02, D-081); ayraç virgüldür.
+    // Yer tutucunun sayı olup olmadığı bilinemediği için önündeki ayraç hiç kullanılmaz.
+    const NUMBER_AFTER_DOT = /[·–—]\s*(?:\{|[−-]?\d)/
+    for (const locale of ['tr', 'en'] as const) {
+      const tree = getMessages(locale) as unknown as Tree
+      const offending = keyPaths(tree).filter((path) =>
+        NUMBER_AFTER_DOT.test(String(valueAt(tree, path))),
+      )
+      expect(offending, locale).toEqual([])
+    }
+  })
+
   it('tr ve en metinleri aynı yer tutucuları taşır', () => {
     const tr = getMessages('tr') as unknown as Tree
     const en = getMessages('en') as unknown as Tree

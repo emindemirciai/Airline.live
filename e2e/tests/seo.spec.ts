@@ -30,10 +30,13 @@ import {
   enPath,
   fetchRaw,
   GPTBOT_USER_AGENT,
-  INDEXABLE_AIRPORT_COUNT,
+  INDEXABLE_LISTED_AIRPORT_COUNT,
+  KKTC_AIRPORT,
   NON_INDEXABLE_AIRPORT,
   PRIMARY_AIRPORT,
   REPLAY_AIRCRAFT,
+  RING1_AIRPORT,
+  UNLISTED_FOREIGN_AIRPORT,
   sitePath,
   STATIC_PUBLIC_PATHS,
   WEB_HOST,
@@ -355,26 +358,31 @@ test.describe('kök dosyalar', () => {
     expect(body).toContain('xmlns:xhtml="http://www.w3.org/1999/xhtml"')
     const entries = parseSitemap(body)
 
-    expect(entries).toHaveLength((INDEXABLE_AIRPORT_COUNT + STATIC_PUBLIC_PATHS.length) * 2)
+    // Havalimanları: Türkiye'nin dizine eklenen 55'i ve yakın ülkelerin 75'i (M6d, D-080).
+    expect(entries).toHaveLength((INDEXABLE_LISTED_AIRPORT_COUNT + STATIC_PUBLIC_PATHS.length) * 2)
     const byLoc = new Map(entries.map((entry) => [entry.loc, entry]))
     expect(byLoc.size, 'yinelenen adres yok').toBe(entries.length)
     const paths = entries.map((entry) => sitePath(entry.loc, 'loc'))
 
-    for (const path of [...STATIC_PUBLIC_PATHS, STATION_PATH]) {
+    const ring1Path = `/istasyon/${RING1_AIRPORT.icao}`
+    const kktcPath = `/istasyon/${KKTC_AIRPORT.icao}`
+    for (const path of [...STATIC_PUBLIC_PATHS, STATION_PATH, ring1Path, kktcPath]) {
       expect(paths).toContain(path)
       expect(paths).toContain(enPath(path))
     }
     expect(paths.filter((p) => /^\/istasyon\/[A-Z0-9]{4}$/.test(p))).toHaveLength(
-      INDEXABLE_AIRPORT_COUNT,
+      INDEXABLE_LISTED_AIRPORT_COUNT,
     )
     expect(paths.filter((p) => /^\/en\/istasyon\/[A-Z0-9]{4}$/.test(p))).toHaveLength(
-      INDEXABLE_AIRPORT_COUNT,
+      INDEXABLE_LISTED_AIRPORT_COUNT,
     )
     for (const excluded of [
       '/durum',
       '/en/durum',
       `/istasyon/${NON_INDEXABLE_AIRPORT.icao}`,
       enPath(`/istasyon/${NON_INDEXABLE_AIRPORT.icao}`),
+      // Fixture'da olup listelenmeyen uzak havalimanı (D-080).
+      `/istasyon/${UNLISTED_FOREIGN_AIRPORT.icao}`,
     ]) {
       expect(paths).not.toContain(excluded)
     }
@@ -427,7 +435,7 @@ test.describe('kök dosyalar', () => {
     expect(again.body, 'iki istek arasında değişmez').toBe(body)
   })
 
-  test('llms.txt: mutlak bağlantılar, indekslenen her havalimanı için bir satır', async ({
+  test('llms.txt: mutlak bağlantılar, indekslenen her havalimanı için bir satır; yakın ülkeler ayrı', async ({
     request,
   }) => {
     const { response, body } = await fetchRaw(request, '/llms.txt')
@@ -452,13 +460,27 @@ test.describe('kök dosyalar', () => {
     const airportLines = body
       .split('\n')
       .filter((line) => /^- \[.+\]\(https?:\/\/[^)]+\/istasyon\/[A-Z0-9]{4}\)/.test(line))
-    expect(airportLines).toHaveLength(INDEXABLE_AIRPORT_COUNT)
+    expect(airportLines).toHaveLength(INDEXABLE_LISTED_AIRPORT_COUNT)
     const icaos = new Set(
       paths.flatMap((path) => /^(?:\/en)?\/istasyon\/([A-Z0-9]{4})$/.exec(path)?.slice(1) ?? []),
     )
-    expect(icaos.size).toBe(INDEXABLE_AIRPORT_COUNT)
+    expect(icaos.size).toBe(INDEXABLE_LISTED_AIRPORT_COUNT)
     expect(icaos.has(PRIMARY_AIRPORT.icao)).toBe(true)
     expect(icaos.has(NON_INDEXABLE_AIRPORT.icao)).toBe(false)
+    expect(icaos.has(UNLISTED_FOREIGN_AIRPORT.icao)).toBe(false)
+    // Yakın ülkeler ayrı bir bölümdedir (D-080): başlık Türkiye listesinden sonra gelir ve Atina
+    // satırı o bölümdedir.
+    const lines = body.split('\n')
+    const foreignHeading = lines.findIndex((line) =>
+      /^## .*Yakın ülkelerdeki havalimanları/.test(line),
+    )
+    expect(foreignHeading, 'yakın ülkeler başlığı').toBeGreaterThan(0)
+    const ring1Line = lines.findIndex((line) => line.includes(`/istasyon/${RING1_AIRPORT.icao})`))
+    const primaryLine = lines.findIndex((line) =>
+      line.includes(`/istasyon/${PRIMARY_AIRPORT.icao})`),
+    )
+    expect(primaryLine).toBeLessThan(foreignHeading)
+    expect(ring1Line).toBeGreaterThan(foreignHeading)
   })
 
   test('manifest ve ikonlar', async ({ request }) => {

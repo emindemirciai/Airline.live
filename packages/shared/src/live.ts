@@ -157,11 +157,40 @@ export interface Airport {
   type: 'large_airport' | 'medium_airport' | 'small_airport'
   /** Tarifeli sefer var mı. */
   scheduled: boolean
+  /**
+   * ISO 3166-1 alpha-2 ülke kodu (OurAirports `iso_country`, büyük harf). Görünen ülke adı için
+   * `airportCountryName` (Ercan/LCEN: KKTC, D-080).
+   */
+  country: string
+  /**
+   * Halka (D-080, `airportRing`): Türkiye havalimanında 0; yurt dışında Türkiye'deki en yakın IATA
+   * kodlu havalimanına uzaklığa göre 1 (≤ 500 km) … 5 (5.000 km'nin ötesi).
+   */
+  ring: number
+  /**
+   * Türkiye'deki en yakın IATA kodlu havalimanına büyük daire uzaklığı, km, tam sayıya yuvarlı.
+   * Türkiye havalimanında (ve veritabanında Türkiye havalimanı yokken) null.
+   */
+  distanceToTrKm: number | null
 }
+
+/** `GET /v1/airports` kapsamları: `listed` = listelenen havalimanları (D-080). */
+export const AIRPORT_LIST_SCOPES = ['listed'] as const
+export type AirportListScope = (typeof AIRPORT_LIST_SCOPES)[number]
 
 /** `GET /v1/airports?country=TR`: ülkenin havalimanları, IATA koduna göre sıralı. */
 export interface AirportsResponse {
   /** ISO 3166-1 alpha-2 ülke kodu. */
   country: string
+  airports: Airport[]
+}
+
+/**
+ * `GET /v1/airports?scope=listed`: listelenen havalimanları (Türkiye'nin IATA kodlu havalimanları
+ * ve açık halkalardaki yurt dışı adayları; `ENABLED_AIRPORT_RING`), IATA koduna göre sıralı.
+ * Zarfta `country` yoktur.
+ */
+export interface ListedAirportsResponse {
+  scope: AirportListScope
   airports: Airport[]
 }

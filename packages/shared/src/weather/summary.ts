@@ -55,6 +55,25 @@ export interface WeatherSummaryRows {
   pressure: WeatherText | null
 }
 
+/**
+ * Olay satırının durumu: `present` havalimanında var, `vicinity` yalnız çevresinde, `recent` kısa
+ * süre önce vardı, `none` yok, `undetermined` belirlenemedi. Arayüz yalnız `present` satırı vurgular
+ * (kullanıcı kararı 2026-10-02); satırın metni her durumu ayrıca söyler.
+ */
+export type PhenomenonPresence = 'present' | 'vicinity' | 'recent' | 'none' | 'undetermined'
+
+/** Olay satırlarının durumu (`WeatherSummaryRows` ile aynı adlar). */
+export interface WeatherSummaryPresence {
+  rain: PhenomenonPresence
+  snow: PhenomenonPresence
+  thunderstorm: PhenomenonPresence
+  fog: PhenomenonPresence
+  /** `present` ya da `none` (dolu satırı yalnız dolu varsa yazılır). */
+  hail: PhenomenonPresence
+  /** `present`, `vicinity` ya da `none`. */
+  other: PhenomenonPresence
+}
+
 export interface WeatherSummary {
   /** Başlık: en önemli hava olayı ya da gökyüzü. */
   headline: WeatherText
@@ -62,6 +81,8 @@ export interface WeatherSummary {
   icon: WeatherIconCategory
   temperature: Measure | null
   rows: WeatherSummaryRows
+  /** Olay satırlarının durumu: havalimanında var olan olay vurgulanır. */
+  presence: WeatherSummaryPresence
   /**
    * Eğilim (TREND, gözlemden sonraki 2 saat); yoksa ya da penceresi geçtiyse null. Pencere açıkken
    * gözlem 30 dakikadan eskiyse metin pencerenin bitiş saatiyle yazılır (`trend: 'untilTime'`).
@@ -105,7 +126,7 @@ function speedText(kt: number, aboveMax: boolean): WeatherText {
     : speedMeasure(kt)
 }
 
-/** Rüzgâr: "Kuzeydoğudan 33 km/sa · hamle 59 km/sa · yönü batı ile kuzey arasında değişiyor". */
+/** Rüzgâr: "Kuzeydoğudan 33 km/sa, hamle 59 km/sa, yönü batı ile kuzey arasında değişiyor". */
 export function windText(wind: Wind | null): WeatherText {
   if (!wind || wind.speedKt === null) return UNDETERMINED
   if (wind.calm) return phrase('weather.wind.calm')
@@ -143,7 +164,7 @@ export function windText(wind: Wind | null): WeatherText {
       )
     }
   }
-  return list(items, 'dot')
+  return list(items, 'comma')
 }
 
 /** Görüş değeri (tek parça). */
@@ -175,10 +196,10 @@ export function visibilityText(visibility: Visibility | null, cavok: boolean): W
       }),
     )
   }
-  return list(items, 'dot')
+  return list(items, 'comma')
 }
 
-/** Bulut satırı: "Çok bulutlu · en alçak bulut 760 m · kümülonimbüs". */
+/** Bulut satırı: "Çok bulutlu, en alçak bulut 760 m, kümülonimbüs". */
 export function cloudsText(sky: Sky, cavok: boolean): WeatherText {
   if (cavok || sky.kind === 'cavok') return phrase('weather.clouds.cavok')
   switch (sky.kind) {
@@ -209,7 +230,7 @@ export function cloudsText(sky: Sky, cavok: boolean): WeatherText {
   }
   if (sky.layers.some((l) => l.type === 'CB')) items.push(phrase('weather.clouds.cb'))
   if (sky.layers.some((l) => l.type === 'TCU')) items.push(phrase('weather.clouds.tcu'))
-  return list(items, 'dot')
+  return list(items, 'comma')
 }
 
 interface PresenceInput {
@@ -220,23 +241,33 @@ interface PresenceInput {
   none?: WeatherText
 }
 
+/** Olay satırının durumu: havalimanında var / belirlenemedi / çevresinde / kısa süre önce / yok. */
+function presenceOf({ here, near, recent, undetermined }: PresenceInput): PhenomenonPresence {
+  if (here.length > 0) return 'present'
+  if (undetermined) return 'undetermined'
+  if (near.length > 0) return 'vicinity'
+  if (recent.length > 0) return 'recent'
+  return 'none'
+}
+
 /** Olay satırı: havalimanında varsa olaylar; yoksa belirlenemedi / çevresinde / kısa süre önce / yok. */
-function presenceRow({
-  here,
-  near,
-  recent,
-  undetermined,
-  none = NONE,
-}: PresenceInput): WeatherText {
-  if (here.length > 0) return list(here.map(groupPhrase), 'comma')
-  if (undetermined) return UNDETERMINED
-  if (near.length > 0) {
-    return phrase('weather.value.vicinity', { phrase: list(near.map(groupPhrase), 'comma') })
+function presenceRow(input: PresenceInput): WeatherText {
+  switch (presenceOf(input)) {
+    case 'present':
+      return list(input.here.map(groupPhrase), 'comma')
+    case 'undetermined':
+      return UNDETERMINED
+    case 'vicinity':
+      return phrase('weather.value.vicinity', {
+        phrase: list(input.near.map(groupPhrase), 'comma'),
+      })
+    case 'recent':
+      return phrase('weather.value.recent', {
+        phrase: list(input.recent.map(recentPhrase), 'comma'),
+      })
+    case 'none':
+      return input.none ?? NONE
   }
-  if (recent.length > 0) {
-    return phrase('weather.value.recent', { phrase: list(recent.map(recentPhrase), 'comma') })
-  }
-  return none
 }
 
 /** Son saatteki olay: yağışsız oraj (`RETS`) "gök gürültüsü" diye yazılır (VCTS ile aynı ad). */
@@ -403,37 +434,42 @@ export function summarizeMetar(
     m.nil || m.temperatureC === null ? null : { measure: 'temperature', celsius: m.temperatureC }
   const humidity = m.nil ? null : m.derived.relativeHumidityPct
 
+  const rain: PresenceInput = {
+    here: pick(here, rainLike),
+    near: pick(near, (g) => g.descriptor === 'SH' || isRainGroup(g)),
+    recent: pick(recent, isRainGroup),
+    undetermined,
+  }
+  const snow: PresenceInput = {
+    here: pick(here, snowLike),
+    near: pick(near, isSnowGroup),
+    recent: pick(recent, isSnowGroup),
+    undetermined,
+  }
+  const thunderstorm: PresenceInput = {
+    here: pick(here, isThunderGroup),
+    near: pick(near, isThunderGroup),
+    recent: pick(recent, isThunderGroup),
+    undetermined,
+    none: m.derived.flags.cb ? phrase('weather.value.noneWithCb') : NONE,
+  }
+  const fog: PresenceInput = {
+    here: pick(here, fogLike),
+    near: pick(near, isFogGroup),
+    recent: pick(recent, isFogGroup),
+    undetermined,
+  }
+
   return {
     headline: headlineText(m),
     icon: m.derived.icon,
     temperature,
     rows: {
       wind: m.nil ? UNDETERMINED : windText(m.wind),
-      rain: presenceRow({
-        here: pick(here, rainLike),
-        near: pick(near, (g) => g.descriptor === 'SH' || isRainGroup(g)),
-        recent: pick(recent, isRainGroup),
-        undetermined,
-      }),
-      snow: presenceRow({
-        here: pick(here, snowLike),
-        near: pick(near, isSnowGroup),
-        recent: pick(recent, isSnowGroup),
-        undetermined,
-      }),
-      thunderstorm: presenceRow({
-        here: pick(here, isThunderGroup),
-        near: pick(near, isThunderGroup),
-        recent: pick(recent, isThunderGroup),
-        undetermined,
-        none: m.derived.flags.cb ? phrase('weather.value.noneWithCb') : NONE,
-      }),
-      fog: presenceRow({
-        here: pick(here, fogLike),
-        near: pick(near, isFogGroup),
-        recent: pick(recent, isFogGroup),
-        undetermined,
-      }),
+      rain: presenceRow(rain),
+      snow: presenceRow(snow),
+      thunderstorm: presenceRow(thunderstorm),
+      fog: presenceRow(fog),
       hail: hail.length > 0 ? list(hail.map(groupPhrase), 'comma') : null,
       other,
       visibility: m.nil ? UNDETERMINED : visibilityText(m.visibility, m.cavok),
@@ -443,6 +479,14 @@ export function summarizeMetar(
         m.nil || m.dewPointC === null ? null : { measure: 'temperature', celsius: m.dewPointC },
       humidity: humidity === null ? null : phrase('weather.humidity', { percent: humidity }),
       pressure: m.nil || m.qnhHpa === null ? null : { measure: 'pressure', hpa: m.qnhHpa },
+    },
+    presence: {
+      rain: presenceOf(rain),
+      snow: presenceOf(snow),
+      thunderstorm: presenceOf(thunderstorm),
+      fog: presenceOf(fog),
+      hail: hail.length > 0 ? 'present' : 'none',
+      other: otherHere.length > 0 ? 'present' : otherNear.length > 0 ? 'vicinity' : 'none',
     },
     next2h: next2hText(m, trend),
     trend: trend.window,

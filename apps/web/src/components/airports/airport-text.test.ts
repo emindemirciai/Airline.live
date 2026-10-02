@@ -1,10 +1,20 @@
-import { LOCALES } from '@havayolu/shared'
+import {
+  AIRPORT_RINGS_KM,
+  ENABLED_AIRPORT_RING,
+  foreignAirportCity,
+  foreignAirportName,
+  LOCALES,
+} from '@havayolu/shared'
 import { describe, expect, it } from 'vitest'
 import { airportFixture, runwayFixture } from '../../lib/test/airport-fixture'
-import { fixtureTurkishAirports } from '../../lib/test/ourairports-fixture'
+import { fixtureListedAirports, fixtureTurkishAirports } from '../../lib/test/ourairports-fixture'
 import {
+  airportCountry,
+  airportCountryFull,
   airportDescription,
+  airportLocation,
   airportName,
+  airportPlace,
   airportProvince,
   airportTitle,
   formatBearing,
@@ -14,14 +24,19 @@ import {
   formatLength,
   formatMeters,
   formatRadius,
+  isTurkish,
+  listedRadiusKm,
   longestRunway,
   runwayDesignator,
+  sortByCountry,
   sortByProvince,
 } from './airport-text'
 
 const AIRPORTS = fixtureTurkishAirports()
+const LISTED = fixtureListedAirports()
+const FOREIGN = LISTED.filter((a) => !isTurkish(a))
 const byIcao = (icao: string) => {
-  const airport = AIRPORTS.find((a) => a.icao === icao)
+  const airport = LISTED.find((a) => a.icao === icao)
   if (!airport) throw new Error(`fixture has no ${icao}`)
   return airport
 }
@@ -31,6 +46,16 @@ describe('fixture', () => {
     expect(AIRPORTS).toHaveLength(61)
     expect(AIRPORTS.filter((a) => a.scheduled)).toHaveLength(51)
     expect(AIRPORTS.every((a) => a.runways.length > 0)).toBe(true)
+  })
+
+  it('1. halka: yakın ülke havalimanları 500 km içinde, tarifeli ve Türkçe adlı (D-080)', () => {
+    expect(FOREIGN.length).toBeGreaterThan(70)
+    expect(LISTED).toHaveLength(AIRPORTS.length + FOREIGN.length)
+    expect(FOREIGN.every((a) => a.ring === 1 && a.scheduled)).toBe(true)
+    expect(FOREIGN.every((a) => (a.distanceToTrKm ?? Infinity) <= 500)).toBe(true)
+    expect(FOREIGN.filter((a) => foreignAirportName(a.icao) === undefined)).toEqual([])
+    expect(AIRPORTS.every((a) => a.country === 'TR' && a.ring === 0)).toBe(true)
+    for (const icao of ['LGAV', 'LGTS', 'LCEN', 'LCLK', 'UGTB', 'LBSF']) byIcao(icao)
   })
 })
 
@@ -113,13 +138,79 @@ describe('ad ve il', () => {
   })
 })
 
+describe('yer: il ya da ülke (D-080)', () => {
+  it('Türkiye’de il; yakın ülkelerde ülke adı, sayfanın dilinde', () => {
+    expect(airportPlace(byIcao('LTFM'), 'tr')).toBe('İstanbul')
+    expect(airportPlace(byIcao('LGAV'), 'tr')).toBe('Yunanistan')
+    expect(airportPlace(byIcao('LGAV'), 'en')).toBe('Greece')
+    expect(airportCountry(byIcao('UGTB'), 'tr')).toBe('Gürcistan')
+    expect(airportCountry(byIcao('LBSF'), 'en')).toBe('Bulgaria')
+  })
+
+  it('Ercan (LCEN) KKTC’de gösterilir; diğerleri OurAirports’un ülkesini korur', () => {
+    const ercan = byIcao('LCEN')
+    expect(ercan.country).toBe('CY')
+    expect(airportCountry(ercan, 'tr')).toBe('KKTC')
+    expect(airportCountry(ercan, 'en')).toBe('TRNC')
+    expect(airportCountryFull(ercan, 'tr')).toBe('Kuzey Kıbrıs Türk Cumhuriyeti (KKTC)')
+    expect(airportCountryFull(ercan, 'en')).toBe('Turkish Republic of Northern Cyprus (TRNC)')
+    expect(airportCountryFull(byIcao('LGAV'), 'tr')).toBe('Yunanistan')
+    expect(airportCountry(byIcao('LCLK'), 'tr')).toBe('Kıbrıs')
+    expect(airportCountry(byIcao('UGSS'), 'tr')).toBe('Gürcistan')
+    const pristina = airportFixture({ icao: 'BKPR', country: 'XK', isoRegion: 'XK-01', ring: 1 })
+    expect(airportCountry(pristina, 'tr')).toBe('Kosova')
+    expect(airportCountry(pristina, 'en')).toBe('Kosovo')
+  })
+
+  it('yer satırı: Türkiye’de "il, Türkiye"; yakın ülkelerde sayfanın dilinde şehir ve ülke', () => {
+    expect(airportLocation(byIcao('LTFM'), 'tr')).toBe('İstanbul, Türkiye')
+    expect(airportLocation(byIcao('LTFM'), 'en')).toBe('Istanbul, Türkiye')
+    // Küratörlü şehir adı (D-080). OurAirports yerleşimi ("Spata-Artemida", "Thessaloniki", "Kos
+    // Island", Sitia için "Crete Island", Ercan için "Tymbou (Kirklar)", Senendec için boş) yazılmaz.
+    expect(airportLocation(byIcao('LGAV'), 'tr')).toBe('Atina, Yunanistan')
+    expect(airportLocation(byIcao('LGAV'), 'en')).toBe('Athens, Greece')
+    expect(airportLocation(byIcao('LGTS'), 'tr')).toBe('Selanik, Yunanistan')
+    expect(airportLocation(byIcao('LGKO'), 'tr')).toBe('İstanköy, Yunanistan')
+    expect(airportLocation(byIcao('LGKO'), 'en')).toBe('Kos, Greece')
+    expect(airportLocation(byIcao('LGST'), 'tr')).toBe('Sitia, Yunanistan')
+    expect(airportLocation(byIcao('OSDI'), 'tr')).toBe('Şam, Suriye')
+    expect(airportLocation(byIcao('UGTB'), 'en')).toBe('Tbilisi, Georgia')
+    expect(airportLocation(byIcao('LCEN'), 'tr')).toBe('Lefkoşa, KKTC')
+    expect(airportLocation(byIcao('OICS'), 'tr')).toBe('Senendec, İran')
+    for (const airport of FOREIGN) {
+      const city = foreignAirportCity(airport.icao)
+      for (const locale of LOCALES) {
+        const line = airportLocation(airport, locale)
+        expect(line, airport.icao).not.toMatch(/Türkiye|\{|\(|Island/)
+        expect(line, airport.icao).toBe(`${city?.[locale]}, ${airportCountry(airport, locale)}`)
+      }
+    }
+    // Tabloda olmayan yabancı havalimanı (sonraki halkalar): Türkçe sayfada yalnızca ülke, İngilizce
+    // sayfada temiz OurAirports yerleşimi.
+    const heathrow = airportFixture({
+      icao: 'EGLL',
+      country: 'GB',
+      isoRegion: 'GB-ENG',
+      municipality: 'London',
+      ring: 2,
+    })
+    expect(airportLocation(heathrow, 'tr')).toBe('Birleşik Krallık')
+    expect(airportLocation(heathrow, 'en')).toBe('London, United Kingdom')
+  })
+
+  it('açık halkaların sınırı ortak yapılandırmadan gelir (1. halka 500 km)', () => {
+    expect(listedRadiusKm()).toBe(AIRPORT_RINGS_KM[ENABLED_AIRPORT_RING - 1])
+    expect(listedRadiusKm()).toBe(500)
+  })
+})
+
 describe('başlık ve açıklama: fixture’daki her havalimanı', () => {
   const FORBIDDEN = /rötar|gecikme|kalkış saati|METAR|meydan|delay|departure time/i
 
   it.each(LOCALES)(
     '%s: başlık kodları taşır, açıklama 70–170 karakter ve vaat içermez',
     (locale) => {
-      for (const [airport, covered] of AIRPORTS.flatMap((a) => [
+      for (const [airport, covered] of LISTED.flatMap((a) => [
         [a, true] as const,
         [a, false] as const,
       ])) {
@@ -143,9 +234,12 @@ describe('başlık ve açıklama: fixture’daki her havalimanı', () => {
     expect(airportDescription(byIcao('LTDA'), 'en', true)).toMatch(
       /^Hatay Airport, Hatay: one runway, 2,082 m; elevation 82 m\. /,
     )
+    // Yakın ülkelerde il yerine ülke.
+    expect(airportDescription(byIcao('LGAV'), 'en', false)).toMatch(/, Greece: \d runways?, /)
+    expect(airportDescription(byIcao('LGAV'), 'tr', false)).toMatch(/, Yunanistan: \d pist/)
     const noFacts = airportFixture({ icao: 'LTXX', runways: [], elevationFt: null })
     expect(airportDescription(noFacts, 'tr', true)).toBe(
-      'LTXX Airport, İstanbul. Çevredeki uçaklar canlı haritada görünür; tarife bilgisi içermez.',
+      'LTXX Havalimanı, İstanbul. Çevredeki uçaklar canlı haritada görünür; tarife bilgisi içermez.',
     )
   })
 
@@ -186,5 +280,22 @@ describe('sortByProvince', () => {
       .map((a) => a.icao)
     // İstanbul Atatürk, İstanbul Havalimanı, İstanbul Sabiha Gökçen.
     expect(istanbul).toEqual(['LTBA', 'LTFM', 'LTFJ'])
+  })
+})
+
+describe('sortByCountry', () => {
+  it('yakın ülkeler ülkeye, sonra ada göre; Türkçe sayfada Türkçe sıralama', () => {
+    const collator = new Intl.Collator('tr-TR')
+    const rows = sortByCountry(FOREIGN, 'tr')
+    const countries = rows.map((a) => airportCountry(a, 'tr'))
+    expect(countries).toEqual(countries.toSorted((a, b) => collator.compare(a, b)))
+    expect(countries[0]).toBe('Azerbaycan')
+    // Türk alfabesi: Irak I'dan, İran İ'den sonra gelir; Yunanistan en sondadır.
+    expect(countries.indexOf('İran')).toBeGreaterThan(countries.lastIndexOf('Irak'))
+    expect(countries.at(-1)).toBe('Yunanistan')
+    const greece = rows.filter((a) => a.country === 'GR').map((a) => airportName(a, 'tr'))
+    expect(greece).toEqual(greece.toSorted((a, b) => collator.compare(a, b)))
+    const en = sortByCountry(FOREIGN, 'en').map((a) => airportCountry(a, 'en'))
+    expect(en[0]).toBe('Armenia')
   })
 })

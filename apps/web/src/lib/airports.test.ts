@@ -9,12 +9,14 @@ import {
   liveCoveragePlan,
   latestDataUpdate,
   nearestAirports,
+  nearestTurkishAirport,
   parseAirportsBody,
   resolveAirportCode,
   sameProvinceAirports,
+  splitByCountry,
 } from './airports'
 import { airportFixture } from './test/airport-fixture'
-import { fixtureTurkishAirports } from './test/ourairports-fixture'
+import { fixtureListedAirports, fixtureTurkishAirports } from './test/ourairports-fixture'
 
 // `server-only` istemci paketlerinde hata fırlatır; testte sunucu modülü olarak yüklenir.
 vi.mock('server-only', () => ({}))
@@ -59,6 +61,17 @@ const LTBU = airportFixture({
   lat: 41.1382,
   lon: 27.919,
 })
+/** Yakın ülkelerdeki listelenen havalimanı (D-080): Selanik. */
+const LGTS = airportFixture({
+  icao: 'LGTS',
+  iata: 'SKG',
+  isoRegion: 'GR-B',
+  country: 'GR',
+  ring: 1,
+  distanceToTrKm: 263,
+  lat: 40.519699,
+  lon: 22.9709,
+})
 const ALL = [LTFM, LTFJ, LTBA, LTAG, LTBU]
 
 afterEach(() => {
@@ -67,9 +80,9 @@ afterEach(() => {
 })
 
 describe('airportsUrl', () => {
-  it('tek toplu çağrının adresini iç API adresinden kurar', () => {
+  it('tek toplu çağrının adresini iç API adresinden kurar: listelenen havalimanları (D-080)', () => {
     expect(airportsUrl('http://api:4000')).toBe(
-      'http://api:4000/v1/airports?country=TR&include=runways',
+      'http://api:4000/v1/airports?scope=listed&include=runways',
     )
   })
 })
@@ -86,6 +99,15 @@ describe('parseAirportsBody', () => {
   it('zarf bozuksa hata fırlatır', () => {
     expect(() => parseAirportsBody({ airports: 'none' })).toThrow('unexpected shape')
     expect(() => parseAirportsBody(null)).toThrow()
+  })
+
+  it('scope=listed zarfı ülke taşımaz; ülke, halka ve uzaklık kayıtta denetlenir', () => {
+    const parsed = parseAirportsBody({ scope: 'listed', airports: [LTFM, LGTS] })
+    expect(parsed).toEqual([LTFM, LGTS])
+    const { country: _country, ...noCountry } = LGTS
+    const badRing = { ...LGTS, ring: -1 }
+    const badCountry = { ...LGTS, country: 'Greece' }
+    expect(parseAirportsBody({ airports: [noCountry, badRing, badCountry, LGTS] })).toEqual([LGTS])
   })
 })
 
@@ -108,7 +130,7 @@ describe('getAirports', () => {
     expect(airports).toHaveLength(ALL.length)
     expect(calls).toHaveLength(1)
     const [call] = calls
-    expect(call?.url).toBe('http://api.internal:4000/v1/airports?country=TR&include=runways')
+    expect(call?.url).toBe('http://api.internal:4000/v1/airports?scope=listed&include=runways')
     expect(call?.init.next).toEqual({ revalidate: 3600, tags: ['airports'] })
     expect(call?.init.cache).toBeUndefined()
     // Önbellek anahtarı başlıkları içerir: yalnızca sabit başlıklar gönderilir.
@@ -175,6 +197,12 @@ describe('isIndexable ve isMonitoredStation', () => {
     ).toBe(true)
   })
 
+  it('yakın ülkelerdeki listelenen havalimanları aday kuralı gereği tarifelidir ve dizine girer', () => {
+    const foreign = fixtureListedAirports().filter((airport) => airport.country !== 'TR')
+    expect(foreign.length).toBeGreaterThan(70)
+    expect(foreign.every(isIndexable)).toBe(true)
+  })
+
   it('OurAirports tarifeli bayrağı tek ölçüt değildir: resmî adı doğrulanan sivil havalimanı dizine girer', () => {
     const fixture = fixtureTurkishAirports()
     const byIcao = new Map(fixture.map((airport) => [airport.icao, airport]))
@@ -234,12 +262,67 @@ describe('nearestAirports', () => {
     expect(nearestAirports(LTFM, ALL, 0)).toEqual([])
     expect(nearestAirports(LTFM, [LTFM], 3)).toEqual([])
   })
+
+  it('en yakınlar Türkiye ve yakın ülkeleri karışık içerebilir (Sakız)', () => {
+    const listed = fixtureListedAirports()
+    const chios = listed.find((airport) => airport.icao === 'LGHI')
+    if (!chios) throw new Error('fixture has no LGHI')
+    const nearest = nearestAirports(chios, listed, 3).map((n) => n.airport.country)
+    expect(nearest).toContain('TR')
+    expect(nearest).toContain('GR')
+  })
 })
 
 describe('sameProvinceAirports', () => {
   it('aynı ildeki diğer havalimanlarını verir', () => {
     expect(sameProvinceAirports(LTFM, ALL).map((a) => a.icao)).toEqual(['LTBA', 'LTFJ'])
     expect(sameProvinceAirports(LTAG, ALL)).toEqual([])
+  })
+
+  it('yalnızca Türkiye’de: yabancı havalimanında boş, Türkiye’de yabancı kayıt karışmaz', () => {
+    const sameRegion = { ...LGTS, icao: 'LGXX', iata: 'XXG' }
+    expect(sameProvinceAirports(LGTS, [...ALL, LGTS, sameRegion])).toEqual([])
+    const fakeTr = { ...LGTS, isoRegion: 'TR-34' }
+    expect(sameProvinceAirports(LTFM, [...ALL, fakeTr]).map((a) => a.icao)).toEqual([
+      'LTBA',
+      'LTFJ',
+    ])
+  })
+})
+
+describe('splitByCountry ve nearestTurkishAirport', () => {
+  it('liste Türkiye ve yakın ülkeler olarak ayrılır, sıra korunur', () => {
+    const { turkey, foreign } = splitByCountry([LGTS, LTFM, LTFJ])
+    expect(turkey.map((a) => a.icao)).toEqual(['LTFM', 'LTFJ'])
+    expect(foreign.map((a) => a.icao)).toEqual(['LGTS'])
+  })
+
+  it('yabancı havalimanına Türkiye’deki en yakın havalimanı (API’nin nearestTr’si); Türkiye’de null', () => {
+    const listed = fixtureListedAirports()
+    const byIcao = (icao: string) => {
+      const airport = listed.find((a) => a.icao === icao)
+      if (!airport) throw new Error(`fixture has no ${icao}`)
+      return airport
+    }
+    // Atina: Çiğli (listelenen, sayfası var); uzaklık listedeki tabloyla aynı sayı.
+    const athens = nearestTurkishAirport(byIcao('LGAV'), listed)
+    expect(athens?.reference).toMatchObject({ icao: 'LTBL', iata: 'IGL' })
+    expect(athens?.listed?.icao).toBe('LTBL')
+    expect(athens?.distanceKm).toBe(byIcao('LGAV').distanceToTrKm)
+    // Selanik ve Priştine: en yakın IATA kodlu Türkiye havalimanı Gökçeada, listelenmez (D-080).
+    for (const icao of ['LGTS', 'BKPR']) {
+      const nearest = nearestTurkishAirport(byIcao(icao), listed)
+      expect(nearest?.reference, icao).toEqual({
+        icao: 'LTFK',
+        iata: 'GKD',
+        name: 'Gökçeada Airport',
+      })
+      expect(nearest?.listed, icao).toBeNull()
+      expect(nearest?.distanceKm, icao).toBeLessThanOrEqual(500)
+    }
+    expect(nearestTurkishAirport(LTFM, listed)).toBeNull()
+    // API alanları yoksa (eski yanıt) satır yazılmaz.
+    expect(nearestTurkishAirport(LGTS, [LGTS])).toBeNull()
   })
 })
 

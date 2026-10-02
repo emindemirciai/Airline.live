@@ -10,9 +10,9 @@ import {
   formatElevation,
   formatRunways,
   popupStatusText,
+  popupTimeZone,
   popupWeatherView,
   returnFocusTarget,
-  sunToday,
   type PopupWeatherReport,
 } from './airport-popup-model'
 import type { BulkWeatherState } from './use-airport-weather'
@@ -30,9 +30,46 @@ const IST: MapAirport = {
   elevationFt: 325,
   type: 'large_airport',
   scheduled: true,
+  country: 'TR',
+  ring: 0,
+  distanceToTrKm: null,
   isoRegion: 'TR-34',
   municipality: 'Arnavutköy',
   runways: [{ lengthFt: 12303 }, { lengthFt: 13451 }, { lengthFt: 12303 }],
+}
+
+/** Yakın ülkedeki listelenen havalimanı (1. halka, D-080). */
+const ATH: MapAirport = {
+  icao: 'LGAV',
+  iata: 'ATH',
+  name: 'Athens Eleftherios Venizelos International Airport',
+  city: 'Spata-Artemida',
+  lat: 37.936401,
+  lon: 23.9445,
+  elevationFt: 308,
+  type: 'large_airport',
+  scheduled: true,
+  country: 'GR',
+  ring: 1,
+  distanceToTrKm: 275,
+  isoRegion: 'GR-I',
+  municipality: 'Spata-Artemida',
+  runways: [{ lengthFt: 13123 }, { lengthFt: 12467 }],
+}
+
+/** Ercan: OurAirports'ta CY; KKTC olarak gösterilir (kullanıcı kararı 2026-10-02, D-080). */
+const ECN: MapAirport = {
+  ...ATH,
+  icao: 'LCEN',
+  iata: 'ECN',
+  name: 'Ercan International Airport',
+  city: 'Tymbou (Kirklar)',
+  lat: 35.153064,
+  lon: 33.507352,
+  country: 'CY',
+  distanceToTrKm: 168,
+  isoRegion: 'CY-02',
+  municipality: 'Tymbou (Kirklar)',
 }
 
 /** 1 Ekim 2026 13:00 UTC = 16:00 İstanbul. */
@@ -68,6 +105,12 @@ function report(view: ReturnType<typeof popupWeatherView>): PopupWeatherReport {
 const value = (view: PopupWeatherReport, key: string) =>
   view.rows.find((row) => row.key === key)?.value
 
+const tone = (view: PopupWeatherReport, key: string) =>
+  view.rows.find((row) => row.key === key)?.tone
+
+/** Sayıdan (ya da eksi işaretinden) hemen önce "·" ya da "–" (eksi gibi okunur; 2026-10-02). */
+const DASH_BEFORE_NUMBER = /[·–]\s*[−-]?\d/
+
 describe('havalimanı bilgileri', () => {
   it('rakım metrik önce, ft ikinci', () => {
     expect(formatElevation(325, 'tr')).toBe('99 m (325 ft)')
@@ -92,46 +135,50 @@ describe('havalimanı bilgileri', () => {
     expect(airportPlace({ ...IST, isoRegion: 'XX-1', municipality: null }, 'tr')).toBeNull()
   })
 
+  it('yakın ülkelerde il yerine ülke adı; Ercan KKTC (D-080)', () => {
+    expect(airportPlace(ATH, 'tr')).toBe('Yunanistan')
+    expect(airportPlace(ATH, 'en')).toBe('Greece')
+    // Bölge kodu Türkiye'ninkine benzese de ülke belirleyicidir.
+    expect(airportPlace({ ...ATH, isoRegion: 'TR-34' }, 'tr')).toBe('Yunanistan')
+    expect(airportPlace(ECN, 'tr')).toMatch(/KKTC|Kuzey Kıbrıs Türk Cumhuriyeti/)
+    expect(airportPlace(ECN, 'en')).toMatch(/TRNC|Turkish Republic of Northern Cyprus/)
+  })
+
+  it('saat dilimi: Türkiye’de Europe/Istanbul; yakın ülkelerde bilinmiyor', () => {
+    expect(popupTimeZone(IST)).toBe('Europe/Istanbul')
+    expect(popupTimeZone(ATH)).toBeNull()
+    expect(popupTimeZone(ECN)).toBeNull()
+  })
+
   it('saat havalimanının yerel saatiyle; saat yoksa "—"', () => {
     expect(formatClock(NOW)).toBe('16:00')
+    expect(formatClock(NOW, 'Europe/Istanbul')).toBe('16:00')
+    // Ofset koda gömülmez: başka bir dilim kendi saatini verir (Tiflis UTC+4, Atina yazın UTC+3).
+    expect(formatClock(NOW, 'Asia/Tbilisi')).toBe('17:00')
+    expect(formatClock(Date.parse('2026-12-01T13:00:00Z'), 'Europe/Athens')).toBe('15:00')
     expect(formatClock(0)).toBe(NO_VALUE)
     expect(formatClock(Number.NaN)).toBe(NO_VALUE)
   })
 
-  it('gün doğumu ve batımı LTFM, 1 Ekim 2026: 07:01 ve 18:47 (±1 dk)', () => {
-    const sun = sunToday(IST, NOW)
-    const minutes = (ms: number | null) => {
-      const [h, m] = formatClock(ms ?? Number.NaN)
-        .split(':')
-        .map(Number)
-      return (h ?? 0) * 60 + (m ?? 0)
-    }
-    expect(Math.abs(minutes(sun.sunrise) - (7 * 60 + 1))).toBeLessThanOrEqual(1)
-    expect(Math.abs(minutes(sun.sunset) - (18 * 60 + 47))).toBeLessThanOrEqual(1)
-    expect(sunToday(IST, 0)).toEqual({ sunrise: null, sunset: null })
-  })
-
-  it('başlık, erişilebilir ad ve satırlar (TR ve EN)', () => {
-    const facts = airportFacts(IST, NOW, sunToday(IST, NOW), 'tr', tr.map.airportPopup)
+  it('başlık, erişilebilir ad ve satırlar (TR ve EN); gün doğumu ve batımı pencerede yok', () => {
+    const facts = airportFacts(IST, NOW, 'tr', tr.map.airportPopup)
     expect(facts.name).toBe('İstanbul Havalimanı')
     expect(facts.label).toBe('İstanbul Havalimanı bilgileri')
-    expect(facts.rows.map((row) => row.key)).toEqual([
-      'elevation',
-      'runways',
-      'localTime',
-      'sunrise',
-      'sunset',
-    ])
+    // Gün doğumu ve batımı yalnız havalimanı sayfasındadır (kullanıcı kararı 2026-10-02).
+    expect(facts.rows.map((row) => row.key)).toEqual(['elevation', 'runways', 'localTime'])
     expect(facts.rows.find((row) => row.key === 'localTime')?.value).toBe('16:00')
-    const english = airportFacts(IST, NOW, sunToday(IST, NOW), 'en', en.map.airportPopup)
+    const english = airportFacts(IST, NOW, 'en', en.map.airportPopup)
     expect(english.name).toBe('Istanbul Airport')
-    expect(english.rows.map((row) => row.label)).toEqual([
-      'Elevation',
-      'Runways',
-      'Local time',
-      'Sunrise',
-      'Sunset',
-    ])
+    expect(english.rows.map((row) => row.label)).toEqual(['Elevation', 'Runways', 'Local time'])
+  })
+
+  it('saat dilimi bilinmeyen yakın ülke havalimanında yerel saat yazılmaz', () => {
+    const facts = airportFacts(ATH, NOW, 'tr', tr.map.airportPopup)
+    expect(facts.rows.map((row) => row.key)).toEqual(['elevation', 'runways'])
+    expect(facts.rows.find((row) => row.key === 'runways')?.value).toBe('2 pist, en uzunu 4.000 m')
+    // Saat dilimi verilirse satırlar o dilimle yazılır.
+    const zoned = airportFacts(ATH, NOW, 'tr', tr.map.airportPopup, 'Europe/Athens')
+    expect(zoned.rows.find((row) => row.key === 'localTime')?.value).toBe('16:00')
   })
 })
 
@@ -166,7 +213,9 @@ describe('popupWeatherView', () => {
     const view = report(popupWeatherView(state([station('LTFM', m)]), 'LTFM', NOW, 'tr', w, t))
     expect(view.ageClass).toBe('fresh')
     expect(view.note).toBeNull()
-    expect(view.headline).toBe('Hafif sağanak yağmur · 9 °C')
+    // Sıcaklık başlığa eklenmez, ayrı kutucuktur.
+    expect(view.headline).toBe('Hafif sağanak yağmur')
+    expect(view.temperature).toBe('9 °C')
     expect(view.rows.map((row) => row.key)).toEqual([
       'wind',
       'rain',
@@ -175,14 +224,31 @@ describe('popupWeatherView', () => {
       'fog',
       'visibility',
     ])
-    expect(value(view, 'wind')).toBe('Kuzeydoğudan 33 km/sa · hamle 59 km/sa')
+    expect(value(view, 'wind')).toBe('Kuzeydoğudan 33 km/sa, hamle 59 km/sa')
     expect(view.rows[0]?.strong).toBe('Kuvvetli rüzgâr')
     expect(value(view, 'rain')).toBe('Hafif sağanak yağmur')
     expect(value(view, 'snow')).toBe('Yok')
     expect(value(view, 'thunder')).toBe('Yok (kümülonimbüs bulutu var)')
     expect(value(view, 'fog')).toBe('Yok')
     expect(value(view, 'visibility')).toBe('10 km ve üzeri')
-    expect(view.observed).toBe('Gözlem 15:50 · 10 dakika önce')
+    expect(view.observed).toBe('Gözlem 15:50, 10 dakika önce')
+    // Yalnız var olan olay vurgulanır: yağmur; "Yok" ve CB'li "Yok" sade.
+    expect(view.rows.map((row) => [row.key, row.tone])).toEqual([
+      ['wind', null],
+      ['rain', 'rain'],
+      ['snow', null],
+      ['thunder', null],
+      ['fog', null],
+      ['visibility', null],
+    ])
+  })
+
+  it('saat dilimi bilinmeyen havalimanında gözlem saati UTC ile yazılır', () => {
+    const m = metar('LGAV 011250Z 36012KT CAVOK 22/10 Q1015 NOSIG', minutesAgo(10))
+    const data = state([station('LGAV', m)])
+    const view = report(popupWeatherView(data, 'LGAV', NOW, 'tr', w, t, null))
+    expect(view.observed).toBe('Gözlem 12:50 UTC, 10 dakika önce')
+    expect(value(view, 'visibility')).toBe('10 km ve üzeri')
   })
 
   it('kar, sis ve dolu satırları; sakin rüzgârda kuvvetli işareti yok (EN)', () => {
@@ -199,9 +265,13 @@ describe('popupWeatherView', () => {
     const s = report(popupWeatherView(data, 'LTAC', NOW, 'en', en.weather, en.map.airportPopup))
     expect(value(s, 'snow')).toBe('Snow')
     expect(value(s, 'fog')).toBe('Mist')
-    expect(s.headline).toBe('Snow · −1 °C')
+    // Sıfırın altı: gerçek eksi işareti (U+2212) ayrı kutucukta; başlıkta sayı yok.
+    expect(s.headline).toBe('Snow')
+    expect(s.temperature).toBe('\u22121 °C')
+    expect([tone(s, 'rain'), tone(s, 'snow'), tone(s, 'fog')]).toEqual([null, 'snow', 'fog'])
     const f = report(popupWeatherView(data, 'LTCG', NOW, 'tr', w, t))
     expect(value(f, 'fog')).toBe('Sis')
+    expect(tone(f, 'fog')).toBe('fog')
     expect(value(f, 'wind')).toBe('Sakin')
     expect(f.rows[0]?.strong).toBeNull()
     expect(value(f, 'visibility')).toBe('200 m')
@@ -210,6 +280,56 @@ describe('popupWeatherView', () => {
     expect(value(h, 'thunder')).toMatch(/^Dolulu, .*gök gürültülü sağanak$/)
     expect(value(h, 'thunder')).not.toMatch(/fırtına/i)
     expect(h.rows.some((row) => row.key === 'hail')).toBe(true)
+    expect([tone(h, 'rain'), tone(h, 'thunder'), tone(h, 'hail')]).toEqual([
+      'rain',
+      'thunder',
+      'hail',
+    ])
+  })
+
+  it('çevredeki olay ve "Belirlenemedi" vurgulanmaz', () => {
+    const near = metar('LTAU 011250Z 23008KT 9999 VCTS SCT040CB 07/M01 Q1013 NOSIG', minutesAgo(5))
+    const auto = metar('LTXX 011250Z AUTO 03010KT 9999 // NCD 10/05 Q1010', minutesAgo(5))
+    const data = state([station('LTAU', near), station('LTXX', auto)])
+    const v = report(popupWeatherView(data, 'LTAU', NOW, 'tr', w, t))
+    expect(value(v, 'thunder')).toBe('Havalimanında yok; çevresinde gök gürültüsü')
+    expect(tone(v, 'thunder')).toBeNull()
+    const a = report(popupWeatherView(data, 'LTXX', NOW, 'tr', w, t))
+    for (const key of ['rain', 'snow', 'thunder', 'fog']) {
+      expect(value(a, key), key).toBe('Belirlenemedi')
+      expect(tone(a, key), key).toBeNull()
+    }
+  })
+
+  it('sayıdan önce "·" ya da "–" yok: başlık, rüzgâr, görüş, gözlem yaşı (TR ve EN)', () => {
+    const raws = [
+      'LTFM 011250Z 03018G32KT 9999 -SHRA FEW025CB BKN035 09/05 Q1009 TEMPO 4000 SHRA',
+      'LTAI 011250Z 20015G28KT 160V240 3000 +TSRA SCT015CB BKN030 16/14 Q1006',
+      'LTCE 011250Z 27022G35KT 0800 +SHSN BLSN VV004 M08/M10 Q1021',
+      'LTXX 011250Z 22012KT 6000 1400SW BR BKN008 M03/M04 Q1018',
+    ]
+    for (const raw of raws) {
+      const icao = raw.slice(0, 4)
+      const data = state([station(icao, metar(raw, minutesAgo(130)))])
+      for (const [locale, messages] of [
+        ['tr', tr],
+        ['en', en],
+      ] as const) {
+        const view = report(
+          popupWeatherView(data, icao, NOW, locale, messages.weather, messages.map.airportPopup),
+        )
+        const texts = [
+          view.headline,
+          view.temperature,
+          view.note,
+          view.observed,
+          popupStatusText(view),
+          ...view.rows.map((row) => row.value),
+        ]
+        for (const text of texts)
+          expect(text ?? '', `${icao} ${locale}`).not.toMatch(DASH_BEFORE_NUMBER)
+      }
+    }
   })
 
   it('90 dakika–3 saat: gecikmiş gözlem notu, değerler gösterilir', () => {
@@ -218,7 +338,8 @@ describe('popupWeatherView', () => {
     expect(view.ageClass).toBe('delayed')
     expect(view.note).toContain('Gecikmiş gözlem')
     expect(view.rows.length).toBeGreaterThan(0)
-    expect(view.observed).toBe('Son gözlem 13:50 · 2 saat 10 dakika önce')
+    expect(view.temperature).toBe('11 °C')
+    expect(view.observed).toBe('Son gözlem 13:50, 2 saat 10 dakika önce')
   })
 
   it('3–12 saat: eski gözlemin değerleri güncel gibi gösterilmez', () => {
@@ -226,9 +347,10 @@ describe('popupWeatherView', () => {
     const view = report(popupWeatherView(state([station('LTCW', m)]), 'LTCW', NOW, 'tr', w, t))
     expect(view.ageClass).toBe('stale')
     expect(view.headline).toBeNull()
+    expect(view.temperature).toBeNull()
     expect(view.rows).toEqual([])
     expect(view.note).toBe(w.age.stale)
-    expect(view.observed).toBe('Son gözlem 07:50 · 8 saat önce')
+    expect(view.observed).toBe('Son gözlem 07:50, 8 saat önce')
   })
 
   it('son istek başarısız olsa da eldeki veri gösterilir', () => {
@@ -286,7 +408,7 @@ describe('Escape ve ekran okuyucu bildirimi', () => {
     expect(escapeClosesPopup({ key: 'Enter', defaultPrevented: false }, 'popup')).toBe(false)
   })
 
-  it('bildirim: yükleniyor, alınamıyor, rapor yok ya da raporun başlığı', () => {
+  it('bildirim: yükleniyor, alınamıyor, rapor yok ya da raporun başlığı ve sıcaklığı', () => {
     const t = tr.map.airportPopup
     const w = tr.weather
     const loading = popupWeatherView({ data: null, failed: false }, 'LTFM', NOW, 'tr', w, t)
@@ -308,6 +430,6 @@ describe('Escape ve ekran okuyucu bildirimi', () => {
       w,
       t,
     )
-    expect(popupStatusText(loaded)).toBe('Hafif sağanak yağmur · 9 °C')
+    expect(popupStatusText(loaded)).toBe('Hafif sağanak yağmur, 9 °C')
   })
 })

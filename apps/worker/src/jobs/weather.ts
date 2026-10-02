@@ -1,6 +1,7 @@
 import {
   getWeatherSource,
-  listAirportsWithIata,
+  listListedAirports,
+  metarStationsSince,
   pruneWeather,
   recordWeatherCheck,
   recordWeatherDisabled,
@@ -29,13 +30,15 @@ import {
   type SkippedEntry,
   type TafReport,
 } from '@havayolu/providers'
-import { decodeMetar, errorMessage } from '@havayolu/shared'
+import { AIRPORT_RING_CONFIG, decodeMetar, errorMessage } from '@havayolu/shared'
 import { UnrecoverableError } from 'bullmq'
 import type { Logger } from 'pino'
 
 /**
- * Havalimanı hava durumu işleri (D-078): METAR 5 dk'da, TAF 15 dk'da bir; her istek listedeki
- * bütün havalimanları için tek istektir. Her farklı rapor saklanır (geçmiş), 30 gün sonra silinir.
+ * Havalimanı hava durumu işleri (D-078): METAR 5 dk'da, TAF 15 dk'da bir; her çalışma listelenen
+ * bütün havalimanlarını (Türkiye ve açık halkalar, D-080) ister. AWC istemcisi listeyi 400 kayıt
+ * sınırına göre gruplara böler (olağan 2 saatlik METAR'da 80 istasyon: 136 istasyon iki istek).
+ * Her farklı rapor saklanır (geçmiş), 30 gün sonra silinir.
  * - 429: istek atılmaz, `blocked_until = şimdi + max(Retry-After, 10 dk)`; iş yeniden denenmez.
  * - 403: 1 saat istek atılmaz, admin satırı "çalışmıyor" olur; kaynağın davranışı değişmiştir
  *   (CLAUDE.md DUR-SOR 3: kullanıcıya söylenir).
@@ -43,8 +46,6 @@ import type { Logger } from 'pino'
  * - 204 ya da raporu gelmeyen istasyon: eldeki satırlar silinmez; sayfa raporun yaşını gösterir.
  */
 
-/** Listedeki havalimanlarının ülkesi (API'nin `country=TR` listesiyle aynı). */
-export const WEATHER_COUNTRY = 'TR'
 /** 429 sonrası en kısa bekleme (sn); Retry-After daha uzunsa o kullanılır. */
 export const RATE_LIMIT_BLOCK_SEC = 600
 /** 403 sonrası bekleme (sn). */
@@ -92,10 +93,21 @@ export function metarLookbackHours(lastCheckedAt: Date | null, now: Date): numbe
   return Math.min(AWC_METAR_MAX_HOURS, Math.max(AWC_METAR_HOURS, Math.ceil(gapHours) + 1))
 }
 
+/**
+ * Sorgulanacak istasyonlar: listelenen havalimanlarının (API'nin `scope=listed` listesi; Türkiye ve
+ * açık halkalar, D-080) dört harfli ICAO kodları, liste sırasıyla ve tekil. GPS ya da yerel kodlu
+ * havalimanı (ör. `TR-0042`) atlanır: AWC yalnızca ICAO istasyonu tanır.
+ */
+export function weatherStations(airports: readonly { icao: string }[]): string[] {
+  return [...new Set(airports.map((a) => a.icao))].filter((icao) => ICAO_STATION.test(icao))
+}
+
 /** İşlerin veritabanı erişimi; testte bellek içi sahte uygulama verilir. */
 export interface WeatherStore {
-  /** Sorgulanacak istasyonlar: listedeki havalimanlarının dört harfli ICAO kodları. */
+  /** Sorgulanacak istasyonlar (`weatherStations`). */
   stations(): Promise<string[]>
+  /** Verilen istasyonlardan `since` ya da sonrası gözlenmiş METAR/SPECI'si olanlar. */
+  metarStationsSince(stations: readonly string[], since: Date): Promise<string[]>
   source(kind: WeatherKind): Promise<WeatherSourceState | null>
   upsertMetars(rows: readonly MetarWrite[], fetchedAt: Date): Promise<WeatherUpsertCounts>
   upsertTafs(rows: readonly TafWrite[], fetchedAt: Date): Promise<WeatherUpsertCounts>
@@ -111,10 +123,8 @@ export interface WeatherStore {
 export function databaseWeatherStore(database: Database): WeatherStore {
   const { db, sql } = database
   return {
-    async stations() {
-      const airports = await listAirportsWithIata(db, WEATHER_COUNTRY)
-      return [...new Set(airports.map((a) => a.icao))].filter((icao) => ICAO_STATION.test(icao))
-    },
+    stations: async () => weatherStations(await listListedAirports(db, AIRPORT_RING_CONFIG)),
+    metarStationsSince: (stations, since) => metarStationsSince(sql, stations, since),
     source: (kind) => getWeatherSource(sql, kind),
     upsertMetars: (rows, fetchedAt) => upsertMetars(sql, rows, fetchedAt),
     upsertTafs: (rows, fetchedAt) => upsertTafs(sql, rows, fetchedAt),
@@ -147,6 +157,12 @@ export interface WeatherRunDeps {
   origin: 'remote' | 'fixture'
   log: Logger
   now?: () => Date
+  /**
+   * METAR kaydı bu süreçte denetlenmiş ya da 24 saatle doldurulmuş istasyonlar
+   * (`runWeatherMetar`); worker süreci boyunca yaşar, böylece kaydı olmayan istasyon her çalışmada
+   * değil süreç başına bir kez doldurulur. Verilmezse her çalışmada denetlenir.
+   */
+  backfilled?: Set<string>
 }
 
 export type WeatherRunResult =
@@ -277,12 +293,66 @@ async function runWeather<T extends { station: string }, W>(
   }
 }
 
+/** İki kaynak yanıtını birleştirir (olağan istek ve doldurma isteği). */
+function mergeFetches<T>(a: WeatherFetch<T>, b: WeatherFetch<T>): WeatherFetch<T> {
+  const requests =
+    a.requests === undefined && b.requests === undefined
+      ? undefined
+      : (a.requests ?? 0) + (b.requests ?? 0)
+  return {
+    status: a.status === 200 || b.status === 200 ? 200 : 204,
+    items: [...a.items, ...b.items],
+    skipped: [...a.skipped, ...b.skipped],
+    truncated: (a.truncated ?? false) || (b.truncated ?? false),
+    ...(requests === undefined ? {} : { requests }),
+  }
+}
+
+/**
+ * METAR isteği. Geriye bakış son başarılı kontrolden gelir (`metarLookbackHours`), ama bu kontrol
+ * bütün kaynağındır: listeye yeni giren istasyonun (yeni halka, D-080) kaydı olağan 2 saatle başlar
+ * ve "son 24 saat" kaydı bir gün boyunca eksik kalırdı. Bu yüzden son 24 saatte hiç METAR'ı
+ * saklanmamış istasyonlar ayrı bir istekle 24 saat istenir (AWC istemcisi 6'şarlı gruplara böler),
+ * diğerleri olağan geriye bakışla. Denetlenen istasyonlar `backfilled`'e yazılır: hiç rapor
+ * yayımlamayan istasyon her 5 dakikada değil, worker süreci başına bir kez 24 saatle istenir.
+ */
+async function fetchMetars(
+  deps: WeatherRunDeps,
+  ids: readonly string[],
+  state: WeatherSourceState | null,
+  now: Date,
+): Promise<WeatherFetch<MetarReport>> {
+  const hours = metarLookbackHours(state?.checkedAt ?? null, now)
+  const seen = deps.backfilled
+  if (hours >= AWC_METAR_MAX_HOURS) {
+    const result = await deps.source.metars(ids, { hours })
+    for (const id of ids) seen?.add(id)
+    return result
+  }
+  const pending = seen ? ids.filter((id) => !seen.has(id)) : [...ids]
+  const since = new Date(now.getTime() - AWC_METAR_MAX_HOURS * 3_600_000)
+  const stored = new Set(
+    pending.length === 0 ? [] : await deps.store.metarStationsSince(pending, since),
+  )
+  const fresh = new Set(pending.filter((id) => !stored.has(id)))
+  for (const id of stored) seen?.add(id)
+  if (fresh.size === 0) return deps.source.metars(ids, { hours })
+  const regular = ids.filter((id) => !fresh.has(id))
+  const normal = regular.length === 0 ? null : await deps.source.metars(regular, { hours })
+  const filled = await deps.source.metars([...fresh], { hours: AWC_METAR_MAX_HOURS })
+  for (const id of fresh) seen?.add(id)
+  deps.log.info(
+    { stations: [...fresh], hours: AWC_METAR_MAX_HOURS },
+    'hava durumu: kaydı olmayan istasyonların son 24 saati istendi',
+  )
+  return normal === null ? filled : mergeFetches(normal, filled)
+}
+
 export function runWeatherMetar(deps: WeatherRunDeps): Promise<WeatherRunResult> {
   return runWeather(
     'metar',
     deps,
-    (ids, state, now) =>
-      deps.source.metars(ids, { hours: metarLookbackHours(state?.checkedAt ?? null, now) }),
+    (ids, state, now) => fetchMetars(deps, ids, state, now),
     (items, now) =>
       items
         .filter((m) => m.observedAt.getTime() >= now.getTime() - WEATHER_RETENTION_DAYS * DAY_MS)

@@ -6,6 +6,8 @@ import {
   listAirportDetails,
   listAirportsWithIata,
   listLatestWeather,
+  listListedAirportDetails,
+  listListedAirports,
   listWeatherHistory,
   loadAirlineCodes,
   pingDb,
@@ -19,6 +21,7 @@ import {
   weatherStatus,
   type AirlineCodes,
 } from '@havayolu/db'
+import { AIRPORT_RING_CONFIG } from '@havayolu/shared'
 import type { Redis } from 'ioredis'
 import { buildApp } from './app'
 import { RedisSessionStore } from './auth/session-store'
@@ -138,16 +141,29 @@ const app = await buildApp(env, {
   // Engel listesi yüklenip önbellek başlayana kadar /v1/live ve arama 503, WS 1013 döner.
   live: { source: liveCache, codes: () => airlineCodes, ready: () => liveRunning },
   blocklistRedis: redisQueue,
+  // Halka ayarı (D-080) tek kaynaktan: `@havayolu/shared` `AIRPORT_RING_CONFIG`.
   airports: {
-    list: database ? (country) => listAirportsWithIata(database.db, country) : null,
-    details: database ? (country) => listAirportDetails(database.db, country) : null,
-    find: database ? (code) => findAirportDetail(database.db, code) : null,
+    list: database
+      ? (country) => listAirportsWithIata(database.db, country, AIRPORT_RING_CONFIG)
+      : null,
+    details: database
+      ? (country) => listAirportDetails(database.db, country, AIRPORT_RING_CONFIG)
+      : null,
+    listed: database ? () => listListedAirports(database.db, AIRPORT_RING_CONFIG) : null,
+    listedDetails: database
+      ? () => listListedAirportDetails(database.db, AIRPORT_RING_CONFIG)
+      : null,
+    find: database ? (code) => findAirportDetail(database.db, code, AIRPORT_RING_CONFIG) : null,
   },
   // Hava durumu: worker'ın yazdığı METAR/TAF kaydı; kod `/v1/airports/:code` kuralıyla çözülür.
   weather: {
-    stations: database ? (country) => listAirportsWithIata(database.db, country) : null,
+    stations: database
+      ? (country) => listAirportsWithIata(database.db, country, AIRPORT_RING_CONFIG)
+      : null,
+    listedStations: database ? () => listListedAirports(database.db, AIRPORT_RING_CONFIG) : null,
     resolve: database
-      ? async (code) => (await findAirportDetail(database.db, code))?.icao ?? null
+      ? async (code) =>
+          (await findAirportDetail(database.db, code, AIRPORT_RING_CONFIG))?.icao ?? null
       : null,
     latest: database ? (icaos, now) => listLatestWeather(database.sql, icaos, now) : null,
     history: database ? (icao, from, to) => listWeatherHistory(database.sql, icao, from, to) : null,

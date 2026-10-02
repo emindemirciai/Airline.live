@@ -116,6 +116,74 @@ describe('airportNode', () => {
     }
   })
 
+  it('yakın ülkelerdeki havalimanı: il yok, ülke ISO kodu, sayfadaki şehir adı (Atina, D-080)', () => {
+    const athens = airportFixture({
+      icao: 'LGAV',
+      iata: 'ATH',
+      name: 'Athens Eleftherios Venizelos International Airport',
+      isoRegion: 'GR-I',
+      municipality: 'Spata-Artemida',
+      country: 'GR',
+      ring: 1,
+      distanceToTrKm: 275,
+    })
+    expect(airportNode(athens, 'tr')).toMatchObject({
+      name: 'Atina Eleftherios Venizelos Havalimanı',
+      alternateName: 'Athens Eleftherios Venizelos International Airport',
+      iataCode: 'ATH',
+      icaoCode: 'LGAV',
+      address: {
+        '@type': 'PostalAddress',
+        // Sayfadaki "Hizmet verdiği yerleşim"; OurAirports yerleşimi ("Spata-Artemida") değil.
+        addressLocality: 'Atina',
+        addressCountry: 'GR',
+      },
+      hasMap: 'https://havayolu.live/?havalimani=LGAV',
+    })
+    expect(airportNode(athens, 'en').address).not.toHaveProperty('addressRegion')
+    expect(airportNode(athens, 'en')).toMatchObject({
+      name: 'Athens Eleftherios Venizelos International Airport',
+      address: { addressLocality: 'Athens', addressCountry: 'GR' },
+    })
+    // Tabloda olmayan yabancı havalimanı: Türkçe sayfada yerleşim yazılmaz, İngilizcede temizse yazılır.
+    const heathrow = airportFixture({
+      icao: 'EGLL',
+      isoRegion: 'GB-ENG',
+      municipality: 'London',
+      country: 'GB',
+      ring: 2,
+    })
+    expect(airportNode(heathrow, 'tr').address).toEqual({
+      '@type': 'PostalAddress',
+      addressCountry: 'GB',
+    })
+    expect(airportNode(heathrow, 'en').address).toMatchObject({ addressLocality: 'London' })
+  })
+
+  it('Ercan (LCEN): gösterilen ülke KKTC, ISO kodu yok; addressCountry yazılmaz (CY yazılmaz)', () => {
+    const ercan = airportFixture({
+      icao: 'LCEN',
+      iata: 'ECN',
+      name: 'Ercan International Airport',
+      isoRegion: 'CY-02',
+      municipality: 'Tymbou (Kirklar)',
+      country: 'CY',
+      ring: 1,
+      distanceToTrKm: 168,
+    })
+    for (const [locale, city] of [
+      ['tr', 'Lefkoşa'],
+      ['en', 'North Nicosia'],
+    ] as const) {
+      const node = airportNode(ercan, locale)
+      // Ülke kodu yazılmaz; adreste yalnızca sayfadaki şehir adı kalır.
+      expect(node.address, locale).toEqual({ '@type': 'PostalAddress', addressLocality: city })
+      expect(JSON.stringify(node), locale).not.toContain('"CY"')
+    }
+    const pristina = airportFixture({ icao: 'BKPR', country: 'XK', isoRegion: 'XK-01' })
+    expect(airportNode(pristina, 'tr').address).toMatchObject({ addressCountry: 'XK' })
+  })
+
   it('harita adresi ICAO kodunu büyük harfe çevirir', () => {
     expect(airportMapUrl('ltfm', 'tr')).toBe('https://havayolu.live/?havalimani=LTFM')
   })

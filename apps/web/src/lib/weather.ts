@@ -9,17 +9,19 @@ import { cache } from 'react'
 import { z } from 'zod'
 // Göreli yol: vitest `@/` takma adını çözmez; bu modül testte yüklenir.
 import { WEATHER_LOG_HOURS } from '../components/airports/weather-client'
-import { AIRPORTS_COUNTRY } from './airports'
+import { AIRPORTS_SCOPE } from './airports'
 import { getServerEnv } from './env'
 
 /**
  * Havalimanı sayfalarının hava durumu verisi (Parça 1 M6c, D-078). Sayfa sunucuda iki istek atar:
  *
- * - Toplu güncel hava durumu: `GET /v1/weather?country=TR`, Next veri önbelleği 60 sn, etiket
- *   `weather`. Bütün havalimanı sayfaları aynı kaydı paylaşır: API'ye dakikada en çok bir istek gider.
+ * - Toplu güncel hava durumu: `GET /v1/weather?scope=listed` (listelenen havalimanları: Türkiye ve
+ *   yakın ülkeler, D-080), Next veri önbelleği 60 sn, etiket `weather`. Bütün havalimanı sayfaları
+ *   aynı kaydı paylaşır: API'ye dakikada en çok bir istek gider.
  * - METAR/TAF kaydı: `GET /v1/airports/<ICAO>/weather/history?hours=24`, 5 dk önbellek. Havalimanı
- *   başına ayrı kayıt; 61 havalimanı en kötü durumda dakikada ~12 istek eder. Web konteynerinin API'deki
- *   tek hız sınırı kovası (60/dk, D-060) böylece zorlanmaz. METAR en sık 5 dakikada bir gelir.
+ *   başına ayrı kayıt; 136 listelenen havalimanı en kötü durumda dakikada ~27 istek eder. Web
+ *   konteynerinin API'deki tek hız sınırı kovası (60/dk, D-060) böylece zorlanmaz. METAR en sık 5
+ *   dakikada bir gelir.
  *
  * Hiçbir hata sayfaya taşınmaz: API ulaşılamazsa, yanıt bozuksa ya da süre dolarsa `null` döner ve
  * sayfa "Hava durumu şu an alınamıyor" der; sayfa hava durumu yüzünden 500 vermez. İstemci başlıkları
@@ -53,7 +55,7 @@ const envelopeSchema = z.object({
 
 export function weatherBulkUrl(apiInternalUrl: string): string {
   const url = new URL('/v1/weather', apiInternalUrl)
-  url.searchParams.set('country', AIRPORTS_COUNTRY)
+  url.searchParams.set('scope', AIRPORTS_SCOPE)
   return url.toString()
 }
 
@@ -102,7 +104,7 @@ async function fetchJson(url: string, revalidateS: number): Promise<unknown> {
   return response.json()
 }
 
-/** Türkiye'nin bütün havalimanlarının güncel hava durumu; hata olursa null (fırlatmaz). */
+/** Listelenen bütün havalimanlarının güncel hava durumu; hata olursa null (fırlatmaz). */
 export const getWeather = cache(async (): Promise<WeatherBulk | null> => {
   try {
     return parseWeatherBulk(

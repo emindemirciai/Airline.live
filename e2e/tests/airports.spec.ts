@@ -2,11 +2,16 @@
 // veritabanındaki OurAirports verisinden ve resmî ad tablosundan sunucuda çizilir. Kod adreste büyük
 // harfli ICAO'dur: küçük harf ya da IATA kodu kalıcı yönlendirmeyle ona gider, bilinmeyen kod gerçek
 // 404 döner (akış başlamadan; yumuşak 404 yok). "Canlı haritada aç" haritayı havalimanında açar.
+// Liste Türkiye tablosuyla başlar, ardından yakın ülkelerin tablosu gelir (M6d, D-080); yakın ülke
+// sayfalarının ayrıntısı foreign-airports.spec.ts'tedir.
 import { expect, test } from '@playwright/test'
 import { jsonLdNodes, metaContents, nodesOfType, titles, type JsonLdNode } from '../html'
 import {
   AIRPORT_COUNT,
   aircraftRow,
+  FOREIGN_AIRPORT_COUNT,
+  LISTED_AIRPORT_COUNT,
+  RING1_AIRPORT,
   airportListCodes,
   declineAnalytics,
   enPath,
@@ -126,18 +131,22 @@ test.describe('yapılandırılmış veri', () => {
     }
   })
 
-  test('liste sayfası: bütün havalimanları sıralı ItemList’te', async ({ request }) => {
+  test('liste sayfası: iki tablodaki bütün havalimanları görünen sırayla ItemList’te', async ({
+    request,
+  }) => {
     const { response, body } = await fetchRaw(request, '/havalimanlari')
     expect(response.status()).toBe(200)
     const items = listElements(nodesOfType(jsonLdNodes(body), 'ItemList')[0])
-    expect(items).toHaveLength(AIRPORT_COUNT)
+    expect(items).toHaveLength(LISTED_AIRPORT_COUNT)
     expect(items.map((item) => item.position)).toEqual(
-      Array.from({ length: AIRPORT_COUNT }, (_, i) => i + 1),
+      Array.from({ length: LISTED_AIRPORT_COUNT }, (_, i) => i + 1),
     )
     const paths = items.map((item, i) => sitePath(listItemUrl(item), `ListItem ${i + 1}`))
     expect(paths.every((path) => /^\/istasyon\/[A-Z0-9]{4}$/.test(path))).toBe(true)
-    expect(new Set(paths).size).toBe(AIRPORT_COUNT)
+    expect(new Set(paths).size).toBe(LISTED_AIRPORT_COUNT)
     expect(paths).toContain(STATION_PATH)
+    // Önce Türkiye tablosu, sonra yakın ülkeler (D-080): Atina ilk 61 öğenin içinde değildir.
+    expect(paths.indexOf(`/istasyon/${RING1_AIRPORT.icao}`)).toBeGreaterThanOrEqual(AIRPORT_COUNT)
   })
 })
 
@@ -152,11 +161,15 @@ test.describe('tarayıcıda', () => {
     await page.goto('/havalimanlari')
     await expect(page.locator('html')).toHaveAttribute('lang', 'tr')
     await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
-    const table = page.locator('main table')
-    await expect(table).toHaveCount(1)
-    await expect(table.locator('caption')).not.toBeEmpty()
+    // Önce Türkiye, sonra yakın ülkeler (M6d, D-080): iki gerçek tablo, ikisinin de başlığı var.
+    const tables = page.locator('main table')
+    await expect(tables).toHaveCount(2)
+    for (const caption of await tables.locator('caption').all())
+      await expect(caption).not.toBeEmpty()
+    const table = tables.first()
     await expect(table.locator('tbody tr')).toHaveCount(AIRPORT_COUNT)
     await expect(table.locator('tbody tr:has(a[href^="/istasyon/"])')).toHaveCount(AIRPORT_COUNT)
+    await expect(tables.nth(1).locator('tbody tr')).toHaveCount(FOREIGN_AIRPORT_COUNT)
 
     await table.locator(`a[href="${STATION_PATH}"]`).first().click()
     await expect(page).toHaveURL(`${WEB_URL}${STATION_PATH}`)
@@ -204,7 +217,8 @@ test.describe('tarayıcıda', () => {
     await page.goto('/en/havalimanlari')
     await expect(page.locator('html')).toHaveAttribute('lang', 'en')
     const table = page.locator('main table')
-    await expect(table.locator('tbody tr')).toHaveCount(AIRPORT_COUNT)
+    await expect(table.first().locator('tbody tr')).toHaveCount(AIRPORT_COUNT)
+    await expect(table.locator('tbody tr')).toHaveCount(LISTED_AIRPORT_COUNT)
     await expect(table.locator('a[href^="/istasyon/"]')).toHaveCount(0)
 
     await table
@@ -234,14 +248,17 @@ test.describe('tarayıcıda', () => {
     })
   })
 
-  test('klavye odak halkası iki temada da zemine karşı en az 3:1 kontrastlıdır', async ({
+  test('klavye odak halkası zemine karşı en az 3:1 kontrastlıdır; koyu tercih temayı değiştirmez', async ({
     page,
   }) => {
-    // WCAG 2.1 SC 1.4.11 (odak göstergesi); açık temada sarı işaret rengi 1,6:1 kalırdı.
+    // WCAG 2.1 SC 1.4.11 (odak göstergesi). "Açık turkuaz" tek temadır (D-081): halka sayfa ve panel
+    // zemininde #0a6e78'dir (5,45 ve 5,98:1), başlık şeridinde beyazdır (4,57:1). Sarı işaret rengi
+    // açık zeminde 1,6:1 kalırdı.
     const targets: [string, string][] = [
       ['/havalimanlari', 'main .table-wrap'],
       ['/havalimanlari', 'main nav a'],
       [STATION_PATH, `main a[href="/?havalimani=${icao}"]`],
+      ['/havalimanlari', 'header.site-header nav a'],
     ]
     for (const colorScheme of ['light', 'dark'] as const) {
       await page.emulateMedia({ colorScheme })
@@ -259,15 +276,23 @@ test.describe('tarayıcıda', () => {
           const surface = getComputedStyle(probe).backgroundColor
           probe.remove()
           const computed = getComputedStyle(element)
+          const pageBackground = getComputedStyle(document.body).backgroundColor
+          // Başlık şeridindeki bağlantının zemini şerittir; diğerleri sayfa ve panel zeminindedir.
+          const header = element.closest('.site-header')
           return {
             focusVisible: element.matches(':focus-visible'),
             outlineStyle: computed.outlineStyle,
             outlineWidth: Number.parseFloat(computed.outlineWidth),
             outline: computed.outlineColor,
-            backgrounds: [getComputedStyle(document.body).backgroundColor, surface],
+            pageBackground,
+            backgrounds: header
+              ? [getComputedStyle(header).backgroundColor]
+              : [pageBackground, surface],
           }
         })
         const label = `${colorScheme} ${path} ${selector}`
+        // Tek tema: koyu tercihte de sayfa zemini açık turkuazdır (#eaf7f8).
+        expect(style.pageBackground, label).toBe('rgb(234, 247, 248)')
         expect(style.focusVisible, label).toBe(true)
         expect(style.outlineStyle, label).toBe('solid')
         expect(style.outlineWidth, label).toBeGreaterThanOrEqual(2)

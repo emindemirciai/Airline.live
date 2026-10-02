@@ -102,6 +102,8 @@ function readers(records: WeatherRecords) {
       { icao: 'LTBQ' },
       { icao: 'LTBA' },
     ]),
+    // Listelenen havalimanları (D-080): Türkiye ve 1. halka, liste (IATA) sırasıyla.
+    listedStations: vi.fn(async () => [{ icao: 'LGAV' }, { icao: 'LTBA' }, { icao: 'LTFM' }]),
     resolve: vi.fn(async (code: string): Promise<string | null> =>
       code === 'LTFM' || code === 'IST'
         ? 'LTFM'
@@ -345,6 +347,85 @@ describe('GET /v1/weather', () => {
     expect(body.stations).toHaveLength(61)
     expect(body.stations.every((s) => s.metar !== null && s.tafs.length === 2)).toBe(true)
     expect(Buffer.byteLength(res.body)).toBeLessThan(1_000_000)
+  })
+})
+
+describe('GET /v1/weather?scope=listed (D-080)', () => {
+  it('listelenen havalimanları liste sırasıyla; ülke okuyucusuna gidilmez; ayrı önbellek', async () => {
+    const weather = readers(allRecords)
+    const { get } = await setup(weather)
+    const res = await get('/v1/weather?scope=listed')
+    expect(res.statusCode).toBe(200)
+    expect(res.headers['cache-control']).toBe(WEATHER_CACHE_CONTROL)
+    const body = res.json() as WeatherBulkResponse
+    expect(body.stations.map((s) => s.icao)).toEqual(['LGAV', 'LTBA', 'LTFM'])
+    // Raporu olmayan yurt dışı havalimanı: metar null, tafs boş.
+    expect(body.stations[0]).toMatchObject({ icao: 'LGAV', metar: null, tafs: [] })
+    expect(body.stations[2]?.metar?.raw).toBe(ltfmMetar.rawText)
+    expect(weather.listedStations).toHaveBeenCalledTimes(1)
+    expect(weather.stations).not.toHaveBeenCalled()
+    await get('/v1/weather?scope=listed')
+    expect(weather.listedStations).toHaveBeenCalledTimes(1)
+    await get('/v1/weather')
+    expect(weather.stations).toHaveBeenCalledWith('TR')
+    expect(weather.listedStations).toHaveBeenCalledTimes(1)
+  })
+
+  it('country ile scope birlikte 400 scope_conflict; bilinmeyen scope 400 bad_scope', async () => {
+    const weather = readers(allRecords)
+    const { get } = await setup(weather)
+    for (const query of ['country=TR&scope=listed', 'scope=listed&country=DE']) {
+      const res = await get(`/v1/weather?${query}`)
+      expect(res.statusCode, query).toBe(400)
+      expect(res.headers['cache-control'], query).toBe('no-store')
+      expect(res.json(), query).toEqual(AIRPORT_ERRORS.scopeConflict)
+    }
+    for (const query of ['scope=', 'scope=all', 'scope=Listed', 'scope=listed&scope=listed']) {
+      const res = await get(`/v1/weather?${query}`)
+      expect(res.statusCode, query).toBe(400)
+      expect(res.json(), query).toEqual(AIRPORT_ERRORS.badScope)
+    }
+    expect(weather.stations).not.toHaveBeenCalled()
+    expect(weather.listedStations).not.toHaveBeenCalled()
+    expect(weather.latest).not.toHaveBeenCalled()
+  })
+
+  it('liste okuyucusu yoksa scope=listed 503; ülke isteği etkilenmez', async () => {
+    const { get } = await setup({ listedStations: null })
+    const res = await get('/v1/weather?scope=listed')
+    expect(res.statusCode).toBe(503)
+    expect(res.json()).toEqual(WEATHER_ERRORS.unavailable)
+    expect((await get('/v1/weather?country=TR')).statusCode).toBe(200)
+  })
+
+  it('136 havalimanı (1. halka), her birinde METAR ve iki TAF: tek okuma, gövde 1 MB altında', async () => {
+    const icaos = Array.from(
+      { length: 136 },
+      (_, i) =>
+        `L${String.fromCharCode(65 + (i % 26))}${String.fromCharCode(65 + Math.floor(i / 26))}X`,
+    )
+    const records: WeatherRecords = {
+      metars: icaos.map((icao) =>
+        metar({
+          stationIcao: icao,
+          rawText: `${icao} 151250Z 27022G35KT 220V310 0800 R35/0450N R17/P2000U +SHSN BLSN VV004 M08/M10 Q1021 RESN WS R35 TEMPO 0400 +SHSN`,
+        }),
+      ),
+      tafs: icaos.flatMap((icao) => [
+        { ...ltfmTaf, stationIcao: icao, rawText: ltfmTaf.rawText.replace('LTFM', icao) },
+        { ...ltfmOldTaf, stationIcao: icao, rawText: ltfmOldTaf.rawText.replace('LTFM', icao) },
+      ]),
+    }
+    const weather = readers(records)
+    weather.listedStations.mockResolvedValue(icaos.map((icao) => ({ icao })))
+    const { get } = await setup(weather)
+    const res = await get('/v1/weather?scope=listed')
+    const body = res.json() as WeatherBulkResponse
+    expect(body.stations).toHaveLength(136)
+    expect(body.stations.every((s) => s.metar !== null && s.tafs.length === 2)).toBe(true)
+    // Harita bu gövdeyi bir kez ister (60 sn önbellek); en kötü durumda da 1 MB altında (~0,77 MB).
+    expect(Buffer.byteLength(res.body)).toBeLessThan(1_000_000)
+    expect(weather.latest).toHaveBeenCalledTimes(1)
   })
 })
 
@@ -702,7 +783,9 @@ describe('GET /v1/airports/:code/weather/history', () => {
     expect(historyCacheWindow(24)).toBe(24)
     expect(historyCacheWindow(25)).toBe(168)
     expect(historyCacheWindow(168)).toBe(168)
-    expect(WEATHER_HISTORY_CACHE_MAX_ENTRIES).toBeLessThanOrEqual(128)
+    // Listelenen havalimanları × 2 pencere (1. halkada ~136 × 2); asıl sınır bayt bütçesidir.
+    expect(WEATHER_HISTORY_CACHE_MAX_ENTRIES).toBeGreaterThanOrEqual(136 * 2)
+    expect(WEATHER_HISTORY_CACHE_MAX_ENTRIES).toBeLessThanOrEqual(512)
   })
 
   it('168 saatlik kayıt (yarım saatte bir METAR, SPECI, TAF): gövde 1 MB altında', async () => {
@@ -761,6 +844,10 @@ describe('OpenAPI', () => {
     expect(
       spec.paths['/v1/airports/{code}/weather/history']?.get?.parameters?.map((p) => p.name).sort(),
     ).toEqual(['code', 'hours'])
+    expect(spec.paths['/v1/weather']?.get?.parameters?.map((p) => p.name).sort()).toEqual([
+      'country',
+      'scope',
+    ])
   })
 })
 
@@ -863,6 +950,7 @@ describe('OpenAPI gidiş-dönüş', () => {
     }
     const cases: [string, string][] = [
       ['/v1/weather', '/v1/weather?country=TR'],
+      ['/v1/weather', '/v1/weather?scope=listed'],
       ...icaos.map((icao): [string, string] => [
         '/v1/airports/{code}/weather',
         `/v1/airports/${icao}/weather`,

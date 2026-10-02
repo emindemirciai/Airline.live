@@ -127,15 +127,43 @@ export function endsLookLikeThresholds(
   return asThresholds < asEnds && asThresholds <= RUNWAY_LENGTH_TOLERANCE_M
 }
 
+/** Satırın içe aktarım süzgecinin baktığı alanları. */
+export interface AirportKind {
+  type: string
+  scheduledService: boolean
+  /** OurAirports `iso_country` (ISO 3166-1 alpha-2). */
+  isoCountry: string
+  /** OurAirports `iata_code`; boşsa null. */
+  iataCode: string | null
+}
+
 /**
- * İçe aktarılan havalimanları (data-sources.md §3): büyük ve orta havalimanları ile tarifeli sefer
- * alanlar. Küçük alanlar, heliportlar ve kapalı alanlar alınmaz.
+ * Uzaklık referansı olarak içe aktarılan küçük alanların ülkesi: Türkiye. Yurt dışı havalimanlarının
+ * halkası Türkiye'deki IATA kodlu en yakın havalimanına uzaklıktan hesaplanır (D-080).
  */
-export function isImportedAirport(airport: { type: string; scheduledService: boolean }): boolean {
-  return (
+export const REFERENCE_SMALL_AIRPORT_COUNTRY = 'TR'
+
+const IATA_CODE = /^[A-Z]{3}$/
+
+/**
+ * İçe aktarılan havalimanları (data-sources.md §3): büyük ve orta havalimanları, tarifeli sefer
+ * alanlar ve Türkiye'nin IATA kodlu küçük alanları. Sonuncular (Gökçeada, Selçuk-Efes, Bodrum-İmsık
+ * gibi tarifesiz 5 alan, 2026-10-01) yalnızca yurt dışı havalimanlarının Türkiye'ye uzaklığının
+ * referansıdır (D-080); listelenmez, sayfaları ve hava durumları yoktur. Diğer küçük alanlar,
+ * heliportlar ve kapalı alanlar alınmaz.
+ */
+export function isImportedAirport(airport: AirportKind): boolean {
+  if (
     airport.type === 'large_airport' ||
     airport.type === 'medium_airport' ||
     airport.scheduledService
+  ) {
+    return true
+  }
+  return (
+    airport.type === 'small_airport' &&
+    airport.isoCountry.trim().toUpperCase() === REFERENCE_SMALL_AIRPORT_COUNTRY &&
+    IATA_CODE.test(airport.iataCode?.trim().toUpperCase() ?? '')
   )
 }
 
@@ -178,7 +206,7 @@ function coordinate(lat: number | null, lon: number | null, field: string): LatL
  */
 export function parseAirports(
   csv: string,
-  filter: (airport: { type: string; scheduledService: boolean }) => boolean = isImportedAirport,
+  filter: (airport: AirportKind) => boolean = isImportedAirport,
 ): ParseResult<AirportRow> {
   const rows: AirportRow[] = []
   const skipped: SkippedRow[] = []
@@ -188,9 +216,11 @@ export function parseAirports(
       skipped.push({ line, reason: 'sütun sayısı tutmuyor' })
       continue
     }
-    const kind = {
+    const kind: AirportKind = {
       type: (values.type ?? '').trim(),
       scheduledService: text(values.scheduled_service) === 'yes',
+      isoCountry: (values.iso_country ?? '').trim(),
+      iataCode: text(values.iata_code),
     }
     if (!filter(kind)) {
       ignored += 1

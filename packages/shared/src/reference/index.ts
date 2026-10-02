@@ -1,4 +1,7 @@
 export * from './airport-detail'
 export * from './airport-names'
+export * from './airport-rings'
+export * from './countries'
+export * from './foreign-airport-names'
 export * from './runway-surface'
 export * from './tr-provinces'

@@ -30,6 +30,11 @@ const SURFACE_CODES: Readonly<Record<string, RunwaySurfaceKey>> = {
   CONC: 'concrete',
   CONCRETE: 'concrete',
   PEM: 'mixed',
+  // Kaynakta iki kaplamanın birlikte yazıldığı biçim (ör. Gabala/UBBQ): karışık kaplama.
+  'ASPHALT/CONCRETE': 'mixed',
+  'CONCRETE/ASPHALT': 'mixed',
+  'ASP/CON': 'mixed',
+  'CON/ASP': 'mixed',
   PER: 'paved',
   GRS: 'grass',
   GRASS: 'grass',

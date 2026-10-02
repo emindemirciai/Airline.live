@@ -1,8 +1,9 @@
 'use client'
 
 /**
- * Havalimanı penceresinin hava durumu verisi (M6c): Türkiye'nin bütün havalimanları tek istekte,
- * `GET /v1/weather?country=TR`. İstek ilk pencere açılışında atılır (harita açılışında değil);
+ * Havalimanı penceresinin hava durumu verisi (M6c, M6d): haritadaki bütün havalimanları (listelenen
+ * havalimanları, D-080) tek istekte, `GET /v1/weather?scope=listed`. İstek ilk pencere açılışında
+ * atılır (harita açılışında değil);
  * pencere açıkken ve sayfa görünürken veri en fazla 5 dakikada bir yenilenir. Pencere kapalıyken
  * ya da sekme arka plandayken istek atılmaz; kapanırken süren istek kesilmez, sonucu saklanır.
  * Başarısız istekten sonra en erken 1 dakika beklenir; eldeki veri korunur.
@@ -48,9 +49,10 @@ export function nextWeatherFetchAt({ lastSuccessAt, lastFailureAt }: WeatherTimi
   )
 }
 
-export function weatherUrl(apiBaseUrl: string, country = 'TR'): URL {
+/** Toplu hava adresi: haritanın havalimanı listesiyle aynı küme (`scope=listed`). */
+export function weatherUrl(apiBaseUrl: string): URL {
   const url = new URL('/v1/weather', apiBaseUrl)
-  url.searchParams.set('country', country)
+  url.searchParams.set('scope', 'listed')
   return url
 }
 
@@ -67,7 +69,7 @@ export function parseBulkWeather(body: unknown): BulkWeather | null {
   return { generatedAt: body.generatedAt, stations }
 }
 
-/** `GET /v1/weather?country=TR`. 2xx olmayan ya da biçimi bozuk yanıt `ApiError` fırlatır. */
+/** `GET /v1/weather?scope=listed`. 2xx olmayan ya da biçimi bozuk yanıt `ApiError` fırlatır. */
 export async function fetchBulkWeather(
   apiBaseUrl: string,
   signal?: AbortSignal,

@@ -98,7 +98,8 @@ describe('bakım işleri (gerçek PostgreSQL + Redis, BullMQ)', () => {
       await waitFor(async () => (await partitionCounts()).every((n) => n === 9))
 
       // Hava durumu açılışta, referans içe aktarımından sonra fixture'dan (zamanı kaydırılarak)
-      // yazılır: 14 istasyon, raporu olmayan LTBQ yok; LTFM'nin 3 günlük geçmişi.
+      // yazılır: 20 istasyon (14 Türkiye, 6 1. halka), raporu olmayan LTBQ yok; LTFM'nin 3 günlük
+      // geçmişi. İstasyon listesi listelenen havalimanlarıdır (Türkiye ve 1. halka, D-080).
       await waitFor(async () => {
         const weather = await weatherStatus(database.sql, new Date())
         return Boolean(weather.metar?.checkedAt) && Boolean(weather.taf?.checkedAt)
@@ -106,11 +107,21 @@ describe('bakım işleri (gerçek PostgreSQL + Redis, BullMQ)', () => {
       const weather = await weatherStatus(database.sql, new Date())
       expect(weather.metar).toMatchObject({ origin: 'fixture', lastError: null, skippedCount: 0 })
       expect(weather.taf).toMatchObject({ origin: 'fixture', lastError: null })
+      const listed = await databaseWeatherStore(database).stations()
+      expect(listed.length).toBeGreaterThan(61)
+      expect(listed).toEqual(
+        expect.arrayContaining(['LTFM', 'LTBQ', 'LGAV', 'LGTS', 'LCLK', 'LCEN', 'LBSF', 'UGTB']),
+      )
+      expect(weather.metar?.stationCount).toBe(listed.length)
+      expect(weather.taf?.stationCount).toBe(listed.length)
       const stations = await database.sql<{ station_icao: string; n: number }[]>`
         select station_icao, count(*)::int as n from weather_metar
         group by station_icao order by station_icao`
-      expect(stations).toHaveLength(14)
+      expect(stations).toHaveLength(20)
       expect(stations.some((s) => s.station_icao === 'LTBQ')).toBe(false)
+      expect(
+        stations.filter((s) => !s.station_icao.startsWith('LT')).map((s) => s.station_icao),
+      ).toEqual(['LBSF', 'LCEN', 'LCLK', 'LGAV', 'LGTS', 'UGTB'])
       // 144 METAR + 1 SPECI; düzeltilmiş rapor (COR) asıl raporla aynı satırdır.
       expect(stations.find((s) => s.station_icao === 'LTFM')?.n).toBe(145)
       const [cor] = await database.sql<{ raw_text: string }[]>`
@@ -120,7 +131,10 @@ describe('bakım işleri (gerçek PostgreSQL + Redis, BullMQ)', () => {
       const ageMin = (Date.now() - (weather.newestObservedAt?.getTime() ?? 0)) / 60_000
       expect(ageMin).toBeGreaterThanOrEqual(9)
       expect(ageMin).toBeLessThanOrEqual(71)
-      expect(weather.stationsWithRecentMetar).toBe(13)
+      // LTCW'nin gözlemi 8 saat eski; diğer 19 istasyonunki son 3 saatte.
+      expect(weather.stationsWithRecentMetar).toBe(19)
+      // TAF: 7 Türkiye istasyonundan 6'sı geçerli (LTBJ'ninki süresi dolmuş) ve 1. halkadan 4.
+      expect(weather.stationsWithValidTaf).toBe(10)
 
       // Yeniden başlatma: tanımı değişmeyen zamanlayıcıya dokunulmaz (sıradaki çalışma aynı kalır;
       // upsert zamanı geçmiş işi silerdi).
@@ -246,8 +260,9 @@ describe('hava durumu fixture modu (gerçek PostgreSQL)', () => {
       const source = fixtureWeatherSource({ dir: `${dir}/weather`, appEnv: 'test', now })
       await runWeatherMetar({ store, source, origin: 'fixture', log, now })
       await runWeatherTaf({ store, source, origin: 'fixture', log, now })
-      // 14 istasyon: LTFM 145 (144 METAR + 1 SPECI; COR aynı satır), diğer 13 istasyon birer rapor.
-      expect(await counts()).toEqual({ metars: 158, ltfm: 145, tafs: 19 })
+      // 20 istasyon: LTFM 145 (144 METAR + 1 SPECI; COR aynı satır), diğer 19 istasyon birer rapor;
+      // TAF: LTFM 13, diğer 10 istasyon birer.
+      expect(await counts()).toEqual({ metars: 164, ltfm: 145, tafs: 23 })
     }
   })
 })

@@ -1,0 +1,154 @@
+/*
+ * Hava durumu satırları, sıcaklık kutucuğu ve kuvvetli rüzgâr etiketi (weather-row-list.tsx; harita
+ * penceresi ve havalimanı sayfası). "Açık turkuaz" teması (D-081): vurgu beyaz panelde açık zemin ve
+ * koyu yazıdır; yazı zeminine karşı en az 4,5:1'dir (yağmur 7,2; kar 6,6; kehribar 6,4; gri 8,3).
+ * Vurgu yalnız renkle verilmez: satırın etiketi ve değeri kalındır, değer olayın adını yazar.
+ * Sıcaklık kutucuğu vurgu turkuazıdır (`--accent`): beyaz yazı 4,75:1 (#0b8f9b zeminde 3,9:1
+ * kalırdı). Kehribar yazı sitenin uyarı rengidir (`--warn`). Temel token'lar globals.css → `:root`.
+ */
+:root {
+  --wx-rain-bg: #dbeafe;
+  --wx-rain-ink: #1e40af;
+  --wx-snow-bg: #e0f2fe;
+  --wx-snow-ink: #075985;
+  --wx-warn-bg: #fef3c7;
+  --wx-warn-ink: var(--warn);
+  --wx-fog-bg: #e5e7eb;
+  --wx-fog-ink: #374151;
+  --wx-temp-bg: var(--accent);
+  --wx-temp-ink: var(--accent-ink);
+}
+
+/*
+ * Sütunlar listede tanımlanır, satırlar `subgrid` ile hizalı kalır ve vurgu zemini bütün satırı kaplar.
+ * Etiket sütunu en çok 11rem'dir: uzun etiket ("Gözlemden sonraki 2 saat", gözlem 30 dk'dan eskiyken)
+ * kırılır, değer sütununu daraltmaz (412–430 px telefonlarda değer 80 px'e düşüyordu).
+ */
+.wx-rows {
+  display: grid;
+  grid-template-columns: fit-content(11rem) minmax(0, 1fr);
+  column-gap: 12px;
+  row-gap: 2px;
+  margin: 0;
+}
+
+.wx-row {
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: subgrid;
+  align-items: start;
+  padding: 2px 6px;
+  border-radius: 6px;
+}
+
+@supports not (grid-template-columns: subgrid) {
+  .wx-row {
+    grid-template-columns: 9.5rem minmax(0, 1fr);
+    column-gap: 12px;
+  }
+}
+
+/* Etiket rengi: sayfada `--muted`; harita penceresi `--wx-label` ile kendi sönük rengini verir. */
+.wx-row dt {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--wx-label, var(--muted));
+}
+
+/* Sözcük yalnızca satıra hiç sığmıyorsa bölünür ("Thunderst|orm" gibi kırılma olmaz). */
+.wx-row dd {
+  margin: 0;
+  overflow-wrap: break-word;
+}
+
+.wx-icon {
+  flex: none;
+  display: inline-block;
+  width: 18px;
+  height: 18px;
+}
+
+/* Var olan olay: renkli zemin, kalın ve renkli yazı (simge de). */
+.wx-row[data-tone] {
+  background: var(--wx-tone-bg);
+  font-weight: 700;
+}
+
+.wx-row[data-tone] dt,
+.wx-row[data-tone] dd {
+  color: var(--wx-tone-ink);
+}
+
+.wx-row[data-tone='rain'] {
+  --wx-tone-bg: var(--wx-rain-bg);
+  --wx-tone-ink: var(--wx-rain-ink);
+}
+
+.wx-row[data-tone='snow'] {
+  --wx-tone-bg: var(--wx-snow-bg);
+  --wx-tone-ink: var(--wx-snow-ink);
+}
+
+.wx-row[data-tone='thunder'],
+.wx-row[data-tone='hail'],
+.wx-row[data-tone='other'] {
+  --wx-tone-bg: var(--wx-warn-bg);
+  --wx-tone-ink: var(--wx-warn-ink);
+}
+
+.wx-row[data-tone='fog'] {
+  --wx-tone-bg: var(--wx-fog-bg);
+  --wx-tone-ink: var(--wx-fog-ink);
+}
+
+/* "Kuvvetli rüzgâr" etiketi: sığmazsa alt satıra geçer, değerin kutusundan taşmaz. */
+.wx-tag {
+  display: inline-block;
+  max-width: 100%;
+  padding: 0 6px;
+  border-radius: 6px;
+  background: var(--wx-warn-bg);
+  color: var(--wx-warn-ink);
+  font-size: 0.92em;
+  font-weight: 700;
+}
+
+/* Sıcaklık: başlığın yanında ayrı kutucuk; önünde ayraç yoktur, eksi U+2212 ile yazılır. */
+.wx-temp {
+  display: inline-block;
+  flex: none;
+  padding: 1px 10px;
+  border-radius: 999px;
+  background: var(--wx-temp-bg);
+  color: var(--wx-temp-ink);
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* Yüksek karşıtlık kipinde zeminler kalkar: vurgu ve kutucuklar çerçeveyle ayrılır. */
+@media (forced-colors: active) {
+  .wx-row[data-tone],
+  .wx-tag,
+  .wx-temp {
+    border: 1px solid CanvasText;
+  }
+}
+
+/* Telefon genişliğinde sayfa: etiket değerin üstüne geçer (harita penceresinde iki sütun kalır). */
+@media (max-width: 480px) {
+  .wx-rows--page {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .wx-rows--page > .wx-row {
+    padding-block: 3px;
+  }
+
+  @supports not (grid-template-columns: subgrid) {
+    .wx-rows--page > .wx-row {
+      grid-template-columns: minmax(0, 1fr);
+    }
+  }
+}

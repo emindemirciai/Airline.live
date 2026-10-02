@@ -33,6 +33,8 @@ export interface AirportWeatherLiveProps {
   initialHistory: WeatherHistoryResponse | null
   /** Sunucu çizim anı (epoch ms): hidrasyon aynı saatle çizer, uyuşmazlık olmaz. */
   renderedAt: number
+  /** Türkiye dışındaki havalimanı: saatler "Türkiye saati" etiketiyle (D-080). */
+  abroad?: boolean
 }
 
 /**
@@ -58,6 +60,7 @@ export function AirportWeatherLive({
   initialWeather,
   initialHistory,
   renderedAt,
+  abroad = false,
 }: AirportWeatherLiveProps) {
   const [weather, setWeather] = useState(initialWeather)
   const [history, setHistory] = useState(initialHistory)
@@ -128,6 +131,7 @@ export function AirportWeatherLive({
         weather={weather}
         now={now}
         live={clientNow !== null}
+        abroad={abroad}
       />
       <WeatherLog
         locale={locale}
@@ -137,6 +141,7 @@ export function AirportWeatherLive({
         history={history}
         now={now}
         apiBaseUrl={apiBaseUrl}
+        abroad={abroad}
       />
     </>
   )
