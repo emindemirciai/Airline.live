@@ -2,6 +2,7 @@
 
 import { useSyncExternalStore } from 'react'
 import {
+  copyLabelSettings,
   DEFAULT_LABEL_SETTINGS,
   LABEL_SETTINGS_KEY,
   loadLabelSettings,
@@ -10,9 +11,10 @@ import {
 } from '../../lib/map/label-settings'
 
 /**
- * Etiket ayarı (Gizle / Kısa / Tam) cihazda saklanır. Sunucu çizimi ve hidrasyon varsayılanla
- * (ikisi de Tam) yapılır, ardından kayıtlı ayar okunur; başka sekmedeki değişiklik `storage`
- * olayıyla gelir. Depolama kapalıysa ayar yalnızca sayfa açıkken geçerlidir.
+ * Etiket ayarı (uçaklar Gizle / Kısa / Tam, havalimanları Gizle / Kod / Kod ve ad) cihazda
+ * saklanır. Sunucu çizimi ve hidrasyon varsayılanla (uçaklar Tam, havalimanları Kod) yapılır,
+ * ardından kayıtlı ayar okunur; başka sekmedeki değişiklik `storage` olayıyla gelir. Depolama
+ * kapalıysa ayar yalnızca sayfa açıkken geçerlidir.
  */
 let current: LabelSettings | null = null
 const listeners = new Set<() => void>()
@@ -52,7 +54,7 @@ function getSnapshot(): LabelSettings {
 const getServerSnapshot = (): LabelSettings => DEFAULT_LABEL_SETTINGS
 
 function setLabelSettings(next: LabelSettings): void {
-  current = { selected: next.selected, others: next.others }
+  current = copyLabelSettings(next)
   saveLabelSettings(storage(), current)
   notify()
 }

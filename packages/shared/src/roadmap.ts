@@ -114,6 +114,15 @@ export const ROADMAP: readonly Milestone[] = [
     },
   },
   {
+    id: 'p1-m6f',
+    part: '1',
+    status: 'done',
+    title: {
+      tr: 'Havalimanı adları, harita ad etiketi ve yerel saat',
+      en: 'Airport names, map name labels and local time',
+    },
+  },
+  {
     id: 'p1-m7',
     part: '1',
     status: 'planned',

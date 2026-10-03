@@ -1,7 +1,12 @@
 'use client'
 
 import type { WeatherMessages } from '@havayolu/i18n'
-import type { AirportWeather, Locale, WeatherHistoryResponse } from '@havayolu/shared'
+import {
+  isSupportedTimeZone,
+  type AirportWeather,
+  type Locale,
+  type WeatherHistoryResponse,
+} from '@havayolu/shared'
 import { useEffect, useState } from 'react'
 import { useWallNow } from '../../lib/use-now'
 import { WallClock } from '../../lib/wall-clock'
@@ -33,8 +38,11 @@ export interface AirportWeatherLiveProps {
   initialHistory: WeatherHistoryResponse | null
   /** Sunucu çizim anı (epoch ms): hidrasyon aynı saatle çizer, uyuşmazlık olmaz. */
   renderedAt: number
-  /** Türkiye dışındaki havalimanı: saatler "Türkiye saati" etiketiyle (D-080). */
-  abroad?: boolean
+  /**
+   * Havalimanının saat dilimi (IANA, `airportTimeZone`; D-084). null: dilimi bilinmeyen yabancı
+   * havalimanı, saatler "Türkiye saati" etiketiyle (D-080).
+   */
+  timeZone: string | null
 }
 
 /**
@@ -48,6 +56,8 @@ export interface AirportWeatherLiveProps {
  *   `generatedAt`'i): yerel saat, gözlem yaşı, eskime sınıfı ve TAF süresi cihaz uyuyup uyansa ya da
  *   cihaz saati yanlış olsa da doğrudur. 30 saniyede bir ve sekme görünür olunca ilerler; sunucu ve
  *   hidrasyon çizim anını kullanır, göreli yaş yalnızca istemcide eklenir.
+ * - Saat dilimini sunucu seçer; tarayıcı o dilimi tanımıyorsa (çok eski tarayıcı) saatler Türkiye
+ *   saati etiketiyle yazılır, sayfa düşmez.
  */
 export function AirportWeatherLive({
   locale,
@@ -60,8 +70,9 @@ export function AirportWeatherLive({
   initialWeather,
   initialHistory,
   renderedAt,
-  abroad = false,
+  timeZone,
 }: AirportWeatherLiveProps) {
+  const zone = timeZone !== null && isSupportedTimeZone(timeZone) ? timeZone : null
   const [weather, setWeather] = useState(initialWeather)
   const [history, setHistory] = useState(initialHistory)
   // Sunucu verisinin üretim anları yalnızca ilk açılışta okunur (sonraki çizimler kendi durumunu
@@ -131,7 +142,7 @@ export function AirportWeatherLive({
         weather={weather}
         now={now}
         live={clientNow !== null}
-        abroad={abroad}
+        timeZone={zone}
       />
       <WeatherLog
         locale={locale}
@@ -141,7 +152,7 @@ export function AirportWeatherLive({
         history={history}
         now={now}
         apiBaseUrl={apiBaseUrl}
-        abroad={abroad}
+        timeZone={zone}
       />
     </>
   )

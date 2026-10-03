@@ -33,7 +33,7 @@ import {
 import type * as Maplibre from 'maplibre-gl'
 import { monotonicNow } from '../../lib/live/clock'
 import type { AircraftStore } from '../../lib/live/store'
-import type { LabelSettings } from '../../lib/map/label-settings'
+import { sameLabelSettings, type LabelSettings } from '../../lib/map/label-settings'
 import type { Basemap } from '../../lib/map-config'
 import {
   BasemapController,
@@ -54,11 +54,12 @@ import {
   type AirportPinImage,
 } from './icons'
 import {
-  AIRPORT_LABEL_MIN_ZOOM,
+  AIRPORT_NAME_FONT,
   LabelPainter,
   NORMAL_THEME,
   pinGeometry,
   SELECTED_THEME,
+  showsAirportChips,
   type ScreenAircraft,
   type ScreenAirport,
 } from './labels'
@@ -231,12 +232,15 @@ export function iconScaleAt(
   return last[1]
 }
 
-function sameViewState(a: MapViewState, b: MapViewState): boolean {
+/**
+ * Çizimi etkileyen durum değişmedi mi (`update` aynı durumda hiçbir şey yapmaz). Etiket ayarının
+ * bütün alanları karşılaştırılır; havalimanı etiketi de yeniden çizim ister (D-084).
+ */
+export function sameViewState(a: MapViewState, b: MapViewState): boolean {
   return (
     a.selectedHex === b.selectedHex &&
     a.following === b.following &&
-    a.labelSettings.selected === b.labelSettings.selected &&
-    a.labelSettings.others === b.labelSettings.others &&
+    sameLabelSettings(a.labelSettings, b.labelSettings) &&
     a.airports === b.airports &&
     a.locale === b.locale &&
     a.units === b.units &&
@@ -804,8 +808,10 @@ export class MapController {
       if (inView(x, y)) airports.push({ airport, x, y })
     }
     const selectedHex = this.state.selectedHex
+    const settings = this.state.labelSettings
+    // İz yalnızca kodların engelidir: kod yazılmayacaksa (Gizle, uzak görünüm) hesaplanmaz.
     const trail =
-      selectedHex !== null && airports.length > 0 && zoom >= AIRPORT_LABEL_MIN_ZOOM
+      selectedHex !== null && showsAirportChips({ zoom, airports, settings })
         ? this.screenTrail(map, selectedHex, inView)
         : []
     this.painter.draw({
@@ -817,7 +823,7 @@ export class MapController {
       airports,
       trail,
       selectedHex,
-      settings: this.state.labelSettings,
+      settings,
       locale: this.state.locale,
       units: this.state.units,
       pinScale: iconScaleAt(zoom, AIRPORT_LAYER.layout['icon-size']),
@@ -862,7 +868,13 @@ export class MapController {
   private loadFonts(): void {
     if (typeof document === 'undefined' || !('fonts' in document)) return
     const fonts = [NORMAL_THEME.primaryFont, NORMAL_THEME.secondaryFont, SELECTED_THEME.primaryFont]
-    Promise.all(fonts.map((font) => document.fonts.load(font))).then(
+    // Havalimanı kısa adları Türkçe ve Latin genişletilmiş harfler taşır (ğ, ş, İ, ă): yazı tipinin o
+    // alt kümesi de yüklenir; yoksa tuval ilk çizimde yedek yazı tipini kullanırdı (D-084).
+    const loads = [
+      ...fonts.map((font) => document.fonts.load(font)),
+      document.fonts.load(AIRPORT_NAME_FONT, 'ÇçĞğİıÖöŞşÜüĂăÂâ'),
+    ]
+    Promise.all(loads).then(
       () => {
         if (this.destroyed) return
         this.painter.invalidateText()

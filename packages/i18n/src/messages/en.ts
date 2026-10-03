@@ -66,7 +66,7 @@ export const en: Messages = {
     turkeyHeading: 'Airports in Türkiye',
     scope: 'The list includes airports with an IATA code; some small airports are not listed.',
     names:
-      'Official Turkish names come from DHMİ and the airport operators; the English names shown here are translations of them. Airports whose official name could not be confirmed are shown with their OurAirports name.',
+      'Official Turkish names come from DHMİ, the airport operators and the Ministry of Transport and Infrastructure; the English names shown here are translations of them. Military air bases are named after their location (Incirlik Air Base); a new airport whose name has not been confirmed yet is shown with its OurAirports name.',
     caption: 'Airports in Türkiye, sorted by province name',
     columns: {
       name: 'Airport',
@@ -177,6 +177,10 @@ export const en: Messages = {
       dhmi: 'Official Turkish name: {name} (DHMİ); the English name is a translation.',
       operator:
         'Official Turkish name: {name} (airport operator); the English name is a translation.',
+      ministry:
+        'Official Turkish name: {name} (Ministry of Transport and Infrastructure); the former name is added in brackets so that it is not confused with the other airport in the same province. The English name is a translation.',
+      military:
+        'Turkish name: {name} (a military air base; it is not on the DHMİ list and is named after its location); the English name is a translation.',
       ourairports: 'Name: OurAirports',
     },
     nameSourceForeign: {
@@ -585,6 +589,8 @@ export const en: Messages = {
         'Aviation weather reports issued in the last 24 hours, newest first. Times are local, with UTC alongside. METAR is the routine report, SPECI a special report issued when the weather changes significantly, and TAF the aerodrome forecast.',
       introAbroad:
         'Aviation weather reports issued in the last 24 hours, newest first. Times are Türkiye time, with UTC alongside. METAR is the routine report, SPECI a special report issued when the weather changes significantly, and TAF the aerodrome forecast.',
+      introLocal:
+        'Aviation weather reports issued in the last 24 hours, newest first. Times are the airport’s local time (currently {offset}), with UTC alongside. METAR is the routine report, SPECI a special report issued when the weather changes significantly, and TAF the aerodrome forecast.',
       caption: '{name}: reports from the last 24 hours',
       columns: {
         time: 'Time',
@@ -655,7 +661,7 @@ export const en: Messages = {
         'The stored position and track data is a database derived from it and stays under the ODbL.',
       reference: 'Airport and runway data: {source}, public domain.',
       names:
-        'Official Turkish airport names: the DHMİ and airport operator websites (English names are translations of them); OurAirports where a name could not be confirmed.',
+        'Official Turkish airport names: DHMİ, the airport operators and the Ministry of Transport and Infrastructure (English names are translations of them); military air bases are named after their location; OurAirports for new names not confirmed yet.',
       airlines: 'Airline codes: {source}, CC0 (no attribution required; credited as a courtesy).',
       vector:
         'Vector map: {openFreeMap} © {openMapTiles}, map data © {openStreetMap} contributors (ODbL).',
@@ -744,7 +750,13 @@ export const en: Messages = {
       hidden: 'Hide',
       short: 'Short',
       full: 'Full',
-      hint: 'Short: flight number only. Full: flight number, speed and altitude.',
+      airports: 'Airports',
+      airportModes: {
+        hidden: 'Hide',
+        code: 'Code',
+        name: 'With name',
+      },
+      hint: 'Short: flight number only. Full: flight number, speed and altitude. With name: the airport’s short name is added next to its code when you zoom in.',
     },
     airportList: {
       button: 'Airports',
@@ -774,6 +786,7 @@ export const en: Messages = {
       runwaysOne: 'One runway, {length}',
       runwaysMany: '{count} runways, longest {length}',
       localTime: 'Local time',
+      localTimeValue: '{time} ({offset})',
       weather: 'Weather',
       noReport: 'No weather report',
       observed: 'Observed {time}',

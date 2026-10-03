@@ -42,8 +42,18 @@ const STATIONS = [
   'LTBQ',
 ] as const
 
-/** Fixture'daki yakın ülke havalimanları (1. halka, D-080). */
+/** Fixture'daki yakın ülke havalimanları (1. halka, D-080) ve saat dilimleri (D-084). */
 const FOREIGN_STATIONS = ['LGAV', 'LGTS', 'LCLK', 'LCEN', 'LBSF', 'UGTB'] as const
+const FOREIGN_ZONES: Record<(typeof FOREIGN_STATIONS)[number], string> = {
+  LGAV: 'Europe/Athens',
+  LGTS: 'Europe/Athens',
+  LCLK: 'Asia/Nicosia',
+  LCEN: 'Asia/Famagusta',
+  LBSF: 'Europe/Sofia',
+  UGTB: 'Asia/Tbilisi',
+}
+/** Atina Havalimanı merkezi (LGAV; gün doğumu/batımı için). */
+const LGAV = { lat: 37.936401, lon: 23.9445 }
 
 /** Her zaman yazılan satırlar (kullanıcı kararı 2026-10-01: rüzgâr, yağmur, kar, oraj, sis). */
 const ALWAYS = ['wind', 'rain', 'snow', 'thunder', 'fog', 'visibility', 'clouds'] as const
@@ -54,23 +64,35 @@ function panel(
     locale = 'tr',
     now = FIXTURE_NOW,
     live = false,
-    abroad = false,
-  }: { locale?: Locale; now?: number; live?: boolean; abroad?: boolean } = {},
+    timeZone,
+    at = LTFM,
+  }: {
+    locale?: Locale
+    now?: number
+    live?: boolean
+    /** Verilmezse bileşenin varsayılanı (Europe/Istanbul); null: dilimi bilinmeyen yabancı. */
+    timeZone?: string | null
+    at?: { lat: number; lon: number }
+  } = {},
 ) {
   return renderToStaticMarkup(
     createElement(WeatherPanel, {
       locale,
       t: getMessages(locale).weather,
-      ...LTFM,
+      ...at,
       weather,
       now,
       live,
-      abroad,
+      timeZone,
     }),
   )
 }
 
-function log(history: WeatherHistoryResponse | null, locale: Locale = 'tr', abroad = false) {
+function log(
+  history: WeatherHistoryResponse | null,
+  locale: Locale = 'tr',
+  timeZone?: string | null,
+) {
   return renderToStaticMarkup(
     createElement(WeatherLog, {
       locale,
@@ -80,7 +102,7 @@ function log(history: WeatherHistoryResponse | null, locale: Locale = 'tr', abro
       history,
       now: FIXTURE_NOW,
       apiBaseUrl: API,
-      abroad,
+      timeZone,
     }),
   )
 }
@@ -207,7 +229,7 @@ describe('WeatherPanel: bütün fixture durumları', () => {
     const calm = panel(fixtureWeather('LTAC'))
     expect(tone(calm, 'wind')).toBeNull()
     expect(calm).not.toContain('wx-tag')
-    const vardar = panel(fixtureWeather('LGTS'), { abroad: true })
+    const vardar = panel(fixtureWeather('LGTS'), { timeZone: 'Europe/Athens' })
     expect(tone(vardar, 'wind')).toBe('wind')
     expect(row(vardar, 'wind')).toBe(
       'Kuzeybatıdan 48 km/sa (26 kt), hamle 70 km/sa (38 kt) Kuvvetli rüzgâr',
@@ -325,41 +347,96 @@ describe('WeatherPanel: bütün fixture durumları', () => {
   })
 })
 
-describe('WeatherPanel: Türkiye dışındaki havalimanı (D-080)', () => {
-  it.each(FOREIGN_STATIONS)('%s: satırlar çizilir, yer tutucu yok (TR, EN)', (icao) => {
-    for (const locale of ['tr', 'en'] as const) {
-      const weather = fixtureWeather(icao)
-      const html = panel(weather, { locale, abroad: true })
-      expect(html, `${icao} ${locale}`).not.toMatch(/\{\w+\}|undefined|NaN/)
-      if (weather.metar) {
-        for (const key of ALWAYS) expect(row(html, key), `${icao} ${locale} ${key}`).not.toBeNull()
+describe('WeatherPanel: Türkiye dışındaki havalimanı (D-080, D-084)', () => {
+  it.each(FOREIGN_STATIONS)(
+    '%s: satırlar çizilir, yer tutucu yok (TR, EN; dilimli ve dilimsiz)',
+    (icao) => {
+      for (const locale of ['tr', 'en'] as const) {
+        for (const timeZone of [FOREIGN_ZONES[icao], null]) {
+          const weather = fixtureWeather(icao)
+          const html = panel(weather, { locale, timeZone })
+          const label = `${icao} ${locale} ${timeZone}`
+          expect(html, label).not.toMatch(/\{\w+\}|undefined|NaN/)
+          if (weather.metar) {
+            for (const key of ALWAYS) expect(row(html, key), `${label} ${key}`).not.toBeNull()
+          }
+        }
       }
-    }
+    },
+  )
+
+  it('dilimi bilinen havalimanı: yerel saat ve UTC farkı, gün doğumu/batımı, gözlem ve tahmin yerel saatle', () => {
+    // FIXTURE_NOW 15 Ocak 13:00Z: Atina kışın UTC+2 (İstanbul 16:00). Gözlem 12:50Z, TAF 11:00Z,
+    // geçerlilik sonu 16 Ocak 12:00Z.
+    const html = panel(fixtureWeather('LGAV'), { timeZone: 'Europe/Athens', at: LGAV })
+    const body = text(html)
+    expect(body).toContain('Yerel saat 15:00 (UTC+2)')
+    expect(body).toContain('Gün doğumu 07:38')
+    expect(body).toContain('Gün batımı 17:28')
+    expect(body).toContain('Gözlem 14:50')
+    expect(body).toContain('Tahminin geçerlilik sonu: yarın 14:00.')
+    expect(body).toContain('Gözlem zamanı: 12:50 UTC (yerel saat 14:50)')
+    expect(body).toContain('Tahmin dönemleri (13:00 (11:00 UTC) yayımlanan TAF)')
+    expect(body).toContain('14:00 ile 20:00 arası (1512/1518)')
+    // Gün doğumu notu uzman bölümündedir; Türkiye saati notu yoktur.
+    expect(body).toContain('Gün doğumu ve batımı deniz seviyesi')
+    expect(body).not.toMatch(/Türkiye saati/)
+    const en = text(
+      panel(fixtureWeather('LGAV'), { locale: 'en', timeZone: 'Europe/Athens', at: LGAV }),
+    )
+    expect(en).toContain('Local time 15:00 (UTC+2)')
+    expect(en).toContain('Sunrise 07:38')
+    expect(en).toContain('Observed at 12:50 UTC (14:50 local time)')
+    expect(en).not.toMatch(/Türkiye time/)
   })
 
-  it('saatler Türkiye saati diye etiketlenir; yerel saat ve gün doğumu/batımı yazılmaz', () => {
-    const html = panel(fixtureWeather('LGAV'), { abroad: true })
+  it('UTC farkı yaz saatiyle değişir; yarım saatlik fark (Tahran) ve Moskova saati (Sohum)', () => {
+    const summer = Date.parse('2026-07-15T12:00:00Z')
+    const athens = text(panel(null, { now: summer, timeZone: 'Europe/Athens', at: LGAV }))
+    expect(athens).toContain('Yerel saat 15:00 (UTC+3)')
+    expect(athens).toContain('Gün doğumu 06:13')
+    expect(athens).toContain('Gün batımı 20:46')
+    expect(text(panel(null, { timeZone: 'Asia/Tehran' }))).toContain('Yerel saat 16:30 (UTC+3:30)')
+    expect(text(panel(null, { timeZone: 'Europe/Moscow' }))).toContain('Yerel saat 16:00 (UTC+3)')
+    expect(text(panel(null, { timeZone: 'Asia/Tbilisi' }))).toContain('Yerel saat 17:00 (UTC+4)')
+  })
+
+  it('dilimi bilinmeyen havalimanı: saatler Türkiye saati diye etiketlenir; yerel saat ve gün doğumu/batımı yazılmaz', () => {
+    const html = panel(fixtureWeather('LGAV'), { timeZone: null })
     const body = text(html)
     expect(body).toContain(
       'Saatler Türkiye saatidir (UTC+3); havalimanının yerel saati farklı olabilir.',
     )
     expect(body).not.toMatch(/[Yy]erel saat \d|Gün doğumu|Gün batımı/)
     expect(body).toMatch(/Gözlem zamanı: \d{2}:\d{2} UTC \(Türkiye saati \d{2}:\d{2}\)/)
-    const en = text(panel(fixtureWeather('LGAV'), { locale: 'en', abroad: true }))
+    const en = text(panel(fixtureWeather('LGAV'), { locale: 'en', timeZone: null }))
     expect(en).toContain('Times are Türkiye time (UTC+3); the airport’s local time may differ.')
     expect(en).not.toMatch(/Local time|local time\)|Sunrise|Sunset/)
     // Türkiye'deki havalimanında değişmez.
     expect(text(panel(fixtureWeather('LTFM')))).toContain('Yerel saat 16:00 (UTC+3)')
   })
 
-  it('kayıt: saatler Türkiye saati, UTC yanında', () => {
-    expect(text(log(fixtureHistory('LTFM'), 'tr', true))).toContain(
+  it('kayıt: dilim biliniyorsa havalimanının yerel saati ve farkı, bilinmiyorsa Türkiye saati; UTC yanında', () => {
+    const athens = text(log(fixtureHistory('LGAV'), 'tr', 'Europe/Athens'))
+    expect(athens).toContain(
+      'Saatler havalimanının yerel saatidir (şu an UTC+2); UTC yanında yazılır.',
+    )
+    // En yeni satır 12:50Z METAR'ıdır: Atina'da 14:50.
+    expect(athens).toMatch(/14:50 12:50 UTC METAR/)
+    expect(text(log(fixtureHistory('LGAV'), 'en', 'Europe/Athens'))).toContain(
+      'Times are the airport’s local time (currently UTC+2), with UTC alongside.',
+    )
+    expect(text(log(fixtureHistory('LTFM'), 'tr', null))).toContain(
       'Saatler Türkiye saatidir; UTC yanında yazılır.',
     )
-    expect(text(log(fixtureHistory('LTFM'), 'en', true))).toContain(
+    expect(text(log(fixtureHistory('LTFM'), 'en', null))).toContain(
       'Times are Türkiye time, with UTC alongside.',
     )
+    // Türkiye'de değişmez.
     expect(text(log(fixtureHistory('LTFM')))).toContain('Saatler yerel saattir')
+    expect(text(log(fixtureHistory('LTFM'), 'tr', 'Europe/Istanbul'))).toContain(
+      'Saatler yerel saattir',
+    )
   })
 })
 
@@ -477,6 +554,7 @@ describe('AirportWeatherLive (sunucu çizimi)', () => {
         initialWeather: fixtureWeather('LTFM'),
         initialHistory: fixtureHistory('LTFM'),
         renderedAt: FIXTURE_NOW,
+        timeZone: 'Europe/Istanbul',
       }),
     )
     expect(html).toContain('id="airport-weather"')
@@ -484,6 +562,36 @@ describe('AirportWeatherLive (sunucu çizimi)', () => {
     expect(text(html)).toContain('Gözlem 15:50')
     expect(text(html)).not.toContain('dakika önce')
     expect(html).not.toContain('<button')
+  })
+
+  it('havalimanının dilimiyle çizer; tarayıcının tanımadığı dilimde Türkiye saatine düşer (D-084)', () => {
+    const render = (timeZone: string | null) =>
+      text(
+        renderToStaticMarkup(
+          createElement(AirportWeatherLive, {
+            locale: 'tr',
+            t: getMessages('tr').weather,
+            icao: 'LGAV',
+            name: 'Atina Eleftherios Venizelos Havalimanı',
+            ...LGAV,
+            apiBaseUrl: API,
+            initialWeather: fixtureWeather('LGAV'),
+            initialHistory: fixtureHistory('LGAV'),
+            renderedAt: FIXTURE_NOW,
+            timeZone,
+          }),
+        ),
+      )
+    const athens = render('Europe/Athens')
+    expect(athens).toContain('Gözlem 14:50')
+    expect(athens).toContain('Yerel saat 15:00 (UTC+2)')
+    expect(athens).toContain('Saatler havalimanının yerel saatidir (şu an UTC+2)')
+    for (const unknown of ['Mars/Olympus_Mons', null]) {
+      const fallback = render(unknown)
+      expect(fallback).toContain('Gözlem 15:50')
+      expect(fallback).toContain('Saatler Türkiye saatidir (UTC+3)')
+      expect(fallback).not.toMatch(/Yerel saat \d/)
+    }
   })
 })
 
