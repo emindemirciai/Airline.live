@@ -2,7 +2,14 @@ import { AIRCRAFT_LAYER } from '@havayolu/shared'
 import { describe, expect, it } from 'vitest'
 import { clampViewport } from '../../lib/live/connection'
 import { INITIAL_BOUNDS, INITIAL_MAX_ZOOM, initialZoom, PRIMARY_AIRPORT_VIEW } from './camera'
-import { iconScaleAt, resolveHit, type HitCandidates } from './map-controller'
+import { DEFAULT_LABEL_SETTINGS } from '../../lib/map/label-settings'
+import {
+  iconScaleAt,
+  resolveHit,
+  sameViewState,
+  type HitCandidates,
+  type MapViewState,
+} from './map-controller'
 
 describe('iconScaleAt', () => {
   it('paylaşılan uçak katmanının icon-size ifadesini izler (z4 0,55 → z10 1)', () => {
@@ -92,5 +99,33 @@ describe('resolveHit: tıklama önceliği (D-079)', () => {
     expect(hit({ pin: 'LTFJ', near: 'air' })).toEqual({ kind: 'airport', icao: 'LTFJ' })
     expect(hit({ near: 'air' })).toEqual({ kind: 'aircraft', hex: 'air' })
     expect(hit({})).toBeNull()
+  })
+})
+
+describe('sameViewState (D-084)', () => {
+  const base: MapViewState = {
+    selectedHex: null,
+    following: false,
+    labelSettings: DEFAULT_LABEL_SETTINGS,
+    airports: [],
+    locale: 'tr',
+    units: 'metric',
+    bottomInset: 0,
+  }
+
+  it('etiket ayarının her alanı yeniden çizim ister: havalimanı etiketi dahil', () => {
+    expect(sameViewState(base, { ...base, labelSettings: { ...DEFAULT_LABEL_SETTINGS } })).toBe(
+      true,
+    )
+    for (const change of [
+      { selected: 'short' },
+      { others: 'hidden' },
+      { airports: 'name' },
+      { airports: 'hidden' },
+    ] as const) {
+      const next = { ...base, labelSettings: { ...DEFAULT_LABEL_SETTINGS, ...change } }
+      expect(sameViewState(base, next), JSON.stringify(change)).toBe(false)
+    }
+    expect(sameViewState(base, { ...base, locale: 'en' })).toBe(false)
   })
 })

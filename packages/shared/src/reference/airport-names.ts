@@ -17,8 +17,17 @@ import { airportDistrict } from './tr-provinces'
  *   ISG https://www.sabihagokcen.aero/anasayfa (LTFJ), http://www.gzpairport.com/tr-TR/ (LTFG),
  *   http://www.zafer.aero/ (LTBZ), Eskişehir Teknik Üniversitesi https://hph.eskisehir.edu.tr/
  *   (LTBY).
- * - `ourairports`: resmî ad doğrulanamadı (DHMİ listesinde olmayan askerî alanlar); OurAirports
- *   adı (`Airport.name`) iki dilde de olduğu gibi gösterilir.
+ * - `ministry` (D-084): Ulaştırma ve Altyapı Bakanlığı, erişim 2026-10-03. Etimesgut (LTAD)
+ *   2026-06-15'te "Ankara Havalimanı" adıyla yeniden açıldı (ANK); DHMİ listesinde henüz yok.
+ *   https://www.uab.gov.tr/haberler/cumhurbaskani-erdogan-ankara-havalimani-ve-baglanti-yollarini-hizmete-acti/
+ *   Görünen ad, Esenboğa ile karışmasın diye eski adı parantez içinde taşır (kullanıcı kararı
+ *   2026-10-03): "Ankara (Etimesgut) Havalimanı"; resmî ad `official` alanındadır.
+ * - `military` (D-084): Hava Kuvvetleri üsleri (İncirlik, Afyon, Bandırma, Eskişehir, Çiğli).
+ *   Resmî adları birlik adıdır ("10'uncu Ana Jet Üs Komutanlığı"), havalimanı adı değildir; AA'nın
+ *   ve kullanıcının bildiği biçimle "<yer> Hava Üssü" / "<place> Air Base" yazılır. İngilizcede
+ *   İncirlik ABD Hava Kuvvetleri ve NATO yazımıyla "Incirlik"tir (İstanbul → Istanbul gibi).
+ * - `ourairports`: tabloda olmayan (OurAirports'a sonradan eklenen) havalimanı; OurAirports adı
+ *   kuralla Türkçeleştirilir (`translatedAirportName`). Tabloda bu kaynakla kayıt yoktur.
  *
  * Kaynaklar adları büyük harfle yazar; Türkçe büyük/küçük harf kuralıyla çevrilmiştir (İSTANBUL →
  * İstanbul, IĞDIR → Iğdır, AHMED-İ → Ahmed-i). Kısaltmalar (GAP, Prof. Dr.) korunur; kısa çizginin
@@ -32,14 +41,25 @@ import { airportDistrict } from './tr-provinces'
  * tutarsızdır ("DALAMAN AIRPORT", "MUS AIRPORT", "CUKUROVA AİRPORT") ve kullanılmadı. İngilizce
  * sayfalar bu yüzden resmî Türkçe adı ve kaynağını ayrıca yazar (i18n `airport.nameSource`).
  */
-export type AirportNameSource = 'dhmi' | 'operator' | 'ourairports'
+export type AirportNameSource = 'dhmi' | 'operator' | 'ministry' | 'military' | 'ourairports'
 
-export type AirportNameEntry =
-  { source: 'dhmi' | 'operator'; tr: string; en: string } | { source: 'ourairports' }
+export interface AirportNameEntry {
+  source: Exclude<AirportNameSource, 'ourairports'>
+  tr: string
+  en: string
+  /** Resmî Türkçe ad görünen Türkçe addan farklıysa (LTAD: "Ankara Havalimanı"). */
+  official?: string
+}
 
 const dhmi = (tr: string, en: string): AirportNameEntry => ({ source: 'dhmi', tr, en })
 const operator = (tr: string, en: string): AirportNameEntry => ({ source: 'operator', tr, en })
-const OURAIRPORTS: AirportNameEntry = { source: 'ourairports' }
+const ministry = (tr: string, en: string, official: string): AirportNameEntry => ({
+  source: 'ministry',
+  tr,
+  en,
+  official,
+})
+const military = (tr: string, en: string): AirportNameEntry => ({ source: 'military', tr, en })
 
 /**
  * Veritabanındaki IATA kodlu 61 Türkiye havalimanı, ICAO koduna göre sıralı. OurAirports yeni bir
@@ -48,9 +68,13 @@ const OURAIRPORTS: AirportNameEntry = { source: 'ourairports' }
  */
 export const AIRPORT_NAMES: Readonly<Record<string, AirportNameEntry>> = {
   LTAC: dhmi('Ankara Esenboğa Havalimanı', 'Ankara Esenboğa Airport'),
-  LTAD: OURAIRPORTS, // Etimesgut (askerî)
-  LTAG: OURAIRPORTS, // İncirlik (askerî)
-  LTAH: OURAIRPORTS, // Afyon (askerî)
+  LTAD: ministry(
+    'Ankara (Etimesgut) Havalimanı',
+    'Ankara (Etimesgut) Airport',
+    'Ankara Havalimanı',
+  ),
+  LTAG: military('İncirlik Hava Üssü', 'Incirlik Air Base'),
+  LTAH: military('Afyon Hava Üssü', 'Afyon Air Base'),
   LTAI: dhmi('Antalya Havalimanı', 'Antalya Airport'),
   LTAJ: dhmi('Gaziantep Havalimanı', 'Gaziantep Airport'),
   LTAL: dhmi('Kastamonu Havalimanı', 'Kastamonu Airport'),
@@ -65,11 +89,11 @@ export const AIRPORT_NAMES: Readonly<Record<string, AirportNameEntry>> = {
   LTAZ: dhmi('Kapadokya Havalimanı', 'Kapadokya Airport'),
   LTBA: dhmi('İstanbul Atatürk Havalimanı', 'Istanbul Atatürk Airport'),
   LTBF: dhmi('Balıkesir Merkez Havalimanı', 'Balıkesir Merkez Airport'),
-  LTBG: OURAIRPORTS, // Bandırma (askerî)
+  LTBG: military('Bandırma Hava Üssü', 'Bandırma Air Base'),
   LTBH: dhmi('Çanakkale Havalimanı', 'Çanakkale Airport'),
-  LTBI: OURAIRPORTS, // Eskişehir (askerî)
+  LTBI: military('Eskişehir Hava Üssü', 'Eskişehir Air Base'),
   LTBJ: dhmi('İzmir Adnan Menderes Havalimanı', 'Izmir Adnan Menderes Airport'),
-  LTBL: OURAIRPORTS, // Çiğli (askerî)
+  LTBL: military('Çiğli Hava Üssü', 'Çiğli Air Base'),
   LTBO: dhmi('Uşak Havalimanı', 'Uşak Airport'),
   LTBQ: dhmi('Kocaeli Cengiz Topel Havalimanı', 'Kocaeli Cengiz Topel Airport'),
   LTBR: dhmi('Bursa Yenişehir Havalimanı', 'Bursa Yenişehir Airport'),
@@ -141,7 +165,7 @@ export function airportName(icao: string): AirportNameEntry | undefined {
 }
 
 /**
- * Resmî Türkçe adın kaynağı; tabloda olmayan havalimanında `ourairports` (İngilizce ad OurAirports
+ * Türkçe adın kaynağı; tabloda olmayan havalimanında `ourairports` (İngilizce ad OurAirports
  * adıdır). Yurt dışı havalimanlarının Türkçe adı resmî ad değil, derlemedir: `foreignAirportName`
  * kaydı olsa da kaynak `ourairports` kalır.
  */
@@ -150,9 +174,19 @@ export function airportNameSource(icao: string): AirportNameSource {
 }
 
 /**
+ * Sivil havalimanının resmî Türkçe adı (DHMİ, işletmeci ya da bakanlık kaynaklı); askerî üste ve
+ * tabloda olmayan havalimanında undefined. Sayfanın ad kaynağı satırı bunu yazar.
+ */
+export function airportOfficialName(icao: string): string | undefined {
+  const entry = airportName(icao)
+  if (entry === undefined || entry.source === 'military') return undefined
+  return entry.official ?? entry.tr
+}
+
+/**
  * Havalimanının görünen adı, sırayla:
- * 1. Türkiye tablosu (`AIRPORT_NAMES`): resmî ad (TR) ya da İngilizce karşılığı (EN); resmî adı
- *    doğrulanamayan askerî alanlarda iki dilde de OurAirports adı (`name`).
+ * 1. Türkiye tablosu (`AIRPORT_NAMES`): Türkçe ad (TR) ya da İngilizce karşılığı (EN); askerî
+ *    üslerde "<yer> Hava Üssü" / "<place> Air Base" (D-084).
  * 2. Uzaklık referansı küçük alanlar (`REFERENCE_AIRFIELD_NAMES`, D-080).
  * 3. Yurt dışı tablosu (`FOREIGN_AIRPORT_NAMES`, D-080): Türkçe yer adlı derleme ya da İngilizce ad.
  * 4. Tablolarda yoksa (OurAirports'a sonradan eklenen ya da sonraki halkalardaki havalimanı)
@@ -163,7 +197,7 @@ export function airportDisplayName(
   locale: Locale,
 ): string {
   const entry = airportName(airport.icao)
-  if (entry !== undefined) return entry.source === 'ourairports' ? airport.name : entry[locale]
+  if (entry !== undefined) return entry[locale]
   const reference = referenceAirfieldName(airport.icao)
   if (reference !== undefined) return reference[locale]
   const foreign = foreignAirportName(airport.icao)

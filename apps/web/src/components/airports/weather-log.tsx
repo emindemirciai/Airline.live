@@ -2,12 +2,14 @@ import {
   format,
   formatDayTime,
   formatUtcClock,
+  formatUtcOffset,
   weatherText,
   type WeatherMessages,
   type WeatherTextOptions,
 } from '@havayolu/i18n'
 import {
   summarizeMetar,
+  TURKEY_TIME_ZONE,
   type Locale,
   type WeatherHistoryEntry,
   type WeatherHistoryResponse,
@@ -22,7 +24,9 @@ import {
 /**
  * METAR/TAF kaydı (M6c, D-078): son 24 saatte saklanan bütün raporlar, en yenisi üstte. Her satırda
  * yerel saat ve UTC, tür (METAR, SPECI, TAF), sade özet ve ham metin. Gerçek `<table>`; dar ekranda
- * kendi kutusunda kayar. Saf görünüm: sunucuda ve adada aynı biçimde çizilir.
+ * kendi kutusunda kayar. Saf görünüm: sunucuda ve adada aynı biçimde çizilir. Yerel saat
+ * havalimanının saat dilimindedir (D-084); her satırın yanında UTC yazdığı için yaz saati geçişinde
+ * de an açıktır.
  *
  * Pencere `now`'a (sunucu saatine bağlı duvar saati) göre yeniden süzülür: önbellekten gelen eski bir
  * kayıt yanıtı "son 24 saat" başlığı altında 24 saatten eski satır göstermez; ada eski kaydı
@@ -39,8 +43,11 @@ export interface WeatherLogProps {
   now: number
   /** Eski kayıt bağlantısı için API'nin genel adresi (`config.apiBaseUrl`). */
   apiBaseUrl: string
-  /** Türkiye dışındaki havalimanı: saatler "Türkiye saati" diye anlatılır (D-080). */
-  abroad?: boolean
+  /**
+   * Havalimanının saat dilimi (IANA; varsayılan Europe/Istanbul). null: dilimi bilinmeyen yabancı
+   * havalimanı, saatler "Türkiye saati" diye anlatılır (D-080).
+   */
+  timeZone?: string | null
 }
 
 /**
@@ -82,17 +89,25 @@ export function WeatherLog({
   history,
   now,
   apiBaseUrl,
-  abroad = false,
+  timeZone = TURKEY_TIME_ZONE,
 }: WeatherLogProps) {
-  const options: WeatherTextOptions = { locale, t }
+  const options: WeatherTextOptions = { locale, t, timeZone: timeZone ?? TURKEY_TIME_ZONE }
   const l = t.log
+  // Türkiye: "Saatler yerel saattir"; dilimi bilinen yabancı havalimanı: havalimanının yerel saati ve
+  // şu anki farkı; dilimi bilinmeyen: "Saatler Türkiye saatidir".
+  const intro =
+    timeZone === null
+      ? l.introAbroad
+      : timeZone === TURKEY_TIME_ZONE
+        ? l.intro
+        : format(l.introLocal, { offset: formatUtcOffset(now, timeZone) })
   const since = now - WEATHER_LOG_HOURS * 3_600_000
   const entries = (history?.entries ?? []).filter((entry) => Date.parse(entry.time) >= since)
   const count = format(entries.length === 1 ? l.countOne : l.countMany, { count: entries.length })
   return (
     <section aria-labelledby="airport-weather-log" className="airport-weather-log">
       <h2 id="airport-weather-log">{l.heading}</h2>
-      <p className="weather-note">{abroad ? l.introAbroad : l.intro}</p>
+      <p className="weather-note">{intro}</p>
       {history === null ? (
         <p>{l.unavailable}</p>
       ) : entries.length === 0 ? (

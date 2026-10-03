@@ -16,6 +16,7 @@ import {
   summarizeMetar,
   summarizeTaf,
   sunTimes,
+  TURKEY_TIME_ZONE,
   type AirportMetar,
   type AirportTaf,
   type AirportWeather,
@@ -42,9 +43,11 @@ import { phenomenonRows, plainRow, type WeatherRow } from './weather-rows'
  * Saat: yaş sınıfı, tahmin ve yerel saat `now` ile hesaplanır. Sunucu ve hidrasyon çizim anını,
  * ada sonra istemci saatini verir; göreli yaş ("18 dakika önce") yalnızca `live` iken yazılır.
  *
- * Türkiye dışındaki havalimanı (`abroad`, D-080): saat dilimi verisi yoktur. Saatler Türkiye saatiyle
- * yazılır ve öyle etiketlenir; "Yerel saat" ile gün doğumu/batımı satırı çizilmez (harita penceresi
- * gibi), başka bir ülkenin saati Türkiye saatiyle "yerel" diye gösterilmez.
+ * Saat dilimi (D-084): bütün saatler (gözlem, tahmin, TAF yayımı, gün doğumu ve batımı) havalimanının
+ * yerel saatidir (`timeZone`, `airportTimeZone`); "Yerel saat 23:05 (UTC+2)" satırı farkı söyler,
+ * "yarın" havalimanının takvimine göredir. Dilimi bilinmeyen yabancı havalimanında (`timeZone`
+ * null, D-080) saatler Türkiye saatiyle yazılır ve öyle etiketlenir; "Yerel saat" ile gün
+ * doğumu/batımı satırı çizilmez, başka bir ülkenin saati Türkiye saatiyle "yerel" diye gösterilmez.
  */
 export interface WeatherPanelProps {
   locale: Locale
@@ -56,8 +59,11 @@ export interface WeatherPanelProps {
   now: number
   /** İstemci saati çalışıyor: göreli yaş yazılır. */
   live: boolean
-  /** Türkiye dışındaki havalimanı: saatler "Türkiye saati" etiketiyle, yerel saat satırı yok. */
-  abroad?: boolean
+  /**
+   * Havalimanının saat dilimi (IANA; varsayılan Europe/Istanbul). null: dilimi bilinmeyen yabancı
+   * havalimanı; saatler "Türkiye saati" etiketiyle, yerel saat satırı yok.
+   */
+  timeZone?: string | null
 }
 
 function MetarReport({
@@ -79,7 +85,7 @@ function MetarReport({
   const text = (value: WeatherText) => weatherText(value, options)
   const summary = summarizeMetar(metar, { now })
   const r = summary.rows
-  const time = formatClock(metar.observedAt)
+  const time = formatClock(metar.observedAt, options.timeZone)
   const headline = text(summary.headline)
   const temperature = summary.temperature ? text(summary.temperature) : null
 
@@ -168,7 +174,7 @@ function Forecast({
   now: number
 }) {
   const { t } = options
-  const summary = summarizeTaf(tafs, now)
+  const summary = summarizeTaf(tafs, now, { timeZone: options.timeZone })
   const text = (value: WeatherText) => weatherText(value, options)
   return (
     <div className="weather-forecast-block">
@@ -207,13 +213,14 @@ function Sun({
   now: number
   options: WeatherTextOptions
 }) {
-  const { t } = options
-  const sun = sunTimes(lat, lon, now)
+  const { t, timeZone } = options
+  const sun = sunTimes(lat, lon, now, timeZone)
+  const clock = (at: Date | number) => formatClock(at, timeZone)
   return (
     <ul className="weather-sun" title={t.sunNote}>
-      <li>{format(t.localTime, { time: formatClock(now), offset: formatUtcOffset(now) })}</li>
-      <li>{format(t.sunrise, { time: sun.sunrise ? formatClock(sun.sunrise) : NO_VALUE })}</li>
-      <li>{format(t.sunset, { time: sun.sunset ? formatClock(sun.sunset) : NO_VALUE })}</li>
+      <li>{format(t.localTime, { time: clock(now), offset: formatUtcOffset(now, timeZone) })}</li>
+      <li>{format(t.sunrise, { time: sun.sunrise ? clock(sun.sunrise) : NO_VALUE })}</li>
+      <li>{format(t.sunset, { time: sun.sunset ? clock(sun.sunset) : NO_VALUE })}</li>
     </ul>
   )
 }
@@ -235,13 +242,14 @@ function Expert({
   tafs,
   options,
   now,
-  abroad,
+  turkeyTime,
 }: {
   metar: AirportMetar | null
   tafs: readonly AirportTaf[]
   options: WeatherTextOptions
   now: number
-  abroad: boolean
+  /** Dilimi bilinmeyen yabancı havalimanı: saatler Türkiye saati diye anlatılır. */
+  turkeyTime: boolean
 }) {
   const { t } = options
   const e = t.expert
@@ -265,7 +273,7 @@ function Expert({
                 </tr>
               </thead>
               <tbody>
-                {metarCodeRows(metar, options, { abroad }).map((row, index) => (
+                {metarCodeRows(metar, options, { turkeyTime }).map((row, index) => (
                   <tr key={`${row.code}-${index}`}>
                     <th scope="row" className="mono">
                       {row.code}
@@ -292,7 +300,7 @@ function Expert({
       ) : null}
       {tafs.map((taf, index) => {
         const captionId = `weather-taf-caption-${index}`
-        const issued = `${formatClock(taf.issuedAt)} (${formatUtcClock(taf.issuedAt)} UTC)`
+        const issued = `${formatClock(taf.issuedAt, options.timeZone)} (${formatUtcClock(taf.issuedAt)} UTC)`
         return (
           <div key={`${taf.issuedAt}-${index}`} className="weather-taf">
             <div className="table-wrap" role="region" aria-labelledby={captionId} tabIndex={0}>
@@ -329,7 +337,7 @@ function Expert({
         )
       })}
       {tafs.length > 0 ? <p className="weather-note">{e.noTemperature}</p> : null}
-      {abroad ? null : <p className="weather-note">{t.sunNote}</p>}
+      {turkeyTime ? null : <p className="weather-note">{t.sunNote}</p>}
     </details>
   )
 }
@@ -342,14 +350,17 @@ export function WeatherPanel({
   weather,
   now,
   live,
-  abroad = false,
+  timeZone = TURKEY_TIME_ZONE,
 }: WeatherPanelProps) {
-  const options: WeatherTextOptions = { locale, t }
+  // Dilimi bilinmeyen yabancı havalimanında saatler Türkiye saatiyle (etiketli) yazılır.
+  const turkeyTime = timeZone === null
+  const zone = timeZone ?? TURKEY_TIME_ZONE
+  const options: WeatherTextOptions = { locale, t, timeZone: zone }
   const metar = weather?.metar ?? null
   const age: MetarAgeClass = metar ? metarAgeClass(metar.observedAt, now) : 'none'
   // API yalnızca süresi dolmamış TAF'ları verir; açık sekmede süresi dolanlar burada düşer.
   const tafs = weather ? weather.tafs.filter((taf) => Date.parse(taf.validTo) > now) : []
-  const sun = sunTimes(lat, lon, metar?.observedAt ?? now)
+  const sun = sunTimes(lat, lon, metar?.observedAt ?? now, zone)
   const isDay = isDaytime(metar?.observedAt ?? now, sun)
 
   return (
@@ -374,9 +385,9 @@ export function WeatherPanel({
           <Forecast tafs={tafs} options={options} now={now} />
         </>
       )}
-      {abroad ? (
+      {turkeyTime ? (
         <p className="weather-note weather-time-note">
-          {format(t.turkeyTime, { offset: formatUtcOffset(now) })}
+          {format(t.turkeyTime, { offset: formatUtcOffset(now, zone) })}
         </p>
       ) : (
         <Sun lat={lat} lon={lon} now={now} options={options} />
@@ -387,7 +398,7 @@ export function WeatherPanel({
           tafs={tafs}
           options={options}
           now={now}
-          abroad={abroad}
+          turkeyTime={turkeyTime}
         />
       ) : null}
     </section>

@@ -13,13 +13,14 @@ import type { Locale, LocalizedText } from '../locale'
  *   Filibe, Burgaz, Üsküp, Ohri, Priştine, Niş, Bükreş, Köstence, Krayova, Tiflis, Batum, Sohum,
  *   Erivan, Gümrü, Nahçıvan, Gence, Tebriz, Urmiye, Erdebil, Bağdat, Erbil, Kerkük, Süleymaniye,
  *   Halep, Şam, Kamışlı, Lazkiye, Beyrut, Hayfa, Larnaka, Baf, Rodos, İstanköy, Midilli, Sakız,
- *   Sisam, Kerpe, Kandiye, Hanya, Dedeağaç, Yanya, Preveze, Soçi … Yerleşik Türkçe biçim yoksa yerel
- *   ad Türkçe harflerle ya da özgün yazımıyla kalır (Kalamata, Skiathos, Santorini, Volos).
+ *   Sisam, Kerpe, Kandiye, Hanya, Dedeağaç, Yanya, Preveze, Soçi, Gebele … Yerleşik Türkçe biçim
+ *   yoksa yerel ad Türkçe harflerle ya da özgün yazımıyla kalır (Kalamata, Skiathos, Santorini,
+ *   Volos).
  * - Resmî adın ayırt edici özel adı korunur ("Atina Eleftherios Venizelos Havalimanı"). Tarihî ve
  *   klasik kişilerin Türkçede yerleşik adları kullanılır (Büyük İskender, Büyük Konstantin, Hipokrat,
  *   Demokritos, Aziz Pavlus, Kral Pirus); çağdaş kişilerin adı özgün yazımıyla kalır (Henri Coandă,
  *   Nikos Kazantzakis), Türkçede yerleşik yazımı varsa onunla (Refik Hariri, Celal Talabani, Ahmet
- *   Kadirov).
+ *   Kadirov, Eşrefi İsfahani; unvan da Türkçe haberlerdeki biçimiyle: Şehit, Serdar Cengel; D-084).
  * - "International", "National", "Island" gibi nitelemeler Türkçe adda yazılmaz; ad "Havalimanı"
  *   ile biter. Tartışmalı bölgelerde (Sohum) yalnızca şehir adı kullanılır.
  *
@@ -90,11 +91,11 @@ export const FOREIGN_AIRPORT_NAMES: Readonly<Record<string, LocalizedText>> = {
   LWSK: { tr: 'Üsküp Havalimanı', en: 'Skopje International Airport' },
   LYNI: { tr: 'Niş Büyük Konstantin Havalimanı', en: 'Niš Constantine the Great Airport' },
   OICC: {
-    tr: 'Kirmanşah Shahid Ashrafi Esfahani Havalimanı',
+    tr: 'Kirmanşah Şehit Eşrefi İsfahani Havalimanı',
     en: 'Shahid Ashrafi Esfahani Airport',
   },
   OICS: { tr: 'Senendec Havalimanı', en: 'Sanandaj Airport' },
-  OIGG: { tr: 'Reşt Sardar-e-Jangal Havalimanı', en: 'Sardar-e-Jangal Airport' },
+  OIGG: { tr: 'Reşt Serdar Cengel Havalimanı', en: 'Sardar-e-Jangal Airport' },
   OIHH: { tr: 'Hemedan Havalimanı', en: 'Hamadan Airport' },
   OITL: { tr: 'Erdebil Havalimanı', en: 'Ardabil Airport' },
   OITR: { tr: 'Urmiye Havalimanı', en: 'Urmia Airport' },
@@ -118,7 +119,7 @@ export const FOREIGN_AIRPORT_NAMES: Readonly<Record<string, LocalizedText>> = {
   OSLK: { tr: 'Lazkiye Havalimanı', en: 'Latakia International Airport' },
   UBBG: { tr: 'Gence Havalimanı', en: 'Ganja International Airport' },
   UBBN: { tr: 'Nahçıvan Havalimanı', en: 'Nakhchivan International Airport' },
-  UBBQ: { tr: 'Gabala Havalimanı', en: 'Gabala International Airport' },
+  UBBQ: { tr: 'Gebele Havalimanı', en: 'Gabala International Airport' },
   UBLC: { tr: 'Laçın Havalimanı', en: 'Lachin International Airport' },
   UDSG: { tr: 'Gümrü Şirak Havalimanı', en: 'Shirak International Airport' },
   UDYZ: { tr: 'Erivan Zvartnots Havalimanı', en: 'Zvartnots International Airport' },
@@ -226,7 +227,7 @@ export const FOREIGN_AIRPORT_CITIES: Readonly<Record<string, LocalizedText>> = {
   OSLK: city('Lazkiye', 'Latakia'),
   UBBG: city('Gence', 'Ganja'),
   UBBN: city('Nahçıvan', 'Nakhchivan'),
-  UBBQ: city('Gabala', 'Gabala'),
+  UBBQ: city('Gebele', 'Gabala'),
   UBLC: city('Laçın', 'Lachin'),
   UDSG: city('Gümrü', 'Gyumri'),
   UDYZ: city('Erivan', 'Yerevan'),

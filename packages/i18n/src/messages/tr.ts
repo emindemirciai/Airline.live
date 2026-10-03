@@ -84,7 +84,7 @@ export const tr = {
     turkeyHeading: 'Türkiye’deki havalimanları',
     scope: 'Listede IATA kodu olan havalimanları yer alır; bazı küçük havalimanları listelenmez.',
     names:
-      'Resmî Türkçe adlar DHMİ’den ve havalimanı işletmecilerinden derlenmiştir; resmî adı doğrulanamayan havalimanları OurAirports’taki adıyla gösterilir.',
+      'Resmî Türkçe adlar DHMİ’den, havalimanı işletmecilerinden ve Ulaştırma ve Altyapı Bakanlığı’ndan derlenmiştir. Askerî hava üsleri bulunduğu yerin adıyla yazılır (İncirlik Hava Üssü); adı henüz doğrulanmamış yeni bir havalimanı OurAirports’taki adıyla gösterilir.',
     caption: 'Türkiye’deki havalimanları, il adına göre sıralı',
     columns: {
       name: 'Havalimanı',
@@ -210,6 +210,12 @@ export const tr = {
     nameSource: {
       dhmi: 'Resmî Türkçe ad: {name} (DHMİ)',
       operator: 'Resmî Türkçe ad: {name} (havalimanı işletmecisi)',
+      /** Ankara (Etimesgut), D-084: `{name}` bakanlığın verdiği addır ("Ankara Havalimanı"). */
+      ministry:
+        'Resmî Türkçe ad: {name} (Ulaştırma ve Altyapı Bakanlığı); aynı ildeki diğer havalimanıyla karışmasın diye eski adı parantez içinde eklenmiştir.',
+      /** Askerî hava üsleri (D-084): ad bulunduğu yerin adıyla yazılır. */
+      military:
+        'Ad: {name} (askerî hava üssü; DHMİ listesinde yer almaz, bulunduğu yerin adıyla yazılır)',
       ourairports: 'Ad: OurAirports',
     },
     /**
@@ -581,8 +587,9 @@ export const tr = {
     },
     localTime: 'Yerel saat {time} ({offset})',
     /**
-     * Türkiye dışındaki havalimanı (D-080): havalimanının saat dilimi verisi yoktur; saatler Türkiye
-     * saatiyle yazılır ve öyle etiketlenir, yerel saat ile gün doğumu/batımı satırı çizilmez.
+     * Saat dilimi bilinmeyen yabancı havalimanı (`airportTimeZone` null; D-080, D-084): saatler
+     * Türkiye saatiyle yazılır ve öyle etiketlenir, yerel saat ile gün doğumu/batımı satırı çizilmez.
+     * Dilimi bilinen havalimanında saatler havalimanının yerel saatidir (`localTime`).
      */
     turkeyTime: 'Saatler Türkiye saatidir ({offset}); havalimanının yerel saati farklı olabilir.',
     sunrise: 'Gün doğumu {time}',
@@ -675,9 +682,15 @@ export const tr = {
       heading: 'METAR/TAF kaydı',
       intro:
         'Son 24 saatte yayımlanan havacılık hava raporları, en yenisi üstte. Saatler yerel saattir; UTC yanında yazılır. METAR rutin gözlem, SPECI hava önemli ölçüde değişince yayımlanan özel gözlem, TAF havalimanı tahminidir.',
-      /** Türkiye dışındaki havalimanında (`turkeyTime`). */
+      /** Saat dilimi bilinmeyen yabancı havalimanında (`turkeyTime`). */
       introAbroad:
         'Son 24 saatte yayımlanan havacılık hava raporları, en yenisi üstte. Saatler Türkiye saatidir; UTC yanında yazılır. METAR rutin gözlem, SPECI hava önemli ölçüde değişince yayımlanan özel gözlem, TAF havalimanı tahminidir.',
+      /**
+       * Saat dilimi bilinen yabancı havalimanında (D-084): saatler havalimanının yerel saatidir;
+       * `{offset}` şu anki UTC farkı ("UTC+2").
+       */
+      introLocal:
+        'Son 24 saatte yayımlanan havacılık hava raporları, en yenisi üstte. Saatler havalimanının yerel saatidir (şu an {offset}); UTC yanında yazılır. METAR rutin gözlem, SPECI hava önemli ölçüde değişince yayımlanan özel gözlem, TAF havalimanı tahminidir.',
       caption: '{name}: son 24 saatin raporları',
       columns: {
         time: 'Saat',
@@ -760,7 +773,7 @@ export const tr = {
         'Saklanan konum ve iz verisi bu veriden türetilmiş bir veritabanıdır ve ODbL altında kalır.',
       reference: 'Havalimanı ve pist verisi: {source}, kamu malı.',
       names:
-        'Resmî Türkçe havalimanı adları: DHMİ ve havalimanı işletmecilerinin siteleri; doğrulanamayan adlarda OurAirports.',
+        'Resmî Türkçe havalimanı adları: DHMİ, havalimanı işletmecileri ve Ulaştırma ve Altyapı Bakanlığı; askerî hava üsleri bulunduğu yerin adıyla yazılır; henüz doğrulanmamış yeni adlarda OurAirports.',
       airlines: 'Havayolu kodları: {source}, CC0 (atıf zorunlu değildir, nezaketen anılır).',
       vector:
         'Vektör harita: {openFreeMap} © {openMapTiles}, harita verisi © {openStreetMap} katkıcıları (ODbL).',
@@ -856,7 +869,14 @@ export const tr = {
       hidden: 'Gizle',
       short: 'Kısa',
       full: 'Tam',
-      hint: 'Kısa: yalnızca sefer no. Tam: sefer no, hız ve yükseklik.',
+      /** Havalimanı etiketleri (D-084): Gizle / Kod / Kod ve ad; pinler her zaman görünür. */
+      airports: 'Havalimanları',
+      airportModes: {
+        hidden: 'Gizle',
+        code: 'Kod',
+        name: 'Kod ve ad',
+      },
+      hint: 'Kısa: yalnızca sefer no. Tam: sefer no, hız ve yükseklik. Kod ve ad: yakınlaştırınca havalimanının kısa adı da yazılır.',
     },
     /** Havalimanı penceresinin klavye yolu: görünümdeki havalimanları listesi (D-078). */
     airportList: {
@@ -892,6 +912,8 @@ export const tr = {
       runwaysOne: 'Tek pist, {length}',
       runwaysMany: '{count} pist, en uzunu {length}',
       localTime: 'Yerel saat',
+      /** Yerel saat ve o anki UTC farkı (D-084): "23:05 (UTC+2)", Türkiye'de "15:32 (UTC+3)". */
+      localTimeValue: '{time} ({offset})',
       weather: 'Hava durumu',
       noReport: 'Hava durumu raporu yok',
       observed: 'Gözlem {time}',

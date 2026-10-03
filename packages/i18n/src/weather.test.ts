@@ -259,6 +259,53 @@ describe('zaman', () => {
     expect(formatDayTime('2026-01-16T18:00:00Z', NOW, EN)).toBe('21:00 tomorrow')
     expect(formatDayTime('2026-01-14T19:50:00Z', NOW, TR)).toBe('14 Ocak 22:50')
   })
+
+  it('havalimanının saat dilimi (D-084): yerel saat, yaz saatiyle UTC farkı, gün ve "yarın"', () => {
+    // Atina: 25 Ekim 2026 01:00 UTC'ye kadar UTC+3, sonra UTC+2.
+    expect(formatClock('2026-10-24T20:05:00Z', 'Europe/Athens')).toBe('23:05')
+    expect(formatUtcOffset('2026-10-24T20:05:00Z', 'Europe/Athens')).toBe('UTC+3')
+    expect(formatClock('2026-10-26T21:05:00Z', 'Europe/Athens')).toBe('23:05')
+    expect(formatUtcOffset('2026-10-26T21:05:00Z', 'Europe/Athens')).toBe('UTC+2')
+    // Tahran yarım saat: UTC+3:30; Tiflis UTC+4; Sohum Moskova saati UTC+3; batı yarıkürede eksi.
+    expect(formatClock(OBSERVED, 'Asia/Tehran')).toBe('16:20')
+    expect(formatUtcOffset(OBSERVED, 'Asia/Tehran')).toBe('UTC+3:30')
+    expect(formatUtcOffset(OBSERVED, 'Asia/Tbilisi')).toBe('UTC+4')
+    expect(formatUtcOffset(OBSERVED, 'Europe/Moscow')).toBe('UTC+3')
+    expect(formatUtcOffset(OBSERVED, 'America/New_York')).toBe(`UTC${MINUS}5`)
+    expect(formatUtcOffset(OBSERVED, 'Europe/London')).toBe('UTC')
+    // Varsayılan dilim İstanbul'dur (Türkiye sayfaları değişmez).
+    expect(formatClock(OBSERVED, 'Europe/Istanbul')).toBe(formatClock(OBSERVED))
+    expect(formatUtcOffset(OBSERVED, 'Europe/Istanbul')).toBe('UTC+3')
+
+    // "Yarın" havalimanının takvimine göredir: 15 Ocak 21:30Z İstanbul'da 16 Ocak 00:30, Atina'da
+    // 15 Ocak 23:30.
+    const athens = { ...TR, timeZone: 'Europe/Athens' }
+    expect(formatDayTime('2026-01-15T21:30:00Z', NOW, TR)).toBe('yarın 00:30')
+    expect(formatDayTime('2026-01-15T21:30:00Z', NOW, athens)).toBe('23:30')
+    expect(formatDayTime('2026-01-17T07:00:00Z', NOW, { ...EN, timeZone: 'Asia/Tehran' })).toBe(
+      '17 January 10:30',
+    )
+  })
+
+  it('özet metninde saat ve tarih havalimanının diliminde (TAF geçerlilik sonu)', () => {
+    const lgav: AirportTaf = {
+      ...decodeTaf('TAF LGAV 151040Z 1512/1618 03010KT 9999 SCT030', {
+        issuedAt: '2026-01-15T10:40:00.000Z',
+        validFrom: '2026-01-15T12:00:00.000Z',
+        validTo: '2026-01-16T18:00:00.000Z',
+      }),
+      issuedAt: '2026-01-15T10:40:00.000Z',
+      validFrom: '2026-01-15T12:00:00.000Z',
+      validTo: '2026-01-16T18:00:00.000Z',
+    }
+    const athens = summarizeTaf([lgav], NOW, { timeZone: 'Europe/Athens' })
+    expect(
+      athens.validUntil && weatherText(athens.validUntil, { ...TR, timeZone: 'Europe/Athens' }),
+    ).toBe('Tahminin geçerlilik sonu: yarın 20:00.')
+    expect(
+      athens.validUntil && weatherText(athens.validUntil, { ...EN, timeZone: 'Asia/Tehran' }),
+    ).toBe('Forecast valid until 21:30 tomorrow.')
+  })
 })
 
 describe('METAR özetleri: fixture durumları (brief §2), sade ve metrik', () => {
