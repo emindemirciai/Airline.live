@@ -19,6 +19,9 @@
 //   pencerelerinde iki dilde ve 1280, 768, 430, 375 ve 320 px'te her satırın simgesi, etiketi ve
 //   değeri aynı x'te, simge etiketin ilk satırının yanında (kırılan etikette de), başlık ve diğer
 //   yazılar simge sütunuyla aynı sol kenarda, kapat düğmesi sağda (ölçülür), yatay taşma yok
+// - M6e.2 (D-083, kullanıcı kararı 2026-10-03): rüzgâr satırı ortalama ≥ 17 kt ya da hamle ≥ 25 kt'de
+//   kehribar ve şiddetin adıyla (LTAI `20015G28KT` "Hamleli rüzgâr"), gösterilen hız ≤ 10 km/sa'da
+//   açık yeşil ve "Hafif rüzgâr" etiketiyle (LTAJ `09005KT`)
 import { expect, test, type Locator, type Page } from '@playwright/test'
 import { jsonLdBlocks, metaContents, titles } from '../html'
 import {
@@ -53,11 +56,12 @@ const LATEST_GROUP = PRIMARY_WEATHER.latestMetarGroups[0]
 
 /**
  * Hizası ölçülen havalimanı pencereleri ve vurgulu satırları (fixture: IST
- * `03018G32KT -SHRA FEW025CB`, LTAI `+TSRA SCT015CB`).
+ * `03018G32KT -SHRA FEW025CB`, LTAI `20015G28KT +TSRA SCT015CB`; LTAI'nin rüzgârı M6e.2'den beri
+ * hamle 25 kt eşiğiyle kehribardır, D-083).
  */
 const ALIGNED_AIRPORTS = [
   { icao: 'LTFM', iata: 'IST', tones: ['wind', 'rain', 'thunder'] },
-  { icao: 'LTAI', iata: 'AYT', tones: ['rain', 'thunder'] },
+  { icao: 'LTAI', iata: 'AYT', tones: ['wind', 'rain', 'thunder'] },
 ] as const
 
 /**
@@ -96,6 +100,10 @@ const COPY = {
     gust: 'hamle',
     /** Fixture IST `03018G32KT`: ortalama eşiğin altında, hamle 32 kt → "Kuvvetli hamle" (D-083). */
     windLevel: 'Kuvvetli hamle',
+    /** Fixture LTAI `20015G28KT`: hamle 25 kt'yi geçti, 30 kt'nin altında (M6e.2, D-083). */
+    gustyLevel: 'Hamleli rüzgâr',
+    /** Fixture LTAJ `09005KT`: 9 km/sa, açık yeşil satır ve etiket (M6e.2, D-083). */
+    lightWind: 'Hafif rüzgâr',
     rainValue: 'Hafif sağanak yağmur',
     none: 'Yok',
     cb: 'kümülonimbüs',
@@ -144,6 +152,8 @@ const COPY = {
     speedDual: /\d+\u00a0km\/h\u00a0\(\d+\u00a0kt\)/,
     gust: 'gusts',
     windLevel: 'Strong gusts',
+    gustyLevel: 'Gusty wind',
+    lightWind: 'Light wind',
     rainValue: 'Light rain showers',
     none: 'None',
     cb: 'cumulonimbus',
@@ -421,11 +431,12 @@ test.describe('havalimanı sayfası', () => {
     const path = (code: string) =>
       locale === 'tr' ? `/istasyon/${code}` : enPath(`/istasyon/${code}`)
 
-    test(`${locale}: havalimanında ve çevresinde oraj, şimşek ve yıldırım uyarısı (D-083)`, async ({
+    test(`${locale}: havalimanında ve çevresinde oraj, şimşek ve yıldırım uyarısı; rüzgâr renkleri (D-083)`, async ({
       page,
     }) => {
       // LTAI (fixture `+TSRA SCT015CB`): havalimanında oraj; tehlike metni ve kehribar vurgu. Yağmur
-      // satırı olayın kendisini mavi yazar. Rüzgâr (15 kt, hamle 28 kt) eşiğin altında: etiketsiz.
+      // satırı olayın kendisini mavi yazar. Rüzgâr (15 kt, hamle 28 kt) meydan uyarısının altında ama
+      // hamle 25 kt'yi geçti: kehribar, "Hamleli rüzgâr" (M6e.2, kullanıcı kararı 2026-10-03).
       await page.goto(path('LTAI'))
       const here = weatherSection(page, locale)
       const thunder = row(here, copy.rows.thunder)
@@ -436,10 +447,20 @@ test.describe('havalimanı sayfası', () => {
         'data-tone',
         'rain',
       )
-      const calm = row(here, copy.rows.wind)
-      await expect(calm).toContainText(copy.speedDual)
-      await expect(calm.locator('xpath=..')).not.toHaveAttribute('data-tone')
-      await expect(calm.locator('.wx-tag')).toHaveCount(0)
+      const gusty = row(here, copy.rows.wind)
+      await expect(gusty).toContainText(copy.speedDual)
+      await expect(gusty.locator('xpath=..')).toHaveAttribute('data-tone', 'wind')
+      await expect(gusty.locator('.wx-tag')).toHaveText(copy.gustyLevel)
+
+      // LTAJ (fixture `09005KT`, 9 km/sa): açık yeşil satır; renk tek ipucu değildir, yanında
+      // "Hafif rüzgâr" etiketi (M6e.2, D-083).
+      await page.goto(path('LTAJ'))
+      const light = row(weatherSection(page, locale), copy.rows.wind)
+      await expect(light).toContainText(copy.speedDual)
+      await expect(light.locator('xpath=..')).toHaveAttribute('data-tone', 'calm')
+      await expect(light.locator('xpath=..')).toHaveCSS('background-color', 'rgb(220, 252, 231)')
+      await expect(light).toHaveCSS('color', 'rgb(22, 101, 52)')
+      await expect(light.locator('.wx-tag')).toHaveText(copy.lightWind)
 
       // LTAU (fixture `VCTS SCT040CB`): çevrede oraj; yıldırım havalimanına da düşebilir.
       await page.goto(path('LTAU'))

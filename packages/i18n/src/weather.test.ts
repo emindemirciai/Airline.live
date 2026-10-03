@@ -74,6 +74,8 @@ function rows(raw: string, options = TR) {
     notes: summary.notes.map((note) => spaced(weatherText(note, options))),
     strongWind: summary.strongWind,
     level: summary.windLevel ? options.t.wind.level[summary.windLevel] : null,
+    windLight: summary.windLight,
+    shear: text(summary.windShear),
     lightning: summary.lightning,
   }
 }
@@ -137,6 +139,8 @@ describe('hava durumu metin anahtarları', () => {
 
   it('rüzgâr şiddeti adları MGM Beaufort ıskalasındandır (D-083)', () => {
     expect(Object.values(getMessages('tr').weather.wind.level)).toEqual([
+      'Hamleli rüzgâr',
+      'Sert rüzgâr',
       'Kuvvetli hamle',
       'Kuvvetli rüzgâr',
       'Fırtınamsı rüzgâr',
@@ -325,7 +329,9 @@ describe('METAR özetleri: fixture durumları (brief §2), sade ve metrik', () =
     expect(r.wind).toBe(
       'Güneyden 28 km/sa (15 kt), hamle 52 km/sa (28 kt), yönü güney ile güneybatı arasında değişiyor',
     )
-    expect(r.level).toBeNull()
+    // Hamle 28 kt ≥ 25 kt: satır vurgulanır (kullanıcı kararı 2026-10-03, D-083).
+    expect(r.level).toBe('Hamleli rüzgâr')
+    expect(r.strongWind).toBe(false)
     expect(r.visibility).toBe('3 km')
     const en = rows('LTAI 151250Z 20015G28KT 160V240 3000 +TSRA SCT015CB 16/14 Q1006', EN)
     expect(en.rain).toBe('Thunderstorm with heavy rain')
@@ -534,8 +540,24 @@ describe('M6e: km/sa ve kt, rüzgâr şiddeti, şimşek ve yıldırım (D-083)',
       '20015G28KT 160V240',
       'Güneyden 28 km/sa (15 kt), hamle 52 km/sa (28 kt), yönü güney ile güneybatı arasında değişiyor',
       'From the south 28 km/h (15 kt), gusts 52 km/h (28 kt), varying between south and southwest',
+      'Hamleli rüzgâr',
+    ],
+    // Vurgu eşiği (2026-10-03): ortalama 17 kt (31 km/sa), hamle 25 kt (46 km/sa).
+    ['36016KT', 'Kuzeyden 30 km/sa (16 kt)', 'From the north 30 km/h (16 kt)', null],
+    ['36017KT', 'Kuzeyden 31 km/sa (17 kt)', 'From the north 31 km/h (17 kt)', 'Sert rüzgâr'],
+    [
+      '04016G24KT',
+      'Kuzeydoğudan 30 km/sa (16 kt), hamle 44 km/sa (24 kt)',
+      'From the northeast 30 km/h (16 kt), gusts 44 km/h (24 kt)',
       null,
     ],
+    [
+      '36015G25KT',
+      'Kuzeyden 28 km/sa (15 kt), hamle 46 km/sa (25 kt)',
+      'From the north 28 km/h (15 kt), gusts 46 km/h (25 kt)',
+      'Hamleli rüzgâr',
+    ],
+    ['36009KT', 'Kuzeyden 17 km/sa (9 kt)', 'From the north 17 km/h (9 kt)', null],
     ['///10KT', 'Yönü bilinmiyor, 19 km/sa (10 kt)', 'Direction unknown, 19 km/h (10 kt)', null],
     [
       '270P99KT',
@@ -595,6 +617,81 @@ describe('M6e: km/sa ve kt, rüzgâr şiddeti, şimşek ve yıldırım (D-083)',
   })
 })
 
+describe('M6e.2: rüzgâr renkleri ve rüzgâr kesmesi (kullanıcı kararı 2026-10-03, D-083)', () => {
+  it('etkili rüzgârın adları: Sert rüzgâr (17–19 kt), Hamleli rüzgâr (hamle 25–29 kt); hafif rüzgâr etiketi', () => {
+    const tr = getMessages('tr').weather.wind
+    const en = getMessages('en').weather.wind
+    expect([tr.level.fresh, tr.level.gusty, tr.light]).toEqual([
+      'Sert rüzgâr',
+      'Hamleli rüzgâr',
+      'Hafif rüzgâr',
+    ])
+    expect([en.level.fresh, en.level.gusty, en.light]).toEqual([
+      'Fresh wind',
+      'Gusty wind',
+      'Light wind',
+    ])
+  })
+
+  it('üretim METAR’ları (2026-10-03): şiddet, hafif rüzgâr ve rüzgâr kesmesi iki dilde', () => {
+    // LGMK: 19 kt ve pist 34'te rüzgâr kesmesi.
+    const lgmk = 'METAR LGMK 031520Z 35019KT 9999 FEW018 20/15 Q1020 WS R34'
+    expect(rows(lgmk)).toMatchObject({
+      wind: 'Kuzeyden 35 km/sa (19 kt)',
+      level: 'Sert rüzgâr',
+      strongWind: false,
+      shear: 'Rüzgâr kesmesi bildirildi: pist 34',
+    })
+    expect(rows(lgmk, EN)).toMatchObject({
+      wind: 'From the north 35 km/h (19 kt)',
+      level: 'Fresh wind',
+      shear: 'Wind shear reported: runway 34',
+    })
+    // LGAL 16G26: yalnız hamle eşikte.
+    expect(rows('METAR LGAL 031520Z 04016G26KT 9999 FEW030 21/08 Q1026')).toMatchObject({
+      wind: 'Kuzeydoğudan 30 km/sa (16 kt), hamle 48 km/sa (26 kt)',
+      level: 'Hamleli rüzgâr',
+    })
+    // LTAI 5 kt: hafif (9 km/sa); LTCJ 6 kt: değil (11 km/sa).
+    const light = rows('METAR LTAI 031520Z 24005KT 9999 SCT030 BKN080 22/12 Q1018 NOSIG')
+    expect([light.wind, light.level, light.windLight]).toEqual([
+      'Güneybatıdan 9 km/sa (5 kt)',
+      null,
+      'light',
+    ])
+    expect(
+      rows('METAR LTCJ 031520Z 03006KT 320V070 9999 -TSRA FEW025CB BKN035 16/14 Q1021').windLight,
+    ).toBeNull()
+    // MPS: URMG 2 m/s = 7 km/sa (hafif), URSS 3 m/s = 11 km/sa (değil).
+    const mps = rows('METAR URMG 031530Z 25002MPS 9999 FEW055 BKN082 12/08 Q1024 NOSIG', EN)
+    expect([mps.wind, mps.windLight]).toEqual(['From the west 7 km/h (4 kt)', 'light'])
+    const urss = rows('METAR URSS 031530Z 32003MPS 290V350 9999 NSC 15/11 Q1021 NOSIG')
+    expect([urss.wind, urss.windLight]).toEqual([
+      'Kuzeybatıdan 11 km/sa (6 kt), yönü batı ile kuzey arasında değişiyor',
+      null,
+    ])
+  })
+
+  it('rüzgâr kesmesi: bütün pistler ve birden çok pist; sayıdan önce ayraç yok', () => {
+    const all = 'LTXX 031250Z 00000KT 9999 FEW030 10/05 Q1010 WS ALL RWY'
+    expect(rows(all)).toMatchObject({
+      wind: 'Sakin',
+      windLight: 'calm',
+      shear: 'Rüzgâr kesmesi bildirildi: bütün pistler',
+    })
+    expect(rows(all, EN).shear).toBe('Wind shear reported: all runways')
+    const two = 'LTXX 031250Z 18005KT 9999 FEW030 10/05 Q1010 WS R16 WS RWY34L'
+    expect(rows(two).shear).toBe('Rüzgâr kesmesi bildirildi: pistler 16, 34L')
+    expect(rows(two, EN).shear).toBe('Wind shear reported: runways 16, 34L')
+    for (const options of [TR, EN]) {
+      const t = options.t.wind
+      for (const text of [t.shearAll, t.shearRunway, t.shearRunways, t.light]) {
+        expect(text).not.toMatch(/[·–]\s*(?:\{|[−-]?\d)/)
+      }
+    }
+  })
+})
+
 describe('TAF özeti', () => {
   const taf = (raw: string, issuedAt: string, validFrom: string, validTo: string): AirportTaf => ({
     ...decodeTaf(raw, { issuedAt, validFrom, validTo }),
@@ -627,7 +724,8 @@ describe('TAF özeti', () => {
   })
 
   it('örtüşen iki TAF’ta süren kuvvetli rüzgâr: en güçlü değerler, sade görünümde metrik', () => {
-    // Eski TAF 25G38, yenisi 28G40 (geçerliliği 12Z'de başlar); rüzgâr 20Z'de (23:00) zayıflar.
+    // Eski TAF 25G38, yenisi 28G40 (geçerliliği 12Z'de başlar); rüzgâr BECMG 1520/1522 penceresinde
+    // zayıflar: eski koşul pencerenin sonuna, 22Z'ye (yarın 01:00) kadar sürebilir (WMO-782, D-083).
     const older = taf(
       'TAF LTFM 150440Z 1506/1612 04025G38KT 9999 BKN030',
       '2026-01-15T04:40:00.000Z',
@@ -644,10 +742,10 @@ describe('TAF özeti', () => {
     // 28 kt = 52 km/sa, 40 kt = 74 km/sa; 25 kt (46) ve 38 kt (70) yazılmaz. 28 kt fırtınamsı
     // rüzgârdır (Beaufort 7); knot parantezde (D-083).
     expect(summary.items.map((item) => spaced(weatherText(item, TR)))).toEqual([
-      '23:00 saatine kadar fırtınamsı rüzgâr, kuzeydoğudan 52 km/sa (28 kt), hamle 74 km/sa (40 kt)',
+      'Yarın 01:00 saatine kadar fırtınamsı rüzgâr, kuzeydoğudan 52 km/sa (28 kt), hamle 74 km/sa (40 kt)',
     ])
     expect(summary.items.map((item) => spaced(weatherText(item, EN)))).toEqual([
-      'Until 23:00: near gale, from the northeast 52 km/h (28 kt), gusts 74 km/h (40 kt)',
+      'Until 01:00 tomorrow: near gale, from the northeast 52 km/h (28 kt), gusts 74 km/h (40 kt)',
     ])
   })
 

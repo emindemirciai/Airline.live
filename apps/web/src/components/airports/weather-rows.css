@@ -1,9 +1,10 @@
 /*
  * Hava durumu satırları, sıcaklık kutucuğu ve rüzgâr şiddeti etiketi (weather-row-list.tsx; harita
  * penceresi ve havalimanı sayfası). "Açık turkuaz" teması (D-081): vurgu beyaz panelde açık zemin ve
- * koyu yazıdır; yazı zeminine karşı en az 4,5:1'dir (yağmur 7,2; kar 6,6; kehribar 6,4; gri 8,3).
- * Vurgu yalnız renkle verilmez: satırın etiketi ve değeri kalındır, değer olayın adını, şimşek ve
- * yıldırım uyarısını ya da (etiketle) rüzgârın şiddetini yazar (D-083).
+ * koyu yazıdır; yazı zeminine karşı en az 4,5:1'dir (yağmur 7,2; kar 6,6; kehribar 6,4; gri 8,3;
+ * açık yeşil 6,5). Vurgu yalnız renkle verilmez: satırın etiketi ve değeri kalındır, değer olayın
+ * adını, şimşek ve yıldırım uyarısını, rüzgâr kesmesini ya da (etiketle) rüzgârın şiddetini ve
+ * hafifliğini yazar (D-083).
  * Sıcaklık kutucuğu vurgu turkuazıdır (`--accent`): beyaz yazı 4,75:1 (#0b8f9b zeminde 3,9:1
  * kalırdı). Kehribar yazı sitenin uyarı rengidir (`--warn`). Temel token'lar globals.css → `:root`.
  * Düzen: sayfada `wx-rows--page` (dar ekranda etiket değerin üstünde); harita penceresinde
@@ -17,6 +18,9 @@
   --wx-snow-ink: #075985;
   --wx-warn-bg: #fef3c7;
   --wx-warn-ink: var(--warn);
+  /* Hafif rüzgâr (≤ 10 km/sa; kullanıcı kararı 2026-10-03, D-083): açık yeşil, yazı 6,49:1. */
+  --wx-calm-bg: #dcfce7;
+  --wx-calm-ink: #166534;
   --wx-fog-bg: #e5e7eb;
   --wx-fog-ink: #374151;
   --wx-temp-bg: var(--accent);
@@ -94,7 +98,10 @@
   --wx-tone-ink: var(--wx-snow-ink);
 }
 
-/* Kehribar: etkili rüzgâr, şimşek ve yıldırım riski, dolu ve diğer olaylar (D-081, D-083). */
+/*
+ * Kehribar: etkili rüzgâr ve rüzgâr kesmesi, şimşek ve yıldırım riski, dolu ve diğer olaylar
+ * (D-081, D-083).
+ */
 .wx-row[data-tone='wind'],
 .wx-row[data-tone='thunder'],
 .wx-row[data-tone='hail'],
@@ -106,6 +113,12 @@
 .wx-row[data-tone='fog'] {
   --wx-tone-bg: var(--wx-fog-bg);
   --wx-tone-ink: var(--wx-fog-ink);
+}
+
+/* Açık yeşil: hafif rüzgâr (gösterilen hız ≤ 10 km/sa, sakin dahil; D-083). */
+.wx-row[data-tone='calm'] {
+  --wx-tone-bg: var(--wx-calm-bg);
+  --wx-tone-ink: var(--wx-calm-ink);
 }
 
 /* Rüzgâr şiddeti etiketi ("Kuvvetli rüzgâr"): sığmazsa alt satıra geçer, değerin kutusundan taşmaz. */
@@ -120,10 +133,19 @@
   font-weight: 700;
 }
 
-/* Vurgulu satırın içindeki etiket zeminde kaybolmasın: beyaz zemin, kehribar kenar (7,09:1). */
+/*
+ * Vurgulu satırın içindeki etiket zeminde kaybolmasın: beyaz zemin, satırın renginde yazı ve kenar
+ * (kehribar 7,09:1; açık yeşil satırda yeşil 7,13:1).
+ */
 .wx-row[data-tone] .wx-tag {
   background: var(--surface);
+  color: var(--wx-tone-ink);
   box-shadow: inset 0 0 0 1px currentColor;
+}
+
+/* Rüzgâr kesmesi: değerin altında ayrı satır (`WS R34`; D-083); değerin sütununda kırılır. */
+.wx-note {
+  display: block;
 }
 
 /* Sıcaklık: başlığın yanında ayrı kutucuk; önünde ayraç yoktur, eksi U+2212 ile yazılır. */

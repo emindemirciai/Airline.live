@@ -5,12 +5,14 @@ import type { WeatherRow } from './weather-rows'
 
 /**
  * Hava durumu satırları (harita penceresi ve havalimanı sayfası): gerçek `<dl>`, her satır bir
- * `<div>` içinde `<dt>` (simge + etiket) ve `<dd>` (değer, varsa rüzgârın şiddet etiketi). Var olan
- * olayın, etkili rüzgârın ve şimşek ve yıldırım riskinin satırı `data-tone` ile renkli zemin ve kalın
- * yazı alır; vurgu renkten ibaret değildir, değer olayın adını ya da uyarıyı yazar ("Yok" yerine
- * "Hafif sağanak yağmur"), rüzgârın şiddeti etiketle yazılır. Kanca yoktur: sunucuda, adada ve harita
- * penceresinde aynı biçimde çizilir. Harita penceresinin bilgi satırları (rakım, pistler, yerel saat)
- * da bu listeyle çizilir: iki liste aynı DOM'u ve aynı sütunları kullanır (M6e.1, D-083).
+ * `<div>` içinde `<dt>` (simge + etiket) ve `<dd>` (değer, varsa rüzgârın şiddet etiketi ve rüzgâr
+ * kesmesi satırı). Var olan olayın, etkili rüzgârın, rüzgâr kesmesinin, hafif rüzgârın ve şimşek ve
+ * yıldırım riskinin satırı `data-tone` ile renkli zemin ve kalın yazı alır; vurgu renkten ibaret
+ * değildir, değer olayın adını ya da uyarıyı yazar ("Yok" yerine "Hafif sağanak yağmur"), rüzgârın
+ * şiddeti ve hafifliği etiketle ("Sert rüzgâr", "Hafif rüzgâr") ya da değerle ("Sakin") yazılır.
+ * Kanca yoktur: sunucuda, adada ve harita penceresinde aynı biçimde çizilir. Harita penceresinin
+ * bilgi satırları (rakım, pistler, yerel saat) da bu listeyle çizilir: iki liste aynı DOM'u ve aynı
+ * sütunları kullanır (M6e.1, D-083).
  */
 export function WeatherRowList({
   rows,
@@ -37,6 +39,12 @@ export function WeatherRowList({
               <>
                 {' '}
                 <span className="wx-tag">{row.strong}</span>
+              </>
+            ) : null}
+            {row.note ? (
+              <>
+                {' '}
+                <span className="wx-note">{row.note}</span>
               </>
             ) : null}
           </dd>

@@ -214,6 +214,76 @@ describe('WeatherPanel: bütün fixture durumları', () => {
     )
   })
 
+  it('rüzgâr renkleri (M6e.2, kullanıcı kararı 2026-10-03): ≥ 17 kt ya da hamle ≥ 25 kt kehribar, ≤ 10 km/sa açık yeşil, arası sade', () => {
+    // LTAI 15G28: hamle 25 kt'yi geçti, meydan uyarısı eşiğinin (30 kt) altında: "Hamleli rüzgâr".
+    const gusty = panel(fixtureWeather('LTAI'))
+    expect(tone(gusty, 'wind')).toBe('wind')
+    expect(gusty).toContain('<span class="wx-tag">Hamleli rüzgâr</span>')
+    expect(text(panel(fixtureWeather('LTAI'), { locale: 'en' }))).toContain('Gusty wind')
+    // LTBS SPECI 15G27 (dolu ve oraj da var): aynı düzey; eski 20/30 kt kuralında sadeydi.
+    const hail = panel(fixtureWeather('LTBS'))
+    expect(tone(hail, 'wind')).toBe('wind')
+    expect(row(hail, 'wind')).toBe(
+      'Batıdan 28 km/sa (15 kt), hamle 50 km/sa (27 kt) Hamleli rüzgâr',
+    )
+    expect(text(panel(fixtureWeather('LTBS'), { locale: 'en' }))).toContain('Gusty wind')
+    // LTAJ 5 kt (9 km/sa): açık yeşil, değer hızı yazdığı için "Hafif rüzgâr" etiketi (renk tek ipucu
+    // değildir).
+    const light = panel(fixtureWeather('LTAJ'))
+    expect(tone(light, 'wind')).toBe('calm')
+    expect(row(light, 'wind')).toBe('Doğudan 9 km/sa (5 kt) Hafif rüzgâr')
+    expect(text(panel(fixtureWeather('LTAJ'), { locale: 'en' }))).toContain(
+      'From the east 9 km/h (5 kt) Light wind',
+    )
+    // Sakin (LTCF) ve hafif değişken (LTBJ): değer durumu zaten söyler, etiket yok.
+    for (const [icao, value] of [
+      ['LTCF', 'Sakin'],
+      ['LTBJ', 'Hafif ve değişken yönlü'],
+    ] as const) {
+      const html = panel(fixtureWeather(icao))
+      expect(tone(html, 'wind'), icao).toBe('calm')
+      expect(row(html, 'wind'), icao).toBe(value)
+      expect(html, icao).not.toContain('wx-tag')
+    }
+    // LTDB 6 kt = 11 km/sa: yeşil değil; LTAC 12 kt ve LGAV 16 kt: sade.
+    for (const icao of ['LTDB', 'LTAC', 'LGAV'] as const) {
+      const html = panel(fixtureWeather(icao), { abroad: icao === 'LGAV' })
+      expect(tone(html, 'wind'), icao).toBeNull()
+      expect(html, icao).not.toContain('wx-tag')
+    }
+  })
+
+  it('rüzgâr kesmesi (üretim LGMK `WS R34`): satır kehribar, şiddetin adı ve kesme değerin altında', () => {
+    const observedAt = '2026-01-15T12:50:00.000Z'
+    const station = (raw: string): AirportWeather => ({
+      icao: 'LGMK',
+      generatedAt: observedAt,
+      metar: metarFromRaw(raw, observedAt),
+      tafs: [],
+    })
+    const lgmk = station('LGMK 151250Z 35019KT 9999 FEW018 20/15 Q1020 WS R34')
+    const html = panel(lgmk, { abroad: true })
+    expect(tone(html, 'wind')).toBe('wind')
+    expect(html).toContain(
+      'Kuzeyden 35 km/sa (19 kt) <span class="wx-tag">Sert rüzgâr</span> <span class="wx-note">Rüzgâr kesmesi bildirildi: pist 34</span></dd>',
+    )
+    expect(row(panel(lgmk, { abroad: true, locale: 'en' }), 'wind')).toBe(
+      'From the north 35 km/h (19 kt) Fresh wind Wind shear reported: runway 34',
+    )
+    // Hafif rüzgârda da kesme satırı kehribar yapar; "Hafif rüzgâr" etiketi yazılmaz.
+    const calm = panel(station('LGMK 151250Z 00000KT 9999 FEW018 20/15 Q1020 WS ALL RWY'), {
+      abroad: true,
+    })
+    expect(tone(calm, 'wind')).toBe('wind')
+    expect(row(calm, 'wind')).toBe('Sakin Rüzgâr kesmesi bildirildi: bütün pistler')
+    expect(calm).not.toContain('wx-tag')
+    const light = panel(station('LGMK 151250Z 18004KT 9999 FEW018 20/15 Q1020 WS R16'), {
+      abroad: true,
+    })
+    expect(tone(light, 'wind')).toBe('wind')
+    expect(row(light, 'wind')).toBe('Güneyden 7 km/sa (4 kt) Rüzgâr kesmesi bildirildi: pist 16')
+  })
+
   it('LTFM: tahmin özeti niteleyicisiyle, geçerlilik sonu; yerel saat ve gün doğumu/batımı', () => {
     const body = text(panel(fixtureWeather('LTFM')))
     expect(body).toContain('Tahmin')

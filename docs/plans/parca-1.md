@@ -23,6 +23,7 @@ Durumlar: `[ ]` başlamadı, `[~]` sürüyor, `[k]` kod bitti ve kullanıcı do�
 | M6d | Türkiye dışındaki havalimanları, 1. halka (≤ 500 km, 75 havalimanı), açık turkuaz tema, hava durumu sunumu | `p1/m6d-ring1` | [x] tamam; üretimde 136 havalimanı, 122 istasyonda METAR (68'i yurt dışı) doğrulandı (2026-10-02) | #17 |
 | M6e | Hava durumu: pencere ortalı, rüzgâr km/sa ve kt, kuvvetli rüzgâr vurgusu, kümülonimbüs ve yıldırım uyarısı | `p1/m6e-weather-wind` | [x] tamam; üretimde doğrulandı (2026-10-03, v0.13.0): IST penceresinde "Kuzeydoğudan 37 km/sa (20 kt)", kehribar "Kuvvetli rüzgâr" | #18 |
 | M6e.1 | Pencere hizası (yama) | `p1/m6e1-popup-align` | [k] kod bitti; üretimde pencerenin görülmesi bekliyor | #19 |
+| M6e.2 | Rüzgâr renkleri ve rüzgâr kesmesi (yama) | `p1/m6e2-wind-colors` | [~] | — |
 | M6f | Adlar ve saat: askerî ve sivil havalimanı adları TR/EN, haritada havalimanı adı etiketi, yurt dışında yerel saat ve UTC farkı | `p1/m6f-names-time` | [ ] | — |
 | M6g | Türkiye dışındaki havalimanları, 2. halka (≤ 1.000 km) | `p1/m6g-ring2` | [ ] | — |
 | M7a | Canlı araçlar: `smoke:live`, `record` | `p1/m7a-live-tools` | [ ] | — |
@@ -705,6 +706,43 @@ Hedef sürüm 0.13.1. Karar D-083'teki "2026-10-03 kullanıcı geri bildirimi" m
 - **Kontrol turu (2026-10-03):** 30 durumda (IST, AYT, ATH × TR, EN × 1280, 768, 430, 375, 320 px) hiza yeşil. Düzeltilen: iki satıra kırılan etiketin (TR "Diğer hava olayları") simgesi iki satırın ortasındaydı → `wx-rows--popup` satırında `<dt>` `align-items: flex-start`, simge ilk satırın yüksekliğinde ortalanır (`1lh`); tarayıcıda simgenin ortası ilk satırın ortasından 0,8 px (önce 9,5 px). e2e: `expectPopupAligned` dikeyi (simge ↔ etiketin ilk satırı ±2 px, etiket ↔ değer ±1 px) ve kapat düğmesini ölçer; testler sonda "Diğer hava olayları" satırını ekleyip 320 ve 1280 px'te ölçer (TR iki satır, EN tek satır); genişlik döngüsüne 768 px eklendi. Düzeltmesiz CSS'te 2 TR testi kırmızı (`other: simge etiketin ilk satırının ortasında`, 9,55 px; denendi), EN testleri yeşil (etiket kırılmıyor). `formatElevation` yorumunda değer sütunu ~160 px. LGAV e2e'ye eklenmedi (her test bir WebSocket el sıkışması; `WS_RATE_LIMIT`), kontrol turunda elle ölçüldü.
 - **`pnpm ci:full` → yeşil (kontrol turundan sonra):** birim testleri web 621, shared 470, api 251, worker 200, providers 120, i18n 83, tools 74, db 44, geo 31, scripts 31 (turbo 31/31); entegrasyon db 82, api 26, worker 12; migration yükseltme 6 → 6; `compose:guard` 8 servis, 64 anahtar; E2E 107/107 (1,9 dk).
 - `pnpm stats` → 526 dosya, 90.568 satır (82.346 kod).
+
+## M6e.2 — Rüzgâr renkleri ve rüzgâr kesmesi (v0.13.2)
+Onay: 2026-10-03 (kullanıcı isteği, üretimdeki Konya penceresinin ekran görüntüsüyle: "rüzgar 10km ve altında ise açık yeşil yap. üzerinde ise normal renginde olmaya devam etsin. rüzgarlı limanlar var ama renkli değil. hataları analiz et. sadece 1 liman üzerinden gitme"; eşik kararı: ortalama ≥ 17 kt ya da hamle ≥ 25 kt; yama sürümü, D-082)
+
+Hedef sürüm 0.13.2. Karar D-083'teki "2026-10-03 kullanıcı kararı: rüzgâr renkleri ve rüzgâr kesmesi" maddesidir.
+
+**Kapsam:**
+- Analiz tek havalimanı değil, üretimde METAR'ı olan 122 istasyondur: meydan uyarısı kuralı (20/30 kt) doğru uygulanıyordu; 17–19 kt esen 10 ve hamlesi 25–26 kt olan 2 istasyon eşiğin altında kalıp sade görünüyordu; LGMK'nin `WS R34` grubu sade görünümde yoktu.
+- Rüzgâr satırı ortalama ≥ 17 kt ya da hamle ≥ 25 kt'de kehribar, yanında şiddetin adı: "Sert rüzgâr" (17–19 kt), "Hamleli rüzgâr" (hamle 25–29 kt); güçlü düzeylerin adları değişmedi.
+- Gösterilen hız ≤ 10 km/sa (sakin dahil) açık yeşil; değer hızı yazıyorsa "Hafif rüzgâr" etiketi ("Sakin", "Hafif ve değişken yönlü" değerlerinde etiket yok). Arası sade.
+- Rüzgâr kesmesi (`WS R34`, `WS RWY34`, `WS ALL RWY`) rüzgâr satırında değerin altında: "Rüzgâr kesmesi bildirildi: pist 34"; satır kehribar (rüzgâr hafif olsa da). Uzman görünümü grubu zaten yazıyordu.
+- Pencere ve havalimanı sayfası aynı bileşendir (`phenomenonRows`).
+- **Kontrol turu düzeltmeleri (D-083 "Kontrol turu"):** (1) TAF özeti zayıflatan BECMG'de eski koşulu (kuvvetli rüzgâr, hava olayı) değişim penceresinin başında değil sonunda bitirir (WMO-782; M6c'den beri pencerenin başındaydı: üretimde LTCG ve LTFO "önemli hava olayı yok" diyordu); (2) uzman görünümünde tekrarlanan `WS` grubunun her satırı yalnız kendi pistini söyler; (3) D-083'teki fixture listesine LTBS eklendi.
+- **Değişmeyenler:** MGM meydan uyarısı eşiği (`isStrongWind`, API'deki `derived.strongWind`, OpenAPI), TAF'ın rüzgâr öğesinin eşiği (20/30 kt), pencere düzeni ve hizası.
+
+**Dosyalar:**
+- `packages/shared/src/weather/schema.ts` (`WIND_LEVELS` başına `gusty`, `fresh`; `LIGHT_WINDS`), `derive.ts` (`FRESH_WIND_MEAN_KT`, `GUSTY_WIND_GUST_KT`, `LIGHT_WIND_MAX_KMH`, `lightWind`, `isLightAndVariable`; `isStrongWind` açık eşikle), `summary.ts` (`windLight`, `windShear`, `windShearText`; `strongWind` = `isStrongWind`; `Prevailing.until`, `mergePrevailing` örtüşen dilimler), `phrase.ts` (3 kesme anahtarı), `index.ts`; `derive.test.ts`, `summary.test.ts`
+- `packages/i18n/src/messages/tr.ts`, `en.ts` (`weather.wind.level.gusty`, `fresh`, `weather.wind.light`, `shearAll`, `shearRunway`, `shearRunways`), `weather.test.ts`
+- `apps/web/src/components/airports/weather-rows.ts` (`windRow`, ton `calm`, `note`), `weather-row-list.tsx` (`.wx-note`), `weather-rows.css` (açık yeşil token'ları, etiket rengi satırın rengi), `weather-expert.ts` (`WS` satırı kendi grubundan); `airport-weather.test.ts`, `weather-expert.test.ts`, `components/map/airport-popup.test.ts`
+- `e2e/tests/weather.spec.ts` (LTAI kehribar "Hamleli rüzgâr", LTAJ açık yeşil; pencere hizasında LTAI'nin vurgulu satırlarına rüzgâr)
+- `docs/DECISIONS.md` (D-083 alt maddesi), `docs/REFERENCES.md` (MGM IV.1.3.9.4, Beaufort ıskalası)
+
+**Kabul komutları:**
+- `pnpm --filter @havayolu/shared test` → düzeylerin ve hafif rüzgârın sınırları (16/17 kt, 24/25 kt hamle, 5/6 kt, MPS 2/3 m/s, KMH 10/11), 17 gerçek üretim METAR'ı, rüzgâr kesmesinin dört biçimi; zayıflatan BECMG (üretim LTCG ve LTFO TAF'ları, pencere içinde başlayan FM)
+- `pnpm --filter @havayolu/i18n test` → iki dilde adlar, etiket ve kesme metinleri; sayıdan önce ayraç yok
+- `pnpm --filter @havayolu/web test` → sayfada ve pencerede rüzgâr satırının tonu, etiketi ve kesme satırı; uzman görünümünde `WS R34` ve tekrarlanan grup (`WS R16 WS R34`); LTBS "Hamleli rüzgâr"
+- `pnpm test:e2e` → `weather.spec.ts`: LTAI rüzgâr satırı kehribar ve "Hamleli rüzgâr"/"Gusty wind"; LTAJ açık yeşil (`rgb(220, 252, 231)` zemin, `rgb(22, 101, 52)` yazı) ve "Hafif rüzgâr"/"Light wind"; IST ve LTAI pencereleri tek hizalı
+- `pnpm ci:full` yeşil; PR'da CI (`e2e` dahil) yeşil
+
+**Çıktı kaydı (2026-10-03, uygulama; sürüm, changelog ve README yayın adımındadır):**
+- Üretim anlık görüntüsü (122 istasyon) yeni kurallarla arayüzün `phenomenonRows`'undan geçirildi: 36 açık yeşil (31'i "Hafif rüzgâr" etiketli, 5'i "Hafif ve değişken yönlü"), 65 sade, 21 kehribar (9 meydan uyarısı düzeyi, 10 "Sert rüzgâr", 2 "Hamleli rüzgâr"; LGMK'de "Rüzgâr kesmesi bildirildi: pist 34"). Önce 9 kehribar, 0 yeşil.
+- Renk karşıtlığı (betikle): `#166534` yazı `#DCFCE7` zeminde 6,49:1, beyaz etikette 7,13:1.
+- Birim testleri: `pnpm --filter @havayolu/shared test` → 519 (+49), `@havayolu/i18n` → 91 (+8), `@havayolu/web` → 625 (+4); API ve worker hava testleri (`reference/weather.test.ts` 35, `jobs/weather.test.ts` 25) değişmeden yeşil.
+- **Kontrol turu (2026-10-03):** TAF özeti üretim anlık görüntüsünde (TAF'ı olan 122 istasyon) eski ve yeni kodla karşılaştırıldı: 9'u değişti (LTCG ve LTFO "önemli hava olayı yok" yerine kuvvetli rüzgâr 20G30, UGTB'de eksik fırtına öğesi geldi; LTBJ, LTAY, LTFC, LTBA, LTFM, LTBU'da bitiş BECMG penceresinin sonuna kaydı), öteki 113 aynı. Fixture'da (13:00Z) 10 istasyonun 5'i değişti (LTCE, LTAI, LTAC, LTCG, LBSF). Fixture METAR'larının rüzgâr tonu eski ve yeni kuralla karşılaştırıldı: 20 istasyonun 8'i değişti, D-083 listesi tamdır (LTBS eklendi). Eski kodla yeni BECMG testleri ve güncellenen 3 beklenti (6 test) kırmızı, eski uzman koduyla tekrarlanan `WS` testi kırmızıdır (denendi).
+- Kontrol turundan sonra: `pnpm --filter @havayolu/shared test` → 522 (+3), `@havayolu/i18n` → 91 (bir beklenti güncellendi), `@havayolu/web` → 626 (+1; LTBS bir teste eklendi); API `reference/weather.test.ts` 35, worker `jobs/weather.test.ts` 25 yeşil. `pnpm --filter` shared, i18n, web `typecheck` ve `lint`, `pnpm format`, `pnpm check:eol`, `pnpm changelog:check` (v0.13.1) → yeşil.
+- `pnpm typecheck --force` (9/9), `pnpm lint --force` (9/9), `pnpm typecheck:e2e`, `pnpm lint:e2e`, `pnpm format`, `pnpm check:eol`, `pnpm changelog:check` (v0.13.1; sürüm yayın adımında) → yeşil.
+- `pnpm test:e2e` ve `pnpm ci:full` bu dalda henüz koşulmadı (M6f aynı anda yerel portları ve Docker veritabanını kullanıyordu); yayın adımında koşulur.
 
 ## M7 — Canlı araçlar ve kapsama raporu
 Ayrıntılar `docs/prompts/parca-1.md`'dedir. Başlarken bu dosyaya dizinler ve kabul komutları eklenir.
