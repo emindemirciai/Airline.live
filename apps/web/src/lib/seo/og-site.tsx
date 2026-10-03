@@ -33,7 +33,7 @@ export function SiteOgImage({ name, host, taglineTr, taglineEn }: SiteOgContent)
       }}
     >
       <div style={{ display: 'flex', alignItems: 'center', gap: 28 }}>
-        <BrandMark size={84} />
+        <BrandMark size={120} />
         <div style={{ display: 'flex', fontSize: 84, fontWeight: 800, letterSpacing: '0.01em' }}>
           {name}
         </div>

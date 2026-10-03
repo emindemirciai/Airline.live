@@ -7,6 +7,21 @@ import type { ChangelogEntry } from './types'
  */
 export const CHANGELOG: readonly ChangelogEntry[] = [
   {
+    version: '0.15.0',
+    date: '2026-10-03',
+    title: {
+      tr: 'Yeni logo: halkanın içinden geçen uçak',
+      en: 'New logo: a plane flying through the ring',
+    },
+    items: [
+      {
+        tr: 'havayolu’nun yeni logosu: turkuaz halkanın içinden 45° açıyla geçen, yukarıdan görünen çift motorlu bir yolcu uçağı. Sitenin başlığında, tarayıcı sekmesinde, telefona eklenen uygulama simgesinde ve paylaşım görsellerinde aynı logo var; küçük boyutlarda turkuaz daire içinde beyaz uçak olarak sadeleşir.',
+        en: 'havayolu has a new logo: a top-down twin-engine airliner flying at 45° through the turquoise ring. The same logo appears in the site header, the browser tab, the app icon on your phone and share images; at small sizes it simplifies to a white plane in a turquoise disc.',
+      },
+    ],
+    tryLinks: [{ path: '/', label: { tr: 'Ana sayfa', en: 'Home' } }],
+  },
+  {
     version: '0.14.1',
     date: '2026-10-03',
     title: {

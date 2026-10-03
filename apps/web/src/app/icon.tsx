@@ -3,22 +3,31 @@ import { ImageResponse } from 'next/og'
 import { BrandIcon } from '../lib/seo/og'
 
 /**
- * Uygulama simgeleri (192 ve 512 px PNG; `/icon/192`, `/icon/512`). Yalnızca şekil çizilir, yazı
- * tipi gerekmez; ortam değişkeni okunmadığından build sırasında bir kez üretilir. Manifest ve
- * Organization JSON-LD logosu bu adresleri kullanır.
+ * Uygulama simgeleri (PNG; D-086): `/icon/192` ve `/icon/512` köşeleri yuvarlatılmış turkuaz kare
+ * (saydam köşe; tarayıcı, masaüstü kurulumu, Organization JSON-LD logosu), `/icon/maskable` 512 px
+ * tam kare (manifestteki maskelenebilir simge; Android kendi şekliyle keser, saydam piksel olmamalı).
+ * Yalnızca şekil çizilir, yazı tipi gerekmez; ortam değişkeni okunmadığından build sırasında bir kez
+ * üretilir.
  */
-const SIZES = [192, 512] as const
+const ICONS = [
+  { id: '192', size: 192, rounded: true },
+  { id: '512', size: 512, rounded: true },
+  { id: 'maskable', size: 512, rounded: false },
+] as const
 
 export function generateImageMetadata() {
-  return SIZES.map((size) => ({
-    id: String(size),
+  return ICONS.map(({ id, size }) => ({
+    id,
     size: { width: size, height: size },
     contentType: 'image/png',
   }))
 }
 
 export default async function Icon({ id }: { id: Promise<string | number> }) {
-  const requested = Number(await id)
-  const size = SIZES.find((candidate) => candidate === requested) ?? SIZES[0]
-  return new ImageResponse(<BrandIcon size={size} />, { width: size, height: size })
+  const requested = String(await id)
+  const icon = ICONS.find((candidate) => candidate.id === requested) ?? ICONS[0]
+  return new ImageResponse(<BrandIcon size={icon.size} rounded={icon.rounded} />, {
+    width: icon.size,
+    height: icon.size,
+  })
 }
