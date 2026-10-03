@@ -4,6 +4,7 @@ import {
   iconCategory,
   isStrongWind,
   largestCover,
+  lightWind,
   lowestCloudBaseFt,
   offScaleWind,
   relativeHumidity,
@@ -80,6 +81,10 @@ describe('kuvvetli rüzgâr (ortalama ≥ 20 kt ya da hamle ≥ 30 kt)', () => {
     [wind(20), true],
     [wind(15, 29), false],
     [wind(15, 30), true],
+    // Satırın vurgu eşiği (17 kt, hamle 25 kt) meydan uyarısını değiştirmez (D-083, 2026-10-03).
+    [wind(17), false],
+    [wind(16, 25), false],
+    [wind(19, 29), false],
     [wind(100, null, true), true],
     [wind(null), false],
     [null, false],
@@ -94,7 +99,14 @@ describe('rüzgâr şiddeti (D-083: MGM eşiği ve Beaufort adları, hamlede Met
       referenceTime: '2026-10-03T13:00:00Z',
     }).wind
   it.each([
-    ['19KT', null],
+    // Vurgu eşiği (kullanıcı kararı 2026-10-03): ortalama 17 kt (MGM Beaufort 5) ya da hamle 25 kt.
+    ['16KT', null],
+    ['17KT', 'fresh'],
+    ['19KT', 'fresh'],
+    ['16G24KT', null],
+    ['16G25KT', 'gusty'],
+    ['10G29KT', 'gusty'],
+    ['17G26KT', 'fresh'],
     ['20KT', 'strong'],
     ['27KT', 'strong'],
     ['28KT', 'nearGale'],
@@ -106,8 +118,9 @@ describe('rüzgâr şiddeti (D-083: MGM eşiği ve Beaufort adları, hamlede Met
     ['56KT', 'violentStorm'],
     ['63KT', 'violentStorm'],
     ['64KT', 'hurricane'],
-    ['19G29KT', null],
+    ['19G29KT', 'fresh'],
     ['19G30KT', 'gusts'],
+    ['18G32KT', 'gusts'],
     ['10G42KT', 'gusts'],
     ['25G42KT', 'strong'],
     ['25G43KT', 'gale'],
@@ -117,13 +130,17 @@ describe('rüzgâr şiddeti (D-083: MGM eşiği ve Beaufort adları, hamlede Met
     ['P99KT', 'hurricane'],
     ['20GP99KT', 'violentStorm'],
     ['11MPS', 'strong'],
-    ['10MPS', null],
+    // 9 m/s = 17,5 kt → 17 kt; 8 m/s = 15,6 kt → 16 kt.
+    ['09MPS', 'fresh'],
+    ['08MPS', null],
+    ['10MPS', 'fresh'],
     ['00KT', null],
   ] as const)('%s → %s', (group, level) => {
     const w = decode(`270${group}`)
     expect(windLevel(w)).toBe(level)
-    // Vurgu eşiği aynı kalır: düzey varsa MGM meydan uyarısı eşiği aşılmıştır.
-    expect(isStrongWind(w)).toBe(level !== null)
+    // MGM meydan uyarısı eşiği `gusts` ve üstüdür; `fresh` ve `gusty` yalnız satırı vurgular.
+    const warning = level !== null && level !== 'fresh' && level !== 'gusty'
+    expect(isStrongWind(w)).toBe(warning)
   })
 
   it('sakin, bilinmeyen ve eksik rüzgârda düzey yok', () => {
@@ -136,11 +153,55 @@ describe('rüzgâr şiddeti (D-083: MGM eşiği ve Beaufort adları, hamlede Met
 
   it('düzeyler zayıftan güçlüye sıralıdır; büyük olan kazanır', () => {
     const order = (level: WindLevel) => WIND_LEVELS.indexOf(level)
+    expect(order('gusty')).toBeLessThan(order('fresh'))
+    expect(order('fresh')).toBeLessThan(order('gusts'))
     expect(order('gusts')).toBeLessThan(order('strong'))
     expect(order('strong')).toBeLessThan(order('nearGale'))
     expect(order('violentStorm')).toBeLessThan(order('hurricane'))
     expect(windLevel(wind(64, 69))).toBe('hurricane')
     expect(windLevel(wind(28, 43))).toBe('gale')
+  })
+})
+
+describe('hafif rüzgâr: gösterilen hız ≤ 10 km/sa (kullanıcı kararı 2026-10-03, D-083)', () => {
+  const decode = (group: string) =>
+    decodeMetar(`LTXX 031250Z ${group} 9999 FEW030 10/05 Q1010`, {
+      referenceTime: '2026-10-03T13:00:00Z',
+    }).wind
+  it.each([
+    ['00000KT', 'calm'],
+    ['VRB01KT', 'lightVariable'],
+    ['VRB03KT', 'lightVariable'],
+    ['VRB04KT', 'light'],
+    ['VRB05KT', 'light'],
+    ['VRB06KT', null],
+    // 5 kt = 9,3 km/sa → 9: hafif; 6 kt = 11,1 km/sa → 11: değil (sınır km/sa'dadır).
+    ['27005KT', 'light'],
+    ['27006KT', null],
+    ['27001KT', 'light'],
+    // MPS: 2 m/s = 7,2 km/sa → 7 hafif; 3 m/s = 10,8 km/sa → 11 değil (gösterilen değer).
+    ['27002MPS', 'light'],
+    ['VRB01MPS', 'lightVariable'],
+    ['27003MPS', null],
+    // KMH: 10 km/sa hafif, 11 km/sa değil.
+    ['27010KMH', 'light'],
+    ['27011KMH', null],
+    // Hamleli rüzgâr hafif değildir (hamle en az 10 kt fazladır).
+    ['27004G14KT', null],
+    ['/////KT', null],
+    ['270//KT', null],
+  ] as const)('%s → %s', (group, expected) => {
+    expect(lightWind(decode(group))).toBe(expected)
+  })
+
+  it("ölçek üstü, bilinmeyen ve eksik rüzgâr hafif değildir; km/sa yoksa kt'den çevrilir", () => {
+    expect(lightWind(null)).toBeNull()
+    expect(lightWind(wind(100, null, true))).toBeNull()
+    expect(lightWind(wind(null))).toBeNull()
+    // Eski API yanıtı (`speedKmh` yok): 5 kt → 9 km/sa, 6 kt → 11 km/sa.
+    expect(lightWind(wind(5))).toBe('light')
+    expect(lightWind(wind(6))).toBeNull()
+    expect(lightWind({ ...wind(6), speedKmh: 10 })).toBe('light')
   })
 })
 

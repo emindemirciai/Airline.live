@@ -16,7 +16,7 @@ import {
   type WeatherPhraseKey,
   type WeatherText,
 } from './phrase'
-import type { DecodedMetar, DecodedTaf, LightningRisk, WindLevel } from './schema'
+import type { DecodedMetar, DecodedTaf, LightningRisk, LightWind, WindLevel } from './schema'
 import { summarizeMetar, summarizeTaf, type WeatherSummary } from './summary'
 import { decodeTaf } from './taf'
 import { fake, fakeMeasure, keyTemplate } from './test/fake-text'
@@ -115,15 +115,21 @@ describe('summarizeMetar: brief §2 fixture’ları', () => {
       thunderstorm: 'weather.thunder.here',
       snow: NONE,
     })
+    // Hamle 28 kt: vurgu eşiğinde (25 kt), meydan uyarısının (30 kt) altında (2026-10-03, D-083).
     expect(s.strongWind).toBe(false)
-    expect(s.windLevel).toBeNull()
+    expect(s.windLevel).toBe('gusty')
+    expect(s.windLight).toBeNull()
     expect(s.lightning).toBe('here')
   })
 
   it('LTBJ: hafif ve değişken; LTCG: sakin, sis, VV', () => {
-    expect(
-      rows(summarizeMetar(metar('LTBJ 151250Z VRB02KT 9999 FEW040 14/06 Q1012 NOSIG'))).wind,
-    ).toBe('weather.wind.lightVariable')
+    const light = summarizeMetar(metar('LTBJ 151250Z VRB02KT 9999 FEW040 14/06 Q1012 NOSIG'))
+    expect(rows(light).wind).toBe('weather.wind.lightVariable')
+    expect([light.windLight, light.windLevel, light.windShear]).toEqual([
+      'lightVariable',
+      null,
+      null,
+    ])
     const fog = summarizeMetar(
       metar('LTCG 151250Z 00000KT 0200 R11/0350N FG VV001 08/08 Q1015 BECMG 1500 BR'),
     )
@@ -338,6 +344,220 @@ describe('summarizeMetar: olay satırının durumu (vurgu)', () => {
   })
 })
 
+describe('summarizeMetar: rüzgâr renkleri ve rüzgâr kesmesi (M6e.2, 2026-10-03, D-083)', () => {
+  /**
+   * Üretimdeki gerçek METAR'lar (havayolu.live hava API'si, 2026-10-03 15:37Z; 122 istasyon). Kullanıcı
+   * Konya penceresiyle (`36009KT`, "Kuzeyden 17 km/sa (9 kt)") "rüzgârlı limanlar var ama renkli
+   * değil" dedi: 17–19 kt ve 25–29 kt hamleli istasyonlar MGM meydan uyarısı eşiğinin (20/30 kt)
+   * altında kalıyor, vurgulanmıyordu; LGMK'nin `WS R34` grubu sade görünümde hiç yazılmıyordu.
+   * Sütunlar: METAR, rüzgâr satırı, şiddet (`windLevel`), meydan uyarısı (`strongWind`), hafif
+   * rüzgâr (`windLight`), rüzgâr kesmesi.
+   */
+  const PRODUCTION: readonly (readonly [
+    string,
+    string,
+    WindLevel | null,
+    boolean,
+    LightWind | null,
+    string | null,
+  ])[] = [
+    [
+      'METAR LGMK 031520Z 35019KT 9999 FEW018 20/15 Q1020 WS R34',
+      'weather.wind.from(weather.compass.from.N,19kt)',
+      'fresh',
+      false,
+      null,
+      'weather.wind.shearRunway(34)',
+    ],
+    [
+      'METAR LTFO 031450Z 24019KT 9999 BKN035 18/12 Q1026',
+      'weather.wind.from(weather.compass.from.SW,19kt)',
+      'fresh',
+      false,
+      null,
+      null,
+    ],
+    [
+      'METAR LTCG 031520Z 30019KT 9999 FEW035 17/10 Q1027 NOSIG',
+      'weather.wind.from(weather.compass.from.NW,19kt)',
+      'fresh',
+      false,
+      null,
+      null,
+    ],
+    [
+      // Eşiğin tam üstü: 17 kt = 31 km/sa.
+      'METAR LGAV 031520Z 36017KT 9999 BKN030 19/09 Q1025 NOSIG',
+      'weather.wind.from(weather.compass.from.N,17kt)',
+      'fresh',
+      false,
+      null,
+      null,
+    ],
+    [
+      'METAR LGIR 031520Z 34019G29KT 9999 FEW012 FEW018TCU BKN020 20/15 Q1020 NOSIG',
+      'weather.wind.from(weather.compass.from.N,19kt), weather.wind.gust(29kt)',
+      'fresh',
+      false,
+      null,
+      null,
+    ],
+    [
+      'METAR LGAL 031520Z 04016G26KT 9999 FEW030 21/08 Q1026',
+      'weather.wind.from(weather.compass.from.NE,16kt), weather.wind.gust(26kt)',
+      'gusty',
+      false,
+      null,
+      null,
+    ],
+    [
+      // Hamle eşiğin tam üstü: 25 kt = 46 km/sa.
+      'METAR LGSA 031520Z 36015G25KT 9999 FEW012 FEW016TCU BKN025 BKN080 19/13 Q1021',
+      'weather.wind.from(weather.compass.from.N,15kt), weather.wind.gust(25kt)',
+      'gusty',
+      false,
+      null,
+      null,
+    ],
+    [
+      'METAR LTFM 031520Z 05022KT 9999 BKN032 18/11 Q1028 NOSIG',
+      'weather.wind.from(weather.compass.from.NE,22kt)',
+      'strong',
+      true,
+      null,
+      null,
+    ],
+    [
+      'METAR UGTB 031530Z 32026G37KT CAVOK 14/05 Q1020 NOSIG',
+      'weather.wind.from(weather.compass.from.NW,26kt), weather.wind.gust(37kt)',
+      'strong',
+      true,
+      null,
+      null,
+    ],
+    [
+      // Konya (kullanıcının ekran görüntüsü): 9 kt = 17 km/sa, ne hafif ne etkili.
+      'SPECI LTAN 031501Z 36009KT 9999 -SHRA BKN030 BKN080 15/08 Q1023 NOSIG',
+      'weather.wind.from(weather.compass.from.N,9kt)',
+      null,
+      false,
+      null,
+      null,
+    ],
+    [
+      // 13G23KT: hamle 25 kt'nin, ortalama 17 kt'nin altında: sade.
+      'METAR LGKL 031520Z 07013G23KT 9999 FEW030 23/04 Q1024',
+      'weather.wind.from(weather.compass.from.E,13kt), weather.wind.gust(23kt)',
+      null,
+      false,
+      null,
+      null,
+    ],
+    [
+      // 6 kt = 11 km/sa: hafif değildir (sınır gösterilen km/sa).
+      'METAR LTCJ 031520Z 03006KT 320V070 9999 -TSRA FEW025CB BKN035 BKN080 16/14 Q1021 NOSIG',
+      'weather.wind.from(weather.compass.from.NE,6kt), weather.wind.varying(weather.compass.name.NW,weather.compass.name.E)',
+      null,
+      false,
+      null,
+      null,
+    ],
+    [
+      // 5 kt = 9 km/sa: hafif.
+      'METAR LTAI 031520Z 24005KT 9999 SCT030 BKN080 22/12 Q1018 NOSIG',
+      'weather.wind.from(weather.compass.from.SW,5kt)',
+      null,
+      false,
+      'light',
+      null,
+    ],
+    [
+      'METAR LTDA 031450Z 30002KT 9999 SCT040 24/17 Q1018 NOSIG',
+      'weather.wind.from(weather.compass.from.NW,2kt)',
+      null,
+      false,
+      'light',
+      null,
+    ],
+    [
+      'METAR LGKP 031520Z VRB02KT 9999 FEW018TCU SCT025 20/13 Q1018',
+      'weather.wind.lightVariable',
+      null,
+      false,
+      'lightVariable',
+      null,
+    ],
+    [
+      // MPS: 2 m/s = 7 km/sa (hafif); 3 m/s = 11 km/sa (değil).
+      'METAR URMG 031530Z 25002MPS 9999 FEW055 BKN082 12/08 Q1024 R26/090095 NOSIG RMK QFE753/1005',
+      'weather.wind.from(weather.compass.from.W,4kt)',
+      null,
+      false,
+      'light',
+      null,
+    ],
+    [
+      'METAR URSS 031530Z 32003MPS 290V350 9999 NSC 15/11 Q1021 R02/010070 R06/010070 NOSIG RMK R06/32003G06MPS QFE765',
+      'weather.wind.from(weather.compass.from.NW,6kt), weather.wind.varying(weather.compass.name.W,weather.compass.name.N)',
+      null,
+      false,
+      null,
+      null,
+    ],
+  ]
+
+  it.each(PRODUCTION)('%s', (raw, wind, level, strong, light, shear) => {
+    const s = summarizeMetar(metar(raw))
+    expect(rows(s).wind).toBe(wind)
+    expect(s.windLevel).toBe(level)
+    expect(s.strongWind).toBe(strong)
+    expect(s.windLight).toBe(light)
+    expect(fake(s.windShear)).toBe(shear)
+  })
+
+  it('sakin ve hafif değişken rüzgâr hafiftir; sınırlar 16/17 kt, 24/25 kt hamle, 5/6 kt', () => {
+    const at = (group: string) =>
+      summarizeMetar(metar(`LTXX 031250Z ${group} 9999 FEW030 10/05 Q1010`))
+    expect(at('00000KT').windLight).toBe('calm')
+    expect(fake(at('00000KT').rows.wind)).toBe('weather.wind.calm')
+    expect(at('VRB03KT').windLight).toBe('lightVariable')
+    expect(fake(at('VRB03KT').rows.wind)).toBe('weather.wind.lightVariable')
+    expect(at('VRB05KT').windLight).toBe('light')
+    expect(at('16016KT').windLevel).toBeNull()
+    expect(at('16017KT').windLevel).toBe('fresh')
+    expect(at('16010G24KT').windLevel).toBeNull()
+    expect(at('16010G25KT').windLevel).toBe('gusty')
+    expect(at('16005KT').windLight).toBe('light')
+    expect(at('16006KT').windLight).toBeNull()
+    // Hafif ve etkili aynı anda olmaz; bilinmeyen rüzgâr ikisi de değildir.
+    for (const group of ['/////KT', '160//KT']) {
+      expect([at(group).windLight, at(group).windLevel], group).toEqual([null, null])
+    }
+  })
+
+  it("rüzgâr kesmesi: tek pist, paralel pist, birden çok pist, bütün pistler; NIL'de yok", () => {
+    const shear = (tail: string) =>
+      fake(summarizeMetar(metar(`LTXX 031250Z 18005KT 9999 FEW030 10/05 Q1010 ${tail}`)).windShear)
+    expect(shear('WS R34')).toBe('weather.wind.shearRunway(34)')
+    expect(shear('WS RWY03R')).toBe('weather.wind.shearRunway(03R)')
+    expect(shear('WS ALL RWY')).toBe('weather.wind.shearAll')
+    expect(shear('WS R16 WS R34')).toBe('weather.wind.shearRunways(16, 34)')
+    expect(shear('NOSIG')).toBeNull()
+    // MGM örneği (Havacılık Meteorolojisi IV.1.3.9.4): kesme grubu TREND'den önce yazılır.
+    expect(shear('WS R11 NOSIG')).toBe('weather.wind.shearRunway(11)')
+    // Hafif rüzgârda da kesme yazılır (arayüz satırı kehribar yapar).
+    const calm = summarizeMetar(metar('LTXX 031250Z 00000KT 9999 FEW030 10/05 Q1010 WS ALL RWY'))
+    expect([calm.windLight, fake(calm.windShear)]).toEqual(['calm', 'weather.wind.shearAll'])
+    const nil = summarizeMetar(metar('LTXX 031250Z NIL'))
+    expect([nil.windShear, nil.windLight, nil.windLevel, nil.strongWind]).toEqual([
+      null,
+      null,
+      null,
+      false,
+    ])
+  })
+})
+
 describe('summarizeMetar: rüzgâr şiddeti ve şimşek-yıldırım uyarısı (M6e, D-083)', () => {
   /**
    * Gerçek biçimli METAR'lar (2026-10-03). İlk ikisi üretimdeki ekran görüntülerindeki durumlardır:
@@ -478,7 +698,7 @@ describe('summarizeMetar: rüzgâr şiddeti ve şimşek-yıldırım uyarısı (M
     [
       'LTAI 151250Z 20015G28KT 160V240 3000 +TSRA SCT015CB BKN030 16/14 Q1006',
       'weather.wind.from(weather.compass.from.S,15kt), weather.wind.gust(28kt), weather.wind.varying(weather.compass.name.S,weather.compass.name.SW)',
-      null,
+      'gusty',
       'weather.thunder.here',
       'here',
     ],
@@ -577,7 +797,8 @@ describe('summarizeMetar: rüzgâr şiddeti ve şimşek-yıldırım uyarısı (M
     expect(r.wind).toBe(wind)
     expect(r.thunderstorm).toBe(thunder)
     expect(s.windLevel).toBe(level)
-    expect(s.strongWind).toBe(level !== null)
+    // Meydan uyarısı `gusts` ve üstüdür; `fresh` ve `gusty` yalnız satırı vurgular.
+    expect(s.strongWind).toBe(level !== null && level !== 'fresh' && level !== 'gusty')
     expect(s.lightning).toBe(lightning)
   })
 
@@ -777,14 +998,16 @@ describe('summarizeTaf', () => {
       ],
       NOW,
     )
+    // Oraj NSW'li BECMG'nin (1600/1602) penceresi boyunca sürebilir: bitiş pencerenin sonudur.
     expect(s.items.map(fake)).toEqual([
       'weather.taf.prob(t15:00,t18:00,40,weather.wx.TSRA_heavy)',
-      'weather.taf.until(weather.time.tomorrow(t00:00),weather.wx.TSRA)',
+      'weather.taf.until(weather.time.tomorrow(t02:00),weather.wx.TSRA)',
     ])
     expect(s.amended).toBe(true)
   })
 
   it('LTCE: kuvvetli rüzgâr ikinci satırda', () => {
+    // Zayıflatan BECMG 1516/1518: kar sağanağı ve rüzgâr pencerenin sonuna (18:00) kadar sürebilir.
     expect(
       items([
         taf(
@@ -792,9 +1015,70 @@ describe('summarizeTaf', () => {
         ),
       ]),
     ).toEqual([
-      'weather.taf.until(t16:00,weather.wx.SHSN_heavy)',
-      'weather.taf.until(t16:00,weather.taf.strongWind(weather.wind.level.strong,weather.wind.from(weather.compass.from.W,20kt), weather.wind.gust(35kt)))',
+      'weather.taf.until(t18:00,weather.wx.SHSN_heavy)',
+      'weather.taf.until(t18:00,weather.taf.strongWind(weather.wind.level.strong,weather.wind.from(weather.compass.from.W,20kt), weather.wind.gust(35kt)))',
     ])
+  })
+
+  describe('zayıflatan BECMG: eski koşul değişim penceresinin sonuna kadar sürebilir (WMO-782)', () => {
+    // Üretim, 2026-10-03 15:37:49Z anlık görüntüsü. METAR'lar o an LTCG `30019KT`, LTFO
+    // `24019KT`; eski kod BECMG'nin başında kesiyordu ve iki havalimanında da tahmin "önemli hava
+    // olayı yok" diyordu.
+    const SNAPSHOT = '2026-10-03T15:37:49Z'
+    const prod = (raw: string) => decodeTaf(raw, { referenceTime: SNAPSHOT })
+    const LTCG = prod(
+      'TAF LTCG 031040Z 0312/0412 31020G30KT 9999 SCT035 BECMG 0314/0317 30012KT BECMG 0317/0320 22012KT BECMG 0401/0405 VRB02KT',
+    )
+    const LTFO_NEW = prod(
+      'TAF LTFO 031340Z 0315/0324 24020G30KT 9999 BKN033 BECMG 0315/0319 19012KT SCT035 BECMG 0320/0324 VRB02KT',
+    )
+    const LTFO_OLD = prod(
+      'TAF LTFO 031040Z 0312/0321 24020G30KT 9999 BKN033 BECMG 0315/0319 19010KT SCT035',
+    )
+    const ltcgWind =
+      'weather.taf.strongWind(weather.wind.level.strong,weather.wind.from(weather.compass.from.NW,20kt), weather.wind.gust(30kt))'
+    const ltfoWind =
+      'weather.taf.strongWind(weather.wind.level.strong,weather.wind.from(weather.compass.from.SW,20kt), weather.wind.gust(30kt))'
+
+    it('LTCG: BECMG 0314/0317 penceresinde 20G30 17:00Z’ye kadar söylenir (önce ve pencere içinde)', () => {
+      for (const at of ['2026-10-03T12:30:00Z', '2026-10-03T14:30:00Z', SNAPSHOT]) {
+        const s = summarizeTaf([LTCG], at)
+        expect(s.items.map(fake)).toEqual([`weather.taf.until(t17:00,${ltcgWind})`])
+        expect(s.message).toBeNull()
+      }
+      // Pencere bitince eski koşul kalmaz.
+      expect(fake(summarizeTaf([LTCG], '2026-10-03T17:10:00Z').message)).toBe(
+        'weather.taf.nothingSignificant',
+      )
+    })
+
+    it('LTFO: BECMG geçerliliğin başında (0315/0319); sıfır uzunluklu temel dilim düşmez', () => {
+      expect(items([LTFO_NEW, LTFO_OLD], SNAPSHOT)).toEqual([
+        `weather.taf.until(t19:00,${ltfoWind})`,
+      ])
+      // Eski TAF'tan yenisine geçerken (15:00Z) öğe kesilmez.
+      expect(items([LTFO_NEW, LTFO_OLD], '2026-10-03T14:30:00Z')).toEqual([
+        `weather.taf.until(t19:00,${ltfoWind})`,
+      ])
+    })
+
+    it('pencerenin içinde başlayan FM eski koşulu keser; BECMG’nin getirdiği olay pencerenin başından', () => {
+      expect(
+        items([
+          taf(
+            'TAF LTXX 151040Z 1512/1618 27025KT 9999 SCT030 BECMG 1514/1518 27010KT FM151600 27012KT',
+          ),
+        ]),
+      ).toEqual([
+        'weather.taf.until(t16:00,weather.taf.strongWind(weather.wind.level.strong,weather.wind.from(weather.compass.from.W,25kt)))',
+      ])
+      // Kuvvetlenen BECMG: öğe pencerenin başından başlar ("giderek"), değişmedi.
+      expect(
+        items([taf('TAF LTXX 151040Z 1512/1618 27010KT 9999 SCT030 BECMG 1515/1517 27025KT')]),
+      ).toEqual([
+        'weather.taf.becmg(t15:00,t17:00,weather.taf.strongWind(weather.wind.level.strong,weather.wind.from(weather.compass.from.W,25kt)))',
+      ])
+    })
   })
 
   it('olay sürüyorsa yalnız başka öğeyi değiştiren BECMG "… saatine kadar"ı kesmez', () => {
@@ -833,9 +1117,9 @@ describe('summarizeTaf', () => {
     const windyNew = taf(
       'TAF LTFM 151040Z 1512/1618 04028G40KT 9999 BKN030 BECMG 1520/1522 04010KT',
     )
-    // 28 kt fırtınamsı rüzgârdır (Beaufort 7; D-083).
+    // 28 kt fırtınamsı rüzgârdır (Beaufort 7; D-083). Zayıflatan BECMG 1520/1522: pencerenin sonu.
     expect(items([windyNew, windyOld], '2026-01-15T11:00:00Z')).toEqual([
-      'weather.taf.until(t20:00,weather.taf.strongWind(weather.wind.level.nearGale,weather.wind.from(weather.compass.from.NE,28kt), weather.wind.gust(40kt)))',
+      'weather.taf.until(weather.time.tomorrow(t22:00),weather.taf.strongWind(weather.wind.level.nearGale,weather.wind.from(weather.compass.from.NE,28kt), weather.wind.gust(40kt)))',
     ])
   })
 

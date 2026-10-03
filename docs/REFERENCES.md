@@ -27,7 +27,8 @@ Bir şeyi doğrulaman gerekiyorsa önce buradaki kaynakları kullan. Yeni bir ka
   - METAR sayfası (kendi isteği: düz virgüllü `ids`, `/taf`'ta `hours` yok, 204 = veri yok): https://aviationweather.gov/data/metar/
 - **NWS kullanım şartları** (kamu malı, onay ima etmeme, ad ve logo izni, yeniden deneme en az 1 dk arayla, engellenen kullanıcı sdm@noaa.gov): https://www.weather.gov/disclaimer
 - **MGM:**
-  - *Havacılık Meteorolojisi 1* (Ankara, 2018; METAR/TAF kodları, Türkiye'de TAF düzeni V.3.7, meydan uyarı eşikleri): https://www.mgm.gov.tr/FILES/genel/kitaplar/havacilikmeteorolojisi.pdf
+  - *Havacılık Meteorolojisi 1* (Ankara, 2018; METAR/TAF kodları, Türkiye'de TAF düzeni V.3.7, meydan uyarı eşikleri VI.1.2, alçak seviye rüzgâr sheari (kesmesi) grubu `WS RDRDR` / `WS ALL RWY` IV.1.3.9.4): https://www.mgm.gov.tr/FILES/genel/kitaplar/havacilikmeteorolojisi.pdf
+  - Beaufort rüzgâr ıskalası (Türkçe adlar ve kt aralıkları: 5 Sert rüzgâr 17–21 kt, 7 Fırtınamsı rüzgâr 28–33 kt …; D-083): https://mgm.gov.tr/FILES/genel/sss/beaufort.pdf
   - Halka açık simge adları: https://www.mgm.gov.tr/site/yardim1.aspx?=Simgeler · "gök gürültülü" kullanımı: https://www.mgm.gov.tr/tahmin/gunluk-tahmin.aspx?b=15
   - Meteoroloji sözlüğü ("Kuru duman" ve "Kuru pus"): https://www.mgm.gov.tr/genel/meteorolojisozlugu.aspx?m=K&k=aa208 · https://www.mgm.gov.tr/genel/meteorolojisozlugu.aspx?m=K&k=aa213
 - **WMO-No. 782** *Aerodrome Reports and Forecasts* (2020, ICAO Ek 3 Değişiklik 79 ile uyumlu; kod biçimleri ve örnekler): https://archiwum.imgw.pl/sites/default/files/2021-06/aerodromereportsandforecasts.pdf · WMO Teknik Düzenlemeler Cilt II'nin kaldırılması (Ek 3 başvuru kaynağıdır): https://community.wmo.int/en/activity-areas/aviation/resources/tech-regs-v2-discontinuation
