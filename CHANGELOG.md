@@ -8,6 +8,26 @@
 
 ---
 
+## v0.13.1 — 2026-10-03
+
+### Türkçe
+**Havalimanı penceresi hizalı tablo oldu**
+
+- Ortalı düzen yamuk göründüğü için haritadaki havalimanı penceresi tek bir hizalı tabloya döndü: bütün satırlarda simgeler, etiketler ve değerler aynı sütunda başlıyor; başlık, hava durumu başlığı, gözlem satırı ve bağlantı da aynı kenardan.
+- Rakım, pistler ve yerel saat satırlarının da simgesi var.
+
+Dene: [Haritada İstanbul penceresi](/?havalimani=LTFM)
+
+### English
+**The airport window is now a neatly aligned table**
+
+- The centred layout looked uneven, so the map’s airport window is now a single aligned table: icons, labels and values start in the same column on every row, and the title, weather headline, observation line and link share the same edge.
+- The elevation, runways and local time rows now have icons too.
+
+Try it: [Istanbul window on the map](/?havalimani=LTFM)
+
+---
+
 ## v0.13.0 — 2026-10-03
 
 ### Türkçe

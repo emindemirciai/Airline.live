@@ -21,7 +21,8 @@ Durumlar: `[ ]` başlamadı, `[~]` sürüyor, `[k]` kod bitti ve kullanıcı do�
 | M6b | Havalimanı sayfaları, dil adreste (`/en`), SEO ve GEO | `p1/m6b-seo` | [k] kod bitti; Search Console, Bing ve Yandex doğrulaması kullanıcıda (ACTIVATION) | #15 |
 | M6c | Havalimanı hava durumu (METAR/TAF), METAR/TAF kaydı, haritada havalimanı penceresi | `p1/m6c-weather` | [x] tamam; üretimde gerçek METAR/TAF doğrulandı (2026-10-02) | #16 |
 | M6d | Türkiye dışındaki havalimanları, 1. halka (≤ 500 km, 75 havalimanı), açık turkuaz tema, hava durumu sunumu | `p1/m6d-ring1` | [x] tamam; üretimde 136 havalimanı, 122 istasyonda METAR (68'i yurt dışı) doğrulandı (2026-10-02) | #17 |
-| M6e | Hava durumu: pencere ortalı, rüzgâr km/sa ve kt, kuvvetli rüzgâr vurgusu, kümülonimbüs ve yıldırım uyarısı | `p1/m6e-weather-wind` | [k] kod bitti; üretimde pencere ve uyarıların görülmesi bekliyor | #18 |
+| M6e | Hava durumu: pencere ortalı, rüzgâr km/sa ve kt, kuvvetli rüzgâr vurgusu, kümülonimbüs ve yıldırım uyarısı | `p1/m6e-weather-wind` | [x] tamam; üretimde doğrulandı (2026-10-03, v0.13.0): IST penceresinde "Kuzeydoğudan 37 km/sa (20 kt)", kehribar "Kuvvetli rüzgâr" | #18 |
+| M6e.1 | Pencere hizası (yama) | `p1/m6e1-popup-align` | [k] kod bitti; üretimde pencerenin görülmesi bekliyor | #19 |
 | M6f | Adlar ve saat: askerî ve sivil havalimanı adları TR/EN, haritada havalimanı adı etiketi, yurt dışında yerel saat ve UTC farkı | `p1/m6f-names-time` | [ ] | — |
 | M6g | Türkiye dışındaki havalimanları, 2. halka (≤ 1.000 km) | `p1/m6g-ring2` | [ ] | — |
 | M7a | Canlı araçlar: `smoke:live`, `record` | `p1/m7a-live-tools` | [ ] | — |
@@ -673,7 +674,37 @@ Hedef sürüm 0.13.0. Kararlar D-083'tedir.
   - Her yeni test düzeltme geri alınınca kırmızı (denendi): `cloudPrecip` olmadan shared 4 birim testi; başlık kuralı olmadan shared 1; bölünmez boşluk olmadan e2e 4/4 pencere testi (IST 1280, 375, 320, 430 px) ve yalnız yerleşim ölçümüyle LTAI'de "3.400 m" 2 satır. i18n ve web birim testleri yeni metni ve U+00A0'ı ister.
   - **`pnpm ci:full` → yeşil:** birim testleri web 620, shared 470 (+5), api 251, worker 200, providers 120, i18n 83 (+3), tools 74, db 44, geo 31, scripts 31; entegrasyon db 82, api 26, worker 12; migration yükseltme 6 → 6; `compose:guard` 8 servis, 64 anahtar; E2E 107/107 (+1: LTAI penceresi), kararsız test yok.
 - `pnpm stats` → 526 dosya, 90.247 satır (82.085 kod).
-- **Yayından sonra:** üretimde IST penceresi (ortalı yazılar, km/sa ve kt, rüzgâr ve yıldırım vurgusu) tarayıcıda görülür; sonra satır `[x]` olur.
+- **Yayından sonra:** üretimde IST penceresi (ortalı yazılar, km/sa ve kt, rüzgâr ve yıldırım vurgusu) tarayıcıda görülür; sonra satır `[x]` olur. **2026-10-03 doğrulandı (v0.13.0):** "Kuzeydoğudan 37 km/sa (20 kt)", kehribar "Kuvvetli rüzgâr". Kullanıcı ortalı düzeni yamuk buldu; hizalı tablo M6e.1'de (v0.13.1).
+
+## M6e.1 — Pencere hizası (v0.13.1)
+Onay: 2026-10-03 (kullanıcı geri bildirimi, üretimdeki İstanbul penceresinin ekran görüntüsüyle: "ortala yapınca olmadı yamuk yumuk oldu. hepsi hizalı olsun"; yama sürümü, D-082)
+
+Hedef sürüm 0.13.1. Karar D-083'teki "2026-10-03 kullanıcı geri bildirimi" maddesidir; M6e'nin ortalı düzeninin yerine geçer.
+
+**Kapsam:**
+- Pencere tek hizalı tablodur: bütün yazılar sola yaslı ve aynı sol kenardan başlar (kodlar, ad, yer; kapat düğmesi sağda; "Hava durumu", hava başlığı ve sıcaklık kutucuğu, gözlem satırı, bağlantı).
+- Bilgi satırları (rakım, pistler, yerel saat) ve hava durumu satırları aynı sütunlarda: simge, etiket ve değer her satırda aynı x'te (sabit etiket sütunu, 8rem).
+- Bilgi satırlarına hava simgeleriyle aynı biçimde kendi simgeleri: rakım (dağ), pistler (pist şeridi), yerel saat (kadran).
+- **Değişmeyenler:** pencere genişliği, odak, aria, kapat düğmesi, alt sayfa, bölünmez boşluklar, havalimanı sayfasının hava durumu bölümü.
+
+**Dosyalar:**
+- `apps/web/src/components/map/airport-popup.css`, `airport-popup.tsx`, `airport-popup-model.ts` (bilgi satırları `WeatherRow`), `airport-popup.test.ts`
+- `apps/web/src/components/airports/weather-rows.css` (`wx-rows--center` yerine `wx-rows--popup`), `weather-row-list.tsx`, `weather-icon.tsx` (3 simge)
+- `e2e/tests/weather.spec.ts` (`expectPopupCentred` yerine `expectPopupAligned`; IST ve LTAI, TR ve EN, 1280, 768, 430, 375 ve 320 px; kırılan etiket)
+- `docs/DECISIONS.md` (D-083 alt maddesi)
+
+**Kabul komutları:**
+- `pnpm --filter @havayolu/web test` → iki liste `wx-rows--popup`, `wx-rows--center` yok; bilgi satırları sırası, simgeleri ve U+00A0'lı değerleri; her `<dt>` simge yuvasıyla başlar
+- `pnpm test:e2e` → `weather.spec.ts`: IST ve LTAI pencerelerinde TR ve EN, 1280, 768, 430, 375 ve 320 px'te simge, etiket ve değer x'i her satırda eşit (±1 px), simge etiketin ilk satırının ortasında ve etiket ile değer aynı yükseklikte (kırılan "Diğer hava olayları" etiketinde de), başlık ve diğer yazılar simge sütununda, kapat düğmesi sağda, satır kutuları aynı kenarda, hız ve uzunluklar tek satırda, yatay taşma yok
+- `pnpm ci:full` yeşil; PR'da CI (`e2e` dahil) yeşil
+
+**Çıktı kaydı (2026-10-03, uygulama; sürüm, changelog ve README yayın adımındadır):**
+- Tarayıcıda (`pnpm dev:replay`, başsız Chromium) IST ve LTAI pencereleri TR ve EN, 1280, 430, 375 ve 320 px'te ölçüldü: simge, etiket yazısı ve değer yazısı her satırda aynı x'te (simge içerik kenarında, etiket +24 px, değer +134 px), başlık ve diğer yazılar simge sütununda, yatay taşma yok.
+- e2e: `expectPopupCentred` yerine `expectPopupAligned`; LTAI 1280 px testi ve dar ekran döngüsü (375, 320, 430) havalimanı ve dil başına tek testte toplandı (sayfa bir kez yüklenir, genişlik pencere açıkken değişir; WebSocket el sıkışma sınırı, D-083). Ölçüm M6e'nin ortalı CSS'iyle 4/4 kırmızı (denendi).
+- **`pnpm ci:full` → yeşil:** birim testleri web 621 (+1), shared 470, api 251, worker 200, providers 120, i18n 83, tools 74, db 44, geo 31, scripts 31; entegrasyon db 82, api 26, worker 12; migration yükseltme 6 → 6; `compose:guard` 8 servis, 64 anahtar; E2E 107/107 (sayı aynı: 4 test kalktı, 4 test geldi).
+- **Kontrol turu (2026-10-03):** 30 durumda (IST, AYT, ATH × TR, EN × 1280, 768, 430, 375, 320 px) hiza yeşil. Düzeltilen: iki satıra kırılan etiketin (TR "Diğer hava olayları") simgesi iki satırın ortasındaydı → `wx-rows--popup` satırında `<dt>` `align-items: flex-start`, simge ilk satırın yüksekliğinde ortalanır (`1lh`); tarayıcıda simgenin ortası ilk satırın ortasından 0,8 px (önce 9,5 px). e2e: `expectPopupAligned` dikeyi (simge ↔ etiketin ilk satırı ±2 px, etiket ↔ değer ±1 px) ve kapat düğmesini ölçer; testler sonda "Diğer hava olayları" satırını ekleyip 320 ve 1280 px'te ölçer (TR iki satır, EN tek satır); genişlik döngüsüne 768 px eklendi. Düzeltmesiz CSS'te 2 TR testi kırmızı (`other: simge etiketin ilk satırının ortasında`, 9,55 px; denendi), EN testleri yeşil (etiket kırılmıyor). `formatElevation` yorumunda değer sütunu ~160 px. LGAV e2e'ye eklenmedi (her test bir WebSocket el sıkışması; `WS_RATE_LIMIT`), kontrol turunda elle ölçüldü.
+- **`pnpm ci:full` → yeşil (kontrol turundan sonra):** birim testleri web 621, shared 470, api 251, worker 200, providers 120, i18n 83, tools 74, db 44, geo 31, scripts 31 (turbo 31/31); entegrasyon db 82, api 26, worker 12; migration yükseltme 6 → 6; `compose:guard` 8 servis, 64 anahtar; E2E 107/107 (1,9 dk).
+- `pnpm stats` → 526 dosya, 90.568 satır (82.346 kod).
 
 ## M7 — Canlı araçlar ve kapsama raporu
 Ayrıntılar `docs/prompts/parca-1.md`'dedir. Başlarken bu dosyaya dizinler ve kabul komutları eklenir.
