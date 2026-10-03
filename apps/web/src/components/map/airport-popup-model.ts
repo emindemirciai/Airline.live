@@ -31,7 +31,7 @@ import {
   type AirportMetar,
   type Locale,
 } from '@havayolu/shared'
-import { phenomenonRows, type WeatherRow } from '../airports/weather-rows'
+import { phenomenonRows, plainRow, type WeatherRow } from '../airports/weather-rows'
 import { runwaySummary, type MapAirport } from './airport-data'
 import type { BulkWeatherState } from './use-airport-weather'
 
@@ -63,7 +63,7 @@ export function formatClock(ms: number, timeZone: string = TURKEY_TIME_ZONE): st
 
 /**
  * Rakım (ft girdi), metrik önce: "99 m (325 ft)". Bilinmiyorsa "—". Sayı ile birim arasında
- * bölünmez boşluk vardır (`nowrap`): pencerenin ~140 px'lik değer sütununda "99" / "m" diye
+ * bölünmez boşluk vardır (`nowrap`): pencerenin dar değer sütununda (~160 px) "99" / "m" diye
  * kırılmaz (D-083); satır yalnız "99 m" ile "(325 ft)" arasında kırılabilir.
  */
 export function formatElevation(ft: number | null, locale: Locale): string {
@@ -94,18 +94,16 @@ export function airportPlace(airport: MapAirport, locale: Locale): string | null
   return provinceName(airport.isoRegion, locale) ?? airportDistrict(airport)
 }
 
-export interface PopupRow {
-  key: string
-  label: string
-  value: string
-}
-
 export interface AirportFacts {
   /** Resmî ad (TR) ya da İngilizce karşılığı; doğrulanamadıysa OurAirports adı. */
   name: string
   /** Pencerenin erişilebilir adı ("İstanbul Havalimanı bilgileri"). */
   label: string
-  rows: PopupRow[]
+  /**
+   * Rakım, pistler, (yerel saat): vurgusuz satırlar. Hava durumu satırlarıyla aynı listeyle
+   * (`WeatherRowList`) ve aynı sütunlarda çizilir (M6e.1, D-083); simgeleri `data-row` anahtarından.
+   */
+  rows: WeatherRow[]
 }
 
 /**
@@ -131,12 +129,12 @@ export function airportFacts(
   timeZone: string | null = popupTimeZone(airport),
 ): AirportFacts {
   const name = airportDisplayName(airport, locale)
-  const rows: PopupRow[] = [
-    { key: 'elevation', label: t.elevation, value: formatElevation(airport.elevationFt, locale) },
-    { key: 'runways', label: t.runways, value: formatRunways(airport, locale, t) },
+  const rows: WeatherRow[] = [
+    plainRow('elevation', t.elevation, formatElevation(airport.elevationFt, locale)),
+    plainRow('runways', t.runways, formatRunways(airport, locale, t)),
   ]
   if (timeZone !== null) {
-    rows.push({ key: 'localTime', label: t.localTime, value: formatLocalTime(now, timeZone, t) })
+    rows.push(plainRow('localTime', t.localTime, formatLocalTime(now, timeZone, t)))
   }
   return { name, label: format(t.label, { name }), rows }
 }

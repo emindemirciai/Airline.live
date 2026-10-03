@@ -5,15 +5,7 @@ import './airport-popup.css'
 import type { Messages } from '@havayolu/i18n'
 import type { Locale } from '@havayolu/shared'
 import Link from 'next/link'
-import {
-  Fragment,
-  useEffect,
-  useEffectEvent,
-  useId,
-  useLayoutEffect,
-  useRef,
-  type RefObject,
-} from 'react'
+import { useEffect, useEffectEvent, useId, useLayoutEffect, useRef, type RefObject } from 'react'
 import { localePath } from '../../lib/locale-routing'
 import { WeatherRowList } from '../airports/weather-row-list'
 import type { MapAirport } from './airport-data'
@@ -70,10 +62,12 @@ function focusPlaceIn(root: HTMLElement | null): FocusPlace {
  * - Hava durumu: başlığın yanında ayrı sıcaklık kutucuğu (önünde "·" yok; eksi U+2212), simgeli
  *   satırlar; var olan olayın, etkili rüzgârın (şiddet etiketiyle) ve şimşek ve yıldırım riskinin
  *   satırı renkli zemin ve kalın yazıyla vurgulanır (`WeatherRowList`, havalimanı sayfasıyla ortak).
- * - Bütün yazılar ortalıdır (kullanıcı isteği 2026-10-03, D-083): başlık, kodlar ve yer satırı
- *   pencerenin ortasında (kapat düğmesi sağ sütunda, solunda eşit boş sütun); bilgi ve hava durumu
- *   satırlarında etiket sağa, değer sola yaslıdır, çiftler orta eksende buluşur; hava başlığı ile
- *   sıcaklık kutucuğu, notlar, gözlem satırı ve bağlantı ortalıdır.
+ * - Tek hizalı tablo (M6e.1; kullanıcı geri bildirimi 2026-10-03, D-083; M6e'nin ortalı düzeninin
+ *   yerine): bütün yazılar sola yaslıdır ve aynı sol kenardan başlar (kodlar, ad, yer satırı; kapat
+ *   düğmesi sağda). Bilgi satırları (rakım, pistler, yerel saat; kendi simgeleriyle) ve hava durumu
+ *   satırları aynı listeyle (`WeatherRowList`, `wx-rows--popup`) çizilir: simge, etiket ve değer her
+ *   satırda aynı x'tedir. Hava başlığı ile sıcaklık kutucuğu, notlar, gözlem satırı ve bağlantı da
+ *   aynı sol kenardadır.
  *
  * - Erişilebilirlik: kipsiz `dialog`; açılınca odak pencereye geçer, Escape ya da Kapat odağı
  *   pencereyi açan denetime (harita tuvali ya da "Havalimanları" düğmesi; yoksa harita tuvali) geri
@@ -222,14 +216,7 @@ export function AirportPopup({
         </button>
       </header>
 
-      <dl className="map-popup__facts">
-        {facts.rows.map((row) => (
-          <Fragment key={row.key}>
-            <dt>{row.label}</dt>
-            <dd>{row.value}</dd>
-          </Fragment>
-        ))}
-      </dl>
+      <WeatherRowList rows={facts.rows} className="map-popup__facts wx-rows--popup" />
 
       <section className="map-popup__weather" aria-labelledby={weatherHeadingId}>
         <h3 id={weatherHeadingId} className="map-popup__subheading">
@@ -253,7 +240,7 @@ export function AirportPopup({
             ) : null}
             {view.note ? <p className="map-popup__note">{view.note}</p> : null}
             {view.rows.length > 0 ? (
-              <WeatherRowList rows={view.rows} className="wx-rows--center" />
+              <WeatherRowList rows={view.rows} className="wx-rows--popup" />
             ) : null}
             <p className="map-popup__observed" data-age={view.ageClass}>
               {view.observed}

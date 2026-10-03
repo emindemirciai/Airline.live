@@ -258,9 +258,24 @@ function shape(category: WeatherIconCategory): ReactNode {
 /**
  * Satır simgeleri (M6d ek istekleri, 2026-10-02): rüzgâr, yağmur, kar, gök gürültüsü, sis ve pus,
  * görüş, bulut ve dolu satırının önünde, 18 px, kendi çizimimiz (kullanıcının onayladığı tasarım
- * tuvalindeki çizgi simgeler).
+ * tuvalindeki çizgi simgeler). Harita penceresinin bilgi satırları da aynı çizgi biçiminde simge
+ * taşır (M6e.1, D-083): rakım (iki tepeli dağ), pistler (perspektifte pist şeridi ve kesik orta
+ * çizgisi), yerel saat (saat kadranı). Havalimanı sayfasında bu anahtarlarla satır yoktur.
  */
 const ROW_SHAPES: Readonly<Partial<Record<string, ReactNode>>> = {
+  elevation: <path d="M3 19 9.5 8l3.7 6.2L15.5 11 21 19z" />,
+  runways: (
+    <>
+      <path d="M9.5 3h5l4 18h-13z" />
+      <path d="M12 6.5v1.5M12 11v2M12 16v2.5" />
+    </>
+  ),
+  localTime: (
+    <>
+      <circle cx={12} cy={12} r={9} />
+      <path d="M12 7v5l3.5 2" />
+    </>
+  ),
   wind: (
     <>
       <path d="M3 8h11a3 3 0 1 0-3-3" />

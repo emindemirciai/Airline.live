@@ -7,6 +7,30 @@ import type { ChangelogEntry } from './types'
  */
 export const CHANGELOG: readonly ChangelogEntry[] = [
   {
+    version: '0.13.1',
+    date: '2026-10-03',
+    title: {
+      tr: 'Havalimanı penceresi hizalı tablo oldu',
+      en: 'The airport window is now a neatly aligned table',
+    },
+    items: [
+      {
+        tr: 'Ortalı düzen yamuk göründüğü için haritadaki havalimanı penceresi tek bir hizalı tabloya döndü: bütün satırlarda simgeler, etiketler ve değerler aynı sütunda başlıyor; başlık, hava durumu başlığı, gözlem satırı ve bağlantı da aynı kenardan.',
+        en: 'The centred layout looked uneven, so the map’s airport window is now a single aligned table: icons, labels and values start in the same column on every row, and the title, weather headline, observation line and link share the same edge.',
+      },
+      {
+        tr: 'Rakım, pistler ve yerel saat satırlarının da simgesi var.',
+        en: 'The elevation, runways and local time rows now have icons too.',
+      },
+    ],
+    tryLinks: [
+      {
+        path: '/?havalimani=LTFM',
+        label: { tr: 'Haritada İstanbul penceresi', en: 'Istanbul window on the map' },
+      },
+    ],
+  },
+  {
     version: '0.13.0',
     date: '2026-10-03',
     title: {
