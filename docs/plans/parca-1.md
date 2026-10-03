@@ -26,6 +26,7 @@ Durumlar: `[ ]` başlamadı, `[~]` sürüyor, `[k]` kod bitti ve kullanıcı do�
 | M6f | Adlar ve saat: askerî ve sivil havalimanı adları TR/EN, haritada havalimanı adı etiketi, yurt dışında yerel saat ve UTC farkı | `p1/m6f-names-time` | [x] tamam; üretimde doğrulandı (2026-10-03, v0.14.0): İncirlik Hava Üssü / Incirlik Air Base, Ankara (Etimesgut), /istasyon/LGAV "Yerel saat 19:37 (UTC+3)" | #20 |
 | M6e.2 | Rüzgâr renkleri ve rüzgâr kesmesi (yama, v0.14.1) | `p1/m6e2-wind-colors` | [x] tamam; üretimde doğrulandı (2026-10-03, v0.14.1): UGTB, UGKO, LGMK kehribar, LGKP ve LRCK açık yeşil | #21 |
 | M6l | Logo: A · Halka | `p1/m6l-logo` | [k] kod bitti; üretimde başlık, simgeler ve paylaşım görsellerinin görülmesi bekliyor | #22 |
+| M6k | Uçak listesi sağ üstte: sefer, kuyruk, yükseklik, konum ve durum | `p1/m6k-aircraft-list` | [ ] | — |
 | M6g | Türkiye dışındaki havalimanları, 2. halka (≤ 1.000 km) | `p1/m6g-ring2` | [ ] | — |
 | M7a | Canlı araçlar: `smoke:live`, `record` | `p1/m7a-live-tools` | [ ] | — |
 | M6h | 3. halka (≤ 2.000 km) | `p1/m6h-ring3` | [ ] | — |
@@ -812,6 +813,10 @@ Hedef sürüm 0.15.0. Karar D-086'dadır.
 - `pnpm --filter @havayolu/web test` → uçağın iki yolu tasarımdaki `planeTop` ile birebir; dönüşümler (0,98 ve 0,74, 45°), `toPlaneSpace` tersidir, burun sağ üstte; tam işarette burun, kanat uçları ve kuyruk halkanın dışında, küçük işarette uçak dairenin içinde, uygulama simgesinde işaret güvenli alanda; `LOGO_COLORS`; SVG: maske, halka, uçak sırası ve renkleri, küçük işaret maskesiz, simgede `rx="24"` ve `translate(12 12) scale(0.76)`; başlık bağlantısının erişilebilir adı yalnızca "havayolu" (bir kez), işaret `aria-hidden` ve `focusable="false"`, iki işaretin maske kimlikleri farklı ve her halka kendi maskesini kullanır; PNG pikselleri: 192/512 köşe saydam ve merkez beyaz, `maskable` köşeler dolu ve güvenli alanın dışı yalnızca zemin, Apple 180 tam kare, favicon köşe saydam, kenar turkuaz, merkez beyaz
 - `pnpm test:e2e` → `airports.spec.ts`: başlıkta tek marka bağlantısı, adı "havayolu", işaret 24 × 24 px ve `aria-hidden`, halkanın maskesi belgede tek ve `<mask>`; `seo.spec.ts`: manifestteki üç simge (`/icon/maskable` dahil) ve `<link rel="icon">`'lar 200 ve PNG
 - `pnpm ci:full` yeşil; PR'da CI (`e2e` dahil) yeşil
+
+- **Yayın adımı (2026-10-03):** dal v0.14.1 ile birleştirildi; maskeye kuyruk üçgeni eklendi (512 px önizlemede kuyrukta halka kırıntısı görüldü; D-086). Başlık logosu e2e testi, yol satırındaki "havayolu" bağlantısını saymasın diye başlıkla sınırlandı.
+- **`pnpm ci:full` → yeşil:** birim testleri web 663, shared 546, api 251, worker 200, providers 120, i18n 93, tools 74, db 44, geo 31, scripts 31; entegrasyon db 82, api 26, worker 12; migration yükseltme 6 → 6; `compose:guard`; E2E 111/111.
+- `pnpm stats` → 538 dosya, 95.066 satır (86.551 kod).
 
 ## M7 — Canlı araçlar ve kapsama raporu
 Ayrıntılar `docs/prompts/parca-1.md`'dedir. Başlarken bu dosyaya dizinler ve kabul komutları eklenir.

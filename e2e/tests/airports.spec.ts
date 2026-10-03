@@ -203,7 +203,12 @@ test.describe('tarayıcıda', () => {
     await page.goto('/havalimanlari')
     const brand = page.locator('header.site-header a.brand')
     await expect(brand).toHaveCount(1)
-    await expect(page.getByRole('link', { name: 'havayolu', exact: true })).toHaveCount(1)
+    // Başlıkta adı yalnızca 'havayolu' olan tek bağlantı; işaret ada bir şey eklemez (sayfadaki yol
+    // bağlantısı da 'havayolu' adını taşır, o yüzden başlıkla sınırlanır).
+    await expect(
+      page.locator('header.site-header').getByRole('link', { name: 'havayolu', exact: true }),
+    ).toHaveCount(1)
+    await expect(brand).toHaveAccessibleName('havayolu')
     const mark = brand.locator('svg.brand-mark')
     await expect(mark).toHaveAttribute('aria-hidden', 'true')
     const box = await mark.boundingBox()
