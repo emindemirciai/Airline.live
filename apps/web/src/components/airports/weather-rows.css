@@ -6,6 +6,9 @@
  * yıldırım uyarısını ya da (etiketle) rüzgârın şiddetini yazar (D-083).
  * Sıcaklık kutucuğu vurgu turkuazıdır (`--accent`): beyaz yazı 4,75:1 (#0b8f9b zeminde 3,9:1
  * kalırdı). Kehribar yazı sitenin uyarı rengidir (`--warn`). Temel token'lar globals.css → `:root`.
+ * Düzen: sayfada `wx-rows--page` (dar ekranda etiket değerin üstünde); harita penceresinde
+ * `wx-rows--popup` (sabit etiket sütunu, bilgi satırlarıyla tek hizalı tablo; M6e.1, D-083). M6e'nin
+ * ortalı düzeni (`wx-rows--center`) kaldırıldı.
  */
 :root {
   --wx-rain-bg: #dbeafe;
@@ -146,26 +149,38 @@
 }
 
 /*
- * Ortalı satırlar (harita penceresi; kullanıcı isteği 2026-10-03, D-083): iki eşit sütun, etiket
- * (simge ve ad) sağa, değer sola yaslıdır; her çift pencerenin orta ekseninde buluşur. Vurgu zemini
- * yine bütün satırı kaplar. Havalimanı sayfası sola yaslı iki sütunla kalır (`wx-rows--page`).
+ * Harita penceresinin satırları (M6e.1; kullanıcı geri bildirimi 2026-10-03, D-083): tek hizalı
+ * tablo. Bilgi satırları (rakım, pistler, yerel saat) ve hava durumu satırları iki ayrı listedir ama
+ * aynı sütunları kullanır: etiket sütunu sabittir (`--wx-popup-label`, 18 px simge ve 6 px boşluk
+ * dahil), içerikten hesaplanmaz. Böylece her satırda simge, etiket ve değer aynı x'tedir. En uzun
+ * etiket ("Gök gürültüsü", "Thunderstorm", "Fog and mist"; vurgulu satırda kalın) sığar; daha uzunu
+ * ("Diğer hava olayları") kendi sütununda kırılır. Değer kendi sütununda kırılır, etiketin altına
+ * geçmez. Vurgu zemini bütün satırı kaplar, yazı aynı ızgarada kalır. Yazılar sola yaslıdır.
+ * Havalimanı sayfası değişmedi (`wx-rows--page`).
  */
-.wx-rows--center {
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+.wx-rows--popup {
+  --wx-popup-label: 8rem;
+
+  grid-template-columns: var(--wx-popup-label) minmax(0, 1fr);
 }
 
-.wx-rows--center > .wx-row > dt {
-  justify-content: flex-end;
-  text-align: end;
+/*
+ * Kırılan etiketin simgesi ilk satırın yanında kalır, etiketin ilk satırı değerin ilk satırıyla aynı
+ * yükseklikte başlar. Ortak `align-items: center` simgeyi iki satırın ortasına koyuyordu (TR "Diğer
+ * hava olayları"; denetim 2026-10-03). Simge ilk satırın yüksekliğinde (`1lh`) ortalanır;
+ * `lh` birimini tanımayan tarayıcı payı yok sayar, simge üstte kalır (fark 1 px'ten az).
+ */
+.wx-rows--popup > .wx-row > dt {
+  align-items: flex-start;
 }
 
-.wx-rows--center > .wx-row > dd {
-  text-align: start;
+.wx-rows--popup > .wx-row > dt > .wx-icon {
+  margin-block-start: calc((1lh - 18px) / 2);
 }
 
 @supports not (grid-template-columns: subgrid) {
-  .wx-rows--center > .wx-row {
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  .wx-rows--popup > .wx-row {
+    grid-template-columns: var(--wx-popup-label) minmax(0, 1fr);
   }
 }
 

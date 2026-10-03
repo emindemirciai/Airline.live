@@ -14,7 +14,11 @@
 //   sayfayla aynı satırları, sıcaklık kutucuğunu ve vurguyu taşır (kullanıcı kararı 2026-10-02)
 // - M6e (D-083): rüzgâr km/sa ve parantezde kt; etkili rüzgârın satırı kehribar ve şiddetin adı
 //   etiketle; havalimanında ve çevresinde oraj ile kümülonimbüste şimşek ve yıldırım uyarısı (metin ve
-//   kehribar vurgu); pencerede bütün yazılar ortalı (1280, 430, 375 ve 320 px), yatay taşma yok
+//   kehribar vurgu)
+// - M6e.1 (D-083, kullanıcı geri bildirimi 2026-10-03): pencere tek hizalı tablodur; IST ve LTAI
+//   pencerelerinde iki dilde ve 1280, 768, 430, 375 ve 320 px'te her satırın simgesi, etiketi ve
+//   değeri aynı x'te, simge etiketin ilk satırının yanında (kırılan etikette de), başlık ve diğer
+//   yazılar simge sütunuyla aynı sol kenarda, kapat düğmesi sağda (ölçülür), yatay taşma yok
 import { expect, test, type Locator, type Page } from '@playwright/test'
 import { jsonLdBlocks, metaContents, titles } from '../html'
 import {
@@ -48,6 +52,25 @@ const LOG_WINDOW_SLACK_MS = 60_000
 const LATEST_GROUP = PRIMARY_WEATHER.latestMetarGroups[0]
 
 /**
+ * Hizası ölçülen havalimanı pencereleri ve vurgulu satırları (fixture: IST
+ * `03018G32KT -SHRA FEW025CB`, LTAI `+TSRA SCT015CB`).
+ */
+const ALIGNED_AIRPORTS = [
+  { icao: 'LTFM', iata: 'IST', tones: ['wind', 'rain', 'thunder'] },
+  { icao: 'LTAI', iata: 'AYT', tones: ['rain', 'thunder'] },
+] as const
+
+/**
+ * En uzun pencere etiketi (packages/i18n → `weather.rows.other`): TR'de 8rem'lik etiket sütununda iki
+ * satıra kırılır, EN tek satırdır. Fixture'da diğer hava olayı yoktur; satır tarayıcıda eklenir
+ * (`addOtherWeatherRow`).
+ */
+const OTHER_WEATHER = { tr: 'Diğer hava olayları', en: 'Other weather' } as const
+
+/** "Havalimanları" düğmesinin adı (packages/i18n → `map.airportList.button`). */
+const AIRPORT_LIST_BUTTON = { tr: 'Havalimanları', en: 'Airports' } as const
+
+/**
  * Sayfadaki metinler (packages/i18n → `weather`, `airport.schedule`, `map.airportPopup`). Satır
  * değerleri LTFM'nin son METAR'ından gelir (support.ts → PRIMARY_WEATHER).
  */
@@ -67,7 +90,7 @@ const COPY = {
     speedUnit: 'km/sa',
     /**
      * km/sa ve parantezde knot (D-083): "33 km/sa (18 kt)". Boşluklar bölünmezdir (U+00A0): hız dar
-     * sütunda iki satıra bölünmez (`expectPopupCentred` satırları ayrıca ölçer).
+     * sütunda iki satıra bölünmez (`expectPopupAligned` satırları ayrıca ölçer).
      */
     speedDual: /\d+\u00a0km\/sa\u00a0\(\d+\u00a0kt\)/,
     gust: 'hamle',
@@ -573,9 +596,9 @@ test.describe('harita: havalimanı penceresi', () => {
       'href',
       STATION_PATH,
     )
-    // Bütün yazılar ortalı; pencerenin genişliği değişmedi (320 px).
-    const centred = await expectPopupCentred(popup)
-    expect(Math.abs(centred.width - 320)).toBeLessThanOrEqual(1)
+    // Tek hizalı tablo; pencerenin genişliği değişmedi (320 px).
+    const aligned = await expectPopupAligned(popup, 'tr')
+    expect(Math.abs(aligned.width - 320)).toBeLessThanOrEqual(1)
 
     // Escape kapatır; odak haritaya döner.
     await page.keyboard.press('Escape')
@@ -603,24 +626,61 @@ test.describe('harita: havalimanı penceresi', () => {
     await expect(popup).toBeHidden()
   })
 
-  test('LTAI penceresi (1280 px): pist uzunluğu ve rakım birimiyle tek satırda, yazılar ortalı', async ({
-    page,
-  }) => {
-    // İkinci kontrol turu (D-083): 1280 px'te Antalya'da "3 pist, en uzunu 3.400" / "m" kırılıyordu.
-    // Pinin başı harita ortasının ~15 px yukarısındadır; Antalya'nın çevresinde taksi uçağı yoktur.
-    await page.goto('/?havalimani=LTAI')
-    await waitForMap(page)
-    const popup = page.locator('.live-map [role="dialog"].map-popup')
-    const center = await mapCenter(page)
-    await expect(async () => {
-      await page.mouse.click(center.x, center.y - PIN_HEAD_OFFSET_PX)
-      await expect(popup).toBeVisible({ timeout: 2_000 })
-    }).toPass({ timeout: 15_000 })
-    await expect(popup).toHaveAttribute('data-icao', 'LTAI')
-    await expect(row(popup, 'Pistler')).toContainText('en uzunu')
-    const centred = await expectPopupCentred(popup)
-    expect(Math.abs(centred.width - 320)).toBeLessThanOrEqual(1)
-  })
+  /*
+   * Tek hizalı tablo (M6e.1; kullanıcı geri bildirimi 2026-10-03, D-083): M6e'nin ortalı düzeni
+   * üretimde yamuk göründü. IST (rüzgâr, yağmur ve yıldırım satırı vurgulu) ve LTAI (havalimanında
+   * oraj: yağmur ve gök gürültüsü satırı vurgulu; 1280 px'te "3.400 m" kırılıyordu) pencereleri iki
+   * dilde ve beş genişlikte ölçülür. Pencere "Havalimanları" listesinden açılır (klavye yolu; pin ve
+   * kod tıklaması yukarıdaki testlerde). Sayfa bir kez yüklenir, genişlik pencere açıkken değişir
+   * (767 px'in altında alt sayfa olur): API WebSocket el sıkışmasını IP başına dakikada 30 ile
+   * sınırlar (`WS_RATE_LIMIT`), genişlik başına yeniden yükleme sonraki testlerin canlı verisini
+   * kesiyordu. Aynı nedenle üçüncü bir havalimanı (LGAV) eklenmedi; hizası aynı kurallarla elle
+   * ölçüldü (D-083). Sonda kırılan etiket denenir: "Diğer hava olayları" satırı eklenir, simgesi
+   * ilk satırın yanında kalmalı (denetim 2026-10-03: iki satırın ortasındaydı).
+   */
+  for (const locale of ['tr', 'en'] as const) {
+    for (const airport of ALIGNED_AIRPORTS) {
+      test(`${locale}: ${airport.iata} penceresi tek hizalı tablo (1280, 768, 430, 375, 320 px), yatay taşma yok`, async ({
+        page,
+      }) => {
+        const popup = await openPopupFromList(page, locale, airport)
+        for (const width of [1280, 768, 430, 375, 320]) {
+          await page.setViewportSize({ width, height: width >= 768 ? 800 : 812 })
+          const sheet = width < 768
+          // Geniş ekranda pencere noktanın yanına konur (`transform`); alt sayfada yer verilmez.
+          if (sheet) await expect(popup).toHaveCSS('transform', 'none')
+          await expect(popup).toHaveAttribute('data-placed', 'true')
+          const aligned = await expectPopupAligned(popup, locale)
+          // Vurgulu satırlar ölçüme girdi (vurgu zemini ve kalın yazı da aynı ızgarada).
+          expect(aligned.tones, `${width} px`).toEqual(expect.arrayContaining([...airport.tones]))
+          if (sheet) {
+            // Alt sayfa haritanın bütün genişliğindedir.
+            const map = await page.locator('.live-map .maplibregl-canvas').boundingBox()
+            expect(aligned.width, `${width} px`).toBeGreaterThanOrEqual((map?.width ?? 0) - 2)
+          } else {
+            // Geniş ekranda pencere 320 px'tir (değişmedi).
+            expect(Math.abs(aligned.width - 320), `${width} px`).toBeLessThanOrEqual(1)
+          }
+          const overflow = await page.evaluate(
+            () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
+          )
+          expect(overflow, `${width} px: sayfa yatay kaymaz`).toBeLessThanOrEqual(0)
+        }
+
+        // Kırılan etiket: TR "Diğer hava olayları" iki satır, EN "Other weather" tek satır. Simge
+        // etiketin ilk satırının yanında, değer o satırla aynı yükseklikte (`expectPopupAligned`).
+        for (const width of [320, 1280]) {
+          await page.setViewportSize({ width, height: width >= 768 ? 800 : 812 })
+          await expect(popup).toHaveAttribute('data-placed', 'true')
+          await addOtherWeatherRow(popup, locale)
+          const aligned = await expectPopupAligned(popup, locale)
+          expect(aligned.labelLines.other, `${width} px: etiket satırı`).toBe(
+            locale === 'tr' ? 2 : 1,
+          )
+        }
+      })
+    }
+  }
 
   test('apronda (z10) IST kodu ve pini tıklanır; "Havalimanları" listesiyle klavyeden açılır', async ({
     page,
@@ -734,24 +794,6 @@ test.describe('harita: havalimanı penceresi', () => {
       await expect(popup).toBeHidden()
     })
 
-    for (const width of [375, 320, 430]) {
-      test(`${width} px: alt sayfada bütün yazılar ortalı, yatay taşma yok`, async ({ page }) => {
-        await page.setViewportSize({ width, height: 812 })
-        await openAtPrimaryAirport(page)
-        const popup = airportPopup(page)
-        await clickPrimaryChip(page)
-        await expect(popup).toBeVisible()
-        const centred = await expectPopupCentred(popup)
-        // Alt sayfa haritanın bütün genişliğindedir (pencerenin kendi genişliği yoktur).
-        const map = await page.locator('.live-map .maplibregl-canvas').boundingBox()
-        expect(centred.width).toBeGreaterThanOrEqual((map?.width ?? 0) - 2)
-        const overflow = await page.evaluate(
-          () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
-        )
-        expect(overflow).toBeLessThanOrEqual(0)
-      })
-    }
-
     test('"Havalimanı sayfası" bağlantısı alt sayfa kaydırılmadan görünür ve tıklanır', async ({
       page,
     }) => {
@@ -863,94 +905,161 @@ function airportPopup(page: Page): Locator {
 }
 
 /**
- * Pencerede bütün yazılar ortalı mı (kullanıcı isteği 2026-10-03, D-083): başlık, kodlar, yer satırı,
- * alt başlık, hava başlığı ve sıcaklık kutucuğu, gözlem satırı ve bağlantı pencerenin orta ekseninde
- * (`text-align: center`, yazının kutusu ±2 px); bilgi ve hava durumu satırlarında etiket sağa, değer
- * sola yaslı, aradaki boşluğun ortası eksende (±1,5 px). Eksen, kaydırma çubuğu hariç iç kutunun
- * ortasıdır. Pencere yatay kaymaz. Hava durumu satırları gelene kadar bekler.
- *
- * Hava başlığı esnek satırdır (başlık ve sıcaklık kutucuğu): içeriğinin kutusu öğeler kenarlara
- * yaslansa da (`space-between`) eksende kalırdı. Bu yüzden her satırdaki öğeler ayrıca ölçülür:
- * öğeler bitişik (aradaki boşluk `column-gap` kadar, +1 px) ve satırın ortası eksende (±2 px).
- * Rüzgâr satırındaki her hız ("59 km/sa (32 kt)") ile rakım ve en uzun pistin her uzunluğu ("99 m",
- * "325 ft", "4.100 m") tek satırdadır (bölünmez boşluk, D-083; 1280 px'te AYT ve SKG'de "3.400" /
- * "m" kırılıyordu).
+ * Haritayı havalimanında açar (`?havalimani=`; dil adreste) ve pencereyi "Havalimanları"
+ * listesinden açar. Liste görünümdeki havalimanlarını açıldığı anda yazar: kamera daha
+ * yerleşmediyse öğe yoktur, liste kapatılıp yeniden açılır.
  */
-async function expectPopupCentred(popup: Locator): Promise<{ width: number }> {
-  const weather = popup.getByRole('region', { name: 'Hava durumu' })
-  await expect(row(weather, COPY.tr.rows.wind)).toContainText(COPY.tr.speedUnit, {
-    timeout: 15_000,
-  })
+async function openPopupFromList(
+  page: Page,
+  locale: Locale,
+  airport: { icao: string; iata: string },
+): Promise<Locator> {
+  const path = `/?havalimani=${airport.icao}`
+  await page.goto(locale === 'tr' ? path : enPath(path))
+  await waitForMap(page)
+  const toggle = page.getByRole('button', { name: AIRPORT_LIST_BUTTON[locale], exact: true })
+  const item = page.getByRole('button', { name: new RegExp(`^${airport.iata}\\b`) })
+  await expect(async () => {
+    if ((await toggle.getAttribute('aria-expanded')) === 'true') await toggle.click()
+    await toggle.click()
+    await item.click({ timeout: 2_000 })
+  }).toPass({ timeout: 15_000 })
+  const popup = page.locator(`.live-map [role="dialog"].map-popup[data-icao="${airport.icao}"]`)
+  await expect(popup).toBeVisible()
+  return popup
+}
+
+/**
+ * Pencere tek hizalı tablo mu (M6e.1; kullanıcı geri bildirimi 2026-10-03, D-083). Tarayıcıda
+ * ölçülür (CSS px, ±1 px):
+ * - Bilgi satırları (rakım, pistler, yerel saat) ve hava durumu satırları: her satırın simgesi
+ *   (18 px) aynı x'te ve bu x pencerenin içerik kenarıdır; etiket yazısı aynı x'te; değer yazısı aynı
+ *   x'te. Değer kendi sütununda kırılır (hiçbir satır kutusu değer x'inin solunda başlamaz), etiket
+ *   değer sütununa taşmaz.
+ * - Dikeyde: simgenin ortası etiketin ilk satırının ortasındadır, etiketin ilk satırı değerin ilk
+ *   satırıyla aynı yükseklikte başlar. Etiket kırılsa da simge ilk satırın yanında kalır (denetim
+ *   2026-10-03: `align-items: center` simgeyi iki satırın ortasına koyuyordu).
+ * - Satır kutuları aynı sol ve sağ kenardadır: vurgu zemini bütün satırı kaplar, vurgulu ve sade
+ *   satır aynı ızgaradadır.
+ * - Kodlar, ad, yer satırı, "Hava durumu", hava başlığı, gözlem satırı ve "Havalimanı sayfası →"
+ *   yazısı simge sütunuyla aynı sol kenardadır (M6e'de ortalıydı: kırmızı). Hava başlığında sıcaklık
+ *   kutucuğu başlığın hemen yanındadır (öğeler arası boşluk `column-gap` + 1 px'i geçmez). Kapat
+ *   düğmesi sağ kenardadır ve başlık bloğunun yazısıyla örtüşmez.
+ * - Pencere yatay kaymaz. Rüzgâr satırındaki her hız ("59 km/sa (32 kt)") ile rakım ve en uzun
+ *   pistin her uzunluğu ("99 m", "325 ft", "4.100 m") tek satırdadır (bölünmez boşluk, D-083).
+ * Hava durumu satırları gelene kadar bekler. Dönüş: pencere genişliği, vurgulu satırların tonları ve
+ * her satırın etiketinin kaç satır olduğu (`data-row` → satır sayısı).
+ */
+async function expectPopupAligned(
+  popup: Locator,
+  locale: Locale,
+): Promise<{ width: number; tones: string[]; labelLines: Record<string, number> }> {
+  const copy = COPY[locale]
+  const weather = popup.getByRole('region', { name: copy.heading })
+  await expect(row(weather, copy.rows.wind)).toContainText(copy.speedUnit, { timeout: 15_000 })
   const layout = await popup.evaluate((root) => {
-    const box = root.getBoundingClientRect()
-    const axis = box.left + root.clientLeft + root.clientWidth / 2
-    const textBox = (element: Element) => {
+    const visible = (range: Range) =>
+      [...range.getClientRects()].filter((rect) => rect.width > 0 && rect.height > 0)
+    const contents = (element: Element) => {
       const range = document.createRange()
       range.selectNodeContents(element)
-      const rect = range.getBoundingClientRect()
-      return { left: rect.left, right: rect.right }
+      return visible(range)
     }
-    const centred = [
+    const minLeft = (rects: DOMRect[]) =>
+      rects.length > 0 ? Math.min(...rects.map((rect) => rect.left)) : Number.NaN
+    const maxRight = (rects: DOMRect[]) =>
+      rects.length > 0 ? Math.max(...rects.map((rect) => rect.right)) : Number.NaN
+    const box = root.getBoundingClientRect()
+    const contentLeft =
+      box.left + root.clientLeft + Number.parseFloat(getComputedStyle(root).paddingLeft)
+    const rows = [...root.querySelectorAll('.wx-row')].map((element) => {
+      const dt = element.querySelector(':scope > dt')
+      const dd = element.querySelector(':scope > dd')
+      // Etiketin yazısı: `<dt>`'deki metin düğümleri (simge hariç).
+      const texts = [...(dt?.childNodes ?? [])].filter(
+        (node) => node.nodeType === Node.TEXT_NODE && (node.textContent ?? '').trim() !== '',
+      )
+      const first = texts[0]
+      const last = texts.at(-1)
+      const label = document.createRange()
+      if (first && last) {
+        label.setStart(first, 0)
+        label.setEnd(last, (last.textContent ?? '').length)
+      }
+      const labelRects = first ? visible(label) : []
+      const icon = dt?.querySelector('.wx-icon')?.getBoundingClientRect()
+      const valueRects = dd ? contents(dd) : []
+      const rowBox = element.getBoundingClientRect()
+      // Etiketin ilk satırı: en üstteki satır kutusu (kırılan etikette iki kutu vardır).
+      const labelFirst = labelRects.reduce<DOMRect | undefined>(
+        (top, rect) => (top && top.top <= rect.top ? top : rect),
+        undefined,
+      )
+      return {
+        key: element.getAttribute('data-row') ?? '',
+        facts: element.parentElement?.classList.contains('map-popup__facts') ?? false,
+        tone: element.getAttribute('data-tone'),
+        iconLeft: icon?.left ?? Number.NaN,
+        iconWidth: icon?.width ?? Number.NaN,
+        iconMiddle: icon ? (icon.top + icon.bottom) / 2 : Number.NaN,
+        labelLeft: minLeft(labelRects),
+        labelRight: maxRight(labelRects),
+        labelLines: new Set(labelRects.map((rect) => Math.round(rect.top))).size,
+        labelFirstTop: labelFirst?.top ?? Number.NaN,
+        labelFirstMiddle: labelFirst ? (labelFirst.top + labelFirst.bottom) / 2 : Number.NaN,
+        valueLeft: minLeft(valueRects),
+        valueTop:
+          valueRects.length > 0 ? Math.min(...valueRects.map((rect) => rect.top)) : Number.NaN,
+        rowLeft: rowBox.left,
+        rowRight: rowBox.right,
+      }
+    })
+    // Başlık bloğu (kodlar, ad, yer) ve kapat düğmesi.
+    const heading = root.querySelector('.map-popup__heading')
+    const closeButton = root.querySelector('.map-popup__header > button')?.getBoundingClientRect()
+    const contentRight =
+      box.left +
+      root.clientLeft +
+      root.clientWidth -
+      Number.parseFloat(getComputedStyle(root).paddingRight)
+    const header = {
+      textRight: heading ? maxRight(contents(heading)) : Number.NaN,
+      closeLeft: closeButton?.left ?? Number.NaN,
+      closeRight: closeButton?.right ?? Number.NaN,
+      contentRight,
+    }
+    const blocks = [
       '.map-popup__codes',
       '.map-popup__title',
       '.map-popup__place',
       '.map-popup__subheading',
       '.map-popup__headline',
+      '.map-popup__note',
       '.map-popup__observed',
       '.map-popup__link',
-    ].map((selector) => {
+    ].flatMap((selector) => {
       const element = root.querySelector(selector)
-      if (!element) return { selector, align: 'missing', offset: Number.NaN }
-      const text = textBox(element)
-      return {
-        selector,
-        align: getComputedStyle(element).textAlign,
-        offset: (text.left + text.right) / 2 - axis,
-      }
+      // Not yalnız gecikmiş gözlemde vardır; diğerleri her zaman.
+      if (!element) return selector === '.map-popup__note' ? [] : [{ selector, left: Number.NaN }]
+      return [{ selector, left: minLeft(contents(element)) }]
     })
-    // Esnek satır: öğeler soldan sağa (DOM sırası); dikeyde örtüşen öğeler aynı satırdadır.
-    const flexLines = ['.map-popup__headline'].flatMap((selector) => {
-      const element = root.querySelector(selector)
-      if (!element) return [{ selector, items: 0, offset: Number.NaN, gap: Number.NaN, maxGap: 0 }]
-      const gap = Number.parseFloat(getComputedStyle(element).columnGap) || 0
-      const lines: {
-        top: number
-        bottom: number
-        left: number
-        right: number
-        items: number
-        maxGap: number
-      }[] = []
-      for (const child of element.children) {
-        const rect = child.getBoundingClientRect()
-        if (rect.width === 0) continue
-        const line = lines.find((l) => rect.top < l.bottom && rect.bottom > l.top)
-        if (!line) {
-          lines.push({
-            top: rect.top,
-            bottom: rect.bottom,
-            left: rect.left,
-            right: rect.right,
-            items: 1,
-            maxGap: 0,
-          })
-          continue
-        }
-        line.maxGap = Math.max(line.maxGap, rect.left - line.right)
-        line.left = Math.min(line.left, rect.left)
-        line.right = Math.max(line.right, rect.right)
-        line.top = Math.min(line.top, rect.top)
-        line.bottom = Math.max(line.bottom, rect.bottom)
-        line.items += 1
+    // Hava başlığı: başlık ve sıcaklık kutucuğu; dikeyde örtüşen öğeler aynı satırdadır.
+    const headline = root.querySelector('.map-popup__headline')
+    const columnGap = headline ? Number.parseFloat(getComputedStyle(headline).columnGap) || 0 : 0
+    const lines: { top: number; bottom: number; right: number; items: number; maxGap: number }[] =
+      []
+    for (const child of headline?.children ?? []) {
+      const rect = child.getBoundingClientRect()
+      if (rect.width === 0) continue
+      const line = lines.find((l) => rect.top < l.bottom && rect.bottom > l.top)
+      if (!line) {
+        lines.push({ top: rect.top, bottom: rect.bottom, right: rect.right, items: 1, maxGap: 0 })
+        continue
       }
-      return lines.map((line) => ({
-        selector,
-        items: line.items,
-        offset: (line.left + line.right) / 2 - axis,
-        gap,
-        maxGap: line.maxGap,
-      }))
-    })
+      line.maxGap = Math.max(line.maxGap, rect.left - line.right)
+      line.right = Math.max(line.right, rect.right)
+      line.items += 1
+    }
     // Eşleşen her parçanın satır kutuları (Range.getClientRects) tek satırda mı. `\s` bölünmez
     // boşluğu da kapsar: parça olağan boşlukla yazılsa da bulunur ve ölçülür.
     const pieces = (selector: string, pattern: RegExp) =>
@@ -962,58 +1071,99 @@ async function expectPopupCentred(popup: Locator): Promise<{ width: number }> {
             const range = document.createRange()
             range.setStart(node, match.index ?? 0)
             range.setEnd(node, (match.index ?? 0) + match[0].length)
-            const tops = [...range.getClientRects()]
-              .filter((rect) => rect.width > 0)
-              .map((rect) => Math.round(rect.top))
+            const tops = visible(range).map((rect) => Math.round(rect.top))
             found.push({ text: match[0], lines: new Set(tops).size })
           }
         }
         return found
       })
-    // Rüzgâr hızları ("59 km/sa (32 kt)").
-    const speeds = pieces('.wx-row[data-row="wind"] > dd', /\d+\s(?:km\/sa|km\/h)\s\(\d+\skt\)/g)
-    // Rakım ve en uzun pist: sayı ve birimi ("99 m", "325 ft", "4.100 m").
-    const lengths = pieces('.map-popup__facts > dd', /\d[\d.,]*\s(?:m|ft)(?![\p{L}])/gu)
-    const pairs = [...root.querySelectorAll('.map-popup__facts > dt, .wx-row > dt')].map((dt) => {
-      const dd = dt.nextElementSibling
-      const label = dt.getBoundingClientRect()
-      const value = dd?.getBoundingClientRect()
-      return {
-        label: dt.textContent?.trim() ?? '',
-        // Etiketin yazısı sütunun sağ kenarında, değerin yazısı sütunun sol kenarında.
-        labelGap: label.right - textBox(dt).right,
-        valueGap: dd && value ? textBox(dd).left - value.left : Number.NaN,
-        axisOffset: value ? (label.right + value.left) / 2 - axis : Number.NaN,
-      }
-    })
     return {
       width: box.width,
       overflow: root.scrollWidth - root.clientWidth,
-      centred,
-      flexLines,
-      speeds,
-      lengths,
-      pairs,
+      contentLeft,
+      rows,
+      header,
+      blocks,
+      headline: { columnGap, lines },
+      // Rüzgâr hızları ("59 km/sa (32 kt)").
+      speeds: pieces('.wx-row[data-row="wind"] > dd', /\d+\s(?:km\/sa|km\/h)\s\(\d+\skt\)/g),
+      // Rakım ve en uzun pist: sayı ve birimi ("99 m", "325 ft", "4.100 m").
+      lengths: pieces(
+        '.wx-row[data-row="elevation"] > dd, .wx-row[data-row="runways"] > dd',
+        /\d[\d.,]*\s(?:m|ft)(?![\p{L}])/gu,
+      ),
     }
   })
   expect(layout.overflow, 'pencere yatay kaymaz').toBeLessThanOrEqual(0)
-  for (const item of layout.centred) {
-    expect(item.align, item.selector).toBe('center')
-    expect(Math.abs(item.offset), `${item.selector}: eksenden uzaklık`).toBeLessThanOrEqual(2)
-  }
-  // Hava başlığı ve sıcaklık kutucuğu: her satır ortada, öğeler bitişik (kenarlara yaslı değil).
-  expect(layout.flexLines.length).toBeGreaterThanOrEqual(1)
-  for (const line of layout.flexLines) {
+
+  // Rakım, pistler, yerel saat; rüzgâr, yağmur, kar, gök gürültüsü, sis ve pus, görüş.
+  const { rows } = layout
+  expect(rows.filter((r) => r.facts).map((r) => r.key)).toEqual([
+    'elevation',
+    'runways',
+    'localTime',
+  ])
+  expect(rows.length).toBeGreaterThanOrEqual(9)
+  const [first] = rows
+  if (!first) throw new Error('satır yok')
+  const iconX = first.iconLeft
+  const labelX = first.labelLeft
+  const valueX = first.valueLeft
+  expect(Math.abs(iconX - layout.contentLeft), 'simge sütunu içerik kenarında').toBeLessThanOrEqual(
+    1,
+  )
+  expect(labelX, 'etiket simgenin sağında').toBeGreaterThan(iconX)
+  expect(valueX, 'değer etiketin sağında').toBeGreaterThan(labelX)
+  for (const r of rows) {
+    expect(Math.abs(r.iconWidth - 18), `${r.key}: simge yuvası 18 px`).toBeLessThanOrEqual(0.5)
+    expect(Math.abs(r.iconLeft - iconX), `${r.key}: simge x`).toBeLessThanOrEqual(1)
+    expect(Math.abs(r.labelLeft - labelX), `${r.key}: etiket x`).toBeLessThanOrEqual(1)
+    expect(Math.abs(r.valueLeft - valueX), `${r.key}: değer x`).toBeLessThanOrEqual(1)
+    // Etiket kendi sütununda kalır; değerin kırılan satırları etiketin altına geçmez (`valueLeft`
+    // bütün satır kutularının en solu).
+    expect(r.labelRight, `${r.key}: etiket değer sütununa taşmaz`).toBeLessThanOrEqual(valueX - 4)
+    // Simge etiketin ilk satırının yanında (etiket kırılsa da); etiket ve değer aynı yükseklikte
+    // başlar. Yazının kutusu (`Range`) satır kutusu değil, yazı tipinin yüksekliğidir: düzgün
+    // satırda bile simgenin ortasından ~0,8 px ayrılır (Chromium, Windows). Pay 2 px'tir; kusur yarım
+    // satırdır (~9,5 px, düzeltmesiz CSS'te ölçüldü).
     expect(
-      Math.abs(line.offset),
-      `${line.selector}: satırın eksenden uzaklığı`,
+      Math.abs(r.iconMiddle - r.labelFirstMiddle),
+      `${r.key}: simge etiketin ilk satırının ortasında`,
     ).toBeLessThanOrEqual(2)
-    expect(line.maxGap, `${line.selector}: öğeler arası boşluk`).toBeLessThanOrEqual(line.gap + 1)
+    expect(
+      Math.abs(r.labelFirstTop - r.valueTop),
+      `${r.key}: etiket ve değer aynı yükseklikte`,
+    ).toBeLessThanOrEqual(1)
+    // Satır kutusu (vurgu zemini) bütün satırlarda aynı genişlikte.
+    expect(Math.abs(r.rowLeft - first.rowLeft), `${r.key}: satırın sol kenarı`).toBeLessThanOrEqual(
+      1,
+    )
+    expect(
+      Math.abs(r.rowRight - first.rowRight),
+      `${r.key}: satırın sağ kenarı`,
+    ).toBeLessThanOrEqual(1)
   }
+  // Başlık bloğu ve diğer yazılar simge sütunuyla aynı sol kenarda.
+  for (const block of layout.blocks) {
+    expect(Math.abs(block.left - iconX), `${block.selector}: sol kenar`).toBeLessThanOrEqual(1)
+  }
+  // Kapat düğmesi sağda (sağ payı −8 px, globals.css) ve başlık yazısıyla örtüşmez.
+  const { header } = layout
+  expect(header.closeRight, 'kapat düğmesi sağ kenarda').toBeGreaterThanOrEqual(
+    header.contentRight - 1,
+  )
+  expect(header.textRight, 'başlık yazısı kapat düğmesinin solunda').toBeLessThanOrEqual(
+    header.closeLeft,
+  )
+  // Hava başlığı ve sıcaklık kutucuğu bitişik (kenarlara yaslı değil).
+  const { columnGap, lines } = layout.headline
   expect(
-    layout.flexLines.reduce((sum, line) => sum + line.items, 0),
+    lines.reduce((sum, line) => sum + line.items, 0),
     'başlık ve sıcaklık kutucuğu',
   ).toBe(2)
+  for (const line of lines) {
+    expect(line.maxGap, 'hava başlığı: öğeler arası boşluk').toBeLessThanOrEqual(columnGap + 1)
+  }
   // Rüzgâr hızı iki satıra bölünmez ("48" ile "km/sa", "(7" ile "kt)" aynı satırda).
   expect(layout.speeds.length, 'rüzgâr hızı').toBeGreaterThanOrEqual(1)
   for (const speed of layout.speeds) expect(speed.lines, speed.text).toBe(1)
@@ -1023,14 +1173,40 @@ async function expectPopupCentred(popup: Locator): Promise<{ width: number }> {
     expect(length.text, 'sayı ile birim arasında bölünmez boşluk').toMatch(/^[\d.,]+\u00a0(m|ft)$/)
     expect(length.lines, length.text).toBe(1)
   }
-  // Rakım, pistler, yerel saat; rüzgâr, yağmur, kar, gök gürültüsü, sis ve pus, görüş.
-  expect(layout.pairs.length).toBeGreaterThanOrEqual(9)
-  for (const pair of layout.pairs) {
-    expect(Math.abs(pair.axisOffset), `${pair.label}: eksen`).toBeLessThanOrEqual(1.5)
-    expect(Math.abs(pair.labelGap), `${pair.label}: etiket sağa yaslı`).toBeLessThanOrEqual(1.5)
-    expect(Math.abs(pair.valueGap), `${pair.label}: değer sola yaslı`).toBeLessThanOrEqual(1.5)
+  return {
+    width: layout.width,
+    tones: rows.flatMap((r) => (r.tone ? [r.tone] : [])),
+    labelLines: Object.fromEntries(rows.map((r) => [r.key, r.labelLines])),
   }
-  return { width: layout.width }
+}
+
+/**
+ * Pencerenin hava durumu listesine "Diğer hava olayları" satırını ekler (yoksa). Fixture'da diğer
+ * hava olayı yoktur: satır sis satırından kopyalanır, `data-row="other"` ve kehribar vurgu
+ * (`data-tone="other"`, kalın yazı) alır, değeri uzun uyarı metnidir (kırılır). Pencere yeniden
+ * çizilip kopya düşerse yeniden eklenir. Yalnız ölçüm içindir; React satırı bilmez.
+ */
+async function addOtherWeatherRow(popup: Locator, locale: Locale): Promise<void> {
+  await popup.evaluate(
+    (root, { label, value }) => {
+      if (root.querySelector('.wx-row[data-row="other"]')) return
+      const source = root.querySelector('.map-popup__weather .wx-row[data-row="fog"]')
+      const list = source?.parentElement
+      if (!source || !list) throw new Error('sis satırı yok')
+      const copy = source.cloneNode(true) as HTMLElement
+      copy.dataset.row = 'other'
+      copy.dataset.tone = 'other'
+      const text = [...(copy.querySelector(':scope > dt')?.childNodes ?? [])].find(
+        (node) => node.nodeType === Node.TEXT_NODE && (node.textContent ?? '').trim() !== '',
+      )
+      const dd = copy.querySelector(':scope > dd')
+      if (!text || !dd) throw new Error('satırın etiketi ya da değeri yok')
+      text.textContent = label
+      dd.textContent = value
+      list.append(copy)
+    },
+    { label: OTHER_WEATHER[locale], value: COPY[locale].lightningNear },
+  )
 }
 
 /** Harita kapsayıcısının ortası, sayfa koordinatıyla (CSS px). */

@@ -9,7 +9,8 @@ import type { WeatherRow } from './weather-rows'
  * olayın, etkili rüzgârın ve şimşek ve yıldırım riskinin satırı `data-tone` ile renkli zemin ve kalın
  * yazı alır; vurgu renkten ibaret değildir, değer olayın adını ya da uyarıyı yazar ("Yok" yerine
  * "Hafif sağanak yağmur"), rüzgârın şiddeti etiketle yazılır. Kanca yoktur: sunucuda, adada ve harita
- * penceresinde aynı biçimde çizilir.
+ * penceresinde aynı biçimde çizilir. Harita penceresinin bilgi satırları (rakım, pistler, yerel saat)
+ * da bu listeyle çizilir: iki liste aynı DOM'u ve aynı sütunları kullanır (M6e.1, D-083).
  */
 export function WeatherRowList({
   rows,
@@ -17,8 +18,8 @@ export function WeatherRowList({
 }: {
   rows: readonly WeatherRow[]
   /**
-   * Ek sınıf: `wx-rows--page` dar sayfada etiketi değerin üstüne alır; `wx-rows--center` (harita
-   * penceresi) etiketi sağa, değeri sola yaslayıp çiftleri orta eksende buluşturur.
+   * Ek sınıf: `wx-rows--page` dar sayfada etiketi değerin üstüne alır; `wx-rows--popup` (harita
+   * penceresi) sabit genişlikte etiket sütunuyla bilgi ve hava durumu satırlarını aynı x'e hizalar.
    */
   className?: string
 }) {
