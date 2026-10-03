@@ -5,6 +5,7 @@ import {
   localTime,
   messageAt,
   renderWeatherText,
+  TURKEY_TIME_ZONE,
   visibilityDisplay,
   type Locale,
   type Measure,
@@ -22,7 +23,8 @@ import { NBSP, NO_VALUE } from './units'
  *
  * - Sayılar `Intl.NumberFormat` ile: tr 'tr-TR' (1.070 m; 1,5 km), en 'en-GB'. Basınçta binlik ayırıcı
  *   yoktur ("1009 hPa"). Eksi işareti U+2212'dir. Bilinmeyen değer "—".
- * - Saatler Europe/Istanbul, 24 saat ("15:50"); ofset koda gömülmez (`Intl`).
+ * - Saatler havalimanının saat diliminde (`WeatherTextOptions.timeZone`, IANA; varsayılan
+ *   Europe/Istanbul), 24 saat ("15:50"); ofset koda gömülmez, yaz saati dahil `Intl` hesaplar (D-084).
  * - Saat okunmaz: zamana bağlı her işlev `now` (epoch ms) alır.
  */
 
@@ -32,6 +34,11 @@ export interface WeatherTextOptions {
   locale: Locale
   /** `getMessages(locale).weather`; istemciye yalnızca bu bölüm gönderilir. */
   t: WeatherMessages
+  /**
+   * Saatlerin yazıldığı saat dilimi (IANA): havalimanının dilimi (`airportTimeZone`). Verilmezse
+   * Europe/Istanbul (Türkiye; dilimi bilinmeyen yabancı havalimanında "Türkiye saati" etiketiyle).
+   */
+  timeZone?: string
 }
 
 const MINUS = '−'
@@ -153,10 +160,10 @@ export type DateLike = Date | number | string
 const toMs = (value: DateLike): number =>
   value instanceof Date ? value.getTime() : typeof value === 'number' ? value : Date.parse(value)
 
-/** Yerel saat (Europe/Istanbul), 24 saat: "15:50". Geçersizse "—". */
-export function formatClock(at: DateLike): string {
+/** Yerel saat, verilen dilimde (varsayılan Europe/Istanbul), 24 saat: "15:50". Geçersizse "—". */
+export function formatClock(at: DateLike, timeZone: string = TURKEY_TIME_ZONE): string {
   const ms = toMs(at)
-  return Number.isFinite(ms) ? localTime(ms).hhmm : NO_VALUE
+  return Number.isFinite(ms) ? localTime(ms, timeZone).hhmm : NO_VALUE
 }
 
 /** UTC saat: "12:50". */
@@ -167,44 +174,59 @@ export function formatUtcClock(at: DateLike): string {
   return `${String(date.getUTCHours()).padStart(2, '0')}:${String(date.getUTCMinutes()).padStart(2, '0')}`
 }
 
-/** Yerel saatin UTC farkı: "UTC+3" (ofset `Intl`'den gelir, koda gömülmez). */
-export function formatUtcOffset(at: DateLike): string {
+/**
+ * Yerel saatin o andaki UTC farkı, verilen dilimde (varsayılan Europe/Istanbul): "UTC+3",
+ * "UTC+3:30", "UTC−4" (eksi U+2212). Ofset `Intl`'den gelir, koda gömülmez; yaz saati dahildir.
+ */
+export function formatUtcOffset(at: DateLike, timeZone: string = TURKEY_TIME_ZONE): string {
   const ms = toMs(at)
   if (!Number.isFinite(ms)) return 'UTC'
-  const minutes = localTime(ms).utcOffsetMinutes
+  const minutes = localTime(ms, timeZone).utcOffsetMinutes
   if (minutes === 0) return 'UTC'
   const abs = Math.abs(minutes)
   const rest = abs % 60
   return `UTC${minutes < 0 ? MINUS : '+'}${Math.floor(abs / 60)}${rest === 0 ? '' : `:${String(rest).padStart(2, '0')}`}`
 }
 
-/** Yerel gün ve ay: "17 Ocak" / "17 January". */
-export function formatDayMonth(at: DateLike, locale: Locale): string {
+const dayMonthFormats = new Map<string, Intl.DateTimeFormat>()
+
+/** Yerel gün ve ay, verilen dilimde (varsayılan Europe/Istanbul): "17 Ocak" / "17 January". */
+export function formatDayMonth(
+  at: DateLike,
+  locale: Locale,
+  timeZone: string = TURKEY_TIME_ZONE,
+): string {
   const ms = toMs(at)
   if (!Number.isFinite(ms)) return NO_VALUE
-  return new Intl.DateTimeFormat(INTL_LOCALE[locale], {
-    day: 'numeric',
-    month: 'long',
-    timeZone: 'Europe/Istanbul',
-  }).format(ms)
+  const key = `${locale}:${timeZone}`
+  let formatter = dayMonthFormats.get(key)
+  if (!formatter) {
+    formatter = new Intl.DateTimeFormat(INTL_LOCALE[locale], {
+      day: 'numeric',
+      month: 'long',
+      timeZone,
+    })
+    dayMonthFormats.set(key, formatter)
+  }
+  return formatter.format(ms)
 }
 
 /**
  * Yerel saat, gün değişiyorsa günüyle: aynı gün "15:00", ertesi gün "yarın 03:00" ("03:00
- * tomorrow"), daha uzak "17 Ocak 09:00".
+ * tomorrow"), daha uzak "17 Ocak 09:00". Gün, `timeZone`'un (havalimanının) takvimine göredir.
  */
 export function formatDayTime(
   at: DateLike,
   now: number,
-  { locale, t }: WeatherTextOptions,
+  { locale, t, timeZone = TURKEY_TIME_ZONE }: WeatherTextOptions,
 ): string {
   const ms = toMs(at)
   if (!Number.isFinite(ms)) return NO_VALUE
-  const time = formatClock(ms)
-  const days = localDayDifference(now, ms)
+  const time = formatClock(ms, timeZone)
+  const days = localDayDifference(now, ms, timeZone)
   if (days === 0) return time
   if (days === 1) return fill(t.time.tomorrow, { time })
-  return fill(t.time.onDate, { date: formatDayMonth(ms, locale), time })
+  return fill(t.time.onDate, { date: formatDayMonth(ms, locale, timeZone), time })
 }
 
 /**
@@ -232,8 +254,15 @@ export function formatAgo(at: DateLike, now: number, options: WeatherTextOptions
 // Özetlerin metne çevrilmesi
 // ---------------------------------------------------------------------------------------------
 
-/** Ölçüyü metrik ve dile göre yazar (`renderWeatherText` → `measure`). */
-export function formatMeasure(value: Measure, locale: Locale): string {
+/**
+ * Ölçüyü metrik ve dile göre yazar (`renderWeatherText` → `measure`); saat ve tarih `timeZone`'da
+ * (varsayılan Europe/Istanbul).
+ */
+export function formatMeasure(
+  value: Measure,
+  locale: Locale,
+  timeZone: string = TURKEY_TIME_ZONE,
+): string {
   switch (value.measure) {
     case 'speed':
       return formatWindSpeedDual(value.kt, locale, value.kmh)
@@ -246,9 +275,9 @@ export function formatMeasure(value: Measure, locale: Locale): string {
     case 'pressure':
       return formatPressure(value.hpa, locale)
     case 'time':
-      return formatClock(value.iso)
+      return formatClock(value.iso, timeZone)
     case 'date':
-      return formatDayMonth(value.iso, locale)
+      return formatDayMonth(value.iso, locale, timeZone)
   }
 }
 
@@ -259,7 +288,7 @@ export function formatMeasure(value: Measure, locale: Locale): string {
  */
 export function weatherText(
   value: WeatherText,
-  { locale, t }: WeatherTextOptions,
+  { locale, t, timeZone }: WeatherTextOptions,
   options: { capitalize?: boolean } = {},
 ): string {
   const root = { weather: t }
@@ -272,7 +301,7 @@ export function weatherText(
         if (template === undefined) throw new Error(`Hava durumu metni yok: ${key}`)
         return template
       },
-      measure: (measure) => formatMeasure(measure, locale),
+      measure: (measure) => formatMeasure(measure, locale, timeZone),
     },
     options,
   )

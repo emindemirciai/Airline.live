@@ -28,6 +28,25 @@ import {
 const { icao, iata } = PRIMARY_AIRPORT
 const STATION_PATH = `/istasyon/${icao}`
 
+/**
+ * DHMİ listesinde olmayan altı alanın adları (kullanıcı isteği ve kararı 2026-10-03, D-084):
+ * Ankara (Etimesgut) bakanlığın verdiği ad, beşi askerî hava üssü
+ * (packages/shared/src/reference/airport-names.ts).
+ */
+const RENAMED_AIRPORTS = [
+  {
+    icao: 'LTAD',
+    iata: 'ANK',
+    tr: 'Ankara (Etimesgut) Havalimanı',
+    en: 'Ankara (Etimesgut) Airport',
+  },
+  { icao: 'LTAG', iata: 'UAB', tr: 'İncirlik Hava Üssü', en: 'Incirlik Air Base' },
+  { icao: 'LTAH', iata: 'AFY', tr: 'Afyon Hava Üssü', en: 'Afyon Air Base' },
+  { icao: 'LTBG', iata: 'BDM', tr: 'Bandırma Hava Üssü', en: 'Bandırma Air Base' },
+  { icao: 'LTBI', iata: 'ESK', tr: 'Eskişehir Hava Üssü', en: 'Eskişehir Air Base' },
+  { icao: 'LTBL', iata: 'IGL', tr: 'Çiğli Hava Üssü', en: 'Çiğli Air Base' },
+] as const
+
 function isRecord(value: unknown): value is JsonLdNode {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
@@ -230,6 +249,58 @@ test.describe('tarayıcıda', () => {
     await expect(page.locator(`main a[href="/en?havalimani=${icao}"]`)).toBeVisible()
     for (const neighbour of PRIMARY_AIRPORT_NEIGHBOURS) {
       await expect(page.locator(`main a[href="/en/istasyon/${neighbour}"]`).first()).toBeVisible()
+    }
+  })
+
+  test('askerî üsler ve Ankara (Etimesgut) iki dilde adlanır; Atina’nın en yakını Çiğli Hava Üssü (D-084)', async ({
+    page,
+  }) => {
+    // Önceden altısı da iki dilde OurAirports adıyla yazılıyordu ("Etimesgut Air Base", "Çiğli
+    // Airbase"); Atina, Sakız ve Kalamata'nın "Türkiye’deki en yakın havalimanı" satırı da.
+    for (const { icao: code, iata: codeIata, tr, en } of RENAMED_AIRPORTS) {
+      for (const [locale, name] of [
+        ['tr', tr],
+        ['en', en],
+      ] as const) {
+        const path = locale === 'tr' ? `/istasyon/${code}` : enPath(`/istasyon/${code}`)
+        await page.goto(path)
+        const main = page.locator('main')
+        await expect(main.getByRole('heading', { level: 1 }), path).toHaveText(
+          `${name} (${codeIata}/${code})`,
+        )
+        expect(await page.title(), path).toContain(name)
+        // Başka dilde olduğu `lang` ile işaretlenen ögeler (OurAirports'taki ad, İngilizce sayfada
+        // resmî Türkçe ad) ve JSON-LD (`alternateName` OurAirports adıdır) dışında sayfada öbür
+        // dilin cins adı yoktur.
+        const own = await main.evaluate((node) => {
+          const copy = node.cloneNode(true) as HTMLElement
+          for (const tagged of copy.querySelectorAll('[lang], script')) tagged.remove()
+          return copy.textContent ?? ''
+        })
+        expect(own, path).not.toMatch(
+          locale === 'tr' ? /\b(Air Base|Airbase|Airport)\b/ : /Havalimanı|Hava Üssü/,
+        )
+      }
+    }
+    for (const [path, label, link, name] of [
+      [
+        `/istasyon/${RING1_AIRPORT.icao}`,
+        'Türkiye’deki en yakın havalimanı',
+        '/istasyon/LTBL',
+        'Çiğli Hava Üssü (IGL)',
+      ],
+      [
+        enPath(`/istasyon/${RING1_AIRPORT.icao}`),
+        'Nearest airport in Türkiye',
+        '/en/istasyon/LTBL',
+        'Çiğli Air Base (IGL)',
+      ],
+    ] as const) {
+      await page.goto(path)
+      const fact = page
+        .locator('main dt', { hasText: label })
+        .locator('xpath=following-sibling::dd[1]')
+      await expect(fact.locator(`a[href="${link}"]`), path).toHaveText(name)
     }
   })
 

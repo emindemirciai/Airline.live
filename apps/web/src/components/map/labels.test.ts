@@ -1,8 +1,11 @@
 import type { Airport } from '@havayolu/shared'
 import { describe, expect, it, vi } from 'vitest'
-import { DEFAULT_LABEL_SETTINGS } from '../../lib/map/label-settings'
+import { DEFAULT_LABEL_SETTINGS, type LabelSettings } from '../../lib/map/label-settings'
 import type { TrackedAircraft } from '../../lib/live/store'
+import { CircleObstacles } from '../../lib/map/label-layout'
 import {
+  AIRPORT_LABEL_MIN_ZOOM,
+  AIRPORT_NAME_MIN_ZOOM,
   DEFAULT_PIN_SCALE,
   LabelPainter,
   NORMAL_THEME,
@@ -13,7 +16,10 @@ import {
   layoutAirportChips,
   measureLabel,
   pinGeometry,
+  showsAirportChips,
+  showsAirportNames,
   type LabelFrame,
+  type PlacedAirportChip,
   type ScreenAirport,
 } from './labels'
 
@@ -279,6 +285,188 @@ describe('layoutAirportChips', () => {
     const [chip] = layoutAirportChips([at('VAN', 'medium_airport', 395, 100)], view, measure)
     expect(chip?.x).toBeLessThan(395)
   })
+
+  describe('Kod ve ad (D-084)', () => {
+    const named = (names: Record<string, string>) => ({
+      nameOf: (airport: Airport) => names[airport.iata] ?? null,
+    })
+    const overlap = (a: PlacedAirportChip, b: PlacedAirportChip) =>
+      a.x < b.x + b.width && a.x + a.width > b.x && a.y < b.y + b.height && a.y + a.height > b.y
+
+    it('adlı kutu kodun yanındadır: kod kısmı aynı, ad genişliği eklenir; pin başının sağında', () => {
+      const [code] = layoutAirportChips([at('IST', 'large_airport', 100, 100)], view, measure)
+      const [chip] = layoutAirportChips(
+        [at('IST', 'large_airport', 100, 100)],
+        view,
+        measure,
+        undefined,
+        named({ IST: 'İstanbul' }),
+      )
+      expect(code).toMatchObject({ name: null, width: 30, codeWidth: 30 })
+      // Kod 3 × 6,6 + 2 × 5 → 30; ad 8 × 6,6 = 52,8; arada 5 px.
+      expect(chip).toMatchObject({ iata: 'IST', name: 'İstanbul', codeWidth: 30, width: 88 })
+      expect(chip?.x).toBe(code?.x)
+      expect(chip?.y).toBe(code?.y)
+      expect(chip?.height).toBe(16)
+    })
+
+    it('adı olmayan havalimanında kutu yalnız koddur', () => {
+      const [chip] = layoutAirportChips(
+        [at('XYZ', 'medium_airport', 100, 100)],
+        view,
+        measure,
+        undefined,
+        named({}),
+      )
+      expect(chip).toMatchObject({ name: null, width: chip?.codeWidth })
+    })
+
+    it('ad sağa sığmazsa kutu sola geçer; hiçbir yana sığmazsa kod yalnız kalır', () => {
+      const ist = at('IST', 'large_airport', 100, 100)
+      const pin = pinGeometry(100, 100, DEFAULT_PIN_SCALE)
+      // Kodun bittiği yerin hemen sağında bir uçak: kod sığar, adlı kutu sığmaz.
+      const right = new CircleObstacles(view)
+      right.add(175, pin.headY, 10)
+      const [left] = layoutAirportChips([ist], view, measure, right, named({ IST: 'İstanbul' }))
+      expect(left?.name).toBe('İstanbul')
+      expect((left?.x ?? 0) + (left?.width ?? 0)).toBeLessThan(100)
+      // Sol, üst ve alt da dolu: kod sağda kalır, ad yazılmaz.
+      const all = new CircleObstacles(view)
+      all.add(175, pin.headY, 10)
+      all.add(20, pin.headY, 10)
+      all.add(100, pin.top - 12, 6)
+      all.add(100, 100 + 12, 6)
+      const [code] = layoutAirportChips([ist], view, measure, all)
+      const [fallback] = layoutAirportChips([ist], view, measure, all, named({ IST: 'İstanbul' }))
+      expect(code?.name).toBeNull()
+      expect(fallback).toEqual(code)
+    })
+
+    it('Kod ve ad, Kod ayarındaki havalimanlarının hiçbirini kaybettirmez; kutular çakışmaz', () => {
+      const airports: ScreenAirport[] = []
+      const codes = [
+        'IST',
+        'SAW',
+        'ISL',
+        'TEQ',
+        'BZI',
+        'YEI',
+        'KCO',
+        'CKZ',
+        'EDO',
+        'ESK',
+        'AOE',
+        'USQ',
+      ]
+      codes.forEach((iata, i) => {
+        airports.push(
+          at(
+            iata,
+            i % 3 === 0 ? 'large_airport' : 'medium_airport',
+            40 + (i % 4) * 90,
+            40 + Math.floor(i / 4) * 60,
+          ),
+        )
+      })
+      const names = Object.fromEntries(codes.map((iata) => [iata, `${iata} Havalimanı Adı`]))
+      const plain = layoutAirportChips(airports, view, measure)
+      const withNames = layoutAirportChips(airports, view, measure, undefined, named(names))
+      expect(withNames.map((chip) => chip.icao)).toEqual(plain.map((chip) => chip.icao))
+      expect(withNames.some((chip) => chip.name !== null)).toBe(true)
+      for (let i = 0; i < withNames.length; i++) {
+        for (let j = i + 1; j < withNames.length; j++) {
+          const a = withNames[i]
+          const b = withNames[j]
+          if (a && b) expect(overlap(a, b), `${a.iata} ${b.iata}`).toBe(false)
+        }
+      }
+    })
+
+    it('birincil istasyonda ad yerdeki uçakları örtmez; istisna yalnız kod kısmınadır (D-079, D-084)', () => {
+      const ist = at('IST', 'large_airport', 200, 200)
+      ist.airport.icao = 'LTFM'
+      const pin = pinGeometry(200, 200, DEFAULT_PIN_SCALE)
+      const [code] = layoutAirportChips([ist], view, measure)
+      const codeLeft = code?.x ?? 0
+      expect(codeLeft).toBeGreaterThan(200)
+      const iconRadius = 8
+      const frame = (aircraft: { x: number; y: number }[]): LabelFrame => ({
+        width: view.width,
+        height: view.height,
+        iconRadius,
+        zoom: 12,
+        aircraft: aircraft.map(({ x, y }, i) => ({
+          ac: { hex: `g${i}`, gnd: true } as TrackedAircraft,
+          x,
+          y,
+        })),
+        airports: [ist],
+        trail: [],
+        selectedHex: null,
+        settings: { ...DEFAULT_LABEL_SETTINGS, airports: 'name' },
+        locale: 'tr',
+        units: 'metric',
+      })
+      const layout = (aircraft: { x: number; y: number }[]) => {
+        const f = frame(aircraft)
+        return layoutAirportChips([ist], view, measure, chipObstacles(f), {
+          primary: { icao: 'LTFM', obstacles: chipObstacles(f, { ground: false }) },
+          ...named({ IST: 'İstanbul' }),
+        })
+      }
+      /** Uçak simgesi (yarıçap + 2 px pay, `chipObstacles`) kutuya değiyor mu. */
+      const covers = (
+        chip: PlacedAirportChip | undefined,
+        aircraft: { x: number; y: number }[],
+      ) => {
+        const icons = new CircleObstacles(view)
+        for (const { x, y } of aircraft) icons.add(x, y, iconRadius + 2)
+        return chip !== undefined && icons.hits(chip.x, chip.y, chip.width, chip.height)
+      }
+
+      // Yerdeki uçak kodun sağında, adın yerinde: adlı kutu sola geçer, uçağı örtmez (önce IST'nin
+      // adlı kutusu uçağın üstüne yazılıyor, tıklama uçak yerine pencereyi açıyordu).
+      const onName = [{ x: codeLeft + 60, y: pin.headY }]
+      const [moved] = layout(onName)
+      expect(moved?.name).toBe('İstanbul')
+      expect((moved?.x ?? 0) + (moved?.width ?? 0)).toBeLessThan(200)
+      expect(covers(moved, onName)).toBe(false)
+
+      // Yerdeki uçak yalnız kod kısmının altında: kod yine yazılır (D-079), ad yanında kalır.
+      const onCode = [{ x: codeLeft + 15, y: pin.headY }]
+      const [kept] = layout(onCode)
+      expect(kept).toMatchObject({ name: 'İstanbul', x: codeLeft, codeWidth: 30, width: 88 })
+
+      // Adın dört yeri de yerdeki uçaklarla dolu: kod yalnız kalır, ad hiçbir uçağı örtmez.
+      const box = 88
+      const around = [
+        ...onName,
+        { x: 200 - (codeLeft - 200) - 29, y: pin.headY },
+        { x: 200 - box / 2 + 30 + 29, y: pin.top - 3 - 8 },
+        { x: 200 - box / 2 + 30 + 29, y: 200 + 3 + 8 },
+      ]
+      const [fallback] = layout(around)
+      expect(fallback).toMatchObject({ name: null, x: codeLeft, width: 30 })
+    })
+
+    it('showsAirportChips ve showsAirportNames: Gizle, Kod, Kod ve ad ile yakınlaştırma eşikleri', () => {
+      const frame = (airports: LabelSettings['airports'], zoom: number) => ({
+        zoom,
+        airports: [at('IST', 'large_airport', 100, 100)],
+        settings: { ...DEFAULT_LABEL_SETTINGS, airports },
+      })
+      expect(AIRPORT_LABEL_MIN_ZOOM).toBe(5)
+      expect(AIRPORT_NAME_MIN_ZOOM).toBe(7)
+      expect(showsAirportChips(frame('code', 5))).toBe(true)
+      expect(showsAirportChips(frame('code', 4.99))).toBe(false)
+      expect(showsAirportChips(frame('hidden', 12))).toBe(false)
+      expect(showsAirportChips({ ...frame('code', 8), airports: [] })).toBe(false)
+      expect(showsAirportNames(frame('name', 7))).toBe(true)
+      expect(showsAirportNames(frame('name', 6.99))).toBe(false)
+      expect(showsAirportNames(frame('code', 12))).toBe(false)
+      expect(showsAirportNames(frame('hidden', 12))).toBe(false)
+    })
+  })
 })
 
 describe('LabelPainter.airportHitTest', () => {
@@ -344,5 +532,67 @@ describe('LabelPainter.airportHitTest', () => {
     painter.resize(400, 300, 1)
     painter.draw(frame(4))
     expect(painter.airportHitTest(112, 100)).toBeNull()
+  })
+
+  describe('havalimanı etiketi ayarı (D-084)', () => {
+    /** Çizilen yazıları kaydeden sahte bağlam. */
+    function recordingCanvas(texts: string[]): HTMLCanvasElement {
+      const ctx = new Proxy(
+        {
+          measureText: (text: string) => ({ width: measure('12px', text) }),
+          fillText: (text: string) => {
+            texts.push(text)
+          },
+        },
+        {
+          get: (target, key) =>
+            key in target ? target[key as keyof typeof target] : vi.fn(() => undefined),
+          set: () => true,
+        },
+      )
+      return { width: 0, height: 0, getContext: () => ctx } as unknown as HTMLCanvasElement
+    }
+    const draw = (
+      airports: LabelSettings['airports'],
+      zoom: number,
+      locale: 'tr' | 'en' = 'tr',
+    ) => {
+      const texts: string[] = []
+      const painter = new LabelPainter(recordingCanvas(texts))
+      painter.resize(400, 300, 1)
+      painter.draw({ ...frame(zoom), locale, settings: { ...DEFAULT_LABEL_SETTINGS, airports } })
+      return { painter, texts }
+    }
+    const pin = pinGeometry(100, 100, DEFAULT_PIN_SCALE)
+    /** Kod kısmının içi ve adın içi (kod 30 px genişliğindedir). */
+    const onCode = { x: pin.headX + pin.headRadius + 8, y: pin.headY }
+    const onName = { x: pin.headX + pin.headRadius + 60, y: pin.headY }
+
+    it('Gizle: kod ve ad çizilmez, kod tıklaması yoktur (pin GL katmanındadır)', () => {
+      const { painter, texts } = draw('hidden', 10)
+      expect(texts).toEqual([])
+      expect(painter.airportHitTest(onCode.x, onCode.y)).toBeNull()
+    })
+
+    it('Kod: yalnız IATA kodu; adın yeri tıklanmaz', () => {
+      const { painter, texts } = draw('code', 10)
+      expect(texts).toEqual(['IST'])
+      expect(painter.airportHitTest(onCode.x, onCode.y)).toBe('LTFM')
+      expect(painter.airportHitTest(onName.x, onName.y)).toBeNull()
+    })
+
+    it('Kod ve ad: z ≥ 7 kod ve kısa ad sayfanın dilinde; kutunun tamamı tıklanır', () => {
+      const tr = draw('name', 7)
+      expect(tr.texts).toEqual(['IST', 'İstanbul'])
+      expect(tr.painter.airportHitTest(onName.x, onName.y)).toBe('LTFM')
+      expect(draw('name', 10, 'en').texts).toEqual(['IST', 'Istanbul'])
+    })
+
+    it('Kod ve ad: z < 7 yalnız kod', () => {
+      const { painter, texts } = draw('name', 6.9)
+      expect(texts).toEqual(['IST'])
+      expect(painter.airportHitTest(onName.x, onName.y)).toBeNull()
+      expect(painter.airportHitTest(onCode.x, onCode.y)).toBe('LTFM')
+    })
   })
 })

@@ -189,6 +189,24 @@ Doğrulama: 2026-10-01 (OpenAPI şeması v4.0, Data API sayfası, help/data, de�
 - `tools/fixtures/weather/`: AWC JSON biçiminde, **elle yazılmış ve "sentetik, kayıt değil" etiketli** METAR ve TAF dosyaları; canlı kayıt yapılmaz (kullanıcı kararı 2026-10-01, D-078). Vakalar (yağmur, kar, gök gürültüsü, sis, CAVOK, VRB, hamle, SPECI ve dolu, donan yağmur, gecikmiş ve eski gözlem, raporu olmayan istasyon, TAF'ta yerine geçme, AMD ve süresi dolmuş TAF) ve LTFM için en az 3 günlük METAR/TAF kaydı içerir. Ayrıntı `tools/fixtures/README.md`'dedir.
 - Testte ve `EXTERNAL_PROVIDERS_DISABLED=true` iken worker bu dosyaları yükler; geliştirme ve testte (`APP_ENV` `development|test`) zamanlar tam saat kaydırılarak bugüne getirilir. Birim testleri sabit bir "şimdi" kullanır.
 
+## 5a. IANA saat dilimi veritabanı (tzdb) — havalimanının yerel saati
+Doğrulama: 2026-10-03 (tzdb 2026c `zone.tab`, `zone1970.tab`, `iso3166.tab`; Node 24 `Intl`, ICU 78, tz 2026b; canlı istek atılmadı). Parça 1 M6f'den beri kullanılır (D-084).
+
+- **Ne için:** havalimanının yerel saati ve UTC farkı (harita penceresi ve havalimanı sayfası; gözlem, tahmin, gün doğumu ve batımı). OurAirports, VRS ve aviationweather.gov saat dilimi vermez.
+- **Nasıl:** çalışma zamanında hiçbir yerden veri çekilmez. Kodda küçük bir tablo vardır (`packages/shared/src/reference/time-zones.ts`): tzdb `zone.tab`'da tek dilimi olan 216 ülke (ISO 3166-1 → IANA dilimi), çok dilimli ülkeler için ISO 3166-2 bölge kuralları ve havalimanına (ICAO) özgü kurallar. Yaz saati dahil farkı tarayıcının ve sunucunun `Intl`'i (ICU'nun tzdb kopyası) hesaplar; sabit fark kodda yoktur. Kuralı olmayan havalimanında dilim tahmin edilmez (null; saatler "Türkiye saati" etiketiyle yazılır). Kural sırası ve 1.–2. halka kuralları D-084'tedir.
+- **Tablonun denetimi:** birim testi ülke tablosunu Node'un `Intl.Locale#getTimeZones()` çıktısıyla (tzdb `zone.tab` ile birebir aynı) ve her dilimi `Intl.supportedValuesOf('timeZone')` ile karşılaştırır; listelenen her havalimanının (açık halkalar) bir dilimi olmalıdır. Adlar `Intl`'in yazdığı biçimdedir (`Asia/Calcutta`; tzdb'de `Asia/Kolkata`'ya bağlantı): eski tarayıcılar da tanır.
+- **Kullanılmayanlar:** dilim poligonları (timezone-boundary-builder; veri ODbL, paylaşım şartı ve 100+ MB) ve onlardan türeyen paketler (geo-tz 74 MB, ODbL; tz-lookup ve @photostructure/tz-lookup, README'ye göre yerleşik alanlarda ~%10 yanlış dilim); dilimi çalışma zamanında bir CDN'den çeken browser-geo-tz ("harici servislere yalnızca worker erişir" kuralına aykırı). "Ülkedeki en yakın `zone.tab` noktası" yöntemi 1. halkada Kuzey Kafkasya'yı UTC+4 yapıyordu.
+- Bir sağlayıcı (`packages/providers`) değildir: hiçbir şey indirilmez, `DATA_USAGE_MODE` kapısı yoktur. tzdb yükseltmesi çalışma zamanıyla (Node imajı, tarayıcı) gelir; ülkelerin dilim değişiklikleri (yeni dilim, bölünme) ülke tablosu testini kırar ve tablo o zaman güncellenir.
+
+**Lisans kaydı** (§ "Lisans kaydı"ndaki 7 alan)
+- `commercialUse`: `true`. tzdb kamu malıdır (`zone.tab` başlığı: "This file is in the public domain").
+- `attribution`: zorunlu değil; ATTRIBUTION.md'de nezaketen anılır.
+- `shareAlike`: `none`.
+- `rateLimit`: yok (çalışma zamanında istek yoktur).
+- `b2cDisplayAllowed`: `true`.
+- `mixingWithOtherRealtimeAllowed`: `true`.
+- `maxRawStorageDays`: `null` (ham veri saklanmaz; kodda yalnızca ülke ve bölge → dilim tablosu vardır).
+
 ## 6. Harita — OpenFreeMap
 - **Şartlar:** Anahtar yok, ticari kullanım serbest, sayı limiti yok, **SLA yok**.
 - **Stiller:** açık `https://tiles.openfreemap.org/styles/liberty`, koyu `.../styles/dark` (alternatif `fiord`). Env: `MAP_STYLE_URL`, `MAP_STYLE_URL_DARK`, `MAP_STYLE_FALLBACK_URL`. Testte yerel `test-style.json` kullanılır.

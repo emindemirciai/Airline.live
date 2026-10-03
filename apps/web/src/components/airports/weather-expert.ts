@@ -146,8 +146,11 @@ function label(name: string, value: string): string {
 export function metarCodeRows(
   metar: AirportMetar,
   options: WeatherTextOptions,
-  /** Türkiye dışındaki havalimanı: gözlem saati "Türkiye saati" diye yazılır (D-080). */
-  { abroad = false }: { abroad?: boolean } = {},
+  /**
+   * Dilimi bilinmeyen yabancı havalimanı: gözlem saati "Türkiye saati" diye yazılır (D-080). Dilim
+   * biliniyorsa yerel saat havalimanınındır (`options.timeZone`, D-084).
+   */
+  { turkeyTime = false }: { turkeyTime?: boolean } = {},
 ): CodeRow[] {
   const { t, locale } = options
   const e = t.expert
@@ -234,9 +237,9 @@ export function metarCodeRows(
     if (token === 'SKC' || token === 'CLR') return t.clouds.skc
     if (index <= 2 && token === metar.station) return e.station
     if (TIME.test(token)) {
-      return format(abroad ? e.observedUtcTurkey : e.observedUtc, {
+      return format(turkeyTime ? e.observedUtcTurkey : e.observedUtc, {
         utc: formatUtcClock(metar.observedAt),
-        local: formatClock(metar.observedAt),
+        local: formatClock(metar.observedAt, options.timeZone),
       })
     }
     if (WIND.test(token)) return label(e.wind, expertWind(metar.wind, options))

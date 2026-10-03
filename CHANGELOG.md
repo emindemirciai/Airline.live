@@ -8,6 +8,28 @@
 
 ---
 
+## v0.14.0 — 2026-10-03
+
+### Türkçe
+**Doğru havalimanı adları, haritada ad etiketi ve yurt dışında yerel saat**
+
+- Askerî havalimanları artık Türkçe sayfalarda Türkçe, İngilizce sayfalarda İngilizce adıyla görünüyor: İncirlik, Afyon, Bandırma, Eskişehir ve Çiğli Hava Üssü (Incirlik … Air Base). Etimesgut’un yeni resmî adı “Ankara (Etimesgut) Havalimanı” olarak yazılıyor.
+- Haritadaki “Etiketler” menüsüne Havalimanları seçeneği geldi: Gizle, Kod ya da Kod ve ad. Kod ve ad seçilince yakınlaşınca “IST İstanbul” gibi kısa adlar görünür. Gizle yalnız yazıları kaldırır; kırmızı iğneler her zaman haritada kalır ve tıklanır.
+- Türkiye dışındaki havalimanlarında yerel saat UTC farkıyla yazılıyor: “Yerel saat 23:05 (UTC+2)”. Havalimanı sayfasında gün doğumu ve batımı geri geldi; gözlem, tahmin ve METAR/TAF kaydı saatleri havalimanının kendi saatiyle. Saat dilimleri IANA saat dilimi veritabanından (kamu malı).
+
+Dene: [Atina Havalimanı yerel saat](/istasyon/LGAV) · [Havalimanları](/havalimanlari) · [Haritada etiketler](/?havalimani=LTFM)
+
+### English
+**Correct airport names, name labels on the map and local time abroad**
+
+- Military airfields now show their Turkish names on Turkish pages and English names on English pages: İncirlik, Afyon, Bandırma, Eskişehir and Çiğli Air Base. Etimesgut appears under its new official name, “Ankara (Etimesgut) Airport”.
+- The map’s “Labels” menu has a new Airports option: Hide, Code or With name. With name shows short names such as “IST Istanbul” when you zoom in. Hide removes only the text; the red pins always stay on the map and remain clickable.
+- Airports outside Türkiye now show local time with the UTC offset: “Local time 23:05 (UTC+2)”. Their pages show sunrise and sunset again, and observation, forecast and METAR/TAF log times are in the airport’s own time. Time zones come from the IANA time zone database (public domain).
+
+Try it: [Athens Airport local time](/istasyon/LGAV) · [Airports](/havalimanlari) · [Labels on the map](/?havalimani=LTFM)
+
+---
+
 ## v0.13.1 — 2026-10-03
 
 ### Türkçe

@@ -1,9 +1,14 @@
 import { getMessages } from '@havayolu/i18n'
-import type { AirportDetail, AirportWeather, Locale } from '@havayolu/shared'
+import {
+  airportTimeZone,
+  type AirportDetail,
+  type AirportWeather,
+  type Locale,
+} from '@havayolu/shared'
 // Göreli yollar: vitest `@/` takma adını çözmez.
 import { getAirportWeatherPage, type WeatherBulk } from '../../lib/weather'
 import { AirportWeatherLive } from './airport-weather-live'
-import { airportName, isTurkish } from './airport-text'
+import { airportName } from './airport-text'
 
 /**
  * Toplu yanıttan havalimanının güncel havası. Yanıt yoksa (API'ye ulaşılamadı) null; istasyon
@@ -25,7 +30,8 @@ export interface AirportWeatherSectionProps {
  * Havalimanı sayfasının hava durumu ve METAR/TAF kaydı bölümleri (M6c). Sunucuda toplu hava durumu
  * (60 sn önbellek) ve havalimanının 24 saatlik kaydı (5 dk önbellek) okunur; hata sayfaya taşınmaz.
  * Bölümler istemci adasında çizilir ve açık sekmede tazelenir. Sayfa bunu Suspense içinde verir.
- * Türkiye dışındaki havalimanında saatler "Türkiye saati" etiketiyle yazılır (D-080).
+ * Saatler havalimanının yerel saatidir (`airportTimeZone`, D-084); dilimi bilinmeyen yabancı
+ * havalimanında Türkiye saatiyle ve öyle etiketlenerek yazılır (D-080).
  */
 export async function AirportWeatherSection({
   locale,
@@ -45,7 +51,7 @@ export async function AirportWeatherSection({
       initialWeather={stationWeather(bulk, airport.icao)}
       initialHistory={history}
       renderedAt={renderedAt}
-      abroad={!isTurkish(airport)}
+      timeZone={airportTimeZone(airport)}
     />
   )
 }

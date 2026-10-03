@@ -7,6 +7,36 @@ import type { ChangelogEntry } from './types'
  */
 export const CHANGELOG: readonly ChangelogEntry[] = [
   {
+    version: '0.14.0',
+    date: '2026-10-03',
+    title: {
+      tr: 'Doğru havalimanı adları, haritada ad etiketi ve yurt dışında yerel saat',
+      en: 'Correct airport names, name labels on the map and local time abroad',
+    },
+    items: [
+      {
+        tr: 'Askerî havalimanları artık Türkçe sayfalarda Türkçe, İngilizce sayfalarda İngilizce adıyla görünüyor: İncirlik, Afyon, Bandırma, Eskişehir ve Çiğli Hava Üssü (Incirlik … Air Base). Etimesgut’un yeni resmî adı “Ankara (Etimesgut) Havalimanı” olarak yazılıyor.',
+        en: 'Military airfields now show their Turkish names on Turkish pages and English names on English pages: İncirlik, Afyon, Bandırma, Eskişehir and Çiğli Air Base. Etimesgut appears under its new official name, “Ankara (Etimesgut) Airport”.',
+      },
+      {
+        tr: 'Haritadaki “Etiketler” menüsüne Havalimanları seçeneği geldi: Gizle, Kod ya da Kod ve ad. Kod ve ad seçilince yakınlaşınca “IST İstanbul” gibi kısa adlar görünür. Gizle yalnız yazıları kaldırır; kırmızı iğneler her zaman haritada kalır ve tıklanır.',
+        en: 'The map’s “Labels” menu has a new Airports option: Hide, Code or With name. With name shows short names such as “IST Istanbul” when you zoom in. Hide removes only the text; the red pins always stay on the map and remain clickable.',
+      },
+      {
+        tr: 'Türkiye dışındaki havalimanlarında yerel saat UTC farkıyla yazılıyor: “Yerel saat 23:05 (UTC+2)”. Havalimanı sayfasında gün doğumu ve batımı geri geldi; gözlem, tahmin ve METAR/TAF kaydı saatleri havalimanının kendi saatiyle. Saat dilimleri IANA saat dilimi veritabanından (kamu malı).',
+        en: 'Airports outside Türkiye now show local time with the UTC offset: “Local time 23:05 (UTC+2)”. Their pages show sunrise and sunset again, and observation, forecast and METAR/TAF log times are in the airport’s own time. Time zones come from the IANA time zone database (public domain).',
+      },
+    ],
+    tryLinks: [
+      {
+        path: '/istasyon/LGAV',
+        label: { tr: 'Atina Havalimanı yerel saat', en: 'Athens Airport local time' },
+      },
+      { path: '/havalimanlari', label: { tr: 'Havalimanları', en: 'Airports' } },
+      { path: '/?havalimani=LTFM', label: { tr: 'Haritada etiketler', en: 'Labels on the map' } },
+    ],
+  },
+  {
     version: '0.13.1',
     date: '2026-10-03',
     title: {

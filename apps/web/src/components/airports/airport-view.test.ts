@@ -87,7 +87,9 @@ describe('AirportView', () => {
     expect(body).toContain('Havalimanında tek pist var: 3.048 m (10.000 ft) uzunluğundaki 05/23.')
     expect(body).toContain('Havalimanı canlı veri çekim alanının içinde')
     expect(body).not.toContain('ilindeki diğer')
-    expect(body).toContain('Ad: OurAirports')
+    expect(body).toContain(
+      'Ad: İncirlik Hava Üssü (askerî hava üssü; DHMİ listesinde yer almaz, bulunduğu yerin adıyla yazılır)',
+    )
   })
 
   it('pist tablosu: başlık, birimler, yüzey, gerçek yönler; kaydırılmış eşik yalnızca varsa', () => {
@@ -213,7 +215,52 @@ describe('AirportView', () => {
     expect(text(renderAirport('LTBS'))).toContain(
       'Resmî Türkçe ad: Muğla Dalaman Havalimanı (DHMİ)',
     )
-    expect(text(renderAirport('LTAG', 'en'))).toContain('Name: OurAirports')
+    expect(text(renderAirport('LTAG', 'en'))).toContain(
+      'Turkish name: İncirlik Hava Üssü (a military air base; it is not on the DHMİ list and is named after its location); the English name is a translation.',
+    )
+  })
+
+  it('askerî üsler ve Ankara (Etimesgut) iki dilde: başlık, içerik yolu, ad kaynağı (D-084)', () => {
+    const cases = [
+      ['LTAD', 'Ankara (Etimesgut) Havalimanı', 'Ankara (Etimesgut) Airport', 'ANK'],
+      ['LTAG', 'İncirlik Hava Üssü', 'Incirlik Air Base', 'UAB'],
+      ['LTAH', 'Afyon Hava Üssü', 'Afyon Air Base', 'AFY'],
+      ['LTBG', 'Bandırma Hava Üssü', 'Bandırma Air Base', 'BDM'],
+      ['LTBI', 'Eskişehir Hava Üssü', 'Eskişehir Air Base', 'ESK'],
+      ['LTBL', 'Çiğli Hava Üssü', 'Çiğli Air Base', 'IGL'],
+    ] as const
+    for (const [icao, tr, en, iata] of cases) {
+      for (const [locale, name] of [
+        ['tr', tr],
+        ['en', en],
+      ] as const) {
+        const html = renderAirport(icao, locale)
+        expect(html, `${icao} ${locale}`).toContain(
+          `<h1>${name} <span class="airport-codes">(${iata}/${icao})</span></h1>`,
+        )
+        expect(html, `${icao} ${locale}`).toContain(`<span aria-current="page">${name}</span>`)
+        // Başka dilde olduğu `lang` ile işaretlenen ögeler (OurAirports'taki ad, İngilizce sayfada
+        // resmî Türkçe ad) sayılmaz; sayfanın kendi dilindeki metinde öbür dilin cins adı yoktur.
+        const body = text(html.replace(/<(dd|span) lang="(?:tr|en)">[^<]*<\/\1>/g, ''))
+        expect(body, `${icao} ${locale}`).not.toMatch(
+          locale === 'tr' ? /\b(Air Base|Airbase|Airport)\b/ : /Havalimanı|Hava Üssü/,
+        )
+      }
+    }
+    // OurAirports'taki İngilizce ad Türkçe sayfada yalnız kendi satırında ve `lang="en"` ile kalır.
+    expect(renderAirport('LTAD')).toContain('<dd lang="en">Etimesgut Air Base</dd>')
+    expect(renderAirport('LTBL')).toContain('<dd lang="en">Çiğli Airbase</dd>')
+    // Ankara (Etimesgut): resmî ad bakanlığınkidir, parantez ayırt etmek içindir.
+    expect(text(renderAirport('LTAD'))).toContain(
+      'Resmî Türkçe ad: Ankara Havalimanı (Ulaştırma ve Altyapı Bakanlığı); aynı ildeki diğer havalimanıyla karışmasın diye eski adı parantez içinde eklenmiştir.',
+    )
+    expect(renderAirport('LTAD', 'en')).toContain(
+      'Official Turkish name: <span lang="tr">Ankara Havalimanı</span> (Ministry of Transport and Infrastructure)',
+    )
+    // Aynı ildeki havalimanları cümlesi Türkçe adlarla.
+    expect(text(renderAirport('LTAC'))).toContain('Ankara (Etimesgut) Havalimanı (ANK)')
+    expect(text(renderAirport('LTBJ'))).toContain('Çiğli Hava Üssü (IGL)')
+    expect(text(renderAirport('LTBJ', 'en'))).toContain('Çiğli Air Base (IGL)')
   })
 
   it('OurAirports adı resmî addan farklıysa görünür (JSON-LD alternateName ile aynı)', () => {
@@ -277,6 +324,21 @@ describe('AirportView: yakın ülkelerdeki havalimanı (D-080)', () => {
     expect(body).toContain(
       'OurAirports’taki adı Athens Eleftherios Venizelos International Airport',
     )
+  })
+
+  it('Türkiye’deki en yakın havalimanı askerî üsse Türkçe ve İngilizce adıyla (Atina → Çiğli, D-084)', () => {
+    const athens = byIcao('LGAV')
+    for (const [locale, label, name] of [
+      ['tr', 'Türkiye’deki en yakın havalimanı', 'Çiğli Hava Üssü (IGL)'],
+      ['en', 'Nearest airport in Türkiye', 'Çiğli Air Base (IGL)'],
+    ] as const) {
+      const html = renderAirport('LGAV', locale, LISTED)
+      const fact = html.slice(html.indexOf(label))
+      const line = text(fact.slice(0, fact.indexOf('</dd>')))
+      expect(line, locale).toContain(`${label} ${name} , ${athens.distanceToTrKm} km`)
+      // Önceden iki dilde de OurAirports adı: "Çiğli Airbase (IGL)".
+      expect(line, locale).not.toContain('Airbase')
+    }
   })
 
   it('en yakın Türkiye havalimanı listelenmeyen küçük alansa bağlantısız, adıyla ve notla (Selanik → Gökçeada)', () => {

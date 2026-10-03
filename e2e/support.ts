@@ -37,12 +37,12 @@ export const MISSING_HEX = 'fe0099'
 /**
  * Referans verisi fixture'ı (tools/fixtures/ourairports; worker'ın `jobs` rolü ilk açılışta yükler):
  * IATA kodlu 61 Türkiye havalimanı; OurAirports'a göre 51'inde tarifeli sefer var. İndekslenen
- * havalimanı sayfası 55'tir (D-076: tarifeli, istasyon ya da resmî adı DHMİ/işletmeciden doğrulanmış
- * sivil havalimanı; Siirt, Kocaeli, Uşak ve Atatürk bu yüzden eklenir). Kalan 6'sı resmî adı
- * doğrulanamayan askerî üslerdir ve `noindex, follow` alır.
+ * havalimanı sayfası 56'dır (D-076, D-084: tarifeli, istasyon ya da resmî adı DHMİ, işletmeci ya da
+ * bakanlıktan doğrulanmış sivil havalimanı; Siirt, Kocaeli, Uşak, Atatürk ve Ankara (Etimesgut) bu
+ * yüzden eklenir). Kalan 5'i askerî hava üssüdür ve `noindex, follow` alır.
  */
 export const AIRPORT_COUNT = 61
-export const INDEXABLE_AIRPORT_COUNT = 55
+export const INDEXABLE_AIRPORT_COUNT = 56
 
 /**
  * Türkiye dışındaki listelenen havalimanları (M6d, D-080): 1. halka, yani IATA kodlu en yakın
@@ -53,7 +53,7 @@ export const INDEXABLE_AIRPORT_COUNT = 55
 export const FOREIGN_AIRPORT_COUNT = 75
 /** `GET /v1/airports?scope=listed`: 61 Türkiye + 75 yakın ülke. */
 export const LISTED_AIRPORT_COUNT = AIRPORT_COUNT + FOREIGN_AIRPORT_COUNT
-/** Dizine eklenen havalimanı sayfaları: Türkiye'nin 55'i ve yakın ülkelerin hepsi. */
+/** Dizine eklenen havalimanı sayfaları: Türkiye'nin 56'sı ve yakın ülkelerin hepsi. */
 export const INDEXABLE_LISTED_AIRPORT_COUNT = INDEXABLE_AIRPORT_COUNT + FOREIGN_AIRPORT_COUNT
 
 /**
@@ -102,7 +102,7 @@ export const PRIMARY_AIRPORT = {
 /** LTFM'ye en yakın tarifeli iki havalimanı: Sabiha Gökçen (~64 km) ve Çorlu (~70 km). */
 export const PRIMARY_AIRPORT_NEIGHBOURS = ['LTFJ', 'LTBU'] as const
 /**
- * Resmî adı doğrulanamayan, tarifeli seferi kayıtlı olmayan ve istasyon olmayan hava üssü (İncirlik):
+ * Tarifeli seferi kayıtlı olmayan ve istasyon olmayan askerî hava üssü (İncirlik Hava Üssü, D-084):
  * sayfası açılır ama noindex.
  */
 export const NON_INDEXABLE_AIRPORT = { icao: 'LTAG', iata: 'UAB' } as const

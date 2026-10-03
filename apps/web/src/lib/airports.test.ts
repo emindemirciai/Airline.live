@@ -1,3 +1,4 @@
+import { airportNameSource } from '@havayolu/shared'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   airportsUrl,
@@ -212,10 +213,24 @@ describe('isIndexable ve isMonitoredStation', () => {
       expect(airport?.scheduled, icao).toBe(false)
       expect(airport && isIndexable(airport), icao).toBe(true)
     }
-    // Resmî adı doğrulanamayan askerî üsler noindex kalır.
+    // Askerî hava üsleri noindex kalır; Ankara (Etimesgut) resmî adı bakanlıktan doğrulanan sivil
+    // havalimanıdır ve tarifesiz olsa da dizine girer (D-084).
     const hidden = fixture.filter((airport) => !isIndexable(airport)).map((airport) => airport.icao)
-    expect(hidden.sort()).toEqual(['LTAD', 'LTAG', 'LTAH', 'LTBG', 'LTBI', 'LTBL'])
-    expect(fixture.filter(isIndexable)).toHaveLength(55)
+    expect(hidden.sort()).toEqual(['LTAG', 'LTAH', 'LTBG', 'LTBI', 'LTBL'])
+    const ltad = byIcao.get('LTAD')
+    expect(ltad?.scheduled).toBe(false)
+    expect(ltad && isIndexable(ltad)).toBe(true)
+    expect(fixture.filter(isIndexable)).toHaveLength(56)
+  })
+
+  it('tabloda olmayan (OurAirports’a sonradan eklenen) Türkiye havalimanı yalnız tarifeliyse ya da istasyonsa dizine girer (D-076, D-084)', () => {
+    const added = airportFixture({ icao: 'LTZZ', iata: 'YZG', scheduled: false })
+    expect(airportNameSource(added.icao)).toBe('ourairports')
+    expect(isIndexable(added)).toBe(false)
+    expect(isIndexable({ ...added, scheduled: true })).toBe(true)
+    expect(
+      isIndexable({ ...added, station: { active: false, primary: false, fetchRadiusNm: 60 } }),
+    ).toBe(true)
   })
 
   it('yalnızca etkin istasyon izlenir', () => {

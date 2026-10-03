@@ -23,7 +23,9 @@ Olay motoru, bildirimler ve arayüz bu dosyadaki tanımlara uyar. **Motorun büt
   - EN arayüzde metrik birim kısaltmaları m, km/h, m/min'dir.
 - **Veri, API ve motor havacılık birimlerinde kalır:** DB sütunları ve `AircraftState` ft, kt, ft/dk taşır. Bu dosyadaki motor eşikleri ft ile yazılıdır; dönüşüm yalnızca gösterimde yapılır. Bildirim metinleri kullanıcının birim tercihiyle yazılır.
 - 1 NM = 1,852 km; 1 kt = 1,852 km/sa; 1 ft = 0,3048 m; 10 km ≈ 5,4 NM.
-- DB'de tüm zamanlar UTC'dir (`timestamptz`). Arayüzde yerel saat (Europe/Istanbul) ya da UTC ("Z" ekiyle) seçilebilir.
+- DB'de tüm zamanlar UTC'dir (`timestamptz`). Arayüzde yerel saat ya da UTC ("Z" ekiyle) seçilebilir.
+  - **Yerel saat** bir havalimanının saatinde o havalimanının kendi saat dilimidir (D-084, `airportTimeZone`): Türkiye'de Europe/Istanbul, yurt dışında havalimanının IANA dilimi. Yurt dışında UTC farkı da yazılır (ör. "Yerel saat 23:05 (UTC+2)"; gösterim D-084'tedir). Tanım bir havalimanına bağlı her saate uygulanır (havalimanı penceresi ve sayfası; sonraki parçalarda uçuş sayfası ve bildirim metinleri de). Bildirim sayımındaki "Gün" tanımı (Europe/Istanbul takvim günü, aşağıda) ayrıdır.
+  - Dilimi bilinmeyen havalimanında saat tahmin edilmez: UTC ya da Türkiye saati (Europe/Istanbul) yazılır ve öyle etiketlenir ("Saatler Türkiye saatidir"). Başka bir ülkenin saati Türkiye saatiyle "yerel saat" diye gösterilmez.
 - Olay zamanları her zaman konum örneğinin `sampleTime`'ından alınır, sunucu saatinden alınmaz.
 - Sade görünümde kısaltma kullanılmaz: ETA → "tahmini varış", ARP → "havalimanı merkezi", AGL → "yerden yükseklik".
 
@@ -36,6 +38,7 @@ Olay motoru, bildirimler ve arayüz bu dosyadaki tanımlara uyar. **Motorun büt
   4. ineceği pist (Pist 35L); yalnızca bir piste hizalanmış yaklaşmada
 - **Kısa:** yalnızca sefer no (yoksa çağrı kodu).
 - **Göster/gizle:** Seçili uçak ve diğer uçaklar için ayrı ayrı Gizle, Kısa ya da Tam seçilir. Varsayılan ikisi için de Tam'dır. Ayar haritadaki "Etiketler" düğmesinden açılır ve cihazda saklanır.
+- **Havalimanı etiketleri (D-084):** Aynı panelin "Havalimanları" grubunda Gizle, Kod ya da Kod ve ad seçilir; varsayılan Kod'dur (IATA kodu, z ≥ 5). Kod ve ad, z ≥ 7'de kodun yanına en çok 16 karakterlik kısa adı yazar (İstanbul, Sabiha Gökçen, Esenboğa, Atina); yer yoksa yalnız kod kalır. Gizle yalnız yazıyı kaldırır: pinler görünür ve tıklanır kalır.
 - **Yerleşim:** Etiketler üst üste binmez; yer yoksa etiket yana kayar ve ince bir çizgiyle uçağa bağlanır. Etiket zemini opaktır.
 - Tasarım: https://claude.ai/artifact/Tsu4WTeQu8CxqvyZXpTSYD (Parça 1 M6 ve Parça 3 bu tasarıma göre yapılır).
 
