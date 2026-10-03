@@ -6,9 +6,12 @@
  * yeri satır içi `transform` ile verilir (popup-placement.ts). Dar ekranda (767 px ve altı) bilgi
  * kartı gibi alttan açılan sayfadır.
  *
- * Bütün yazılar ortalıdır (kullanıcı isteği 2026-10-03, D-083): başlık bloğu orta sütunda (kapat
- * düğmesinin karşısında eşit genişlikte boş sütun), bilgi ve hava durumu satırları iki eşit sütunda
- * (etiket sağa, değer sola yaslı; çiftler orta eksende), diğer satırlar `text-align: center`.
+ * Tek hizalı tablo (M6e.1; kullanıcı geri bildirimi 2026-10-03, D-083): M6e'nin ortalı düzeni yamuk
+ * göründü ve kaldırıldı. Bütün yazılar sola yaslıdır ve içeriğin sol kenarından başlar: kodlar, ad,
+ * yer satırı (kapat düğmesi sağda), "Hava durumu" alt başlığı, hava başlığı ve sıcaklık kutucuğu,
+ * notlar, gözlem satırı ve "Havalimanı sayfası →" bağlantısı. Bilgi satırları ve hava durumu
+ * satırları aynı sütunlardadır (weather-rows.css → `wx-rows--popup`): simge yuvası bu sol kenarda,
+ * etiket ve değer her satırda aynı x'te.
  */
 
 /* Pencerenin kalabileceği alan: harita eksi atıf şeridi. Tıklamalar haritaya geçer. */
@@ -34,7 +37,6 @@
   overflow-y: auto;
   font-size: 0.8125rem;
   line-height: 1.35;
-  text-align: center;
   pointer-events: auto;
 }
 
@@ -56,25 +58,16 @@
   outline-offset: -3px;
 }
 
-/*
- * Üç sütun: boş, başlık, kapat düğmesi. Düğme 40 px'tir ve sağ kenar payı −8 px'tir (globals.css
- * `.map-icon-button`): sütunda 32 px yer tutar; soldaki boş sütun da 32 px olunca başlık pencerenin
- * tam ortasındadır.
- */
+/* Başlık bloğu solda, kapat düğmesi sağda (düğmenin sağ kenar payı −8 px'tir, globals.css). */
 .map-popup__header {
-  display: grid;
-  grid-template-columns: 32px minmax(0, 1fr) 32px;
-  align-items: start;
-  column-gap: 8px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
 }
 
 .map-popup__heading {
-  grid-column: 2;
   min-width: 0;
-}
-
-.map-popup__header > .map-icon-button {
-  grid-column: 3;
 }
 
 .map-popup__codes {
@@ -99,23 +92,13 @@
   font-size: 0.8rem;
 }
 
-/* Bilgiler (rakım, pistler, yerel saat): iki eşit sütun, etiket sağa, değer sola; orta eksende. */
-.map-popup__facts {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  gap: 3px 10px;
-  margin: 0;
-}
-
-.map-popup__facts dt {
-  color: var(--map-muted);
-  text-align: end;
-}
-
-.map-popup__facts dd {
-  margin: 0;
-  overflow-wrap: anywhere;
-  text-align: start;
+/*
+ * Bilgi ve hava durumu satırları pencerenin içerik kenarına hizalı: satırın iç boşluğu (6 px; vurgu
+ * zemini için) negatif kenar boşluğuyla kenar boşluğuna taşar. Simge yuvası böylece başlıkla aynı
+ * x'tedir; vurgulu ve sade satırlar aynı ızgaradadır.
+ */
+.map-popup .wx-rows--popup {
+  margin-inline: -6px;
 }
 
 .map-popup__weather {
@@ -133,21 +116,16 @@
   font-weight: 600;
 }
 
-/* Başlık ve yanında sıcaklık kutucuğu (ayraç yok), ortada tek satır; sığmazsa ortalı kırılır. */
+/* Başlık ve hemen yanında sıcaklık kutucuğu (ayraç yok), sola yaslı; sığmazsa alt satıra geçer. */
 .map-popup__headline {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
   gap: 4px 8px;
   margin: 0;
   font-size: 0.9375rem;
   font-weight: 800;
-}
-
-/* Satırlar pencerenin kenarına hizalı: vurgu zemininin iç boşluğu kenar boşluğuna taşar. */
-.map-popup__weather .wx-rows {
-  margin-inline: -6px;
 }
 
 .map-popup__observed {
@@ -167,7 +145,7 @@
 }
 
 .map-popup__link {
-  align-self: center;
+  align-self: flex-start;
   color: var(--link);
   font-weight: 700;
   text-decoration: underline;
@@ -198,6 +176,7 @@
    * yapışıktır (sticky; kutunun alt iç boşluğunun, yani atıf şeridinin hemen üstünde durur). Bütün
    * genişlikte opak bir şerittir; altındaki örtü (`::after`) atıf şeridine kadar iner, arkadan kayan
    * satırlar görünmez. DOM sırası değişmez (bağlantı pencerenin son öğesidir); geniş ekran aynıdır.
+   * Yazı sola yaslıdır ve iç boşluk kenar boşluğuna eşittir: diğer yazılarla aynı x'te başlar.
    */
   .live-map__popup > .map-popup > .map-popup__link {
     position: sticky;
@@ -205,7 +184,7 @@
     align-self: stretch;
     margin-inline: -12px;
     padding: 8px 12px 0;
-    text-align: center;
+    text-align: start;
     background: var(--map-panel);
     border-top: 1px solid var(--map-line);
   }

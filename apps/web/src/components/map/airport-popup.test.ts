@@ -78,6 +78,20 @@ function weatherRow(html: string, key: string): { open: string; value: string } 
   return match ? { open: match[1] ?? '', value: text(match[2] ?? '').trim() } : null
 }
 
+/**
+ * Bilgi satırı (rakım, pistler, yerel saat): simgesi, etiketi ve ham değeri (bölünmez boşluk
+ * korunur). Hava durumu satırlarıyla aynı liste düzenindedir (`<div class="wx-row" data-row=…>`).
+ */
+function factRow(
+  html: string,
+  key: string,
+): { icon: string | null; label: string; value: string } | null {
+  const match = new RegExp(
+    `<div class="wx-row" data-row="${key}"><dt>(<svg class="wx-icon" data-icon="${key}"[^>]*>.*?</svg>)?([^<]*)</dt><dd>([^<]*)</dd></div>`,
+  ).exec(html)
+  return match ? { icon: match[1] ?? null, label: match[2] ?? '', value: match[3] ?? '' } : null
+}
+
 function render(
   locale: Locale,
   weather: BulkWeatherState,
@@ -111,9 +125,15 @@ describe('AirportPopup', () => {
     expect(html).toContain('<h2 class="map-popup__title">İstanbul Havalimanı</h2>')
     expect(html).toContain('İstanbul</p>')
     // Rakım ve pist uzunluğunda sayı ile birim bölünmez boşlukla (D-083).
-    expect(html).toContain('<dt>Rakım</dt><dd>99\u00a0m (325\u00a0ft)</dd>')
-    expect(html).toContain('<dt>Pistler</dt><dd>2 pist, en uzunu 4.100\u00a0m</dd>')
-    expect(html).toContain('<dt>Yerel saat</dt><dd>16:00</dd>')
+    expect(factRow(html, 'elevation')).toMatchObject({
+      label: 'Rakım',
+      value: '99\u00a0m (325\u00a0ft)',
+    })
+    expect(factRow(html, 'runways')).toMatchObject({
+      label: 'Pistler',
+      value: '2 pist, en uzunu 4.100\u00a0m',
+    })
+    expect(factRow(html, 'localTime')).toMatchObject({ label: 'Yerel saat', value: '16:00' })
     // Gün doğumu ve batımı yalnız havalimanı sayfasındadır (kullanıcı kararı 2026-10-02).
     expect(html).not.toMatch(/Gün doğumu|Gün batımı/)
     expect(html).toContain('aria-label="Kapat"')
@@ -132,7 +152,49 @@ describe('AirportPopup', () => {
     expect(html).not.toMatch(/Sunrise|Sunset/)
   })
 
-  it('hava durumu: başlığın yanında sıcaklık kutucuğu, simgeli ortalı satırlar, vurgular', () => {
+  it('tek hizalı tablo: bilgi satırları simgeli, hava durumu satırlarıyla aynı liste düzeninde', () => {
+    const html = render(
+      'tr',
+      weatherState('LTFM 011250Z 03018G32KT 9999 -SHRA FEW025CB BKN035 09/05 Q1009'),
+    )
+    // İki liste aynı bileşen ve aynı sütun sınıfıyla çizilir (M6e.1, D-083); ortalı düzen yok.
+    expect(html).toContain('<dl class="wx-rows map-popup__facts wx-rows--popup">')
+    expect(html).toContain('<dl class="wx-rows wx-rows--popup">')
+    expect(html).not.toContain('wx-rows--center')
+    // Bilgi satırları hava durumu bölümünden önce; sırası değişmedi.
+    const facts = html.slice(
+      html.indexOf('map-popup__facts'),
+      html.indexOf('class="map-popup__weather"'),
+    )
+    expect([...facts.matchAll(/data-row="(\w+)"/g)].map((m) => m[1])).toEqual([
+      'elevation',
+      'runways',
+      'localTime',
+    ])
+    // Her bilgi satırının kendi çizgi simgesi var; süslemedir (ekran okuyucudan gizli).
+    for (const key of ['elevation', 'runways', 'localTime']) {
+      const icon = factRow(html, key)?.icon ?? ''
+      expect(icon, key).toContain('aria-hidden="true" focusable="false"')
+      expect(icon, key).toContain('stroke="currentColor"')
+    }
+    // Simgeler birbirinden ve hava durumu simgelerinden farklı çizimlerdir.
+    const shapes = ['elevation', 'runways', 'localTime', 'wind', 'visibility'].map(
+      (key) => new RegExp(`data-icon="${key}"[^>]*>(.*?)</svg>`).exec(html)?.[1],
+    )
+    expect(shapes.every((shape) => (shape ?? '').length > 0)).toBe(true)
+    expect(new Set(shapes).size).toBe(shapes.length)
+    // Her `<dt>` simge yuvasıyla başlar (simgesiz satırda boş yuva): etiketler aynı x'te.
+    const dts = [...html.matchAll(/<dt>(.{0,40})/g)].map((m) => m[1] ?? '')
+    expect(dts.length).toBeGreaterThanOrEqual(9)
+    for (const dt of dts) expect(dt).toMatch(/^<(svg|span) class="wx-icon"/)
+    // İngilizce de aynı düzen.
+    const english = render('en', { data: null, failed: false })
+    expect(factRow(english, 'elevation')?.label).toBe('Elevation')
+    expect(factRow(english, 'runways')?.label).toBe('Runways')
+    expect(factRow(english, 'localTime')?.label).toBe('Local time')
+  })
+
+  it('hava durumu: başlığın yanında sıcaklık kutucuğu, simgeli satırlar, vurgular', () => {
     const html = render(
       'tr',
       weatherState('LTFM 011250Z 03018G32KT 9999 -SHRA FEW025CB BKN035 09/05 Q1009'),
@@ -151,8 +213,8 @@ describe('AirportPopup', () => {
       'hamle 59\u00a0km/sa\u00a0(32\u00a0kt) <span class="wx-tag">Kuvvetli hamle</span>',
     )
     expect(text(html)).toContain('Gözlem 15:50, 10 dakika önce')
-    // Satırlar ortalı düzendedir: etiket sağa, değer sola, çiftler orta eksende.
-    expect(html).toContain('<dl class="wx-rows wx-rows--center">')
+    // Satırlar pencerenin tek hizalı düzenindedir (sabit etiket sütunu; M6e.1, D-083).
+    expect(html).toContain('<dl class="wx-rows wx-rows--popup">')
     // Var olan olay (yağmur), etkili rüzgâr ve CB ile yağışın yıldırım tehlikesi vurgulu; "Yok" sade.
     expect(weatherRow(html, 'rain')).toEqual({
       open: '<div class="wx-row" data-row="rain" data-tone="rain">',
@@ -223,7 +285,11 @@ describe('AirportPopup', () => {
     expect(html).toContain('data-icao="LGAV"')
     expect(html).toContain('ATH · LGAV')
     expect(html).toContain('<p class="map-popup__place">Yunanistan</p>')
-    expect(html).toContain('<dt>Pistler</dt><dd>Tek pist, 4.000\u00a0m</dd>')
+    expect(factRow(html, 'runways')).toMatchObject({
+      label: 'Pistler',
+      value: 'Tek pist, 4.000\u00a0m',
+    })
+    expect(html).not.toContain('data-row="localTime"')
     expect(html).not.toContain('Yerel saat')
     expect(html).not.toContain('Gün doğumu')
     expect(html).toContain('href="/istasyon/LGAV"')
