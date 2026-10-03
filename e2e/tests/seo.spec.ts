@@ -4,7 +4,7 @@
 //   mutlak canonical, karşılıklı tr/en/x-default hreflang (x-default İngilizce), hepsi `<head>` içinde
 //   (GPTBot User-Agent'ıyla da; `htmlLimitedBots`); ayrıştırılabilir JSON-LD sayfa gövdesindedir
 //   (`<main>`; React satır içi JSON-LD betiğini `<head>`'e taşımaz)
-// - noindex kuralları: /durum, resmî adı doğrulanamayan tarifesiz hava üssü, admin; sorgulu
+// - noindex kuralları: /durum, tarifesiz askerî hava üssü, admin; sorgulu
 //   adreslerin canonical'ı sorgusuzdur
 // - kök dosyalar: robots.txt, sitemap.xml, llms.txt, manifest, ikonlar, OG görselleri
 // - X-Robots-Tag: web'in /api/* yolları ve API host'unun bütün yanıtları
@@ -283,7 +283,7 @@ test.describe('noindex ve canonical kuralları', () => {
     }
   })
 
-  test('resmî adı doğrulanamayan tarifesiz hava üssünün sayfası açılır ama noindex, follow', async ({
+  test('tarifesiz askerî hava üssünün sayfası açılır ama noindex, follow', async ({
     request,
   }) => {
     for (const path of [
@@ -358,7 +358,7 @@ test.describe('kök dosyalar', () => {
     expect(body).toContain('xmlns:xhtml="http://www.w3.org/1999/xhtml"')
     const entries = parseSitemap(body)
 
-    // Havalimanları: Türkiye'nin dizine eklenen 55'i ve yakın ülkelerin 75'i (M6d, D-080).
+    // Havalimanları: Türkiye'nin dizine eklenen 56'sı ve yakın ülkelerin 75'i (D-080, D-084).
     expect(entries).toHaveLength((INDEXABLE_LISTED_AIRPORT_COUNT + STATIC_PUBLIC_PATHS.length) * 2)
     const byLoc = new Map(entries.map((entry) => [entry.loc, entry]))
     expect(byLoc.size, 'yinelenen adres yok').toBe(entries.length)

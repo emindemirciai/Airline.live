@@ -36,6 +36,11 @@ Bir şeyi doğrulaman gerekiyorsa önce buradaki kaynakları kullan. Yeni bir ka
 - **Bağıl nem:** Lawrence, M. G. (2005), "The Relationship between Relative Humidity and the Dewpoint Temperature in Moist Air", *BAMS* 86(2), 225–233 (Magnus formülü, Alduchov–Eskridge katsayıları): https://doi.org/10.1175/BAMS-86-2-225
 - **Tavan tanımı:** SKYbrary "Ceiling": https://skybrary.aero/articles/ceiling
 
+## Saat dilimleri (erişim 2026-10-03; D-084)
+- **IANA saat dilimi veritabanı (tzdb):** https://www.iana.org/time-zones · kaynak deposu ve `zone.tab` (ülke → dilim, kamu malı): https://github.com/eggert/tz · `theory.html` (adlandırma, bağlantılar): https://data.iana.org/time-zones/theory.html
+- **ECMAScript Intl** (`Intl.Locale#getTimeZones`, `Intl.supportedValuesOf('timeZone')`; tablo testte bunlarla denetlenir): https://tc39.es/proposal-intl-locale-info/ · https://tc39.es/ecma402/#sec-intl.supportedvaluesof
+- **Değerlendirilip kullanılmayan:** timezone-boundary-builder (dilim poligonları, veri ODbL): https://github.com/evansiroky/timezone-boundary-builder · geo-tz: https://github.com/evansiroky/node-geo-tz · @photostructure/tz-lookup: https://github.com/photostructure/tz-lookup
+
 ## Uydu altlığı (Esri World Imagery, erişim 2026-09-28)
 - ArcGIS Location Platform fiyatları ve ücretsiz katman: https://location.arcgis.com/pricing/
 - E204 ArcGIS Location Platform Agreement (rev. 2025-11-21; §3.1c–d kullanım, proxy ve önbellek): https://www.esri.com/content/dam/esrisites/en-us/media/legal/platform/platform-legal.pdf

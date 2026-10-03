@@ -12,6 +12,8 @@
 //   IATA kodu yönlendirir; fixture'da olup listelenmeyen uzak havalimanı 404
 // - harita: `?havalimani=LGAV` Atina'da açar; pin ve "Havalimanları" listesi pencereyi açar; pencere
 //   il yerine ülkeyi gösterir
+// - yerel saat (M6f, D-084): pencerede ve sayfada Atina'nın saati UTC farkıyla ("23:05 (UTC+2)");
+//   sayfada gün doğumu ve batımı, "Türkiye saati" notu yok
 import { expect, test, type Locator, type Page } from '@playwright/test'
 import { jsonLdNodes, metaContents, nodesOfType, type JsonLdNode } from '../html'
 import {
@@ -38,6 +40,8 @@ const STATION_PATH = `/istasyon/${icao}`
 const KKTC_PATH = `/istasyon/${KKTC_AIRPORT.icao}`
 /** 1. halkanın sınırı, km (`AIRPORT_RINGS_KM[0]`). */
 const RING1_KM = 500
+/** Atina'nın saat dilimi (`airportTimeZone`, tzdb; D-084). */
+const ATHENS_TIME_ZONE = 'Europe/Athens'
 
 /** Sayfadaki metinler (packages/i18n → `airports`, `map.airportPopup`, `weather`). */
 const COPY = {
@@ -53,6 +57,10 @@ const COPY = {
     wind: 'Rüzgâr',
     speedUnit: 'km/sa',
     observed: /Gözlem \d{2}:\d{2}/,
+    localTime: 'Yerel saat',
+    sunrise: /Gün doğumu \d{2}:\d{2}/,
+    sunset: /Gün batımı \d{2}:\d{2}/,
+    turkeyTime: 'Türkiye saati',
   },
   en: {
     listPath: enPath('/havalimanlari'),
@@ -66,6 +74,10 @@ const COPY = {
     wind: 'Wind',
     speedUnit: 'km/h',
     observed: /Observed \d{2}:\d{2}/,
+    localTime: 'Local time',
+    sunrise: /Sunrise \d{2}:\d{2}/,
+    sunset: /Sunset \d{2}:\d{2}/,
+    turkeyTime: 'Türkiye time',
   },
 } as const
 
@@ -230,6 +242,7 @@ test.describe('havalimanı sayfası', () => {
       page,
       request,
     }) => {
+      const loadedFrom = Date.now()
       const { response, body } = await fetchRaw(request, path)
       expect(response.status(), path).toBe(200)
       expect(metaContents(body, 'robots').join(', '), `${path}: robots`).not.toMatch(/noindex/)
@@ -248,6 +261,13 @@ test.describe('havalimanı sayfası', () => {
       const weather = main.getByRole('region', { name: copy.weather, exact: true })
       await expect(weather).toBeVisible()
       await expect(row(weather, copy.wind)).toContainText(copy.speedUnit)
+      // Yerel saat Atina'nındır, UTC farkıyla (D-084); gün doğumu ve batımı yazılır, "Türkiye
+      // saati" notu yoktur.
+      const sun = weather.locator('.weather-sun')
+      await expect(sun).toContainText(copy.sunrise)
+      await expect(sun).toContainText(copy.sunset)
+      await expectAthensClock(sun.locator('li').first(), `${copy.localTime} `, loadedFrom)
+      await expect(weather).not.toContainText(copy.turkeyTime)
       const mapHref = locale === 'tr' ? `/?havalimani=${icao}` : `/en?havalimani=${icao}`
       await expect(main.locator(`a[href="${mapHref}"]`)).toBeVisible()
     })
@@ -306,6 +326,7 @@ test.describe('harita: yakın ülke havalimanı', () => {
   test('?havalimani=LGAV Atina’da açar; pin pencereyi açar; pencere il yerine ülkeyi gösterir', async ({
     page,
   }) => {
+    const loadedFrom = Date.now()
     await page.goto(`/?havalimani=${icao}`)
     await waitForMap(page)
     // Harita Atina'dadır: görünümün ortasına en yakın havalimanı ATH (yakın ülke pini ve kodu).
@@ -322,6 +343,8 @@ test.describe('harita: yakın ülke havalimanı', () => {
     await expect(popup).toHaveAttribute('data-icao', icao)
     await expect(popup).toContainText(`${iata} · ${icao}`)
     await expect(popup.locator('.map-popup__place')).toHaveText(COPY.tr.country)
+    // Yerel saat Atina'nındır, UTC farkıyla: "23:05 (UTC+2)" (D-084).
+    await expectAthensClock(row(popup, COPY.tr.localTime), '', loadedFrom)
     await expect(popup.getByRole('link', { name: /Havalimanı sayfası/ })).toHaveAttribute(
       'href',
       STATION_PATH,
@@ -337,6 +360,7 @@ test.describe('harita: yakın ülke havalimanı', () => {
   test('İngilizce: "Airports" listesinden klavyeyle açılır; ülke Greece, bağlantı /en altında', async ({
     page,
   }) => {
+    const loadedFrom = Date.now()
     await page.goto(enPath(`/?havalimani=${icao}`))
     await waitForMap(page)
     await expect
@@ -353,6 +377,7 @@ test.describe('harita: yakın ülke havalimanı', () => {
     await expect(popup).toBeFocused()
     await expect(popup).toHaveAttribute('data-icao', icao)
     await expect(popup.locator('.map-popup__place')).toHaveText(COPY.en.country)
+    await expectAthensClock(row(popup, COPY.en.localTime), '', loadedFrom)
     await expect(popup.getByRole('link', { name: /Airport page/ })).toHaveAttribute(
       'href',
       enPath(STATION_PATH),
@@ -362,6 +387,40 @@ test.describe('harita: yakın ülke havalimanı', () => {
     await expect(toggle).toBeFocused()
   })
 })
+
+/**
+ * Atina'nın `from`'dan şimdiye her dakikadaki yerel saati ve UTC farkı ("23:05 (UTC+2)"), Node'un
+ * `Intl`'iyle. Fark koda gömülmez: test yaz saati (UTC+3) ve kış saati (UTC+2) günlerinde, geçiş
+ * anında (25 Ekim 2026 01:00 UTC) bile aynı biçimde deterministiktir.
+ */
+function athensClocks(from: number, to: number): string[] {
+  const format = new Intl.DateTimeFormat('en-GB', {
+    timeZone: ATHENS_TIME_ZONE,
+    hour: '2-digit',
+    minute: '2-digit',
+    hourCycle: 'h23',
+    timeZoneName: 'shortOffset',
+  })
+  const values = new Set<string>()
+  for (let at = from - (from % 60_000); at <= to; at += 60_000) {
+    const parts = new Map(format.formatToParts(at).map((part) => [part.type, part.value]))
+    const offset = (parts.get('timeZoneName') ?? '').replace('GMT', 'UTC')
+    values.add(`${parts.get('hour')}:${parts.get('minute')} (${offset})`)
+  }
+  return [...values]
+}
+
+/**
+ * Öğe `prefix` + Atina'nın yerel saatini UTC farkıyla yazar ("Yerel saat 23:05 (UTC+2)"). Sayfa
+ * saati çizim anından (sunucu) ya da 30 sn adımlı ada saatinden gelir: beklenen değerler sayfanın
+ * istendiği andan (`from`, 30 sn pay) okuma anına kadarki dakikalardır.
+ */
+async function expectAthensClock(locator: Locator, prefix: string, from: number): Promise<void> {
+  await expect(locator).toHaveText(new RegExp(`^\\s*${prefix}\\d{2}:\\d{2} \\(UTC\\+[23]\\)\\s*$`))
+  const shown = ((await locator.textContent()) ?? '').trim()
+  const expected = athensClocks(from - 31_000, Date.now() + 2_000).map((value) => prefix + value)
+  expect(expected, `Atina saati (${ATHENS_TIME_ZONE}): ${shown}`).toContain(shown)
+}
 
 function mapPopup(page: Page): Locator {
   return page.locator('.live-map [role="dialog"].map-popup')

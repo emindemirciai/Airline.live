@@ -10,6 +10,7 @@ havayolu'nun kaynak kodu MIT lisanslıdır ([LICENSE](LICENSE)). Uygulamanın g�
 - **Resmî havalimanı adları:** Havalimanı sayfalarındaki Türkçe adlar DHMİ'nin havalimanı listesinden ve DHMİ dışındaki işletmecilerin (İGA, ISG, Gazipaşa-Alanya, Zafer, Eskişehir Teknik Üniversitesi) sitelerinden elle derlenmiştir; kaynaklar [docs/REFERENCES.md](docs/REFERENCES.md)'dedir.
 - **VRS standing-data:** Havayolu kodları; ileride rotalar da. Lisans CC0 1.0 olduğu için atıf zorunlu değildir, nezaketen anılır. Kaynak: https://github.com/vradarserver/standing-data
 - **NOAA Aviation Weather Center (aviationweather.gov):** Havalimanı hava durumu (METAR ve TAF); v0.11.0'dan beri havalimanı sayfalarında ve haritadaki havalimanı penceresinde. ABD kamu verisidir (https://www.weather.gov/disclaimer); atıf nezaketendir, NOAA/NWS logosu kullanılmaz ve onay ima edilmez. Türk raporlarını havalimanlarının meteoroloji birimleri hazırlar, AWC yeniden dağıtır. Raporlar otomatik çözümlenir; resmî brifing yerine geçmez. Kaynak: https://aviationweather.gov/
+- **IANA saat dilimi veritabanı (tzdb):** Havalimanlarının yerel saati ve UTC farkı (v0.14.0'dan beri, Türkiye dışında da). Ülke ve bölge → saat dilimi tablosu tzdb'nin `zone.tab` dosyasından derlenmiştir; farkları tarayıcının ve sunucunun `Intl`'i hesaplar. Kamu malıdır; atıf zorunlu değildir, nezaketen anılır. Kaynak: https://www.iana.org/time-zones
 
 ## Harita altlıkları
 - **OpenFreeMap, OpenMapTiles ve OpenStreetMap:** Vektör harita altlığı.
@@ -34,6 +35,7 @@ The havayolu source code is MIT licensed. Third-party data and components keep t
   - OurAirports: public domain (Unlicense).
   - VRS standing-data: CC0 1.0, credited as a courtesy.
   - NOAA aviationweather.gov: US public data; airport weather (METAR and TAF) on airport pages and the map's airport popup since v0.11.0. Courtesy credit, no NOAA/NWS logo, no endorsement implied; reports are produced by the airports' meteorological offices and decoded automatically, not an official briefing.
+  - IANA time zone database (tzdb): public domain, credited as a courtesy; airport local time and UTC offset since v0.14.0 (country and region table from `zone.tab`, offsets computed by `Intl`).
 - **Map base layers:**
   - OpenFreeMap © OpenMapTiles, data from OpenStreetMap (ODbL).
   - Esri World Imagery: "Powered by Esri"; Esri, Vantor, Earthstar Geographics, and the GIS User Community. Shown only when an Esri API key is configured, never stored or redistributed, and not part of any ODbL database. Map users agree to Esri's applicable terms in our terms of use (`/kullanim-kosullari`, E204 §3.1c.5).

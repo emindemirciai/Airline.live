@@ -2,9 +2,13 @@
 
 import type { Messages } from '@havayolu/i18n'
 import { useEffect, useId, useRef, useState } from 'react'
-import { LABEL_MODES, type LabelSettings } from '../../../lib/map/label-settings'
+import {
+  AIRPORT_LABEL_MODES,
+  LABEL_MODES,
+  type LabelSettings,
+} from '../../../lib/map/label-settings'
 
-const TARGETS = ['selected', 'others'] as const satisfies readonly (keyof LabelSettings)[]
+const AIRCRAFT_TARGETS = ['selected', 'others'] as const satisfies readonly (keyof LabelSettings)[]
 
 export interface LabelSettingsControlProps {
   value: LabelSettings
@@ -14,16 +18,15 @@ export interface LabelSettingsControlProps {
 
 /**
  * "Etiketler" düğmesi ve açılır ayar paneli: seçili uçak ve diğer uçaklar için ayrı ayrı Gizle,
- * Kısa ya da Tam. Denetimli bileşendir; saklama (`hy:map:labels`) üst bileşenin işidir. Panel
- * Escape'le ve dışına tıklanınca kapanır; Escape odağı düğmeye geri verir ve tüketilir.
+ * Kısa ya da Tam; havalimanları için Gizle, Kod ya da Kod ve ad (D-084). Denetimli bileşendir;
+ * saklama (`hy:map:labels`) üst bileşenin işidir. Panel Escape'le ve dışına tıklanınca kapanır;
+ * Escape odağı düğmeye geri verir ve tüketilir.
  */
 export function LabelSettingsControl({ value, onChange, messages }: LabelSettingsControlProps) {
   const [open, setOpen] = useState(false)
   const rootRef = useRef<HTMLDivElement>(null)
   const buttonRef = useRef<HTMLButtonElement>(null)
   const panelId = useId()
-  const titleId = useId()
-  const groupName = useId()
 
   useEffect(() => {
     if (!open) return
@@ -65,38 +68,85 @@ export function LabelSettingsControl({ value, onChange, messages }: LabelSetting
         {messages.button}
       </button>
       {open ? (
-        <div
-          id={panelId}
-          className="map-panel map-labels__panel"
-          role="group"
-          aria-labelledby={titleId}
-        >
-          <p id={titleId} className="map-labels__title">
-            {messages.title}
-          </p>
-          {TARGETS.map((target) => (
-            <fieldset key={target} className="map-labels__group">
-              <legend>{messages[target]}</legend>
-              <div className="map-seg">
-                {LABEL_MODES.map((mode) => (
-                  <label key={mode} className="map-seg__option">
-                    <input
-                      type="radio"
-                      className="map-seg__input"
-                      name={`${groupName}-${target}`}
-                      value={mode}
-                      checked={value[target] === mode}
-                      onChange={() => onChange({ ...value, [target]: mode })}
-                    />
-                    <span>{messages[mode]}</span>
-                  </label>
-                ))}
-              </div>
-            </fieldset>
-          ))}
-          <p className="map-labels__hint">{messages.hint}</p>
-        </div>
+        <LabelSettingsPanel id={panelId} value={value} onChange={onChange} messages={messages} />
       ) : null}
     </div>
+  )
+}
+
+export interface LabelSettingsPanelProps extends LabelSettingsControlProps {
+  id?: string
+}
+
+/** Açık panelin içeriği: başlık, üç seçenek grubu ve ipucu. */
+export function LabelSettingsPanel({ id, value, onChange, messages }: LabelSettingsPanelProps) {
+  const titleId = useId()
+  const groupName = useId()
+  return (
+    <div id={id} className="map-panel map-labels__panel" role="group" aria-labelledby={titleId}>
+      <p id={titleId} className="map-labels__title">
+        {messages.title}
+      </p>
+      {AIRCRAFT_TARGETS.map((target) => (
+        <ModeGroup
+          key={target}
+          legend={messages[target]}
+          name={`${groupName}-${target}`}
+          modes={LABEL_MODES}
+          label={(mode) => messages[mode]}
+          checked={value[target]}
+          onSelect={(mode) => onChange({ ...value, [target]: mode })}
+        />
+      ))}
+      <ModeGroup
+        legend={messages.airports}
+        name={`${groupName}-airports`}
+        modes={AIRPORT_LABEL_MODES}
+        label={(mode) => messages.airportModes[mode]}
+        checked={value.airports}
+        onSelect={(mode) => onChange({ ...value, airports: mode })}
+      />
+      <p className="map-labels__hint">{messages.hint}</p>
+    </div>
+  )
+}
+
+interface ModeGroupProps<M extends string> {
+  legend: string
+  name: string
+  modes: readonly M[]
+  label: (mode: M) => string
+  checked: M
+  onSelect: (mode: M) => void
+}
+
+/** Bir seçenek grubu: `legend` ve bölümlü radyo düğmeleri (klavyede ok tuşlarıyla gezilir). */
+function ModeGroup<M extends string>({
+  legend,
+  name,
+  modes,
+  label,
+  checked,
+  onSelect,
+}: ModeGroupProps<M>) {
+  return (
+    <fieldset className="map-labels__group">
+      <legend>{legend}</legend>
+      <div className="map-seg">
+        {modes.map((mode) => (
+          <label key={mode} className="map-seg__option">
+            <input
+              type="radio"
+              className="map-seg__input"
+              name={name}
+              value={mode}
+              checked={checked === mode}
+              onChange={() => onSelect(mode)}
+            />
+            <span>{label(mode)}</span>
+          </label>
+        ))}
+      </div>
+    </fieldset>
   )
 }

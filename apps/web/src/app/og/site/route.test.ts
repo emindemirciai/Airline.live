@@ -92,9 +92,7 @@ function ourAirportsTurkeyText(): string {
 
 describe('paylaşım görseli yazı tipleri', () => {
   it('Türkçe harfler, havalimanı ve il adları yerel yazı tipleriyle çizilir', async () => {
-    const names = Object.values(AIRPORT_NAMES).flatMap((entry) =>
-      entry.source === 'ourairports' ? [] : [entry.tr, entry.en],
-    )
+    const names = Object.values(AIRPORT_NAMES).flatMap((entry) => [entry.tr, entry.en])
     const provinces = Object.values(TR_PROVINCES).flatMap((p) => [p.tr, p.en])
     const all = ['ÇçĞğİıÖöŞşÜüÂâÎîÛû · — ’ “ ”', ...names, ...provinces, ourAirportsTurkeyText()]
     // Harf kapsamı için her karakterin bir kez çizilmesi yeter.

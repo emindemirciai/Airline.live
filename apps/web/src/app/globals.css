@@ -1187,7 +1187,14 @@ body:has(.map-page) .site-footer {
   flex-direction: column;
   gap: 10px;
   width: min(300px, calc(100vw - 2 * var(--map-gutter)));
+  /* Üç grup (D-084): alçak ekranda (yatay telefon) panel kayar, görünümden taşmaz. */
+  max-height: min(480px, calc(100dvh - 220px));
+  overflow-y: auto;
   padding: 10px 14px 12px;
+}
+
+.map-labels__panel > * {
+  flex-shrink: 0;
 }
 
 .map-labels__title {

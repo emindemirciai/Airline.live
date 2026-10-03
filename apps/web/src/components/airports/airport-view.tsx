@@ -3,6 +3,7 @@ import {
   airportDisplayName,
   airportLocality,
   airportNameSource,
+  airportOfficialName,
   foreignAirportName,
   runwaySurfaceKey,
   type AirportDetail,
@@ -384,7 +385,14 @@ export function AirportView({ locale, app, airport, airports, weather }: Airport
               : foreignAirportName(airport.icao) === undefined
                 ? t.nameSourceForeign.rule
                 : t.nameSourceForeign.curated,
-            { name: <span lang="tr">{airportDisplayName(airport, 'tr')}</span> },
+            {
+              // Resmî ad görünen addan farklı olabilir (LTAD: "Ankara Havalimanı", D-084).
+              name: (
+                <span lang="tr">
+                  {airportOfficialName(airport.icao) ?? airportDisplayName(airport, 'tr')}
+                </span>
+              ),
+            },
           )}
         </p>
         {weather === undefined ? null : (

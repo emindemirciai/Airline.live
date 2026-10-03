@@ -72,6 +72,12 @@ const ECN: MapAirport = {
   municipality: 'Tymbou (Kirklar)',
 }
 
+/** Tiflis (UTC+4), Sohum (Gürcistan; Moskova saati), Tahran (UTC+3:30), New York (kuralı yok). */
+const TBS: MapAirport = { ...ATH, icao: 'UGTB', iata: 'TBS', country: 'GE', isoRegion: 'GE-TB' }
+const SUI: MapAirport = { ...ATH, icao: 'UGSS', iata: 'SUI', country: 'GE', isoRegion: 'GE-AB' }
+const THR: MapAirport = { ...ATH, icao: 'OIII', iata: 'THR', country: 'IR', isoRegion: 'IR-23' }
+const JFK: MapAirport = { ...ATH, icao: 'KJFK', iata: 'JFK', country: 'US', isoRegion: 'US-NY' }
+
 /** 1 Ekim 2026 13:00 UTC = 16:00 İstanbul. */
 const NOW = Date.parse('2026-10-01T13:00:00Z')
 const minutesAgo = (m: number) => new Date(NOW - m * 60_000).toISOString()
@@ -146,10 +152,15 @@ describe('havalimanı bilgileri', () => {
     expect(airportPlace(ECN, 'en')).toMatch(/TRNC|Turkish Republic of Northern Cyprus/)
   })
 
-  it('saat dilimi: Türkiye’de Europe/Istanbul; yakın ülkelerde bilinmiyor', () => {
+  it('saat dilimi havalimanınındır (tzdb tablosu, D-084); kuralı olmayan çok dilimli ülkede null', () => {
     expect(popupTimeZone(IST)).toBe('Europe/Istanbul')
-    expect(popupTimeZone(ATH)).toBeNull()
-    expect(popupTimeZone(ECN)).toBeNull()
+    expect(popupTimeZone(ATH)).toBe('Europe/Athens')
+    expect(popupTimeZone(ECN)).toBe('Asia/Famagusta')
+    expect(popupTimeZone(TBS)).toBe('Asia/Tbilisi')
+    // Sohum: fiilen kullanılan Moskova saati (kullanıcı kararı 2026-10-03).
+    expect(popupTimeZone(SUI)).toBe('Europe/Moscow')
+    expect(popupTimeZone(THR)).toBe('Asia/Tehran')
+    expect(popupTimeZone(JFK)).toBeNull()
   })
 
   it('saat havalimanının yerel saatiyle; saat yoksa "—"', () => {
@@ -168,21 +179,46 @@ describe('havalimanı bilgileri', () => {
     expect(facts.label).toBe('İstanbul Havalimanı bilgileri')
     // Gün doğumu ve batımı yalnız havalimanı sayfasındadır (kullanıcı kararı 2026-10-02).
     expect(facts.rows.map((row) => row.key)).toEqual(['elevation', 'runways', 'localTime'])
-    expect(facts.rows.find((row) => row.key === 'localTime')?.value).toBe('16:00')
+    // Yerel saat her havalimanında aynı biçimde, UTC farkıyla (D-084).
+    expect(facts.rows.find((row) => row.key === 'localTime')?.value).toBe('16:00 (UTC+3)')
     const english = airportFacts(IST, NOW, 'en', en.map.airportPopup)
     expect(english.name).toBe('Istanbul Airport')
     expect(english.rows.map((row) => row.label)).toEqual(['Elevation', 'Runways', 'Local time'])
   })
 
-  it('saat dilimi bilinmeyen yakın ülke havalimanında yerel saat yazılmaz', () => {
+  it('yurt dışında yerel saat ve UTC farkı: yaz saati, yarım saat, Moskova saati (D-084)', () => {
+    const local = (airport: MapAirport, at = NOW, locale: 'tr' | 'en' = 'tr') =>
+      airportFacts(airport, at, locale, getMessages(locale).map.airportPopup).rows.find(
+        (row) => row.key === 'localTime',
+      )
     const facts = airportFacts(ATH, NOW, 'tr', tr.map.airportPopup)
-    expect(facts.rows.map((row) => row.key)).toEqual(['elevation', 'runways'])
+    expect(facts.rows.map((row) => row.key)).toEqual(['elevation', 'runways', 'localTime'])
     expect(facts.rows.find((row) => row.key === 'runways')?.value).toBe(
       '2 pist, en uzunu 4.000\u00a0m',
     )
-    // Saat dilimi verilirse satırlar o dilimle yazılır.
-    const zoned = airportFacts(ATH, NOW, 'tr', tr.map.airportPopup, 'Europe/Athens')
-    expect(zoned.rows.find((row) => row.key === 'localTime')?.value).toBe('16:00')
+    // 1 Ekim 13:00Z: Atina yaz saatinde (UTC+3); 1 Aralık 13:00Z kışın (UTC+2).
+    expect(local(ATH)?.value).toBe('16:00 (UTC+3)')
+    expect(local(ATH, Date.parse('2026-12-01T13:00:00Z'))?.value).toBe('15:00 (UTC+2)')
+    expect(local(ATH, NOW, 'en')).toEqual({
+      key: 'localTime',
+      label: 'Local time',
+      value: '16:00 (UTC+3)',
+    })
+    expect(local(THR)?.value).toBe('16:30 (UTC+3:30)')
+    expect(local(TBS)?.value).toBe('17:00 (UTC+4)')
+    expect(local(SUI)?.value).toBe('16:00 (UTC+3)')
+    expect(local(ECN)?.value).toBe('16:00 (UTC+3)')
+    // Saat henüz yoksa "—" (fark yazılmaz).
+    expect(local(ATH, 0)?.value).toBe(NO_VALUE)
+  })
+
+  it('saat dilimi bilinmeyen havalimanında yerel saat satırı yok', () => {
+    const facts = airportFacts(JFK, NOW, 'tr', tr.map.airportPopup)
+    expect(facts.rows.map((row) => row.key)).toEqual(['elevation', 'runways'])
+    // Dilim açıkça null verilirse de yazılmaz.
+    expect(
+      airportFacts(ATH, NOW, 'tr', tr.map.airportPopup, null).rows.map((row) => row.key),
+    ).toEqual(['elevation', 'runways'])
   })
 })
 
@@ -253,9 +289,11 @@ describe('popupWeatherView', () => {
     ])
   })
 
-  it('saat dilimi bilinmeyen havalimanında gözlem saati UTC ile yazılır', () => {
+  it('gözlem saati havalimanının yerel saatiyle; dilim bilinmiyorsa UTC ile yazılır', () => {
     const m = metar('LGAV 011250Z 36012KT CAVOK 22/10 Q1015 NOSIG', minutesAgo(10))
     const data = state([station('LGAV', m)])
+    const athens = report(popupWeatherView(data, 'LGAV', NOW, 'tr', w, t, popupTimeZone(ATH)))
+    expect(athens.observed).toBe('Gözlem 15:50, 10 dakika önce')
     const view = report(popupWeatherView(data, 'LGAV', NOW, 'tr', w, t, null))
     expect(view.observed).toBe('Gözlem 12:50 UTC, 10 dakika önce')
     expect(value(view, 'visibility')).toBe('10 km ve üzeri')

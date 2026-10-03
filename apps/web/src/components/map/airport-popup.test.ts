@@ -113,7 +113,8 @@ describe('AirportPopup', () => {
     // Rakım ve pist uzunluğunda sayı ile birim bölünmez boşlukla (D-083).
     expect(html).toContain('<dt>Rakım</dt><dd>99\u00a0m (325\u00a0ft)</dd>')
     expect(html).toContain('<dt>Pistler</dt><dd>2 pist, en uzunu 4.100\u00a0m</dd>')
-    expect(html).toContain('<dt>Yerel saat</dt><dd>16:00</dd>')
+    // Yerel saat UTC farkıyla, her havalimanında aynı biçimde (D-084).
+    expect(html).toContain('<dt>Yerel saat</dt><dd>16:00 (UTC+3)</dd>')
     // Gün doğumu ve batımı yalnız havalimanı sayfasındadır (kullanıcı kararı 2026-10-02).
     expect(html).not.toMatch(/Gün doğumu|Gün batımı/)
     expect(html).toContain('aria-label="Kapat"')
@@ -218,17 +219,45 @@ describe('AirportPopup', () => {
     expect(render('tr', empty)).toContain('Hava durumu raporu yok')
   })
 
-  it('yakın ülke havalimanı: il yerine ülke; saat dilimi bilinmediği için saat satırları yok', () => {
+  it('yakın ülke havalimanı: il yerine ülke; havalimanının yerel saati ve UTC farkı (D-084)', () => {
     const html = render('tr', { data: null, failed: false }, false, ATH)
     expect(html).toContain('data-icao="LGAV"')
     expect(html).toContain('ATH · LGAV')
     expect(html).toContain('<p class="map-popup__place">Yunanistan</p>')
     expect(html).toContain('<dt>Pistler</dt><dd>Tek pist, 4.000\u00a0m</dd>')
-    expect(html).not.toContain('Yerel saat')
+    // 1 Ekim 13:00Z: Atina yaz saatinde, UTC+3 (İstanbul ile aynı saat).
+    expect(html).toContain('<dt>Yerel saat</dt><dd>16:00 (UTC+3)</dd>')
     expect(html).not.toContain('Gün doğumu')
     expect(html).toContain('href="/istasyon/LGAV"')
     const english = render('en', { data: null, failed: false }, false, ATH)
     expect(english).toContain('<p class="map-popup__place">Greece</p>')
+    expect(english).toContain('<dt>Local time</dt><dd>16:00 (UTC+3)</dd>')
     expect(english).toContain('href="/en/istasyon/LGAV"')
+  })
+
+  it('gözlem saati havalimanının yerel saatiyle; dilimi bilinmeyen havalimanında UTC ile', () => {
+    const raw = 'LGAV 011250Z 36012KT CAVOK 22/10 Q1015 NOSIG'
+    // Tahran (UTC+3:30): gözlem 12:50Z yerel 16:20.
+    const tehran: MapAirport = {
+      ...ATH,
+      icao: 'OIII',
+      iata: 'THR',
+      country: 'IR',
+      isoRegion: 'IR-23',
+    }
+    const local = text(render('tr', weatherState(raw, 'OIII'), false, tehran))
+    expect(local).toContain('Yerel saat 16:30 (UTC+3:30)')
+    expect(local).toContain('Gözlem 16:20, 10 dakika önce')
+    // Kuralı olmayan çok dilimli ülke (ABD): yerel saat satırı yok, gözlem UTC.
+    const unknown: MapAirport = {
+      ...ATH,
+      icao: 'KJFK',
+      iata: 'JFK',
+      country: 'US',
+      isoRegion: 'US-NY',
+    }
+    const utc = text(render('tr', weatherState(raw, 'KJFK'), false, unknown))
+    expect(utc).not.toContain('Yerel saat')
+    expect(utc).toContain('Gözlem 12:50 UTC, 10 dakika önce')
   })
 })

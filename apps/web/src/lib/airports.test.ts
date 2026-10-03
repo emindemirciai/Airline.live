@@ -212,10 +212,14 @@ describe('isIndexable ve isMonitoredStation', () => {
       expect(airport?.scheduled, icao).toBe(false)
       expect(airport && isIndexable(airport), icao).toBe(true)
     }
-    // Resmî adı doğrulanamayan askerî üsler noindex kalır.
+    // Askerî hava üsleri noindex kalır; Ankara (Etimesgut) resmî adı bakanlıktan doğrulanan sivil
+    // havalimanıdır ve tarifesiz olsa da dizine girer (D-084).
     const hidden = fixture.filter((airport) => !isIndexable(airport)).map((airport) => airport.icao)
-    expect(hidden.sort()).toEqual(['LTAD', 'LTAG', 'LTAH', 'LTBG', 'LTBI', 'LTBL'])
-    expect(fixture.filter(isIndexable)).toHaveLength(55)
+    expect(hidden.sort()).toEqual(['LTAG', 'LTAH', 'LTBG', 'LTBI', 'LTBL'])
+    const ltad = byIcao.get('LTAD')
+    expect(ltad?.scheduled).toBe(false)
+    expect(ltad && isIndexable(ltad)).toBe(true)
+    expect(fixture.filter(isIndexable)).toHaveLength(56)
   })
 
   it('yalnızca etkin istasyon izlenir', () => {

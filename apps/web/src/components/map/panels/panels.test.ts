@@ -4,9 +4,10 @@ import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
 import type { TrackedAircraft } from '../../../lib/live/store'
+import type { LabelSettings } from '../../../lib/map/label-settings'
 import { AircraftTable } from './aircraft-table'
 import { InfoCard } from './info-card'
-import { LabelSettingsControl } from './label-settings-control'
+import { LabelSettingsControl, LabelSettingsPanel } from './label-settings-control'
 import { SearchBox } from './search-box'
 import {
   dataAgeSeconds,
@@ -319,7 +320,7 @@ describe('LabelSettingsControl', () => {
   it('kapalıyken yalnızca "Etiketler" düğmesi çizilir', () => {
     const html = renderToStaticMarkup(
       createElement(LabelSettingsControl, {
-        value: { selected: 'full', others: 'full' },
+        value: { selected: 'full', others: 'full', airports: 'code' },
         onChange: noop,
         messages: tr.labels,
       }),
@@ -327,5 +328,61 @@ describe('LabelSettingsControl', () => {
     expect(html).toMatch(/aria-expanded="false"[^>]*>.*Etiketler<\/button>/)
     expect(html).not.toContain('type="radio"')
     expect(html).not.toContain('aria-controls')
+  })
+})
+
+describe('LabelSettingsPanel (D-084)', () => {
+  const render = (value: LabelSettings, messages = tr.labels) =>
+    renderToStaticMarkup(
+      createElement(LabelSettingsPanel, { id: 'labels', value, onChange: noop, messages }),
+    )
+  /** Grubun `legend`i ve radyo düğmeleri: [ad, değer, seçili mi]. */
+  const groups = (html: string) =>
+    [...html.matchAll(/<fieldset[^>]*><legend>([^<]+)<\/legend>(.*?)<\/fieldset>/g)].map(
+      ([, legend, body = '']) => ({
+        legend,
+        options: [...body.matchAll(/<input type="radio"([^>]*)\/><span>([^<]+)<\/span>/g)].map(
+          ([, attributes = '', text]) => ({
+            name: /\bname="([^"]+)"/.exec(attributes)?.[1],
+            mode: /\bvalue="([^"]+)"/.exec(attributes)?.[1],
+            text,
+            checked: /\bchecked=""/.test(attributes),
+          }),
+        ),
+      }),
+    )
+
+  it('üç grup: Seçili uçak, Diğer uçaklar, Havalimanları (Gizle / Kod / Kod ve ad)', () => {
+    const html = render({ selected: 'full', others: 'short', airports: 'code' })
+    expect(html).toMatch(/^<div id="labels" class="map-panel map-labels__panel" role="group"/)
+    const found = groups(html)
+    expect(found.map((g) => g.legend)).toEqual(['Seçili uçak', 'Diğer uçaklar', 'Havalimanları'])
+    expect(found[2]?.options.map((o) => [o.mode, o.text])).toEqual([
+      ['hidden', 'Gizle'],
+      ['code', 'Kod'],
+      ['name', 'Kod ve ad'],
+    ])
+    // Her grubun radyo adı ayrıdır (ok tuşları yalnızca kendi grubunda gezer).
+    expect(new Set(found.map((g) => g.options[0]?.name)).size).toBe(3)
+    for (const group of found) {
+      expect(new Set(group.options.map((o) => o.name)).size).toBe(1)
+      expect(group.options.filter((o) => o.checked)).toHaveLength(1)
+    }
+    expect(found[0]?.options.find((o) => o.checked)?.mode).toBe('full')
+    expect(found[1]?.options.find((o) => o.checked)?.mode).toBe('short')
+    expect(found[2]?.options.find((o) => o.checked)?.mode).toBe('code')
+    expect(textOf(html)).toContain('Kod ve ad: yakınlaştırınca havalimanının kısa adı da yazılır.')
+  })
+
+  it('seçili havalimanı seçeneği ayardan gelir; İngilizce metinler', () => {
+    for (const airports of ['hidden', 'code', 'name'] as const) {
+      const found = groups(render({ selected: 'full', others: 'full', airports }))
+      expect(found[2]?.options.find((o) => o.checked)?.mode, airports).toBe(airports)
+    }
+    const en = groups(
+      render({ selected: 'full', others: 'full', airports: 'name' }, getMessages('en').map.labels),
+    )
+    expect(en.map((g) => g.legend)).toEqual(['Selected aircraft', 'Other aircraft', 'Airports'])
+    expect(en[2]?.options.map((o) => o.text)).toEqual(['Hide', 'Code', 'Code and name'])
   })
 })

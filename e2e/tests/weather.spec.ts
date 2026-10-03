@@ -85,7 +85,8 @@ const COPY = {
     lightningNear: 'Havalimanı çevresinde gök gürültüsü var; yıldırım havalimanına da düşebilir',
     observed: /Gözlem \d{2}:\d{2}/,
     observedAgo: /Gözlem \d{2}:\d{2}, (az önce|\d.* önce)/,
-    localTime: /Yerel saat \d{2}:\d{2}/,
+    /** Türkiye: yerel saat UTC+3 (D-084'te değişmedi). */
+    localTime: /Yerel saat \d{2}:\d{2} \(UTC\+3\)/,
     sunrise: /Gün doğumu \d{2}:\d{2}/,
     sunset: /Gün batımı \d{2}:\d{2}/,
     expert: 'Ayrıntılar (uzman)',
@@ -130,7 +131,7 @@ const COPY = {
     lightningNear: 'Thunderstorm near the airport; lightning can strike the airport too',
     observed: /Observed \d{2}:\d{2}/,
     observedAgo: /Observed \d{2}:\d{2}, (just now|\d.* ago)/,
-    localTime: /Local time \d{2}:\d{2}/,
+    localTime: /Local time \d{2}:\d{2} \(UTC\+3\)/,
     sunrise: /Sunrise \d{2}:\d{2}/,
     sunset: /Sunset \d{2}:\d{2}/,
     expert: 'Details (expert)',
@@ -552,7 +553,8 @@ test.describe('harita: havalimanı penceresi', () => {
     await expect(row(popup, 'Pistler')).toHaveText(
       new RegExp(`^\\s*${PRIMARY_AIRPORT.runways} pist, en uzunu [\\d.]+\u00a0m\\s*$`),
     )
-    await expect(row(popup, 'Yerel saat')).toHaveText(/\d{2}:\d{2}/)
+    // Yerel saat UTC farkıyla, her havalimanında aynı biçimde (D-084).
+    await expect(row(popup, 'Yerel saat')).toHaveText(/^\s*\d{2}:\d{2} \(UTC\+3\)\s*$/)
     // Gün doğumu ve batımı yalnız havalimanı sayfasındadır (kullanıcı kararı 2026-10-02).
     await expect(popup).not.toContainText('Gün doğumu')
     await expect(popup).not.toContainText('Gün batımı')

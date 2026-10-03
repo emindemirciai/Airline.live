@@ -13,6 +13,7 @@ import {
   formatAgo,
   formatAltitude,
   formatUtcClock,
+  formatUtcOffset,
   NO_VALUE,
   weatherText,
   type Messages,
@@ -21,6 +22,7 @@ import {
   airportCountryName,
   airportDisplayName,
   airportDistrict,
+  airportTimeZone,
   localTime,
   metarAgeClass,
   provinceName,
@@ -40,14 +42,15 @@ export type WeatherMessages = Messages['weather']
 const TURKEY = 'TR'
 
 /**
- * Pencerenin saat dilimi (IANA): Türkiye havalimanında Europe/Istanbul. Yakın ülkelerin
- * havalimanları için saat dilimi verisi tutulmaz (OurAirports'ta yoktur; D-080): o havalimanlarında
- * yerel saat satırı gösterilmez, gözlem saati UTC ile yazılır. Başka bir
- * ülkenin saati Türkiye saatiyle "yerel saat" diye gösterilmez (Tiflis ve Bakü UTC+4, Tahran
- * UTC+3:30, Yunanistan kışın UTC+2).
+ * Pencerenin saat dilimi (IANA, D-084): havalimanının dilimi (`airportTimeZone`; tzdb tablosu, Türkiye
+ * Europe/Istanbul, Atina Europe/Athens, Tahran Asia/Tehran). Dilim bilinmiyorsa (kuralı yazılmamış
+ * çok dilimli ülke) ya da tarayıcı dilimi tanımıyorsa null: yerel saat satırı gösterilmez, gözlem
+ * saati UTC ile yazılır. Başka bir ülkenin saati Türkiye saatiyle "yerel saat" diye gösterilmez.
  */
-export function popupTimeZone(airport: Pick<MapAirport, 'country'>): string | null {
-  return airport.country === TURKEY ? TURKEY_TIME_ZONE : null
+export function popupTimeZone(
+  airport: Pick<MapAirport, 'icao' | 'country' | 'isoRegion'>,
+): string | null {
+  return airportTimeZone(airport)
 }
 
 /**
@@ -106,9 +109,19 @@ export interface AirportFacts {
 }
 
 /**
+ * Yerel saat ve o anki UTC farkı: "23:05 (UTC+2)", Türkiye'de "15:32 (UTC+3)" (D-084). Fark yaz
+ * saatiyle değişir; `Intl` hesaplar. Saat henüz yoksa (0) ya da geçersizse "—".
+ */
+export function formatLocalTime(ms: number, timeZone: string, t: PopupMessages): string {
+  const time = formatClock(ms, timeZone)
+  if (time === NO_VALUE) return NO_VALUE
+  return format(t.localTimeValue, { time, offset: formatUtcOffset(ms, timeZone) })
+}
+
+/**
  * Pencerenin üst bilgileri: ad, rakım, pist özeti; saat dilimi biliniyorsa (`popupTimeZone`) yerel
- * saat. Gün doğumu ve batımı pencerede yazılmaz, havalimanı sayfasındadır (kullanıcı kararı
- * 2026-10-02). Hava durumu ayrıdır (`popupWeatherView`).
+ * saat ve UTC farkı (her havalimanında aynı biçim). Gün doğumu ve batımı pencerede yazılmaz,
+ * havalimanı sayfasındadır (kullanıcı kararı 2026-10-02). Hava durumu ayrıdır (`popupWeatherView`).
  */
 export function airportFacts(
   airport: MapAirport,
@@ -123,7 +136,7 @@ export function airportFacts(
     { key: 'runways', label: t.runways, value: formatRunways(airport, locale, t) },
   ]
   if (timeZone !== null) {
-    rows.push({ key: 'localTime', label: t.localTime, value: formatClock(now, timeZone) })
+    rows.push({ key: 'localTime', label: t.localTime, value: formatLocalTime(now, timeZone, t) })
   }
   return { name, label: format(t.label, { name }), rows }
 }
@@ -155,7 +168,8 @@ export type PopupWeatherView =
  * kaynaktan gelir (`summarizeMetar` → `phenomenonRows`); dürüstlük kuralları orada uygulanır: yağmur,
  * kar, gök gürültüsü ve sis her zaman yazılır, rapor güvenle çözülemediyse "Belirlenemedi" denir.
  * Gözlem 12 saatten eskiyse rapor yok sayılır; 3–12 saat arası eski gözlemin değerleri gösterilmez.
- * Gözlem saati havalimanının saat dilimiyle yazılır; dilim bilinmiyorsa (`null`) UTC ile ("12:50 UTC").
+ * Gözlem saati havalimanının yerel saatiyle yazılır ("Gözlem 22:50", fark üstteki yerel saat
+ * satırındadır); dilim bilinmiyorsa (`null`) UTC ile ("12:50 UTC").
  */
 export function popupWeatherView(
   state: BulkWeatherState,

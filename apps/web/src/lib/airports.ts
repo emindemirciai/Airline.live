@@ -1,7 +1,7 @@
 import 'server-only'
 import { distanceKm } from '@havayolu/geo'
 import { coveragePlan, planCoversPoint, type PlannedCircle } from '@havayolu/geo/coverage'
-import { airportNameSource, type AirportDetail } from '@havayolu/shared'
+import { airportNameSource, type AirportDetail, type AirportNameSource } from '@havayolu/shared'
 import { cache } from 'react'
 import { z } from 'zod'
 // Göreli yollar: vitest `@/` takma adını çözmez; bu modül ve onu kullanan SEO dosyaları testte yüklenir.
@@ -190,19 +190,23 @@ function redirect(airport: AirportDetail): AirportCodeResolution {
   return { kind: 'redirect', icao: airport.icao }
 }
 
+/** Resmî adı sivil bir kaynaktan doğrulanan havalimanının ad kaynakları (D-076, D-084). */
+const CIVIL_NAME_SOURCES: ReadonlySet<AirportNameSource> = new Set(['dhmi', 'operator', 'ministry'])
+
 /**
- * Sayfa dizine eklenir mi (D-076): arkasında durabildiğimiz veriye göre. Resmî adı DHMİ ya da
- * işletmeci kaynağından doğrulanan sivil havalimanları, izlenen istasyonlar ve OurAirports'ta tarifeli
- * seferi kayıtlı olanlar. OurAirports `scheduled_service` bayrağı tek başına ölçüt değildir: bazı
- * sivil havalimanlarında güncel değildir (Siirt, Kocaeli). Kalanlar (resmî adı doğrulanamayan askerî
- * üsler) `noindex, follow` alır ve site haritasına girmez. Yakın ülkelerdeki listelenen havalimanları
- * aday kuralı gereği tarifelidir (`isForeignCandidate`), hepsi dizine eklenir (D-080).
+ * Sayfa dizine eklenir mi (D-076): arkasında durabildiğimiz veriye göre. Resmî adı DHMİ, işletmeci
+ * ya da bakanlık kaynağından doğrulanan sivil havalimanları (Ankara (Etimesgut) dahil, D-084),
+ * izlenen istasyonlar ve OurAirports'ta tarifeli seferi kayıtlı olanlar. OurAirports
+ * `scheduled_service` bayrağı tek başına ölçüt değildir: bazı sivil havalimanlarında güncel değildir
+ * (Siirt, Kocaeli). Kalanlar (askerî hava üsleri, adı doğrulanmamış yeni kayıtlar) `noindex,
+ * follow` alır ve site haritasına girmez. Yakın ülkelerdeki listelenen havalimanları aday kuralı
+ * gereği tarifelidir (`isForeignCandidate`), hepsi dizine eklenir (D-080).
  */
 export function isIndexable(airport: AirportDetail): boolean {
   return (
     airport.scheduled ||
     airport.station !== null ||
-    airportNameSource(airport.icao) !== 'ourairports'
+    CIVIL_NAME_SOURCES.has(airportNameSource(airport.icao))
   )
 }
 
