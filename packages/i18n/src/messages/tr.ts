@@ -212,7 +212,7 @@ export const tr = {
       operator: 'Resmî Türkçe ad: {name} (havalimanı işletmecisi)',
       /** Ankara (Etimesgut), D-084: `{name}` bakanlığın verdiği addır ("Ankara Havalimanı"). */
       ministry:
-        'Resmî Türkçe ad: {name} (Ulaştırma ve Altyapı Bakanlığı); aynı ildeki diğer havalimanıyla karışmasın diye eski adı parantez içinde eklenir.',
+        'Resmî Türkçe ad: {name} (Ulaştırma ve Altyapı Bakanlığı); aynı ildeki diğer havalimanıyla karışmasın diye eski adı parantez içinde eklenmiştir.',
       /** Askerî hava üsleri (D-084): ad bulunduğu yerin adıyla yazılır. */
       military:
         'Ad: {name} (askerî hava üssü; DHMİ listesinde yer almaz, bulunduğu yerin adıyla yazılır)',

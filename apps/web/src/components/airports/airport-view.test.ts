@@ -239,15 +239,20 @@ describe('AirportView', () => {
           `<h1>${name} <span class="airport-codes">(${iata}/${icao})</span></h1>`,
         )
         expect(html, `${icao} ${locale}`).toContain(`<span aria-current="page">${name}</span>`)
-        const body = text(html)
+        // Başka dilde olduğu `lang` ile işaretlenen ögeler (OurAirports'taki ad, İngilizce sayfada
+        // resmî Türkçe ad) sayılmaz; sayfanın kendi dilindeki metinde öbür dilin cins adı yoktur.
+        const body = text(html.replace(/<(dd|span) lang="(?:tr|en)">[^<]*<\/\1>/g, ''))
         expect(body, `${icao} ${locale}`).not.toMatch(
           locale === 'tr' ? /\b(Air Base|Airbase|Airport)\b/ : /Havalimanı|Hava Üssü/,
         )
       }
     }
+    // OurAirports'taki İngilizce ad Türkçe sayfada yalnız kendi satırında ve `lang="en"` ile kalır.
+    expect(renderAirport('LTAD')).toContain('<dd lang="en">Etimesgut Air Base</dd>')
+    expect(renderAirport('LTBL')).toContain('<dd lang="en">Çiğli Airbase</dd>')
     // Ankara (Etimesgut): resmî ad bakanlığınkidir, parantez ayırt etmek içindir.
     expect(text(renderAirport('LTAD'))).toContain(
-      'Resmî Türkçe ad: Ankara Havalimanı (Ulaştırma ve Altyapı Bakanlığı); aynı ildeki diğer havalimanıyla karışmasın diye eski adı parantez içinde eklenir.',
+      'Resmî Türkçe ad: Ankara Havalimanı (Ulaştırma ve Altyapı Bakanlığı); aynı ildeki diğer havalimanıyla karışmasın diye eski adı parantez içinde eklenmiştir.',
     )
     expect(renderAirport('LTAD', 'en')).toContain(
       'Official Turkish name: <span lang="tr">Ankara Havalimanı</span> (Ministry of Transport and Infrastructure)',

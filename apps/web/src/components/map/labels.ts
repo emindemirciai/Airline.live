@@ -15,8 +15,9 @@
  *   katmanındadır, görünür ve tıklanır kalır); Kod → yalnız IATA kodu; Kod ve ad → z ≥ 7'de kodun
  *   yanında kısa ad (`airportMapName`, en çok 16 karakter). Önce bütün kodlar Kod ayarındaki gibi
  *   yerleşir; sonra her kod sırayla adlı kutuya genişletilir, adlı kutu bir pini, başka bir kodu,
- *   bir uçak simgesini ya da seçili uçağın izini örtecekse kod yalnız kalır. Böylece "Kod ve ad"
- *   hiçbir havalimanının kodunu kaybettirmez. Uçak etiketleri adların üstüne çizilebilir; birincil
+ *   bir uçak simgesini ya da seçili uçağın izini örtecekse kod yalnız kalır. Birincil istasyonda da
+ *   ad kısmı yerdeki uçakları örtmez: istisna yalnız kod kısmınadır. Böylece "Kod ve ad" hiçbir
+ *   havalimanının kodunu kaybettirmez. Uçak etiketleri adların üstüne çizilebilir; birincil
  *   istasyonun yalnız kod kısmı uçak etiketlerine kapalıdır.
  * - Uçak etiketleri etiket ayarına göre kurulur (seçili uçak `selected`, diğerleri `others`;
  *   Gizle → etiket yok, simge yine engel sayılır), `layoutLabels` ile çakışmasız yerleşir.
@@ -261,6 +262,7 @@ export interface ChipLayoutOptions {
   /**
    * Birincil istasyon (IST): kodu yalnızca bu engellere bakar (yerdeki uçaklar hariç, kullanıcı
    * kararı 2026-10-01). Kalabalık apronda da kod görünür ve tıklanır; havadaki uçağı yine örtmez.
+   * Adlı kutunun ad kısmı ise `obstacles`'ın tamamına bakar (D-084).
    */
   primary?: { icao: string; obstacles?: Pick<CircleObstacles, 'hits'> }
   /**
@@ -305,14 +307,22 @@ export function layoutAirportChips(
         y + h + AIRPORT_MARGIN > o.y,
     )
   const height = AIRPORT_HEIGHT
-  /** Kutunun sığdığı ilk konum (sağ, sol, üst, alt); `skip` çakışma denetiminde sayılmaz. */
+  /**
+   * Kutunun sığdığı ilk konum (sağ, sol, üst, alt); `skip` çakışma denetiminde sayılmaz. Kutunun
+   * soldaki `codeWidth` px'i koddur, kalanı ad. Birincil istasyonda yalnız kod kısmı yerdeki
+   * uçakların üstüne yazılabilir (D-079); ad kısmı bütün engellere bakar, hiçbir uçak simgesini
+   * örtmez (D-084).
+   */
   const position = (
     { airport, x, y }: ScreenAirport,
     width: number,
+    codeWidth: number,
     skip?: PlacedAirportChip,
   ): [number, number] | null => {
     const pin = pinGeometry(x, y, scale)
-    const blockers = airport.icao === primary?.icao ? primary.obstacles : obstacles
+    const isPrimary = airport.icao === primary?.icao
+    const blockers = isPrimary ? primary.obstacles : obstacles
+    const nameWidth = width - codeWidth
     const candidates: [number, number][] = [
       [x + pin.headRadius + AIRPORT_GAP, pin.headY - height / 2],
       [x - pin.headRadius - AIRPORT_GAP - width, pin.headY - height / 2],
@@ -324,6 +334,8 @@ export function layoutAirportChips(
       if (overlaps(cx, cy, width, height, skip)) continue
       if (pins.hits(cx, cy, width, height)) continue
       if (blockers?.hits(cx, cy, width, height)) continue
+      if (isPrimary && nameWidth > 0 && obstacles?.hits(cx + codeWidth, cy, nameWidth, height))
+        continue
       return [cx, cy]
     }
     return null
@@ -331,7 +343,7 @@ export function layoutAirportChips(
   const placedAirports: ScreenAirport[] = []
   for (const item of sorted) {
     const codeWidth = Math.ceil(measure(AIRPORT_FONT, item.airport.iata) + AIRPORT_PAD_X * 2)
-    const at = position(item, codeWidth)
+    const at = position(item, codeWidth, codeWidth)
     if (at === null) continue
     placed.push({
       icao: item.airport.icao,
@@ -353,7 +365,7 @@ export function layoutAirportChips(
     const name = nameOf(item.airport)
     if (chip === undefined || name === null || name === '') return
     const width = Math.ceil(chip.codeWidth + AIRPORT_NAME_GAP + measure(AIRPORT_NAME_FONT, name))
-    const at = position(item, width, chip)
+    const at = position(item, width, chip.codeWidth, chip)
     if (at === null) return
     placed[index] = { ...chip, name, x: at[0], y: at[1], width }
   })

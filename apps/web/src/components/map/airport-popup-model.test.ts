@@ -199,10 +199,13 @@ describe('havalimanı bilgileri', () => {
     // 1 Ekim 13:00Z: Atina yaz saatinde (UTC+3); 1 Aralık 13:00Z kışın (UTC+2).
     expect(local(ATH)?.value).toBe('16:00 (UTC+3)')
     expect(local(ATH, Date.parse('2026-12-01T13:00:00Z'))?.value).toBe('15:00 (UTC+2)')
+    // Bilgi satırı vurgusuz (M6e.1): hava satırlarıyla aynı liste, tonu ve etiketi yok.
     expect(local(ATH, NOW, 'en')).toEqual({
       key: 'localTime',
       label: 'Local time',
       value: '16:00 (UTC+3)',
+      tone: null,
+      strong: null,
     })
     expect(local(THR)?.value).toBe('16:30 (UTC+3:30)')
     expect(local(TBS)?.value).toBe('17:00 (UTC+4)')

@@ -383,6 +383,7 @@ describe('LabelSettingsPanel (D-084)', () => {
       render({ selected: 'full', others: 'full', airports: 'name' }, getMessages('en').map.labels),
     )
     expect(en.map((g) => g.legend)).toEqual(['Selected aircraft', 'Other aircraft', 'Airports'])
-    expect(en[2]?.options.map((o) => o.text)).toEqual(['Hide', 'Code', 'Code and name'])
+    // "Code and name" 300 px panelin üçüncü sütununa sığmıyordu (iki satır); kısa karşılığı.
+    expect(en[2]?.options.map((o) => o.text)).toEqual(['Hide', 'Code', 'With name'])
   })
 })

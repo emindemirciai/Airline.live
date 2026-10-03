@@ -20,7 +20,7 @@ import type { Locale, LocalizedText } from '../locale'
  *   klasik kişilerin Türkçede yerleşik adları kullanılır (Büyük İskender, Büyük Konstantin, Hipokrat,
  *   Demokritos, Aziz Pavlus, Kral Pirus); çağdaş kişilerin adı özgün yazımıyla kalır (Henri Coandă,
  *   Nikos Kazantzakis), Türkçede yerleşik yazımı varsa onunla (Refik Hariri, Celal Talabani, Ahmet
- *   Kadirov, Eşrefi İsfahani; unvan da Türkçesiyle: Şehit, Serdar-ı Cengel; D-084).
+ *   Kadirov, Eşrefi İsfahani; unvan da Türkçe haberlerdeki biçimiyle: Şehit, Serdar Cengel; D-084).
  * - "International", "National", "Island" gibi nitelemeler Türkçe adda yazılmaz; ad "Havalimanı"
  *   ile biter. Tartışmalı bölgelerde (Sohum) yalnızca şehir adı kullanılır.
  *
@@ -95,7 +95,7 @@ export const FOREIGN_AIRPORT_NAMES: Readonly<Record<string, LocalizedText>> = {
     en: 'Shahid Ashrafi Esfahani Airport',
   },
   OICS: { tr: 'Senendec Havalimanı', en: 'Sanandaj Airport' },
-  OIGG: { tr: 'Reşt Serdar-ı Cengel Havalimanı', en: 'Sardar-e-Jangal Airport' },
+  OIGG: { tr: 'Reşt Serdar Cengel Havalimanı', en: 'Sardar-e-Jangal Airport' },
   OIHH: { tr: 'Hemedan Havalimanı', en: 'Hamadan Airport' },
   OITL: { tr: 'Erdebil Havalimanı', en: 'Ardabil Airport' },
   OITR: { tr: 'Urmiye Havalimanı', en: 'Urmia Airport' },

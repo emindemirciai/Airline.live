@@ -21,6 +21,7 @@
 //   yazılar simge sütunuyla aynı sol kenarda, kapat düğmesi sağda (ölçülür), yatay taşma yok
 import { expect, test, type Locator, type Page } from '@playwright/test'
 import { jsonLdBlocks, metaContents, titles } from '../html'
+import { canvasChips, CODE_CHIP_MAX_WIDTH, mapCenter } from '../label-canvas'
 import {
   aircraftRow,
   AIRPORT_COUNT,
@@ -1211,13 +1212,6 @@ async function addOtherWeatherRow(popup: Locator, locale: Locale): Promise<void>
   )
 }
 
-/** Harita kapsayıcısının ortası, sayfa koordinatıyla (CSS px). */
-async function mapCenter(page: Page): Promise<{ x: number; y: number }> {
-  const box = await page.locator('.live-map .maplibregl-canvas').boundingBox()
-  if (!box) throw new Error('harita tuvali yok')
-  return { x: box.x + box.width / 2, y: box.y + box.height / 2 }
-}
-
 /**
  * Haritayı LTFM merkezli açar ve kodun uçaklardan ayrı çizileceği yakınlaştırmaya getirir.
  * `?havalimani=LTFM` haritayı 10 yakınlaştırmayla havalimanı merkezine götürür; senaryodaki taksi
@@ -1237,18 +1231,14 @@ async function openAtPrimaryAirport(page: Page): Promise<void> {
   for (let i = 0; i < 5; i++) await page.keyboard.press('Equal')
 }
 
-/** IATA kod kutusunun kenar rengi (`MAP_COLORS.labelBorder`, D-081): #B9E2E6. */
-const CHIP_BORDER = { r: 185, g: 226, b: 230 }
 /** Pinin başı ucunun (havalimanı merkezi) ~15 px yukarısındadır (airport-pin.ts). */
 const PIN_HEAD_OFFSET_PX = 15
 
 /**
- * IST kodunun ortasına tıklar. Kodlar `.live-map__labels` tuvaline çizilir (DOM'da yoktur). Uçak
- * etiketleri de kod kutusu gibi beyaz zeminli ve #B9E2E6 kenarlıdır (D-081): tuvaldeki beyaz
- * pikseller tek bir kutu sayılmaz. Bunun yerine beyaz pikseller bağlı bölgelere ayrılır; kod kutusu
- * boyutunda (iç beyazı 11–15 px yüksek, en çok 48 px geniş; uçak etiketi daha yüksektir) ve sol ile
- * sağ kenarı #B9E2E6 tonunda olan bölgeler aday sayılır; IST pininin başına (harita ortası:
- * `?havalimani=LTFM` ve klavyeyle yakınlaştırma merkezi korur) en yakın aday tıklanır. Taksi uçağı
+ * IST kodunun ortasına tıklar. Kodlar `.live-map__labels` tuvaline çizilir (DOM'da yoktur); kutular
+ * tuvalin piksellerinden bulunur (`canvasChips`, e2e/label-canvas.ts: kod kutusu boyutunda, en çok
+ * `CODE_CHIP_MAX_WIDTH` geniş, kenarı #B9E2E6). IST pininin başına (harita ortası:
+ * `?havalimani=LTFM` ve klavyeyle yakınlaştırma merkezi korur) en yakın kutu tıklanır. Taksi uçağı
  * ilerledikçe kod yer değiştirebileceği için tıklama pencere açılana kadar yinelenir.
  */
 async function clickPrimaryChip(page: Page): Promise<void> {
@@ -1256,84 +1246,7 @@ async function clickPrimaryChip(page: Page): Promise<void> {
   await expect(async () => {
     const center = await mapCenter(page)
     const head = { x: center.x, y: center.y - PIN_HEAD_OFFSET_PX }
-    const chip = await page.locator('.live-map .live-map__labels').evaluate(
-      (element, { head, border }) => {
-        const canvas = element as HTMLCanvasElement
-        const ctx = canvas.getContext('2d')
-        if (!ctx || canvas.width === 0) return null
-        const { data, width, height } = ctx.getImageData(0, 0, canvas.width, canvas.height)
-        const rect = canvas.getBoundingClientRect()
-        const scale = canvas.width / rect.width
-        const isWhite = (p: number) =>
-          data[p * 4] === 255 &&
-          data[p * 4 + 1] === 255 &&
-          data[p * 4 + 2] === 255 &&
-          data[p * 4 + 3] === 255
-        // Kenar: beyaz bölgenin dışındaki ilk 3 pikselden biri #B9E2E6 tonundadır. Kutu kesirli
-        // konumdaysa kenar çizgisi kenarı yumuşatılır: ilk piksel beyaza yakın, kenar rengi bir
-        // sonrakinde, tuvalin saydam zemininde de yarı saydam kalır.
-        const hasEdge = (x0: number, y: number, step: -1 | 1) => {
-          for (let k = 1; k <= 3; k++) {
-            const x = x0 + step * k
-            if (x < 0 || y < 0 || x >= width || y >= height) return false
-            const i = (y * width + x) * 4
-            const [r = 0, g = 0, b = 0, a = 0] = [data[i], data[i + 1], data[i + 2], data[i + 3]]
-            if (
-              a >= 30 &&
-              g - r >= 12 &&
-              b - r >= 12 &&
-              Math.abs(g - border.g) <= 30 &&
-              Math.abs(b - border.b) <= 30
-            ) {
-              return true
-            }
-          }
-          return false
-        }
-        const seen = new Uint8Array(width * height)
-        const candidates: { x: number; y: number; width: number; height: number }[] = []
-        for (let start = 0; start < width * height; start++) {
-          if (seen[start] || !isWhite(start)) continue
-          seen[start] = 1
-          const stack = [start]
-          let minX = width
-          let minY = height
-          let maxX = -1
-          let maxY = -1
-          while (stack.length > 0) {
-            const p = stack.pop() ?? 0
-            const x = p % width
-            const y = (p - x) / width
-            minX = Math.min(minX, x)
-            maxX = Math.max(maxX, x)
-            minY = Math.min(minY, y)
-            maxY = Math.max(maxY, y)
-            for (const q of [p - 1, p + 1, p - width, p + width]) {
-              if (q < 0 || q >= width * height || seen[q]) continue
-              if (Math.abs((q % width) - x) > 1) continue
-              if (!isWhite(q)) continue
-              seen[q] = 1
-              stack.push(q)
-            }
-          }
-          const w = (maxX - minX + 1) / scale
-          const h = (maxY - minY + 1) / scale
-          // Kod kutusu 16 px yüksektir (iç beyazı ~14 px); uçak etiketi en az 20 px (iç beyazı ~18 px).
-          if (h < 11 || h > 15 || w < 14 || w > 48) continue
-          const midY = Math.round((minY + maxY) / 2)
-          if (!hasEdge(minX, midY, -1) || !hasEdge(maxX, midY, 1)) continue
-          candidates.push({
-            x: rect.left + (minX + maxX + 1) / 2 / scale,
-            y: rect.top + (minY + maxY + 1) / 2 / scale,
-            width: w,
-            height: h,
-          })
-        }
-        const distance = (c: { x: number; y: number }) => Math.hypot(c.x - head.x, c.y - head.y)
-        return candidates.sort((a, b) => distance(a) - distance(b))[0] ?? null
-      },
-      { head, border: CHIP_BORDER },
-    )
+    const [chip = null] = await canvasChips(page, head, CODE_CHIP_MAX_WIDTH)
     expect(chip, 'IST kodu tuvalde çizili').not.toBeNull()
     if (!chip) return
     // Kod pin başının yanındadır (sağında, solunda, üstünde ya da noktanın altında; D-079).

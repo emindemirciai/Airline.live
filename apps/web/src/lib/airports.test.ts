@@ -1,3 +1,4 @@
+import { airportNameSource } from '@havayolu/shared'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   airportsUrl,
@@ -220,6 +221,16 @@ describe('isIndexable ve isMonitoredStation', () => {
     expect(ltad?.scheduled).toBe(false)
     expect(ltad && isIndexable(ltad)).toBe(true)
     expect(fixture.filter(isIndexable)).toHaveLength(56)
+  })
+
+  it('tabloda olmayan (OurAirports’a sonradan eklenen) Türkiye havalimanı yalnız tarifeliyse ya da istasyonsa dizine girer (D-076, D-084)', () => {
+    const added = airportFixture({ icao: 'LTZZ', iata: 'YZG', scheduled: false })
+    expect(airportNameSource(added.icao)).toBe('ourairports')
+    expect(isIndexable(added)).toBe(false)
+    expect(isIndexable({ ...added, scheduled: true })).toBe(true)
+    expect(
+      isIndexable({ ...added, station: { active: false, primary: false, fetchRadiusNm: 60 } }),
+    ).toBe(true)
   })
 
   it('yalnızca etkin istasyon izlenir', () => {

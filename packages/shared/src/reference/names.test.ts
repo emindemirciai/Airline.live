@@ -78,11 +78,11 @@ describe('görünen adların dili (D-084)', () => {
     }
   })
 
-  it('Türkçe yazım düzeltmeleri: Gebele, Şehit Eşrefi İsfahani, Serdar-ı Cengel', () => {
+  it('Türkçe yazım düzeltmeleri: Gebele, Şehit Eşrefi İsfahani, Serdar Cengel', () => {
     const tr = (icao: string) => airportDisplayName({ icao, name: '' }, 'tr')
     expect(tr('UBBQ')).toBe('Gebele Havalimanı')
     expect(tr('OICC')).toBe('Kirmanşah Şehit Eşrefi İsfahani Havalimanı')
-    expect(tr('OIGG')).toBe('Reşt Serdar-ı Cengel Havalimanı')
+    expect(tr('OIGG')).toBe('Reşt Serdar Cengel Havalimanı')
     // İngilizce ad OurAirports adı kalır.
     expect(airportDisplayName({ icao: 'UBBQ', name: '' }, 'en')).toBe(
       'Gabala International Airport',

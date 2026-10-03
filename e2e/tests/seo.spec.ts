@@ -283,9 +283,7 @@ test.describe('noindex ve canonical kuralları', () => {
     }
   })
 
-  test('tarifesiz askerî hava üssünün sayfası açılır ama noindex, follow', async ({
-    request,
-  }) => {
+  test('tarifesiz askerî hava üssünün sayfası açılır ama noindex, follow', async ({ request }) => {
     for (const path of [
       `/istasyon/${NON_INDEXABLE_AIRPORT.icao}`,
       enPath(`/istasyon/${NON_INDEXABLE_AIRPORT.icao}`),

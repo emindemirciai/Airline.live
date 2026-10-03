@@ -57,6 +57,14 @@ Bir şeyi doğrulaman gerekiyorsa önce buradaki kaynakları kullan. Yeni bir ka
   - Gazipaşa-Alanya (LTFG): http://www.gzpairport.com/tr-TR/
   - Zafer (LTBZ): http://www.zafer.aero/
   - Eskişehir Hasan Polatkan (Eskişehir Teknik Üniversitesi, LTBY): https://hph.eskisehir.edu.tr/
+- **Bakanlık (`source: 'ministry'`, erişim 2026-10-03; D-084):** Ankara Havalimanı'nın (eski Etimesgut, LTAD, ANK) 2026-06-15'te açılışı, UAB: https://www.uab.gov.tr/haberler/cumhurbaskani-erdogan-ankara-havalimani-ve-baglanti-yollarini-hizmete-acti/ · AA 2026-06-13: https://www.aa.com.tr/tr/ekonomi/ankaradaki-etimesgut-havalimani-yeni-adiyla-15-haziranda-acilacak/3965894 · AA 2026-06-14: https://www.aa.com.tr/tr/ekonomi/bakan-uraloglu-15-haziranda-acilacak-ankara-havalimanina-iliskin-detaylari-paylasti/3966087 (DHMİ listesinde henüz yok)
+- **Askerî hava üsleri (`source: 'military'`, erişim 2026-10-03; D-084).** Resmî adları birlik adıdır; görünen ad "<yer> Hava Üssü" biçimindedir (AA kullanımı: https://www.aa.com.tr/tr/turkiye/incirlik-hava-ussunde-hareketlilik/1617329):
+  - İncirlik (LTAG), 10'uncu Ana Jet Üs Komutanlığı, MSB 2024-04-19 (DefenceTurk aracılığıyla): https://www.defenceturk.net/10uncu-tanker-us-komutanliginin-ismi-degistirildi
+  - Afyon (LTAH), 17'nci Hava ve Füze Savunma Üs Komutanlığı: https://ssbulten.com.tr/gundem/detay/17nci-us-afyon-18inci-us-yalova--3600 · https://www.sabah.com.tr/gundem/2026/09/16/milli-savunma-bakani-yasar-guler-afyonkarahisarda-birlikleri-denetledi
+  - Bandırma (LTBG), 6. Ana Jet Üs Komutanlığı: https://www.bandirma.gov.tr/6-ana-jet-us-komutanligina-atanan-hv-plt-tugg-levent-egrene-ziyaret
+  - Eskişehir (LTBI), 1. Ana Jet Üs Komutanlığı: https://www.eskisehir.gov.tr/1ana-jet-us-komutanligi---bina-isleri-yaptirilacaktir2
+  - Çiğli (LTBL), 2. Ana Jet Üs Komutanlığı: https://www.izmir.gov.tr/vali-ayyildiz-cigli-2anajet-us-komutanligindaki-devir-teslim-torenine-katildi
+  - hvkk.tsk.tr sayfaları açılamadı (yönlendirme döngüsü, 2026-10-03).
 - **Kullanılmaz:** SHGM listesi https://web.shgm.gov.tr/doc2/havlist.pdf. 2006 tarihli bir tablo dışa aktarımıdır ("HAVAALANLARI TABLOSU.xls", 2006-11-20) ve İstanbul Havalimanı'ndan (2018) eskidir.
 - OurAirports veri sözlüğü (pist kaplama kodları; `runway-surface.ts`): https://ourairports.com/help/data-dictionary.html
 

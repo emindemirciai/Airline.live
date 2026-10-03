@@ -13,9 +13,11 @@
 // - harita: `?havalimani=LGAV` Atina'da açar; pin ve "Havalimanları" listesi pencereyi açar; pencere
 //   il yerine ülkeyi gösterir
 // - yerel saat (M6f, D-084): pencerede ve sayfada Atina'nın saati UTC farkıyla ("23:05 (UTC+2)");
-//   sayfada gün doğumu ve batımı, "Türkiye saati" notu yok
+//   sayfada gün doğumu ve batımı, METAR/TAF kaydının girişi yerel saat ve şu anki fark, "Türkiye
+//   saati" notu yok
 import { expect, test, type Locator, type Page } from '@playwright/test'
 import { jsonLdNodes, metaContents, nodesOfType, type JsonLdNode } from '../html'
+import { mapCenter } from '../label-canvas'
 import {
   AIRPORT_COUNT,
   airportListCodes,
@@ -61,6 +63,8 @@ const COPY = {
     sunrise: /Gün doğumu \d{2}:\d{2}/,
     sunset: /Gün batımı \d{2}:\d{2}/,
     turkeyTime: 'Türkiye saati',
+    log: 'METAR/TAF kaydı',
+    logLocal: /Saatler havalimanının yerel saatidir \(şu an UTC\+[23]\); UTC yanında yazılır\./,
   },
   en: {
     listPath: enPath('/havalimanlari'),
@@ -78,6 +82,8 @@ const COPY = {
     sunrise: /Sunrise \d{2}:\d{2}/,
     sunset: /Sunset \d{2}:\d{2}/,
     turkeyTime: 'Türkiye time',
+    log: 'METAR/TAF log',
+    logLocal: /Times are the airport’s local time \(currently UTC\+[23]\), with UTC alongside\./,
   },
 } as const
 
@@ -268,6 +274,10 @@ test.describe('havalimanı sayfası', () => {
       await expect(sun).toContainText(copy.sunset)
       await expectAthensClock(sun.locator('li').first(), `${copy.localTime} `, loadedFrom)
       await expect(weather).not.toContainText(copy.turkeyTime)
+      // METAR/TAF kaydı da havalimanının yerel saatini ve şu anki farkını söyler.
+      const log = main.getByRole('region', { name: copy.log, exact: true })
+      await expect(log).toContainText(copy.logLocal)
+      await expect(log).not.toContainText(copy.turkeyTime)
       const mapHref = locale === 'tr' ? `/?havalimani=${icao}` : `/en?havalimani=${icao}`
       await expect(main.locator(`a[href="${mapHref}"]`)).toBeVisible()
     })
@@ -424,11 +434,4 @@ async function expectAthensClock(locator: Locator, prefix: string, from: number)
 
 function mapPopup(page: Page): Locator {
   return page.locator('.live-map [role="dialog"].map-popup')
-}
-
-/** Harita kapsayıcısının ortası, sayfa koordinatıyla (CSS px). */
-async function mapCenter(page: Page): Promise<{ x: number; y: number }> {
-  const box = await page.locator('.live-map .maplibregl-canvas').boundingBox()
-  if (!box) throw new Error('harita tuvali yok')
-  return { x: box.x + box.width / 2, y: box.y + box.height / 2 }
 }
