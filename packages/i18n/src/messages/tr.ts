@@ -475,11 +475,28 @@ export const tr = {
       /** Ölçek üstü: P99KT 100 kt, P49MPS 50 m/s (97 kt) ya da daha fazla. */
       above: '{speed} ve üzeri',
       /**
-       * Etkili rüzgârın şiddeti (D-083): rüzgâr satırının etiketi ve TAF öğesi. Eşik MGM meydan
-       * uyarısıdır (ortalama ≥ 20 kt ya da hamle ≥ 30 kt); adlar MGM Beaufort ıskalasındandır.
-       * `gusts`: yalnız hamle eşiği aşıldı.
+       * Rüzgâr kesmesi (`WS R34`, `WS ALL RWY`; D-083): rüzgâr satırında değerin altında, kehribar.
+       * MGM'nin "alçak seviye rüzgâr sheari" grubu (Havacılık Meteorolojisi IV.1.3.9.4); terim uzman
+       * görünümündeki "Rüzgâr kesmesi" ile aynıdır.
+       */
+      shearAll: 'Rüzgâr kesmesi bildirildi: bütün pistler',
+      shearRunway: 'Rüzgâr kesmesi bildirildi: pist {runway}',
+      shearRunways: 'Rüzgâr kesmesi bildirildi: pistler {runways}',
+      /**
+       * Hafif rüzgârın etiketi (gösterilen hız ≤ 10 km/sa; kullanıcı kararı 2026-10-03, D-083): açık
+       * yeşil satırda hızın yanında. "Sakin" ve "Hafif ve değişken yönlü" değerlerinde yazılmaz.
+       */
+      light: 'Hafif rüzgâr',
+      /**
+       * Etkili rüzgârın şiddeti (D-083): rüzgâr satırının etiketi ve TAF öğesi. Satırın vurgu eşiği
+       * ortalama ≥ 17 kt (MGM Beaufort 5) ya da hamle ≥ 25 kt'dir (kullanıcı kararı 2026-10-03); TAF
+       * öğesi MGM meydan uyarısı eşiğiyle seçilir (ortalama ≥ 20 kt ya da hamle ≥ 30 kt, `gusts` ve
+       * üstü). Adlar MGM Beaufort ıskalasındandır. `gusty`: hamle 25–29 kt; `fresh`: ortalama 17–19
+       * kt; `gusts`: yalnız hamle meydan uyarısı eşiğini aştı.
        */
       level: {
+        gusty: 'Hamleli rüzgâr',
+        fresh: 'Sert rüzgâr',
         gusts: 'Kuvvetli hamle',
         strong: 'Kuvvetli rüzgâr',
         nearGale: 'Fırtınamsı rüzgâr',
