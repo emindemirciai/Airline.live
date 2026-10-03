@@ -24,7 +24,7 @@ Durumlar: `[ ]` başlamadı, `[~]` sürüyor, `[k]` kod bitti ve kullanıcı do�
 | M6e | Hava durumu: pencere ortalı, rüzgâr km/sa ve kt, kuvvetli rüzgâr vurgusu, kümülonimbüs ve yıldırım uyarısı | `p1/m6e-weather-wind` | [x] tamam; üretimde doğrulandı (2026-10-03, v0.13.0): IST penceresinde "Kuzeydoğudan 37 km/sa (20 kt)", kehribar "Kuvvetli rüzgâr" | #18 |
 | M6e.1 | Pencere hizası (yama) | `p1/m6e1-popup-align` | [x] tamam; üretimde doğrulandı (2026-10-03, v0.13.1): IST penceresinin 9 satırında simge x=13, değer x=147 | #19 |
 | M6f | Adlar ve saat: askerî ve sivil havalimanı adları TR/EN, haritada havalimanı adı etiketi, yurt dışında yerel saat ve UTC farkı | `p1/m6f-names-time` | [k] kod bitti; üretimde adların ve yurt dışı yerel saatin görülmesi bekliyor | #20 |
-| M6e.2 | Rüzgâr renkleri ve rüzgâr kesmesi (yama, v0.14.1) | `p1/m6e2-wind-colors` | [~] | — |
+| M6e.2 | Rüzgâr renkleri ve rüzgâr kesmesi (yama, v0.14.1) | `p1/m6e2-wind-colors` | [k] kod bitti; üretimde renklerin görülmesi bekliyor | #21 |
 | M6g | Türkiye dışındaki havalimanları, 2. halka (≤ 1.000 km) | `p1/m6g-ring2` | [ ] | — |
 | M7a | Canlı araçlar: `smoke:live`, `record` | `p1/m7a-live-tools` | [ ] | — |
 | M6h | 3. halka (≤ 2.000 km) | `p1/m6h-ring3` | [ ] | — |
@@ -784,7 +784,9 @@ Hedef sürüm 0.13.2. Karar D-083'teki "2026-10-03 kullanıcı kararı: rüzgâr
 - **Kontrol turu (2026-10-03):** TAF özeti üretim anlık görüntüsünde (TAF'ı olan 122 istasyon) eski ve yeni kodla karşılaştırıldı: 9'u değişti (LTCG ve LTFO "önemli hava olayı yok" yerine kuvvetli rüzgâr 20G30, UGTB'de eksik fırtına öğesi geldi; LTBJ, LTAY, LTFC, LTBA, LTFM, LTBU'da bitiş BECMG penceresinin sonuna kaydı), öteki 113 aynı. Fixture'da (13:00Z) 10 istasyonun 5'i değişti (LTCE, LTAI, LTAC, LTCG, LBSF). Fixture METAR'larının rüzgâr tonu eski ve yeni kuralla karşılaştırıldı: 20 istasyonun 8'i değişti, D-083 listesi tamdır (LTBS eklendi). Eski kodla yeni BECMG testleri ve güncellenen 3 beklenti (6 test) kırmızı, eski uzman koduyla tekrarlanan `WS` testi kırmızıdır (denendi).
 - Kontrol turundan sonra: `pnpm --filter @havayolu/shared test` → 522 (+3), `@havayolu/i18n` → 91 (bir beklenti güncellendi), `@havayolu/web` → 626 (+1; LTBS bir teste eklendi); API `reference/weather.test.ts` 35, worker `jobs/weather.test.ts` 25 yeşil. `pnpm --filter` shared, i18n, web `typecheck` ve `lint`, `pnpm format`, `pnpm check:eol`, `pnpm changelog:check` (v0.13.1) → yeşil.
 - `pnpm typecheck --force` (9/9), `pnpm lint --force` (9/9), `pnpm typecheck:e2e`, `pnpm lint:e2e`, `pnpm format`, `pnpm check:eol`, `pnpm changelog:check` (v0.13.1; sürüm yayın adımında) → yeşil.
-- `pnpm test:e2e` ve `pnpm ci:full` bu dalda henüz koşulmadı (M6f aynı anda yerel portları ve Docker veritabanını kullanıyordu); yayın adımında koşulur.
+- **Yayın adımı (2026-10-03):** dal v0.14.0 ile birleştirildi (plan çakışması iki bölüm korunarak çözüldü; testlerdeki eski `abroad` seçeneği M6f'nin `timeZone` seçeneğiyle değiştirildi). main CI'da bir kez kırmızı olan pencere hizası testi düzeltildi: 375 px'ten 320 px'e inince harita tuvalinin yeni genişliği beklenir (`expect.poll`).
+- **`pnpm ci:full` → yeşil:** birim testleri web 650, shared 546, api 251, worker 200, providers 120, i18n 93, tools 74, db 44, geo 31, scripts 31; entegrasyon db 82, api 26, worker 12; migration yükseltme 6 → 6; `compose:guard`; E2E 110/110.
+- `pnpm stats` → 531 dosya, 94.167 satır (85.714 kod).
 
 ## M7 — Canlı araçlar ve kapsama raporu
 Ayrıntılar `docs/prompts/parca-1.md`'dedir. Başlarken bu dosyaya dizinler ve kabul komutları eklenir.

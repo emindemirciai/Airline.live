@@ -269,7 +269,9 @@ describe('WeatherPanel: bütün fixture durumları', () => {
     }
     // LTDB 6 kt = 11 km/sa: yeşil değil; LTAC 12 kt ve LGAV 16 kt: sade.
     for (const icao of ['LTDB', 'LTAC', 'LGAV'] as const) {
-      const html = panel(fixtureWeather(icao), { abroad: icao === 'LGAV' })
+      const html = panel(fixtureWeather(icao), {
+        timeZone: icao === 'LGAV' ? 'Europe/Athens' : 'Europe/Istanbul',
+      })
       expect(tone(html, 'wind'), icao).toBeNull()
       expect(html, icao).not.toContain('wx-tag')
     }
@@ -284,23 +286,23 @@ describe('WeatherPanel: bütün fixture durumları', () => {
       tafs: [],
     })
     const lgmk = station('LGMK 151250Z 35019KT 9999 FEW018 20/15 Q1020 WS R34')
-    const html = panel(lgmk, { abroad: true })
+    const html = panel(lgmk, { timeZone: 'Europe/Athens' })
     expect(tone(html, 'wind')).toBe('wind')
     expect(html).toContain(
       'Kuzeyden 35 km/sa (19 kt) <span class="wx-tag">Sert rüzgâr</span> <span class="wx-note">Rüzgâr kesmesi bildirildi: pist 34</span></dd>',
     )
-    expect(row(panel(lgmk, { abroad: true, locale: 'en' }), 'wind')).toBe(
+    expect(row(panel(lgmk, { timeZone: 'Europe/Athens', locale: 'en' }), 'wind')).toBe(
       'From the north 35 km/h (19 kt) Fresh wind Wind shear reported: runway 34',
     )
     // Hafif rüzgârda da kesme satırı kehribar yapar; "Hafif rüzgâr" etiketi yazılmaz.
     const calm = panel(station('LGMK 151250Z 00000KT 9999 FEW018 20/15 Q1020 WS ALL RWY'), {
-      abroad: true,
+      timeZone: 'Europe/Athens',
     })
     expect(tone(calm, 'wind')).toBe('wind')
     expect(row(calm, 'wind')).toBe('Sakin Rüzgâr kesmesi bildirildi: bütün pistler')
     expect(calm).not.toContain('wx-tag')
     const light = panel(station('LGMK 151250Z 18004KT 9999 FEW018 20/15 Q1020 WS R16'), {
-      abroad: true,
+      timeZone: 'Europe/Athens',
     })
     expect(tone(light, 'wind')).toBe('wind')
     expect(row(light, 'wind')).toBe('Güneyden 7 km/sa (4 kt) Rüzgâr kesmesi bildirildi: pist 16')

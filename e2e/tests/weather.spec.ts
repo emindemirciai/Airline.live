@@ -678,8 +678,16 @@ test.describe('harita: havalimanı penceresi', () => {
           // Vurgulu satırlar ölçüme girdi (vurgu zemini ve kalın yazı da aynı ızgarada).
           expect(aligned.tones, `${width} px`).toEqual(expect.arrayContaining([...airport.tones]))
           if (sheet) {
-            // Alt sayfa haritanın bütün genişliğindedir.
-            const map = await page.locator('.live-map .maplibregl-canvas').boundingBox()
+            // Alt sayfa haritanın bütün genişliğindedir. Harita tuvali yeni genişliğe bir sonraki
+            // karede uyar (ResizeObserver); eski genişlikle (ör. 375 px'ten 320'ye inince 375)
+            // ölçmemek için önce tuvalin pencereye sığmasını bekle (main CI'da bir kez kırmızıydı).
+            const canvas = page.locator('.live-map .maplibregl-canvas')
+            await expect
+              .poll(async () => (await canvas.boundingBox())?.width ?? Infinity, {
+                message: `${width} px: harita tuvali yeni genişlikte`,
+              })
+              .toBeLessThanOrEqual(width)
+            const map = await canvas.boundingBox()
             expect(aligned.width, `${width} px`).toBeGreaterThanOrEqual((map?.width ?? 0) - 2)
           } else {
             // Geniş ekranda pencere 320 px'tir (değişmedi).
