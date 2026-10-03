@@ -1,22 +1,30 @@
 // apps/web/src/app/favicon.ico dosyasını üretir (16, 32 ve 48 px PNG içeren ICO). Ağa çıkmaz,
 // yeni bağımlılık gerektirmez: şekiller burada örneklenerek çizilir, PNG node:zlib ile kodlanır.
-// Marka işareti ya da renkleri değişince bir kez çalıştırılır ve çıktı commit'lenir:
+// Logo ya da renkleri değişince bir kez çalıştırılır ve çıktı commit'lenir:
 //   pnpm exec tsx scripts/gen-favicon.mts
-// Görünüm app/icon.tsx ile aynıdır (apps/web/src/lib/seo/brand.ts, D-081): başlık renginde zemin,
-// ince açık dış çizgi, beyaz halka. Sekme simgesi küçük olduğundan zemin yuvarlatılmış karedir ve
-// işaret daha büyüktür.
+// Görünüm logonun küçük işaretidir (D-086; 32 px ve altı): saydam zeminde turkuaz daire ve içinde
+// sağ üste uçan beyaz uçak, halka yok. Geometri apps/web/src/lib/brand/logo-geometry.ts'ten, renkler
+// apps/web/src/lib/seo/brand.ts → LOGO_COLORS.small'dan okunur; site ve simgelerle aynı kaynaktır.
 import { writeFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { crc32, deflateSync } from 'node:zlib'
-import { BRAND_MARK_DIAMETERS, THEME_COLORS } from '../apps/web/src/lib/seo/brand.ts'
+import {
+  LOGO_BOX,
+  LOGO_CENTER,
+  LOGO_SMALL_DISC_RADIUS,
+  PLANE_BODY,
+  PLANE_ENGINES,
+  toPlaneSpace,
+  type LogoPoint,
+} from '../apps/web/src/lib/brand/logo-geometry.ts'
+import { LOGO_COLORS } from '../apps/web/src/lib/seo/brand.ts'
 
 const OUTPUT = fileURLToPath(new URL('../apps/web/src/app/favicon.ico', import.meta.url))
 const SIZES = [16, 32, 48] as const
-/** İşaretin kenara oranı ve zeminin köşe yarıçapı (kenara oran). */
-const MARK_RATIO = 0.84
-const CORNER_RATIO = 0.22
 /** Kenar yumuşatma: piksel başına SAMPLES × SAMPLES örnek. */
-const SAMPLES = 8
+const SAMPLES = 16
+/** Bézier eğrisi başına doğru parçası sayısı (gövde çokgeni). */
+const CURVE_STEPS = 24
 
 type Rgba = [number, number, number, number]
 
@@ -27,29 +35,68 @@ function hex(value: string): Rgba {
   return [(n >> 16) & 255, (n >> 8) & 255, n & 255, 255]
 }
 
-const BACKGROUND = hex(THEME_COLORS.header)
-const OUTLINE = hex(THEME_COLORS.line)
-const RING = hex(THEME_COLORS.headerInk)
+const DISC = hex(LOGO_COLORS.small.ring)
+const PLANE = hex(LOGO_COLORS.small.plane)
 const TRANSPARENT: Rgba = [0, 0, 0, 0]
 
-/** Yuvarlatılmış karenin içinde mi (merkez 0,0; kenar 1). */
-function insideRoundedSquare(x: number, y: number, radius: number): boolean {
-  const qx = Math.abs(x) - (0.5 - radius)
-  const qy = Math.abs(y) - (0.5 - radius)
-  if (qx <= 0 || qy <= 0) return Math.abs(x) <= 0.5 && Math.abs(y) <= 0.5
-  return qx * qx + qy * qy <= radius * radius
+/** Gövde çizgisinin çokgeni (kübik Bézier'ler CURVE_STEPS doğruya bölünür). */
+function bodyPolygon(): LogoPoint[] {
+  const points: LogoPoint[] = [PLANE_BODY.start]
+  let from = PLANE_BODY.start
+  for (const segment of PLANE_BODY.segments) {
+    if ('line' in segment) {
+      points.push(segment.line)
+      from = segment.line
+      continue
+    }
+    const [c1, c2, to] = segment.curve
+    for (let step = 1; step <= CURVE_STEPS; step++) {
+      const t = step / CURVE_STEPS
+      const u = 1 - t
+      const a = u * u * u
+      const b = 3 * u * u * t
+      const c = 3 * u * t * t
+      const d = t * t * t
+      points.push([
+        a * from[0] + b * c1[0] + c * c2[0] + d * to[0],
+        a * from[1] + b * c1[1] + c * c2[1] + d * to[1],
+      ])
+    }
+    from = to
+  }
+  return points
 }
 
-/** Birim karedeki (merkez 0,0) bir noktanın rengi. */
+const BODY = bodyPolygon()
+
+/** Çokgenin içinde mi (çift-tek kuralı; gövde kendini kesmeyen tek çizgidir). */
+function insidePolygon(x: number, y: number, polygon: readonly LogoPoint[]): boolean {
+  let inside = false
+  for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
+    const [xi, yi] = polygon[i] as LogoPoint
+    const [xj, yj] = polygon[j] as LogoPoint
+    if (yi > y !== yj > y && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi) inside = !inside
+  }
+  return inside
+}
+
+/** Motor kapsüllerinden birinin içinde mi (düz kısma uzaklık ≤ yarıçap). */
+function insideEngine(x: number, y: number): boolean {
+  return PLANE_ENGINES.some(({ x: cx, top, length, radius }) => {
+    const y0 = top + radius
+    const nearest = Math.min(Math.max(y, y0), y0 + length)
+    return Math.hypot(x - cx, y - nearest) <= radius
+  })
+}
+
+/** Birim karedeki (merkez 0,0; kenar 1) bir noktanın rengi. */
 function colorAt(x: number, y: number): Rgba {
-  if (!insideRoundedSquare(x, y, CORNER_RATIO)) return TRANSPARENT
-  const r = Math.hypot(x, y)
-  const radius = (diameter: number) => (diameter / BRAND_MARK_DIAMETERS.outline) * (MARK_RATIO / 2)
-  if (r <= radius(BRAND_MARK_DIAMETERS.hole)) return BACKGROUND
-  if (r <= radius(BRAND_MARK_DIAMETERS.ring)) return RING
-  if (r <= radius(BRAND_MARK_DIAMETERS.gap)) return BACKGROUND
-  if (r <= radius(BRAND_MARK_DIAMETERS.outline)) return OUTLINE
-  return BACKGROUND
+  const ux = LOGO_CENTER + x * LOGO_BOX
+  const uy = LOGO_CENTER + y * LOGO_BOX
+  if (Math.hypot(ux - LOGO_CENTER, uy - LOGO_CENTER) > LOGO_SMALL_DISC_RADIUS) return TRANSPARENT
+  const [px, py] = toPlaneSpace(ux, uy, 'small')
+  if (insidePolygon(px, py, BODY) || insideEngine(px, py)) return PLANE
+  return DISC
 }
 
 /** size × size RGBA piksel dizisi; her piksel alt örneklerin (önceden çarpılmış alfa) ortalaması. */
