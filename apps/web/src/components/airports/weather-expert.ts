@@ -197,17 +197,22 @@ export function metarCodeRows(
     }
     if (token === 'WS') {
       // Çözücüyle aynı biçimler: `WS R35`, `WS RWY35`, `WS ALL RWY`, önünde `TKOF`/`LDG` olabilir.
+      // Grup tekrarlanabilir (`WS R16 WS R34`, WMO-306 FM 15): her satır yalnız kendi grubunun
+      // pistini söyler, raporun bütün kesme pistlerini değil.
       let end = i + 1
       if (tokens[end] === 'TKOF' || tokens[end] === 'LDG') end += 1
-      if (tokens[end] === 'ALL' && tokens[end + 1] === 'RWY') end += 2
-      else if (windShearRunway(tokens[end] ?? '') !== null) end += 1
-      const shear = metar.windShear
-      const where = shear?.allRunways
-        ? e.windShearAll
-        : (shear?.runways ?? []).map((runway) => format(e.windShearRunway, { runway })).join(', ')
+      let where: string = NO_VALUE
+      const runway = windShearRunway(tokens[end] ?? '')
+      if (tokens[end] === 'ALL' && tokens[end + 1] === 'RWY') {
+        where = e.windShearAll
+        end += 2
+      } else if (runway !== null) {
+        where = format(e.windShearRunway, { runway })
+        end += 1
+      }
       rows.push({
         code: tokens.slice(i, end).join(' '),
-        meaning: label(e.windShear, where || NO_VALUE),
+        meaning: label(e.windShear, where),
       })
       i = end
       continue

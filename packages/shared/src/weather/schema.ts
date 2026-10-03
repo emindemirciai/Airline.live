@@ -87,11 +87,17 @@ export const COMPASS_POINTS_16 = [
 export type CompassPoint16 = (typeof COMPASS_POINTS_16)[number]
 
 /**
- * Etkili rüzgârın şiddeti (D-083), zayıftan güçlüye. Eşik MGM meydan uyarısıdır (ortalama ≥ 20 kt ya
- * da hamle ≥ 30 kt); adlar MGM Beaufort ıskalasından, hamle karşılıkları Met Office'in fırtına
- * tanımından gelir (`windLevel`). `gusts`: yalnız hamle eşiği aşıldı ("Kuvvetli hamle").
+ * Etkili rüzgârın şiddeti (D-083), zayıftan güçlüye; rüzgâr satırı bu düzeylerde vurgulanır. Vurgu
+ * eşiği ortalama ≥ 17 kt (MGM Beaufort 5) ya da hamle ≥ 25 kt'dir (kullanıcı kararı 2026-10-03);
+ * MGM meydan uyarısı eşiği (ortalama ≥ 20 kt ya da hamle ≥ 30 kt) `gusts` ve üstüdür
+ * (`isStrongWind`). Adlar MGM Beaufort ıskalasından, hamle karşılıkları Met Office'in fırtına
+ * tanımından gelir (`windLevel`). `gusty`: hamle 25–29 kt, ortalama 17 kt'nin altında ("Hamleli
+ * rüzgâr"); `fresh`: ortalama 17–19 kt ("Sert rüzgâr"); `gusts`: yalnız hamle meydan uyarısı
+ * eşiğini aştı ("Kuvvetli hamle").
  */
 export const WIND_LEVELS = [
+  'gusty',
+  'fresh',
   'gusts',
   'strong',
   'nearGale',
@@ -102,6 +108,16 @@ export const WIND_LEVELS = [
   'hurricane',
 ] as const
 export type WindLevel = (typeof WIND_LEVELS)[number]
+
+/**
+ * Hafif rüzgâr (kullanıcı kararı 2026-10-03, D-083): gösterilen hız 10 km/sa ya da altında, sakin
+ * dahil; rüzgâr satırı açık yeşildir. Değer metni ilk ikisinde durumu zaten söyler: `calm` "Sakin"
+ * (`00000KT`), `lightVariable` "Hafif ve değişken yönlü" (`VRB` ≤ 3 kt). `light` hızı yazar
+ * ("Kuzeyden 9 km/sa (5 kt)"); arayüz yanına "Hafif rüzgâr" etiketini koyar (vurgu yalnız renk
+ * değildir).
+ */
+export const LIGHT_WINDS = ['calm', 'lightVariable', 'light'] as const
+export type LightWind = (typeof LIGHT_WINDS)[number]
 
 /**
  * Şimşek ve yıldırım uyarısı (D-083), güncel gözlemden: `here` havalimanında oraj ve yağış (ya da

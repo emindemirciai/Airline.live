@@ -7,6 +7,32 @@ import type { ChangelogEntry } from './types'
  */
 export const CHANGELOG: readonly ChangelogEntry[] = [
   {
+    version: '0.14.1',
+    date: '2026-10-03',
+    title: {
+      tr: 'Rüzgâr renkleri ve rüzgâr kesmesi uyarısı',
+      en: 'Wind colours and wind shear warnings',
+    },
+    items: [
+      {
+        tr: 'Rüzgârlı havalimanları artık renkli: ortalama rüzgâr 31 km/sa’i (17 kt) ya da hamle 46 km/sa’i (25 kt) geçince rüzgâr satırı turuncu olur ve “Sert rüzgâr” ya da “Hamleli rüzgâr” yazar; daha güçlüsü yine “Kuvvetli rüzgâr”, “Fırtına” … diye adlandırılır. Bütün havalimanlarının canlı verisiyle denetlendi; önceden renksiz kalan 12 rüzgârlı havalimanı artık renkli.',
+        en: 'Windy airports are now highlighted: when the mean wind reaches 31 km/h (17 kt) or gusts reach 46 km/h (25 kt), the wind row turns amber and says “Fresh wind” or “Gusty wind”; stronger winds are still named “Strong wind”, “Gale” and so on. Checked against live data from every airport; 12 windy airports that were not highlighted before now are.',
+      },
+      {
+        tr: 'Hafif rüzgâr (10 km/sa ve altı, sakin dahil) açık yeşil satırla ve “Hafif rüzgâr” etiketiyle gösterilir; arası normal renkte kalır.',
+        en: 'Light wind (10 km/h or less, calm included) is shown with a light green row and a “Light wind” tag; winds in between keep the normal colour.',
+      },
+      {
+        tr: 'METAR’da bildirilen rüzgâr kesmesi (wind shear) artık rüzgâr satırında yazılır ve vurgulanır: “Rüzgâr kesmesi bildirildi: pist 34”.',
+        en: 'Wind shear reported in the METAR is now shown and highlighted in the wind row: “Wind shear reported: runway 34”.',
+      },
+    ],
+    tryLinks: [
+      { path: '/havalimanlari', label: { tr: 'Havalimanları', en: 'Airports' } },
+      { path: '/?havalimani=LTFM', label: { tr: 'Haritada İstanbul', en: 'Istanbul on the map' } },
+    ],
+  },
+  {
     version: '0.14.0',
     date: '2026-10-03',
     title: {

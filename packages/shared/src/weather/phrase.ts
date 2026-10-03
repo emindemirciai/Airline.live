@@ -73,6 +73,10 @@ const FIXED_KEYS = {
   'weather.wind.gust': ['speed'],
   'weather.wind.varying': ['from', 'to'],
   'weather.wind.above': ['speed'],
+  /** Rüzgâr kesmesi (`WS ALL RWY`, `WS R34`; D-083): bütün pistler, tek pist, birden çok pist. */
+  'weather.wind.shearAll': [],
+  'weather.wind.shearRunway': ['runway'],
+  'weather.wind.shearRunways': ['runways'],
   // Görüş
   'weather.visibility.tenKmPlus': [],
   'weather.visibility.lessThan50': [],

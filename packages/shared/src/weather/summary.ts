@@ -1,11 +1,20 @@
 import { compassKey8 } from './compass'
-import { isStrongWind, largestCover, lowestCloudBaseFt, offScaleWind, windLevel } from './derive'
+import {
+  isLightAndVariable,
+  isStrongWind,
+  largestCover,
+  lowestCloudBaseFt,
+  lightWind,
+  offScaleWind,
+  windLevel,
+} from './derive'
 import { list, phrase, type Measure, type Phrase, type WeatherText } from './phrase'
 import {
   WIND_LEVELS,
   type DecodedMetar,
   type DecodedTaf,
   type LightningRisk,
+  type LightWind,
   type Sky,
   type TafPeriod,
   type TrendGroup,
@@ -14,6 +23,7 @@ import {
   type WeatherIconCategory,
   type Wind,
   type WindLevel,
+  type WindShear,
 } from './schema'
 import { localDayDifference, toDate, TURKEY_TIME_ZONE, type DateInput } from './time'
 import {
@@ -103,12 +113,30 @@ export interface WeatherSummary {
    */
   trend: TrendWindow
   /**
-   * Etkili rüzgârın şiddeti (D-083; `windLevel`): rüzgâr satırı vurgulanır, yanında şiddetin adı
-   * (`weather.wind.level.*`: "Kuvvetli rüzgâr", "Fırtına" …) yazılır. Eşiğin altında ya da NIL'de null.
+   * Etkili rüzgârın şiddeti (D-083; `windLevel`): rüzgâr satırı kehribar vurgulanır, yanında şiddetin
+   * adı (`weather.wind.level.*`: "Sert rüzgâr", "Hamleli rüzgâr", "Kuvvetli rüzgâr", "Fırtına" …)
+   * yazılır. Vurgu eşiğinin (ortalama 17 kt, hamle 25 kt; kullanıcı kararı 2026-10-03) altında ya da
+   * NIL'de null.
    */
   windLevel: WindLevel | null
-  /** Geriye uyum: `windLevel !== null` (MGM meydan uyarısı eşiği aşıldı). */
+  /**
+   * MGM meydan uyarısı eşiği aşıldı (ortalama ≥ 20 kt ya da hamle ≥ 30 kt; `isStrongWind`, API'deki
+   * `derived.strongWind` ile aynı). `windLevel` `fresh` ya da `gusty` iken false'tur.
+   */
   strongWind: boolean
+  /**
+   * Hafif rüzgâr (gösterilen hız ≤ 10 km/sa, sakin dahil; kullanıcı kararı 2026-10-03, D-083): rüzgâr
+   * satırı açık yeşildir. `light` iken arayüz "Hafif rüzgâr" etiketini yazar; `calm` ve
+   * `lightVariable` iken değer bunu zaten söyler. Rüzgâr kesmesi bildirildiyse satır yine kehribardır.
+   * Bilinmeyen rüzgârda ve NIL'de null.
+   */
+  windLight: LightWind | null
+  /**
+   * Rüzgâr kesmesi (`WS R34`, `WS ALL RWY`; WMO-306 FM 15, MGM Havacılık Meteorolojisi IV.1.3.9.4):
+   * "Rüzgâr kesmesi bildirildi: pist 34". Rüzgâr satırında değerin altına yazılır, satır kehribardır
+   * (rüzgâr hafif olsa da). Yoksa ya da NIL'de null.
+   */
+  windShear: WeatherText | null
   /**
    * Şimşek ve yıldırım uyarısı (D-083): gök gürültüsü satırı bunu yazar (`weather.thunder.*`) ve
    * vurgulanır. Havalimanında oraj (yağışlı ya da yağışsız), çevrede oraj (VCTS) ya da kümülonimbüs
@@ -152,6 +180,20 @@ function speedText(kt: number, kmh: number | null | undefined, offScale: boolean
 }
 
 /**
+ * Rüzgâr kesmesi (D-083): "Rüzgâr kesmesi bildirildi: pist 34" / "… bütün pistler". Pist kodları
+ * rapordaki gibidir (`34`, `03R`).
+ */
+export function windShearText(shear: WindShear | null): WeatherText | null {
+  if (!shear) return null
+  if (shear.allRunways) return phrase('weather.wind.shearAll')
+  const [first, ...rest] = shear.runways
+  if (first === undefined) return null
+  return rest.length === 0
+    ? phrase('weather.wind.shearRunway', { runway: first })
+    : phrase('weather.wind.shearRunways', { runways: shear.runways.join(', ') })
+}
+
+/**
  * Rüzgâr: "Kuzeydoğudan 33 km/sa (18 kt), hamle 59 km/sa (32 kt), yönü batı ile kuzey arasında
  * değişiyor" (km/sa ve kt birlikte, D-083).
  */
@@ -164,7 +206,7 @@ export function windText(wind: Wind | null): WeatherText {
   const direction = wind.directionDeg === null ? null : compassKey8(wind.directionDeg)
   if (wind.variable) {
     items.push(
-      wind.speedKt <= 3 && wind.gustKt === null
+      isLightAndVariable(wind)
         ? phrase('weather.wind.lightVariable')
         : phrase('weather.wind.variable', { speed }),
     )
@@ -563,7 +605,9 @@ export function summarizeMetar(
     next2h: next2hText(m, trend),
     trend: trend.window,
     windLevel: level,
-    strongWind: level !== null,
+    strongWind: !m.nil && isStrongWind(m.wind),
+    windLight: m.nil ? null : lightWind(m.wind),
+    windShear: m.nil ? null : windShearText(m.windShear),
     lightning,
     undetermined,
     notes,
@@ -624,7 +668,15 @@ interface State {
 
 interface Prevailing {
   start: number
+  /** Sonraki dilimin başı (BECMG ise değişim penceresinin başı); yoksa geçerlilik sonu. */
   end: number
+  /**
+   * Bu dilimin koşullarının sürebileceği son an. Sonraki dilim BECMG ise değişim penceresinin
+   * sonu (sonraki dilimin sonunu aşmadan); değilse `end`. WMO-782: değişim pencerenin içinde
+   * belirsiz bir anda olur, yeni koşullar pencerenin sonundan itibaren hâkimdir; pencere boyunca
+   * eski koşul (ör. zayıflayan kuvvetli rüzgâr) sürebilir.
+   */
+  until: number
   kind: 'BASE' | 'FM' | 'BECMG'
   becmgTo: number | null
   state: State
@@ -678,12 +730,21 @@ function prevailingStates(taf: DecodedTaf): Prevailing[] {
     out.push({
       start,
       end: validTo,
+      until: validTo,
       kind: p.kind as Prevailing['kind'],
       becmgTo: p.kind === 'BECMG' ? ms(p.to) : null,
       state,
     })
   }
-  return out.filter((p) => p.end > p.start)
+  out.forEach((p, index) => {
+    const next = out[index + 1]
+    p.until =
+      next?.kind === 'BECMG'
+        ? Math.min(Math.max(next.becmgTo ?? next.start, p.end), next.end)
+        : p.end
+  })
+  // Sıfır uzunluklu dilim (BECMG geçerliliğin başında başlıyor) pencere boyunca yine geçerlidir.
+  return out.filter((p) => p.until > p.start)
 }
 
 /** Yenisi eskisinin yerini alır: her TAF yalnız daha yeni bir TAF'ın kapsamadığı dilimleri verir. */
@@ -738,7 +799,7 @@ function candidatesFor(
     if (worst) out.push({ ...base, group: worst, wind: null })
     if (isStrongWind(state.wind)) out.push({ ...base, group: null, wind: state.wind })
   }
-  for (const p of prevailingStates(taf)) add(p.kind, null, p.start, p.end, p.becmgTo, p.state)
+  for (const p of prevailingStates(taf)) add(p.kind, null, p.start, p.until, p.becmgTo, p.state)
   for (const p of taf.periods) {
     if (p.kind !== 'TEMPO' && p.kind !== 'PROB') continue
     const start = ms(p.from)
@@ -797,8 +858,9 @@ function mergePrevailing(candidates: readonly Candidate[]): Candidate[] {
     .sort((a, b) => a.from - b.from || a.to - b.to)
   for (const candidate of prevailing) {
     const run = runs.findLast((r) => sameSubject(r, candidate))
-    if (run && run.to === candidate.from) {
-      run.to = candidate.to
+    // Bitişik ya da örtüşen (BECMG penceresi boyunca süren eski koşul) dilimler birleşir.
+    if (run && candidate.from <= run.to) {
+      run.to = Math.max(run.to, candidate.to)
       if (run.wind && candidate.wind) run.wind = strongestWind(run.wind, candidate.wind)
     } else runs.push({ ...candidate })
   }

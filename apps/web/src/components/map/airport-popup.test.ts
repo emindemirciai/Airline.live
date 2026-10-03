@@ -277,6 +277,32 @@ describe('AirportPopup', () => {
     expect(weatherRow(storm, 'rain')?.open).toContain('data-tone="rain"')
   })
 
+  it('hava durumu: rüzgâr renkleri ve rüzgâr kesmesi pencerede de aynı (M6e.2, D-083)', () => {
+    // Üretim LGMK: 19 kt "Sert rüzgâr" ve pist 34'te rüzgâr kesmesi.
+    const shear = render('tr', weatherState('LGMK 011250Z 35019KT 9999 FEW018 20/15 Q1020 WS R34'))
+    expect(weatherRow(shear, 'wind')).toEqual({
+      open: '<div class="wx-row" data-row="wind" data-tone="wind">',
+      value: 'Kuzeyden 35 km/sa (19 kt) Sert rüzgâr Rüzgâr kesmesi bildirildi: pist 34',
+    })
+    expect(shear).toContain('<span class="wx-note">Rüzgâr kesmesi bildirildi: pist 34</span>')
+    // Hafif rüzgâr: açık yeşil ve etiket; satır pencerenin tek hizalı listesindedir.
+    const light = render('en', weatherState('LTFM 011250Z 24005KT 9999 FEW030 20/15 Q1020'))
+    expect(weatherRow(light, 'wind')).toEqual({
+      open: '<div class="wx-row" data-row="wind" data-tone="calm">',
+      value: 'From the southwest 9 km/h (5 kt) Light wind',
+    })
+    expect(light).toContain('<dl class="wx-rows wx-rows--popup">')
+    // 6 kt (11 km/sa) ve 16 kt: sade.
+    for (const raw of [
+      'LTFM 011250Z 24006KT 9999 FEW030 20/15 Q1020',
+      'LTFM 011250Z 24016KT 9999 FEW030 20/15 Q1020',
+    ]) {
+      expect(weatherRow(render('tr', weatherState(raw)), 'wind')?.open, raw).toBe(
+        '<div class="wx-row" data-row="wind">',
+      )
+    }
+  })
+
   it('hava durumu: yükleniyor, alınamıyor, rapor yok', () => {
     expect(render('tr', { data: null, failed: false })).toContain('Hava durumu yükleniyor…')
     expect(render('tr', { data: null, failed: true })).toContain('Hava durumu şu an alınamıyor.')

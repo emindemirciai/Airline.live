@@ -2,9 +2,14 @@ export * from './age'
 export * from './compass'
 export {
   ceilingFt,
+  FRESH_WIND_MEAN_KT,
+  GUSTY_WIND_GUST_KT,
   iconCategory,
+  isLightAndVariable,
   isStrongWind,
   largestCover,
+  LIGHT_WIND_MAX_KMH,
+  lightWind,
   lowestCloudBaseFt,
   offScaleWind,
   relativeHumidity,

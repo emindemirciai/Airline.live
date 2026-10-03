@@ -403,7 +403,13 @@ export const en: Messages = {
       gust: 'gusts {speed}',
       varying: 'varying between {from} and {to}',
       above: '{speed} or more',
+      shearAll: 'Wind shear reported: all runways',
+      shearRunway: 'Wind shear reported: runway {runway}',
+      shearRunways: 'Wind shear reported: runways {runways}',
+      light: 'Light wind',
       level: {
+        gusty: 'Gusty wind',
+        fresh: 'Fresh wind',
         gusts: 'Strong gusts',
         strong: 'Strong wind',
         nearGale: 'Near gale',

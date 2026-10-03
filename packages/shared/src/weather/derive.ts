@@ -1,8 +1,10 @@
+import { ktToKmh } from './phrase'
 import {
   WIND_LEVELS,
   type CloudCover,
   type DecodedMetar,
   type Headline,
+  type LightWind,
   type MetarDerived,
   type Sky,
   type WeatherFlags,
@@ -26,6 +28,22 @@ import {
 /** Kuvvetli rüzgâr eşikleri, kt (MGM meydan uyarısı; Havacılık Meteorolojisi VI.1). */
 export const STRONG_WIND_MEAN_KT = 20
 export const STRONG_WIND_GUST_KT = 30
+
+/**
+ * Rüzgâr satırının vurgu eşikleri, kt (kullanıcı kararı 2026-10-03, D-083): ortalama MGM Beaufort 5
+ * ("Sert rüzgâr", 17–21 kt) ya da hamle 25 kt (46 km/sa). Meydan uyarısı eşiğinin altındadır;
+ * `isStrongWind` ve API'deki `derived.strongWind` değişmedi.
+ */
+export const FRESH_WIND_MEAN_KT = 17
+export const GUSTY_WIND_GUST_KT = 25
+
+/**
+ * Hafif rüzgârın üst sınırı, km/sa (kullanıcı kararı 2026-10-03, D-083: "rüzgâr 10 km ve altında ise
+ * açık yeşil"). Gösterilen km/sa değerine göredir (`Wind.speedKmh`, yoksa kt'den çevrilen): KT
+ * raporunda 5 kt (9 km/sa) hafiftir, 6 kt (11 km/sa) değildir; MPS raporunda 2 m/s (7 km/sa) hafif,
+ * 3 m/s (11 km/sa) değildir.
+ */
+export const LIGHT_WIND_MAX_KMH = 10
 
 const COVER_ORDER: Record<CloudCover, number> = { FEW: 1, SCT: 2, BKN: 3, OVC: 4 }
 
@@ -88,10 +106,11 @@ export function relativeHumidity(
 }
 
 /**
- * Ortalama rüzgârın şiddet adı (kt alt sınırı, büyükten küçüğe). MGM Beaufort ıskalası: 7 Fırtınamsı
- * Rüzgâr 28, 8 Fırtına 34, 9 Kuvvetli Fırtına 41, 10 Tam Fırtına 48, 11 Çok Şiddetli Fırtına 56, 12
- * Harikeyn (Orkan) 64 kt. 20–27 kt tek bant, "Kuvvetli rüzgâr"dır: alt sınır MGM meydan uyarısının
- * eşiğidir (Beaufort 5'in üst ucu 20–21 kt da vurgulu satırda "Sert" değil "Kuvvetli" okunur; D-083).
+ * Ortalama rüzgârın şiddet adı (kt alt sınırı, büyükten küçüğe). MGM Beaufort ıskalası: 5 Sert
+ * Rüzgâr 17, 7 Fırtınamsı Rüzgâr 28, 8 Fırtına 34, 9 Kuvvetli Fırtına 41, 10 Tam Fırtına 48, 11 Çok
+ * Şiddetli Fırtına 56, 12 Harikeyn (Orkan) 64 kt. 20–27 kt tek bant, "Kuvvetli rüzgâr"dır: alt sınır
+ * MGM meydan uyarısının eşiğidir (Beaufort 5'in üst ucu 20–21 kt da vurgulu satırda "Sert" değil
+ * "Kuvvetli" okunur; D-083). "Sert rüzgâr" bu yüzden 17–19 kt'dir.
  */
 const MEAN_LEVELS: readonly (readonly [number, WindLevel])[] = [
   [64, 'hurricane'],
@@ -101,13 +120,14 @@ const MEAN_LEVELS: readonly (readonly [number, WindLevel])[] = [
   [34, 'gale'],
   [28, 'nearGale'],
   [STRONG_WIND_MEAN_KT, 'strong'],
+  [FRESH_WIND_MEAN_KT, 'fresh'],
 ]
 
 /**
  * Hamlenin şiddet adı (kt alt sınırı). MGM ıskalası hamle karşılığı vermez; fırtına düzeyleri Met
  * Office'in deniz tahmini sözlüğündeki hamle karşılıklarıdır (Gale 43, Severe gale 52, Storm 61,
- * Violent storm 69 kt; Hurricane force yalnız ortalamayla). Hamle yalnız MGM meydan uyarısı eşiğini
- * (30 kt) geçtiyse `gusts`.
+ * Violent storm 69 kt; Hurricane force yalnız ortalamayla). Hamle MGM meydan uyarısı eşiğini (30 kt)
+ * geçtiyse `gusts` ("Kuvvetli hamle"), vurgu eşiğini (25 kt) geçtiyse `gusty` ("Hamleli rüzgâr").
  */
 const GUST_LEVELS: readonly (readonly [number, WindLevel])[] = [
   [69, 'violentStorm'],
@@ -115,6 +135,7 @@ const GUST_LEVELS: readonly (readonly [number, WindLevel])[] = [
   [52, 'severeGale'],
   [43, 'gale'],
   [STRONG_WIND_GUST_KT, 'gusts'],
+  [GUSTY_WIND_GUST_KT, 'gusty'],
 ]
 
 function levelFor(kt: number | null, table: readonly (readonly [number, WindLevel])[]) {
@@ -124,8 +145,9 @@ function levelFor(kt: number | null, table: readonly (readonly [number, WindLeve
 
 /**
  * Etkili rüzgârın şiddeti (D-083): ortalamanın ve hamlenin düzeyinden büyüğü (`WIND_LEVELS` sırası);
- * eşiğin altında, sakin ya da bilinmeyen rüzgârda null. Ölçek üstü değer (P99) 100 kt sayılır
- * (çözücü öyle yazar). Örnek: 25G43 → `gale`, 19G30 → `gusts`, 20 → `strong`.
+ * vurgu eşiğinin (ortalama 17 kt, hamle 25 kt) altında, sakin ya da bilinmeyen rüzgârda null. Ölçek
+ * üstü değer (P99) 100 kt sayılır (çözücü öyle yazar). Örnek: 25G43 → `gale`, 19G30 → `gusts`,
+ * 20 → `strong`, 19 → `fresh`, 16G25 → `gusty`, 18G32 → `gusts` (hamle meydan uyarısı eşiğinde).
  */
 export function windLevel(wind: Wind | null): WindLevel | null {
   if (!wind || wind.calm) return null
@@ -150,11 +172,38 @@ export function offScaleWind(wind: Wind): { speed: boolean; gust: boolean } {
 }
 
 /**
- * MGM meydan uyarısı eşiği: ortalama ≥ 20 kt ya da hamle ≥ 30 kt (ölçek üstü P99 da). Satır vurgusu
- * ve TAF'ın rüzgâr öğesi bununla seçilir; `windLevel` boş değilse doğrudur.
+ * MGM meydan uyarısı eşiği: ortalama ≥ 20 kt ya da hamle ≥ 30 kt (ölçek üstü P99 da). API'deki
+ * `derived.strongWind` ve TAF'ın rüzgâr öğesi bununla seçilir; `windLevel` `gusts` ya da daha
+ * güçlüyse doğrudur. Satırın vurgusu daha alçak eşikten başlar (`windLevel`: `fresh`, `gusty`;
+ * kullanıcı kararı 2026-10-03, D-083).
  */
 export function isStrongWind(wind: Wind | null): boolean {
-  return windLevel(wind) !== null
+  const level = windLevel(wind)
+  return level !== null && WIND_LEVELS.indexOf(level) >= WIND_LEVELS.indexOf('gusts')
+}
+
+/** Değişken yönlü ve 3 kt ya da altında, hamlesiz: "Hafif ve değişken yönlü" (hız yazılmaz). */
+export function isLightAndVariable(wind: Wind): boolean {
+  return wind.variable && wind.speedKt !== null && wind.speedKt <= 3 && wind.gustKt === null
+}
+
+/** Gösterilen km/sa: raporun kendi biriminden çevrilen değer, yoksa kt'den (sade görünümle aynı). */
+function shownKmh(kt: number, kmh: number | null | undefined): number {
+  return typeof kmh === 'number' && Number.isFinite(kmh) ? kmh : ktToKmh(kt)
+}
+
+/**
+ * Hafif rüzgâr (kullanıcı kararı 2026-10-03, D-083): sakin ya da gösterilen ortalama hız (ve varsa
+ * hamle) ≤ 10 km/sa. Bilinmeyen hızda, ölçek üstü raporda ve NIL'de null. Satır açık yeşildir;
+ * hangi metnin yazıldığı (`LightWind`) arayüzün etiket kararı içindir.
+ */
+export function lightWind(wind: Wind | null): LightWind | null {
+  if (!wind) return null
+  if (wind.calm) return 'calm'
+  if (wind.speedKt === null || !Number.isFinite(wind.speedKt) || wind.aboveMaxKt) return null
+  if (shownKmh(wind.speedKt, wind.speedKmh) > LIGHT_WIND_MAX_KMH) return null
+  if (wind.gustKt !== null && shownKmh(wind.gustKt, wind.gustKmh) > LIGHT_WIND_MAX_KMH) return null
+  return isLightAndVariable(wind) ? 'lightVariable' : 'light'
 }
 
 /** Hava olayı bayrakları (havalimanındaki ve çevredeki gruplar ayrı). */
