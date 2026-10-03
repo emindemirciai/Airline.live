@@ -197,6 +197,32 @@ test.describe('tarayıcıda', () => {
     )
   })
 
+  test('başlıktaki logo (D-086): işaret süstür, bağlantının adı yalnızca yazı; maske kendi kimliğiyle', async ({
+    page,
+  }) => {
+    await page.goto('/havalimanlari')
+    const brand = page.locator('header.site-header a.brand')
+    await expect(brand).toHaveCount(1)
+    await expect(page.getByRole('link', { name: 'havayolu', exact: true })).toHaveCount(1)
+    const mark = brand.locator('svg.brand-mark')
+    await expect(mark).toHaveAttribute('aria-hidden', 'true')
+    const box = await mark.boundingBox()
+    // 16 px yazının 1,5 katı.
+    expect(box?.width).toBeCloseTo(24, 0)
+    expect(box?.height).toBeCloseTo(24, 0)
+    const masks = await mark.evaluate((svg) => {
+      const reference = svg.querySelector('circle')?.getAttribute('mask') ?? ''
+      const id = /^url\(#(.+)\)$/.exec(reference)?.[1] ?? ''
+      return {
+        id,
+        found: id !== '' && document.getElementById(id)?.tagName.toLowerCase() === 'mask',
+        sameId: document.querySelectorAll(`[id="${id}"]`).length,
+      }
+    })
+    expect(masks.found, masks.id).toBe(true)
+    expect(masks.sameId).toBe(1)
+  })
+
   test('havalimanı sayfası: yol, pist tablosu, yakın havalimanları, sınırlar', async ({ page }) => {
     await page.goto(STATION_PATH)
     const main = page.locator('main')

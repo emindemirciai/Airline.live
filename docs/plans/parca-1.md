@@ -24,6 +24,7 @@ Durumlar: `[ ]` başlamadı, `[~]` sürüyor, `[k]` kod bitti ve kullanıcı do�
 | M6e | Hava durumu: pencere ortalı, rüzgâr km/sa ve kt, kuvvetli rüzgâr vurgusu, kümülonimbüs ve yıldırım uyarısı | `p1/m6e-weather-wind` | [x] tamam; üretimde doğrulandı (2026-10-03, v0.13.0): IST penceresinde "Kuzeydoğudan 37 km/sa (20 kt)", kehribar "Kuvvetli rüzgâr" | #18 |
 | M6e.1 | Pencere hizası (yama) | `p1/m6e1-popup-align` | [x] tamam; üretimde doğrulandı (2026-10-03, v0.13.1): IST penceresinin 9 satırında simge x=13, değer x=147 | #19 |
 | M6f | Adlar ve saat: askerî ve sivil havalimanı adları TR/EN, haritada havalimanı adı etiketi, yurt dışında yerel saat ve UTC farkı | `p1/m6f-names-time` | [k] kod bitti; üretimde adların ve yurt dışı yerel saatin görülmesi bekliyor | #20 |
+| M6l | Logo: A · Halka | `p1/m6l-logo` | [~] | — |
 | M6g | Türkiye dışındaki havalimanları, 2. halka (≤ 1.000 km) | `p1/m6g-ring2` | [ ] | — |
 | M7a | Canlı araçlar: `smoke:live`, `record` | `p1/m7a-live-tools` | [ ] | — |
 | M6h | 3. halka (≤ 2.000 km) | `p1/m6h-ring3` | [ ] | — |
@@ -747,6 +748,29 @@ Hedef sürüm 0.14.0. Kararlar D-084'tedir. Yarıda kesilen bir koşunun ara com
 - **Kontrol (2026-10-03):** üç istek, kullanıcı kararları ve 4 doğrulanmış bulgu (IST ad kutusu yerdeki uçakları örtmez, küçük telefonda panel arama kutusunun altına girmez, D-084 dizin kuralı metni, domain.md yerel saat) tamam; 19 mutasyonun 17si birim testlerince, 1i e2e ile yakalandı, 1i (IST ad kutusunun yalnız kod kısmının uçak etiketlerini engellememesi) testsiz kaldı.
 - **`pnpm ci:full` → yeşil:** birim testleri web 645, shared 494, api 251, worker 200, providers 120, i18n 85, tools 74, db 44, geo 31, scripts 31; entegrasyon db 82, api 26, worker 12; migration yükseltme 6 → 6; `compose:guard` 8 servis, 64 anahtar; E2E 110/110.
 - `pnpm stats` → 531 dosya, 93.235 satır (84.877 kod).
+
+## M6l — Logo (v0.15.0)
+Onay: 2026-10-03 (kullanıcı seçimi: tasarım tuvalindeki "A · Halka"; B · Tırmanış, C · Rota ve A + B birleşik öneri reddedildi; küçük sürüm, D-082)
+
+Hedef sürüm 0.15.0. Karar D-086'dadır.
+
+**Kapsam:**
+- Başlıktaki "◎" halka işaretinin yerine logo: halkanın içinden 45° ile sağ üste uçan, üstten görülen çift motorlu yolcu uçağı; burun, kanat uçları ve kuyruk halkayı keser. Şeritte beyaz (`currentColor`), yazının 1,5 katı (24 px), şerit uzamaz; işaret süstür (`aria-hidden`), bağlantının adı yalnızca yazı. Yazı marka değişmez (Overpass 800).
+- Bütün yüzeyler tek geometri ve renk kaynağından çizer: başlık (site, yönetim, 404 ve hata sayfaları kök düzende), paylaşım görselleri (site ve havalimanı; açık zemin renkleri), uygulama simgeleri (192 ve 512 px köşeleri yuvarlatılmış; maskelenebilir simge `/icon/maskable` ve Apple 180 px tam kare), `favicon.ico` (16, 32, 48 px küçük işaret: turkuaz daire, beyaz uçak).
+- **Değişmeyenler:** yazı marka ve boyutu, tema renkleri, manifest adı ve renkleri, paylaşım görsellerinin yazıları ve yazı tipleri.
+
+**Dosyalar:**
+- `apps/web/src/lib/brand/logo-geometry.ts` (uçak çizgisi, motorlar, halka, ölçekler, dönüşüm ve tersi), `lib/brand/logo-svg.tsx` (hook'suz SVG: `logoShapes`, `logoSvg`, `logoIconSvg`), `lib/seo/brand.ts` (`LOGO_COLORS`), `lib/seo/og.tsx` (`BrandMark`, `BrandIcon`), `lib/seo/og-site.tsx` ve `components/airports/airport-og.tsx` (işaret boyu)
+- `apps/web/src/components/brand/brand-mark.tsx` (`useId` ile tekil maske), `components/brand/site-brand.tsx`, `app/layout.tsx`, `app/globals.css` (`.brand`, `.brand-mark`)
+- `apps/web/src/app/icon.tsx` (`192`, `512`, `maskable`), `app/apple-icon.tsx`, `app/manifest.ts`, `app/favicon.ico` (`scripts/gen-favicon.mts` ile yeniden üretildi)
+- Testler: `lib/brand/logo.test.ts`, `components/brand/brand.test.ts`, `app/app-icons.test.ts`, `lib/seo/test/png.ts` (test için PNG çözücü); `e2e/tests/airports.spec.ts` (başlıktaki logo)
+- Belgeler: D-086; D-081 ve D-076'nın simge maddeleri D-086'ya bağlandı
+
+**Kabul komutları:**
+- `pnpm exec tsx scripts/gen-favicon.mts` → `favicon.ico` 16, 32, 48 px
+- `pnpm --filter @havayolu/web test` → uçağın iki yolu tasarımdaki `planeTop` ile birebir; dönüşümler (0,98 ve 0,74, 45°), `toPlaneSpace` tersidir, burun sağ üstte; tam işarette burun, kanat uçları ve kuyruk halkanın dışında, küçük işarette uçak dairenin içinde, uygulama simgesinde işaret güvenli alanda; `LOGO_COLORS`; SVG: maske, halka, uçak sırası ve renkleri, küçük işaret maskesiz, simgede `rx="24"` ve `translate(12 12) scale(0.76)`; başlık bağlantısının erişilebilir adı yalnızca "havayolu" (bir kez), işaret `aria-hidden` ve `focusable="false"`, iki işaretin maske kimlikleri farklı ve her halka kendi maskesini kullanır; PNG pikselleri: 192/512 köşe saydam ve merkez beyaz, `maskable` köşeler dolu ve güvenli alanın dışı yalnızca zemin, Apple 180 tam kare, favicon köşe saydam, kenar turkuaz, merkez beyaz
+- `pnpm test:e2e` → `airports.spec.ts`: başlıkta tek marka bağlantısı, adı "havayolu", işaret 24 × 24 px ve `aria-hidden`, halkanın maskesi belgede tek ve `<mask>`; `seo.spec.ts`: manifestteki üç simge (`/icon/maskable` dahil) ve `<link rel="icon">`'lar 200 ve PNG
+- `pnpm ci:full` yeşil; PR'da CI (`e2e` dahil) yeşil
 
 ## M7 — Canlı araçlar ve kapsama raporu
 Ayrıntılar `docs/prompts/parca-1.md`'dedir. Başlarken bu dosyaya dizinler ve kabul komutları eklenir.

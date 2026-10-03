@@ -60,7 +60,7 @@ export function AirportOgImage({ app, host, codes, name, location }: AirportOgCo
       }}
     >
       <div style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
-        <BrandMark size={52} />
+        <BrandMark size={64} />
         <div style={{ display: 'flex', fontSize: 44, fontWeight: 800 }}>{app}</div>
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
