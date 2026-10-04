@@ -5,7 +5,13 @@ import { allowedOrigins } from '../app'
 import { parseEnv, type Env } from '../env'
 import { aircraft, FakeLiveSource, FakeSocket, type WsMessage } from './test/ws-fakes'
 import type { Bbox, PublicAircraft } from './types'
-import { closeLiveSockets, registerLiveWs, wsAllowedOrigins } from './ws'
+import {
+  closeLiveSockets,
+  registerLiveWs,
+  WS_RATE_LIMIT,
+  wsAllowedOrigins,
+  wsRateLimit,
+} from './ws'
 import { LiveHub, WS_LIMITS, type HubClient } from './ws-hub'
 import {
   CellTracker,
@@ -733,6 +739,13 @@ describe('Fastify bağlaması', () => {
       'https://havayolu.live',
       'https://admin.havayolu.live',
     ])
+  })
+
+  it('el sıkışması sınırı üretimde dakikada 30; geliştirme ve testte (StrictMode, iki el sıkışması) 60 (D-088)', () => {
+    expect(wsRateLimit('production')).toEqual({ max: 30, timeWindow: '1 minute' })
+    expect(wsRateLimit('production')).toBe(WS_RATE_LIMIT)
+    expect(wsRateLimit('development')).toEqual({ max: 60, timeWindow: '1 minute' })
+    expect(wsRateLimit('test')).toEqual({ max: 60, timeWindow: '1 minute' })
   })
 
   it('yabancı Origin 1008 ile kapanır; web origin’i ve Origin’siz yerel uygulama kabul edilir', async () => {

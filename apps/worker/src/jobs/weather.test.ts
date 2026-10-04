@@ -430,16 +430,20 @@ describe('runWeatherMetar', () => {
     expect(hours).toEqual([AWC_METAR_MAX_HOURS])
   })
 
-  it('Türkiye + 1. halka (136 istasyon): olağan 2 saatlik METAR 80 istasyonluk iki isteğe bölünür', async () => {
-    // 136 istasyon × 2 saatte 4 METAR/SPECI = 544 kayıt; tek istek 400 sınırına takılırdı (D-080).
-    const stations = Array.from({ length: 136 }, (_, i) => {
+  it('Türkiye + 1. ve 2. halka (225 istasyon): yayından sonra 89 yeni istasyon 24 saatle, sonra üç olağan istek', async () => {
+    // 225 istasyon × 2 saatte 4 METAR/SPECI = 900 kayıt; tek istek 400 sınırına takılırdı (D-080,
+    // D-088). Yayın anında kaydı olan 136 istasyon (Türkiye ve 1. halka) olağan 2 saatle, 2.
+    // halkanın 89 istasyonu ayrı isteklerle 24 saatle istenir (6'şarlı 15 istek).
+    const stations = Array.from({ length: 225 }, (_, i) => {
       const letter = (n: number) => String.fromCharCode(65 + (Math.floor(i / 26 ** n) % 26))
       return `X${letter(1)}${letter(0)}A`
     })
     const { store, calls } = fakeStore({
       stations,
+      stored: stations.slice(0, 136),
       source: { checkedAt: new Date(FIXTURE_NOW.getTime() - 5 * 60_000) },
     })
+    const backfilled = new Set<string>()
     const requests: URL[] = []
     const fetch = (async (input: string | URL | Request) => {
       const url = new URL(String(input))
@@ -469,25 +473,43 @@ describe('runWeatherMetar', () => {
       fetch,
       now: () => FIXTURE_NOW.getTime(),
     })
-    const result = await runWeatherMetar({
-      store,
-      source: awcWeatherSource(client),
-      origin: 'remote',
-      log,
-      now,
-    })
-    expect(requests.map((u) => u.searchParams.get('hours'))).toEqual(['2', '2'])
-    expect(requests.map((u) => u.searchParams.get('ids')?.split(',').length)).toEqual([80, 56])
+    const run = () =>
+      runWeatherMetar({
+        store,
+        source: awcWeatherSource(client),
+        origin: 'remote',
+        log,
+        now,
+        backfilled,
+      })
+    const result = await run()
+    expect(requests.map((u) => u.searchParams.get('hours'))).toEqual([
+      '2',
+      '2',
+      ...Array.from({ length: 15 }, () => String(AWC_METAR_MAX_HOURS)),
+    ])
+    expect(requests.map((u) => u.searchParams.get('ids')?.split(',').length)).toEqual([
+      80,
+      56,
+      ...Array.from({ length: 14 }, () => 6),
+      5,
+    ])
     expect(80 * 4).toBeLessThan(AWC_MAX_ENTRIES)
     expect(result).toMatchObject({
       status: 200,
-      stations: 136,
-      reports: 136 * 4,
-      stationsWithReport: 136,
+      stations: 225,
+      reports: 225 * 4,
+      stationsWithReport: 225,
       truncated: false,
     })
-    expect(calls.metars[0]).toHaveLength(136 * 4)
+    expect(calls.metars[0]).toHaveLength(225 * 4)
     expect(calls.metars[0]?.[0]?.rawText).toBe('XAAA 151250Z 00000KT 9999 Q1010')
+
+    // Sonraki çalışmada bütün istasyonlar olağan geriye bakışla: üç istek (80 + 80 + 65).
+    requests.length = 0
+    await run()
+    expect(requests.map((u) => u.searchParams.get('hours'))).toEqual(['2', '2', '2'])
+    expect(requests.map((u) => u.searchParams.get('ids')?.split(',').length)).toEqual([80, 80, 65])
   })
 
   it('listeye yeni giren istasyonun son 24 saati istenir; diğerleri olağan geriye bakışla (D-080)', async () => {

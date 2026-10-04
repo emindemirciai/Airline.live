@@ -93,18 +93,24 @@ describe('AboutContent', () => {
     expect(text(render('tr', STATIONS, null))).not.toContain('çekim alanının dışında kalan')
   })
 
-  it('yakın ülkelerdeki havalimanları listelenir; canlı uçak verisi Türkiye odaklıdır (D-080)', () => {
+  it('Türkiye dışındaki havalimanları 1.000 km’ye kadar listelenir; canlı uçak verisi Türkiye odaklıdır (D-080, D-088)', () => {
     const tr = text(render('tr'))
     expect(tr).toContain(
-      'Havalimanları: Türkiye’deki ve yakın ülkelerdeki havalimanlarının kodları, pistleri ve en yakın havalimanları.',
+      'Havalimanları: Türkiye’deki ve Türkiye dışındaki havalimanlarının kodları, pistleri ve en yakın havalimanları.',
     )
     expect(tr).toContain(
-      'Yakın ülkelerdeki havalimanları da listelenir: Türkiye’deki en yakın havalimanına uzaklığı en fazla 500 km olan, IATA kodlu büyük ve orta boy havalimanları. Canlı uçak verisi Türkiye odaklıdır:',
+      'Türkiye dışındaki havalimanları da listelenir: Türkiye’deki en yakın havalimanına uzaklığı en fazla 1.000 km olan, IATA kodlu büyük ve orta boy havalimanları. Canlı uçak verisi Türkiye odaklıdır:',
     )
     // OurAirports'un tarifeli sefer bilgisi gösterilmez (D-078, kullanıcı kararı).
     expect(tr).not.toMatch(/tarifeli sefer/i)
+    // 2. halkadan beri "yakın ülkeler" yazılmaz (kullanıcı kararı 2026-10-03, D-088).
+    expect(tr).not.toMatch(/[Yy]akın ülke/)
     const en = text(render('en'))
-    expect(en).toContain('at most 500 km from the nearest airport in Türkiye')
+    expect(en).toContain(
+      'Airports outside Türkiye are listed too: large and medium airports with an IATA code, at most 1,000 km from the nearest airport in Türkiye.',
+    )
+    expect(en).toContain('for the airports in Türkiye and outside Türkiye.')
+    expect(en).not.toMatch(/neighbouring/)
     expect(en).toContain('Live aircraft data is focused on Türkiye')
     expect(en).not.toMatch(/scheduled service/i)
   })

@@ -48,14 +48,32 @@ describe('fixture', () => {
     expect(AIRPORTS.every((a) => a.runways.length > 0)).toBe(true)
   })
 
-  it('1. halka: yakın ülke havalimanları 500 km içinde, tarifeli ve Türkçe adlı (D-080)', () => {
-    expect(FOREIGN.length).toBeGreaterThan(70)
+  it('1. ve 2. halka: Türkiye dışındaki 164 havalimanı 1.000 km içinde, tarifeli ve Türkçe adlı (D-080, D-088)', () => {
+    const ring1 = FOREIGN.filter((a) => a.ring === 1)
+    const ring2 = FOREIGN.filter((a) => a.ring === 2)
+    expect(ring1).toHaveLength(75)
+    expect(ring2).toHaveLength(89)
+    expect(FOREIGN).toHaveLength(ring1.length + ring2.length)
     expect(LISTED).toHaveLength(AIRPORTS.length + FOREIGN.length)
-    expect(FOREIGN.every((a) => a.ring === 1 && a.scheduled)).toBe(true)
-    expect(FOREIGN.every((a) => (a.distanceToTrKm ?? Infinity) <= 500)).toBe(true)
+    expect(LISTED).toHaveLength(225)
+    expect(FOREIGN.every((a) => a.scheduled)).toBe(true)
+    expect(ring1.every((a) => (a.distanceToTrKm ?? Infinity) <= 500)).toBe(true)
+    // Uzaklık tam km'ye yuvarlıdır, halka tam uzaklıktandır: Ben Gurion 500,44 km → 500, 2. halka.
+    expect(ring2.every((a) => (a.distanceToTrKm ?? -1) >= 500)).toBe(true)
+    expect(ring2.every((a) => (a.distanceToTrKm ?? Infinity) <= 1000)).toBe(true)
+    expect(byIcao('LLBG')).toMatchObject({ ring: 2, distanceToTrKm: 500 })
     expect(FOREIGN.filter((a) => foreignAirportName(a.icao) === undefined)).toEqual([])
+    expect(FOREIGN.filter((a) => foreignAirportCity(a.icao) === undefined)).toEqual([])
     expect(AIRPORTS.every((a) => a.country === 'TR' && a.ring === 0)).toBe(true)
     for (const icao of ['LGAV', 'LGTS', 'LCEN', 'LCLK', 'UGTB', 'LBSF']) byIcao(icao)
+    for (const icao of ['HECA', 'OIIE', 'LYBE', 'LHBP', 'OKKK', 'LZKZ']) byIcao(icao)
+    // Yardımcı API'nin kaynak düzeltmelerini izler (D-088): İskenderiye HEBA (kaynakta HEAX), Taba
+    // ve Cluj-Napoca'nın yinelenen boş pisti gizli, Bacău'nun adında çift boşluk yok.
+    expect(byIcao('HEBA').iata).toBe('HBE')
+    expect(LISTED.some((a) => a.icao === 'HEAX')).toBe(false)
+    expect(byIcao('HETB').runways).toHaveLength(1)
+    expect(byIcao('LRCL').runways).toHaveLength(1)
+    expect(byIcao('LRBC').name).toBe('Bacău George Enescu International Airport')
   })
 })
 
@@ -139,12 +157,19 @@ describe('ad ve il', () => {
 })
 
 describe('yer: il ya da ülke (D-080)', () => {
-  it('Türkiye’de il; yakın ülkelerde ülke adı, sayfanın dilinde', () => {
+  it('Türkiye’de il; Türkiye dışında ülke adı, sayfanın dilinde', () => {
     expect(airportPlace(byIcao('LTFM'), 'tr')).toBe('İstanbul')
     expect(airportPlace(byIcao('LGAV'), 'tr')).toBe('Yunanistan')
     expect(airportPlace(byIcao('LGAV'), 'en')).toBe('Greece')
     expect(airportCountry(byIcao('UGTB'), 'tr')).toBe('Gürcistan')
     expect(airportCountry(byIcao('LBSF'), 'en')).toBe('Bulgaria')
+    // 2. halkanın yeni ülkeleri (D-088): ad `Intl.DisplayNames`'ten, istisna gerekmez.
+    expect(airportPlace(byIcao('HECA'), 'tr')).toBe('Mısır')
+    expect(airportPlace(byIcao('HECA'), 'en')).toBe('Egypt')
+    expect(airportCountry(byIcao('LIRN'), 'tr')).toBe('İtalya')
+    expect(airportCountry(byIcao('OKKK'), 'tr')).toBe('Kuveyt')
+    expect(airportCountry(byIcao('LZKZ'), 'en')).toBe('Slovakia')
+    expect(airportCountry(byIcao('LQSA'), 'tr')).toBe('Bosna-Hersek')
   })
 
   it('Ercan (LCEN) KKTC’de gösterilir; diğerleri OurAirports’un ülkesini korur', () => {
@@ -162,7 +187,7 @@ describe('yer: il ya da ülke (D-080)', () => {
     expect(airportCountry(pristina, 'en')).toBe('Kosovo')
   })
 
-  it('yer satırı: Türkiye’de "il, Türkiye"; yakın ülkelerde sayfanın dilinde şehir ve ülke', () => {
+  it('yer satırı: Türkiye’de "il, Türkiye"; Türkiye dışında sayfanın dilinde şehir ve ülke', () => {
     expect(airportLocation(byIcao('LTFM'), 'tr')).toBe('İstanbul, Türkiye')
     expect(airportLocation(byIcao('LTFM'), 'en')).toBe('Istanbul, Türkiye')
     // Küratörlü şehir adı (D-080). OurAirports yerleşimi ("Spata-Artemida", "Thessaloniki", "Kos
@@ -177,6 +202,10 @@ describe('yer: il ya da ülke (D-080)', () => {
     expect(airportLocation(byIcao('UGTB'), 'en')).toBe('Tbilisi, Georgia')
     expect(airportLocation(byIcao('LCEN'), 'tr')).toBe('Lefkoşa, KKTC')
     expect(airportLocation(byIcao('OICS'), 'tr')).toBe('Senendec, İran')
+    // 2. halka (D-088): OurAirports yerleşimi "Cairo", "Al Jiza", "Rinas" yerine küratörlü şehir.
+    expect(airportLocation(byIcao('HECA'), 'tr')).toBe('Kahire, Mısır')
+    expect(airportLocation(byIcao('HECA'), 'en')).toBe('Cairo, Egypt')
+    expect(airportLocation(byIcao('LATI'), 'tr')).toBe('Tiran, Arnavutluk')
     for (const airport of FOREIGN) {
       const city = foreignAirportCity(airport.icao)
       for (const locale of LOCALES) {
@@ -192,15 +221,15 @@ describe('yer: il ya da ülke (D-080)', () => {
       country: 'GB',
       isoRegion: 'GB-ENG',
       municipality: 'London',
-      ring: 2,
+      ring: 4,
     })
     expect(airportLocation(heathrow, 'tr')).toBe('Birleşik Krallık')
     expect(airportLocation(heathrow, 'en')).toBe('London, United Kingdom')
   })
 
-  it('açık halkaların sınırı ortak yapılandırmadan gelir (1. halka 500 km)', () => {
+  it('açık halkaların sınırı ortak yapılandırmadan gelir (2. halka 1.000 km, D-088)', () => {
     expect(listedRadiusKm()).toBe(AIRPORT_RINGS_KM[ENABLED_AIRPORT_RING - 1])
-    expect(listedRadiusKm()).toBe(500)
+    expect(listedRadiusKm()).toBe(1000)
   })
 })
 
@@ -284,18 +313,19 @@ describe('sortByProvince', () => {
 })
 
 describe('sortByCountry', () => {
-  it('yakın ülkeler ülkeye, sonra ada göre; Türkçe sayfada Türkçe sıralama', () => {
+  it('Türkiye dışındakiler ülkeye, sonra ada göre; Türkçe sayfada Türkçe sıralama', () => {
     const collator = new Intl.Collator('tr-TR')
     const rows = sortByCountry(FOREIGN, 'tr')
     const countries = rows.map((a) => airportCountry(a, 'tr'))
     expect(countries).toEqual(countries.toSorted((a, b) => collator.compare(a, b)))
-    expect(countries[0]).toBe('Azerbaycan')
+    // 2. halkadan beri ilk ülke Arnavutluk'tur (D-088; 1. halkada Azerbaycan).
+    expect(countries[0]).toBe('Arnavutluk')
     // Türk alfabesi: Irak I'dan, İran İ'den sonra gelir; Yunanistan en sondadır.
     expect(countries.indexOf('İran')).toBeGreaterThan(countries.lastIndexOf('Irak'))
     expect(countries.at(-1)).toBe('Yunanistan')
     const greece = rows.filter((a) => a.country === 'GR').map((a) => airportName(a, 'tr'))
     expect(greece).toEqual(greece.toSorted((a, b) => collator.compare(a, b)))
     const en = sortByCountry(FOREIGN, 'en').map((a) => airportCountry(a, 'en'))
-    expect(en[0]).toBe('Armenia')
+    expect(en[0]).toBe('Albania')
   })
 })

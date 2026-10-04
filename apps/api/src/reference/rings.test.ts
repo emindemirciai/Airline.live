@@ -1,5 +1,8 @@
 import {
+  cleanAirportName,
   greatCircleKm,
+  OURAIRPORTS_ICAO_CORRECTIONS as DB_ICAO_CORRECTIONS,
+  ourAirportsIcao as dbOurAirportsIcao,
   ringForDistance,
   selectListedAirports,
   type AirportRingConfig,
@@ -12,13 +15,16 @@ import {
   airportRing,
   ENABLED_AIRPORT_RING,
   isForeignCandidate,
+  OURAIRPORTS_ICAO_CORRECTIONS,
+  ourAirportsIcao,
 } from '@havayolu/shared'
 import { describe, expect, it } from 'vitest'
 
 /**
  * Halka kuralı iki pakette yazılıdır (D-080): `@havayolu/shared` (arayüz, sabitler) ve
  * `@havayolu/db` (sunucuda liste seçimi; db shared'a bağımlı değildir, ayar çağırandan gelir). API
- * ikisine de bağımlıdır; bu test iki yazımın aynı kalmasını denetler.
+ * ikisine de bağımlıdır; bu test iki yazımın aynı kalmasını denetler. Kanonik ICAO kuralı ve
+ * OurAirports kaynak düzeltmeleri de (D-088) iki pakette yazılıdır.
  */
 describe('halka kuralı: shared ile db aynı', () => {
   it('AIRPORT_RING_CONFIG db ayar tipine uyar ve sabitlerden oluşur', () => {
@@ -92,5 +98,27 @@ describe('halka kuralı: shared ile db aynı', () => {
         }
       }
     }
+  })
+
+  it('kanonik ICAO ve kaynak düzeltmeleri iki pakette aynı (D-088)', () => {
+    expect(DB_ICAO_CORRECTIONS).toEqual(OURAIRPORTS_ICAO_CORRECTIONS)
+    const rows = [
+      { ident: 'HEBA', icaoCode: 'HEAX', gpsCode: 'HEAX' },
+      { ident: ' heba ', icaoCode: ' heax ', gpsCode: null },
+      { ident: 'HEBA', icaoCode: 'HEBA', gpsCode: 'HEAX' },
+      { ident: 'HEBA', icaoCode: null, gpsCode: 'HEAX' },
+      { ident: 'EG-0078', icaoCode: 'HEAX', gpsCode: null },
+      { ident: 'ORSU', icaoCode: 'ORSJ', gpsCode: 'ORSU' },
+      { ident: 'TM-0002', icaoCode: ' ', gpsCode: 'utan' },
+      { ident: 'tr-0099', icaoCode: null, gpsCode: null },
+      { ident: 'toString', icaoCode: null, gpsCode: null },
+    ]
+    for (const row of rows) {
+      expect(dbOurAirportsIcao(row), JSON.stringify(row)).toBe(ourAirportsIcao(row))
+    }
+    expect(ourAirportsIcao({ ident: 'HEBA', icaoCode: 'HEAX', gpsCode: 'HEAX' })).toBe('HEBA')
+    expect(cleanAirportName(' Bacău George Enescu International  Airport ')).toBe(
+      'Bacău George Enescu International Airport',
+    )
   })
 })

@@ -37,7 +37,8 @@ import type { Logger } from 'pino'
 /**
  * Havalimanı hava durumu işleri (D-078): METAR 5 dk'da, TAF 15 dk'da bir; her çalışma listelenen
  * bütün havalimanlarını (Türkiye ve açık halkalar, D-080) ister. AWC istemcisi listeyi 400 kayıt
- * sınırına göre gruplara böler (olağan 2 saatlik METAR'da 80 istasyon: 136 istasyon iki istek).
+ * sınırına göre gruplara böler (olağan 2 saatlik METAR'da 80 istasyon: 2. halkayla 225 istasyon üç
+ * istek, D-088; TAF'ta istekte en çok 200 istasyon: iki istek).
  * Her farklı rapor saklanır (geçmiş), 30 gün sonra silinir.
  * - 429: istek atılmaz, `blocked_until = şimdi + max(Retry-After, 10 dk)`; iş yeniden denenmez.
  * - 403: 1 saat istek atılmaz, admin satırı "çalışmıyor" olur; kaynağın davranışı değişmiştir

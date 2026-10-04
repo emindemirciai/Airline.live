@@ -99,7 +99,8 @@ describe('bakım işleri (gerçek PostgreSQL + Redis, BullMQ)', () => {
 
       // Hava durumu açılışta, referans içe aktarımından sonra fixture'dan (zamanı kaydırılarak)
       // yazılır: 20 istasyon (14 Türkiye, 6 1. halka), raporu olmayan LTBQ yok; LTFM'nin 3 günlük
-      // geçmişi. İstasyon listesi listelenen havalimanlarıdır (Türkiye ve 1. halka, D-080).
+      // geçmişi. İstasyon listesi listelenen havalimanlarıdır (Türkiye, 1. ve 2. halka: 61 + 75 + 89 =
+      // 225; D-080, D-088). İskenderiye OurAirports'taki HEAX koduyla değil HEBA ile istenir.
       await waitFor(async () => {
         const weather = await weatherStatus(database.sql, new Date())
         return Boolean(weather.metar?.checkedAt) && Boolean(weather.taf?.checkedAt)
@@ -108,10 +109,12 @@ describe('bakım işleri (gerçek PostgreSQL + Redis, BullMQ)', () => {
       expect(weather.metar).toMatchObject({ origin: 'fixture', lastError: null, skippedCount: 0 })
       expect(weather.taf).toMatchObject({ origin: 'fixture', lastError: null })
       const listed = await databaseWeatherStore(database).stations()
-      expect(listed.length).toBeGreaterThan(61)
+      expect(listed).toHaveLength(225)
       expect(listed).toEqual(
         expect.arrayContaining(['LTFM', 'LTBQ', 'LGAV', 'LGTS', 'LCLK', 'LCEN', 'LBSF', 'UGTB']),
       )
+      expect(listed).toEqual(expect.arrayContaining(['HECA', 'HEBA', 'LLBG', 'OKKK']))
+      expect(listed).not.toContain('HEAX')
       expect(weather.metar?.stationCount).toBe(listed.length)
       expect(weather.taf?.stationCount).toBe(listed.length)
       const stations = await database.sql<{ station_icao: string; n: number }[]>`

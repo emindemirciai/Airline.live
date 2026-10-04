@@ -67,8 +67,8 @@ setup('havalimanı referans verisi API’de', async ({ request }) => {
     )
     .toBe(AIRPORT_COUNT)
 
-  // Listelenen havalimanları (M6d, D-080): Türkiye + 1. halka. Sayfalar, site haritası ve harita bu
-  // listeyi kullanır; halka üyeliği API'de hesaplanıp önbelleğe alınır.
+  // Listelenen havalimanları (M6d, D-080; M6g, D-088): Türkiye + 1. ve 2. halka. Sayfalar, site
+  // haritası ve harita bu listeyi kullanır; halka üyeliği API'de hesaplanıp önbelleğe alınır.
   await expect
     .poll(
       async () => {
@@ -81,7 +81,7 @@ setup('havalimanı referans verisi API’de', async ({ request }) => {
       },
       {
         message:
-          'API listelenen havalimanlarını (Türkiye + 1. halka) döndürmedi (GET /v1/airports?scope=listed)',
+          'API listelenen havalimanlarını (Türkiye + 1. ve 2. halka) döndürmedi (GET /v1/airports?scope=listed)',
         timeout: 90_000,
         intervals: [3_000],
       },
@@ -147,8 +147,8 @@ setup('hava durumu verisi API’de', async ({ request }) => {
     )
     .toContain(PRIMARY_WEATHER.latestMetarGroups[0])
 
-  // Haritanın penceresi ve yakın ülke sayfaları listelenen havalimanlarının toplu yanıtını kullanır
-  // (`scope=listed`, ayrı önbellek kaydı): 1. halkadaki fixture istasyonu da görünmeli.
+  // Haritanın penceresi ve Türkiye dışındaki sayfalar listelenen havalimanlarının toplu yanıtını
+  // kullanır (`scope=listed`, ayrı önbellek kaydı): 1. halkadaki fixture istasyonu da görünmeli.
   await expect
     .poll(
       async () => {

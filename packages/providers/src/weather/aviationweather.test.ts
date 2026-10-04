@@ -309,9 +309,10 @@ describe('400 kayıt sınırı', () => {
     expect(usual.calls).toHaveLength(1)
   })
 
-  it('olağan 2 saatlik istek: Türkiye + 1. halka (136 istasyon) 80 istasyonluk iki isteğe bölünür', async () => {
-    // 136 istasyon × 2 saatte ~4 METAR/SPECI ≈ 540 kayıt: tek istek 400 sınırını aşardı (D-080).
-    const ids = stationIds(136)
+  it('olağan 2 saatlik istek: Türkiye + 1. ve 2. halka (225 istasyon) 80 istasyonluk üç isteğe bölünür', async () => {
+    // 225 istasyon × 2 saatte ~4 METAR/SPECI = 900 kayıt: tek istek 400 sınırını aşardı (D-080,
+    // D-088). 1. halkada 136 istasyon iki istekti (80 + 56).
+    const ids = stationIds(225)
     const { fetch, calls } = stubFetch((url) => {
       const asked = url.searchParams.get('ids')?.split(',') ?? []
       return json(entries(asked, asked.length * 4))
@@ -320,11 +321,30 @@ describe('400 kayıt sınırı', () => {
     const perRequest = Math.floor(AWC_MAX_ENTRIES / (2 * AWC_METAR_PER_STATION_HOUR))
     expect(perRequest).toBe(80)
     const sent = calls.map((c) => new URL(c.url).searchParams)
-    expect(sent.map((q) => q.get('ids')?.split(',').length)).toEqual([80, 56])
+    expect(sent.map((q) => q.get('ids')?.split(',').length)).toEqual([80, 80, 65])
     expect(sent.every((q) => q.get('hours') === '2')).toBe(true)
     expect(sent.flatMap((q) => q.get('ids')?.split(',') ?? [])).toEqual(ids)
-    expect(result).toMatchObject({ requests: 2, truncated: false, entryCount: 136 * 4 })
-    expect(new Set(result.items.map((m) => m.station)).size).toBe(136)
+    expect(result).toMatchObject({ requests: 3, truncated: false, entryCount: 225 * 4 })
+    expect(new Set(result.items.map((m) => m.station)).size).toBe(225)
+  })
+
+  it('TAF: 225 istasyon iki istek (200 + 25); 24 saatlik doldurmada 89 yeni istasyon 15 istek (D-088)', async () => {
+    const ids = stationIds(225)
+    const tafs = stubFetch(() => json('[]'))
+    const result = await client(tafs.fetch).tafs(ids)
+    expect(
+      tafs.calls.map((c) => new URL(c.url).searchParams.get('ids')?.split(',').length),
+    ).toEqual([200, 25])
+    expect(result).toMatchObject({ status: 200, requests: 2 })
+    // Yayından sonraki ilk çalışmada 2. halkanın 89 istasyonu 24 saatle istenir: 6'şarlı 15 istek.
+    const backfill = stubFetch(() => json('[]'))
+    await client(backfill.fetch).metars(ids.slice(136), { hours: AWC_METAR_MAX_HOURS })
+    const sizes = backfill.calls.map(
+      (c) => new URL(c.url).searchParams.get('ids')?.split(',').length,
+    )
+    expect(sizes).toHaveLength(15)
+    expect(sizes.slice(0, 14).every((size) => size === 6)).toBe(true)
+    expect(sizes.at(-1)).toBe(5)
   })
 
   it('TAF ve uzun liste: istek başına en çok AWC_MAX_IDS istasyon (sonraki halkalar)', async () => {

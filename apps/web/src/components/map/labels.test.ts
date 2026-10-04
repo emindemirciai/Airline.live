@@ -2,6 +2,7 @@ import type { Airport } from '@havayolu/shared'
 import { describe, expect, it, vi } from 'vitest'
 import { DEFAULT_LABEL_SETTINGS, type LabelSettings } from '../../lib/map/label-settings'
 import type { TrackedAircraft } from '../../lib/live/store'
+import { fixtureListedAirports } from '../../lib/test/ourairports-fixture'
 import {
   AIRPORT_LABEL_MIN_ZOOM,
   DEFAULT_PIN_SCALE,
@@ -418,5 +419,61 @@ describe('LabelPainter.airportHitTest', () => {
         expect(painter.airportHitTest(beside.x, beside.y)).toBeNull()
       }
     })
+  })
+})
+
+describe('listelenen bütün havalimanları z5’te (2. halka, 225 havalimanı; D-088)', () => {
+  // Web Mercator, z5: 1440×900 görünüm Napoli'den Balkanabat'a, Košice'den Şarm el-Şeyh'e bütün
+  // listeyi kapsar; kodların yazıldığı en uzak yakınlaştırmadır (AIRPORT_LABEL_MIN_ZOOM), görünümdeki
+  // havalimanı sayısı en büyüktür. Kod yerleşimi haritanın her `render` olayında çalışır.
+  const ZOOM = AIRPORT_LABEL_MIN_ZOOM
+  const VIEW = { width: 1440, height: 900 }
+  const world = 256 * 2 ** ZOOM
+  const project = (lat: number, lon: number) => {
+    const sin = Math.sin((lat * Math.PI) / 180)
+    return {
+      x: ((lon + 180) / 360) * world,
+      y: (0.5 - Math.log((1 + sin) / (1 - sin)) / (4 * Math.PI)) * world,
+    }
+  }
+  const centre = project(38.5, 31)
+  const screen: ScreenAirport[] = fixtureListedAirports().map((airport) => {
+    const { x, y } = project(airport.lat, airport.lon)
+    return { airport, x: x - centre.x + VIEW.width / 2, y: y - centre.y + VIEW.height / 2 }
+  })
+
+  it('hepsi görünümde; kodlar birbirini örtmez, görünümden taşmaz, her havalimanına en çok bir kod', () => {
+    expect(screen).toHaveLength(225)
+    for (const { airport, x, y } of screen) {
+      expect(x >= 0 && x <= VIEW.width && y >= 0 && y <= VIEW.height, airport.icao).toBe(true)
+    }
+    const chips = layoutAirportChips(screen, VIEW, measure)
+    expect(chips.length).toBeGreaterThan(50)
+    expect(new Set(chips.map((chip) => chip.icao)).size).toBe(chips.length)
+    const violations: string[] = []
+    for (const [i, a] of chips.entries()) {
+      if (a.x < 0 || a.y < 0 || a.x + a.width > VIEW.width || a.y + a.height > VIEW.height) {
+        violations.push(`${a.iata}: görünüm dışı`)
+      }
+      for (const b of chips.slice(i + 1)) {
+        const overlap =
+          a.x < b.x + b.width && a.x + a.width > b.x && a.y < b.y + b.height && a.y + a.height > b.y
+        if (overlap) violations.push(`${a.iata} ↔ ${b.iata}`)
+      }
+    }
+    expect(violations).toEqual([])
+  })
+
+  it('yerleşim hızlıdır (her render olayında çalışır)', () => {
+    for (let i = 0; i < 5; i++) layoutAirportChips(screen, VIEW, measure)
+    const times: number[] = []
+    for (let i = 0; i < 9; i++) {
+      const start = performance.now()
+      layoutAirportChips(screen, VIEW, measure)
+      times.push(performance.now() - start)
+    }
+    times.sort((a, b) => a - b)
+    // Hedef dizüstünde < 2 ms; CI makineleri için geniş pay (label-layout.test.ts ile aynı).
+    expect(times[4]).toBeLessThan(50)
   })
 })

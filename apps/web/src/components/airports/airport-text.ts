@@ -36,8 +36,8 @@ export function isTurkish(airport: Pick<AirportDetail, 'country'>): boolean {
 
 /**
  * Listelenen yabancı havalimanlarının Türkiye'ye en büyük uzaklığı, km: açık son halkanın sınırı
- * (`airportRingLimitKm(ENABLED_AIRPORT_RING)`, D-080; 1. halkada 500). Son halka (dünyanın geri
- * kalanı) açıksa sınır yoktur: null.
+ * (`airportRingLimitKm(ENABLED_AIRPORT_RING)`, D-080; 2. halkada 1.000, D-088). Son halka
+ * (dünyanın geri kalanı) açıksa sınır yoktur: null.
  */
 export function listedRadiusKm(): number | null {
   return airportRingLimitKm(ENABLED_AIRPORT_RING)

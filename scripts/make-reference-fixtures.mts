@@ -3,7 +3,8 @@
 // Klasörde OurAirports airports.csv + runways.csv ve VRS airlines.csv bulunur (indirme bir kez,
 // kullanıcı onayıyla yapılır; CLAUDE.md DUR-SOR 6). Çıktı varsayılan olarak tools/fixtures'tır.
 // Alt küme: Türkiye'deki bütün kayıtlar ve FIXTURE_EXTRA_AIRPORTS (pistlerinin hepsiyle), ardından
-// Türkiye dışı 1. halka adayları (açık pistleriyle; D-080); havayollarının tamamı.
+// Türkiye dışı adaylar halka halka: önce 1. halka, sonra 2. halka (açık pistleriyle; D-080, D-088);
+// havayollarının tamamı.
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -13,13 +14,15 @@ import { parseCsv } from '../packages/providers/src/reference/csv.ts'
 /** Türkiye dışından testlerde kullanılabilecek birkaç büyük havalimanı. */
 const FIXTURE_EXTRA_AIRPORTS = ['EGLL', 'LFPG', 'EDDF', 'EHAM', 'OMDB', 'OTHH', 'KJFK', 'LEMD']
 /**
- * 1. halkanın sınırı, km (`@havayolu/shared` `AIRPORT_RINGS_KM[0]`, D-080). Aday: Türkiye dışında,
+ * Fixture'a alınan halkaların üst sınırları, km (`@havayolu/shared` `AIRPORT_RINGS_KM`'in ilk
+ * ikisi; 1. halka ≤ 500, 2. halka 500 < uzaklık ≤ 1.000; D-080, D-088). Aday: Türkiye dışında,
  * tarifeli seferi olan, üç harfli IATA kodlu büyük ya da orta havalimanı. Uzaklık Türkiye'deki IATA
- * kodlu bütün satırlara bakılarak ölçülür (listeye girmeyen küçük alanlar dahil); bu, uygulamanın
- * listesinden geniş bir kümedir, böylece fixture her iki ölçüyle 1. halkaya giren bütün alanları
- * içerir.
+ * kodlu bütün satırlara bakılarak ölçülür (listeye girmeyen küçük alanlar dahil; uygulama da aynı
+ * kümeyle ölçer). Halkalar sırayla yazılır, her halka kaynak sırasıyla: yeni halka dosyanın sonuna
+ * eklenir, önceki satırlar ve sıraları değişmez (tek eşikle yazılsa 2. halka satırları 1. halkanın
+ * arasına karışırdı; kaynak alfabetik sıradadır).
  */
-const FIXTURE_RING_KM = 500
+const FIXTURE_RINGS_KM = [500, 1000] as const
 const IATA_CODE = /^[A-Z]{3}$/
 
 const root = fileURLToPath(new URL('..', import.meta.url))
@@ -58,24 +61,36 @@ const baseIdents = new Set(baseAirports.map((row) => row[identCol]))
 const turkishWithIata = airports
   .filter((row) => row[countryCol] === 'TR' && IATA_CODE.test(row[iataCol] ?? ''))
   .map(position)
-const ringAirports = airports.filter(
+const nearestTurkishKm = (row: string[]) =>
+  Math.min(...turkishWithIata.map((tr) => distanceKm(position(row), tr)))
+const candidates = airports.filter(
   (row) =>
     row[countryCol] !== 'TR' &&
     !baseIdents.has(row[identCol]) &&
     (row[typeCol] === 'large_airport' || row[typeCol] === 'medium_airport') &&
     row[scheduledCol] === 'yes' &&
-    IATA_CODE.test(row[iataCol] ?? '') &&
-    turkishWithIata.some((tr) => distanceKm(position(row), tr) <= FIXTURE_RING_KM),
+    IATA_CODE.test(row[iataCol] ?? ''),
 )
-const ringIdents = new Set(ringAirports.map((row) => row[identCol]))
+const distances = new Map(candidates.map((row) => [row, nearestTurkishKm(row)]))
+/** Halka halka adaylar: [1. halka, 2. halka], her biri kaynak sırasıyla. */
+const rings = FIXTURE_RINGS_KM.map((limit, index) => {
+  const lower = index === 0 ? -1 : (FIXTURE_RINGS_KM[index - 1] ?? -1)
+  return candidates.filter((row) => {
+    const km = distances.get(row) ?? Number.POSITIVE_INFINITY
+    return km > lower && km <= limit
+  })
+})
+const ringAirports = rings.flat()
 
 const [runwayHeader = [], ...runways] = read('runways.csv')
 const runwayAirportCol = col(runwayHeader, 'airport_ident')
 const closedCol = col(runwayHeader, 'closed')
 const baseRunways = runways.filter((row) => baseIdents.has(row[runwayAirportCol]))
-const ringRunways = runways.filter(
-  (row) => ringIdents.has(row[runwayAirportCol]) && row[closedCol] !== '1',
-)
+// Pistler de halka halka: önce 1. halka havalimanlarının açık pistleri, sonra 2. halkanınkiler.
+const ringRunways = rings.flatMap((ring) => {
+  const idents = new Set(ring.map((row) => row[identCol]))
+  return runways.filter((row) => idents.has(row[runwayAirportCol]) && row[closedCol] !== '1')
+})
 
 const airlines = read('airlines.csv')
 
@@ -93,5 +108,5 @@ writeFileSync(
 )
 writeFileSync(join(vrs, 'airlines.csv'), toCsv(airlines))
 console.log(
-  `✓ airports ${baseAirports.length} + ring 1 ${ringAirports.length}, runways ${baseRunways.length} + ${ringRunways.length}, airlines ${airlines.length - 1}`,
+  `✓ airports ${baseAirports.length} + rings ${rings.map((ring) => ring.length).join(' + ')}, runways ${baseRunways.length} + ${ringRunways.length}, airlines ${airlines.length - 1}`,
 )

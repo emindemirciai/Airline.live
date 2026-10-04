@@ -45,16 +45,21 @@ export const AIRPORT_COUNT = 61
 export const INDEXABLE_AIRPORT_COUNT = 56
 
 /**
- * Türkiye dışındaki listelenen havalimanları (M6d, D-080): 1. halka, yani IATA kodlu en yakın
- * Türkiye havalimanına en çok 500 km olan, OurAirports'ta tarifeli seferi kayıtlı büyük ve orta boy
- * havalimanları. Fixture'a 2026-10-01 indirmesinden eklenen 75 havalimanının hepsi bu kuraldadır ve
- * hepsi dizine eklenir. Fixture'daki uzak havalimanları (EGLL, KJFK …) listelenmez.
+ * Türkiye dışındaki listelenen havalimanları (M6d, D-080; M6g, D-088): 1. ve 2. halka, yani IATA
+ * kodlu en yakın Türkiye havalimanına en çok 1.000 km olan, OurAirports'ta tarifeli seferi kayıtlı
+ * büyük ve orta boy havalimanları. Fixture'a 2026-10-01 indirmesinden eklenen 75 + 89 havalimanının
+ * hepsi bu kuraldadır ve hepsi dizine eklenir. Fixture'daki uzak havalimanları (EGLL, KJFK …)
+ * listelenmez.
  */
-export const FOREIGN_AIRPORT_COUNT = 75
-/** `GET /v1/airports?scope=listed`: 61 Türkiye + 75 yakın ülke. */
+export const RING1_AIRPORT_COUNT = 75
+export const RING2_AIRPORT_COUNT = 89
+export const FOREIGN_AIRPORT_COUNT = RING1_AIRPORT_COUNT + RING2_AIRPORT_COUNT
+/** `GET /v1/airports?scope=listed`: 61 Türkiye + 164 Türkiye dışı = 225. */
 export const LISTED_AIRPORT_COUNT = AIRPORT_COUNT + FOREIGN_AIRPORT_COUNT
-/** Dizine eklenen havalimanı sayfaları: Türkiye'nin 56'sı ve yakın ülkelerin hepsi. */
+/** Dizine eklenen havalimanı sayfaları: Türkiye'nin 56'sı ve Türkiye dışındakilerin hepsi (220). */
 export const INDEXABLE_LISTED_AIRPORT_COUNT = INDEXABLE_AIRPORT_COUNT + FOREIGN_AIRPORT_COUNT
+/** Halkaların üst sınırları, km (`AIRPORT_RINGS_KM`; D-080). */
+export const RING_LIMITS_KM = { 1: 500, 2: 1000 } as const
 
 /**
  * 1. halkadan örnek havalimanı: Atina (en yakın Türkiye havalimanına ~275 km). OurAirports ülkesi
@@ -72,6 +77,25 @@ export const RING1_AIRPORT = {
  * Hava durumu fixture'ında METAR'ı var, TAF'ı yok.
  */
 export const KKTC_AIRPORT = { icao: 'LCEN', iata: 'ECN', shortTr: 'KKTC', shortEn: 'TRNC' } as const
+/**
+ * 2. halkadan örnek havalimanı (D-088): Kahire (en yakın Türkiye havalimanı Gazipaşa-Alanya, ~693 km).
+ * OurAirports ülkesi EG; saat dilimi Africa/Cairo (yazın UTC+3, kışın UTC+2).
+ */
+export const RING2_AIRPORT = {
+  icao: 'HECA',
+  iata: 'CAI',
+  country: 'EG',
+  countryTr: 'Mısır',
+  countryEn: 'Egypt',
+  nameTr: 'Kahire Havalimanı',
+  nameEn: 'Cairo International Airport',
+  timeZone: 'Africa/Cairo',
+} as const
+/**
+ * 2. halkanın sınırı: Tel Aviv Ben Gurion, Hatay'a 500,44 km. Halka tam uzaklıktan hesaplanır (2),
+ * API uzaklığı tam km'ye yuvarlar (500): 2. halkada uzaklık 500'den küçük değildir, 500 olabilir.
+ */
+export const RING2_BOUNDARY_AIRPORT = { icao: 'LLBG', iata: 'TLV', distanceToTrKm: 500 } as const
 /** Hava durumu fixture'ı elle yazılmış 1. halka havalimanları (M6d). */
 export const RING1_WEATHER_AIRPORTS = ['LGAV', 'LCLK', 'LCEN', 'UGTB', 'LBSF', 'LGTS'] as const
 /**

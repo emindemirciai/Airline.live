@@ -946,6 +946,46 @@ function itemText(c: Candidate, now: number, timeZone: string): WeatherText {
 }
 
 /**
+ * Süresi dolmamış TAF'lar, en son yayımlanan önce (yayım zamanı yoksa geçerlilik başı; eşitte
+ * giriş sırası korunur). Geçerlilik sonu olmayan NIL ya da iptal (CNL) TAF da sayılır.
+ */
+function liveNewestFirst<T extends DecodedTaf>(tafs: readonly T[], nowMs: number): T[] {
+  const issued = (t: DecodedTaf) => ms(t.issuedAt) ?? ms(t.validFrom) ?? 0
+  return [...tafs]
+    .sort((a, b) => issued(b) - issued(a))
+    .filter((t) => {
+      const end = ms(t.validTo)
+      return end === null ? t.nil || t.cancelled : end > nowMs
+    })
+}
+
+/** Özetin kullandığı TAF: NIL ya da iptal değil, geçerlilik başı ve sonu var. */
+const isUsableTaf = (t: DecodedTaf): boolean =>
+  !t.nil && !t.cancelled && Boolean(t.validFrom) && Boolean(t.validTo)
+
+/**
+ * Yürürlükteki TAF'lar (D-088): süresi dolmamış TAF'lardan, kalan geçerliliğinin (şimdiden
+ * geçerlilik sonuna) tamamı daha yeni yayımlanmış TAF'larca kapsananlar çıkar. Yeni TAF eskisinin
+ * yerini alır (WMO-782 s. 48); `summarizeTaf` her saat için en son yayımlanan ve o saati kapsayan
+ * TAF'ı kullandığından çıkan TAF'lar özete hiçbir dilim vermez, özet aynı kalır (birim testi
+ * denetler). Henüz başlamamış yeni TAF'ın önündeki saatleri veren eski TAF kalır. NIL ve iptal
+ * TAF'lar ve tarihi eksik olanlar kimseyi kapsamaz, süreleri dolmadıkça kalır. Giriş sırası korunur.
+ *
+ * Toplu hava yanıtı (`GET /v1/weather`) ve tek havalimanının havası yalnız bunları taşır; eski
+ * TAF'lar METAR/TAF kaydındadır (`/weather/history`). 1. halkada üretimde istasyon başına ortalama
+ * 3,4 geçerli TAF vardı ve toplu yanıtın %84'ü TAF'tı.
+ */
+export function inForceTafs<T extends DecodedTaf>(tafs: readonly T[], now: DateInput): T[] {
+  const nowMs = toDate(now).getTime()
+  const live = liveNewestFirst(tafs, nowMs)
+  const contributing = new Set<DecodedTaf>(
+    coverage(live.filter(isUsableTaf), nowMs).map((segment) => segment.taf),
+  )
+  const kept = new Set<DecodedTaf>(live.filter((t) => !isUsableTaf(t) || contributing.has(t)))
+  return tafs.filter((t) => kept.has(t))
+}
+
+/**
  * Geçerli TAF'ların sade dil özeti: şimdiden itibaren (varsayılan 24 saat) her saat için en son
  * yayımlanan ve o saati kapsayan TAF kullanılır (WMO-782 s. 48); tahmin geçerlilik sonunun ötesine
  * uzatılmaz. En önemli hava olayı (TEMPO ve PROB dahil) zaman penceresi ve niteleyicisiyle, varsa
@@ -959,12 +999,7 @@ export function summarizeTaf(
   const nowMs = toDate(now).getTime()
   const timeZone = options.timeZone ?? TURKEY_TIME_ZONE
   const horizonEnd = nowMs + (options.horizonHours ?? 24) * 3_600_000
-  const issued = (t: DecodedTaf) => ms(t.issuedAt) ?? ms(t.validFrom) ?? 0
-  const newestFirst = [...tafs].sort((a, b) => issued(b) - issued(a))
-  const live = newestFirst.filter((t) => {
-    const end = ms(t.validTo)
-    return end === null ? t.nil || t.cancelled : end > nowMs
-  })
+  const live = liveNewestFirst(tafs, nowMs)
   const empty = (status: TafSummary['status'], key: 'none' | 'cancelled' | 'nil'): TafSummary => ({
     status,
     items: [],
@@ -975,7 +1010,7 @@ export function summarizeTaf(
   })
   const newest = live[0]
   if (newest?.cancelled) return empty('cancelled', 'cancelled')
-  const usable = live.filter((t) => !t.nil && !t.cancelled && t.validFrom && t.validTo)
+  const usable = live.filter(isUsableTaf)
   if (usable.length === 0) return newest?.nil ? empty('nil', 'nil') : empty('none', 'none')
 
   const candidates = mergePrevailing(

@@ -27,7 +27,7 @@ export const en: Messages = {
       description:
         'IATA and ICAO codes, provinces and longest runways for {count} airports in Türkiye, each with a link to the live map. Source: OurAirports.',
       descriptionWithForeign:
-        'IATA and ICAO codes and longest runways for {count} airports in Türkiye and {foreign} airports in neighbouring countries, each with a link to the live map. Source: OurAirports.',
+        'IATA and ICAO codes and longest runways for {count} airports in Türkiye and {foreign} airports outside Türkiye, each with a link to the live map. Source: OurAirports.',
     },
     airport: {
       title: '{name} ({iata}/{icao}) live air traffic and runways',
@@ -62,7 +62,7 @@ export const en: Messages = {
     summary:
       'The list has {count} airports; each airport’s page shows its runways, the weather and a link to the live map.',
     summaryWithForeign:
-      'The list has {count} airports in Türkiye and {foreign} airports in neighbouring countries; each airport’s page shows its runways, the weather and a link to the live map.',
+      'The list has {count} airports in Türkiye and {foreign} airports outside Türkiye; each airport’s page shows its runways, the weather and a link to the live map.',
     turkeyHeading: 'Airports in Türkiye',
     scope: 'The list includes airports with an IATA code; some small airports are not listed.',
     names:
@@ -78,18 +78,18 @@ export const en: Messages = {
       longestRunway: 'Longest runway',
     },
     foreign: {
-      heading: 'Airports in neighbouring countries',
+      heading: 'Airports outside Türkiye',
       scope:
         'Large and medium airports with an IATA code, at most {km} from the nearest airport in Türkiye; some airports are not listed.',
       scopeAll: 'Large and medium airports with an IATA code; some airports are not listed.',
       coverage:
         'Live aircraft data is focused on Türkiye: most of these airports are outside the live data fetch area, so aircraft around them may not appear on the live map. Each airport’s page says so as well.',
-      caption: 'Airports in neighbouring countries, sorted by country name',
+      caption: 'Airports outside Türkiye, sorted by country name',
       distanceNote:
         'Distance to Türkiye is the straight-line distance to the nearest airport in Türkiye with an IATA code; that airport may be a small airfield that is not listed (such as Gökçeada).',
       distance: 'distance to Türkiye {distance}',
       names:
-        'English names are the airports’ names in OurAirports; the Turkish names use the established Turkish place names (Atina, Selanik, Tiflis). Country names come from the airport’s OurAirports record; Ercan Airport is shown in the TRNC.',
+        'English names are the airports’ names in OurAirports; the Turkish names use the established Turkish place names in current use (Atina, Selanik, Kahire) and keep the local name where there is none (Iași, Timișoara). Country names come from the airport’s OurAirports record; Ercan Airport is shown in the TRNC.',
     },
     empty: 'Airport data has not loaded yet. Please try again shortly.',
   },
@@ -629,7 +629,7 @@ export const en: Messages = {
       search:
         'Search: find an airborne aircraft by flight number, callsign, registration or hex code.',
       airports:
-        'Airports: codes, runways and nearest airports for the airports in Türkiye and in neighbouring countries.',
+        'Airports: codes, runways and nearest airports for the airports in Türkiye and outside Türkiye.',
       weather:
         'Weather: on every airport page, the latest aviation weather report (METAR), the aerodrome forecast (TAF) and a log of the last 24 hours of reports; a short summary when you click an airport on the map.',
     },
@@ -653,7 +653,7 @@ export const en: Messages = {
       outside:
         'Airports in Türkiye outside the live data fetch area; aircraft around them may not appear on the map:',
       abroad:
-        'Airports in neighbouring countries are listed too: large and medium airports with an IATA code, at most {km} from the nearest airport in Türkiye.',
+        'Airports outside Türkiye are listed too: large and medium airports with an IATA code, at most {km} from the nearest airport in Türkiye.',
       abroadAll:
         'Airports outside Türkiye are listed too: large and medium airports with an IATA code.',
       abroadCoverage:

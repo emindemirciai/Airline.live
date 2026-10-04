@@ -1,3 +1,4 @@
+export * from './airport-codes'
 export * from './airport-detail'
 export * from './airport-names'
 export * from './airport-rings'

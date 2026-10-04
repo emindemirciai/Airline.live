@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import { decodeMetar } from './metar'
 import {
@@ -25,7 +26,7 @@ import {
   type WindLevel,
   type WindTier,
 } from './schema'
-import { summarizeMetar, summarizeTaf, type WeatherSummary } from './summary'
+import { inForceTafs, summarizeMetar, summarizeTaf, type WeatherSummary } from './summary'
 import { decodeTaf } from './taf'
 import { fake, fakeMeasure, keyTemplate } from './test/fake-text'
 
@@ -1550,5 +1551,79 @@ describe('gösterim yardımcıları', () => {
     expect(visibilityDisplay(7000)).toEqual({ value: 7, unit: 'km', fractionDigits: 0 })
     expect(visibilityDisplay(9656)).toEqual({ value: 9, unit: 'km', fractionDigits: 0 })
     expect(visibilityDisplay(2414)).toEqual({ value: 2.4, unit: 'km', fractionDigits: 1 })
+  })
+})
+
+describe('inForceTafs (D-088)', () => {
+  // LTFM'nin elle yazılmış 3 günlük TAF geçmişi (tools/fixtures/weather, D-078): 6 saatte bir ve
+  // bir AMD; her an 4-5 tanesi süresi dolmamıştır.
+  const fixture = (
+    JSON.parse(
+      readFileSync(new URL('../../../../tools/fixtures/weather/taf.json', import.meta.url), 'utf8'),
+    ) as {
+      icaoId: string
+      issueTime: string
+      validTimeFrom: number
+      validTimeTo: number
+      rawTAF: string
+    }[]
+  )
+    .filter((t) => t.icaoId === 'LTFM')
+    .map((t) =>
+      decodeTaf(t.rawTAF, {
+        issuedAt: t.issueTime.replace(' ', 'T'),
+        validFrom: new Date(t.validTimeFrom * 1000),
+        validTo: new Date(t.validTimeTo * 1000),
+      }),
+    )
+  const issued = (tafs: readonly DecodedTaf[]) => tafs.map((t) => t.issuedAt)
+
+  it('yeni TAF eskisinin kalan geçerliliğini kapsıyorsa eskisi çıkar; henüz başlamamışsa eskisi kalır', () => {
+    expect(fixture).toHaveLength(13)
+    // 13:00Z: 151040Z TAF'ı 12:00'de başladı, 16 Ocak 18:00'e kadar her şeyi kapsar.
+    expect(issued(inForceTafs(fixture, NOW))).toEqual(['2026-01-15T10:40:00.000Z'])
+    // 11:00Z: 151040Z daha başlamadı (12:00); 11:00-12:00'ı 150440Z verir.
+    expect(issued(inForceTafs(fixture, '2026-01-15T11:00:00Z'))).toEqual([
+      '2026-01-15T10:40:00.000Z',
+      '2026-01-15T04:40:00.000Z',
+    ])
+    // Giriş sırası korunur; süresi dolmuşlar çıkar.
+    const reversed = fixture.toReversed()
+    expect(issued(inForceTafs(reversed, '2026-01-15T11:00:00Z'))).toEqual([
+      '2026-01-15T04:40:00.000Z',
+      '2026-01-15T10:40:00.000Z',
+    ])
+    expect(inForceTafs([], NOW)).toEqual([])
+  })
+
+  it('özet değişmez: 3 gün boyunca her yarım saatte summarizeTaf(inForceTafs) = summarizeTaf', () => {
+    const start = Date.parse('2026-01-12T16:00:00Z')
+    const end = Date.parse('2026-01-16T19:00:00Z')
+    let dropped = 0
+    for (let at = start; at <= end; at += 30 * 60_000) {
+      const kept = inForceTafs(fixture, at)
+      dropped += fixture.length - kept.length
+      for (const horizonHours of [6, 24, 30]) {
+        expect(summarizeTaf(kept, at, { horizonHours }), new Date(at).toISOString()).toEqual(
+          summarizeTaf(fixture, at, { horizonHours }),
+        )
+      }
+    }
+    expect(dropped).toBeGreaterThan(0)
+  })
+
+  it('NIL ve iptal TAF kimseyi kapsamaz ve kalır; özet aynı', () => {
+    const older = taf('TAF LTFM 150440Z 1506/1612 04012KT 9999 SCT030 TEMPO 1510/1516 5000 -SHRA')
+    const nil = taf('TAF LTFM 151040Z NIL')
+    const cancelled = taf('TAF AMD LTFM 151100Z 1512/1612 CNL')
+    expect(inForceTafs([nil, older], NOW)).toEqual([nil, older])
+    expect(summarizeTaf(inForceTafs([nil, older], NOW), NOW)).toEqual(
+      summarizeTaf([nil, older], NOW),
+    )
+    expect(inForceTafs([cancelled, older], NOW)).toEqual([cancelled, older])
+    expect(summarizeTaf(inForceTafs([cancelled, older], NOW), NOW).status).toBe('cancelled')
+    // Aynı geçerlilikteki AMD, asıl TAF'ın yerini alır.
+    const amended = taf('TAF AMD LTFM 150615Z 1506/1612 05015KT 9999 SCT030')
+    expect(inForceTafs([older, amended], NOW)).toEqual([amended])
   })
 })

@@ -1,8 +1,13 @@
 import { describe, expect, it } from 'vitest'
 import {
+  cleanAirportName,
   greatCircleKm,
+  HIDDEN_RUNWAY_IDS,
+  isHiddenRunway,
   nearestDistanceKm,
   nearestReference,
+  OURAIRPORTS_ICAO_CORRECTIONS,
+  ourAirportsIcao,
   ringForDistance,
   selectListedAirports,
   toAirportDetails,
@@ -509,5 +514,92 @@ describe('yurt dışı kayıtları', () => {
       isoRegion: 'CY-02',
       station: null,
     })
+  })
+})
+
+describe('kaynak düzeltmeleri (D-088)', () => {
+  it('ourAirportsIcao: İskenderiye HEAX → HEBA yalnız kaynaktaki yanlış değer durdukça', () => {
+    expect(OURAIRPORTS_ICAO_CORRECTIONS).toEqual({ HEBA: { icaoCode: 'HEAX', icao: 'HEBA' } })
+    const alexandria = { ident: 'HEBA', icaoCode: 'HEAX', gpsCode: 'HEAX' }
+    expect(ourAirportsIcao(alexandria)).toBe('HEBA')
+    expect(ourAirportsIcao({ ident: ' heba ', icaoCode: ' heax ', gpsCode: null })).toBe('HEBA')
+    // OurAirports düzeltirse ya da başka bir koda geçerse düzeltme uygulanmaz.
+    expect(ourAirportsIcao({ ...alexandria, icaoCode: 'HEBA' })).toBe('HEBA')
+    expect(ourAirportsIcao({ ...alexandria, icaoCode: 'HEZZ' })).toBe('HEZZ')
+    // Başka satırda HEAX olduğu gibi kalır.
+    expect(ourAirportsIcao({ ident: 'EG-0078', icaoCode: 'HEAX', gpsCode: null })).toBe('HEAX')
+    expect(ourAirportsIcao({ ident: 'toString', icaoCode: null, gpsCode: null })).toBe('TOSTRING')
+
+    const egypt = {
+      isoCountry: 'EG',
+      latitudeDeg: 30.93249,
+      longitudeDeg: 29.696437,
+      municipality: 'Alexandria',
+    }
+    const list = listed([
+      row({ ...egypt, ident: 'HEBA', icaoCode: 'HEAX', gpsCode: 'HEAX', iataCode: 'HBE' }),
+    ])
+    expect(list.map((a) => [a.iata, a.icao])).toEqual([['HBE', 'HEBA']])
+  })
+
+  it('cleanAirportName: ad kırpılır, art arda boşluk teke iner (Bacău)', () => {
+    expect(cleanAirportName(' Bacău George Enescu International  Airport ')).toBe(
+      'Bacău George Enescu International Airport',
+    )
+    const [bacau] = listed([
+      row({
+        ident: 'LRBC',
+        icaoCode: 'LRBC',
+        iataCode: 'BCM',
+        isoCountry: 'RO',
+        name: 'Bacău George Enescu International  Airport',
+      }),
+    ])
+    expect(bacau?.name).toBe('Bacău George Enescu International Airport')
+    const [reference] = turkishReferencePoints([
+      row({ ident: 'LTFK', icaoCode: 'LTFK', iataCode: 'GKD', name: ' Gökçeada\tAirport ' }),
+    ])
+    expect(reference?.name).toBe('Gökçeada Airport')
+  })
+
+  it('HIDDEN_RUNWAY_IDS: yinelenen boş pist satırı gösterilmez; doldurulursa görünür', () => {
+    expect(Object.keys(HIDDEN_RUNWAY_IDS).map(Number).sort()).toEqual([260339, 260408])
+    const taba = detailRow({
+      id: 3150,
+      ident: 'HETB',
+      icaoCode: 'HETB',
+      gpsCode: 'HETB',
+      iataCode: 'TCP',
+      isoCountry: 'EG',
+      isoRegion: 'EG-JS',
+    })
+    const real = runwayRow({ id: 260338, airportId: 3150, leIdent: '04L', heIdent: '22R' })
+    const ghost = runwayRow({
+      id: 260339,
+      airportId: 3150,
+      lengthFt: null,
+      widthFt: null,
+      surface: 'UNK',
+      lighted: false,
+      // Uç koordinatı yok: içe aktarım eşiği havalimanı merkezine (ARP) düşürür.
+      leIdent: '04',
+      leTrueBearingDeg: null,
+      leThresholdLat: 29.587778,
+      leThresholdLon: 34.778056,
+      heIdent: '22',
+      heTrueBearingDeg: null,
+      heThresholdLat: 29.587778,
+      heThresholdLon: 34.778056,
+    })
+    expect(isHiddenRunway(ghost)).toBe(true)
+    expect(isHiddenRunway(real)).toBe(false)
+    const [detail] = withDetails([taba], [real, ghost], [])
+    expect(detail?.runways.map((r) => r.id)).toEqual([260338])
+    // Kaynak satırı doldurursa (uzunluk ya da genişlik), pist yeniden görünür.
+    const filled = { ...ghost, lengthFt: 13_123 }
+    expect(isHiddenRunway(filled)).toBe(false)
+    expect(withDetails([taba], [real, filled], [])[0]?.runways).toHaveLength(2)
+    // Tabloda olmayan boş satır gösterilir (genel kural yok, yalnız bilinen kayıtlar).
+    expect(isHiddenRunway({ ...ghost, id: 1 })).toBe(false)
   })
 })

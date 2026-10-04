@@ -28,7 +28,7 @@ Durumlar: `[ ]` başlamadı, `[~]` sürüyor, `[k]` kod bitti ve kullanıcı do�
 | M6l | Logo: A · Halka | `p1/m6l-logo` | [x] tamam; üretimde doğrulandı (2026-10-03, v0.15.0): başlıkta yeni işaret, /icon/512 ve /icon/maskable, 512 px simgede kuyruk kırıntısı yok | #22 |
 | M6k | Uçak listesi sağ üstte: sefer, kuyruk, yükseklik, konum ve durum | `p1/m6k-aircraft-list` | [k] kod bitti; üretimde listenin ve durumların görülmesi bekliyor (ACTIVATION) | #23 |
 | M6e.3 | Derecelendirilmiş rüzgâr renkleri (yama, v0.16.1) | `p1/m6e3-wind-scale` | [k] kod bitti; üretimde renklerin görülmesi bekliyor | #24 |
-| M6g | Türkiye dışındaki havalimanları, 2. halka (≤ 1.000 km) | `p1/m6g-ring2` | [ ] | — |
+| M6g | Türkiye dışındaki havalimanları, 2. halka (≤ 1.000 km) | `p1/m6g-ring2` | [~] | — |
 | M7a | Canlı araçlar: `smoke:live`, `record` | `p1/m7a-live-tools` | [ ] | — |
 | M6h | 3. halka (≤ 2.000 km) | `p1/m6h-ring3` | [ ] | — |
 | M7b | Kapsama ölçümü ve raporu (`coverage:probe`, `coverage:report`) | `p1/m7b-coverage` | [ ] | — |
@@ -935,6 +935,61 @@ Hedef sürüm 0.16.1 (M6k'nin v0.16.0 dalının üstünden, `2323db0`). Karar D-
 - `pnpm typecheck` (9/9), `pnpm lint` (9/9), `pnpm typecheck:e2e`, `pnpm lint:e2e`, `pnpm format`, `pnpm check:eol` → yeşil.
 
 - **Yayın adımı (2026-10-04):** dal v0.16.0 ile çakışmasız birleşti. **`pnpm ci:full` → yeşil:** birim testleri web 720, shared 609, api 251, worker 200, providers 120, i18n 96, tools 74, db 44, geo 36, scripts 33; entegrasyon db 82, api 26, worker 12; E2E 113/113. `pnpm stats` → 547 dosya, 98.817 satır (90.015 kod).
+
+## M6g — 2. halka (v0.17.0)
+Onay: 2026-10-01 kullanıcı (halkalar, her halka ayrı sürüm) ve 2026-10-03 kararları (tablo başlığı "Türkiye dışındaki havalimanları" / "Airports outside Türkiye"; Sohum Moskova saati)
+
+Hedef sürüm 0.17.0 (`main` `a8753e4` = v0.16.1'den). Kararlar D-088'dedir; kural D-080'in aynısıdır. Migration yoktur: üretim veritabanı 2. halkanın havalimanlarını zaten tutar.
+
+**Kapsam:**
+- **Halka:** `ENABLED_AIRPORT_RING` 1 → 2; listelenen havalimanları 136 → 225 (61 + 75 + 89), 14 yeni ülke. En yakını Ben Gurion (500,44 km → API'de 500, 2. halka), en uzağı Kuveyt (988 km).
+- **Fixture:** 2026-10-01 indirmesinden (yeniden indirme yok) 89 havalimanı ve 123 açık pist dosyaların sonuna; üretici betik halkaları sırayla yazar ve aynı baytları üretir.
+- **Adlar, şehirler, ülkeler:** 89 havalimanının TR/EN adı ve şehri (D-080 kuralları, belirsiz yazımlarda yalnız bugünkü Türkçe kullanım); ülke adları `Intl` (İngilizcede "&" → "and"); KKTC kuralı değişmez; saat dilimi kuralları yeterli (164 havalimanının dilimi testle).
+- **Kaynak düzeltmeleri:** İskenderiye HEAX → HEBA (koşullu ICAO düzeltmesi, iki pakette, testli); Taba 04/22 ve Cluj 08/26 yinelenen boş pist satırları gizli; adda çift boşluk teke iner.
+- **Hava durumu:** istasyon 225; METAR 3, TAF 2 istek; ilk çalışmada 89 yeni istasyon 15 istekle 24 saat. Toplu ve tek havalimanı yanıtı yalnız yürürlükteki TAF'ları taşır (özet değişmez, eski TAF'lar kayıtta); bütçe 225 istasyon için.
+- **Sayfalar ve harita:** `/havalimanlari` yabancı tablosunun başlığı "Türkiye dışındaki havalimanları" / "Airports outside Türkiye" (tablo başlığı, özet, sayfa açıklaması, `/hakkinda`, llms.txt bölümü; "yakın ülkeler" ve "neighbouring" kalmaz); uzaklık sınırı "1.000 km" / "1,000 km"; ad kuralı cümlesi (exonym ya da yerel ad: Kahire; Iași, Timișoara). Tablo 164 satır; site haritası 450 adres, llms.txt 220 havalimanı satırı. 2. halka sayfaları ve pencere ülke ve yerel saatle; harita 225 pini ve kodu kare başına yeni iş olmadan çizer (z5'te 225 kodun yerleşimi ~1–2 ms).
+
+**Dizinler ve dosyalar (veri ve backend):**
+- `packages/shared/src/reference/`: `airport-rings.ts` (`ENABLED_AIRPORT_RING`), `airport-codes.ts` (yeni: `OURAIRPORTS_ICAO_CORRECTIONS`, `ourAirportsIcao`), `foreign-airport-names.ts` (164 ad ve şehir), `countries.ts` ("and"); testler `foreign.test.ts`, `names.test.ts`, `time-zones.test.ts`, `reference.test.ts`
+- `packages/shared/src/weather/`: `summary.ts` (`inForceTafs`), `schema.ts` (belge); `summary.test.ts`
+- `packages/db/src/airports.ts` (`OURAIRPORTS_ICAO_CORRECTIONS`, `ourAirportsIcao`, `cleanAirportName`, `HIDDEN_RUNWAY_IDS`, `isHiddenRunway`); `airports.test.ts`, `airports.int.test.ts`
+- `apps/api/src/reference/`: `weather.ts` (yürürlükteki TAF'lar), `airports.ts` (açıklama); `weather.test.ts`, `weather.int.test.ts`, `rings.test.ts`, `airport-details.int.test.ts`
+- `apps/worker/src/jobs/weather.ts`, `packages/providers/src/weather/aviationweather.ts` (açıklamalar); `weather.test.ts`, `jobs.int.test.ts`, `aviationweather.test.ts`, `packages/providers/src/reference/reference.test.ts`
+- `tools/fixtures/ourairports/airports.csv`, `runways.csv`, `tools/fixtures/README.md`, `scripts/make-reference-fixtures.mts`
+
+**Dizinler ve dosyalar (sayfalar ve testler):**
+- `packages/i18n/src/messages/{tr,en}.ts`: liste (başlık, tablo başlığı, özet, ad kuralı cümlesi), sayfa açıklaması, `/hakkinda` (`shows.airports`, `method.abroad`); llms.txt bölüm başlığı aynı metinden
+- `apps/web/src/`: `components/airports/airport-text.ts` ve `lib/weather.ts` (açıklamalar: 1.000 km, 225 sayfanın kayıt istekleri); `lib/test/ourairports-fixture.ts` (API'nin düzeltmeleri: `ourAirportsIcao`, ad boşluğu, gizli pistler)
+- `apps/web/src/` testleri: `components/airports/airport-text.test.ts` (225, 75 + 89, Ben Gurion 500, ülkeler ve şehirler, 1.000 km), `airport-view.test.ts` (başlık, Arnavutluk/Albania, ad kuralı örnekleri, Kahire, Ben Gurion, Belgrad, Bingazi sayfaları), `airport-og.test.ts` (karakter örneklemi), `components/about/about-content.test.ts`, `app/llms.txt/route.test.ts`, `components/map/labels.test.ts` (z5'te 225 kod), `airport-popup-model.test.ts` (225 havalimanının yeri ve dilimi), `airport-popup.test.ts` (Kahire penceresi), `lib/seo/structured-data.test.ts`
+- `e2e/`: `support.ts` (`RING1_AIRPORT_COUNT` 75, `RING2_AIRPORT_COUNT` 89, `FOREIGN_AIRPORT_COUNT` 164, `LISTED_AIRPORT_COUNT` 225, `INDEXABLE_LISTED_AIRPORT_COUNT` 220, `RING2_AIRPORT` HECA, `RING2_BOUNDARY_AIRPORT` LLBG, `RING_LIMITS_KM`), `tests/foreign-airports.spec.ts`, `tests/seo.spec.ts`, `tests/app.setup.ts`, `tests/airports.spec.ts` ve `tests/weather.spec.ts` (açıklamalar)
+- Belgeler: D-088, `docs/spec/data-sources.md` §3 ve §5, `docs/RUNBOOK.md` (istek sayıları), `docs/ACTIVATION.md` ("M6g yayın doğrulaması")
+- Birleştirmede: `apps/api/src/live/ws.ts` (`wsRateLimit`: üretim dışında dakikada 60 el sıkışması), `ws.test.ts`, `ws.int.test.ts`; `turbo.json` (`build` çıktılarından `.next/dev/**` hariç); `e2e/tests/weather.spec.ts` (açıklama)
+
+**Kabul komutları:**
+- `pnpm --filter @havayolu/shared test` → halka sabitleri (2. halka açık), fixture'da 2. halka 89 ve 14 yeni ülke, 164 ad ve şehir kaydı, İngilizce ad kuralı (yalnız Bağdat ve Podgorica kısaltılmış), D-088 yazımları, HEAX → HEBA koşullu düzeltme, "Bosnia and Herzegovina", 164 havalimanının dilimi, `inForceTafs` ve özetin değişmemesi
+- `pnpm --filter @havayolu/db test` ve `pnpm test:integration` → düzeltme, boşluk, gizli pist; 225 havalimanı, HEBA, Ben Gurion 500 km 2. halkada; API'de 61 + 164, HBE → HEBA, HEAX 404, Taba ve Cluj tek pist; worker istasyon listesi 225
+- `pnpm --filter @havayolu/api test` → iki paketin ICAO kuralı aynı; toplu ve tek yanıtta aynı yürürlükteki TAF'lar, kayıtta hepsi; 225 istasyonun gövde bütçesi (1,8 MB en kötü, 1,2 MB tek TAF)
+- `pnpm --filter @havayolu/worker test` ve `@havayolu/providers` → METAR 80 + 80 + 65, TAF 200 + 25, yayından sonra 89 yeni istasyon 15 istekte 24 saat
+- `pnpm exec tsx scripts/make-reference-fixtures.mts <ham-klasör> <çıktı>` → commit'li iki OurAirports fixture'ıyla bayt bayt aynı
+- `pnpm --filter @havayolu/web test` → fixture 225 (75 + 89, Ben Gurion 500/2. halka, HEBA, Taba ve Cluj tek pist); liste, `/hakkinda` ve llms.txt'te "Türkiye dışındaki havalimanları" ve "1.000 km", "yakın ülke"/"neighbouring" yok; ilk ülke Arnavutluk/Albania; Kahire (Mısır, Gazipaşa'ya bağlantı), Ben Gurion (Hatay, 500 km), Belgrad ve Bingazi (küçük alan) sayfaları; z5'te 225 kod örtüşmeden ve hızlı; pencerede 225 havalimanının yeri ve dilimi, Kahire'nin yaz ve kış saati; paylaşım görseli karakter örneklemi (33 görsel) ağsız
+- `pnpm --filter @havayolu/i18n test`, `pnpm typecheck:e2e`, `pnpm lint:e2e`
+- `pnpm test:e2e`:
+  - kurulum: `/v1/airports?scope=listed` 225
+  - API: `scope=listed` 61 + 164 (halka 1: 75, ≤ 500 km; halka 2: 89, 500–1.000 km), Kahire halka 2, Ben Gurion halka 2 ve 500 km, EGLL yok
+  - `/havalimanlari` ve `/en/havalimanlari`: "Türkiye dışındaki havalimanları" / "Airports outside Türkiye" tablosu 164 satır, ülkeye göre sıralı; Kahire satırı (ad, Mısır/Egypt, 500 < km ≤ 1.000); ItemList 225
+  - `/istasyon/HECA` ve `/en/istasyon/HECA`: ad, Mısır/Egypt, dizine eklenir, JSON-LD `addressCountry` EG, yerel saat Africa/Cairo; `/istasyon/cai` → 308
+  - site haritası 450 adres (`/istasyon/HECA` dahil); llms.txt 220 havalimanı satırı, "## Türkiye dışındaki havalimanları / Airports outside Türkiye" başlığı altında Atina ve Kahire, "1.000 km" / "1,000 km", "yakın ülke"/"neighbouring" yok
+  - harita: `?havalimani=HECA` Kahire'de açar; listeden açılan pencere Mısır'ı, Kahire'nin saatini ve sayfa bağlantısını gösterir
+- `pnpm test:e2e` ve `pnpm ci:full` yeşil; PR'da CI (`e2e` dahil) yeşil
+- **Kullanıcıya bağlı (`[k]`):** yayından sonra `scope=listed` 225, İskenderiye'nin HEBA METAR'ı, istasyon sayısı 225, toplu hava gövdesinin boyutu (ACTIVATION → "M6g yayın doğrulaması")
+
+**Çıktı kaydı (2026-10-04, veri ve backend; sürüm, changelog ve README yayın adımındadır):**
+- Fixture: ham dosyalardan üretim commit'li `airports.csv` (601 satır) ve `runways.csv` (358 satır) ile bayt bayt aynı.
+- Birim testleri: `@havayolu/shared` 616, `@havayolu/db` 47, `@havayolu/api` 254, `@havayolu/worker` 200, `@havayolu/providers` 121.
+- Entegrasyon testleri: db 83, worker 12, api 26.
+- `pnpm typecheck` (shared, db, api, worker, providers), `pnpm typecheck:scripts`, `pnpm lint` (aynı paketler), `pnpm check:eol` → yeşil.
+- Sayfalar ve testler: birim testleri `@havayolu/web` 728, `@havayolu/i18n` 96; web ve i18n typecheck ve lint, `pnpm typecheck:e2e`, `pnpm lint:e2e` → yeşil. Paylaşım görseli testi 225 yerine 33 görsel çizer (~1,6 sn; hepsi ~9 sn sürerdi). e2e `ci:full`'da birleştirici çalıştırır.
+- **Birleştirme (2026-10-04):** iki işin çakışan dosyası yoktu; sayılar her yerde 61 + 164 = 225 listelenen, 220 dizine eklenen sayfa, site haritası 450, llms.txt 220 satır. `docs/RUNBOOK.md`'deki saatlik istek sayısı (~28 → ~44) düzeltildi. İlk `ci:full`'da e2e 11 kırmızıydı: (1) web, 136 havalimanlı eski listeyi okuyordu: turbo'nun önbellekten geri yüklediği web derlemesi, Next 16 geliştirme sunucusunun veri önbelleğini (`.next/dev/cache/fetch-cache`) de geri yazıyordu; `turbo.json`'da `!.next/dev/**` (10 test). (2) `live-map.spec.ts`'te canlı veri kesildi ("Bağlantı koptu"): API günlüğünde `/v1/ws` 429, 60 sn'de 32 el sıkışması; geliştirme sunucusunda StrictMode her yüklemede iki el sıkışması açar, Kahire harita testi bütçeyi aştı; `wsRateLimit` üretim dışında 60 (D-088). **`pnpm db:migrate`** (0 yeni) ve **`pnpm ci:full` → yeşil:** birim testleri web 728, shared 616, api 255 (+1), worker 200, providers 121, i18n 96, tools 74, db 47, geo 36, scripts 33; entegrasyon db 83, api 26, worker 12; migration yükseltme 6 → 6; `compose:guard` 8 servis, 64 anahtar; E2E 116/116 (+3: Kahire sayfası TR ve EN, Kahire harita penceresi).
 
 ## M7 — Canlı araçlar ve kapsama raporu
 Ayrıntılar `docs/prompts/parca-1.md`'dedir. Başlarken bu dosyaya dizinler ve kabul komutları eklenir.

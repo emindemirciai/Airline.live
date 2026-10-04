@@ -74,6 +74,18 @@ const ltfmOldTaf: TafRecord = {
   validTo: at('2026-01-16T12:00:00Z'),
   rawText: 'TAF LTFM 150440Z 1506/1612 04012KT 9999 SCT030 TEMPO 1510/1516 5000 -SHRA',
 }
+/**
+ * Henüz başlamamış yeni TAF (15:00'te başlar): 13:00'te o ana kadar 151040Z'yi yürürlükten
+ * kaldırmaz, ikisi de yürürlüktedir (D-088). Toplu yanıtın en kötü durumu budur.
+ */
+const ltfmNextTaf: TafRecord = {
+  stationIcao: 'LTFM',
+  issuedAt: at('2026-01-15T12:40:00Z'),
+  validFrom: at('2026-01-15T15:00:00Z'),
+  validTo: at('2026-01-16T21:00:00Z'),
+  rawText:
+    'TAF LTFM 151240Z 1515/1621 02012KT 9999 SCT030 BKN040 TEMPO 1515/1519 4000 SHRA BKN020 PROB30 TEMPO 1516/1519 TSRA SCT020CB BECMG 1600/1602 VRB03KT',
+}
 const ltfmExpiredTaf: TafRecord = {
   stationIcao: 'LTFM',
   issuedAt: at('2026-01-14T04:40:00Z'),
@@ -177,11 +189,8 @@ describe('GET /v1/weather', () => {
       qnhHpa: 1009,
       wind: { speedKt: 18, gustKt: 32, directionDeg: 30 },
     })
-    // Süresi geçen TAF düşer; geçerli olanlar en yeni yayım önce.
-    expect(ltfm?.tafs.map((t) => t.issuedAt)).toEqual([
-      '2026-01-15T10:40:00.000Z',
-      '2026-01-15T04:40:00.000Z',
-    ])
+    // Süresi geçen TAF ve yerini 151040Z'ye bırakmış 150440Z düşer (yürürlükteki TAF'lar, D-088).
+    expect(ltfm?.tafs.map((t) => t.issuedAt)).toEqual(['2026-01-15T10:40:00.000Z'])
     expect(ltfm?.tafs[0]).toMatchObject({
       validFrom: '2026-01-15T12:00:00.000Z',
       validTo: '2026-01-16T18:00:00.000Z',
@@ -321,7 +330,7 @@ describe('GET /v1/weather', () => {
     )
   })
 
-  it('61 havalimanı, her birinde METAR ve iki TAF: gövde 1 MB altında', async () => {
+  it('61 havalimanı, her birinde METAR ve yürürlükte iki TAF: gövde 1 MB altında', async () => {
     const icaos = Array.from(
       { length: 61 },
       (_, i) =>
@@ -336,7 +345,7 @@ describe('GET /v1/weather', () => {
       ),
       tafs: icaos.flatMap((icao) => [
         { ...ltfmTaf, stationIcao: icao, rawText: ltfmTaf.rawText.replace('LTFM', icao) },
-        { ...ltfmOldTaf, stationIcao: icao, rawText: ltfmOldTaf.rawText.replace('LTFM', icao) },
+        { ...ltfmNextTaf, stationIcao: icao, rawText: ltfmNextTaf.rawText.replace('LTFM', icao) },
       ]),
     }
     const weather = readers(records)
@@ -398,9 +407,19 @@ describe('GET /v1/weather?scope=listed (D-080)', () => {
     expect((await get('/v1/weather?country=TR')).statusCode).toBe(200)
   })
 
-  it('136 havalimanı (1. halka), her birinde METAR ve iki TAF: tek okuma, gövde 1 MB altında', async () => {
+  /**
+   * 225 havalimanı (61 Türkiye, 1. halkada 75, 2. halkada 89; D-088). Toplu yanıtı web sunucusu
+   * Next veri önbelleğinde tutar (öğe sınırı 2 MB; aşılırsa yanıt önbelleğe alınmaz ve her sayfa
+   * API'ye gider) ve harita pencere açılınca bir kez ister. Bütçe bu yüzden 2 MB'ın altında pay
+   * bırakır. 2026-10-03 üretim görüntüsünde 136 istasyonun gövdesi ~1,0 MB'tı ve %84'ü yerini
+   * yenisine bırakmış TAF'lardı (istasyon başına ortalama 3,4 geçerli TAF): 225 istasyonda ~1,65
+   * MB, TAF yayım saatlerinde 2 MB'a yakın olurdu. Yalnız yürürlükteki TAF'larla aynı görüntü
+   * ~0,39 MB'tır, 225 istasyonda ~0,65 MB, yayım saatlerinde (yürürlükte iki TAF) ~1,05 MB.
+   * Buradaki rapor ağırdır (RVR, rüzgâr kesmesi, eğilim; çok dönemli TAF): gerçek veriden büyük.
+   */
+  const heavyListed = (count: number, tafs: readonly TafRecord[]) => {
     const icaos = Array.from(
-      { length: 136 },
+      { length: count },
       (_, i) =>
         `L${String.fromCharCode(65 + (i % 26))}${String.fromCharCode(65 + Math.floor(i / 26))}X`,
     )
@@ -411,21 +430,69 @@ describe('GET /v1/weather?scope=listed (D-080)', () => {
           rawText: `${icao} 151250Z 27022G35KT 220V310 0800 R35/0450N R17/P2000U +SHSN BLSN VV004 M08/M10 Q1021 RESN WS R35 TEMPO 0400 +SHSN`,
         }),
       ),
-      tafs: icaos.flatMap((icao) => [
-        { ...ltfmTaf, stationIcao: icao, rawText: ltfmTaf.rawText.replace('LTFM', icao) },
-        { ...ltfmOldTaf, stationIcao: icao, rawText: ltfmOldTaf.rawText.replace('LTFM', icao) },
-      ]),
+      tafs: icaos.flatMap((icao) =>
+        tafs.map((taf) => ({
+          ...taf,
+          stationIcao: icao,
+          rawText: taf.rawText.replace('LTFM', icao),
+        })),
+      ),
     }
     const weather = readers(records)
     weather.listedStations.mockResolvedValue(icaos.map((icao) => ({ icao })))
+    return weather
+  }
+
+  it('225 havalimanı (1. ve 2. halka), METAR ve üç geçerli TAF: eski TAF düşer, gövde 1,8 MB altında', async () => {
+    // Her istasyonda TAF yayım saatlerindeki durum: yürürlükteki TAF, henüz başlamamış yenisi ve
+    // yerini ikisine bırakmış eskisi. Eskisi yanıta girmez.
+    const weather = heavyListed(225, [ltfmTaf, ltfmNextTaf, ltfmOldTaf])
     const { get } = await setup(weather)
     const res = await get('/v1/weather?scope=listed')
     const body = res.json() as WeatherBulkResponse
-    expect(body.stations).toHaveLength(136)
-    expect(body.stations.every((s) => s.metar !== null && s.tafs.length === 2)).toBe(true)
-    // Harita bu gövdeyi bir kez ister (60 sn önbellek); en kötü durumda da 1 MB altında (~0,77 MB).
-    expect(Buffer.byteLength(res.body)).toBeLessThan(1_000_000)
+    expect(body.stations).toHaveLength(225)
+    expect(body.stations.every((s) => s.metar !== null)).toBe(true)
+    expect(
+      body.stations.every(
+        (s) =>
+          s.tafs.map((t) => t.issuedAt).join() ===
+          '2026-01-15T12:40:00.000Z,2026-01-15T10:40:00.000Z',
+      ),
+    ).toBe(true)
+    // En kötü durum (her istasyonda ağır METAR ve yürürlükte iki ağır TAF) ~1,52 MB; eski TAF
+    // da girseydi ~1,82 MB olurdu (bütçeyi aşardı).
+    expect(Buffer.byteLength(res.body)).toBeLessThan(1_800_000)
     expect(weather.latest).toHaveBeenCalledTimes(1)
+  })
+
+  it('225 havalimanı, METAR ve yürürlükte tek TAF (olağan durum): gövde 1,2 MB altında', async () => {
+    const { get } = await setup(heavyListed(225, [ltfmTaf, ltfmOldTaf]))
+    const res = await get('/v1/weather?scope=listed')
+    const body = res.json() as WeatherBulkResponse
+    expect(body.stations.every((s) => s.tafs.length === 1)).toBe(true)
+    // ~1,0 MB (ağır METAR ve TAF ile; üretim verisiyle ~0,65 MB).
+    expect(Buffer.byteLength(res.body)).toBeLessThan(1_200_000)
+  })
+
+  it("yürürlükteki TAF: toplu yanıt ve tek havalimanı aynı TAF'ları verir; kayıtta hepsi kalır", async () => {
+    const weather = readers({ metars: [ltfmMetar], tafs: [ltfmOldTaf, ltfmTaf, ltfmNextTaf] })
+    const { get } = await setup(weather)
+    const bulk = (await get('/v1/weather?scope=listed')).json() as WeatherBulkResponse
+    const one = (await get('/v1/airports/LTFM/weather')).json() as AirportWeather
+    const issued = ['2026-01-15T12:40:00.000Z', '2026-01-15T10:40:00.000Z']
+    expect(bulk.stations.find((s) => s.icao === 'LTFM')?.tafs.map((t) => t.issuedAt)).toEqual(
+      issued,
+    )
+    expect(one.tafs.map((t) => t.issuedAt)).toEqual(issued)
+    // 15:30'da 151240Z başlamıştır; 151040Z'nin kalan geçerliliğini kapsar.
+    clock = Date.parse('2026-01-15T15:30:00Z')
+    const later = (await get('/v1/airports/LTFM/weather')).json() as AirportWeather
+    expect(later.tafs.map((t) => t.issuedAt)).toEqual(['2026-01-15T12:40:00.000Z'])
+    // METAR/TAF kaydı yerini yenisine bırakmış TAF'ları da verir.
+    const log = (await get('/v1/airports/LTFM/weather/history?hours=24')).json() as {
+      entries: { kind: string; time: string }[]
+    }
+    expect(log.entries.filter((e) => e.kind === 'TAF')).toHaveLength(3)
   })
 })
 
@@ -446,7 +513,8 @@ describe('GET /v1/airports/:code/weather', () => {
     expect(first && AirportWeatherSchema.parse(first)).toEqual(first)
     expect(first?.icao).toBe('LTFM')
     expect(first?.metar?.raw).toBe(LTFM_RAW)
-    expect(first?.tafs).toHaveLength(2)
+    // Yürürlükteki TAF (D-088): 150440Z'nin kalan geçerliliğini 151040Z kapsar.
+    expect(first?.tafs.map((t) => t.raw)).toEqual([ltfmTaf.rawText])
     for (const body of bodies) expect(body).toEqual(first)
     // Kod büyük harfe çevrilip bir kez çözülür; hava kanonik ICAO başına bir kez okunur.
     expect(weather.resolve.mock.calls).toEqual([['LTFM'], ['IST']])
@@ -783,8 +851,9 @@ describe('GET /v1/airports/:code/weather/history', () => {
     expect(historyCacheWindow(24)).toBe(24)
     expect(historyCacheWindow(25)).toBe(168)
     expect(historyCacheWindow(168)).toBe(168)
-    // Listelenen havalimanları × 2 pencere (1. halkada ~136 × 2); asıl sınır bayt bütçesidir.
-    expect(WEATHER_HISTORY_CACHE_MAX_ENTRIES).toBeGreaterThanOrEqual(136 * 2)
+    // Listelenen havalimanları × 2 pencere (2. halkada 225 × 2 = 450, D-088); asıl sınır bayt
+    // bütçesidir.
+    expect(WEATHER_HISTORY_CACHE_MAX_ENTRIES).toBeGreaterThanOrEqual(225 * 2)
     expect(WEATHER_HISTORY_CACHE_MAX_ENTRIES).toBeLessThanOrEqual(512)
   })
 

@@ -602,7 +602,7 @@ test.describe('kaldırılan bilgiler', () => {
       page,
     }) => {
       await page.goto(listPath)
-      // Türkiye tablosu ilk tablodur; yakın ülkelerin tablosu (M6d) onu izler.
+      // Türkiye tablosu ilk tablodur; Türkiye dışındakilerin tablosu (M6d) onu izler.
       const tables = page.locator('main table')
       const table = tables.first()
       await expect(table.locator('tbody tr').first()).toBeVisible()
@@ -733,9 +733,10 @@ test.describe('harita: havalimanı penceresi', () => {
    * oraj: yağmur ve gök gürültüsü satırı vurgulu; 1280 px'te "3.400 m" kırılıyordu) pencereleri iki
    * dilde ve beş genişlikte ölçülür. Pencere "Havalimanları" listesinden açılır (klavye yolu; pin ve
    * kod tıklaması yukarıdaki testlerde). Sayfa bir kez yüklenir, genişlik pencere açıkken değişir
-   * (767 px'in altında alt sayfa olur): API WebSocket el sıkışmasını IP başına dakikada 30 ile
-   * sınırlar (`WS_RATE_LIMIT`), genişlik başına yeniden yükleme sonraki testlerin canlı verisini
-   * kesiyordu. Aynı nedenle üçüncü bir havalimanı (LGAV) eklenmedi; hizası aynı kurallarla elle
+   * (767 px'in altında alt sayfa olur): API WebSocket el sıkışmasını IP başına dakikada 30 sayfa
+   * yüklemesiyle sınırlar (`wsRateLimit`; geliştirme sunucusunda StrictMode yüklemede iki el
+   * sıkışması açar, sınır orada 60'tır, D-088), genişlik başına yeniden yükleme sonraki testlerin
+   * canlı verisini kesiyordu. Aynı nedenle üçüncü bir havalimanı (LGAV) eklenmedi; hizası aynı kurallarla elle
    * ölçüldü (D-083). Sonda kırılan etiket denenir: "Diğer hava olayları" satırı eklenir, simgesi
    * ilk satırın yanında kalmalı (denetim 2026-10-03: iki satırın ortasındaydı).
    */

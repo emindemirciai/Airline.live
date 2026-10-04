@@ -5,15 +5,16 @@ import {
   airportRing,
   ENABLED_AIRPORT_RING,
   isForeignCandidate,
+  ourAirportsIcao,
   type AirportDetail,
   type RunwayDetail,
   type RunwayEnd,
 } from '@havayolu/shared'
 
 /**
- * Commit'li OurAirports fixture'ından (üretim dökümünün Türkiye kesiti ve 1. halkanın yakın ülke
- * havalimanları, D-080) API'nin döndüreceği `AirportDetail` listesine yakın bir liste kurar: IATA
- * kodlu Türkiye havalimanları, içe aktarım filtresi (büyük/orta ya da tarifeli; data-sources.md §3),
+ * Commit'li OurAirports fixture'ından (üretim dökümünün Türkiye kesiti ile 1. ve 2. halkanın yabancı
+ * havalimanları, D-080, D-088) API'nin döndüreceği `AirportDetail` listesine yakın bir liste kurar:
+ * IATA kodlu Türkiye havalimanları, içe aktarım filtresi (büyük/orta ya da tarifeli; data-sources.md §3),
  * açık pistler ve tohum istasyonları; `fixtureListedAirports` bunlara açık halkalardaki yabancı
  * adayları ekler. Sayfa metinlerinin her gerçek havalimanı için sınırlar içinde kaldığını denetlemek
  * içindir.
@@ -93,16 +94,30 @@ let cached: AirportDetail[] | undefined
 let cachedListed: AirportDetail[] | undefined
 let cachedRunways: Row[] | undefined
 
+/**
+ * API'nin gizlediği yinelenen boş pist satırları (D-088; `@havayolu/db` → `HIDDEN_RUNWAY_IDS`, web o
+ * pakete bağımlı değildir): Taba "04/22" ve Cluj-Napoca "08/26"; yalnız uzunluk ve genişlik boşken.
+ */
+const HIDDEN_RUNWAY_IDS = new Set(['260339', '260408'])
+
 function openRunways(): Row[] {
-  cachedRunways ??= read('runways.csv').filter((row) => row.closed !== '1')
+  cachedRunways ??= read('runways.csv').filter(
+    (row) =>
+      row.closed !== '1' &&
+      !(HIDDEN_RUNWAY_IDS.has(row.id ?? '') && !row.length_ft && !row.width_ft),
+  )
   return cachedRunways
 }
 
 const importable = (row: Row) =>
   row.type === 'large_airport' || row.type === 'medium_airport' || row.scheduled_service === 'yes'
 
-/** Listedeki kimlik kuralı: ICAO, yoksa GPS kodu, o da yoksa OurAirports kimliği. */
-const icaoOf = (row: Row) => row.icao_code || row.gps_code || row.ident || ''
+/**
+ * Listedeki kimlik kuralı (API ile aynı, `ourAirportsIcao`): ICAO, yoksa GPS kodu, o da yoksa
+ * OurAirports kimliği; kaynakta yanlış olduğu bilinen kod düzeltilir (İskenderiye HEAX → HEBA, D-088).
+ */
+const icaoOf = (row: Row) =>
+  ourAirportsIcao({ ident: row.ident ?? '', icaoCode: row.icao_code, gpsCode: row.gps_code })
 
 function toDetail(
   row: Row,
@@ -115,7 +130,8 @@ function toDetail(
   return {
     icao,
     iata: row.iata_code ?? '',
-    name: row.name ?? '',
+    // API gibi art arda boşluklar teke iner (Bacău, `cleanAirportName`; D-088).
+    name: (row.name ?? '').trim().replace(/\s+/g, ' '),
     city: row.municipality || null,
     lat: Number(row.latitude_deg),
     lon: Number(row.longitude_deg),
