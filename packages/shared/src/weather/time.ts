@@ -135,6 +135,18 @@ export function localTime(at: DateInput, timeZone: string = TURKEY_TIME_ZONE): L
   }
 }
 
+/**
+ * UTC farkının etiketi (dakikadan): "UTC+3", "UTC+3:30", "UTC−4" (eksi U+2212), fark yoksa "UTC".
+ * Fark `localTime(...).utcOffsetMinutes`'tan gelir; i18n'in `formatUtcOffset`'i ve CHANGELOG.md'deki
+ * yayın saati (D-091) aynı yazımı kullanır.
+ */
+export function utcOffsetLabel(minutes: number): string {
+  if (minutes === 0) return 'UTC'
+  const abs = Math.abs(minutes)
+  const rest = abs % 60
+  return `UTC${minutes < 0 ? '−' : '+'}${Math.floor(abs / 60)}${rest === 0 ? '' : `:${pad2(rest)}`}`
+}
+
 /** İki anın yerel takvim günü farkı (b − a); "yarın" kararı için. */
 export function localDayDifference(
   a: DateInput,

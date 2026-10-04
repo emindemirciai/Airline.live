@@ -8,7 +8,25 @@
 
 ---
 
-## v0.17.0 — 2026-10-04
+## v0.17.1 — 2026-10-04
+
+### Türkçe
+**Yeniliklerde yayın tarihi ve saati**
+
+- Yenilikler sayfasında her sürümün yanında yayın tarihi ve saati yazıyor: “4 Ekim 2026, 20:27 (Türkiye saati)”. Saatler sürümün canlıya çıkıp doğrulandığı andır; yayındaki son sürümde sunucunun açıldığı an gösterilir.
+
+Dene: [Yenilikler](/yenilikler)
+
+### English
+**Release date and time on What’s new**
+
+- The What’s new page shows each version’s release date and time: “4 October 2026, 20:27 (UTC+3)”. The time is when the version went live and was verified; for the version currently running it is when the server started.
+
+Try it: [What’s new](/yenilikler)
+
+---
+
+## v0.17.0 — 2026-10-04 20:27 (UTC+3)
 
 ### Türkçe
 **2. halka: 1.000 km’ye kadar 89 havalimanı daha**
@@ -32,7 +50,7 @@ Try it: [Airports](/havalimanlari) · [Cairo Airport](/istasyon/HECA)
 
 ---
 
-## v0.16.1 — 2026-10-04
+## v0.16.1 — 2026-10-04 17:25 (UTC+3)
 
 ### Türkçe
 **Derecelendirilmiş rüzgâr renkleri**
@@ -50,7 +68,7 @@ Try it: [Istanbul on the map](/?havalimani=LTFM)
 
 ---
 
-## v0.16.0 — 2026-10-04
+## v0.16.0 — 2026-10-04 16:40 (UTC+3)
 
 ### Türkçe
 **Uçak listesi sağ üstte; kuyruk tescili, konum ve durum**
@@ -74,7 +92,7 @@ Try it: [Live map](/?havalimani=LTFM)
 
 ---
 
-## v0.15.0 — 2026-10-03
+## v0.15.0 — 2026-10-03 20:25 (UTC+3)
 
 ### Türkçe
 **Yeni logo: halkanın içinden geçen uçak**
@@ -92,7 +110,7 @@ Try it: [Home](/)
 
 ---
 
-## v0.14.1 — 2026-10-03
+## v0.14.1 — 2026-10-03 19:55 (UTC+3)
 
 ### Türkçe
 **Rüzgâr renkleri ve rüzgâr kesmesi uyarısı**
@@ -114,7 +132,7 @@ Try it: [Airports](/havalimanlari) · [Istanbul on the map](/?havalimani=LTFM)
 
 ---
 
-## v0.14.0 — 2026-10-03
+## v0.14.0 — 2026-10-03 19:36 (UTC+3)
 
 ### Türkçe
 **Doğru havalimanı adları, haritada ad etiketi ve yurt dışında yerel saat**
@@ -136,7 +154,7 @@ Try it: [Athens Airport local time](/istasyon/LGAV) · [Airports](/havalimanlari
 
 ---
 
-## v0.13.1 — 2026-10-03
+## v0.13.1 — 2026-10-03 18:09 (UTC+3)
 
 ### Türkçe
 **Havalimanı penceresi hizalı tablo oldu**
@@ -156,7 +174,7 @@ Try it: [Istanbul window on the map](/?havalimani=LTFM)
 
 ---
 
-## v0.13.0 — 2026-10-03
+## v0.13.0 — 2026-10-03 02:47 (UTC+3)
 
 ### Türkçe
 **Rüzgâr knot ile, şimşek ve yıldırım uyarısı, ortalı havalimanı penceresi**
@@ -180,7 +198,7 @@ Try it: [Istanbul window on the map](/?havalimani=LTFM) · [Istanbul Airport wea
 
 ---
 
-## v0.12.0 — 2026-10-02
+## v0.12.0 — 2026-10-02 23:46 (UTC+3)
 
 ### Türkçe
 **Yakın ülkelerdeki havalimanları ve yeni turkuaz görünüm**
@@ -206,7 +224,7 @@ Try it: [Airports](/havalimanlari) · [Athens Airport](/istasyon/LGAV) · [Istan
 
 ---
 
-## v0.11.0 — 2026-10-02
+## v0.11.0 — 2026-10-02 02:17 (UTC+3)
 
 ### Türkçe
 **Havalimanlarında canlı hava durumu ve haritada havalimanı penceresi**
@@ -232,7 +250,7 @@ Try it: [Istanbul Airport weather](/istasyon/LTFM) · [Live map](/)
 
 ---
 
-## v0.10.0 — 2026-10-01
+## v0.10.0 — 2026-10-01 01:49 (UTC+3)
 
 ### Türkçe
 **Havalimanı sayfaları ve İngilizce adresler**
@@ -258,7 +276,7 @@ Try it: [Airports](/havalimanlari) · [Istanbul Airport](/istasyon/LTFM) · [Abo
 
 ---
 
-## v0.9.0 — 2026-09-29
+## v0.9.0 — 2026-09-30 23:50 (UTC+3)
 
 ### Türkçe
 **Ana sayfa artık canlı uçuş haritası**
@@ -284,7 +302,7 @@ Try it: [Live map](/) · [Terms of use](/kullanim-kosullari)
 
 ---
 
-## v0.8.0 — 2026-09-29
+## v0.8.0 — 2026-09-29 00:32 (UTC+3)
 
 ### Türkçe
 **Canlı uçuş verisi artık uygulamalara akıyor**
@@ -304,7 +322,7 @@ Try it: [Live map](/) · [Terms of use](/kullanim-kosullari)
 
 ---
 
-## v0.7.1 — 2026-09-28
+## v0.7.1 — 2026-09-28 22:49 (UTC+3)
 
 ### Türkçe
 **Durum sayfasında taşan yazılar düzeltildi**
@@ -322,7 +340,7 @@ Try it: [Status page](/durum)
 
 ---
 
-## v0.7.0 — 2026-09-28
+## v0.7.0 — 2026-09-28 09:58 (UTC+3)
 
 ### Türkçe
 **Türkiye üzerindeki uçaklar sürekli izleniyor**
@@ -346,7 +364,7 @@ Try it: [Roadmap](/durum)
 
 ---
 
-## v0.6.0 — 2026-09-27
+## v0.6.0 — 2026-09-27 12:24 (UTC+3)
 
 ### Türkçe
 **Canlı uçuş verisinin altyapısı**
@@ -366,7 +384,7 @@ Try it: [Roadmap](/durum)
 
 ---
 
-## v0.5.2 — 2026-09-27
+## v0.5.2 — 2026-09-27 11:30 (UTC+3)
 
 ### Türkçe
 **Onaylanan her değişiklik kendiliğinden yayında**
@@ -380,7 +398,7 @@ Try it: [Roadmap](/durum)
 
 ---
 
-## v0.5.1 — 2026-09-27
+## v0.5.1 — 2026-09-27 10:59 (UTC+3)
 
 ### Türkçe
 **Yönetici anahtarı kuralı ve daha dayanıklı sunucu**
@@ -396,7 +414,7 @@ Try it: [Roadmap](/durum)
 
 ---
 
-## v0.5.0 — 2026-09-27
+## v0.5.0 — 2026-09-27 10:37 (UTC+3)
 
 ### Türkçe
 **Havalimanı, pist ve havayolu verisi**
@@ -424,7 +442,7 @@ Try it: [Roadmap](/durum)
 
 ---
 
-## v0.4.0 — 2026-09-26
+## v0.4.0 — 2026-09-27 08:45 (UTC+3)
 
 ### Türkçe
 **Otomatik ve doğrulanan yayın hattı**
@@ -442,7 +460,7 @@ Try it: [Roadmap](/durum)
 
 ---
 
-## v0.3.2 — 2026-09-25
+## v0.3.2 — 2026-09-25 21:19 (UTC+3)
 
 ### Türkçe
 **Daha güvenli giriş, daha sağlam sunucu, açık kaynak**
@@ -462,7 +480,7 @@ Try it: [Roadmap](/durum)
 
 ---
 
-## v0.3.1 — 2026-09-25
+## v0.3.1 — 2026-09-25 21:19 (UTC+3)
 
 ### Türkçe
 **Yeni adımız havayolu, adresimiz havayolu.live**
@@ -478,7 +496,7 @@ Try it: [Roadmap](/durum)
 
 ---
 
-## v0.3.0 — 2026-09-25
+## v0.3.0 — 2026-09-25 21:18 (UTC+3)
 
 ### Türkçe
 **Bütün servisler, yönetim paneli ve onaylı ziyaret analizi**
@@ -500,7 +518,7 @@ Try it: [Roadmap](/durum)
 
 ---
 
-## v0.2.0 — 2026-09-25
+## v0.2.0 — 2026-09-25 21:16 (UTC+3)
 
 ### Türkçe
 **İlk yerel test ortamı: Durum ve Yenilikler sayfaları**
@@ -528,7 +546,7 @@ Try it: [Status page](/durum) · [What’s new page](/yenilikler)
 
 ---
 
-## v0.1.0 — 2026-09-25
+## v0.1.0 — 2026-09-25 18:07 (UTC+3)
 
 ### Türkçe
 **Proje kuruldu ve yol haritası netleşti**
