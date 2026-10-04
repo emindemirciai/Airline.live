@@ -12,8 +12,27 @@ import type { ChangelogEntry } from './types'
  */
 export const CHANGELOG: readonly ChangelogEntry[] = [
   {
+    version: '0.18.1',
+    date: '2026-10-04',
+    title: {
+      tr: 'Daha az veri, daha hızlı harita',
+      en: 'Less data, a faster map',
+    },
+    items: [
+      {
+        tr: 'Sunucunun gönderdiği veriler artık sıkıştırılıyor: haritanın yüklediği havalimanı listesi 110 KB yerine yaklaşık 24 KB, havalimanı sayfasındaki 24 saatlik METAR/TAF kaydı 65 KB yerine yaklaşık 3 KB. Harita ve sayfalar özellikle mobil bağlantıda daha hızlı açılır.',
+        en: 'Data sent by the server is now compressed: the airport list the map loads is about 24 KB instead of 110 KB, and the 24-hour METAR/TAF history on an airport page about 3 KB instead of 65 KB. The map and pages open faster, especially on mobile connections.',
+      },
+    ],
+    tryLinks: [
+      { path: '/', label: { tr: 'Canlı harita', en: 'Live map' } },
+      { path: '/istasyon/LTFM', label: { tr: 'İstanbul Havalimanı', en: 'Istanbul Airport' } },
+    ],
+  },
+  {
     version: '0.18.0',
     date: '2026-10-04',
+    releasedAt: '2026-10-04T19:45:30Z',
     title: {
       tr: '3. halka: 2.000 km’ye kadar 278 havalimanı daha',
       en: 'Ring 3: 278 more airports up to 2,000 km',

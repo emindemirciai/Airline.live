@@ -31,7 +31,8 @@ Durumlar: `[ ]` başlamadı, `[~]` sürüyor, `[k]` kod bitti ve kullanıcı do�
 | M6g | Türkiye dışındaki havalimanları, 2. halka (≤ 1.000 km); haritanın atıf şeridinde site künyesi | `p1/m6g-ring2` | [k] kod bitti; üretimde 225 havalimanı ve HEBA hava durumunun görülmesi bekliyor (ACTIVATION) | #25 |
 | M6e.4 | Yeniliklerde yayın tarihi ve saati (yama, v0.17.1) | `p1/changelog-time` | [x] tamam; üretimde doğrulandı (2026-10-04, v0.17.1): /yenilikler v0.17.1 "4 Ekim 2026, 21:36 (Türkiye saati)" (sunucunun açılışı), v0.17.0 20:27 | #26 |
 | M6e.5 | Haritada kesikli ülke sınırları (yama, v0.17.2) | `p1/map-borders` | [x] tamam; üretimde doğrulandı (2026-10-04, v0.17.2): Balkanlarda kesikli sınırlar, şeritte OpenFreeMap atfı | #27 |
-| M6h | 3. halka (≤ 2.000 km) — kullanıcı isteğiyle M7a'nın önüne alındı (2026-10-04); sivil uçuşa kapalı olabilecek havalimanı notu | `p1/m6h-ring3` | [k] kod bitti; üretimde 503 havalimanı ve Özbek istasyonlarının hava durumu bekliyor (ACTIVATION) | #28 |
+| M6e.6 | API yanıtlarının sıkıştırılması (yama, v0.18.1) | `p1/api-gzip` | [~] | — |
+| M6h | 3. halka (≤ 2.000 km) — kullanıcı isteğiyle M7a'nın önüne alındı (2026-10-04); sivil uçuşa kapalı olabilecek havalimanı notu | `p1/m6h-ring3` | [k] kod bitti; üretimde doğrulandı (2026-10-04, v0.18.0): `scope=listed` 503 (61 + 75 + 89 + 278), Viyana 3. halka 1.149 km, beş Özbek istasyonunun METAR'ı UZxx koduyla, METAR'lı istasyon 463/503, toplu hava 1,34 MB, URKK ve UUOO notu iki dilde; admin Servisler ve worker günlüğü (429 yok) bekliyor (ACTIVATION) | #28 |
 | M7a | Canlı araçlar: `smoke:live`, `record` | `p1/m7a-live-tools` | [ ] | — |
 | M7b | Kapsama ölçümü ve raporu (`coverage:probe`, `coverage:report`) | `p1/m7b-coverage` | [ ] | — |
 | M6i | 4. halka (≤ 5.000 km); haritada görünür alana göre havalimanı yükleme, AWC toplu dosyası | `p1/m6i-ring4` | [ ] | — |
@@ -1071,6 +1072,28 @@ Hedef sürüm 0.17.2 (`main` `fb6e0cc` = v0.17.0'dan; v0.17.1 ayrı yamadadır).
 - `pnpm typecheck` (9/9), `pnpm lint` (9/9), `pnpm typecheck:e2e`, `pnpm lint:e2e`, `pnpm format`, `pnpm check:eol` → yeşil.
 
 - **Yayın adımı (2026-10-04):** dal v0.17.1 ile birleştirildi; v0.17.1 `releasedAt` 2026-10-04T18:36:55Z (GitHub Release). **`pnpm ci:full` → yeşil:** birim testleri web 757, shared 633, api 255, worker 200, providers 122, i18n 97, tools 74, db 47, geo 36, scripts 39; entegrasyon db 83, api 26, worker 12; E2E 120/120. `pnpm stats` → 556 dosya, 102.656 satır (93.466 kod).
+
+## M6e.6 — API yanıtlarının sıkıştırılması (v0.18.1)
+Onay: 2026-10-04 orkestratör varsayılanı (kullanıcı "soru sorma" penceresindeyken; D-093). v0.18.0'ın üretim denetiminde API yanıtlarının sıkıştırılmadan gittiği görüldü: `curl -H 'accept-encoding: gzip, br'` ile `/v1/airports?scope=listed` 111.224 bayt, `Content-Encoding` yok; web (Next) kendi sayfalarını gzip'liyor.
+
+Hedef sürüm 0.18.1 (`main` `1b745cd` = v0.18.0'dan). Karar D-093'tedir.
+
+**Kapsam:**
+- `@fastify/compress` 9.2.0 (`fastify ^5`, 2026-08-08 yayımı; ücretsiz, MIT). API'de `helmet`'ten hemen sonra, bütün yollardan önce kaydedilir: `encodings: ['br', 'gzip']` (istemci ikisini de kabul ediyorsa br), eşik 1 KB (eklenti varsayılanı), brotli kalitesi 4 (eklenti varsayılanı). İstek gövdeleri açılmaz (`globalDecompression: false`).
+- Ölçüm (üretim gövdeleri, yerel Node): havalimanı listesi 111.224 → br 24.292 (1,3 ms) / gzip 23.763 bayt; toplu hava 1.339.535 → br 68.408 (5,6 ms) / gzip 77.653 bayt; LTFM'nin 24 saatlik kaydı 65.399 → gzip 2.385 bayt.
+- Tarayıcının doğrudan API'den aldıkları: harita havalimanı listesi, havalimanı penceresinin havası, METAR/TAF kaydı. Toplu hava web sunucusunun iç isteğidir (Node `fetch` sıkıştırmayı kendisi açar).
+- WebSocket etkilenmez (yükseltme yanıtının gövdesi yok).
+
+**Dosyalar:** `apps/api/package.json`, `pnpm-lock.yaml`, `apps/api/src/app.ts`, `apps/api/src/app.test.ts` (3 yeni test), `docs/DECISIONS.md` (D-093).
+
+**Kabul komutları:**
+- `pnpm --filter @havayolu/api test` → `/openapi.json` br ve gzip ile sıkışır, açılan gövde sıkıştırmasız gövdeyle aynı, `Vary: accept-encoding`, `X-Robots-Tag` korunur; `/health` (1 KB altı) ve yalnız `deflate` isteyen istemci sıkıştırmasız; gzip'li istek gövdesi açılmaz (4xx).
+- `pnpm ci:full` yeşil (e2e WS ve harita akışı dahil); PR'da CI yeşil.
+- **Yayından sonra (ajan):** `curl -s -o /dev/null -D - -H 'accept-encoding: gzip, br' 'https://api.havayolu.live/v1/airports?scope=listed'` → `content-encoding: br`; `--compressed` ile 503 havalimanı.
+
+**Çıktı kaydı (2026-10-04):**
+- `pnpm ci:full` → yeşil: birim web 769, shared 640, api 259 (+3), worker 200, i18n 98, geo 36 (öbürleri önbellekten aynı); entegrasyon db 84, api 26, worker 12; `test:migration-upgrade` 6 → 6; e2e 124/124.
+- v0.18.0 `releasedAt` 2026-10-04T19:45:30Z (GitHub Release). `pnpm stats` → 559 dosya, 105.495 satır (kod 96.118, belge 6.162).
 
 ## M6h — 3. halka (v0.18.0)
 Onay: 2026-10-04 kullanıcı isteği "sonraki işlerden birine bir halka daha ekle" ve kapalı havalimanı kararı (2022'den beri sivil uçuşa kapalı olduğu hâlde OurAirports'ta tarifeli görünen havalimanları listede kalır, sayfada ve pencerede "Sivil uçuşlara kapalı olabilir (2022’den beri)" notu); diğer seçimler M6h araştırmasının önerileri (orkestratör varsayılanı 2026-10-04)

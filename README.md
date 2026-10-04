@@ -2,7 +2,7 @@
 
 **[Türkçe](#türkçe) · [English](#english)**
 
-![sürüm](https://img.shields.io/badge/s%C3%BCr%C3%BCm-v0.18.0-blue) ![lisans](https://img.shields.io/badge/lisans-MIT-green) ![durum](https://img.shields.io/badge/durum-geli%C5%9Ftirme-yellow)
+![sürüm](https://img.shields.io/badge/s%C3%BCr%C3%BCm-v0.18.1-blue) ![lisans](https://img.shields.io/badge/lisans-MIT-green) ![durum](https://img.shields.io/badge/durum-geli%C5%9Ftirme-yellow)
 
 ---
 
@@ -14,7 +14,7 @@ Türkiye odaklı sivil havacılık uçuş takip platformu. Canlı harita, uçuş
 
 > **Bilinen sınır:** Kendi ADS-B alıcımız olmadığı için İstanbul Havalimanı'nda iniş anı çoğunlukla doğrudan görülmez. İniş bildirimi çoğu uçuşta "muhtemelen indi (tahmini saat)" olarak ve son sinyalden 1–1,5 dk sonra gelir. Bazı uçuşlarda yalnızca "iniş verisi alınamadı" denebilir.
 
-### Durum — v0.18.0
+### Durum — v0.18.1
 | Alan | Durum |
 |---|---|
 | Yol haritası, veri kaynakları, mimari | ✅ Hazır ve doğrulandı |
@@ -41,6 +41,7 @@ Türkiye odaklı sivil havacılık uçuş takip platformu. Canlı harita, uçuş
 | Yeniliklerde her sürümün yayın tarihi ve saati | ✅ v0.17.1 |
 | Haritada kesikli ülke sınırları (OpenStreetMap) | ✅ v0.17.2 |
 | 3. halka: 2.000 km’ye kadar 278 havalimanı daha (toplam 503); 2022’den beri kapalı olabilecek havalimanlarında not | ✅ Parça 1 · M6h |
+| API yanıtları sıkıştırılmış (br/gzip): harita havalimanı listesi ~24 KB | ✅ v0.18.1 |
 | Yeni logo (halkanın içinden geçen uçak): başlık, sekme simgesi, uygulama simgeleri, paylaşım görselleri | ✅ Parça 1 · M6l |
 | Uçak listesi sağ üstte: sefer, kuyruk tescili, yükseklik, konum ve tahmini durum (yerde, inişte, yaklaşmada) | ✅ Parça 1 · M6k |
 | 10 km ve iniş bildirimi (web push) | ⏳ Parça 2 · M4 |
@@ -72,23 +73,23 @@ pnpm dev
 - `docs/DEPLOY_DOKPLOY.md`: sunucu (Dokploy) kurulumu, bir kez
 - `docs/DECISIONS.md`: kararlar ve gerekçeleri
 
-### İstatistik (v0.17.2)
-Git'te 559 dosya, **105.368 satır**. Bunun 96.039 satırı kod (TypeScript, TSX, CSS, JS), 6.115 satırı belgedir. Lockfile, `docs/research/` ve elle yazılmayan veri (fixture CSV ve JSON dosyaları, drizzle şema snapshot'ları) hariç tutulur. Güncel değer için `pnpm stats` çalıştır.
+### İstatistik (v0.18.1)
+Git'te 559 dosya, **105.495 satır**. Bunun 96.118 satırı kod (TypeScript, TSX, CSS, JS), 6.162 satırı belgedir. Lockfile, `docs/research/` ve elle yazılmayan veri (fixture CSV ve JSON dosyaları, drizzle şema snapshot'ları) hariç tutulur. Güncel değer için `pnpm stats` çalıştır.
 
 | Alan | Satır |
 |---|---|
-| apps/web | 24.646 |
-| apps/api | 11.517 |
-| apps/worker | 9.536 |
-| packages/db | 6.971 |
-| docs | 3.239 |
-| packages/providers | 3.903 |
-| packages/shared | 8.004 |
-| tools | 2.192 |
-| scripts | 2.019 |
-| packages/i18n | 3.079 |
-| packages/geo | 713 |
-| diğer (kök, deploy, .claude, .github) | 6.110 |
+| apps/web | 33.408 |
+| packages/shared | 14.372 |
+| apps/api | 12.546 |
+| apps/worker | 9.898 |
+| packages/db | 8.133 |
+| docs | 4.503 |
+| packages/i18n | 4.218 |
+| packages/providers | 4.218 |
+| scripts | 2.289 |
+| tools | 2.196 |
+| packages/geo | 786 |
+| diğer (kök, deploy, .claude, .github) | 8.928 |
 
 ### Lisans, veri ve atıflar
 - Kod [MIT lisansı](LICENSE) ile lisanslanmıştır: © 2026 [emindemirciai](https://github.com/emindemirciai). Kodun tüm kopyaları ya da önemli bölümleri telif bildirimini ve lisans metnini içermek zorundadır; bunlar olmadan kopyalamak ya da dağıtmak lisans ve telif hakkı ihlalidir. **havayolu** adı ve logosu MIT kapsamında değildir, hakları saklıdır. Aynı bildirim sitenin sayfa kaynağında da yer alır.
@@ -108,7 +109,7 @@ A Türkiye-focused civil aviation flight tracker. It offers a live map and lets 
 
 > **Known limitation:** Without our own ADS-B receiver, the moment of touchdown at Istanbul Airport is usually not observed directly. For most flights the landing alert says "probably landed (estimated time)" and arrives 1–1.5 minutes after the last signal. For some flights it can only say "landing data unavailable".
 
-### Status — v0.18.0
+### Status — v0.18.1
 | Area | Status |
 |---|---|
 | Roadmap, data sources, architecture | ✅ Done and verified |
@@ -135,6 +136,7 @@ A Türkiye-focused civil aviation flight tracker. It offers a live map and lets 
 | Release date and time for every version on What’s new | ✅ v0.17.1 |
 | Dashed country borders on the map (OpenStreetMap) | ✅ v0.17.2 |
 | Ring 3: 278 more airports up to 2,000 km (503 in total); note on airports that may be closed since 2022 | ✅ Part 1 · M6h |
+| Compressed API responses (br/gzip): the map airport list is ~24 KB | ✅ v0.18.1 |
 | New logo (a plane flying through the ring): header, tab icon, app icons, share images | ✅ Part 1 · M6l |
 | Aircraft list at the top right: flight, tail number, altitude, location and estimated status (on ground, landing, approaching) | ✅ Part 1 · M6k |
 | 10 km and landing alerts (web push) | ⏳ Part 2 · M4 |
@@ -166,8 +168,8 @@ Then open `http://localhost:3100/` (live map), `/havalimanlari`, `/istasyon/LTFM
 - `docs/DEPLOY_DOKPLOY.md`: one-time server (Dokploy) setup
 - `docs/DECISIONS.md`: decisions and rationale
 
-### Stats (v0.17.2)
-559 files and **105,368 lines** in git: 96,039 lines of code (TypeScript, TSX, CSS, JS) and 6,115 lines of documentation. The lockfile, `docs/research/` and generated data (fixture CSV and JSON files, drizzle schema snapshots) are excluded. Run `pnpm stats` for current numbers.
+### Stats (v0.18.1)
+559 files and **105,495 lines** in git: 96,118 lines of code (TypeScript, TSX, CSS, JS) and 6,162 lines of documentation. The lockfile, `docs/research/` and generated data (fixture CSV and JSON files, drizzle schema snapshots) are excluded. Run `pnpm stats` for current numbers.
 
 ### License, data and attribution
 - Code is licensed under the [MIT License](LICENSE): © 2026 [emindemirciai](https://github.com/emindemirciai). All copies or substantial portions of the code must include the copyright notice and license text; copying or distributing without them infringes the license and the copyright. The **havayolu** name and logo are not covered by the MIT License; rights reserved. The same notice appears in the page source of the site.

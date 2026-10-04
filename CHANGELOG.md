@@ -8,7 +8,25 @@
 
 ---
 
-## v0.18.0 — 2026-10-04
+## v0.18.1 — 2026-10-04
+
+### Türkçe
+**Daha az veri, daha hızlı harita**
+
+- Sunucunun gönderdiği veriler artık sıkıştırılıyor: haritanın yüklediği havalimanı listesi 110 KB yerine yaklaşık 24 KB, havalimanı sayfasındaki 24 saatlik METAR/TAF kaydı 65 KB yerine yaklaşık 3 KB. Harita ve sayfalar özellikle mobil bağlantıda daha hızlı açılır.
+
+Dene: [Canlı harita](/) · [İstanbul Havalimanı](/istasyon/LTFM)
+
+### English
+**Less data, a faster map**
+
+- Data sent by the server is now compressed: the airport list the map loads is about 24 KB instead of 110 KB, and the 24-hour METAR/TAF history on an airport page about 3 KB instead of 65 KB. The map and pages open faster, especially on mobile connections.
+
+Try it: [Live map](/) · [Istanbul Airport](/istasyon/LTFM)
+
+---
+
+## v0.18.0 — 2026-10-04 22:45 (UTC+3)
 
 ### Türkçe
 **3. halka: 2.000 km’ye kadar 278 havalimanı daha**

@@ -1,3 +1,4 @@
+import { brotliDecompressSync, gunzipSync, gzipSync } from 'node:zlib'
 import { CHANGELOG } from '@havayolu/shared'
 import { afterAll, describe, expect, it } from 'vitest'
 import { allowedOrigins, API_ROBOTS_TAG, API_ROBOTS_TXT } from './app'
@@ -92,6 +93,61 @@ describe('sistem uç noktaları', () => {
   it('bilinmeyen yol 404 döner', async () => {
     const res = await app.inject({ method: 'GET', url: '/yok' })
     expect(res.statusCode).toBe(404)
+  })
+})
+
+describe('yanıt sıkıştırma', () => {
+  it('1 KB üstü gövde istemcinin kabul ettiği biçimde sıkışır (önce br, sonra gzip); içerik aynı', async () => {
+    const plain = await app.inject({ method: 'GET', url: '/openapi.json' })
+    expect(plain.headers['content-encoding']).toBeUndefined()
+    expect(plain.rawPayload.length).toBeGreaterThan(1024)
+
+    const br = await app.inject({
+      method: 'GET',
+      url: '/openapi.json',
+      headers: { 'accept-encoding': 'gzip, deflate, br' },
+    })
+    expect(br.headers['content-encoding']).toBe('br')
+    expect(String(br.headers.vary)).toMatch(/accept-encoding/i)
+    expect(br.rawPayload.length).toBeLessThan(plain.rawPayload.length / 3)
+    expect(brotliDecompressSync(br.rawPayload).toString('utf8')).toBe(plain.body)
+
+    const gzip = await app.inject({
+      method: 'GET',
+      url: '/openapi.json',
+      headers: { 'accept-encoding': 'gzip' },
+    })
+    expect(gzip.headers['content-encoding']).toBe('gzip')
+    expect(gunzipSync(gzip.rawPayload).toString('utf8')).toBe(plain.body)
+    expect(gzip.headers['x-robots-tag']).toBe(API_ROBOTS_TAG)
+  })
+
+  it('küçük gövde ve desteklenmeyen biçim sıkıştırılmaz', async () => {
+    const small = await app.inject({
+      method: 'GET',
+      url: '/health',
+      headers: { 'accept-encoding': 'gzip, br' },
+    })
+    expect(small.headers['content-encoding']).toBeUndefined()
+    expect(small.json()).toMatchObject({ status: 'ok' })
+
+    const deflate = await app.inject({
+      method: 'GET',
+      url: '/openapi.json',
+      headers: { 'accept-encoding': 'deflate' },
+    })
+    expect(deflate.headers['content-encoding']).toBeUndefined()
+  })
+
+  it('sıkıştırılmış istek gövdesi açılmaz', async () => {
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/auth/login',
+      headers: { 'content-type': 'application/json', 'content-encoding': 'gzip' },
+      payload: gzipSync(JSON.stringify({ email: 'a@example.test', password: 'x'.repeat(12) })),
+    })
+    expect(res.statusCode).toBeGreaterThanOrEqual(400)
+    expect(res.statusCode).toBeLessThan(500)
   })
 })
 
