@@ -1,3 +1,4 @@
+import compress from '@fastify/compress'
 import cors from '@fastify/cors'
 import helmet from '@fastify/helmet'
 import rateLimit, { normalizeIP } from '@fastify/rate-limit'
@@ -90,6 +91,9 @@ export async function buildApp(env: Env, deps: AppDeps): Promise<FastifyInstance
   })
 
   await app.register(helmet, { global: true })
+  // 1 KB'tan büyük yanıt gövdeleri br ya da gzip ile sıkıştırılır (toplu hava ~1,3 MB → ~0,1 MB).
+  // İstek gövdeleri açılmaz: API yalnız küçük JSON alır, sıkıştırılmış gövde açılınca şişebilir.
+  await app.register(compress, { encodings: ['br', 'gzip'], globalDecompression: false })
   // 404, 429 ve hata yanıtları dahil her yanıt (onSend hata işleyicisinden sonra da çalışır).
   app.addHook('onSend', async (_request, reply, payload) => {
     reply.header('x-robots-tag', API_ROBOTS_TAG)
