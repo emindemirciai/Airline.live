@@ -123,6 +123,12 @@ export const ROADMAP: readonly Milestone[] = [
     },
   },
   {
+    id: 'p1-m6l',
+    part: '1',
+    status: 'done',
+    title: { tr: 'Yeni logo', en: 'New logo' },
+  },
+  {
     id: 'p1-m7',
     part: '1',
     status: 'planned',

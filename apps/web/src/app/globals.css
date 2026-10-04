@@ -93,22 +93,23 @@ a:focus-visible {
 .brand {
   display: inline-flex;
   align-items: center;
-  gap: 0.6rem;
+  gap: 0.45em;
   font-weight: 800;
   color: var(--header-ink);
   text-decoration: none;
   letter-spacing: 0.01em;
 }
 
-/* Marka işareti: beyaz halka, şerit renginde boşluk, ince açık dış çizgi (lib/seo/brand.ts). */
+/*
+ * Logo işareti (D-086, components/brand/brand-mark.tsx): halkanın içinden geçen uçak, şeritte beyaz
+ * (`currentColor`). Yazının 1,5 katı (16 px yazıda 24 px): satır yüksekliğini (1,55) aşmaz, başlık
+ * şeridi uzamaz. Başlıkta tasarımdaki gibi tam işaret kullanılır; sade işaret yalnızca 32 px ve
+ * altındaki tek başına simgelerdedir (favicon).
+ */
 .brand-mark {
-  width: 14px;
-  height: 14px;
-  border-radius: 50%;
-  border: 3px solid var(--header-ink);
-  box-shadow:
-    0 0 0 3px var(--header),
-    0 0 0 5px var(--line);
+  flex: none;
+  width: 1.5em;
+  height: 1.5em;
 }
 
 .site-nav {

@@ -12,6 +12,7 @@ import { cookies } from 'next/headers'
 import Link from 'next/link'
 import type { ReactNode } from 'react'
 import { AnalyticsConsent, ConsentSettingsButton } from '@/components/analytics-consent'
+import { SiteBrand } from '@/components/brand/site-brand'
 import { CONSENT_COOKIE, parseConsent } from '@/lib/consent'
 import { LanguageToggle } from '@/components/language-toggle'
 import { isAdminPath } from '@/lib/admin-host'
@@ -97,10 +98,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
         <div hidden dangerouslySetInnerHTML={{ __html: sourceNoticeComment(appName(env)) }} />
         <link rel="license" href={PROJECT.licenseUrl} />
         <header className="site-header">
-          <Link href={href('/')} className="brand">
-            <span className="brand-mark" aria-hidden="true" />
-            {appName(env)}
-          </Link>
+          <SiteBrand href={href('/')} name={appName(env)} />
           <nav aria-label={t.nav.mainLabel} className="site-nav">
             <Link href={href('/')} className="site-nav-map">
               {t.nav.map}
