@@ -1,7 +1,13 @@
 import { describe, expect, it } from 'vitest'
 import { metarAgeClass, metarAgeMinutes } from './age'
 import { compassKey, compassKey8 } from './compass'
-import { localDayDifference, localTime, resolveDayTime, resolveHourMinuteAfter } from './time'
+import {
+  localDayDifference,
+  localTime,
+  resolveDayTime,
+  resolveHourMinuteAfter,
+  utcOffsetLabel,
+} from './time'
 
 describe('resolveDayTime', () => {
   const ref = new Date('2026-01-15T13:00:00Z')
@@ -66,6 +72,15 @@ describe('localTime (Europe/Istanbul, Intl)', () => {
     expect(localDayDifference('2026-10-01T12:00:00Z', '2026-10-01T20:59:00Z')).toBe(0)
     expect(localDayDifference('2026-10-01T12:00:00Z', '2026-10-01T21:00:00Z')).toBe(1)
     expect(localDayDifference('2026-10-01T12:00:00Z', '2026-10-03T12:00:00Z')).toBe(2)
+  })
+  it('UTC farkı etiketi: tam saat, yarım saat, eksi U+2212, sıfır', () => {
+    expect(utcOffsetLabel(180)).toBe('UTC+3')
+    expect(utcOffsetLabel(210)).toBe('UTC+3:30')
+    expect(utcOffsetLabel(345)).toBe('UTC+5:45')
+    expect(utcOffsetLabel(-300)).toBe('UTC−5')
+    expect(utcOffsetLabel(-570)).toBe('UTC−9:30')
+    expect(utcOffsetLabel(0)).toBe('UTC')
+    expect(utcOffsetLabel(localTime('2026-10-04T17:27:12Z').utcOffsetMinutes)).toBe('UTC+3')
   })
 })
 

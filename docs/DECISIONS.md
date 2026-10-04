@@ -2,6 +2,47 @@
 
 Her karar tarih, gerekçe ve varsa alternatifiyle yazılır. En yeni karar en üsttedir.
 
+## 2026-10-04 — Yeniliklerde yayın tarihi ve saati
+- **D-091 Yenilikler sayfası her sürümün yayın tarihini saatiyle gösterir. Saat changelog'daki `releasedAt`'tan (sürümün GitHub Release'inin yayımlanma anı) gelir; her yayın adımı önceki sürümün `releasedAt`'ını yazar.**
+  - **Kullanıcı isteği (2026-10-04):** "yeniliklerdeki yayın tarihine tarih ve saat ekle." Sayfa yalnızca günü gösteriyordu ("Yayın tarihi: 4 Ekim 2026").
+  - **Veri:** `ChangelogEntry.releasedAt` isteğe bağlıdır: ISO 8601 UTC, saniyeye kadar, salisesiz (`2026-10-04T17:27:12Z`; GitHub `publishedAt` biçimi). `date` kalır: Türkiye takvim günüdür; site haritasının `lastmod`'u, JSON-LD `dateModified` ve sıralama denetimi onu kullanır. `validateChangelog` (`pnpm changelog:check`, CI) denetler: biçim ve takvimde var olan an; anın İstanbul'daki günü `date`'tir; iki ardışık kayıtta da varsa yeniden eskiye kesin azalır.
+  - **Kaynak:** GitHub Release `publishedAt`. CI'daki `github-release` işi release'i üretim yayını doğrulandıktan sonra açar (D-067). Bu an sürümün canlıya çıkışından birkaç dakika sonradır: birleştirmeden canlıya ~5 dk, release ~10 dk (D-070; v0.17.0'da birleştirme 17:17:12Z, release 17:27:12Z).
+  - **Süreç kuralı:**
+    - Yeni sürüm changelog'a `releasedAt`'sız eklenir; yayın anı birleştirme ve yayından sonra belli olur.
+    - Her yayın adımı, yeni kaydı eklerken önceki sürümün `releasedAt`'ını `gh release view v<önceki> --json publishedAt` ile yazar. Anın İstanbul'daki günü kayıttaki `date`'ten farklıysa `date` düzeltilir.
+    - Birim testi (`packages/shared/src/changelog/changelog.test.ts`) en yeni sürüm dışında her sürümde `releasedAt` olduğunu denetler; unutulursa `pnpm test` kırmızıdır.
+    - Yayına hiç çıkmamış bir sürüm olursa (yayın başarısız, düzeltme sürümü geldi) `releasedAt`'ı yazılmaz; test o sürüm için kararla istisna alır.
+  - **Çalışan sürüm:** `releasedAt`'ı olmayan ve sunucuda çalışan sürüm (`currentVersion()`) için web sunucusunun açılış anı gösterilir (`apps/web/src/lib/server-start.ts`).
+    - Kaynak `performance.timeOrigin`'dir (Node'da sürecin başlangıcı), saniyeye yuvarlanır. Üretimde süreç konteynerle başlar; yeni sürümün yayını konteyneri yeniden kurduğu için bu an sürümün canlıya girdiği andır. Geliştirmede `pnpm dev`'in açılışıdır.
+    - Modül yüklenirken `new Date()` okunmadı: Next.js sayfa modülünü ilk istekte yükler, an ilk ziyaretin saati olurdu.
+    - Sınır: konteyner aynı sürümle yeniden başlarsa (sunucu yeniden açılışı, elle yeniden yayın) sayfa yeni açılış anını gösterir. Bir sonraki yayında `releasedAt` yazılınca an kalıcı olur.
+    - `releasedAt`'ı olmayan ve çalışmayan sürümde yalnızca gün yazılır (`<time datetime="YYYY-MM-DD">`).
+  - **Gösterim:**
+    - Europe/Istanbul, 24 saat. Türkçe "4 Ekim 2026, 20:27 (Türkiye saati)". İlk taslakta yerleşik kısaltma "TSİ" kullanılmıştı; `.claude/rules/web-ui.md` sade görünümde kısaltma yasakladığı için açık yazıldı (orkestratör kararı 2026-10-04, kullanıcı o gün soru istemedi). Dilim Türkiye'nin kendisi olduğundan ofset yazılmaz. İngilizce "4 October 2026, 20:27 (UTC+3)"; ofset `Intl`'den gelir (D-084).
+    - Gün de İstanbul takvimindedir: UTC 23:17 ertesi gün 02:17'dir (v0.11.0: "2 Ekim 2026, 02:17 (Türkiye saati)").
+    - Metni `formatReleaseTime` (`@havayolu/i18n`) yazar; şablon `changelog.releasedAtValue` (`{date}, {time} ({zone})`). Dilim etiketi kodda dile göredir (`RELEASE_ZONE`), çünkü iki dilin metinleri aynı yer tutucuları taşımalıdır.
+    - `<time datetime>` ISO anını taşır. "Yayın tarihi:" etiketi `<time>`'ın dışındadır.
+    - Saat sunucuda, mutlak olarak yazılır; istemcide yeniden hesaplanmaz, hidrasyon farkı olmaz. Sayfa istek anında çizilir (`connection()`): build'de üretilseydi derleme anı gömülürdü.
+  - **CHANGELOG.md ve GitHub Release notu:** başlık `## v0.17.0 — 2026-10-04 20:27 (UTC+3)`, notun son satırı `Tarih / Date: 2026-10-04 20:27 (UTC+3)` (`releaseStamp`, iki dilde aynı). Yeni sürümün notu açılırken `releasedAt` henüz yoktur, notta yalnızca gün yazar; GitHub release sayfası yayımlanma anını zaten gösterir. Release başlığı değişmedi.
+  - **Geriye dönük doldurma, v0.5.0 ve sonrası:** GitHub Release `publishedAt` (`gh release list`, 2026-10-04). TSİ ile:
+    - 4 Ekim: v0.17.0 20:27, v0.16.1 17:25, v0.16.0 16:40
+    - 3 Ekim: v0.15.0 20:25, v0.14.1 19:55, v0.14.0 19:36, v0.13.1 18:09, v0.13.0 02:47
+    - 2 Ekim: v0.12.0 23:46, v0.11.0 02:17
+    - 1 Ekim: v0.10.0 01:49
+    - 30 Eylül: v0.9.0 23:50
+    - 29 Eylül: v0.8.0 00:32
+    - 28 Eylül: v0.7.1 22:49, v0.7.0 09:58
+    - 27 Eylül: v0.6.0 12:24, v0.5.2 11:30, v0.5.1 10:59, v0.5.0 10:37
+  - **Geriye dönük doldurma, v0.1.0–v0.4.0:**
+    - Bu release'ler 2026-09-27 07:15–07:16Z'de toplu açıldı (D-067); `publishedAt` yayın anı değildir.
+    - Yerine sürümün `main`'e girdiği an yazıldı: kök `package.json`'u o sürümü taşıyan, `main`'deki ilk commit'in committer saati (`git log --first-parent main -- package.json`). v0.1.0'da `package.json` yoktu; `CHANGELOG.md`'yi v0.1.0 ile getiren ilk commit kullanıldı (`9996ec1`).
+    - Anlar GitHub'ın bu release'lere yazdığı `createdAt` ile saniyesi saniyesine aynıdır. TSİ ile: v0.4.0 27 Eylül 08:45 (`8389ef1`, #6); v0.3.2 25 Eylül 21:19 (`95e126a`, #4); v0.3.1 21:19 (`e258b26`, #3); v0.3.0 21:18 (`15d2e64`, #2); v0.2.0 21:16 (`ac71d28`, #1); v0.1.0 18:07 (`9996ec1`).
+    - v0.1.0–v0.3.2 üretime hiç çıkmadı (yalnızca yerel). v0.4.0 2026-09-27'de Dokploy'dan elle yayına alındı; o yayının saati kayıtlı değildir.
+  - **Düzeltilen günler:**
+    - v0.9.0 `2026-09-29` → `2026-09-30`: birleştirme 30 Eylül 23:42, release 23:50 TSİ; kayıt bir gün önce yazılmıştı.
+    - v0.4.0 `2026-09-26` → `2026-09-27`: birleştirme 27 Eylül 08:45 TSİ.
+    - Gün farkı görünen diğerleri doğrudur: v0.13.0, v0.11.0, v0.10.0 ve v0.8.0 UTC'de önceki gün, İstanbul'da gece yarısından sonra yayımlandı.
+
 ## 2026-10-04 — Haritanın atıf şeridinde site künyesi
 - **D-089 Haritanın atıf şeridi sitenin kendi künyesiyle başlar ("havayolu v<sürüm>", Yenilikler bağlantısı); Esri ve ADSB.lol atıfları olduğu gibi kalır.**
   - **Kullanıcı isteği (2026-10-04, şeridin ekran görüntüsüyle: "Powered by Esri | Esri, Vantor, Earthstar Geographics, and the GIS User Community | Canlı uçuş verisi: ADSB.lol — ODbL 1.0 · Koşullar"):** "şuranın başına da site versiyonunu ekle. neden esri yazıyor orada? ben yaptım ya bu siteyi?"

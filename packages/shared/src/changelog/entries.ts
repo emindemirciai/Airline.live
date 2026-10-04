@@ -4,11 +4,32 @@ import type { ChangelogEntry } from './types'
  * Kullanıcıya dönük sürüm notlarının TEK kaynağı. En yeni sürüm en üsttedir.
  * `pnpm changelog` bu listeden CHANGELOG.md üretir; web'deki /yenilikler sayfası da buradan okur.
  * Maddeler teknik ayrıntı değil, kullanıcının ne kazandığını anlatır.
+ *
+ * `releasedAt` (D-091): yeni sürüm onsuz eklenir; bir sonraki sürümün yayın adımında önceki sürümün
+ * GitHub Release `publishedAt` değeri yazılır (`gh release view v<sürüm> --json publishedAt`).
+ * v0.5.0'dan önceki sürümlerin release'leri sonradan toplu açıldığından onlarda `main`'e giriş anı
+ * (birleştirme commit'inin saati; v0.1.0'da ilk commit) yazılıdır.
  */
 export const CHANGELOG: readonly ChangelogEntry[] = [
   {
+    version: '0.17.1',
+    date: '2026-10-04',
+    title: {
+      tr: 'Yeniliklerde yayın tarihi ve saati',
+      en: 'Release date and time on What’s new',
+    },
+    items: [
+      {
+        tr: 'Yenilikler sayfasında her sürümün yanında yayın tarihi ve saati yazıyor: “4 Ekim 2026, 20:27 (Türkiye saati)”. Saatler sürümün canlıya çıkıp doğrulandığı andır; yayındaki son sürümde sunucunun açıldığı an gösterilir.',
+        en: 'The What’s new page shows each version’s release date and time: “4 October 2026, 20:27 (UTC+3)”. The time is when the version went live and was verified; for the version currently running it is when the server started.',
+      },
+    ],
+    tryLinks: [{ path: '/yenilikler', label: { tr: 'Yenilikler', en: 'What’s new' } }],
+  },
+  {
     version: '0.17.0',
     date: '2026-10-04',
+    releasedAt: '2026-10-04T17:27:12Z',
     title: {
       tr: '2. halka: 1.000 km’ye kadar 89 havalimanı daha',
       en: 'Ring 2: 89 more airports up to 1,000 km',
@@ -39,6 +60,7 @@ export const CHANGELOG: readonly ChangelogEntry[] = [
   {
     version: '0.16.1',
     date: '2026-10-04',
+    releasedAt: '2026-10-04T14:25:25Z',
     title: {
       tr: 'Derecelendirilmiş rüzgâr renkleri',
       en: 'Graded wind colours',
@@ -56,6 +78,7 @@ export const CHANGELOG: readonly ChangelogEntry[] = [
   {
     version: '0.16.0',
     date: '2026-10-04',
+    releasedAt: '2026-10-04T13:40:19Z',
     title: {
       tr: 'Uçak listesi sağ üstte; kuyruk tescili, konum ve durum',
       en: 'Aircraft list at the top right with tail number, location and status',
@@ -83,6 +106,7 @@ export const CHANGELOG: readonly ChangelogEntry[] = [
   {
     version: '0.15.0',
     date: '2026-10-03',
+    releasedAt: '2026-10-03T17:25:49Z',
     title: {
       tr: 'Yeni logo: halkanın içinden geçen uçak',
       en: 'New logo: a plane flying through the ring',
@@ -98,6 +122,7 @@ export const CHANGELOG: readonly ChangelogEntry[] = [
   {
     version: '0.14.1',
     date: '2026-10-03',
+    releasedAt: '2026-10-03T16:55:39Z',
     title: {
       tr: 'Rüzgâr renkleri ve rüzgâr kesmesi uyarısı',
       en: 'Wind colours and wind shear warnings',
@@ -124,6 +149,7 @@ export const CHANGELOG: readonly ChangelogEntry[] = [
   {
     version: '0.14.0',
     date: '2026-10-03',
+    releasedAt: '2026-10-03T16:36:36Z',
     title: {
       tr: 'Doğru havalimanı adları, haritada ad etiketi ve yurt dışında yerel saat',
       en: 'Correct airport names, name labels on the map and local time abroad',
@@ -154,6 +180,7 @@ export const CHANGELOG: readonly ChangelogEntry[] = [
   {
     version: '0.13.1',
     date: '2026-10-03',
+    releasedAt: '2026-10-03T15:09:35Z',
     title: {
       tr: 'Havalimanı penceresi hizalı tablo oldu',
       en: 'The airport window is now a neatly aligned table',
@@ -178,6 +205,7 @@ export const CHANGELOG: readonly ChangelogEntry[] = [
   {
     version: '0.13.0',
     date: '2026-10-03',
+    releasedAt: '2026-10-02T23:47:09Z',
     title: {
       tr: 'Rüzgâr knot ile, şimşek ve yıldırım uyarısı, ortalı havalimanı penceresi',
       en: 'Wind in knots, lightning warnings and a centred airport window',
@@ -214,6 +242,7 @@ export const CHANGELOG: readonly ChangelogEntry[] = [
   {
     version: '0.12.0',
     date: '2026-10-02',
+    releasedAt: '2026-10-02T20:46:59Z',
     title: {
       tr: 'Yakın ülkelerdeki havalimanları ve yeni turkuaz görünüm',
       en: 'Airports in nearby countries and a new turquoise look',
@@ -249,6 +278,7 @@ export const CHANGELOG: readonly ChangelogEntry[] = [
   {
     version: '0.11.0',
     date: '2026-10-02',
+    releasedAt: '2026-10-01T23:17:49Z',
     title: {
       tr: 'Havalimanlarında canlı hava durumu ve haritada havalimanı penceresi',
       en: 'Live airport weather and an airport window on the map',
@@ -286,6 +316,7 @@ export const CHANGELOG: readonly ChangelogEntry[] = [
   {
     version: '0.10.0',
     date: '2026-10-01',
+    releasedAt: '2026-09-30T22:49:10Z',
     title: {
       tr: 'Havalimanı sayfaları ve İngilizce adresler',
       en: 'Airport pages and English addresses',
@@ -320,7 +351,8 @@ export const CHANGELOG: readonly ChangelogEntry[] = [
   },
   {
     version: '0.9.0',
-    date: '2026-09-29',
+    date: '2026-09-30',
+    releasedAt: '2026-09-30T20:50:22Z',
     title: {
       tr: 'Ana sayfa artık canlı uçuş haritası',
       en: 'The home page is now a live flight map',
@@ -355,6 +387,7 @@ export const CHANGELOG: readonly ChangelogEntry[] = [
   {
     version: '0.8.0',
     date: '2026-09-29',
+    releasedAt: '2026-09-28T21:32:45Z',
     title: {
       tr: 'Canlı uçuş verisi artık uygulamalara akıyor',
       en: 'Live flight data now flows to the apps',
@@ -381,6 +414,7 @@ export const CHANGELOG: readonly ChangelogEntry[] = [
   {
     version: '0.7.1',
     date: '2026-09-28',
+    releasedAt: '2026-09-28T19:49:31Z',
     title: {
       tr: 'Durum sayfasında taşan yazılar düzeltildi',
       en: 'Overflowing text on the status page fixed',
@@ -396,6 +430,7 @@ export const CHANGELOG: readonly ChangelogEntry[] = [
   {
     version: '0.7.0',
     date: '2026-09-28',
+    releasedAt: '2026-09-28T06:58:50Z',
     title: {
       tr: 'Türkiye üzerindeki uçaklar sürekli izleniyor',
       en: 'Aircraft over Türkiye are tracked continuously',
@@ -423,6 +458,7 @@ export const CHANGELOG: readonly ChangelogEntry[] = [
   {
     version: '0.6.0',
     date: '2026-09-27',
+    releasedAt: '2026-09-27T09:24:58Z',
     title: {
       tr: 'Canlı uçuş verisinin altyapısı',
       en: 'Groundwork for live flight data',
@@ -449,6 +485,7 @@ export const CHANGELOG: readonly ChangelogEntry[] = [
   {
     version: '0.5.2',
     date: '2026-09-27',
+    releasedAt: '2026-09-27T08:30:24Z',
     title: {
       tr: 'Onaylanan her değişiklik kendiliğinden yayında',
       en: 'Every approved change goes live on its own',
@@ -463,6 +500,7 @@ export const CHANGELOG: readonly ChangelogEntry[] = [
   {
     version: '0.5.1',
     date: '2026-09-27',
+    releasedAt: '2026-09-27T07:59:22Z',
     title: {
       tr: 'Yönetici anahtarı kuralı ve daha dayanıklı sunucu',
       en: 'Admin key rule and a sturdier server',
@@ -481,6 +519,7 @@ export const CHANGELOG: readonly ChangelogEntry[] = [
   {
     version: '0.5.0',
     date: '2026-09-27',
+    releasedAt: '2026-09-27T07:37:53Z',
     title: {
       tr: 'Havalimanı, pist ve havayolu verisi',
       en: 'Airport, runway and airline data',
@@ -522,7 +561,8 @@ export const CHANGELOG: readonly ChangelogEntry[] = [
   },
   {
     version: '0.4.0',
-    date: '2026-09-26',
+    date: '2026-09-27',
+    releasedAt: '2026-09-27T05:45:46Z',
     title: {
       tr: 'Otomatik ve doğrulanan yayın hattı',
       en: 'Automatic, verified release pipeline',
@@ -545,6 +585,7 @@ export const CHANGELOG: readonly ChangelogEntry[] = [
   {
     version: '0.3.2',
     date: '2026-09-25',
+    releasedAt: '2026-09-25T18:19:24Z',
     title: {
       tr: 'Daha güvenli giriş, daha sağlam sunucu, açık kaynak',
       en: 'Safer sign-in, sturdier server, open source',
@@ -571,6 +612,7 @@ export const CHANGELOG: readonly ChangelogEntry[] = [
   {
     version: '0.3.1',
     date: '2026-09-25',
+    releasedAt: '2026-09-25T18:19:09Z',
     title: {
       tr: 'Yeni adımız havayolu, adresimiz havayolu.live',
       en: 'Our new name is havayolu, at havayolu.live',
@@ -589,6 +631,7 @@ export const CHANGELOG: readonly ChangelogEntry[] = [
   {
     version: '0.3.0',
     date: '2026-09-25',
+    releasedAt: '2026-09-25T18:18:53Z',
     title: {
       tr: 'Bütün servisler, yönetim paneli ve onaylı ziyaret analizi',
       en: 'All services, admin panel and consent-based visit analytics',
@@ -619,6 +662,7 @@ export const CHANGELOG: readonly ChangelogEntry[] = [
   {
     version: '0.2.0',
     date: '2026-09-25',
+    releasedAt: '2026-09-25T18:16:07Z',
     title: {
       tr: 'İlk yerel test ortamı: Durum ve Yenilikler sayfaları',
       en: 'First local test environment: Status and What’s new pages',
@@ -657,6 +701,7 @@ export const CHANGELOG: readonly ChangelogEntry[] = [
   {
     version: '0.1.0',
     date: '2026-09-25',
+    releasedAt: '2026-09-25T15:07:08Z',
     title: {
       tr: 'Proje kuruldu ve yol haritası netleşti',
       en: 'Project set up and roadmap defined',

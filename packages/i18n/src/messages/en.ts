@@ -853,6 +853,7 @@ export const en: Messages = {
     current: 'Current version',
     tryIt: 'Try it',
     released: 'Released',
+    releasedAtValue: '{date}, {time} ({zone})',
   },
   admin: {
     title: 'Administration',

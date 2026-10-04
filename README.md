@@ -2,7 +2,7 @@
 
 **[Türkçe](#türkçe) · [English](#english)**
 
-![sürüm](https://img.shields.io/badge/s%C3%BCr%C3%BCm-v0.17.0-blue) ![lisans](https://img.shields.io/badge/lisans-MIT-green) ![durum](https://img.shields.io/badge/durum-geli%C5%9Ftirme-yellow)
+![sürüm](https://img.shields.io/badge/s%C3%BCr%C3%BCm-v0.17.1-blue) ![lisans](https://img.shields.io/badge/lisans-MIT-green) ![durum](https://img.shields.io/badge/durum-geli%C5%9Ftirme-yellow)
 
 ---
 
@@ -14,7 +14,7 @@ Türkiye odaklı sivil havacılık uçuş takip platformu. Canlı harita, uçuş
 
 > **Bilinen sınır:** Kendi ADS-B alıcımız olmadığı için İstanbul Havalimanı'nda iniş anı çoğunlukla doğrudan görülmez. İniş bildirimi çoğu uçuşta "muhtemelen indi (tahmini saat)" olarak ve son sinyalden 1–1,5 dk sonra gelir. Bazı uçuşlarda yalnızca "iniş verisi alınamadı" denebilir.
 
-### Durum — v0.17.0
+### Durum — v0.17.1
 | Alan | Durum |
 |---|---|
 | Yol haritası, veri kaynakları, mimari | ✅ Hazır ve doğrulandı |
@@ -38,6 +38,7 @@ Türkiye odaklı sivil havacılık uçuş takip platformu. Canlı harita, uçuş
 | Askerî ve sivil havalimanı adları TR/EN; haritada havalimanı etiketi (Gizle / Kod); yurt dışında yerel saat ve UTC farkı | ✅ Parça 1 · M6f |
 | Derecelendirilmiş rüzgâr renkleri (yeşilden kırmızıya, Beaufort adlarıyla) ve rüzgâr kesmesi uyarısı | ✅ v0.14.1, v0.16.1 |
 | 2. halka: 1.000 km’ye kadar 89 havalimanı daha (toplam 225); haritanın atıf şeridinde site adı ve sürüm | ✅ Parça 1 · M6g |
+| Yeniliklerde her sürümün yayın tarihi ve saati | ✅ v0.17.1 |
 | Yeni logo (halkanın içinden geçen uçak): başlık, sekme simgesi, uygulama simgeleri, paylaşım görselleri | ✅ Parça 1 · M6l |
 | Uçak listesi sağ üstte: sefer, kuyruk tescili, yükseklik, konum ve tahmini durum (yerde, inişte, yaklaşmada) | ✅ Parça 1 · M6k |
 | 10 km ve iniş bildirimi (web push) | ⏳ Parça 2 · M4 |
@@ -69,8 +70,8 @@ pnpm dev
 - `docs/DEPLOY_DOKPLOY.md`: sunucu (Dokploy) kurulumu, bir kez
 - `docs/DECISIONS.md`: kararlar ve gerekçeleri
 
-### İstatistik (v0.17.0)
-Git'te 548 dosya, **100.712 satır**. Bunun 91.762 satırı kod (TypeScript, TSX, CSS, JS), 5.736 satırı belgedir. Lockfile, `docs/research/` ve elle yazılmayan veri (fixture CSV ve JSON dosyaları, drizzle şema snapshot'ları) hariç tutulur. Güncel değer için `pnpm stats` çalıştır.
+### İstatistik (v0.17.1)
+Git'te 554 dosya, **101.595 satır**. Bunun 92.544 satırı kod (TypeScript, TSX, CSS, JS), 5.837 satırı belgedir. Lockfile, `docs/research/` ve elle yazılmayan veri (fixture CSV ve JSON dosyaları, drizzle şema snapshot'ları) hariç tutulur. Güncel değer için `pnpm stats` çalıştır.
 
 | Alan | Satır |
 |---|---|
@@ -105,7 +106,7 @@ A Türkiye-focused civil aviation flight tracker. It offers a live map and lets 
 
 > **Known limitation:** Without our own ADS-B receiver, the moment of touchdown at Istanbul Airport is usually not observed directly. For most flights the landing alert says "probably landed (estimated time)" and arrives 1–1.5 minutes after the last signal. For some flights it can only say "landing data unavailable".
 
-### Status — v0.17.0
+### Status — v0.17.1
 | Area | Status |
 |---|---|
 | Roadmap, data sources, architecture | ✅ Done and verified |
@@ -129,6 +130,7 @@ A Türkiye-focused civil aviation flight tracker. It offers a live map and lets 
 | Military and civil airport names in TR/EN; airport labels on the map (Hide / Code); local time with UTC offset abroad | ✅ Part 1 · M6f |
 | Graded wind colours (green to red, with Beaufort names) and wind shear warnings | ✅ v0.14.1, v0.16.1 |
 | Ring 2: 89 more airports up to 1,000 km (225 in total); site name and version in the map attribution strip | ✅ Part 1 · M6g |
+| Release date and time for every version on What’s new | ✅ v0.17.1 |
 | New logo (a plane flying through the ring): header, tab icon, app icons, share images | ✅ Part 1 · M6l |
 | Aircraft list at the top right: flight, tail number, altitude, location and estimated status (on ground, landing, approaching) | ✅ Part 1 · M6k |
 | 10 km and landing alerts (web push) | ⏳ Part 2 · M4 |
@@ -160,8 +162,8 @@ Then open `http://localhost:3100/` (live map), `/havalimanlari`, `/istasyon/LTFM
 - `docs/DEPLOY_DOKPLOY.md`: one-time server (Dokploy) setup
 - `docs/DECISIONS.md`: decisions and rationale
 
-### Stats (v0.17.0)
-548 files and **100,712 lines** in git: 91,762 lines of code (TypeScript, TSX, CSS, JS) and 5,736 lines of documentation. The lockfile, `docs/research/` and generated data (fixture CSV and JSON files, drizzle schema snapshots) are excluded. Run `pnpm stats` for current numbers.
+### Stats (v0.17.1)
+554 files and **101,595 lines** in git: 92,544 lines of code (TypeScript, TSX, CSS, JS) and 5,837 lines of documentation. The lockfile, `docs/research/` and generated data (fixture CSV and JSON files, drizzle schema snapshots) are excluded. Run `pnpm stats` for current numbers.
 
 ### License, data and attribution
 - Code is licensed under the [MIT License](LICENSE): © 2026 [emindemirciai](https://github.com/emindemirciai). All copies or substantial portions of the code must include the copyright notice and license text; copying or distributing without them infringes the license and the copyright. The **havayolu** name and logo are not covered by the MIT License; rights reserved. The same notice appears in the page source of the site.

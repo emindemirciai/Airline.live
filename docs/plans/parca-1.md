@@ -29,6 +29,7 @@ Durumlar: `[ ]` başlamadı, `[~]` sürüyor, `[k]` kod bitti ve kullanıcı do�
 | M6k | Uçak listesi sağ üstte: sefer, kuyruk, yükseklik, konum ve durum | `p1/m6k-aircraft-list` | [k] kod bitti; üretimde listenin ve durumların görülmesi bekliyor (ACTIVATION) | #23 |
 | M6e.3 | Derecelendirilmiş rüzgâr renkleri (yama, v0.16.1) | `p1/m6e3-wind-scale` | [x] tamam; üretimde doğrulandı (2026-10-04, v0.16.1): LTFM, LTBA, LGAV kehribar, LTAC sarı, UGTB yeşil-sarı, LTAI yeşil | #24 |
 | M6g | Türkiye dışındaki havalimanları, 2. halka (≤ 1.000 km); haritanın atıf şeridinde site künyesi | `p1/m6g-ring2` | [k] kod bitti; üretimde 225 havalimanı ve HEBA hava durumunun görülmesi bekliyor (ACTIVATION) | #25 |
+| M6e.4 | Yeniliklerde yayın tarihi ve saati (yama, v0.17.1) | `p1/changelog-time` | [k] kod bitti; üretimde yayın saatinin görülmesi bekliyor | #26 |
 | M6h | 3. halka (≤ 2.000 km) — kullanıcı isteğiyle M7a'nın önüne alındı (2026-10-04) | `p1/m6h-ring3` | [ ] | — |
 | M7a | Canlı araçlar: `smoke:live`, `record` | `p1/m7a-live-tools` | [ ] | — |
 | M7b | Kapsama ölçümü ve raporu (`coverage:probe`, `coverage:report`) | `p1/m7b-coverage` | [ ] | — |
@@ -992,6 +993,45 @@ Hedef sürüm 0.17.0 (`main` `a8753e4` = v0.16.1'den). Kararlar D-088'dedir; kur
 - **Birleştirme (2026-10-04):** iki işin çakışan dosyası yoktu; sayılar her yerde 61 + 164 = 225 listelenen, 220 dizine eklenen sayfa, site haritası 450, llms.txt 220 satır. `docs/RUNBOOK.md`'deki saatlik istek sayısı (~28 → ~44) düzeltildi. İlk `ci:full`'da e2e 11 kırmızıydı: (1) web, 136 havalimanlı eski listeyi okuyordu: turbo'nun önbellekten geri yüklediği web derlemesi, Next 16 geliştirme sunucusunun veri önbelleğini (`.next/dev/cache/fetch-cache`) de geri yazıyordu; `turbo.json`'da `!.next/dev/**` (10 test). (2) `live-map.spec.ts`'te canlı veri kesildi ("Bağlantı koptu"): API günlüğünde `/v1/ws` 429, 60 sn'de 32 el sıkışması; geliştirme sunucusunda StrictMode her yüklemede iki el sıkışması açar, Kahire harita testi bütçeyi aştı; `wsRateLimit` üretim dışında 60 (D-088). **`pnpm db:migrate`** (0 yeni) ve **`pnpm ci:full` → yeşil:** birim testleri web 728, shared 616, api 255 (+1), worker 200, providers 121, i18n 96, tools 74, db 47, geo 36, scripts 33; entegrasyon db 83, api 26, worker 12; migration yükseltme 6 → 6; `compose:guard` 8 servis, 64 anahtar; E2E 116/116 (+3: Kahire sayfası TR ve EN, Kahire harita penceresi).
 
 - **Yayın adımı (2026-10-04):** site künyesi dalı (`p1/attrib-version`, D-089) birleştirildi; gözden geçirmenin 6 bulgusunun hiçbiri doğrulanmadı (D-088 önbellek sınırı metni base64 ayrıntısıyla düzeltildi). **`pnpm ci:full` → yeşil:** birim testleri web 736, shared 616, api 255, worker 200, providers 121, i18n 96, tools 74, db 47, geo 36, scripts 33; entegrasyon db 83, api 26, worker 12; E2E 117/117. `pnpm stats` → 548 dosya, 100.712 satır (91.762 kod).
+
+## M6e.4 — Yeniliklerde yayın saati (v0.17.1)
+Onay: 2026-10-04 (kullanıcı isteği: "yeniliklerdeki yayın tarihine tarih ve saat ekle."; yama sürümü, D-082)
+
+Hedef sürüm 0.17.1 (`main` `fb6e0cc` = v0.17.0'dan). Karar D-091'dedir.
+
+**Kapsam:**
+- `ChangelogEntry.releasedAt` (isteğe bağlı, ISO 8601 UTC); `date` kalır. Denetim: biçim, İstanbul'daki günü `date`, yeniden eskiye kesin azalan.
+- Geriye dönük doldurma: v0.5.0 ve sonrası GitHub Release `publishedAt`; v0.1.0–v0.4.0 `main`'e giriş anı (release'leri sonradan toplu açıldı). v0.9.0 ve v0.4.0'ın günü düzeltildi.
+- `/yenilikler` ve `/en/yenilikler`: "Yayın tarihi: 4 Ekim 2026, 20:27 (TSİ)" / "Released: 4 October 2026, 20:27 (UTC+3)", `<time datetime>` ISO anı. Yayın anı henüz yazılmamış çalışan sürümde web sunucusunun açılış anı, yayın anı olmayan diğer sürümlerde yalnızca gün.
+- CHANGELOG.md başlığı ve GitHub Release notunun tarih satırı saati taşır ("2026-10-04 20:27 (UTC+3)").
+- **Yayın adımı kuralı (D-091, bundan sonraki her sürüm):** yeni kayıt `releasedAt`'sız eklenir; aynı adımda önceki sürümün `releasedAt`'ı `gh release view v<önceki> --json publishedAt` ile yazılır, anın İstanbul'daki günü farklıysa `date` düzeltilir, `pnpm changelog` çalıştırılır. Birim testi en yeni sürüm dışında boş `releasedAt` bırakmaz.
+
+**Dosyalar:**
+- `packages/shared/src/changelog/`: `types.ts` (`releasedAt`), `entries.ts` (25 sürümün yayın anı, iki gün düzeltmesi), `index.ts` (`isReleasedAt`, `validateChangelog`, `releaseStamp`, markdown başlığı); `changelog.test.ts`
+- `packages/shared/src/weather/time.ts` (`utcOffsetLabel`, i18n'in `formatUtcOffset`'i ve CHANGELOG.md ortak kullanır), `index.ts`; `time.test.ts`
+- `packages/i18n/src/index.ts` (`formatReleaseTime`, `RELEASE_ZONE`), `weather.ts` (`formatUtcOffset` → `utcOffsetLabel`), `messages/{tr,en}.ts` (`changelog.releasedAtValue`); `i18n.test.ts`
+- `apps/web/src/`: `app/yenilikler/page.tsx` (`connection()`, içerik bileşene taşındı), `components/changelog/changelog-content.tsx` (yeni), `components/changelog/release-time.ts` (yeni: `releaseTime`, `isoInstant`), `lib/server-start.ts` (yeni: `SERVER_STARTED_AT`); `components/changelog/changelog-content.test.ts` (yeni)
+- `scripts/changelog.mts` (`releaseNotes` dışa açıldı, ana işlev koruması), `scripts/changelog.test.mts` (yeni); `CHANGELOG.md` (yeniden üretildi)
+- `e2e/tests/changelog.spec.ts` (yeni)
+- `docs/DECISIONS.md` (D-091)
+
+**Kabul komutları:**
+- `pnpm --filter @havayolu/shared test` → `releasedAt` biçimi (salise, ofset, 31 Eylül, 24:00 reddedilir), İstanbul günü (21:00Z sınırı), kesin azalan sıra, gerçek veride en yeni dışında boş yok, v0.17.0/v0.9.0/v0.4.0/v0.1.0 değerleri, `releaseStamp`, markdown başlığı; `utcOffsetLabel`
+- `pnpm --filter @havayolu/i18n test` → `formatReleaseTime` TR/EN, gece yarısı sonrası gün, 00:00, geçersiz an "—"; yer tutucu eşliği
+- `pnpm --filter @havayolu/web test` → `releaseTime` üç kaynak (yayın anı, sunucu açılışı yalnızca çalışan sürümde, yalnızca gün), `<time dateTime>` ve metin TR/EN, "Güncel sürüm" yalnızca çalışan sürümde, gerçek changelog'un her sürümünde saat
+- `pnpm test:scripts` → CHANGELOG.md kaynağından üretilmiş hâliyle aynı, başlıklarda saat, `--check` geçer, release notunun başlığı aynı ve tarih satırı saatli, `--release 0.17.0` ve bilinmeyen sürüm
+- `pnpm changelog:check`, `pnpm typecheck`, `pnpm typecheck:scripts`, `pnpm lint`, `pnpm typecheck:e2e`, `pnpm lint:e2e`, `pnpm format`, `pnpm check:eol`
+- `pnpm test:e2e` → `changelog.spec.ts`: v0.17.0 "4 Ekim 2026, 20:27 (TSİ)" / "4 October 2026, 20:27 (UTC+3)", v0.11.0 "2 Ekim 2026, 02:17 (TSİ)", her kartta tek `<time>`, ISO anı ile metin aynı an, çalışan sürümün anı geçmişte ve yeniden yüklemede sabit
+- `pnpm ci:full` yeşil; PR'da CI (`e2e` dahil) yeşil
+
+**Çıktı kaydı (2026-10-04, uygulama; sürüm, v0.17.1 kaydı ve README yayın adımındadır):**
+- Yayın anları `gh release list` (2026-10-04) ve `git log --first-parent origin/main -- package.json` ile doğrulandı; tablo D-091'de.
+- Birim testleri: `@havayolu/shared` 624 (+8), `@havayolu/i18n` 97 (+1), `@havayolu/web` 745 (+9), `pnpm test:scripts` 39 (+6).
+- `pnpm changelog` (25 sürüm) ve `pnpm changelog:check`, `pnpm typecheck` (9/9), `pnpm typecheck:scripts`, `pnpm lint` (9/9), `pnpm typecheck:e2e`, `pnpm lint:e2e`, `pnpm format`, `pnpm check:eol` → yeşil.
+- `pnpm test:e2e changelog language` → 18/18 (kurulum 4, `changelog.spec.ts` 3, `language.spec.ts` 11).
+- `pnpm dev` önizlemesi: v0.17.0'ın `releasedAt`'ı geçici olarak silinince kart sunucunun açılış anını gösterdi ("4 Ekim 2026, 20:58 (TSİ)", `datetime` 17:58:06Z; ilk istekten ~8 sn önce, TR ve EN'de ve yeniden yüklemede aynı); geri konunca "4 Ekim 2026, 20:27 (TSİ)". Hidrasyon uyarısı yok.
+
+- **Yayın adımı (2026-10-04):** Türkçe dilim etiketi "TSİ" yerine açık "Türkiye saati" (web-ui kuralı: sade görünümde kısaltma yok). Bağımsız denetim: 25 sürümün saati GitHub kayıtlarıyla birebir, 8 mutasyonun hepsi yakalandı. **`pnpm ci:full` → yeşil:** birim testleri web 745, shared 624, api 255, worker 200, providers 121, i18n 97, tools 74, db 47, geo 36, scripts 39; entegrasyon db 83, api 26, worker 12; E2E 120/120. `pnpm stats` → 554 dosya, 101.595 satır (92.544 kod).
 
 ## M7 — Canlı araçlar ve kapsama raporu
 Ayrıntılar `docs/prompts/parca-1.md`'dedir. Başlarken bu dosyaya dizinler ve kabul komutları eklenir.
