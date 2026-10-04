@@ -27,10 +27,10 @@ Durumlar: `[ ]` başlamadı, `[~]` sürüyor, `[k]` kod bitti ve kullanıcı do�
 | M6e.2 | Rüzgâr renkleri ve rüzgâr kesmesi (yama, v0.14.1) | `p1/m6e2-wind-colors` | [x] tamam; üretimde doğrulandı (2026-10-03, v0.14.1): UGTB, UGKO, LGMK kehribar, LGKP ve LRCK açık yeşil | #21 |
 | M6l | Logo: A · Halka | `p1/m6l-logo` | [x] tamam; üretimde doğrulandı (2026-10-03, v0.15.0): başlıkta yeni işaret, /icon/512 ve /icon/maskable, 512 px simgede kuyruk kırıntısı yok | #22 |
 | M6k | Uçak listesi sağ üstte: sefer, kuyruk, yükseklik, konum ve durum | `p1/m6k-aircraft-list` | [k] kod bitti; üretimde listenin ve durumların görülmesi bekliyor (ACTIVATION) | #23 |
-| M6e.3 | Derecelendirilmiş rüzgâr renkleri (yama, v0.16.1) | `p1/m6e3-wind-scale` | [k] kod bitti; üretimde renklerin görülmesi bekliyor | #24 |
-| M6g | Türkiye dışındaki havalimanları, 2. halka (≤ 1.000 km) | `p1/m6g-ring2` | [~] | — |
+| M6e.3 | Derecelendirilmiş rüzgâr renkleri (yama, v0.16.1) | `p1/m6e3-wind-scale` | [x] tamam; üretimde doğrulandı (2026-10-04, v0.16.1): LTFM, LTBA, LGAV kehribar, LTAC sarı, UGTB yeşil-sarı, LTAI yeşil | #24 |
+| M6g | Türkiye dışındaki havalimanları, 2. halka (≤ 1.000 km); haritanın atıf şeridinde site künyesi | `p1/m6g-ring2` | [k] kod bitti; üretimde 225 havalimanı ve HEBA hava durumunun görülmesi bekliyor (ACTIVATION) | #25 |
+| M6h | 3. halka (≤ 2.000 km) — kullanıcı isteğiyle M7a'nın önüne alındı (2026-10-04) | `p1/m6h-ring3` | [ ] | — |
 | M7a | Canlı araçlar: `smoke:live`, `record` | `p1/m7a-live-tools` | [ ] | — |
-| M6h | 3. halka (≤ 2.000 km) | `p1/m6h-ring3` | [ ] | — |
 | M7b | Kapsama ölçümü ve raporu (`coverage:probe`, `coverage:report`) | `p1/m7b-coverage` | [ ] | — |
 | M6i | 4. halka (≤ 5.000 km); haritada görünür alana göre havalimanı yükleme, AWC toplu dosyası | `p1/m6i-ring4` | [ ] | — |
 | M6j | 5. halka (dünyanın geri kalanı, ABD dahil) | `p1/m6j-ring5` | [ ] | — |
@@ -990,6 +990,8 @@ Hedef sürüm 0.17.0 (`main` `a8753e4` = v0.16.1'den). Kararlar D-088'dedir; kur
 - `pnpm typecheck` (shared, db, api, worker, providers), `pnpm typecheck:scripts`, `pnpm lint` (aynı paketler), `pnpm check:eol` → yeşil.
 - Sayfalar ve testler: birim testleri `@havayolu/web` 728, `@havayolu/i18n` 96; web ve i18n typecheck ve lint, `pnpm typecheck:e2e`, `pnpm lint:e2e` → yeşil. Paylaşım görseli testi 225 yerine 33 görsel çizer (~1,6 sn; hepsi ~9 sn sürerdi). e2e `ci:full`'da birleştirici çalıştırır.
 - **Birleştirme (2026-10-04):** iki işin çakışan dosyası yoktu; sayılar her yerde 61 + 164 = 225 listelenen, 220 dizine eklenen sayfa, site haritası 450, llms.txt 220 satır. `docs/RUNBOOK.md`'deki saatlik istek sayısı (~28 → ~44) düzeltildi. İlk `ci:full`'da e2e 11 kırmızıydı: (1) web, 136 havalimanlı eski listeyi okuyordu: turbo'nun önbellekten geri yüklediği web derlemesi, Next 16 geliştirme sunucusunun veri önbelleğini (`.next/dev/cache/fetch-cache`) de geri yazıyordu; `turbo.json`'da `!.next/dev/**` (10 test). (2) `live-map.spec.ts`'te canlı veri kesildi ("Bağlantı koptu"): API günlüğünde `/v1/ws` 429, 60 sn'de 32 el sıkışması; geliştirme sunucusunda StrictMode her yüklemede iki el sıkışması açar, Kahire harita testi bütçeyi aştı; `wsRateLimit` üretim dışında 60 (D-088). **`pnpm db:migrate`** (0 yeni) ve **`pnpm ci:full` → yeşil:** birim testleri web 728, shared 616, api 255 (+1), worker 200, providers 121, i18n 96, tools 74, db 47, geo 36, scripts 33; entegrasyon db 83, api 26, worker 12; migration yükseltme 6 → 6; `compose:guard` 8 servis, 64 anahtar; E2E 116/116 (+3: Kahire sayfası TR ve EN, Kahire harita penceresi).
+
+- **Yayın adımı (2026-10-04):** site künyesi dalı (`p1/attrib-version`, D-089) birleştirildi; gözden geçirmenin 6 bulgusunun hiçbiri doğrulanmadı (D-088 önbellek sınırı metni base64 ayrıntısıyla düzeltildi). **`pnpm ci:full` → yeşil:** birim testleri web 736, shared 616, api 255, worker 200, providers 121, i18n 96, tools 74, db 47, geo 36, scripts 33; entegrasyon db 83, api 26, worker 12; E2E 117/117. `pnpm stats` → 548 dosya, 100.712 satır (91.762 kod).
 
 ## M7 — Canlı araçlar ve kapsama raporu
 Ayrıntılar `docs/prompts/parca-1.md`'dedir. Başlarken bu dosyaya dizinler ve kabul komutları eklenir.

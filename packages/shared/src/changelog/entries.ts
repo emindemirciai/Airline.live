@@ -7,6 +7,36 @@ import type { ChangelogEntry } from './types'
  */
 export const CHANGELOG: readonly ChangelogEntry[] = [
   {
+    version: '0.17.0',
+    date: '2026-10-04',
+    title: {
+      tr: '2. halka: 1.000 km’ye kadar 89 havalimanı daha',
+      en: 'Ring 2: 89 more airports up to 1,000 km',
+    },
+    items: [
+      {
+        tr: 'Türkiye’deki en yakın havalimanına 500 ile 1.000 km arasındaki 89 havalimanı eklendi: Kahire, İskenderiye, Belgrad, Budapeşte, Bükreş, Kişinev, Tiran, Korfu, Kuveyt, Tahran ve diğerleri. Her birinin Türkçe adı, sayfası, pistleri, canlı hava durumu ve yerel saati var. Listede artık 225 havalimanı var.',
+        en: 'Added 89 airports between 500 and 1,000 km from the nearest airport in Türkiye: Cairo, Alexandria, Belgrade, Budapest, Bucharest, Chișinău, Tirana, Corfu, Kuwait, Tehran and others. Each has its page, runways, live weather and local time. The list now holds 225 airports.',
+      },
+      {
+        tr: 'Liste sayfasındaki başlık artık “Türkiye dışındaki havalimanları”. İskenderiye’nin kaynaktaki hatalı kodu düzeltildi (HEBA), boş yinelenen pist satırları gösterilmiyor.',
+        en: 'The list page heading is now “Airports outside Türkiye”. Alexandria’s wrong code in the source data is corrected (HEBA), and empty duplicate runway rows are hidden.',
+      },
+      {
+        tr: 'Haritanın alt köşesindeki atıf şeridi artık “havayolu” ve sitenin sürümüyle başlıyor; tıklayınca Yenilikler açılır. Uydu görüntüsü (Esri) ve canlı uçuş verisi (ADSB.lol) atıfları lisans gereği yerinde kalıyor.',
+        en: 'The attribution strip at the bottom of the map now starts with “havayolu” and the site version, linking to What’s new. The satellite imagery (Esri) and live flight data (ADSB.lol) credits stay, as their licences require.',
+      },
+      {
+        tr: 'Havalimanı sayfasının uzman bölümünde yalnızca yürürlükteki TAF tahminleri gösterilir; eskileri METAR/TAF kaydında kalır.',
+        en: 'The expert section of the airport page shows only TAFs still in force; older ones remain in the METAR/TAF log.',
+      },
+    ],
+    tryLinks: [
+      { path: '/havalimanlari', label: { tr: 'Havalimanları', en: 'Airports' } },
+      { path: '/istasyon/HECA', label: { tr: 'Kahire Havalimanı', en: 'Cairo Airport' } },
+    ],
+  },
+  {
     version: '0.16.1',
     date: '2026-10-04',
     title: {

@@ -8,6 +8,30 @@
 
 ---
 
+## v0.17.0 — 2026-10-04
+
+### Türkçe
+**2. halka: 1.000 km’ye kadar 89 havalimanı daha**
+
+- Türkiye’deki en yakın havalimanına 500 ile 1.000 km arasındaki 89 havalimanı eklendi: Kahire, İskenderiye, Belgrad, Budapeşte, Bükreş, Kişinev, Tiran, Korfu, Kuveyt, Tahran ve diğerleri. Her birinin Türkçe adı, sayfası, pistleri, canlı hava durumu ve yerel saati var. Listede artık 225 havalimanı var.
+- Liste sayfasındaki başlık artık “Türkiye dışındaki havalimanları”. İskenderiye’nin kaynaktaki hatalı kodu düzeltildi (HEBA), boş yinelenen pist satırları gösterilmiyor.
+- Haritanın alt köşesindeki atıf şeridi artık “havayolu” ve sitenin sürümüyle başlıyor; tıklayınca Yenilikler açılır. Uydu görüntüsü (Esri) ve canlı uçuş verisi (ADSB.lol) atıfları lisans gereği yerinde kalıyor.
+- Havalimanı sayfasının uzman bölümünde yalnızca yürürlükteki TAF tahminleri gösterilir; eskileri METAR/TAF kaydında kalır.
+
+Dene: [Havalimanları](/havalimanlari) · [Kahire Havalimanı](/istasyon/HECA)
+
+### English
+**Ring 2: 89 more airports up to 1,000 km**
+
+- Added 89 airports between 500 and 1,000 km from the nearest airport in Türkiye: Cairo, Alexandria, Belgrade, Budapest, Bucharest, Chișinău, Tirana, Corfu, Kuwait, Tehran and others. Each has its page, runways, live weather and local time. The list now holds 225 airports.
+- The list page heading is now “Airports outside Türkiye”. Alexandria’s wrong code in the source data is corrected (HEBA), and empty duplicate runway rows are hidden.
+- The attribution strip at the bottom of the map now starts with “havayolu” and the site version, linking to What’s new. The satellite imagery (Esri) and live flight data (ADSB.lol) credits stay, as their licences require.
+- The expert section of the airport page shows only TAFs still in force; older ones remain in the METAR/TAF log.
+
+Try it: [Airports](/havalimanlari) · [Cairo Airport](/istasyon/HECA)
+
+---
+
 ## v0.16.1 — 2026-10-04
 
 ### Türkçe
