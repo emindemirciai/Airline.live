@@ -59,6 +59,22 @@ describe('lisans kaydı', () => {
     expect(awc.rateLimit).toMatch(/User-Agent/)
   })
 
+  it('OpenFreeMap kaydı (altlık ve uydudaki ülke sınırları, D-092): ticari, OSM atfı, toplu indirme yasak', () => {
+    const ofm = PROVIDER_LICENSES.openFreeMap
+    expect(Object.keys(ofm).sort()).toEqual(Object.keys(PROVIDER_LICENSES.ourAirports).sort())
+    expect(ofm).toMatchObject({
+      commercialUse: true,
+      shareAlike: 'none',
+      b2cDisplayAllowed: true,
+      mixingWithOtherRealtimeAllowed: true,
+      maxRawStorageDays: null,
+    })
+    // Zorunlu kısım "© OpenMapTiles Data from OpenStreetMap"; OpenFreeMap tavsiye edilir.
+    expect(ofm.attribution.text).toBe('OpenFreeMap © OpenMapTiles Data from OpenStreetMap')
+    expect(ofm.license).toContain('ODbL')
+    expect(ofm.rateLimit).toMatch(/toplu indirme yasak/)
+  })
+
   it('adsb.lol hız sınırı notu D-073 kova değerlerini yazar', () => {
     expect(PROVIDER_LICENSES.adsbLol.rateLimit).toBe(
       'dinamik; 429 Retry-After taşımaz; başlangıç 0,1 istek/sn (alt 0,05, üst 0,2) + AIMD',

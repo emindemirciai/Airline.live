@@ -8,7 +8,25 @@
 
 ---
 
-## v0.17.1 — 2026-10-04
+## v0.17.2 — 2026-10-04
+
+### Türkçe
+**Haritada kesikli ülke sınırları**
+
+- Uydu haritasında ülke sınırları beyaz kesikli çizgiyle ve koyu bir kenarla belirgin; tartışmalı sınırlar noktalı. Deniz sınırları ve il sınırları çizilmez. Sınır verisi OpenStreetMap’ten (OpenFreeMap) gelir; atıfı haritanın alt şeridindedir.
+
+Dene: [Canlı harita](/)
+
+### English
+**Dashed country borders on the map**
+
+- Country borders now stand out on the satellite map as white dashed lines with a dark edge; disputed borders are dotted. Sea and province borders are not drawn. Border data comes from OpenStreetMap (OpenFreeMap), credited in the strip at the bottom of the map.
+
+Try it: [Live map](/)
+
+---
+
+## v0.17.1 — 2026-10-04 21:36 (UTC+3)
 
 ### Türkçe
 **Yeniliklerde yayın tarihi ve saati**

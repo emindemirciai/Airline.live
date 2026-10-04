@@ -98,6 +98,12 @@ export const PROVIDER_LICENSES = {
     mixingWithOtherRealtimeAllowed: true,
     maxRawStorageDays: null,
   },
+  /**
+   * Harita (data-sources.md §6): vektör altlık (koyu stil) ve uydunun üstündeki kesikli ülke
+   * sınırları (D-092, TileJSON `tiles.openfreemap.org/planet`, `boundary` katmanı). Karoları
+   * tarayıcı doğrudan çeker; worker ve API aracılık etmez, karo saklanmaz. OSM verisinin ODbL
+   * paylaşım şartı türetilmiş veritabanı içindir; karolar yalnızca çizilir (üretilmiş eser).
+   */
   openFreeMap: {
     id: 'openFreeMap',
     name: 'OpenFreeMap',

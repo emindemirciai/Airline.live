@@ -6,10 +6,23 @@
  *
  * Denetleyici MapLibre'ye bağlı değildir: harita olaylarını çağıran iletir, stil değişimini
  * `apply` ile ister. Böylece zincir sahte zamanlayıcıyla test edilir.
+ *
+ * Ülke sınırları (D-092) uydu ve vektör adımlarında kesikli çizilir: uydu stiline OpenFreeMap'ten
+ * ayrı bir vektör kaynak eklenir, indirilen OpenMapTiles stilinde `boundary` katmanları aynı
+ * katmanlarla değiştirilir. Yerel stilde ve düz arka planda sınır yoktur (dış istek gitmez).
  */
 import type { Map as MaplibreMap } from 'maplibre-gl'
-import { MAP_COLORS } from '@havayolu/shared'
-import { OPENFREEMAP_ATTRIBUTION, type Basemap } from '../../lib/map-config'
+import {
+  AIRCRAFT_SOURCE_ID,
+  AIRPORT_SOURCE_ID,
+  COUNTRY_BORDER_SOURCE_ID,
+  COUNTRY_BORDER_SOURCE_LAYER,
+  MAP_COLORS,
+  TRAIL_SOURCE_ID,
+  countryBorderLayers,
+  countryBorderSource,
+} from '@havayolu/shared'
+import { OPENFREEMAP_ATTRIBUTION, type Basemap, type CountryBorders } from '../../lib/map-config'
 
 /** MapLibre stil belirtimi (style-spec `StyleSpecification`; maplibre-gl bunu dışa aktarmaz). */
 export type MapStyle = Exclude<Parameters<MaplibreMap['setStyle']>[0], string | null>
@@ -24,12 +37,31 @@ export interface BasemapStep {
    * kalır. Böylece aynı atıf haritada iki kez görünmez.
    */
   attribution: string | null
+  /**
+   * Ülke sınırları bu adımda kesikli çizilir (D-092). Uydu stilinde sınır kaynağı ve katmanları
+   * stil nesnesinin içindedir; indirilen stilde OpenMapTiles `boundary` katmanları bizimkilerle
+   * değiştirilir (`withCountryBorders`). Yerel stil ve düz arka planda false.
+   */
+  countryBorders: boolean
   /** Zincirin sonu: düz arka plan, altlık yüklenemedi. */
   plain: boolean
 }
 
 /** Uydu raster kaynağının kimliği. */
 export const SATELLITE_SOURCE_ID = 'satellite'
+
+/**
+ * Altlık zincirinin hata sayımına girmeyen kaynaklar: kendi GeoJSON kaynaklarımız ve uydunun
+ * üstündeki sınır kaynağı (D-092). OpenFreeMap'in TileJSON'u ya da karoları yüklenemezse uydu
+ * yerinde kalır, yalnızca sınırlar çizilmez. OpenFreeMap stilinde sınırlar altlığın kendi
+ * kaynağındandır; onun hataları yine altlığındır.
+ */
+export const NON_BASEMAP_SOURCES: ReadonlySet<string> = new Set([
+  AIRCRAFT_SOURCE_ID,
+  AIRPORT_SOURCE_ID,
+  TRAIL_SOURCE_ID,
+  COUNTRY_BORDER_SOURCE_ID,
+])
 
 /** Yolları taşıyan OpenMapTiles katmanları; `aeroway` (pist, apron) görünür kalır. */
 export const ROAD_SOURCE_LAYERS: ReadonlySet<string> = new Set([
@@ -43,27 +75,72 @@ const backgroundLayer = {
   paint: { 'background-color': MAP_COLORS.background },
 } as const
 
+type StyleLayers = MapStyle['layers']
+
+/** Paylaşılan sınır katmanları (`@havayolu/shared`, style-spec JSON'unun alt kümesi). */
+function borderLayers(source: string): StyleLayers {
+  return countryBorderLayers(source) as StyleLayers
+}
+
 /**
  * Esri World Imagery raster stili (D-075 §1). Glif ve sprite yoktur; kendi katmanlarımız metin
  * kullanmaz. Atıf kaynağın üstündedir, yalnızca uydu görünürken çıkar.
+ *
+ * `borders` verilirse görüntünün üstüne OpenFreeMap'in vektör karolarından kesikli ülke sınırları
+ * çizilir (D-092): kaynak `COUNTRY_BORDER_SOURCE_ID`, katmanlar görüntüden hemen sonra (uçak, iz ve
+ * havalimanı katmanları stil yüklenince bunların üstüne eklenir). Sınır kaynağının atfı
+ * (OpenFreeMap © OpenMapTiles, OpenStreetMap) yalnızca sınır katmanları çizilirken şeride girer.
  */
-export function satelliteStyle(tilesUrl: string, attribution: string): MapStyle {
-  return {
-    version: 8,
-    sources: {
-      [SATELLITE_SOURCE_ID]: {
-        type: 'raster',
-        tiles: [tilesUrl],
-        tileSize: 256,
-        maxzoom: 19,
-        attribution,
-      },
+export function satelliteStyle(
+  tilesUrl: string,
+  attribution: string,
+  borders: CountryBorders | null,
+): MapStyle {
+  const sources: MapStyle['sources'] = {
+    [SATELLITE_SOURCE_ID]: {
+      type: 'raster',
+      tiles: [tilesUrl],
+      tileSize: 256,
+      maxzoom: 19,
+      attribution,
     },
-    layers: [
-      backgroundLayer,
-      { id: SATELLITE_SOURCE_ID, type: 'raster', source: SATELLITE_SOURCE_ID },
-    ],
   }
+  const layers: StyleLayers = [
+    backgroundLayer,
+    { id: SATELLITE_SOURCE_ID, type: 'raster', source: SATELLITE_SOURCE_ID },
+  ]
+  if (borders) {
+    sources[COUNTRY_BORDER_SOURCE_ID] = countryBorderSource(borders.url, borders.attribution)
+    layers.push(...borderLayers(COUNTRY_BORDER_SOURCE_ID))
+  }
+  return { version: 8, sources, layers }
+}
+
+/** OpenMapTiles `boundary` katmanından çizilen çizgi katmanı mı (ülke, il, deniz sınırı)? */
+function isBoundaryLine(layer: object): boolean {
+  const { type, 'source-layer': sourceLayer } = layer as {
+    type?: unknown
+    'source-layer'?: unknown
+  }
+  return type === 'line' && sourceLayer === COUNTRY_BORDER_SOURCE_LAYER
+}
+
+/**
+ * İndirilen OpenMapTiles stilinde (OpenFreeMap koyu stili) sınırları uydudakiyle aynı kesikli
+ * katmanlara çevirir (D-092): `boundary` katmanından çizilen bütün çizgi katmanları (ülke ve il
+ * sınırları) çıkar, yerlerine ilkinin sırasında ve onun kaynağıyla bizim üç katmanımız girer. Böylece
+ * sınırlar yer adlarının altında, yolların ve suyun üstünde kalır. `boundary` katmanı olmayan stil
+ * (yerel test stili, Protomaps şeması) olduğu gibi döner. Aynı stile ikinci kez uygulanması bir şey
+ * değiştirmez.
+ */
+export function withCountryBorders(style: MapStyle): MapStyle {
+  const index = style.layers.findIndex(isBoundaryLine)
+  const first = style.layers[index] as { source?: unknown } | undefined
+  if (!first || typeof first.source !== 'string') return style
+  // İlk sınır katmanından öncekiler yerinde kalır; yeni katmanlar süzülmüş listede aynı sıraya girer.
+  const layers = style.layers.filter((layer) => !isBoundaryLine(layer))
+  layers.splice(index, 0, ...borderLayers(first.source))
+  return { ...style, layers }
 }
 
 /** Zincirin son adımı: tek bir koyu arka plan katmanı (dış istek yok). */
@@ -78,6 +155,7 @@ export function plainStyle(): MapStyle {
  * - vektör → `MAP_STYLE_FALLBACK_URL` (varsa) → düz arka plan
  * - yerel stil (geliştirme, test) → düz arka plan
  *
+ * Ülke sınırları uydu ve vektör adımlarında açıktır; yerel stil ve düz arka planda kapalıdır.
  * `resolveUrl` göreli stil adresini (`/test-style.json`) sayfaya göre mutlaklaştırır.
  */
 export function basemapSteps(basemap: Basemap, resolveUrl: (url: string) => string): BasemapStep[] {
@@ -85,9 +163,10 @@ export function basemapSteps(basemap: Basemap, resolveUrl: (url: string) => stri
   switch (basemap.kind) {
     case 'satellite':
       steps.push({
-        style: satelliteStyle(basemap.tilesUrl, basemap.attribution),
+        style: satelliteStyle(basemap.tilesUrl, basemap.attribution, basemap.countryBorders),
         hideRoads: false,
         attribution: null,
+        countryBorders: true,
         plain: false,
       })
       if (basemap.fallbackStyleUrl) {
@@ -95,6 +174,7 @@ export function basemapSteps(basemap: Basemap, resolveUrl: (url: string) => stri
           style: resolveUrl(basemap.fallbackStyleUrl),
           hideRoads: basemap.hideRoads,
           attribution: OPENFREEMAP_ATTRIBUTION,
+          countryBorders: true,
           plain: false,
         })
       }
@@ -104,6 +184,7 @@ export function basemapSteps(basemap: Basemap, resolveUrl: (url: string) => stri
           style: resolveUrl(basemap.vectorFallbackStyleUrl),
           hideRoads: basemap.hideRoads,
           attribution: null,
+          countryBorders: true,
           plain: false,
         })
       }
@@ -113,6 +194,7 @@ export function basemapSteps(basemap: Basemap, resolveUrl: (url: string) => stri
         style: resolveUrl(basemap.styleUrl),
         hideRoads: basemap.hideRoads,
         attribution: basemap.attribution,
+        countryBorders: true,
         plain: false,
       })
       if (basemap.fallbackStyleUrl) {
@@ -120,6 +202,7 @@ export function basemapSteps(basemap: Basemap, resolveUrl: (url: string) => stri
           style: resolveUrl(basemap.fallbackStyleUrl),
           hideRoads: basemap.hideRoads,
           attribution: null,
+          countryBorders: true,
           plain: false,
         })
       }
@@ -129,12 +212,28 @@ export function basemapSteps(basemap: Basemap, resolveUrl: (url: string) => stri
         style: resolveUrl(basemap.styleUrl),
         hideRoads: false,
         attribution: basemap.attribution === '' ? null : basemap.attribution,
+        countryBorders: false,
         plain: false,
       })
       break
   }
-  steps.push({ style: plainStyle(), hideRoads: false, attribution: null, plain: true })
+  steps.push({
+    style: plainStyle(),
+    hideRoads: false,
+    attribution: null,
+    countryBorders: false,
+    plain: true,
+  })
   return steps
+}
+
+/**
+ * İndirilen adım stilini haritaya hazırlar: sınırlar kesikli çizgiye çevrilir (adımda açıksa),
+ * sonra karo kaynaklarının atfı adımın atfıyla değiştirilir (varsa).
+ */
+export function prepareFetchedStyle(style: MapStyle, step: BasemapStep): MapStyle {
+  const bordered = step.countryBorders ? withCountryBorders(style) : style
+  return step.attribution === null ? bordered : withAttribution(bordered, step.attribution)
 }
 
 /** Yol katmanlarının kimlikleri (`source-layer` transportation ya da transportation_name). */

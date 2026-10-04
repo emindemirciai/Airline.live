@@ -41,9 +41,10 @@ import {
   BasemapController,
   basemapSteps,
   fetchStyle,
+  NON_BASEMAP_SOURCES,
   plainStyle,
+  prepareFetchedStyle,
   roadLayerIds,
-  withAttribution,
   type BasemapErrorEvent,
   type BasemapStep,
   type MapStyle,
@@ -97,12 +98,6 @@ const ICON_RADIUS = 14
 const TRAIL_SAMPLE_PX = 6
 /** Çakışma denetimine giren en fazla iz noktası. */
 const TRAIL_SAMPLE_LIMIT = 2_000
-
-const OVERLAY_SOURCES: ReadonlySet<string> = new Set([
-  AIRCRAFT_SOURCE_ID,
-  AIRPORT_SOURCE_ID,
-  TRAIL_SOURCE_ID,
-])
 
 type MaplibreMap = Maplibre.Map
 type GeoJSONSource = Maplibre.GeoJSONSource
@@ -423,8 +418,9 @@ export class MapController {
       steps: basemapSteps(this.options.basemap, (url) => new URL(url, window.location.href).href),
       apply: (step) => this.applyBasemap(map, step),
       onFailedChange: (failed) => this.options.onBasemapFailedChange(failed),
+      // Kendi katmanlarımızın ve uydunun üstündeki sınır kaynağının hataları altlığı değiştirmez.
       isBasemapSource: (sourceId) =>
-        !OVERLAY_SOURCES.has(sourceId) && map.getSource(sourceId) !== undefined,
+        !NON_BASEMAP_SOURCES.has(sourceId) && map.getSource(sourceId) !== undefined,
       log: (message) => console.warn(message),
     })
 
@@ -479,13 +475,14 @@ export class MapController {
 
   /**
    * Adımın stilini uygular. Stil adresi burada indirilir (MapLibre'nin adres yüklemesi yerine):
-   * atıf yazılabilsin ve başarısız istek zincirde sayılsın diye. Yeni adım bekleyen isteği iptal
-   * eder. İstek sürerken ekrandaki stil ve kendi katmanlarımız yerinde kalır.
+   * atıf yazılabilsin, ülke sınırları kesikli çizgiye çevrilebilsin (D-092) ve başarısız istek
+   * zincirde sayılsın diye. Yeni adım bekleyen isteği iptal eder. İstek sürerken ekrandaki stil ve
+   * kendi katmanlarımız yerinde kalır.
    */
   private applyBasemap(map: MaplibreMap, step: BasemapStep): void {
     this.styleRequest?.abort()
     this.styleRequest = null
-    const { style, attribution } = step
+    const { style } = step
     if (typeof style !== 'string') {
       this.setBasemapStyle(map, style)
       return
@@ -496,10 +493,7 @@ export class MapController {
       (loaded) => {
         if (request.signal.aborted || this.destroyed) return
         this.styleRequest = null
-        this.setBasemapStyle(
-          map,
-          attribution === null ? loaded : withAttribution(loaded, attribution),
-        )
+        this.setBasemapStyle(map, prepareFetchedStyle(loaded, step))
       },
       (error: unknown) => {
         if (request.signal.aborted || this.destroyed) return

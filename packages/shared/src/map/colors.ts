@@ -1,6 +1,8 @@
 /**
  * Canlı haritanın renkleri. Web ve mobil aynı değerleri kullanır; harita üstündeki her şey opaktır
- * (etiket, panel, iz çizgisi), saydamlık kullanılmaz. Altlık uydu görüntüsüdür; uçak, iz ve pin
+ * (etiket, panel, iz çizgisi), saydamlık kullanılmaz. Tek istisna ülke sınırının koyu kenarıdır
+ * (borders.ts, D-092): içerik değil, beyaz kesikli çizginin her altlıkta okunmasını sağlayan bir
+ * haledir; çizginin kendisi opaktır. Altlık uydu görüntüsüdür; uçak, iz ve pin
  * renkleri kullanıcının tasarım tuvalindendir (v2). Panel, etiket ve kod kutusu renkleri sitenin
  * "Açık turkuaz" temasındandır (D-081): opak beyaz kutu, ince açık turkuaz kenar, koyu yazı.
  */
@@ -51,6 +53,10 @@ export const MAP_COLORS = {
   airportOutline: '#FFFFFF',
   /** Pinin en dıştaki koyu hattı (açık altlıkta beyaz kenar kaybolmasın). */
   airportHalo: '#0B1016',
+  /** Ülke sınırının beyaz kesikli çizgisi (D-092). */
+  border: '#FFFFFF',
+  /** Ülke sınırının altındaki koyu kenar (yarı saydam hale; açık toprakta da çizgi okunur). */
+  borderCasing: '#0B2A33',
 } as const
 
 export type MapColorName = keyof typeof MAP_COLORS
