@@ -1014,6 +1014,11 @@ export const tr = {
     current: 'Güncel sürüm',
     tryIt: 'Dene',
     released: 'Yayın tarihi',
+    /**
+     * Yayın anı (D-091, `formatReleaseTime`): Europe/Istanbul'da gün, 24 saatlik saat ve dilim
+     * etiketi. `{zone}` Türkçede "Türkiye saati", İngilizcede o anki UTC farkıdır ("UTC+3").
+     */
+    releasedAtValue: '{date}, {time} ({zone})',
   },
   admin: {
     title: 'Yönetim',

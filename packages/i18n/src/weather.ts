@@ -6,6 +6,7 @@ import {
   messageAt,
   renderWeatherText,
   TURKEY_TIME_ZONE,
+  utcOffsetLabel,
   visibilityDisplay,
   type Locale,
   type Measure,
@@ -181,11 +182,7 @@ export function formatUtcClock(at: DateLike): string {
 export function formatUtcOffset(at: DateLike, timeZone: string = TURKEY_TIME_ZONE): string {
   const ms = toMs(at)
   if (!Number.isFinite(ms)) return 'UTC'
-  const minutes = localTime(ms, timeZone).utcOffsetMinutes
-  if (minutes === 0) return 'UTC'
-  const abs = Math.abs(minutes)
-  const rest = abs % 60
-  return `UTC${minutes < 0 ? MINUS : '+'}${Math.floor(abs / 60)}${rest === 0 ? '' : `:${String(rest).padStart(2, '0')}`}`
+  return utcOffsetLabel(localTime(ms, timeZone).utcOffsetMinutes)
 }
 
 const dayMonthFormats = new Map<string, Intl.DateTimeFormat>()
