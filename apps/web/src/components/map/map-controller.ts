@@ -33,6 +33,7 @@ import {
 import type * as Maplibre from 'maplibre-gl'
 import { monotonicNow } from '../../lib/live/clock'
 import type { AircraftStore } from '../../lib/live/store'
+import type { ScreenRect } from '../../lib/map/label-layout'
 import { sameLabelSettings, type LabelSettings } from '../../lib/map/label-settings'
 import type { Basemap } from '../../lib/map-config'
 import {
@@ -54,7 +55,6 @@ import {
   type AirportPinImage,
 } from './icons'
 import {
-  AIRPORT_NAME_FONT,
   LabelPainter,
   NORMAL_THEME,
   pinGeometry,
@@ -162,6 +162,22 @@ interface TrackedPoint {
   last: ScreenPoint | null
 }
 
+/**
+ * Haritanın üstünü örten panellerin payı, CSS px. Harita merkezi bu alanların dışındaki görünür
+ * bölgenin ortasına alınır; seçili uçak (ve "Uçağı ortala") panelin altında kalmaz.
+ */
+export interface MapInsets {
+  /** Dar ekranda alttan açılan bilgi kartı ya da havalimanı penceresi. */
+  bottom: number
+  /** Geniş ekranda soldaki bilgi kartı haritanın ortasını örttüğünde (D-085). */
+  left: number
+}
+
+export const NO_INSETS: Readonly<MapInsets> = Object.freeze({ bottom: 0, left: 0 })
+
+/** Panel yokken (ya da henüz ölçülmemişken) `MapViewState.panels`. */
+export const NO_PANELS: readonly ScreenRect[] = Object.freeze([])
+
 /** React'ten gelen, çizimi etkileyen durum. */
 export interface MapViewState {
   selectedHex: string | null
@@ -170,11 +186,14 @@ export interface MapViewState {
   airports: readonly Airport[]
   locale: Locale
   units: UnitSystem
+  /** Haritayı örten panellerin payı (alttan açılan kart ya da pencere, soldaki kart). */
+  insets: MapInsets
   /**
-   * Haritanın altını örten panelin yüksekliği, CSS px (dar ekranda alttan açılan bilgi kartı).
-   * Harita merkezi bu alanın üstündeki görünür bölgeye alınır; seçili uçak kartın altında kalmaz.
+   * Haritanın üstündeki opak panellerin (arama, bilgi kartı, uçak listesi, sağ alttaki düğmeler)
+   * haritaya göre dikdörtgenleri, CSS px: seçili uçağın etiketi bunları örtmez (D-085). Değerler
+   * değişmedikçe aynı dizi verilir (başvuruyla karşılaştırılır).
    */
-  bottomInset: number
+  panels: readonly ScreenRect[]
 }
 
 export interface MapControllerOptions {
@@ -244,8 +263,20 @@ export function sameViewState(a: MapViewState, b: MapViewState): boolean {
     a.airports === b.airports &&
     a.locale === b.locale &&
     a.units === b.units &&
-    a.bottomInset === b.bottomInset
+    a.insets.bottom === b.insets.bottom &&
+    a.insets.left === b.insets.left &&
+    a.panels === b.panels
   )
+}
+
+/** MapLibre'nin `padding` değeri: üst ve sağ hep 0, negatif pay 0 sayılır. */
+export function mapPadding(insets: MapInsets): {
+  top: number
+  right: number
+  bottom: number
+  left: number
+} {
+  return { top: 0, right: 0, bottom: Math.max(0, insets.bottom), left: Math.max(0, insets.left) }
 }
 
 export class MapController {
@@ -305,7 +336,12 @@ export class MapController {
       map.getSource<GeoJSONSource>(AIRPORT_SOURCE_ID)?.setData(airportCollection(next.airports))
     }
     if (previous.following !== next.following) this.configureFollow()
-    if (previous.bottomInset !== next.bottomInset) this.applyPadding()
+    if (
+      previous.insets.bottom !== next.insets.bottom ||
+      previous.insets.left !== next.insets.left
+    ) {
+      this.applyPadding()
+    }
     this.dirty = true
     map?.triggerRepaint()
   }
@@ -594,19 +630,21 @@ export class MapController {
   }
 
   private padding(): { top: number; right: number; bottom: number; left: number } {
-    return { top: 0, right: 0, bottom: Math.max(0, this.state.bottomInset), left: 0 }
+    return mapPadding(this.state.insets)
   }
 
   /**
-   * Alt boşluğu (dar ekranda bilgi kartı) haritaya verir: merkezdeki nokta görünür bölgenin ortasına
-   * kayar. Uçuş ya da sürükleme sürerken beklenir; `jumpTo`/`easeTo` süren hareketi keserdi.
+   * Panel payını (dar ekranda alttaki kart, geniş ekranda soldaki kart) haritaya verir: merkezdeki
+   * nokta görünür bölgenin ortasına kayar. Uçuş ya da sürükleme sürerken beklenir; `jumpTo`/`easeTo`
+   * süren hareketi keserdi.
    */
   private applyPadding(): void {
     const map = this.map
     if (!map) return
     this.paddingPending = false
     const padding = this.padding()
-    if (map.getPadding().bottom === padding.bottom) return
+    const current = map.getPadding()
+    if (current.bottom === padding.bottom && current.left === padding.left) return
     if (map.isMoving()) {
       this.paddingPending = true
       return
@@ -828,6 +866,7 @@ export class MapController {
       units: this.state.units,
       pinScale: iconScaleAt(zoom, AIRPORT_LAYER.layout['icon-size']),
       primaryIcao: PRIMARY_AIRPORT_VIEW.icao,
+      panels: this.state.panels,
     })
   }
 
@@ -868,13 +907,7 @@ export class MapController {
   private loadFonts(): void {
     if (typeof document === 'undefined' || !('fonts' in document)) return
     const fonts = [NORMAL_THEME.primaryFont, NORMAL_THEME.secondaryFont, SELECTED_THEME.primaryFont]
-    // Havalimanı kısa adları Türkçe ve Latin genişletilmiş harfler taşır (ğ, ş, İ, ă): yazı tipinin o
-    // alt kümesi de yüklenir; yoksa tuval ilk çizimde yedek yazı tipini kullanırdı (D-084).
-    const loads = [
-      ...fonts.map((font) => document.fonts.load(font)),
-      document.fonts.load(AIRPORT_NAME_FONT, 'ÇçĞğİıÖöŞşÜüĂăÂâ'),
-    ]
-    Promise.all(loads).then(
+    Promise.all(fonts.map((font) => document.fonts.load(font))).then(
       () => {
         if (this.destroyed) return
         this.painter.invalidateText()

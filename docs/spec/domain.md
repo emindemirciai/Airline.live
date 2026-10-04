@@ -38,9 +38,37 @@ Olay motoru, bildirimler ve arayüz bu dosyadaki tanımlara uyar. **Motorun büt
   4. ineceği pist (Pist 35L); yalnızca bir piste hizalanmış yaklaşmada
 - **Kısa:** yalnızca sefer no (yoksa çağrı kodu).
 - **Göster/gizle:** Seçili uçak ve diğer uçaklar için ayrı ayrı Gizle, Kısa ya da Tam seçilir. Varsayılan ikisi için de Tam'dır. Ayar haritadaki "Etiketler" düğmesinden açılır ve cihazda saklanır.
-- **Havalimanı etiketleri (D-084):** Aynı panelin "Havalimanları" grubunda Gizle, Kod ya da Kod ve ad seçilir; varsayılan Kod'dur (IATA kodu, z ≥ 5). Kod ve ad, z ≥ 7'de kodun yanına en çok 16 karakterlik kısa adı yazar (İstanbul, Sabiha Gökçen, Esenboğa, Atina); yer yoksa yalnız kod kalır. Gizle yalnız yazıyı kaldırır: pinler görünür ve tıklanır kalır.
+- **Havalimanı etiketleri (D-084):** Aynı panelin "Havalimanları" grubunda Gizle ya da Kod seçilir; varsayılan Kod'dur (IATA kodu, z ≥ 5). Haritada havalimanı adı yazılmaz: ad, pin ya da koda tıklanınca açılan havalimanı penceresindedir ("Kod ve ad" 2026-10-04'te kullanıcı isteğiyle kaldırıldı; o seçenekle saklanmış ayar Kod okunur). Gizle yalnız yazıyı kaldırır: pinler her zaman görünür ve tıklanır kalır.
 - **Yerleşim:** Etiketler üst üste binmez; yer yoksa etiket yana kayar ve ince bir çizgiyle uçağa bağlanır. Etiket zemini opaktır.
 - Tasarım: https://claude.ai/artifact/Tsu4WTeQu8CxqvyZXpTSYD (Parça 1 M6 ve Parça 3 bu tasarıma göre yapılır).
+
+## Haritadaki uçak listesi: tahmini durum (D-085)
+Canlı haritanın "Haritada görünen uçaklar" listesi her uçağın durumunu ADS-B verisinden tahmin eder ve yalnızca gösterir; olay üretmez, bildirim göndermez. Motorun durum makinesi ve eşikleri değişmez; Parça 2 motoru istasyon durumlarını yayımlayınca liste onları gösterir.
+
+| Liste durumu | TR | EN | Motor karşılığı |
+|---|---|---|---|
+| `onGround` | Yerde | On ground | ON_GROUND |
+| `landing` | İnişte | Landing | APPROACHING'in son yaklaşma bölümü; teker koyma değildir |
+| `approaching` | Yaklaşmada | Approaching | APPROACHING |
+| `lowAltLost` | Alçakta sinyal kaybı | Signal lost at low altitude | LOW_ALT_LOST |
+| `enRoute` | (yazılmaz; yalnızca konum) | — | EN_ROUTE |
+
+- Sütunlar: Sefer, Kuyruk (tescil; PIA/LADD ya da bilinmeyen tescilde "—", ikisi istemcide ayırt edilemez), Yükseklik ("yerde" dahil), Konum ve durum. Liste 768 px ve üstünde sağ üsttedir, telefonda sol alttaki düğmeyle açılır.
+- "Teker koydu" ve "Muhtemelen indi" listede kullanılmaz: ikisi de yerde doğrulama ya da güven kuralları ister (aşağıda).
+- Yerden yükseklik `baro_tolerant` yöntemiyledir (QNH listede yoktur): `alt_baro − alan_yüksekliği_ft`, her üst sınıra +300 ft.
+- Yerde: yerde bayrağı ve havalimanı merkezine ≤ 6 km.
+- İnişte: yerden yükseklik < 1.000 ft, alçalıyor ve hizalı pist eşiğine ya da (tarifeli) havalimanı merkezine ≤ 8 km.
+- Yaklaşmada: ya hizalı pist eşiğine ≤ 15 km, yerden yükseklik < 4.000 ft ve tırmanmıyor; ya da (tarifeli) havalimanı merkezine ≤ 30 km, yerden yükseklik < 10.000 ft, yumuşatılmış dikey hız ≤ −300 ft/dk, havalimanına doğru (iz ile havalimanı yönü farkı ≤ 45°; uzaklık yer hızının en az %71'iyle azalır) ve 3° süzülüş profilinin en çok iki katı yükseklikte (`max(3.000 ft, 2 × 318 ft/NM × uzaklık)`).
+- Merkeze göre kurallar (hizasız İnişte ve Yaklaşmada) yalnızca tarifeli seferi olan havalimanlarında uygulanır (OurAirports `scheduled_service`). Tarifesiz havalimanında (ör. ISL Atatürk, hava üsleri) durum yalnızca pist hizasından çıkar; konum metni yine en yakın havalimanına, tarifesiz olsa da, göredir.
+- Havalimanı seçimi: merkeze göre birden çok aday varsa önce giriş koşuluna kendi başına uyan, sonra gösterilen havalimanı, sonra iz yönüne en yakın olan, sonra en yakın olan seçilir. Hizalı pist her zaman önce gelir.
+- Hizalı pist: iz ile pist yönü farkı ≤ 15°, merkez hattına yanal sapma ≤ 1 km (motorun pist hizası) ve uçak pist eşiğinden önce en çok 15 km'de ya da eşiği en çok 0,3 km geçmiş; birden çok uç hizalıysa eşiği en yakın olan. Pist uçları listelenen havalimanlarının API kaydından gelir (kaydırılmış eşik dahil). Tırmanan uçak (kalkış, pas geçme) hizalı olsa da yaklaşmada sayılmaz.
+- Dikey hız akışta yoksa irtifa değişiminden (en az 2 sn arayla) türetilir. İrtifası bilinmeyen havadaki uçak yalnızca konumla yazılır.
+- Alçakta sinyal kaybı: yaklaşmada ya da inişteyken son örnek 30 sn'den eski, yerden yükseklik < 3.000 ft ve havalimanı merkezine ≤ 20 km.
+- Kararlılık: çıkış eşikleri giriştekinden geniştir (35 km, 11.000 ft, iniş 1.800 ft ve 10 km; tırmanış > +300 ft/dk). Gösterilen havalimanı alçalma bitse de tutulur; uçak tırmanınca ya da havalimanı uçağın arkasında kalınca (iz ile havalimanı yönü farkı > 90°) yaklaşma biter. Yeni durum ya da havalimanı, örnek zamanıyla 5 sn sürünce gösterilir; o sürede gösterilen durumun uzaklığı yeni örnekle güncellenir. Yeni görülen uçağın ilk durumu beklemeden gösterilir. Yumuşatma, her yeni örnekte α = 0,5 üstel ortalamadır. Pist eşiğini geçen inişteki uçak pist adını korur.
+- Havalimanından 6 km'den uzakta yerde görünen uçak "Yerde" rozetiyle en yakın havalimanına göre yönlü konumla yazılır. Havalimanları yüklenmemişse konum koordinattır.
+- Konum: durumun havalimanı, yoksa en yakın listelenen havalimanı, IATA koduyla: "IST, 18 km", "IST, pist 35L", "IST üzerinde" (3 km içinde), "IST, 45 km kuzeyinde" (8 yön). Uzaklık havalimanı merkezine yataydır.
+- Liste altında "Durumlar tahminidir" notu durur (web-ui.md: tahmini bilgi "tahmini" etiketi taşır). Durumlar canlı bölge değildir; değişince ekran okuyucuya duyurulmaz.
+- Bilinen sınır: güzergâh bilinmediği için başka bir havalimanına giderken tarifeli bir havalimanının önünden alçalarak geçen uçak (ör. Trakya'dan IST'ye gelirken Çorlu/TEQ'in yakınından) o havalimanının süzülüş zarfında kaldığı kısa süre (gözden geçirmedeki örnekte ~45 sn) ona "Yaklaşmada" görünebilir. Parça 2 motorunun tahmini rotası bunu çözer.
 
 ## Yaklaşma
 - **Hazır uyarılar:**

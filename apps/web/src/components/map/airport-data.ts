@@ -4,17 +4,36 @@
  * `GET /v1/airports?scope=listed&include=runways`. Noktalar ve IATA kodları bu listeden çizilir;
  * havalimanı penceresi (airport-popup.tsx) aynı kayıttaki il ya da ülke, rakım ve pistleri gösterir.
  * Yanıt tarayıcıda savunmacı biçimde denetlenir (bozuk kayıt atlanır, lib/live/validate.ts ile aynı
- * yaklaşım) ve yalnızca haritanın kullandığı alanlar tutulur: pist uçları, kaplama ve istasyon
- * ayarları belleğe alınmaz.
+ * yaklaşım) ve yalnızca haritanın kullandığı alanlar tutulur: kaplama ve istasyon ayarları belleğe
+ * alınmaz. Pist uçlarından yalnızca uçak listesinin tahmini durumu (D-085, lib/map/flight-phase.ts)
+ * için gereken ad, yön ve eşik tutulur.
  */
 import type { Airport, Bbox } from '@havayolu/shared'
 import { ApiError } from '../../lib/live/api'
 import { isAirport, isObject } from '../../lib/live/validate'
 
-/** Pencerenin pist özeti için pistin tek gereken alanı. */
+/**
+ * Pistin bir ucu, uçak listesinin pist hizası denetimi için (D-085): ad, bu uçtan karşı uca gerçek
+ * yön ve pist eşiği (API'de kaydırılmış eşik zaten uygulanmıştır; `RunwayEnd`, airport-detail.ts).
+ */
+export interface MapRunwayEnd {
+  /** Pist adı (ör. 35L); kaynakta yoksa boş metin. */
+  ident: string
+  trueBearingDeg: number
+  /** Pist eşiği, derece. */
+  lat: number
+  lon: number
+}
+
+/** Pencerenin pist özeti ve uçak listesinin pist hizası için pistin gereken alanları. */
 export interface MapRunway {
   /** Pist uzunluğu, ft; kaynakta yoksa null. */
   lengthFt: number | null
+  /**
+   * Yönü ve eşiği bilinen uçlar (`toMapAirport` her zaman doldurur; yön ya da eşiği eksik uç
+   * atlanır). Alan yoksa pist hizası denetlenmez; pencere yalnızca uzunluğu kullanır.
+   */
+  ends?: readonly MapRunwayEnd[]
 }
 
 /**
@@ -31,6 +50,32 @@ export interface MapAirport extends Airport {
 
 const isLength = (value: unknown): value is number | null =>
   value === null || (typeof value === 'number' && Number.isFinite(value))
+
+const isCoordinate = (value: unknown, limit: number): value is number =>
+  typeof value === 'number' && Number.isFinite(value) && Math.abs(value) <= limit
+
+/**
+ * Pist uçları hoşgörüyle okunur: alan yoksa ya da dizi değilse boş liste, yönü ya da eşiği eksik ya
+ * da bozuk uç atlanır. Havalimanı ve pist bu yüzden düşmez (pencere pist uçlarından önceki API ile de
+ * çalışır).
+ */
+function runwayEndsOf(ends: unknown): MapRunwayEnd[] {
+  if (!Array.isArray(ends)) return []
+  const parsed: MapRunwayEnd[] = []
+  for (const end of ends as unknown[]) {
+    if (!isObject(end)) continue
+    const { ident, trueBearingDeg, thresholdLat, thresholdLon } = end
+    if (typeof trueBearingDeg !== 'number' || !Number.isFinite(trueBearingDeg)) continue
+    if (!isCoordinate(thresholdLat, 90) || !isCoordinate(thresholdLon, 180)) continue
+    parsed.push({
+      ident: typeof ident === 'string' ? ident.trim() : '',
+      trueBearingDeg,
+      lat: thresholdLat,
+      lon: thresholdLon,
+    })
+  }
+  return parsed
+}
 
 const COUNTRY_CODE = /^[A-Z]{2}$/
 const TURKEY = 'TR'
@@ -83,6 +128,7 @@ export function toMapAirport(value: unknown): MapAirport | null {
     // Sıfır ya da eksi uzunluk kaynakta eksik değerdir; kayıt düşmez, uzunluk bilinmiyor sayılır.
     parsed.push({
       lengthFt: runway.lengthFt !== null && runway.lengthFt > 0 ? runway.lengthFt : null,
+      ends: runwayEndsOf(runway.ends),
     })
   }
   return {
@@ -146,7 +192,7 @@ export async function fetchMapAirports(
 }
 
 /** Pist sayısı ve uzunluğu bilinen en uzun pist (ft); uzunluk bilinmiyorsa null. */
-export function runwaySummary(runways: readonly MapRunway[]): {
+export function runwaySummary(runways: readonly Pick<MapRunway, 'lengthFt'>[]): {
   count: number
   longestFt: number | null
 } {

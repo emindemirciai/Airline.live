@@ -107,6 +107,30 @@ export function destinationPoint(
   return { lat: toDeg(phi2), lon: ((toDeg(lambda2) + 540) % 360) - 180 }
 }
 
+/**
+ * Noktanın, `origin`den `bearingDeg` yönünde geçen büyük daireye işaretli dik uzaklığı
+ * (cross-track), km: artı yönün sağında, eksi solunda. Pist hizasındaki yanal sapma için
+ * (domain.md → Tespit eşikleri). `asin(sin δ13 · sin(θ13 − θ12)) · R`.
+ */
+export function crossTrackKm(p: LatLon, origin: LatLon, bearingDeg: number): number {
+  const d13 = distanceKm(origin, p) / EARTH_RADIUS_KM
+  if (d13 === 0) return 0
+  const theta = toRad(initialBearing(origin, p) - bearingDeg)
+  return Math.asin(Math.sin(d13) * Math.sin(theta)) * EARTH_RADIUS_KM
+}
+
+/**
+ * Noktanın o büyük daire üzerindeki izdüşümünün `origin`e işaretli uzaklığı (along-track), km:
+ * artı `bearingDeg` yönünde ileride, eksi geride (pist eşiğinden önce). Dik küresel üçgende
+ * `tan(at) = tan δ13 · cos(θ13 − θ12)` (Napier); kısa mesafede de `acos` biçiminden kararlıdır.
+ */
+export function alongTrackKm(p: LatLon, origin: LatLon, bearingDeg: number): number {
+  const d13 = distanceKm(origin, p) / EARTH_RADIUS_KM
+  if (d13 === 0) return 0
+  const theta = toRad(initialBearing(origin, p) - bearingDeg)
+  return Math.atan2(Math.sin(d13) * Math.cos(theta), Math.cos(d13)) * EARTH_RADIUS_KM
+}
+
 /** Pist eşiğinin nereden geldiği (domain.md → Pist eşiği). */
 export type ThresholdSource = 'runway_end' | 'displaced_threshold' | 'arp_fallback'
 

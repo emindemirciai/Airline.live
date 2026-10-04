@@ -25,8 +25,8 @@ Durumlar: `[ ]` başlamadı, `[~]` sürüyor, `[k]` kod bitti ve kullanıcı do�
 | M6e.1 | Pencere hizası (yama) | `p1/m6e1-popup-align` | [x] tamam; üretimde doğrulandı (2026-10-03, v0.13.1): IST penceresinin 9 satırında simge x=13, değer x=147 | #19 |
 | M6f | Adlar ve saat: askerî ve sivil havalimanı adları TR/EN, haritada havalimanı adı etiketi, yurt dışında yerel saat ve UTC farkı | `p1/m6f-names-time` | [x] tamam; üretimde doğrulandı (2026-10-03, v0.14.0): İncirlik Hava Üssü / Incirlik Air Base, Ankara (Etimesgut), /istasyon/LGAV "Yerel saat 19:37 (UTC+3)" | #20 |
 | M6e.2 | Rüzgâr renkleri ve rüzgâr kesmesi (yama, v0.14.1) | `p1/m6e2-wind-colors` | [x] tamam; üretimde doğrulandı (2026-10-03, v0.14.1): UGTB, UGKO, LGMK kehribar, LGKP ve LRCK açık yeşil | #21 |
-| M6l | Logo: A · Halka | `p1/m6l-logo` | [k] kod bitti; üretimde başlık, simgeler ve paylaşım görsellerinin görülmesi bekliyor | #22 |
-| M6k | Uçak listesi sağ üstte: sefer, kuyruk, yükseklik, konum ve durum | `p1/m6k-aircraft-list` | [ ] | — |
+| M6l | Logo: A · Halka | `p1/m6l-logo` | [x] tamam; üretimde doğrulandı (2026-10-03, v0.15.0): başlıkta yeni işaret, /icon/512 ve /icon/maskable, 512 px simgede kuyruk kırıntısı yok | #22 |
+| M6k | Uçak listesi sağ üstte: sefer, kuyruk, yükseklik, konum ve durum | `p1/m6k-aircraft-list` | [k] kod bitti; üretimde listenin ve durumların görülmesi bekliyor (ACTIVATION) | #23 |
 | M6g | Türkiye dışındaki havalimanları, 2. halka (≤ 1.000 km) | `p1/m6g-ring2` | [ ] | — |
 | M7a | Canlı araçlar: `smoke:live`, `record` | `p1/m7a-live-tools` | [ ] | — |
 | M6h | 3. halka (≤ 2.000 km) | `p1/m6h-ring3` | [ ] | — |
@@ -817,6 +817,91 @@ Hedef sürüm 0.15.0. Karar D-086'dadır.
 - **Yayın adımı (2026-10-03):** dal v0.14.1 ile birleştirildi; maskeye kuyruk üçgeni eklendi (512 px önizlemede kuyrukta halka kırıntısı görüldü; D-086). Başlık logosu e2e testi, yol satırındaki "havayolu" bağlantısını saymasın diye başlıkla sınırlandı.
 - **`pnpm ci:full` → yeşil:** birim testleri web 663, shared 546, api 251, worker 200, providers 120, i18n 93, tools 74, db 44, geo 31, scripts 31; entegrasyon db 82, api 26, worker 12; migration yükseltme 6 → 6; `compose:guard`; E2E 111/111.
 - `pnpm stats` → 538 dosya, 95.066 satır (86.551 kod).
+
+## M6k — Uçak listesi sağ üstte (v0.16.0)
+Onay: 2026-10-03 (kullanıcı isteği, üretimdeki haritanın ekran görüntüsüyle: "Haritada görünen uçakları ekranın sağ üst köşesine yerleştir. aranan uçaklar kalsın solda sadece. uçaklar listelenmeye başlayınca ekranın bir tarafı en azından kullanılabilsin. Sefer / Kuyruk(tescil-reg) / Yükseklik / Konum ve Durum (yaklaşıyorsa ya da inişte ise veya yerde ise bildir.)"; açık sorularda araştırmanın önerdiği varsayılanlar; küçük sürüm, D-082)
+
+Hedef sürüm 0.16.0. Karar D-085'tedir.
+
+**Kapsam:**
+- **Yerleşim:**
+  - 768 px ve üstünde liste sağ üstte: en çok 440 px genişlik, alt kenarı haritanın ortasının 12 px üstünde (yükseklik en çok yarısı eksi 24 px; 959 px ve altında 30 px, ortalanan seçili simge altında kalmaz); içinde kayar.
+  - Seçili uçağın etiketi haritanın üstündeki panelleri (arama, kart, liste, sağ alttaki düğmeler; `data-map-panel`) örtmeyen konumu seçer (`layoutLabels` → `panels`).
+  - Başlık düğmesiyle daralır ya da açılır, sayı rozeti ve ok vardır; hâl cihazda saklanır (`hy:map:list`, varsayılan açık).
+  - Sol sütunda yalnızca arama ve bilgi kartı (kart sağ üstten aramanın altına taşındı). Sütun konumlandırılmamış (static) bir bloktur; haritanın öteki katmanları `position: absolute`'tur.
+  - Durum şeridi 1180 px ve üstünde sütun ile liste arasında ortalı, altında arama ile kartın arasında.
+  - Havalimanı penceresi listeyi, aramayı ve sağ alt düğmeleri örtmeyen yanı seçer (`placePopup` → `avoid`); hepsi örtüyorsa en az örteni.
+  - Kart haritanın ortasını örtünce (768 px'e yakın) harita sola pay alır (`MapViewState.insets`: `bottom`, `left`; ölçü kökü `.live-map`).
+  - Telefonda sol alt düğme ve alt liste kalır (kapalı başlar, saklanmaz).
+- **Sütunlar:**
+  - Sefer;
+  - Kuyruk (tescil; PIA/LADD ya da bilinmeyen tescilde "—", notla; erişilebilir adı "Kuyruk tescili");
+  - Yükseklik ("yerde"; sayı ve birim bölünmez);
+  - Konum ve durum (rozet: Yaklaşmada, İnişte, Yerde, Alçakta sinyal kaybı; konum: "IST, 18 km", "IST, pist 35L", "IST üzerinde", "IST, 45 km kuzeyinde").
+  - Tip ve Hız listeden çıkar (bilgi kartında kalır). Altta "Durumlar tahminidir" notu (`aria-describedby`).
+- **Durum:** yalnızca gösterim. İstemcide, depo değiştikçe (WebSocket farkı), listelenen havalimanlarına ve pist uçlarına göre hesaplanır (domain.md → "Haritadaki uçak listesi: tahmini durum"). Motor eşikleri değişmez. Durumlar canlı bölge değildir, değişince duyurulmaz. Merkeze göre kurallar yalnızca tarifeli havalimanlarında, girişte 45° ve çıkışta 90° koniyle; kendi başına uyan aday önce gelir (gözden geçirme 2026-10-04: IST ve SAW varışları "Yaklaşmada ISL" görünüyordu).
+- **Kapsam dışı:**
+  - pas geçme ve kalkış durumları;
+  - duruma göre sıralama (sıra değişmedi: görünüm ortasına uzaklık, ilk 50);
+  - bilgi kartında durum satırı;
+  - QNH ile yerden yükseklik;
+  - mobil uygulama.
+- **Bilinen sınırlar:**
+  - 1280 × 720'de ~516 px'ten uzun IST penceresi solda açılır ve arama kutusunu birkaç piksel örtebilir (bütün yanlar bir paneli örtünce en az örten yan seçilir);
+  - güzergâh bilinmediği için başka bir havalimanına giderken tarifeli bir havalimanının önünden alçalarak geçen uçak (ör. Trakya'dan IST'ye gelirken TEQ) kısa süre ona "Yaklaşmada" görünebilir;
+  - seçili etiket, bütün yakın ve çizgili konumlar doluysa panelin üstüne gelebilir.
+- **Ek (2026-10-04, kullanıcı isteği; v0.16.0 ile yayımlanır):** "Havalimanları etiketi kod ve ad ı kaldır. tıklayınca detaylı veri var. adına gerek yok orada": Etiketler → Havalimanları yalnız Gizle / Kod (varsayılan Kod); saklanmış "Kod ve ad" ayarı Kod okunur. Kısa ad tablosu (`airport-map-names.ts`), adlı kutu çizimi ve ilgili i18n metinleri kaldırıldı; pinler her zaman görünür ve tıklanır. Karar D-084'e tarihli madde olarak eklendi.
+
+**Dizinler ve dosyalar:**
+- **`packages/geo/src/`:** `index.ts` (`crossTrackKm`, `alongTrackKm`); test `geo.test.ts`
+- **`packages/i18n/src/messages/`:** `tr.ts`, `en.ts`. `map.table`: `registration`, `registrationLabel`, `place`, `phase.*`, `placeDistance`, `placeRunway`, `placeOver`, `placeBearing`, `direction.*`, `note`. `type`, `speed` ve `position` kalktı. `units.ts`: `formatDistance` `nowrap` seçeneği (konum sütununda "45 km" bölünmez); test `units.test.ts`.
+- **`apps/web/src/lib/map/`:** `flight-phase.ts` (`FlightPhaseTracker`, eşikler, `scheduled`), `list-settings.ts` (`hy:map:list`), `label-layout.ts` (`panels`, `ScreenRect`); testler `flight-phase.test.ts`, `list-settings.test.ts`, `label-layout.test.ts`
+- **`apps/web/src/components/map/`:**
+  - `live-map.tsx` (`.live-map__left`; `useFlightPhases`; `insets` ölçüsü kökü `.live-map`; `data-map-panel`);
+  - `use-aircraft-list-open.ts`, `use-flight-phases.ts`, `use-map-panels.ts` (panel dikdörtgenleri, `ResizeObserver`);
+  - `airport-data.ts` (pist uçları);
+  - `popup-placement.ts` (`avoid`), `airport-popup.tsx` (`data-map-panel` dikdörtgenleri, `ResizeObserver`);
+  - `map-view.tsx`, `map-controller.ts` (`MapInsets`, `NO_INSETS`, `mapPadding`, `panels`), `labels.ts` (seçili etiketin panelleri);
+  - `panels/aircraft-table.tsx`, `panels/aircraft-place.ts`;
+  - testler `panels/panels.test.ts`, `panels/aircraft-place.test.ts`, `popup-placement.test.ts`, `airport-data.test.ts`, `map-controller.test.ts`, `use-map-panels.test.ts`.
+- **`apps/web/src/app/globals.css`:** sol sütun, sağ üst liste (`--map-left-width`, `--map-table-width`, `--map-table-clear`: 959 px ve altında 30 px), daraltma (`data-wide-open`, `data-phone-open`), durum şeridi boşluğu, durum rozeti, not, telefon kuralları.
+- **`e2e/tests/live-map.spec.ts`, `e2e/support.ts`:**
+  - yükseklik değişimi ve konumda IST;
+  - liste yeri (12 px kenar, yarı yükseklik), çakışmasızlık, sütunlar, durumlar, daraltmanın saklanması;
+  - pencerenin listeyi örtmemesi;
+  - kartın solda olması; 1024 ve 768 px'te seçili etiketin listenin altında kalmaması, 768 px'te dolu listenin ortalanan simgenin üstünde bitmesi (`e2e/label-canvas.ts` → `selectedLabelPixels`);
+  - telefonda düğme, dört sütun, yatay taşma yok.
+- **`e2e/tests/weather.spec.ts`:** pencereyi kapatan "boş yere tıklama" merkezden 450 px batıya taşındı (pencere artık genellikle solda açılır; eski nokta, merkezin 150 px batısı, pencerenin içine düşerdi).
+- **Belgeler:** D-085; `docs/spec/domain.md` (Haritadaki uçak listesi: tahmini durum); `docs/ACTIVATION.md` (M6k yayın doğrulaması). `docs/REFERENCES.md`'ye 3° süzülüş kaynağı (ör. FAA AIM 1-1-9 ya da ICAO PANS-OPS) adresi doğrulanınca eklenecek: doğrulama canlı istek ister, bu oturumda yapılmadı.
+
+**Kabul komutları:**
+- `pnpm --filter @havayolu/geo test` → çapraz ve boyuna sapma; kapsam ≥ %90.
+- `pnpm --filter @havayolu/i18n test` → yeni anahtarlar iki dilde aynı yer tutucularla; sayıdan önce "·" ya da "–" yok.
+- `pnpm --filter @havayolu/web test` →
+  - durum kuralları (taksi Yerde; 35L'de 5 km İnişte ve "pist 35L"; 18 km Yaklaşmada; uzaklaşan, tırmanan ve süzülüş zarfının üstündeki uçak durumsuz; iki havalimanı arasında doğru seçim; VAN rakımı; 5 sn onay ve çıkış eşikleri; 30 sn'de Alçakta sinyal kaybı; havalimanı yokken koordinat);
+  - havalimanı seçimi (tarifesiz Atatürk merkez kuralına girmez, pist hizasında görünür; 70° yandaki SAW yaklaşmada değil; arkada kalan havalimanı 5 sn'de düşer; kendi başına uyan ve iz yönüne yakın aday önce; SAW ve IST rüzgâr altı kollarında 2 sn örnekli uçuşta yalnızca hedef havalimanı);
+  - seçili etiketin panelleri örtmemesi (`layoutLabels` → `panels`), panel dikdörtgenleri (`use-map-panels`);
+  - TR/EN metinleri ve sekiz yön;
+  - tablo sütunları ("Kuyruk tescili"), "—", not ve `aria-describedby`, canlı bölge yok, düğme durumları (geniş: açık ve daraltılmış; telefon: kapalı);
+  - pencere yerleşiminde kaçınma (sağ → sol → alt; en az örtüşme; kenar boşluğu; kaçınma yokken eski sonuçlar);
+  - panel payı (`insets.bottom`, `insets.left`);
+  - pist uçlarının okunması;
+  - `hy:map:list` kaydı (varsayılan açık, geçersiz değer açık, hata veren depolama).
+- `pnpm test:e2e` → `live-map.spec.ts`:
+  - 1280 px'te liste sağ üstte (12 px kenar, alt kenarı ortanın 12 px üstünde) ve arama, durum şeridi, sağ alttaki düğmeler ve atıfla çakışmaz;
+  - sütun adları;
+  - HYS092 "Yerde" ve "IST", kuyruk "TC-SYN92"; HYS091 yaklaşmada ya da inişte ve "IST"; seyirdeki uçaklar rozetsiz;
+  - daraltma yenilemede kalır;
+  - IST penceresi listeyle çakışmaz (arama kutusuyla çakışmazlık denetlenmez; bilinen sınırlar);
+  - kart solda, aramanın altında; 1024 ve 768 px'te seçili uçağın etiketi ve simgesi listenin altında kalmaz;
+  - 375 px'te liste kapalı başlar, açılınca dört sütun, atıfın üstünde, yatay taşma yok.
+- `pnpm ci:full` yeşil; PR'da CI (`e2e` dahil) yeşil.
+- **Yayından sonra (`[k]`):** üretimde 1280 px'te liste sağ üstte, IST'ye gelen en az bir uçakta "Yaklaşmada" ya da "İnişte" görülür (Atatürk değil), daraltma yenilemede kalır, 768/1024 px'te seçili uçak listenin altında kalmaz, 375 px'te düğme çalışır (ACTIVATION → "M6k yayın doğrulaması").
+
+- **Yayın adımı (2026-10-04):** dal v0.15.0 (logo) ile birleştirildi; karar ve plan çakışmaları iki bölüm korunarak çözüldü.
+- **`pnpm ci:full` → yeşil:** birim testleri web 724, shared 546, api 251, worker 200, providers 120, i18n 94, tools 74, db 44, geo 36, scripts 31; entegrasyon db 82, api 26, worker 12; migration yükseltme 6 → 6; `compose:guard`; E2E 113/113.
+- `pnpm stats` → 548 dosya, 98.374 satır (89.683 kod).
+- **"Kod ve ad" kaldırıldı (2026-10-04, aynı sürüm):** bağımsız kontrol 6 mutasyonun 5ini birim testleriyle, 1ini e2e ile yakaladı; `pnpm ci:full` → yeşil: birim testleri web 718, shared 541, api 251, worker 200, providers 120, i18n 94, tools 74, db 44, geo 36, scripts 33; entegrasyon db 82, api 26, worker 12; E2E 113/113. `pnpm stats` → 547 dosya, 98.022 satır (89.302 kod).
 
 ## M7 — Canlı araçlar ve kapsama raporu
 Ayrıntılar `docs/prompts/parca-1.md`'dedir. Başlarken bu dosyaya dizinler ve kabul komutları eklenir.

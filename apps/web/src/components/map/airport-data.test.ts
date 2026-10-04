@@ -78,7 +78,7 @@ afterEach(() => {
 })
 
 describe('toMapAirport', () => {
-  it('haritanın alanlarını alır; istasyon, pist uçları ve veri tarihi tutulmaz', () => {
+  it('haritanın alanlarını alır; istasyon ve veri tarihi tutulmaz, bozuk pist ucu atlanır', () => {
     expect(toMapAirport(IST_DETAIL)).toEqual({
       icao: 'LTFM',
       iata: 'IST',
@@ -94,8 +94,73 @@ describe('toMapAirport', () => {
       distanceToTrKm: null,
       isoRegion: 'TR-34',
       municipality: 'Arnavutköy',
-      runways: [{ lengthFt: 12303 }, { lengthFt: 13451 }, { lengthFt: null }],
+      runways: [
+        { lengthFt: 12303, ends: [] },
+        { lengthFt: 13451, ends: [] },
+        { lengthFt: null, ends: [] },
+      ],
     })
+  })
+
+  it('pist uçlarından ad, yön ve eşik tutulur (uçak listesinin pist hizası, D-085)', () => {
+    // OurAirports runways.csv, LTFM 17R/35L (eşikler API'de kaydırılmış eşikle gelir).
+    const end35L = {
+      ident: '35L',
+      trueBearingDeg: 359.1,
+      displacedThresholdFt: null,
+      thresholdLat: 41.26190185546875,
+      thresholdLon: 28.725299835205078,
+      elevationFt: 310,
+    }
+    const end17R = {
+      ...end35L,
+      ident: ' 17R ',
+      trueBearingDeg: 179.1,
+      thresholdLat: 41.29880142211914,
+      thresholdLon: 28.72450065612793,
+    }
+    const airport = toMapAirport({
+      ...IST_DETAIL,
+      runways: [{ id: 7, lengthFt: 13451, widthFt: 197, ends: [end35L, end17R] }],
+    })
+    expect(airport?.runways).toEqual([
+      {
+        lengthFt: 13451,
+        ends: [
+          { ident: '35L', trueBearingDeg: 359.1, lat: 41.26190185546875, lon: 28.725299835205078 },
+          { ident: '17R', trueBearingDeg: 179.1, lat: 41.29880142211914, lon: 28.72450065612793 },
+        ],
+      },
+    ])
+  })
+
+  it('pist ucu hoşgörüyle okunur: uç yoksa boş liste; yönü ya da eşiği bozuk uç atlanır', () => {
+    const end = { ident: '35L', trueBearingDeg: 359.1, thresholdLat: 41.26, thresholdLon: 28.72 }
+    const runways = (ends: unknown) =>
+      toMapAirport({ ...IST_DETAIL, runways: [{ lengthFt: 13451, ends }] })?.runways
+    expect(runways(undefined)).toEqual([{ lengthFt: 13451, ends: [] }])
+    expect(runways(null)).toEqual([{ lengthFt: 13451, ends: [] }])
+    expect(
+      runways([
+        end,
+        { ...end, trueBearingDeg: null },
+        { ...end, trueBearingDeg: Number.NaN },
+        { ...end, thresholdLat: null },
+        { ...end, thresholdLat: 91 },
+        { ...end, thresholdLon: '28.72' },
+        { ...end, thresholdLon: -181 },
+        'bozuk',
+        { ...end, ident: null },
+      ]),
+    ).toEqual([
+      {
+        lengthFt: 13451,
+        ends: [
+          { ident: '35L', trueBearingDeg: 359.1, lat: 41.26, lon: 28.72 },
+          { ident: '', trueBearingDeg: 359.1, lat: 41.26, lon: 28.72 },
+        ],
+      },
+    ])
   })
 
   it('yakın ülkedeki havalimanı ülke koduyla gelir (D-080)', () => {
@@ -104,7 +169,7 @@ describe('toMapAirport', () => {
     expect(athens?.ring).toBe(1)
     expect(athens?.distanceToTrKm).toBe(275)
     expect(athens?.isoRegion).toBe('GR-I')
-    expect(athens?.runways).toEqual([{ lengthFt: 13123 }])
+    expect(athens?.runways).toEqual([{ lengthFt: 13123, ends: [] }])
   })
 
   it('halka ve uzaklık: halkadan önceki API’de Türkiye 0; yurt dışında halkasız ya da bozuk kayıt düşer', () => {
@@ -140,7 +205,10 @@ describe('toMapAirport', () => {
 
   it('sıfır ya da eksi pist uzunluğu bilinmiyor sayılır, kayıt düşmez', () => {
     const airport = toMapAirport({ ...IST_DETAIL, runways: [{ lengthFt: 0 }, { lengthFt: -5 }] })
-    expect(airport?.runways).toEqual([{ lengthFt: null }, { lengthFt: null }])
+    expect(airport?.runways).toEqual([
+      { lengthFt: null, ends: [] },
+      { lengthFt: null, ends: [] },
+    ])
   })
 })
 

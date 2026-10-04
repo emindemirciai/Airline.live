@@ -138,6 +138,15 @@ describe('formatDistance', () => {
     expect(formatDistance(6, en)).toBe('6.0 km')
   })
 
+  it('nowrap: sayı ile birim arasında bölünmez boşluk (uçak listesinin konum sütunu, D-085)', () => {
+    expect(formatDistance(45, { nowrap: true })).toBe('45\u00a0km')
+    expect(formatDistance(4.2, { nowrap: true, locale: 'en', units: 'aviation' })).toBe(
+      '2.3\u00a0NM',
+    )
+    expect(formatDistance(null, { nowrap: true })).toBe('—')
+    expect(formatDistance(45, { nowrap: false })).toBe('45 km')
+  })
+
   it("10 ve üstü tam sayı; 10'a yuvarlanan değer de tam sayı", () => {
     expect(formatDistance(12.4)).toBe('12 km')
     expect(formatDistance(9.96)).toBe('10 km')

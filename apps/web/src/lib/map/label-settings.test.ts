@@ -34,22 +34,22 @@ describe('etiket ayarı', () => {
   it('varsayılan: uçaklar için Tam, havalimanları için Kod (kullanıcı kararı 2026-10-03)', () => {
     expect(DEFAULT_LABEL_SETTINGS).toEqual({ selected: 'full', others: 'full', airports: 'code' })
     expect(LABEL_SETTINGS_KEY).toBe('hy:map:labels')
-    expect(AIRPORT_LABEL_MODES).toEqual(['hidden', 'code', 'name'])
+    expect(AIRPORT_LABEL_MODES).toEqual(['hidden', 'code'])
   })
 
   it('kaydeder ve geri okur (havalimanı alanı dahil)', () => {
     const storage = memoryStorage()
-    saveLabelSettings(storage, { selected: 'short', others: 'hidden', airports: 'name' })
+    saveLabelSettings(storage, { selected: 'short', others: 'hidden', airports: 'hidden' })
     expect(storage.data.get(LABEL_SETTINGS_KEY)).toBe(
-      '{"selected":"short","others":"hidden","airports":"name"}',
+      '{"selected":"short","others":"hidden","airports":"hidden"}',
     )
     expect(loadLabelSettings(storage)).toEqual({
       selected: 'short',
       others: 'hidden',
-      airports: 'name',
+      airports: 'hidden',
     })
-    saveLabelSettings(storage, { selected: 'full', others: 'full', airports: 'hidden' })
-    expect(loadLabelSettings(storage).airports).toBe('hidden')
+    saveLabelSettings(storage, { selected: 'full', others: 'full', airports: 'code' })
+    expect(loadLabelSettings(storage).airports).toBe('code')
   })
 
   it('yalnızca bilinen alanlar yazılır', () => {
@@ -62,6 +62,21 @@ describe('etiket ayarı', () => {
   it('havalimanı alanı olmayan eski kayıt geçerlidir: uçak ayarları korunur, havalimanları Kod', () => {
     const old = memoryStorage({
       [LABEL_SETTINGS_KEY]: JSON.stringify({ selected: 'short', others: 'hidden' }),
+    })
+    expect(loadLabelSettings(old)).toEqual({
+      selected: 'short',
+      others: 'hidden',
+      airports: 'code',
+    })
+  })
+
+  it('kaldırılan "Kod ve ad" ile saklanmış kayıt Kod okunur; uçak ayarları korunur (2026-10-04)', () => {
+    const old = memoryStorage({
+      [LABEL_SETTINGS_KEY]: JSON.stringify({
+        selected: 'short',
+        others: 'hidden',
+        airports: 'name',
+      }),
     })
     expect(loadLabelSettings(old)).toEqual({
       selected: 'short',
@@ -92,7 +107,7 @@ describe('etiket ayarı', () => {
       others: 'short',
       airports: 'code',
     })
-    for (const airports of ['short', 'names', '', null, 1, ['name']]) {
+    for (const airports of ['short', 'name', 'names', '', null, 1, ['code']]) {
       const storage = memoryStorage({ [LABEL_SETTINGS_KEY]: JSON.stringify({ airports }) })
       expect(loadLabelSettings(storage).airports, JSON.stringify(airports)).toBe('code')
     }
@@ -114,6 +129,6 @@ describe('etiket ayarı', () => {
     expect(sameLabelSettings(base, copy)).toBe(true)
     expect(sameLabelSettings(base, { ...base, selected: 'hidden' })).toBe(false)
     expect(sameLabelSettings(base, { ...base, others: 'full' })).toBe(false)
-    expect(sameLabelSettings(base, { ...base, airports: 'name' })).toBe(false)
+    expect(sameLabelSettings(base, { ...base, airports: 'hidden' })).toBe(false)
   })
 })

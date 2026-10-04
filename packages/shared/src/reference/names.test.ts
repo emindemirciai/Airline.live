@@ -1,11 +1,8 @@
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import {
-  AIRPORT_MAP_NAME_MAX_LENGTH,
-  AIRPORT_MAP_NAMES,
   AIRPORT_NAMES,
   airportDisplayName,
-  airportMapName,
   FOREIGN_AIRPORT_NAMES,
   REFERENCE_AIRFIELD_NAMES,
 } from './index'
@@ -87,67 +84,5 @@ describe('görünen adların dili (D-084)', () => {
     expect(airportDisplayName({ icao: 'UBBQ', name: '' }, 'en')).toBe(
       'Gabala International Airport',
     )
-  })
-})
-
-describe('airportMapName: haritadaki kısa ad (D-084)', () => {
-  const listed = [...turkish, ...foreign]
-
-  it('Türkiye tablosu ad tablosuyla aynı havalimanlarını kapsar', () => {
-    expect(Object.keys(AIRPORT_MAP_NAMES).sort()).toEqual([...turkish].sort())
-  })
-
-  it('listelenen her havalimanının iki dilde en çok 16 karakterlik kısa adı vardır', () => {
-    expect(AIRPORT_MAP_NAME_MAX_LENGTH).toBe(16)
-    for (const icao of listed) {
-      for (const locale of ['tr', 'en'] as const) {
-        const name = airportMapName({ icao }, locale)
-        expect(name, `${icao} ${locale}`).not.toBeNull()
-        expect(name, `${icao} ${locale}`).toBe(name?.trim())
-        expect([...(name ?? '')].length, `${icao} ${locale}: ${name}`).toBeLessThanOrEqual(
-          AIRPORT_MAP_NAME_MAX_LENGTH,
-        )
-        expect(name, `${icao} ${locale}`).toMatch(/^\p{Lu}/u)
-      }
-    }
-  })
-
-  it('kısa ad dile uygundur ve her dilde tekildir (iki kutu aynı adı yazmaz)', () => {
-    for (const icao of listed) {
-      expect(airportMapName({ icao }, 'tr'), icao).not.toMatch(
-        /\b(Base|Air|Airport|International)\b/,
-      )
-      expect(airportMapName({ icao }, 'en'), icao).not.toMatch(/Üssü|Havalimanı|Hava\b/)
-    }
-    for (const locale of ['tr', 'en'] as const) {
-      const names = listed.map((icao) => airportMapName({ icao }, locale))
-      expect(new Set(names).size, locale).toBe(names.length)
-    }
-  })
-
-  it('Türkiye’de kısa ad görünen addaki yer adıdır ("Üssü" / "Base" dışında)', () => {
-    for (const icao of turkish) {
-      for (const locale of ['tr', 'en'] as const) {
-        const place = (airportMapName({ icao }, locale) ?? '').replace(/ (Üssü|Base)$/, '')
-        expect(airportDisplayName({ icao, name: '' }, locale), `${icao} ${locale}`).toContain(place)
-      }
-    }
-  })
-
-  it('örnekler; tabloda olmayan ya da özel kodlu havalimanında null', () => {
-    const both = (icao: string) => [airportMapName({ icao }, 'tr'), airportMapName({ icao }, 'en')]
-    expect(both('LTFM')).toEqual(['İstanbul', 'Istanbul'])
-    expect(both(' ltfj ')).toEqual(['Sabiha Gökçen', 'Sabiha Gökçen'])
-    expect(both('LTAC')).toEqual(['Esenboğa', 'Esenboğa'])
-    expect(both('LTAD')).toEqual(['Etimesgut', 'Etimesgut'])
-    expect(both('LTAG')).toEqual(['İncirlik Üssü', 'Incirlik Base'])
-    expect(both('LTCW')).toEqual(['Yüksekova', 'Yüksekova'])
-    expect(both('LGAV')).toEqual(['Atina', 'Athens'])
-    expect(both('LROP')).toEqual(['Bükreş', 'Bucharest'])
-    expect(both('LRBS')).toEqual(['Băneasa', 'Băneasa'])
-    expect(both('UBBQ')).toEqual(['Gebele', 'Gabala'])
-    expect(both('EGLL')).toEqual([null, null])
-    expect(both('toString')).toEqual([null, null])
-    expect(both('__proto__')).toEqual([null, null])
   })
 })

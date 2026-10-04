@@ -8,6 +8,30 @@
 
 ---
 
+## v0.16.0 — 2026-10-04
+
+### Türkçe
+**Uçak listesi sağ üstte; kuyruk tescili, konum ve durum**
+
+- “Haritada görünen uçaklar” listesi geniş ekranda sağ üst köşeye taşındı; solda yalnızca arama ve seçili uçağın kartı kalıyor. Liste en çok haritanın yarısı kadar uzar ve içinde kayar; başlığındaki düğmeyle uçak sayısını gösterecek kadar küçülür, tercih hatırlanır. Telefonda alttaki düğme aynı kaldı.
+- Sütunlar: Sefer, Kuyruk (tescil), Yükseklik ve Konum ve durum. Durum en yakın havalimanına göre yazılır: “Yerde IST”, “İnişte IST, pist 35L”, “Yaklaşmada IST, 18 km” ya da uçuştaki uçak için “IST, 45 km kuzeyinde”. Durumlar ADS-B verisinden yapılan tahmindir; tescili yayınlanmayan uçakta “—” yazar. Tip ve hız uçağa tıklayınca açılan kartta.
+- Havalimanı penceresi ve seçili uçağın etiketi listenin, aramanın ve sağ alttaki düğmelerin altında kalmaz.
+- Haritadaki havalimanı etiketlerinde yalnızca kod gösterilir; “Kod ve ad” seçeneği kaldırıldı. Ad ve ayrıntılar havalimanına tıklayınca açılan pencerede. Etiketler menüsünde Havalimanları için Gizle ya da Kod seçilir; kırmızı iğneler her zaman haritada kalır.
+
+Dene: [Canlı harita](/?havalimani=LTFM)
+
+### English
+**Aircraft list at the top right with tail number, location and status**
+
+- The “Aircraft on the map” list now sits at the top right on wide screens; the left side keeps only the search and the selected aircraft’s card. The list grows to at most half the map and scrolls inside; the button in its header collapses it to the aircraft count and the choice is remembered. On phones the bottom button is unchanged.
+- Columns: Flight, Tail (registration), Altitude and Location and status. The status is written relative to the nearest airport: “On ground IST”, “Landing IST, runway 35L”, “Approaching IST, 18 km” or, for aircraft en route, “45 km north of IST”. Statuses are estimates from ADS-B data; aircraft that do not broadcast a registration show “—”. Type and speed are on the card that opens when you click an aircraft.
+- The airport window and the selected aircraft’s label no longer end up under the list, the search box or the bottom-right buttons.
+- Airport labels on the map show only the code; the “With name” option was removed. The name and details are in the window that opens when you click the airport. In the Labels menu, Airports can be Hide or Code; the red pins always stay on the map.
+
+Try it: [Live map](/?havalimani=LTFM)
+
+---
+
 ## v0.15.0 — 2026-10-03
 
 ### Türkçe

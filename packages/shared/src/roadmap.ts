@@ -129,6 +129,15 @@ export const ROADMAP: readonly Milestone[] = [
     title: { tr: 'Yeni logo', en: 'New logo' },
   },
   {
+    id: 'p1-m6k',
+    part: '1',
+    status: 'done',
+    title: {
+      tr: 'Uçak listesi: kuyruk, konum ve durum',
+      en: 'Aircraft list: tail, location and status',
+    },
+  },
+  {
     id: 'p1-m7',
     part: '1',
     status: 'planned',
