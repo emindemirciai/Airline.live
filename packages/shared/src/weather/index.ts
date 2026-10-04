@@ -56,6 +56,7 @@ export {
   localTime,
   resolveDayTime,
   TURKEY_TIME_ZONE,
+  utcOffsetLabel,
   type DateInput,
   type LocalTime,
 } from './time'
