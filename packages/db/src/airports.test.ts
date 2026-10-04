@@ -562,8 +562,36 @@ describe('kaynak düzeltmeleri (D-088)', () => {
     expect(reference?.name).toBe('Gökçeada Airport')
   })
 
+  it('cleanAirportName: tek başına duran küçük harfli "airport" "Airport" olur (D-090)', () => {
+    expect(cleanAirportName('Bastia-Poretta International airport')).toBe(
+      'Bastia-Poretta International Airport',
+    )
+    expect(cleanAirportName(' Aurillac  airport ')).toBe('Aurillac Airport')
+    // Sözcüğün parçası ve zaten büyük harfli ad değişmez.
+    expect(cleanAirportName('Airportville airfield')).toBe('Airportville airfield')
+    expect(cleanAirportName('Sea-Airport Cuxhaven/Nordholz')).toBe('Sea-Airport Cuxhaven/Nordholz')
+    expect(cleanAirportName('EuroAirport Basel–Mulhouse–Freiburg')).toBe(
+      'EuroAirport Basel–Mulhouse–Freiburg',
+    )
+    expect(cleanAirportName('Heliairport x')).toBe('Heliairport x')
+    const [bastia] = listed([
+      row({
+        ident: 'LFKB',
+        icaoCode: 'LFKB',
+        iataCode: 'BIA',
+        isoCountry: 'FR',
+        name: 'Bastia-Poretta International airport',
+      }),
+    ])
+    expect(bastia?.name).toBe('Bastia-Poretta International Airport')
+  })
+
   it('HIDDEN_RUNWAY_IDS: yinelenen boş pist satırı gösterilmez; doldurulursa görünür', () => {
-    expect(Object.keys(HIDDEN_RUNWAY_IDS).map(Number).sort()).toEqual([260339, 260408])
+    expect(
+      Object.keys(HIDDEN_RUNWAY_IDS)
+        .map(Number)
+        .sort((a, b) => a - b),
+    ).toEqual([260339, 260408, 504922, 608245])
     const taba = detailRow({
       id: 3150,
       ident: 'HETB',
@@ -601,5 +629,57 @@ describe('kaynak düzeltmeleri (D-088)', () => {
     expect(withDetails([taba], [real, filled], [])[0]?.runways).toHaveLength(2)
     // Tabloda olmayan boş satır gösterilir (genel kural yok, yalnız bilinen kayıtlar).
     expect(isHiddenRunway({ ...ghost, id: 1 })).toBe(false)
+  })
+
+  it('karşı ucu olmayan satır pist sayılmaz: Stuttgart helikopter alanları (D-090)', () => {
+    const stuttgart = detailRow({
+      id: 2222,
+      ident: 'EDDS',
+      icaoCode: 'EDDS',
+      gpsCode: 'EDDS',
+      iataCode: 'STR',
+      isoCountry: 'DE',
+      isoRegion: 'DE-BW',
+    })
+    const main = runwayRow({ id: 233000, airportId: 2222, leIdent: '07', heIdent: '25' })
+    const helipad = (id: number, ident: string) =>
+      runwayRow({
+        id,
+        airportId: 2222,
+        lengthFt: 98,
+        widthFt: 98,
+        surface: 'ASPH',
+        leIdent: ident,
+        heIdent: null,
+        heTrueBearingDeg: null,
+        heDisplacedThresholdFt: null,
+        heThresholdLat: null,
+        heThresholdLon: null,
+      })
+    const north = helipad(608377, 'H-NORTH')
+    const south = helipad(608378, 'H-SOUTH')
+    expect(isHiddenRunway(north)).toBe(true)
+    expect(isHiddenRunway({ ...south, heIdent: '  ' })).toBe(true)
+    expect(isHiddenRunway(main)).toBe(false)
+    const [detail] = withDetails([stuttgart], [main, north, south], [])
+    expect(detail?.runways.map((r) => r.id)).toEqual([233000])
+  })
+
+  it('Voronej 18/36 ve Linz 07H/25H boş satırları gizli (D-090)', () => {
+    const empty = (id: number, le: string, he: string) =>
+      runwayRow({
+        id,
+        lengthFt: null,
+        widthFt: null,
+        surface: 'GRS',
+        lighted: false,
+        leIdent: le,
+        heIdent: he,
+        leTrueBearingDeg: null,
+        heTrueBearingDeg: null,
+      })
+    expect(isHiddenRunway(empty(608245, '18', '36'))).toBe(true)
+    expect(isHiddenRunway(empty(504922, '07H', '25H'))).toBe(true)
+    expect(isHiddenRunway({ ...empty(608245, '18', '36'), lengthFt: 3000 })).toBe(false)
   })
 })

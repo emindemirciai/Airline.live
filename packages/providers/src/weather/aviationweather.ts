@@ -18,6 +18,9 @@ import {
  *   istekte en çok `AWC_MAX_IDS` istasyon, METAR'da ayrıca geriye bakışa göre belgelenen 400 kayıt
  *   sınırının altında kalacak kadar istasyon (2 saatte 80). Yanıt yine de sınıra ulaşırsa grup ikiye
  *   bölünüp yeniden istenir (en fazla 2 düzey).
+ * - İki isteğin başlangıcı arasında en az `AWC_MIN_REQUEST_INTERVAL_MS` geçer (D-090): AWC'nin
+ *   sınırı dakikada 100 istektir, 3. halkayla 503 istasyonun ilk 24 saatlik doldurması tek çalışmada
+ *   ~50 istektir ve beklemesiz atılsa bir dakikaya sığabilirdi (429 → 10 dk engel).
  * - Durum kodu JSON ayrıştırmadan önce denetlenir: 204 veri yok (gövde yok), 400 bizim hatamız,
  *   403 erişim engeli, 429 hız sınırı (Retry-After varsa okunur), 5xx sunucu hatası.
  * - Yönlendirme izlenmez, yanıt boyutu sınırlıdır, içerik türü JSON olmalıdır.
@@ -39,12 +42,23 @@ export const AWC_METAR_MAX_HOURS = 24
 /**
  * Saat ve istasyon başına beklenen en çok METAR/SPECI (yarım saatte bir rapor + SPECI payı).
  * İstasyonlar, bir istek 400 kayıt sınırının altında kalacak küçüklükte gruplara bölünür: 2 saatlik
- * olağan istekte grup 80 istasyondur (Türkiye, 1. ve 2. halka, 225 istasyon: üç istek; D-088), 24
- * saatlik doldurmada 6 istasyon.
+ * olağan istekte grup 80 istasyondur (Türkiye ve 1.–3. halka, 503 istasyon: yedi istek, 80 × 6 + 23;
+ * D-090), 24 saatlik doldurmada 6 istasyon.
  */
 export const AWC_METAR_PER_STATION_HOUR = 2.5
-/** Bir istekteki en fazla istasyon (URL ~1.000 karakter); daha uzun liste birkaç isteğe bölünür. */
+/**
+ * Bir istekteki en fazla istasyon (URL ~1.000 karakter); daha uzun liste birkaç isteğe bölünür. TAF
+ * bu gruplarla istenir: 503 istasyonda üç istek (200 + 200 + 103; D-090).
+ */
 export const AWC_MAX_IDS = 200
+/**
+ * İki isteğin başlangıcı arasındaki en kısa süre, ms (D-090). 700 ms ile herhangi bir 60 saniyede en
+ * çok 86 istek başlar; AWC'nin sınırı dakikada 100'dür. Olağan çalışma (METAR 7, TAF 3 istek) ~5 sn
+ * uzar; yayından sonraki ilk METAR çalışması (yeni 278 istasyonun 24 saati 47 istek + olağan 3) en
+ * az ~35 sn sürer. Sınır istemci örneği başınadır; worker'da tek örnek METAR ve TAF işlerini sırayla
+ * çalıştırır (`concurrency: 1`), aynı anda başlayan çağrılar da sıraya girer.
+ */
+export const AWC_MIN_REQUEST_INTERVAL_MS = 700
 export const AWC_REQUEST_TIMEOUT_MS = 15_000
 /** Açılmış yanıt üst sınırı; 80 istasyonluk bir grubun 2 saatlik METAR'ı ~200 KB'tır. */
 export const AWC_MAX_RESPONSE_BYTES = 2_000_000
@@ -86,6 +100,12 @@ export interface AviationWeatherOptions {
   maxBodyBytes?: number
   /** Saat (ms); gelecek zaman denetimi ve Retry-After tarihi için, testte sabitlenir. */
   now?: () => number
+  /** İki isteğin başlangıcı arasındaki en kısa süre (ms); varsayılan `AWC_MIN_REQUEST_INTERVAL_MS`. */
+  minIntervalMs?: number
+  /** İstek aralığının tekdüze saati (ms); varsayılan `performance.now`, testte sahte saat. */
+  monotonicNow?: () => number
+  /** Bekleme; varsayılan `setTimeout`, testte sahte saati ilerletir. */
+  sleep?: (ms: number) => Promise<void>
 }
 
 export interface AwcFetchResult<T> extends ParsedReports<T> {
@@ -163,6 +183,25 @@ export function createAviationWeatherClient(options: AviationWeatherOptions) {
   const now = options.now ?? (() => Date.now())
   const timeoutMs = options.timeoutMs ?? AWC_REQUEST_TIMEOUT_MS
   const maxBodyBytes = options.maxBodyBytes ?? AWC_MAX_RESPONSE_BYTES
+  const minIntervalMs = Math.max(0, options.minIntervalMs ?? AWC_MIN_REQUEST_INTERVAL_MS)
+  const monotonicNow = options.monotonicNow ?? (() => performance.now())
+  const sleep =
+    options.sleep ?? ((ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms)))
+  /** Sıradaki isteğin en erken başlangıcı (tekdüze saat). */
+  let nextSlotAt = Number.NEGATIVE_INFINITY
+
+  /**
+   * İstek sırası: her istek bir başlangıç anı ayırır (öncekinden en az `minIntervalMs` sonra) ve o
+   * ana kadar bekler. Ayırma eşzamanlıdır (await'ten önce), bu yüzden aynı anda başlayan çağrılar
+   * da aralıklı gider.
+   */
+  async function throttle(): Promise<void> {
+    if (minIntervalMs === 0) return
+    const current = monotonicNow()
+    const slot = Math.max(current, nextSlotAt)
+    nextSlotAt = slot + minIntervalMs
+    if (slot > current) await sleep(slot - current)
+  }
 
   function url(product: Product, ids: readonly string[], hours: number | null): string {
     // Virgüller kodlanmaz: AWC'nin kendi sayfası da düz virgül gönderir.
@@ -177,6 +216,7 @@ export function createAviationWeatherClient(options: AviationWeatherOptions) {
     hours: number | null,
   ): Promise<RawResponse> {
     const label = product.toUpperCase()
+    await throttle()
     let response: Response
     try {
       response = await doFetch(url(product, ids, hours), {

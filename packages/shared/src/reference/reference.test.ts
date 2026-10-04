@@ -240,6 +240,10 @@ describe('runwaySurfaceKey', () => {
     expect(runwaySurfaceKey('PEM')).toBe('mixed')
     expect(runwaySurfaceKey('Asphalt/Concrete')).toBe('mixed')
     expect(runwaySurfaceKey('CON/ASP')).toBe('mixed')
+    for (const code of ['ASPH-CONC', 'CONC-ASPH', 'CONC/ASPH', 'asph/conc']) {
+      expect(runwaySurfaceKey(code), code).toBe('mixed')
+    }
+    expect(runwaySurfaceKey('GRS Emergency Strip')).toBe('grass')
     expect(runwaySurfaceKey('PER')).toBe('paved')
     expect(runwaySurfaceKey('GRASS')).toBe('grass')
     expect(runwaySurfaceKey('TURF')).toBe('grass')

@@ -22,13 +22,13 @@ import {
 import type { MapViewHandle } from './map-view'
 import type { ScreenPoint } from './map-controller'
 import { placePopup, type PopupRect } from './popup-placement'
-import type { BulkWeatherState } from './use-airport-weather'
+import type { AirportWeatherState } from './use-airport-weather'
 import { MAP_PANEL_SELECTOR } from './use-map-panels'
 
 export interface AirportPopupProps {
   airport: MapAirport
-  /** Toplu hava durumu (`useBulkWeather`); istasyonun raporu buradan okunur. */
-  weather: BulkWeatherState
+  /** Havalimanının güncel havası (`useAirportWeather`, tek havalimanı; D-090). */
+  weather: AirportWeatherState
   /**
    * Saniyelik duvar saati (cihaz kipindeki `WallClock`: akla yatkınsa cihaz saati, değilse sunucu
    * saati; ms): yerel saat ve gözlem yaşı bununla hesaplanır. Geri gitmeyen
@@ -56,9 +56,9 @@ function focusPlaceIn(root: HTMLElement | null): FocusPlace {
 
 /**
  * Canlı haritada havalimanı noktasına ya da IATA koduna tıklanınca açılan küçük pencere (M6c):
- * resmî ad, IATA/ICAO, il (yakın ülkelerde ülke, D-080), rakım, pist özeti, yerel saat ve UTC farkı
- * (saat dilimi biliniyorsa, `popupTimeZone`; D-084), güncel hava durumu ve havalimanı sayfası
- * bağlantısı. Gün doğumu ve
+ * resmî ad, IATA/ICAO, il (yakın ülkelerde ülke, D-080), sivil uçuşlara kapalı olabilecek
+ * havalimanında not (D-090), rakım, pist özeti, yerel saat ve UTC farkı (saat dilimi biliniyorsa,
+ * `popupTimeZone`; D-084), güncel hava durumu ve havalimanı sayfası bağlantısı. Gün doğumu ve
  * batımı yalnız havalimanı sayfasındadır (kullanıcı kararı 2026-10-02).
  * - Hava durumu: başlığın yanında ayrı sıcaklık kutucuğu (önünde "·" yok; eksi U+2212), simgeli
  *   satırlar; var olan olayın, etkili rüzgârın (şiddet etiketiyle) ve şimşek ve yıldırım riskinin
@@ -245,6 +245,12 @@ export function AirportPopup({
           </svg>
         </button>
       </header>
+
+      {facts.closure ? (
+        <p className="civil-closure" role="note">
+          {facts.closure}
+        </p>
+      ) : null}
 
       <WeatherRowList rows={facts.rows} className="map-popup__facts wx-rows--popup" />
 

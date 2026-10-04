@@ -1,12 +1,15 @@
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { stationWeather } from '../components/airports/airport-weather'
 import { FIXTURE_NOW, fixtureHistory, fixtureWeather } from './test/weather-fixture'
 import {
-  getWeather,
-  getWeatherHistory,
+  createMemoryCache,
   parseWeatherBulk,
   parseWeatherHistory,
+  WEATHER_BULK_MAX_STALE_MS,
+  WEATHER_BULK_RETRY_MS,
+  WEATHER_BULK_TTL_MS,
   WEATHER_CACHE_TAG,
+  WEATHER_HISTORY_REVALIDATE_S,
   weatherBulkUrl,
   weatherHistoryUrl,
 } from './weather'
@@ -69,33 +72,168 @@ describe('yanıt denetimi', () => {
   })
 })
 
+/** Modülün bellek önbelleği her testte boş başlasın: modül yeniden yüklenir. */
+async function freshWeatherModule() {
+  vi.resetModules()
+  return import('./weather')
+}
+
+describe('createMemoryCache: toplu hava durumunun web belleği (D-090)', () => {
+  let clock = 0
+  const now = () => clock
+  beforeEach(() => {
+    clock = 1_000_000
+  })
+
+  function deferred<T>() {
+    let resolve: (value: T) => void = () => undefined
+    let reject: (error: unknown) => void = () => undefined
+    const promise = new Promise<T>((ok, fail) => {
+      resolve = ok
+      reject = fail
+    })
+    return { promise, resolve, reject }
+  }
+
+  const options = {
+    ttlMs: WEATHER_BULK_TTL_MS,
+    retryMs: WEATHER_BULK_RETRY_MS,
+    maxStaleMs: WEATHER_BULK_MAX_STALE_MS,
+    now,
+  }
+
+  it('sabitler: 60 sn taze, 15 sn sonra yeniden deneme, en çok 10 dk eski', () => {
+    expect([WEATHER_BULK_TTL_MS, WEATHER_BULK_RETRY_MS, WEATHER_BULK_MAX_STALE_MS]).toEqual([
+      60_000, 15_000, 600_000,
+    ])
+  })
+
+  it('tek uçuş: aynı anda gelen çağrılar tek isteği paylaşır; 60 sn içinde yeni istek yok', async () => {
+    let calls = 0
+    const pending = deferred<string>()
+    const get = createMemoryCache({
+      ...options,
+      load: () => {
+        calls += 1
+        return pending.promise
+      },
+    })
+    const first = get()
+    const second = get()
+    const third = get()
+    pending.resolve('v1')
+    expect(await Promise.all([first, second, third])).toEqual(['v1', 'v1', 'v1'])
+    expect(calls).toBe(1)
+    clock += WEATHER_BULK_TTL_MS - 1
+    expect(await get()).toBe('v1')
+    expect(calls).toBe(1)
+  })
+
+  it('süresi dolunca yenilenir: dakikada en çok bir istek', async () => {
+    let version = 0
+    const get = createMemoryCache({ ...options, load: async () => `v${++version}` })
+    expect(await get()).toBe('v1')
+    clock += WEATHER_BULK_TTL_MS
+    expect(await get()).toBe('v2')
+    // 503 sayfa aynı dakikada çizilse de API'ye tek istek gider.
+    const pages = await Promise.all(Array.from({ length: 503 }, () => get()))
+    expect(new Set(pages)).toEqual(new Set(['v2']))
+    expect(version).toBe(2)
+  })
+
+  it('yenileme başarısız: eldeki değer 10 dk yaşına kadar verilir, 15 sn dolmadan yeniden denenmez', async () => {
+    let calls = 0
+    let fail = false
+    const get = createMemoryCache({
+      ...options,
+      load: async () => {
+        calls += 1
+        if (fail) throw new Error('API down')
+        return `v${calls}`
+      },
+    })
+    expect(await get()).toBe('v1')
+    fail = true
+    clock += WEATHER_BULK_TTL_MS
+    expect(await get()).toBe('v1')
+    expect(calls).toBe(2)
+    clock += WEATHER_BULK_RETRY_MS - 1
+    expect(await get()).toBe('v1')
+    expect(calls).toBe(2)
+    clock += 1
+    expect(await get()).toBe('v1')
+    expect(calls).toBe(3)
+    // 10 dakikadan eski değer verilmez: sayfa "alınamıyor" der.
+    clock = 1_000_000 + WEATHER_BULK_MAX_STALE_MS + 1
+    expect(await get()).toBeNull()
+    expect(calls).toBe(4)
+    fail = false
+    expect(await get()).toBeNull()
+    clock += WEATHER_BULK_RETRY_MS
+    expect(await get()).toBe('v5')
+  })
+
+  it('hiç değer yokken hata: null, fırlatmaz', async () => {
+    const get = createMemoryCache({
+      ...options,
+      load: () => Promise.reject(new TypeError('fetch failed')),
+    })
+    expect(await get()).toBeNull()
+  })
+})
+
 describe('getWeather', () => {
-  it('60 sn önbellek, "weather" etiketi, istemci başlığı yok', async () => {
+  it('Next veri önbelleğine konmaz (no-store); dakikada bir istek, istemci başlığı yok', async () => {
     vi.stubEnv('API_INTERNAL_URL', 'http://api.internal:4000')
     const calls = stubFetch(json(BULK))
+    const { getWeather } = await freshWeatherModule()
     const bulk = await getWeather()
     expect(bulk?.stations.size).toBe(2)
+    expect(await getWeather()).toBe(bulk)
     expect(calls).toHaveLength(1)
     expect(calls[0]?.url).toBe('http://api.internal:4000/v1/weather?scope=listed')
-    expect(calls[0]?.init.next).toEqual({ revalidate: 60, tags: [WEATHER_CACHE_TAG] })
+    expect(calls[0]?.init.cache).toBe('no-store')
+    expect(calls[0]?.init.next).toBeUndefined()
     expect(calls[0]?.init.headers).toEqual({ accept: 'application/json' })
   })
 
   it('hata sayfaya taşınmaz: HTTP hatası, ağ hatası ve bozuk gövde null döner', async () => {
-    stubFetch(() => new Response('down', { status: 503 }))
-    expect(await getWeather()).toBeNull()
-    stubFetch(() => Promise.reject(new TypeError('fetch failed')))
-    expect(await getWeather()).toBeNull()
-    stubFetch(() => new Response('<html>', { status: 200 }))
-    expect(await getWeather()).toBeNull()
+    for (const response of [
+      () => new Response('down', { status: 503 }),
+      () => Promise.reject(new TypeError('fetch failed')),
+      () => new Response('<html>', { status: 200 }),
+      json({ generatedAt: GENERATED }),
+    ]) {
+      stubFetch(response)
+      const { getWeather } = await freshWeatherModule()
+      expect(await getWeather()).toBeNull()
+    }
+  })
+
+  it('503 istasyonun gövdesi bellekte tek kez ayrıştırılır (2 MiB öğe sınırı yok)', async () => {
+    const station = fixtureWeather('LTFM')
+    const stations = Array.from({ length: 503 }, (_, i) => ({
+      ...station,
+      icao: `X${String(i).padStart(3, '0')}`,
+    }))
+    const body = JSON.stringify({ ...BULK, stations })
+    const calls = stubFetch(
+      () => new Response(body, { status: 200, headers: { 'content-type': 'application/json' } }),
+    )
+    const { getWeather } = await freshWeatherModule()
+    expect((await getWeather())?.stations.size).toBe(503)
+    expect((await getWeather())?.stations.size).toBe(503)
+    expect(calls).toHaveLength(1)
   })
 })
 
 describe('getWeatherHistory', () => {
-  it('5 dk önbellek; geçersiz kodda istek atılmaz; hata null', async () => {
+  it('15 dk önbellek (D-090); geçersiz kodda istek atılmaz; hata null', async () => {
+    const { getWeatherHistory } = await freshWeatherModule()
+    expect(WEATHER_HISTORY_REVALIDATE_S).toBe(900)
     const calls = stubFetch(json(fixtureHistory('LTFM')))
     expect((await getWeatherHistory('LTFM'))?.icao).toBe('LTFM')
-    expect(calls[0]?.init.next).toEqual({ revalidate: 300, tags: [WEATHER_CACHE_TAG] })
+    expect(calls[0]?.init.next).toEqual({ revalidate: 900, tags: [WEATHER_CACHE_TAG] })
     expect(await getWeatherHistory('ltfm')).toBeNull()
     expect(await getWeatherHistory('../x')).toBeNull()
     expect(calls).toHaveLength(1)

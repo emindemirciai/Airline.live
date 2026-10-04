@@ -121,6 +121,12 @@ export const tr = {
     location: '{province}, Türkiye',
     /** Türkiye dışındaki havalimanı (M6d): yerleşim ve ülke; yerleşim yoksa yalnızca ülke yazılır. */
     locationAbroad: '{city}, {country}',
+    /**
+     * Sivil uçuşlara kapalı olabilecek havalimanı (kullanıcı kararı 2026-10-04, D-090;
+     * `civilFlightClosure`): sayfada başlığın altında. `{since}`: yıl, ekiyle (`formatSinceYear`:
+     * "2022’den").
+     */
+    civilClosure: 'Sivil uçuşlara kapalı olabilir ({since} beri)',
     lead: {
       runwaysOne: 'Havalimanında tek pist var: {length} uzunluğundaki {designator}.',
       runwaysMany: 'Havalimanında {count} pist var; en uzunu {length} ile {designator}.',
@@ -982,6 +988,8 @@ export const tr = {
       observed: 'Gözlem {time}',
       loading: 'Hava durumu yükleniyor…',
       unavailable: 'Hava durumu şu an alınamıyor.',
+      /** Sivil uçuşlara kapalı olabilecek havalimanı (D-090); sayfadaki notla aynı metin. */
+      civilClosure: 'Sivil uçuşlara kapalı olabilir ({since} beri)',
       openAirportPage: 'Havalimanı sayfası →',
       close: 'Kapat',
     },

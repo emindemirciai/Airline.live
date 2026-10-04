@@ -31,9 +31,10 @@ import {
   type AirportMetar,
   type Locale,
 } from '@havayolu/shared'
+import { civilClosureNote } from '../airports/civil-closure'
 import { phenomenonRows, plainRow, type WeatherRow } from '../airports/weather-rows'
 import { runwaySummary, type MapAirport } from './airport-data'
-import type { BulkWeatherState } from './use-airport-weather'
+import type { AirportWeatherState } from './use-airport-weather'
 
 export type PopupMessages = Messages['map']['airportPopup']
 export type WeatherMessages = Messages['weather']
@@ -104,6 +105,11 @@ export interface AirportFacts {
    * (`WeatherRowList`) ve aynı sütunlarda çizilir (M6e.1, D-083); simgeleri `data-row` anahtarından.
    */
   rows: WeatherRow[]
+  /**
+   * "Sivil uçuşlara kapalı olabilir (2022’den beri)" (kullanıcı kararı 2026-10-04, D-090;
+   * `civilClosureNote`); listede olmayan havalimanında null.
+   */
+  closure: string | null
 }
 
 /**
@@ -118,7 +124,8 @@ export function formatLocalTime(ms: number, timeZone: string, t: PopupMessages):
 
 /**
  * Pencerenin üst bilgileri: ad, rakım, pist özeti; saat dilimi biliniyorsa (`popupTimeZone`) yerel
- * saat ve UTC farkı (her havalimanında aynı biçim). Gün doğumu ve batımı pencerede yazılmaz,
+ * saat ve UTC farkı (her havalimanında aynı biçim); sivil uçuşlara kapalı olabilecek havalimanında
+ * not (D-090). Gün doğumu ve batımı pencerede yazılmaz,
  * havalimanı sayfasındadır (kullanıcı kararı 2026-10-02). Hava durumu ayrıdır (`popupWeatherView`).
  */
 export function airportFacts(
@@ -136,7 +143,12 @@ export function airportFacts(
   if (timeZone !== null) {
     rows.push(plainRow('localTime', t.localTime, formatLocalTime(now, timeZone, t)))
   }
-  return { name, label: format(t.label, { name }), rows }
+  return {
+    name,
+    label: format(t.label, { name }),
+    rows,
+    closure: civilClosureNote(airport.icao, locale, t.civilClosure),
+  }
 }
 
 export interface PopupWeatherReport {
@@ -170,7 +182,7 @@ export type PopupWeatherView =
  * satırındadır); dilim bilinmiyorsa (`null`) UTC ile ("12:50 UTC").
  */
 export function popupWeatherView(
-  state: BulkWeatherState,
+  state: AirportWeatherState,
   icao: string,
   now: number,
   locale: Locale,
@@ -178,12 +190,13 @@ export function popupWeatherView(
   t: PopupMessages,
   timeZone: string | null = TURKEY_TIME_ZONE,
 ): PopupWeatherView {
-  if (state.data === null) {
+  // Başka havalimanının yanıtı bu havalimanının raporu sayılmaz (`useAirportWeather` zaten ayırır).
+  if (state.data === null || state.data.icao !== icao) {
     return state.failed
       ? { kind: 'unavailable', text: t.unavailable }
       : { kind: 'loading', text: t.loading }
   }
-  const metar = state.data.stations.get(icao)?.metar ?? null
+  const metar = state.data.metar
   if (metar === null) return { kind: 'none', text: t.noReport }
   const age = metarAgeClass(metar.observedAt, now)
   if (age === 'none') return { kind: 'none', text: t.noReport }

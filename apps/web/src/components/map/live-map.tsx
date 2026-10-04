@@ -53,7 +53,7 @@ import {
 } from './panels'
 import { aircraftPlace } from './panels/aircraft-place'
 import { useAircraftListOpen } from './use-aircraft-list-open'
-import { useBulkWeather } from './use-airport-weather'
+import { useAirportWeather } from './use-airport-weather'
 import { useFlightPhases } from './use-flight-phases'
 import { useLabelSettings } from './use-label-settings'
 import { useLive } from './use-live'
@@ -170,7 +170,7 @@ export function LiveMap({
   const live = useLive(config.wsUrl)
   const { store, setViewport: subscribeViewport } = live
   const now = useNow()
-  // Havalimanı penceresinin duvar saati, cihaz kipinde (lib/wall-clock.ts): cihaz saati toplu havanın
+  // Havalimanı penceresinin duvar saati, cihaz kipinde (lib/wall-clock.ts): cihaz saati hava yanıtının
   // `generatedAt`'ine göre akla yatkınsa (geride değil, en çok 10 dk ileride) o, değilse sunucu
   // saati. Önbellekten gelen eski `generatedAt` yerel saati ve gözlem yaşını geride bırakmaz; cihaz
   // uyusa ya da saati yanlış olsa da değerler doğrudur.
@@ -357,7 +357,8 @@ export function LiveMap({
   const popupAirport =
     popupIcao === null ? undefined : airports.find((airport) => airport.icao === popupIcao)
   const popupOpen = popupAirport !== undefined
-  const weather = useBulkWeather(config.apiBaseUrl, popupOpen, weatherClock)
+  // Pencere yalnız kendi havalimanının havasını ister (D-090); kapalıyken istek yok.
+  const weather = useAirportWeather(config.apiBaseUrl, popupAirport?.icao ?? null, weatherClock)
   // Listenin tahmini durumları (D-085): depo değiştikçe sınıflandırılır, çizimde yalnızca okunur.
   const phases = useFlightPhases(store, airports)
   // Haritanın üstündeki paneller: seçili uçağın etiketi bunların altında kalmaz (D-085). Kart açılıp

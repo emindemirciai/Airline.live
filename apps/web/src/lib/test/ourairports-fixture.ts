@@ -12,8 +12,8 @@ import {
 } from '@havayolu/shared'
 
 /**
- * Commit'li OurAirports fixture'ından (üretim dökümünün Türkiye kesiti ile 1. ve 2. halkanın yabancı
- * havalimanları, D-080, D-088) API'nin döndüreceği `AirportDetail` listesine yakın bir liste kurar:
+ * Commit'li OurAirports fixture'ından (üretim dökümünün Türkiye kesiti ile 1.–3. halkanın yabancı
+ * havalimanları, D-080, D-088, D-090) API'nin döndüreceği `AirportDetail` listesine yakın bir liste kurar:
  * IATA kodlu Türkiye havalimanları, içe aktarım filtresi (büyük/orta ya da tarifeli; data-sources.md §3),
  * açık pistler ve tohum istasyonları; `fixtureListedAirports` bunlara açık halkalardaki yabancı
  * adayları ekler. Sayfa metinlerinin her gerçek havalimanı için sınırlar içinde kaldığını denetlemek
@@ -95,15 +95,21 @@ let cachedListed: AirportDetail[] | undefined
 let cachedRunways: Row[] | undefined
 
 /**
- * API'nin gizlediği yinelenen boş pist satırları (D-088; `@havayolu/db` → `HIDDEN_RUNWAY_IDS`, web o
- * pakete bağımlı değildir): Taba "04/22" ve Cluj-Napoca "08/26"; yalnız uzunluk ve genişlik boşken.
+ * API'nin gizlediği yinelenen boş pist satırları (D-088, D-090; `@havayolu/db` → `HIDDEN_RUNWAY_IDS`,
+ * web o pakete bağımlı değildir): Taba "04/22", Cluj-Napoca "08/26", Linz "07H/25H" ve Voronej
+ * "18/36"; yalnız uzunluk ve genişlik boşken.
  */
-const HIDDEN_RUNWAY_IDS = new Set(['260339', '260408'])
+const HIDDEN_RUNWAY_IDS = new Set(['260339', '260408', '504922', '608245'])
 
+/**
+ * API'nin gösterdiği pist satırları (`isHiddenRunway`): açık, tabloda boş satır olarak yok ve karşı
+ * ucu var (D-090: tek uçlu satır pist değildir; Stuttgart'ın H-NORTH ve H-SOUTH helikopter alanları).
+ */
 function openRunways(): Row[] {
   cachedRunways ??= read('runways.csv').filter(
     (row) =>
       row.closed !== '1' &&
+      (row.he_ident ?? '').trim() !== '' &&
       !(HIDDEN_RUNWAY_IDS.has(row.id ?? '') && !row.length_ft && !row.width_ft),
   )
   return cachedRunways
@@ -130,8 +136,12 @@ function toDetail(
   return {
     icao,
     iata: row.iata_code ?? '',
-    // API gibi art arda boşluklar teke iner (Bacău, `cleanAirportName`; D-088).
-    name: (row.name ?? '').trim().replace(/\s+/g, ' '),
+    // API gibi (`cleanAirportName`): art arda boşluklar teke iner (Bacău, D-088), tek başına duran
+    // küçük harfli "airport" büyük harfle yazılır (Fransız havalimanları, D-090).
+    name: (row.name ?? '')
+      .trim()
+      .replace(/\s+/g, ' ')
+      .replace(/\bairport\b/g, 'Airport'),
     city: row.municipality || null,
     lat: Number(row.latitude_deg),
     lon: Number(row.longitude_deg),

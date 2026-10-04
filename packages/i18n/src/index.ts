@@ -26,6 +26,25 @@ export function format(template: string, values: Record<string, string | number>
   })
 }
 
+/** Sayının okunuşundaki son sözcüğün ayrılma eki: birler, onlar, yüz, bin (ünlü ve ünsüz uyumu). */
+const ABLATIVE_ONES = ['', 'den', 'den', 'ten', 'ten', 'ten', 'dan', 'den', 'den', 'dan'] as const
+const ABLATIVE_TENS = ['', 'dan', 'den', 'dan', 'tan', 'den', 'tan', 'ten', 'den', 'dan'] as const
+
+/**
+ * "… beri" kalıbındaki yıl (D-090): Türkçede kesme işaretli ayrılma ekiyle, sayının okunuşuna göre
+ * ("2022’den", "2023’ten", "2026’dan", "2040’tan", "2000’den"); İngilizcede yalnız yıl ("2022").
+ * Pozitif tam sayı olmayan değer `RangeError` fırlatır.
+ */
+export function formatSinceYear(year: number, locale: Locale): string {
+  if (!Number.isInteger(year) || year < 1) throw new RangeError(`invalid year: ${year}`)
+  if (locale !== 'tr') return String(year)
+  const ones = year % 10
+  const tens = Math.floor(year / 10) % 10
+  // Son sözcük birler ("iki"), yoksa onlar ("yirmi"), yoksa "yüz" ya da "bin" (boş ek, "-den").
+  const suffix = (ones > 0 ? ABLATIVE_ONES[ones] : ABLATIVE_TENS[tens]) || 'den'
+  return `${year}’${suffix}`
+}
+
 /** Tarihi seçili dilde, Europe/Istanbul saat diliminde biçimlendirir. */
 export function formatDate(isoDate: string, locale: Locale): string {
   const date = new Date(`${isoDate}T12:00:00Z`)

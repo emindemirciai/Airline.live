@@ -408,13 +408,13 @@ describe('GET /v1/weather?scope=listed (D-080)', () => {
   })
 
   /**
-   * 225 havalimanı (61 Türkiye, 1. halkada 75, 2. halkada 89; D-088). Toplu yanıtı web sunucusu
-   * Next veri önbelleğinde tutar (öğe sınırı 2 MB; aşılırsa yanıt önbelleğe alınmaz ve her sayfa
-   * API'ye gider) ve harita pencere açılınca bir kez ister. Bütçe bu yüzden 2 MB'ın altında pay
-   * bırakır. 2026-10-03 üretim görüntüsünde 136 istasyonun gövdesi ~1,0 MB'tı ve %84'ü yerini
-   * yenisine bırakmış TAF'lardı (istasyon başına ortalama 3,4 geçerli TAF): 225 istasyonda ~1,65
-   * MB, TAF yayım saatlerinde 2 MB'a yakın olurdu. Yalnız yürürlükteki TAF'larla aynı görüntü
-   * ~0,39 MB'tır, 225 istasyonda ~0,65 MB, yayım saatlerinde (yürürlükte iki TAF) ~1,05 MB.
+   * 503 havalimanı (61 Türkiye, 1. halkada 75, 2. halkada 89, 3. halkada 278; D-090). 2. halkada
+   * (225) web sunucusu toplu yanıtı Next veri önbelleğinde tutuyordu (öğe sınırı 2 MiB, gövde base64
+   * saklandığı için ham gövdede ~1,57 MB) ve harita pencere açılınca istiyordu; bütçe o yüzden 1,8
+   * MB'tı. 3. halkada gövde bu sınırı aşar: web toplu yanıtı kendi belleğinde 60 sn tutar, harita
+   * penceresi tek havalimanının havasını ister (D-090). Bütçe artık API ve mobil içindir: en kötü
+   * durumda 4 MB'ın altı. 2026-10-03 üretim görüntüsü (yalnız yürürlükteki TAF'lar) istasyon başına
+   * ~2,9 KB'tı: 503 istasyonda ~1,44 MB, TAF yayım saatlerinde (yürürlükte iki TAF) ~2,35 MB.
    * Buradaki rapor ağırdır (RVR, rüzgâr kesmesi, eğilim; çok dönemli TAF): gerçek veriden büyük.
    */
   const heavyListed = (count: number, tafs: readonly TafRecord[]) => {
@@ -443,14 +443,14 @@ describe('GET /v1/weather?scope=listed (D-080)', () => {
     return weather
   }
 
-  it('225 havalimanı (1. ve 2. halka), METAR ve üç geçerli TAF: eski TAF düşer, gövde 1,8 MB altında', async () => {
+  it('503 havalimanı (1.–3. halka), METAR ve üç geçerli TAF: eski TAF düşer, gövde 4 MB altında', async () => {
     // Her istasyonda TAF yayım saatlerindeki durum: yürürlükteki TAF, henüz başlamamış yenisi ve
     // yerini ikisine bırakmış eskisi. Eskisi yanıta girmez.
-    const weather = heavyListed(225, [ltfmTaf, ltfmNextTaf, ltfmOldTaf])
+    const weather = heavyListed(503, [ltfmTaf, ltfmNextTaf, ltfmOldTaf])
     const { get } = await setup(weather)
     const res = await get('/v1/weather?scope=listed')
     const body = res.json() as WeatherBulkResponse
-    expect(body.stations).toHaveLength(225)
+    expect(body.stations).toHaveLength(503)
     expect(body.stations.every((s) => s.metar !== null)).toBe(true)
     expect(
       body.stations.every(
@@ -459,19 +459,20 @@ describe('GET /v1/weather?scope=listed (D-080)', () => {
           '2026-01-15T12:40:00.000Z,2026-01-15T10:40:00.000Z',
       ),
     ).toBe(true)
-    // En kötü durum (her istasyonda ağır METAR ve yürürlükte iki ağır TAF) ~1,52 MB; eski TAF
-    // da girseydi ~1,82 MB olurdu (bütçeyi aşardı).
-    expect(Buffer.byteLength(res.body)).toBeLessThan(1_800_000)
+    // En kötü durum (her istasyonda ağır METAR ve yürürlükte iki ağır TAF) ~3,4 MB; eski TAF da
+    // girseydi ~4,1 MB olurdu (bütçeyi aşardı).
+    expect(Buffer.byteLength(res.body)).toBeLessThan(4_000_000)
     expect(weather.latest).toHaveBeenCalledTimes(1)
   })
 
-  it('225 havalimanı, METAR ve yürürlükte tek TAF (olağan durum): gövde 1,2 MB altında', async () => {
-    const { get } = await setup(heavyListed(225, [ltfmTaf, ltfmOldTaf]))
+  it('503 havalimanı, METAR ve yürürlükte tek TAF (olağan durum): gövde 2,6 MB altında', async () => {
+    const { get } = await setup(heavyListed(503, [ltfmTaf, ltfmOldTaf]))
     const res = await get('/v1/weather?scope=listed')
     const body = res.json() as WeatherBulkResponse
+    expect(body.stations).toHaveLength(503)
     expect(body.stations.every((s) => s.tafs.length === 1)).toBe(true)
-    // ~1,0 MB (ağır METAR ve TAF ile; üretim verisiyle ~0,65 MB).
-    expect(Buffer.byteLength(res.body)).toBeLessThan(1_200_000)
+    // ~2,2 MB (ağır METAR ve TAF ile; üretim verisiyle ~1,44 MB).
+    expect(Buffer.byteLength(res.body)).toBeLessThan(2_600_000)
   })
 
   it("yürürlükteki TAF: toplu yanıt ve tek havalimanı aynı TAF'ları verir; kayıtta hepsi kalır", async () => {
@@ -851,10 +852,10 @@ describe('GET /v1/airports/:code/weather/history', () => {
     expect(historyCacheWindow(24)).toBe(24)
     expect(historyCacheWindow(25)).toBe(168)
     expect(historyCacheWindow(168)).toBe(168)
-    // Listelenen havalimanları × 2 pencere (2. halkada 225 × 2 = 450, D-088); asıl sınır bayt
+    // Listelenen havalimanları × 2 pencere (3. halkada 503 × 2 = 1.006, D-090); asıl sınır bayt
     // bütçesidir.
-    expect(WEATHER_HISTORY_CACHE_MAX_ENTRIES).toBeGreaterThanOrEqual(225 * 2)
-    expect(WEATHER_HISTORY_CACHE_MAX_ENTRIES).toBeLessThanOrEqual(512)
+    expect(WEATHER_HISTORY_CACHE_MAX_ENTRIES).toBeGreaterThanOrEqual(503 * 2)
+    expect(WEATHER_HISTORY_CACHE_MAX_ENTRIES).toBeLessThanOrEqual(1024)
   })
 
   it('168 saatlik kayıt (yarım saatte bir METAR, SPECI, TAF): gövde 1 MB altında', async () => {

@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { createServer, type Server } from 'node:http'
 import type { AddressInfo } from 'node:net'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   AVIATIONWEATHER_BASE_URL,
   AWC_MAX_ENTRIES,
@@ -9,6 +9,7 @@ import {
   AWC_MAX_RETRY_AFTER_SEC,
   AWC_METAR_MAX_HOURS,
   AWC_METAR_PER_STATION_HOUR,
+  AWC_MIN_REQUEST_INTERVAL_MS,
   AviationWeatherError,
   awcRetryAfter,
   createAviationWeatherClient,
@@ -47,8 +48,18 @@ const json = (body: string, headers: Record<string, string> = {}) =>
     headers: { 'content-type': 'application/json', ...headers },
   })
 
+/**
+ * Testlerin istemcisi istekler arasında beklemez (`minIntervalMs: 0`); aralık "istekler arası en
+ * kısa aralık" bölümünde sahte saatle denetlenir.
+ */
 const client = (fetch: typeof globalThis.fetch, extra: { timeoutMs?: number } = {}) =>
-  createAviationWeatherClient({ userAgent: USER_AGENT, fetch, now: () => FIXTURE_NOW, ...extra })
+  createAviationWeatherClient({
+    userAgent: USER_AGENT,
+    fetch,
+    now: () => FIXTURE_NOW,
+    minIntervalMs: 0,
+    ...extra,
+  })
 
 async function failure(promise: Promise<unknown>): Promise<AviationWeatherError> {
   try {
@@ -309,10 +320,11 @@ describe('400 kayıt sınırı', () => {
     expect(usual.calls).toHaveLength(1)
   })
 
-  it('olağan 2 saatlik istek: Türkiye + 1. ve 2. halka (225 istasyon) 80 istasyonluk üç isteğe bölünür', async () => {
-    // 225 istasyon × 2 saatte ~4 METAR/SPECI = 900 kayıt: tek istek 400 sınırını aşardı (D-080,
-    // D-088). 1. halkada 136 istasyon iki istekti (80 + 56).
-    const ids = stationIds(225)
+  it('olağan 2 saatlik istek: Türkiye + 1.–3. halka (503 istasyon) 80 istasyonluk yedi isteğe bölünür', async () => {
+    // 503 istasyon × 2 saatte ~4 METAR/SPECI = 2.012 kayıt: tek istek 400 sınırını aşardı (D-080,
+    // D-088, D-090). 1. halkada 136 istasyon iki (80 + 56), 2. halkada 225 istasyon üç istekti
+    // (80 + 80 + 65).
+    const ids = stationIds(503)
     const { fetch, calls } = stubFetch((url) => {
       const asked = url.searchParams.get('ids')?.split(',') ?? []
       return json(entries(asked, asked.length * 4))
@@ -321,30 +333,34 @@ describe('400 kayıt sınırı', () => {
     const perRequest = Math.floor(AWC_MAX_ENTRIES / (2 * AWC_METAR_PER_STATION_HOUR))
     expect(perRequest).toBe(80)
     const sent = calls.map((c) => new URL(c.url).searchParams)
-    expect(sent.map((q) => q.get('ids')?.split(',').length)).toEqual([80, 80, 65])
+    expect(sent.map((q) => q.get('ids')?.split(',').length)).toEqual([80, 80, 80, 80, 80, 80, 23])
     expect(sent.every((q) => q.get('hours') === '2')).toBe(true)
     expect(sent.flatMap((q) => q.get('ids')?.split(',') ?? [])).toEqual(ids)
-    expect(result).toMatchObject({ requests: 3, truncated: false, entryCount: 225 * 4 })
-    expect(new Set(result.items.map((m) => m.station)).size).toBe(225)
+    expect(result).toMatchObject({ requests: 7, truncated: false, entryCount: 503 * 4 })
+    expect(new Set(result.items.map((m) => m.station)).size).toBe(503)
   })
 
-  it('TAF: 225 istasyon iki istek (200 + 25); 24 saatlik doldurmada 89 yeni istasyon 15 istek (D-088)', async () => {
-    const ids = stationIds(225)
+  it('TAF: 503 istasyon üç istek (200 + 200 + 103); 24 saatlik doldurmada 278 yeni istasyon 47 istek (D-090)', async () => {
+    const ids = stationIds(503)
     const tafs = stubFetch(() => json('[]'))
     const result = await client(tafs.fetch).tafs(ids)
     expect(
       tafs.calls.map((c) => new URL(c.url).searchParams.get('ids')?.split(',').length),
-    ).toEqual([200, 25])
-    expect(result).toMatchObject({ status: 200, requests: 2 })
-    // Yayından sonraki ilk çalışmada 2. halkanın 89 istasyonu 24 saatle istenir: 6'şarlı 15 istek.
+    ).toEqual([200, 200, 103])
+    expect(result).toMatchObject({ status: 200, requests: 3 })
+    // Yayından sonraki ilk çalışmada 3. halkanın 278 istasyonu 24 saatle istenir: 6'şarlı 47 istek
+    // (46 × 6 + 2). Bütün istasyonların 24 saatlik doldurması (ilk açılış) 84 istektir.
     const backfill = stubFetch(() => json('[]'))
-    await client(backfill.fetch).metars(ids.slice(136), { hours: AWC_METAR_MAX_HOURS })
+    await client(backfill.fetch).metars(ids.slice(225), { hours: AWC_METAR_MAX_HOURS })
     const sizes = backfill.calls.map(
       (c) => new URL(c.url).searchParams.get('ids')?.split(',').length,
     )
-    expect(sizes).toHaveLength(15)
-    expect(sizes.slice(0, 14).every((size) => size === 6)).toBe(true)
-    expect(sizes.at(-1)).toBe(5)
+    expect(sizes).toHaveLength(47)
+    expect(sizes.slice(0, 46).every((size) => size === 6)).toBe(true)
+    expect(sizes.at(-1)).toBe(2)
+    const full = stubFetch(() => json('[]'))
+    await client(full.fetch).metars(ids, { hours: AWC_METAR_MAX_HOURS })
+    expect(full.calls).toHaveLength(84)
   })
 
   it('TAF ve uzun liste: istek başına en çok AWC_MAX_IDS istasyon (sonraki halkalar)', async () => {
@@ -373,5 +389,117 @@ describe('400 kayıt sınırı', () => {
     const one = await client(single.fetch).metars(['LTFM'])
     expect(single.calls).toHaveLength(1)
     expect(one.truncated).toBe(true)
+  })
+})
+
+describe('istekler arası en kısa aralık (D-090)', () => {
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  /**
+   * Sahte saat: `setTimeout` ve `Date` vitest'in sahte zamanlayıcılarıdır; istemcinin tekdüze saati
+   * `Date.now`'a bağlanır, varsayılan bekleme (`setTimeout`) sahte saatte ilerler. Saat 100 ms'lik
+   * adımlarla ilerletilir; zamanlayıcılar kuruldukları anda çalışır.
+   */
+  function fakeClock() {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'Date'], now: 0 })
+    return async function drive<T>(promise: Promise<T>): Promise<T> {
+      let settled = false
+      const tracked = promise.finally(() => {
+        settled = true
+      })
+      for (let step = 0; step < 100_000 && !settled; step++) {
+        await vi.advanceTimersByTimeAsync(100)
+      }
+      return tracked
+    }
+  }
+
+  const stationIds = (count: number) =>
+    Array.from({ length: count }, (_, i) => {
+      const letter = (n: number) => String.fromCharCode(65 + (Math.floor(i / 26 ** n) % 26))
+      return `X${letter(2)}${letter(1)}${letter(0)}`
+    })
+
+  /** Her isteğin başladığı an (sahte saat, ms); yanıt isteğe bağlı gecikmeyle döner. */
+  function timedFetch(delayMs = 0) {
+    const starts: number[] = []
+    const fetch = (async () => {
+      starts.push(Date.now())
+      if (delayMs > 0) await new Promise((resolve) => setTimeout(resolve, delayMs))
+      return json('[]')
+    }) as typeof globalThis.fetch
+    return { fetch, starts }
+  }
+
+  const timedClient = (fetch: typeof globalThis.fetch, minIntervalMs?: number) =>
+    createAviationWeatherClient({
+      userAgent: USER_AGENT,
+      fetch,
+      now: () => FIXTURE_NOW,
+      monotonicNow: () => Date.now(),
+      ...(minIntervalMs === undefined ? {} : { minIntervalMs }),
+    })
+
+  it('varsayılan aralık 700 ms: 503 istasyonun yedi METAR isteği 700 ms arayla başlar', async () => {
+    expect(AWC_MIN_REQUEST_INTERVAL_MS).toBe(700)
+    // Herhangi bir 60 saniyede en çok 86 istek başlar; AWC'nin sınırı dakikada 100'dür.
+    expect(Math.floor(60_000 / AWC_MIN_REQUEST_INTERVAL_MS) + 1).toBeLessThan(100)
+    const drive = fakeClock()
+    const { fetch, starts } = timedFetch()
+    const result = await drive(timedClient(fetch).metars(stationIds(503)))
+    expect(result.requests).toBe(7)
+    expect(starts).toEqual([0, 700, 1400, 2100, 2800, 3500, 4200])
+  })
+
+  it('yanıt aralıktan uzun sürerse beklenmez; sıra istemci örneğinde METAR ve TAF arasında sürer', async () => {
+    const drive = fakeClock()
+    const slow = timedFetch(1_000)
+    const awc = timedClient(slow.fetch)
+    await drive(awc.tafs(stationIds(503)))
+    // Her yanıt 1 sn sürdü: istekler arka arkaya, ek beklemesiz.
+    expect(slow.starts).toEqual([0, 1_000, 2_000])
+    // Aynı istemcinin sonraki çağrısı: son istek 2.000'de başladı, yanıtı 3.000'de bitti; 700 ms
+    // geçtiği için bekleme yok.
+    await drive(awc.metars(['LTFM']))
+    expect(slow.starts).toHaveLength(4)
+    expect(slow.starts.at(-1)).toBe(3_000)
+  })
+
+  it('aynı anda başlayan çağrılar da aralıklı gider', async () => {
+    const drive = fakeClock()
+    const { fetch, starts } = timedFetch()
+    const awc = timedClient(fetch)
+    await drive(Promise.all([awc.metars(stationIds(160)), awc.tafs(stationIds(3))]))
+    // METAR iki istek (80 + 80), TAF bir istek: üçü 700 ms arayla.
+    expect(starts).toEqual([0, 700, 1400])
+  })
+
+  it('ilk açılışta bütün istasyonların 24 saatlik doldurması (84 istek) dakikada 100 sınırının altında kalır', async () => {
+    const drive = fakeClock()
+    const { fetch, starts } = timedFetch()
+    await drive(timedClient(fetch).metars(stationIds(503), { hours: AWC_METAR_MAX_HOURS }))
+    expect(starts).toHaveLength(84)
+    const perMinute = (list: number[]) =>
+      Math.max(...list.map((start) => list.filter((t) => t >= start && t < start + 60_000).length))
+    // 84 istek 58,1 sn'ye yayılır.
+    expect(starts.at(-1)).toBe(83 * AWC_MIN_REQUEST_INTERVAL_MS)
+    expect(perMinute(starts)).toBe(84)
+    // Daha uzun bir dizide de (720 istasyon, 120 istek) bir dakikada en çok 86 istek başlar.
+    const long = timedFetch()
+    await drive(timedClient(long.fetch).metars(stationIds(720), { hours: AWC_METAR_MAX_HOURS }))
+    expect(long.starts).toHaveLength(120)
+    expect(perMinute(long.starts)).toBe(86)
+  })
+
+  it('minIntervalMs 0 beklemez; negatif değer 0 sayılır', async () => {
+    const drive = fakeClock()
+    for (const minIntervalMs of [0, -5]) {
+      const { fetch, starts } = timedFetch()
+      await drive(timedClient(fetch, minIntervalMs).metars(stationIds(503)))
+      expect(starts).toHaveLength(7)
+      expect(new Set(starts).size).toBe(1)
+    }
   })
 })

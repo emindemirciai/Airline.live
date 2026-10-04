@@ -113,11 +113,12 @@ export const WEATHER_HISTORY_CACHE_WINDOWS = [
   WEATHER_HISTORY_MAX_HOURS,
 ] as const
 /**
- * Geçmiş önbelleğindeki anahtar sınırı: listelenen havalimanları × 2 pencere (2. halkada 225 × 2 =
- * 450; D-080, D-088). 3. halkada (~500 havalimanı) yetmez, o sürüm büyütür. Belleği asıl sınırlayan
- * bayt bütçesidir.
+ * Geçmiş önbelleğindeki anahtar sınırı: listelenen havalimanları × 2 pencere (3. halkada 503 × 2 =
+ * 1.006; D-080, D-088, D-090; 2. halkada 512'ydi). Belleği asıl sınırlayan bayt bütçesidir (24 MB):
+ * 1.024 anahtarın çoğu 24 saatlik küçük pencerelerdir (~50–100 KB), 168 saatlik pencereler (0,5–0,7
+ * MB) bütçeden atılır. 4. halkada (~1.220 havalimanı) yeniden bakılır.
  */
-export const WEATHER_HISTORY_CACHE_MAX_ENTRIES = 512
+export const WEATHER_HISTORY_CACHE_MAX_ENTRIES = 1024
 /**
  * Geçmiş önbelleğinin bayt bütçesi. 168 saatlik bir yanıt 0,5–0,7 MB'tır; API yığını 270 MB
  * (compose) olduğundan önbellek en çok 24 MB tutar, aşılınca en eski pencere atılır.

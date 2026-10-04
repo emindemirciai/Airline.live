@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { format, formatDate, getMessages, resolveLocale } from './index'
+import { format, formatDate, formatSinceYear, getMessages, resolveLocale } from './index'
 
 type Tree = { [key: string]: string | Tree }
 
@@ -93,5 +93,46 @@ describe('i18n', () => {
   it('tarihi dile göre biçimlendirir', () => {
     expect(formatDate('2026-09-25', 'tr')).toBe('25 Eylül 2026')
     expect(formatDate('2026-09-25', 'en')).toBe('25 September 2026')
+  })
+
+  it('"… beri" yılı: Türkçede okunuşa göre ayrılma eki, İngilizcede yalnız yıl (D-090)', () => {
+    const cases: [number, string][] = [
+      [2022, '2022’den'],
+      [2021, '2021’den'],
+      [2023, '2023’ten'],
+      [2024, '2024’ten'],
+      [2025, '2025’ten'],
+      [2026, '2026’dan'],
+      [2027, '2027’den'],
+      [2028, '2028’den'],
+      [2029, '2029’dan'],
+      [2010, '2010’dan'],
+      [2020, '2020’den'],
+      [2030, '2030’dan'],
+      [2040, '2040’tan'],
+      [2050, '2050’den'],
+      [2060, '2060’tan'],
+      [2070, '2070’ten'],
+      [2080, '2080’den'],
+      [2090, '2090’dan'],
+      [1900, '1900’den'],
+      [2000, '2000’den'],
+    ]
+    for (const [year, expected] of cases)
+      expect(formatSinceYear(year, 'tr'), String(year)).toBe(expected)
+    expect(formatSinceYear(2022, 'en')).toBe('2022')
+    expect(() => formatSinceYear(0, 'tr')).toThrow(RangeError)
+    expect(() => formatSinceYear(2022.5, 'en')).toThrow(RangeError)
+    // Kullanıcının kararlaştırdığı metin (2026-10-04, D-090).
+    const tr = getMessages('tr')
+    const en = getMessages('en')
+    expect(format(tr.airport.civilClosure, { since: formatSinceYear(2022, 'tr') })).toBe(
+      'Sivil uçuşlara kapalı olabilir (2022’den beri)',
+    )
+    expect(format(en.airport.civilClosure, { since: formatSinceYear(2022, 'en') })).toBe(
+      'May be closed to civil flights (since 2022)',
+    )
+    expect(tr.map.airportPopup.civilClosure).toBe(tr.airport.civilClosure)
+    expect(en.map.airportPopup.civilClosure).toBe(en.airport.civilClosure)
   })
 })

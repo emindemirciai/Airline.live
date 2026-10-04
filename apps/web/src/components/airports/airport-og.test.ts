@@ -6,7 +6,7 @@ import { airportOgContent, renderAirportOgPng, type AirportOgContent } from './a
 vi.mock('server-only', () => ({}))
 
 const AIRPORTS = fixtureTurkishAirports()
-/** Türkiye dışındaki listelenen havalimanları (1. ve 2. halka; D-080, D-088). */
+/** Türkiye dışındaki listelenen havalimanları (1.–3. halka; D-080, D-088, D-090). */
 const FOREIGN = fixtureListedAirports().filter((a) => a.country !== 'TR')
 
 /** PNG imzası ve IHDR'deki genişlik/yükseklik. */
@@ -77,8 +77,8 @@ function glyphKeys(content: AirportOgContent): Set<string> {
  * seçimle; artı en uzun ad ve en uzun yer satırı (en küçük yazı boyu ve satır kırılması). Satori bir
  * harfi yerel yazı tiplerinde bulamazsa harf başına dış istek yapar; her karakter bir kez
  * çizildiğinde ağ denetimi bütün listeyle aynı şeyi kanıtlar. 225 görsel (2. halka) yerelde ~9 sn
- * sürerdi (CI'da katları) ve sonraki halkalarla (3. halkada ~500) büyürdü; örneklem karakter
- * kümesiyle sınırlıdır (2. halkada 33 görsel).
+ * sürerdi (CI'da katları), 3. halkanın 503 görseli ~20 sn; örneklem karakter kümesiyle sınırlıdır
+ * (2. halkada 33, 3. halkada 35 görsel, yerelde ~1,5 sn; D-090).
  */
 function glyphCover(contents: readonly AirportOgContent[]): AirportOgContent[] {
   const longest = (field: 'name' | 'location') =>
@@ -112,8 +112,11 @@ describe('renderAirportOgPng', () => {
     const all = new Set(contents.flatMap((content) => [...glyphKeys(content)]))
     const sampled = new Set(sample.flatMap((content) => [...glyphKeys(content)]))
     expect([...all].filter((key) => !sampled.has(key))).toEqual([])
-    // 2. halkanın harfleri de örneklemdedir (Romence, Hırvatça, Lehçe, Macarca).
-    for (const char of ['ș', 'ă', 'đ', 'ł', 'é']) expect(all.has(`name:${char}`), char).toBe(true)
+    // 2. halkanın harfleri de örneklemdedir (Romence, Hırvatça, Lehçe, Macarca); 3. halkanın
+    // Çekçe, Lehçe ve Danca harfleri de (D-090).
+    for (const char of ['ș', 'ă', 'đ', 'ł', 'é', 'ř', 'ě', 'ń', 'ž', 'ø']) {
+      expect(all.has(`name:${char}`), char).toBe(true)
+    }
     expect(sample.length).toBeLessThan(contents.length / 4)
   })
 
