@@ -30,7 +30,7 @@ export interface AirportRingConfig {
 
 /** Bir havalimanı; `@havayolu/shared` `Airport` ile aynı biçimdedir. */
 export interface ListedAirport {
-  /** ICAO kodu; yoksa GPS kodu, o da yoksa OurAirports kimliği (ident). */
+  /** ICAO kodu, yoksa GPS kodu, o da yoksa OurAirports kimliği (ident); `ourAirportsIcao`. */
   icao: string
   iata: string
   name: string
@@ -112,6 +112,44 @@ const present = (value: string | null): string | null => {
 }
 
 const byCode = (a: string, b: string) => (a < b ? -1 : a > b ? 1 : 0)
+
+/**
+ * OurAirports'ta yanlış olduğu bilinen ICAO kodları (D-088): satırın `ident`'i → kaynaktaki yanlış
+ * `icao_code` ve uygulamanın kullandığı kod. Satır veritabanında kaynaktaki gibi kalır; düzeltme
+ * okurken ve yalnız yanlış değer durdukça uygulanır (OurAirports düzeltirse ya da değiştirirse
+ * kendiliğinden devre dışı kalır). `@havayolu/shared` `OURAIRPORTS_ICAO_CORRECTIONS` ile aynıdır
+ * (db shared'a bağımlı değildir; `apps/api/src/reference/rings.test.ts` iki yazımı denetler).
+ * - HEBA, İskenderiye (Borg El Arab, HBE): `icao_code` ve `gps_code` HEAX; HEAX, 2011'de kapanan El
+ *   Nouzha'nın koduydu. HEAX kalsaydı METAR/TAF HEAX diye istenir, hava durumu hiç gelmezdi.
+ */
+export const OURAIRPORTS_ICAO_CORRECTIONS: Readonly<
+  Record<string, { readonly icaoCode: string; readonly icao: string }>
+> = {
+  HEBA: { icaoCode: 'HEAX', icao: 'HEBA' },
+}
+
+/**
+ * Satırın kanonik ICAO'su (listedeki kimlik): düzeltme varsa ve kaynaktaki yanlış değer duruyorsa
+ * düzeltilmiş kod; yoksa `icao_code`, `gps_code`, `ident` (ilk boş olmayan), kırpılmış, büyük harf.
+ */
+export function ourAirportsIcao(
+  row: Pick<AirportSourceRow, 'ident' | 'icaoCode' | 'gpsCode'>,
+): string {
+  const ident = row.ident.trim().toUpperCase()
+  const icaoCode = present(row.icaoCode)?.toUpperCase() ?? null
+  const correction = Object.hasOwn(OURAIRPORTS_ICAO_CORRECTIONS, ident)
+    ? OURAIRPORTS_ICAO_CORRECTIONS[ident]
+    : undefined
+  if (correction !== undefined && icaoCode === correction.icaoCode) return correction.icao
+  return (icaoCode ?? present(row.gpsCode) ?? ident).toUpperCase()
+}
+
+/**
+ * Görünen ad: kırpılmış, art arda boşluklar teke inmiş (D-088; Bacău'nun OurAirports adında
+ * "International  Airport"). Yoksa İngilizce sayfa, aynı görünen iki adı farklı sayıp
+ * "OurAirports'taki adı" satırını gereksiz yere yazardı.
+ */
+export const cleanAirportName = (name: string): string => name.trim().replace(/\s+/g, ' ')
 
 const countryOf = (row: Pick<AirportSourceRow, 'isoCountry'>) => row.isoCountry.trim().toUpperCase()
 
@@ -204,9 +242,9 @@ export function turkishReferencePoints(rows: readonly ReferenceSourceRow[]): Tur
     references.push({
       lat: row.latitudeDeg,
       lon: row.longitudeDeg,
-      icao: (present(row.icaoCode) ?? present(row.gpsCode) ?? row.ident.trim()).toUpperCase(),
+      icao: ourAirportsIcao(row),
       iata,
-      name: row.name.trim(),
+      name: cleanAirportName(row.name),
     })
   }
   return references
@@ -260,7 +298,7 @@ function listedEntries<R extends AirportSourceRow>(
   for (const row of rows) {
     const iata = present(row.iataCode)?.toUpperCase() ?? ''
     if (!isListableRow(row, iata) || !isListedType(row.type)) continue
-    const icao = (present(row.icaoCode) ?? present(row.gpsCode) ?? row.ident.trim()).toUpperCase()
+    const icao = ourAirportsIcao(row)
     if (icao === '' || byIcao.has(icao)) continue
     const { fields, nearestTr } = ringFields(row, context)
     byIcao.set(icao, {
@@ -269,7 +307,7 @@ function listedEntries<R extends AirportSourceRow>(
       airport: {
         icao,
         iata,
-        name: row.name.trim(),
+        name: cleanAirportName(row.name),
         city: present(row.municipality),
         lat: row.latitudeDeg,
         lon: row.longitudeDeg,
@@ -288,9 +326,10 @@ function listedEntries<R extends AirportSourceRow>(
 /**
  * Saf kısım: ham satırlardan liste. IATA kodu kırpılıp büyük harfe çevrilir; üç harf değilse, tür
  * listede yoksa ya da satır içe aktarım koşulunu (büyük, orta ya da tarifeli) taşımıyorsa atlanır.
- * ICAO = `icao_code`, yoksa `gps_code`, o da yoksa `ident`. Aynı ICAO'ya düşen satırlardan önce
- * gelen (satırlar kimlik sırasıyla verilir, en küçük kimlik) kalır. Sonuç IATA'ya, eşitse ICAO'ya
- * göre sıralıdır. Her kayıt ülke, halka ve Türkiye'ye uzaklık taşır (`context`).
+ * ICAO = `icao_code`, yoksa `gps_code`, o da yoksa `ident` (kaynak düzeltmeleriyle,
+ * `ourAirportsIcao`); adın boşlukları teke indirilir (`cleanAirportName`). Aynı ICAO'ya düşen
+ * satırlardan önce gelen (satırlar kimlik sırasıyla verilir, en küçük kimlik) kalır. Sonuç IATA'ya,
+ * eşitse ICAO'ya göre sıralıdır. Her kayıt ülke, halka ve Türkiye'ye uzaklık taşır (`context`).
  */
 export function toListedAirports(
   rows: readonly AirportSourceRow[],
@@ -535,6 +574,27 @@ export interface StationSourceRow {
   fetchRadiusNm: number
 }
 
+/**
+ * Gösterilmeyen pist satırları (D-088), OurAirports pist kimliğine göre. Hepsi aynı havalimanında
+ * bilgili bir pistin yanında duran, uzunluğu, genişliği ve uç koordinatları olmayan, kaplaması "UNK"
+ * yinelenen kayıtlardır; gösterilseler sayfa ve pencere havalimanında bir pist fazla sayardı. Satır
+ * veritabanında kalır; yalnız hâlâ boşken (uzunluk ve genişlik yok) gizlenir, OurAirports satırı
+ * doldurursa yeniden görünür. Eşik koordinatı ölçüt değildir: uç koordinatı olmayan pistin eşiği içe
+ * aktarımda havalimanı merkezine (ARP) düşer (`arp_fallback`).
+ * - 260339: Taba (HETB) "04/22"; havalimanının tek pisti 04L/22R (4.000 m) olarak kayıtlı.
+ * - 260408: Cluj-Napoca (LRCL) "08/26"; kayıtlı pist 07/25 (2.040 m). Pist yeniden numaralanmış ve
+ *   uzatılmış olabilir; doğrulanamadı, veri olduğu gibi kalır.
+ */
+export const HIDDEN_RUNWAY_IDS: Readonly<Record<number, string>> = {
+  260339: 'HETB 04/22',
+  260408: 'LRCL 08/26',
+}
+
+/** Pist satırı gizlenir mi: tabloda ve hâlâ boş (uzunluk ve genişlik yok). */
+export function isHiddenRunway(row: Pick<RunwaySourceRow, 'id' | 'lengthFt' | 'widthFt'>): boolean {
+  return Object.hasOwn(HIDDEN_RUNWAY_IDS, row.id) && row.lengthFt === null && row.widthFt === null
+}
+
 /** Sayısal sütun (sürücü `real`/`double` değerini sayı verir; ifade sonuçları için güvence). */
 const numeric = (value: number | string | null): number | null =>
   value === null ? null : Number(value)
@@ -601,6 +661,7 @@ function detailRecords(
 ): AirportDetailRecord[] {
   const runwaysByAirport = new Map<number, RunwaySourceRow[]>()
   for (const runway of runwayRows) {
+    if (isHiddenRunway(runway)) continue
     const list = runwaysByAirport.get(runway.airportId)
     if (list === undefined) runwaysByAirport.set(runway.airportId, [runway])
     else list.push(runway)

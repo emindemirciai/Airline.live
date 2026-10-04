@@ -1,7 +1,8 @@
 import { getMessages, NO_VALUE } from '@havayolu/i18n'
 import { decodeMetar, type AirportMetar, type AirportWeather } from '@havayolu/shared'
 import { describe, expect, it, vi } from 'vitest'
-import type { MapAirport } from './airport-data'
+import { fixtureListedAirports } from '../../lib/test/ourairports-fixture'
+import { toMapAirport, type MapAirport } from './airport-data'
 import {
   airportFacts,
   airportPlace,
@@ -161,6 +162,45 @@ describe('havalimanı bilgileri', () => {
     expect(popupTimeZone(SUI)).toBe('Europe/Moscow')
     expect(popupTimeZone(THR)).toBe('Asia/Tehran')
     expect(popupTimeZone(JFK)).toBeNull()
+  })
+
+  it('listelenen her havalimanının penceresinde yer ve saat dilimi vardır (2. halka dahil, D-088)', () => {
+    // API kaydı haritanın okuyucusundan geçer (`toMapAirport`): sayfadaki listeyle aynı 225 kayıt.
+    const listed = fixtureListedAirports().map((airport) => toMapAirport(airport))
+    expect(listed.filter((airport) => airport === null)).toEqual([])
+    const map = new Map(listed.flatMap((airport) => (airport ? [[airport.icao, airport]] : [])))
+    expect(map.size).toBe(225)
+    for (const airport of map.values()) {
+      expect(airportPlace(airport, 'tr'), airport.icao).not.toBeNull()
+      expect(airportPlace(airport, 'en'), airport.icao).not.toBeNull()
+      expect(popupTimeZone(airport), airport.icao).not.toBeNull()
+    }
+    const of = (icao: string) => {
+      const airport = map.get(icao)
+      if (!airport) throw new Error(`fixture has no ${icao}`)
+      return airport
+    }
+    expect(airportPlace(of('HECA'), 'tr')).toBe('Mısır')
+    expect(airportPlace(of('HECA'), 'en')).toBe('Egypt')
+    expect(airportPlace(of('LIRN'), 'tr')).toBe('İtalya')
+    expect(airportPlace(of('OKKK'), 'en')).toBe('Kuwait')
+    for (const [icao, zone] of [
+      ['HECA', 'Africa/Cairo'],
+      ['LLBG', 'Asia/Jerusalem'],
+      ['LIRN', 'Europe/Rome'],
+      ['LHBP', 'Europe/Budapest'],
+      ['HLLB', 'Africa/Tripoli'],
+      ['OKKK', 'Asia/Kuwait'],
+      ['OIIE', 'Asia/Tehran'],
+      // Rusya ve Kazakistan bölge kuralıyla (D-084): Astrahan UTC+4, Volgograd ve Elista UTC+3.
+      ['URWA', 'Europe/Astrakhan'],
+      ['URWW', 'Europe/Volgograd'],
+      ['URWI', 'Europe/Moscow'],
+      ['UATE', 'Asia/Aqtau'],
+      ['UTAK', 'Asia/Ashgabat'],
+    ] as const) {
+      expect(popupTimeZone(of(icao)), icao).toBe(zone)
+    }
   })
 
   it('saat havalimanının yerel saatiyle; saat yoksa "—"', () => {

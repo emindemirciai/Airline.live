@@ -138,6 +138,15 @@ export const ROADMAP: readonly Milestone[] = [
     },
   },
   {
+    id: 'p1-m6g',
+    part: '1',
+    status: 'done',
+    title: {
+      tr: 'Türkiye dışındaki havalimanları, 2. halka',
+      en: 'Airports outside Türkiye, ring 2',
+    },
+  },
+  {
     id: 'p1-m7',
     part: '1',
     status: 'planned',

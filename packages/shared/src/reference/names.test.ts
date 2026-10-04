@@ -4,6 +4,7 @@ import {
   AIRPORT_NAMES,
   airportDisplayName,
   FOREIGN_AIRPORT_NAMES,
+  ourAirportsIcao,
   REFERENCE_AIRFIELD_NAMES,
 } from './index'
 
@@ -23,7 +24,12 @@ const csv = (path: string) => {
 
 const ourAirportsName = new Map(
   csv('ourairports/airports.csv').map((r) => [
-    (r.get('icao_code') || r.get('gps_code') || r.get('ident') || '').trim().toUpperCase(),
+    // Kanonik ICAO, kaynak düzeltmeleriyle (İskenderiye HEAX → HEBA, D-088).
+    ourAirportsIcao({
+      ident: r.get('ident') ?? '',
+      icaoCode: r.get('icao_code'),
+      gpsCode: r.get('gps_code'),
+    }),
     r.get('name') ?? '',
   ]),
 )
@@ -31,7 +37,10 @@ const ourAirportsName = new Map(
 const turkish = Object.keys(AIRPORT_NAMES)
 const reference = Object.keys(REFERENCE_AIRFIELD_NAMES)
 const foreign = Object.keys(FOREIGN_AIRPORT_NAMES)
-/** Görünen adı olan bütün havalimanları: 61 Türkiye, 5 uzaklık referansı, 1. halkanın 75'i. */
+/**
+ * Görünen adı olan bütün havalimanları: 61 Türkiye, 5 uzaklık referansı, 1. ve 2. halkanın 164'ü
+ * (75 + 89, D-088).
+ */
 const all = [...turkish, ...reference, ...foreign]
 
 /** İngilizce cins adları: Türkçe adda bulunmaz (kullanıcı isteği 2026-10-03, D-084). */
@@ -40,10 +49,10 @@ const ENGLISH_GENERIC = /\b(Air ?[Bb]ase|Airport|International|National|Airfield
 const TURKISH_GENERIC = /Havalimanı|Havaalanı|Hava Üssü|Üssü|Uluslararası|Ulusal/
 
 describe('görünen adların dili (D-084)', () => {
-  it("fixture'daki 141 havalimanının her biri fixture'da vardır ve iki dilde adlanır", () => {
+  it("fixture'daki 230 havalimanının her biri fixture'da vardır ve iki dilde adlanır", () => {
     expect(turkish).toHaveLength(61)
     expect(reference).toHaveLength(5)
-    expect(foreign).toHaveLength(75)
+    expect(foreign).toHaveLength(164)
     for (const icao of all) {
       const name = ourAirportsName.get(icao)
       expect(name, icao).toBeDefined()

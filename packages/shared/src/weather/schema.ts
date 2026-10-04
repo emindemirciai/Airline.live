@@ -489,7 +489,10 @@ export const AirportWeatherSchema = z.object({
   icao: IcaoSchema,
   generatedAt: isoDateTime,
   metar: AirportMetarSchema.nullable(),
-  /** Süresi dolmamış TAF'lar, en yeni yayımlanan önce. */
+  /**
+   * Yürürlükteki TAF'lar, en yeni yayımlanan önce: süresi dolmamış ve kalan geçerliliği daha yeni
+   * TAF'larca tümüyle kapsanmayanlar (`inForceTafs`, D-088). Eskiler METAR/TAF kaydındadır.
+   */
   tafs: z.array(AirportTafSchema),
 })
 export type AirportWeather = z.infer<typeof AirportWeatherSchema>

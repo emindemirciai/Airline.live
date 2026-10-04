@@ -3,13 +3,16 @@ import type { Locale, LocalizedText } from '../locale'
 /**
  * Ülke adları (D-080). ISO 3166-1 alpha-2 kodunun adı `Intl.DisplayNames` (`type: 'region'`) ile
  * sayfanın dilinde yazılır: GR → "Yunanistan" / "Greece". Kod tablosu tutulmaz; ad tarayıcının ve
- * Node'un CLDR verisinden gelir. İki ayrım vardır:
+ * Node'un CLDR verisinden gelir. Üç ayrım vardır:
  * - XK (Kosova) ISO 3166-1'de kullanıcı tanımlı bir koddur; `Intl` adını bilmiyorsa (kodu geri
  *   verirse) "Kosova" / "Kosovo" yazılır.
  * - Ercan (LCEN): OurAirports ülkesi CY'dir; kullanıcı kararıyla (2026-10-02) KKTC olarak
  *   gösterilir. Bu, havalimanına (ICAO) bağlı bir görünüm kuralıdır; veri (`country`) değişmez.
  *   Tartışmalı bölgelerdeki diğer havalimanları OurAirports ülkesini korur (Sohum → Gürcistan,
  *   Priştine → Kosova).
+ * - İngilizce CLDR adlarındaki "&" yazıda "and" olur (D-088): "Bosnia & Herzegovina" →
+ *   "Bosnia and Herzegovina" (Birleşik Krallık hükümeti ve BM yazımı; sonraki halkalarda "Trinidad &
+ *   Tobago", "Antigua & Barbuda" de aynı kurala girer). Türkçe adlar değişmez ("Bosna-Hersek").
  */
 
 const INTL_LOCALE: Record<Locale, string> = { tr: 'tr-TR', en: 'en-GB' }
@@ -64,7 +67,9 @@ export function countryName(code: string, locale: Locale): string {
   } catch {
     name = undefined
   }
-  if (name !== undefined && name !== '' && name !== normalized) return name
+  if (name !== undefined && name !== '' && name !== normalized) {
+    return locale === 'en' ? name.replaceAll(' & ', ' and ') : name
+  }
   return Object.hasOwn(FALLBACK_COUNTRY_NAMES, normalized)
     ? (FALLBACK_COUNTRY_NAMES[normalized]?.[locale] ?? normalized)
     : normalized

@@ -17,7 +17,7 @@
  *   başına dakikada 120 işlenir; fazlası atılmaz, en son istenen görünüm ilk uygun anda işlenir.
  *
  * Sınırlar: IP (/64) başına 10, toplam `WS_MAX_CONNECTIONS` bağlantı; el sıkışması IP başına
- * dakikada 30. `Origin` başlığı varsa web ya da admin host'u olmalıdır; başlığı olmayan yerel
+ * dakikada 30 (üretim dışında 60, `wsRateLimit`). `Origin` başlığı varsa web ya da admin host'u olmalıdır; başlığı olmayan yerel
  * uygulama kabul edilir. Sıkıştırma kapalıdır, en büyük istemci mesajı 16 KiB'tır.
  */
 import { normalizeIP } from '@fastify/rate-limit'
@@ -47,8 +47,19 @@ export interface LiveWsOptions {
 /** En büyük istemci mesajı; aşılırsa `ws` bağlantıyı 1009 ile kapatır. */
 export const WS_MAX_PAYLOAD_BYTES = 16_384
 
-/** El sıkışması hız sınırı (IP başına); genel 300/dk yerine geçer. */
+/** El sıkışması hız sınırı (IP başına, üretimde); genel 300/dk yerine geçer. */
 export const WS_RATE_LIMIT = { max: 30, timeWindow: '1 minute' } as const
+
+/**
+ * Ortamın el sıkışması sınırı (D-088). Üretim dışında (`APP_ENV` development ya da test) iki
+ * katıdır: web orada Next geliştirme sunucusuyla çalışır, React StrictMode etkileri iki kez
+ * çalıştırdığı için her harita yüklemesi iki el sıkışması açar (bağlan, kapat, bağlan). Böylece
+ * sayfa yüklemesi başına bütçe üretimdekiyle (dakikada 30 yükleme) aynı kalır; e2e geliştirme
+ * sunucusuna karşı koşar.
+ */
+export function wsRateLimit(appEnv: Env['APP_ENV']): { max: number; timeWindow: string } {
+  return appEnv === 'production' ? WS_RATE_LIMIT : { ...WS_RATE_LIMIT, max: WS_RATE_LIMIT.max * 2 }
+}
 
 /** Açık merkezler: `closeLiveSockets` hepsini kapatır (testlerde birden çok uygulama olabilir). */
 const hubs = new Set<LiveHub>()
@@ -117,7 +128,7 @@ export function registerLiveWs(app: FastifyInstance, opts: LiveWsOptions): void 
   void app.register(async (scope) => {
     scope.get(
       '/v1/ws',
-      { websocket: true, config: { rateLimit: WS_RATE_LIMIT } },
+      { websocket: true, config: { rateLimit: wsRateLimit(env.APP_ENV) } },
       (socket, request) => {
         const origin = request.headers.origin
         if (origin !== undefined && !origins.has(origin)) {

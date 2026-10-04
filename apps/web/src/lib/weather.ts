@@ -16,12 +16,13 @@ import { getServerEnv } from './env'
  * Havalimanı sayfalarının hava durumu verisi (Parça 1 M6c, D-078). Sayfa sunucuda iki istek atar:
  *
  * - Toplu güncel hava durumu: `GET /v1/weather?scope=listed` (listelenen havalimanları: Türkiye ve
- *   yakın ülkeler, D-080), Next veri önbelleği 60 sn, etiket `weather`. Bütün havalimanı sayfaları
- *   aynı kaydı paylaşır: API'ye dakikada en çok bir istek gider.
+ *   Türkiye dışındakiler, D-080), Next veri önbelleği 60 sn, etiket `weather`. Bütün havalimanı
+ *   sayfaları aynı kaydı paylaşır: API'ye dakikada en çok bir istek gider.
  * - METAR/TAF kaydı: `GET /v1/airports/<ICAO>/weather/history?hours=24`, 5 dk önbellek. Havalimanı
- *   başına ayrı kayıt; 136 listelenen havalimanı en kötü durumda dakikada ~27 istek eder. Web
- *   konteynerinin API'deki tek hız sınırı kovası (60/dk, D-060) böylece zorlanmaz. METAR en sık 5
- *   dakikada bir gelir.
+ *   başına ayrı kayıt; 225 listelenen havalimanı (2. halka, D-088) bütün sayfalar gezilse bile en
+ *   kötü durumda dakikada ~45 istek eder (toplu istek ve liste ile ~47). Web konteynerinin API'deki
+ *   hız sınırı kovası (60/dk, D-060) böylece dolmaz; 3. halkada (~500 havalimanı, ~100/dk) dolar,
+ *   o halkayı açan sürüm bu yolu değiştirir. METAR en sık 5 dakikada bir gelir.
  *
  * Hiçbir hata sayfaya taşınmaz: API ulaşılamazsa, yanıt bozuksa ya da süre dolarsa `null` döner ve
  * sayfa "Hava durumu şu an alınamıyor" der; sayfa hava durumu yüzünden 500 vermez. İstemci başlıkları

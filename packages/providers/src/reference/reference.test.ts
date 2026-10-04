@@ -23,14 +23,14 @@ const RUNWAYS_HEADER =
 describe('OurAirports airports', () => {
   it('fixture eksiksiz ayrışır; tohum istasyonları ve ARP bilgileri vardır', () => {
     expect(airports.skipped).toEqual([])
-    // Fixture bütün TR alanlarını (429), sekiz uzak havalimanını ve 1. halkanın 75 havalimanını
-    // (D-080) içerir; filtre büyük/orta ve tarifeli olanları ve Türkiye'nin IATA kodlu 5 küçük
-    // alanını (yurt dışı havalimanlarının uzaklık referansı, D-080) tutar.
+    // Fixture bütün TR alanlarını (429), sekiz uzak havalimanını, 1. halkanın 75 ve 2. halkanın 89
+    // havalimanını (D-080, D-088) içerir; filtre büyük/orta ve tarifeli olanları ve Türkiye'nin IATA
+    // kodlu 5 küçük alanını (yurt dışı havalimanlarının uzaklık referansı, D-080) tutar.
     const all = parseAirports(fixture('ourairports/airports.csv'), () => true)
     expect(all.skipped).toEqual([])
-    expect(all.rows.length).toBe(512)
+    expect(all.rows.length).toBe(601)
     expect(all.rows.filter((a) => a.isoCountry === 'TR')).toHaveLength(429)
-    expect(airports.rows.length + airports.ignored).toBe(512)
+    expect(airports.rows.length + airports.ignored).toBe(601)
     expect(airports.rows.find((a) => a.ident === 'LGAV')).toMatchObject({
       iataCode: 'ATH',
       isoCountry: 'GR',

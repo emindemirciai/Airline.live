@@ -47,6 +47,24 @@ const ATH: MapAirport = {
   runways: [{ lengthFt: 13123 }],
 }
 
+/** 2. halkadaki listelenen havalimanı (Kahire, D-088): Mısır, yaz saatinde UTC+3, kışın UTC+2. */
+const CAI: MapAirport = {
+  ...IST,
+  icao: 'HECA',
+  iata: 'CAI',
+  name: 'Cairo International Airport',
+  city: 'Cairo',
+  lat: 30.1219,
+  lon: 31.4056,
+  elevationFt: 382,
+  country: 'EG',
+  ring: 2,
+  distanceToTrKm: 693,
+  isoRegion: 'EG-C',
+  municipality: 'Cairo',
+  runways: [{ lengthFt: 13123 }, { lengthFt: 10830 }, { lengthFt: 10466 }],
+}
+
 /** LTFM'nin son raporu: hafif sağanak, kuvvetli rüzgâr (hamleli), CB; 10 dakika önce. */
 function weatherState(raw: string, icao = 'LTFM'): BulkWeatherState {
   const observedAt = new Date(NOW - 10 * 60_000).toISOString()
@@ -358,6 +376,29 @@ describe('AirportPopup', () => {
     const winter = render('tr', { data: null, failed: false }, false, ATH, WINTER)
     expect(factRow(winter, 'localTime')?.value).toBe('23:05 (UTC+2)')
     expect(english).toContain('href="/en/istasyon/LGAV"')
+  })
+
+  it('2. halka havalimanı (Kahire): ülke Mısır, yerel saat Kahire’nin; yaz saati bitince UTC+2 (D-088)', () => {
+    const html = render('tr', { data: null, failed: false }, false, CAI)
+    expect(html).toContain('data-icao="HECA"')
+    expect(html).toContain('CAI · HECA')
+    expect(html).toContain('<p class="map-popup__place">Mısır</p>')
+    expect(factRow(html, 'runways')?.value).toBe('3 pist, en uzunu 4.000\u00a0m')
+    // 1 Ekim 13:00Z: Kahire yaz saatinde (UTC+3; 29 Ekim 2026 gece yarısına kadar).
+    expect(factRow(html, 'localTime')?.value).toBe('16:00 (UTC+3)')
+    expect(html).toContain('href="/istasyon/HECA"')
+    const english = render('en', { data: null, failed: false }, false, CAI)
+    expect(english).toContain('<p class="map-popup__place">Egypt</p>')
+    expect(english).toContain('href="/en/istasyon/HECA"')
+    // 2 Kasım 21:05Z: Kahire kış saatinde, UTC+2 (23:05); fark koda gömülü değildir.
+    const winter = render(
+      'tr',
+      { data: null, failed: false },
+      false,
+      CAI,
+      Date.parse('2026-11-02T21:05:00Z'),
+    )
+    expect(factRow(winter, 'localTime')?.value).toBe('23:05 (UTC+2)')
   })
 
   it('gözlem saati havalimanının yerel saatiyle; dilimi bilinmeyen havalimanında UTC ile', () => {

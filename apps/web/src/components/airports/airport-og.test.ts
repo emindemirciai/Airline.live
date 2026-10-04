@@ -1,12 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { guardNetwork } from '../../lib/seo/test/network-guard'
 import { fixtureListedAirports, fixtureTurkishAirports } from '../../lib/test/ourairports-fixture'
-import { airportOgContent, renderAirportOgPng } from './airport-og'
+import { airportOgContent, renderAirportOgPng, type AirportOgContent } from './airport-og'
 
 vi.mock('server-only', () => ({}))
 
 const AIRPORTS = fixtureTurkishAirports()
-/** Yakın ülkelerdeki listelenen havalimanları (D-080). */
+/** Türkiye dışındaki listelenen havalimanları (1. ve 2. halka; D-080, D-088). */
 const FOREIGN = fixtureListedAirports().filter((a) => a.country !== 'TR')
 
 /** PNG imzası ve IHDR'deki genişlik/yükseklik. */
@@ -62,11 +62,65 @@ describe('airportOgContent', () => {
   })
 })
 
+/** Görseldeki her metin alanı (kodlar, ad, yer satırı) ve karakteri: `alan:karakter`. */
+function glyphKeys(content: AirportOgContent): Set<string> {
+  const keys = new Set<string>()
+  for (const field of ['codes', 'name', 'location'] as const) {
+    for (const char of content[field]) keys.add(`${field}:${char}`)
+  }
+  return keys
+}
+
+/**
+ * Çizim örneklemi (M6g, D-088): bütün havalimanlarının görsel metinlerindeki her karakteri
+ * (alanıyla, çünkü alanların yazı kalınlığı farklıdır) en az bir kez taşıyan havalimanları, açgözlü
+ * seçimle; artı en uzun ad ve en uzun yer satırı (en küçük yazı boyu ve satır kırılması). Satori bir
+ * harfi yerel yazı tiplerinde bulamazsa harf başına dış istek yapar; her karakter bir kez
+ * çizildiğinde ağ denetimi bütün listeyle aynı şeyi kanıtlar. 225 görsel (2. halka) yerelde ~9 sn
+ * sürerdi (CI'da katları) ve sonraki halkalarla (3. halkada ~500) büyürdü; örneklem karakter
+ * kümesiyle sınırlıdır (2. halkada 33 görsel).
+ */
+function glyphCover(contents: readonly AirportOgContent[]): AirportOgContent[] {
+  const longest = (field: 'name' | 'location') =>
+    contents.reduce((a, b) => (b[field].length > a[field].length ? b : a))
+  const picked = new Set<AirportOgContent>([longest('name'), longest('location')])
+  const covered = new Set<string>()
+  for (const content of picked) for (const key of glyphKeys(content)) covered.add(key)
+  for (;;) {
+    let best: AirportOgContent | null = null
+    let gain = 0
+    for (const content of contents) {
+      const fresh = [...glyphKeys(content)].filter((key) => !covered.has(key)).length
+      if (fresh > gain) {
+        best = content
+        gain = fresh
+      }
+    }
+    if (best === null) return [...picked]
+    picked.add(best)
+    for (const key of glyphKeys(best)) covered.add(key)
+  }
+}
+
 describe('renderAirportOgPng', () => {
-  it('fixture’daki her havalimanı 1200×630 PNG olarak ağa çıkmadan çizilir', async () => {
-    for (const airport of [...AIRPORTS, ...FOREIGN]) {
-      const png = await renderAirportOgPng(airportOgContent(airport, 'havayolu', 'havayolu.live'))
-      expect(pngSize(png), airport.icao).toEqual({ width: 1200, height: 630 })
+  const contents = [...AIRPORTS, ...FOREIGN].map((airport) =>
+    airportOgContent(airport, 'havayolu', 'havayolu.live'),
+  )
+  const sample = glyphCover(contents)
+
+  it('örneklem bütün listenin karakterlerini taşır ve listeden küçüktür', () => {
+    const all = new Set(contents.flatMap((content) => [...glyphKeys(content)]))
+    const sampled = new Set(sample.flatMap((content) => [...glyphKeys(content)]))
+    expect([...all].filter((key) => !sampled.has(key))).toEqual([])
+    // 2. halkanın harfleri de örneklemdedir (Romence, Hırvatça, Lehçe, Macarca).
+    for (const char of ['ș', 'ă', 'đ', 'ł', 'é']) expect(all.has(`name:${char}`), char).toBe(true)
+    expect(sample.length).toBeLessThan(contents.length / 4)
+  })
+
+  it('karakter örneklemindeki her havalimanı 1200×630 PNG olarak ağa çıkmadan çizilir', async () => {
+    for (const content of sample) {
+      const png = await renderAirportOgPng(content)
+      expect(pngSize(png), content.codes).toEqual({ width: 1200, height: 630 })
     }
     expect(network.networkCalls()).toEqual([])
   }, 60_000)

@@ -1,4 +1,5 @@
 import { getMessages } from '@havayolu/i18n'
+import { currentVersion } from '@havayolu/shared'
 import type { Metadata } from 'next'
 import { JsonLd } from '@/components/json-ld'
 import { LiveMap } from '@/components/map/live-map'
@@ -30,7 +31,8 @@ export async function generateMetadata(): Promise<Metadata> {
  * Kök adres: canlı harita. Altlık ve API adresleri çalışma zamanında sunucu ortamından çözülür
  * (NEXT_PUBLIC_* yok, D-075); `?hex=` paylaşılan bağlantıdaki seçili uçak, `?havalimani=` açılışta
  * ortalanan havalimanıdır (havalimanı sayfasındaki "Canlı haritada aç"). Harita sayfasında alt
- * bilgi gizlidir; analiz açıksa tercih düğmesi harita denetimlerine taşınır.
+ * bilgi gizlidir; analiz açıksa tercih düğmesi harita denetimlerine taşınır, sitenin adı ve sürümü
+ * (alt bilgidekiyle aynı kaynaktan) atıf şeridinin başına künye olarak konur (D-089).
  */
 export default async function MapPage({ searchParams }: PageProps<'/'>) {
   const locale = await getLocale()
@@ -54,6 +56,7 @@ export default async function MapPage({ searchParams }: PageProps<'/'>) {
           initialHex={parseHexParam(hex)}
           initialAirport={parseAirportParam(havalimani)}
           consentSettingsLabel={analyticsConfig(env) ? t.consent.settings : null}
+          site={{ name: appName(env), version: currentVersion() }}
         />
       </div>
     </>
