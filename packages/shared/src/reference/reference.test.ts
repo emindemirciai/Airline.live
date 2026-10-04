@@ -218,12 +218,16 @@ describe('AIRPORT_NAMES', () => {
 })
 
 describe('runwaySurfaceKey', () => {
-  it("fixture'daki her dolu kaplama kodu bilinen bir türe çevrilir", () => {
+  it("fixture'daki her dolu kaplama kodu bilinen bir türe çevrilir (OurAirports'un UNK kodu hariç)", () => {
     const surfaces = new Set(runwayRows.map((r) => r.get('surface') ?? ''))
     for (const surface of surfaces) {
-      if (surface.trim() === '') continue
+      // UNK sözlükte "bilinmiyor"dur; fixture'da yalnız gösterilmeyen iki yinelenen boş pist
+      // satırında geçer (Taba 04/22, Cluj 08/26; D-088).
+      if (surface.trim() === '' || surface === 'UNK') continue
       expect(runwaySurfaceKey(surface), surface).not.toBe('unknown')
     }
+    const unk = runwayRows.filter((r) => r.get('surface') === 'UNK').map((r) => r.get('id'))
+    expect(unk.sort()).toEqual(['260339', '260408'])
   })
 
   it('yazım farkları aynı türe düşer; boş ve tanınmayan kod unknown', () => {

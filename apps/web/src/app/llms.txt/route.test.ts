@@ -28,7 +28,7 @@ const AIRPORTS = [
     isoRegion: 'TR-06',
   }),
   airportFixture({ icao: 'LTAG', iata: 'ADA', scheduled: false, isoRegion: 'TR-01' }),
-  // Yakın ülkeler (D-080): ayrı bölümde, ülkeye sonra ada göre.
+  // Türkiye dışındaki havalimanları (D-080): ayrı bölümde, ülkeye sonra ada göre.
   airportFixture({
     icao: 'LGAV',
     iata: 'ATH',
@@ -49,7 +49,8 @@ const AIRPORTS = [
     distanceToTrKm: 168,
   }),
 ]
-const FOREIGN_HEADING = '## Yakın ülkelerdeki havalimanları / Airports in neighbouring countries'
+/** Bölüm başlığı 2. halkadan beri (kullanıcı kararı 2026-10-03, D-088). */
+const FOREIGN_HEADING = '## Türkiye dışındaki havalimanları / Airports outside Türkiye'
 const HOST = 'https://havayolu.live'
 
 beforeEach(() => {
@@ -130,7 +131,7 @@ describe('GET /llms.txt', () => {
     expect(airportLines[0]).toContain('(ESB/LTAC)')
   })
 
-  it('yakın ülkeler ayrı listede: ülke (Ercan için KKTC), Türkiye’ye uzaklık, pist sayısı', async () => {
+  it('Türkiye dışındakiler ayrı listede: ülke (Ercan için KKTC), Türkiye’ye uzaklık, pist sayısı', async () => {
     const { text } = await llms()
     const lines = text.split('\n')
     const foreign = lines.slice(
@@ -141,8 +142,13 @@ describe('GET /llms.txt', () => {
       `- [Ercan Havalimanı (ECN/LCEN)](${HOST}/istasyon/LCEN): KKTC; Türkiye’ye uzaklık 168 km; 1 pist; English: [Ercan International Airport](${HOST}/en/istasyon/LCEN)`,
       `- [Atina Eleftherios Venizelos Havalimanı (ATH/LGAV)](${HOST}/istasyon/LGAV): Yunanistan; Türkiye’ye uzaklık 275 km; 2 pist; English: [Athens Eleftherios Venizelos International Airport](${HOST}/en/istasyon/LGAV)`,
     ])
-    // Kapsama dürüstlüğü: yakın ülkeler listelenir, canlı uçak verisi Türkiye odaklıdır.
-    expect(text).toContain('Türkiye’deki en yakın havalimanına uzaklığı en fazla 500 km olan')
+    // Kapsama dürüstlüğü: Türkiye dışındaki havalimanları 1.000 km'ye kadar listelenir (2. halka,
+    // D-088), canlı uçak verisi Türkiye odaklıdır.
+    expect(text).toContain(
+      'Türkiye dışındaki havalimanları da listelenir: Türkiye’deki en yakın havalimanına uzaklığı en fazla 1.000 km olan',
+    )
+    expect(text).toContain('at most 1,000 km from the nearest airport in Türkiye')
+    expect(text).not.toMatch(/[Yy]akın ülke|neighbouring/)
     expect(text).toContain('Live aircraft data is focused on Türkiye')
     // Yabancı havalimanı yoksa bölüm yazılmaz.
     getAirports.mockResolvedValue(AIRPORTS.filter((a) => a.country === 'TR'))

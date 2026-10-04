@@ -7,6 +7,7 @@ import {
   decodeTaf,
   FLIGHT_CATEGORIES,
   IcaoSchema,
+  inForceTafs,
   WeatherBulkResponseSchema,
   WeatherHistoryResponseSchema,
   type AirportMetar,
@@ -112,8 +113,9 @@ export const WEATHER_HISTORY_CACHE_WINDOWS = [
   WEATHER_HISTORY_MAX_HOURS,
 ] as const
 /**
- * Geçmiş önbelleğindeki anahtar sınırı: listelenen havalimanları × 2 pencere (1. halkada ~136 × 2;
- * D-080), sonraki halkalar için pay bırakılır. Belleği asıl sınırlayan bayt bütçesidir.
+ * Geçmiş önbelleğindeki anahtar sınırı: listelenen havalimanları × 2 pencere (2. halkada 225 × 2 =
+ * 450; D-080, D-088). 3. halkada (~500 havalimanı) yetmez, o sürüm büyütür. Belleği asıl sınırlayan
+ * bayt bütçesidir.
  */
 export const WEATHER_HISTORY_CACHE_MAX_ENTRIES = 512
 /**
@@ -300,11 +302,17 @@ export function registerWeatherRoutes(
       metar = metarView(row)
       if (metar !== null) break
     }
-    const tafs = records.tafs
-      .filter((t) => t.stationIcao === icao && t.validTo.getTime() > at.getTime())
-      .sort(newestTafFirst)
-      .map(tafView)
-      .filter((t): t is AirportTaf => t !== null)
+    // Süresi dolmamış TAF'lardan yalnız yürürlüktekiler (D-088): kalan geçerliliğinin tamamı daha
+    // yeni TAF'larca kapsanan TAF özete bir şey katmaz, METAR/TAF kaydında kalır. Toplu yanıtın
+    // büyük kısmı bu eski TAF'lardı (1. halkada istasyon başına ortalama 3,4 TAF).
+    const tafs = inForceTafs(
+      records.tafs
+        .filter((t) => t.stationIcao === icao && t.validTo.getTime() > at.getTime())
+        .sort(newestTafFirst)
+        .map(tafView)
+        .filter((t): t is AirportTaf => t !== null),
+      at,
+    )
     return { icao, generatedAt, metar, tafs }
   }
 
@@ -521,7 +529,7 @@ export function registerWeatherRoutes(
         tags: ['weather'],
         summary: 'Ülkenin ya da listelenen havalimanlarının güncel havası (METAR/TAF, çözümlenmiş)',
         description:
-          'Listedeki her havalimanı için bir kayıt, liste sırasıyla; raporu olmayan havalimanında metar null. Kaynak: aviationweather.gov (NOAA Aviation Weather Center); resmî brifing yerine geçmez.',
+          "Listedeki her havalimanı için bir kayıt, liste sırasıyla; raporu olmayan havalimanında metar null. tafs yalnız yürürlükteki TAF'lardır: kalan geçerliliği daha yeni TAF'larca kapsanan eski TAF'lar METAR/TAF kaydındadır. Kaynak: aviationweather.gov (NOAA Aviation Weather Center); resmî brifing yerine geçmez.",
         querystring: { type: 'object', properties: selectionQueryProperties },
         response: {
           200: openApiSchema(WeatherBulkResponseSchema),
@@ -558,7 +566,7 @@ export function registerWeatherRoutes(
         tags: ['weather'],
         summary: 'Tek havalimanında güncel hava (METAR/TAF, çözümlenmiş)',
         description:
-          'Bilinen havalimanında rapor yoksa 200 ve metar null; geçerli TAF yoksa tafs boş. Kaynak: aviationweather.gov.',
+          "Bilinen havalimanında rapor yoksa 200 ve metar null; yürürlükte TAF yoksa tafs boş (eski TAF'lar METAR/TAF kaydındadır). Kaynak: aviationweather.gov.",
         params: codeParams,
         response: {
           200: openApiSchema(AirportWeatherSchema),

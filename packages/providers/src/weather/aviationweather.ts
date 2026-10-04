@@ -39,8 +39,8 @@ export const AWC_METAR_MAX_HOURS = 24
 /**
  * Saat ve istasyon başına beklenen en çok METAR/SPECI (yarım saatte bir rapor + SPECI payı).
  * İstasyonlar, bir istek 400 kayıt sınırının altında kalacak küçüklükte gruplara bölünür: 2 saatlik
- * olağan istekte grup 80 istasyondur (Türkiye ve 1. halka, 136 istasyon: iki istek), 24 saatlik
- * doldurmada 6 istasyon.
+ * olağan istekte grup 80 istasyondur (Türkiye, 1. ve 2. halka, 225 istasyon: üç istek; D-088), 24
+ * saatlik doldurmada 6 istasyon.
  */
 export const AWC_METAR_PER_STATION_HOUR = 2.5
 /** Bir istekteki en fazla istasyon (URL ~1.000 karakter); daha uzun liste birkaç isteğe bölünür. */

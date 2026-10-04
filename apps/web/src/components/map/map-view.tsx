@@ -30,6 +30,8 @@ export interface MapViewProps {
   basemap: Basemap
   /** Atıf denetimine her zaman eklenen HTML (canlı veri atfı). */
   customAttribution: string
+  /** Atıf şeridinin başındaki site künyesi, HTML (`siteCreditHtml`, D-089). */
+  siteCredit: string
   /** Harita tuvalinin erişilebilir adı. */
   mapLabel: string
   store: AircraftStore
@@ -62,6 +64,7 @@ export function MapView({
   ref,
   basemap,
   customAttribution,
+  siteCredit,
   mapLabel,
   store,
   airports,
@@ -115,6 +118,7 @@ export function MapView({
       labelCanvas,
       basemap,
       customAttribution,
+      siteCredit,
       mapLabel,
       store,
       state: stateRef.current,
@@ -134,7 +138,7 @@ export function MapView({
       controllerRef.current = null
       controller.destroy()
     }
-  }, [basemap, customAttribution, mapLabel, store])
+  }, [basemap, customAttribution, siteCredit, mapLabel, store])
 
   useImperativeHandle(
     ref,

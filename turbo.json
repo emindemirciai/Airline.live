@@ -7,12 +7,12 @@
   "tasks": {
     "build": {
       "dependsOn": ["^build"],
-      "outputs": ["dist/**", ".next/**", "!.next/cache/**"],
+      "outputs": ["dist/**", ".next/**", "!.next/cache/**", "!.next/dev/**"],
       "env": ["APP_ENV", "GIT_SHA", "BUILD_TIME"]
     },
     "@havayolu/web#build": {
       "dependsOn": ["^build", "@havayolu/web#typecheck"],
-      "outputs": [".next/**", "!.next/cache/**"],
+      "outputs": [".next/**", "!.next/cache/**", "!.next/dev/**"],
       "env": ["APP_ENV", "GIT_SHA", "BUILD_TIME"]
     },
     "lint": {

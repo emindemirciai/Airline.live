@@ -151,7 +151,7 @@ describe('airportNode', () => {
       isoRegion: 'GB-ENG',
       municipality: 'London',
       country: 'GB',
-      ring: 2,
+      ring: 4,
     })
     expect(airportNode(heathrow, 'tr').address).toEqual({
       '@type': 'PostalAddress',

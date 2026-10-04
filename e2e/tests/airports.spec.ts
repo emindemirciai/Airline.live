@@ -2,8 +2,8 @@
 // veritabanındaki OurAirports verisinden ve resmî ad tablosundan sunucuda çizilir. Kod adreste büyük
 // harfli ICAO'dur: küçük harf ya da IATA kodu kalıcı yönlendirmeyle ona gider, bilinmeyen kod gerçek
 // 404 döner (akış başlamadan; yumuşak 404 yok). "Canlı haritada aç" haritayı havalimanında açar.
-// Liste Türkiye tablosuyla başlar, ardından yakın ülkelerin tablosu gelir (M6d, D-080); yakın ülke
-// sayfalarının ayrıntısı foreign-airports.spec.ts'tedir.
+// Liste Türkiye tablosuyla başlar, ardından Türkiye dışındakilerin tablosu gelir (M6d, D-080);
+// onların sayfalarının ayrıntısı foreign-airports.spec.ts'tedir.
 import { expect, test } from '@playwright/test'
 import { jsonLdNodes, metaContents, nodesOfType, titles, type JsonLdNode } from '../html'
 import {
@@ -164,7 +164,7 @@ test.describe('yapılandırılmış veri', () => {
     expect(paths.every((path) => /^\/istasyon\/[A-Z0-9]{4}$/.test(path))).toBe(true)
     expect(new Set(paths).size).toBe(LISTED_AIRPORT_COUNT)
     expect(paths).toContain(STATION_PATH)
-    // Önce Türkiye tablosu, sonra yakın ülkeler (D-080): Atina ilk 61 öğenin içinde değildir.
+    // Önce Türkiye tablosu, sonra Türkiye dışındakiler (D-080): Atina ilk 61 öğenin içinde değildir.
     expect(paths.indexOf(`/istasyon/${RING1_AIRPORT.icao}`)).toBeGreaterThanOrEqual(AIRPORT_COUNT)
   })
 })
@@ -180,7 +180,7 @@ test.describe('tarayıcıda', () => {
     await page.goto('/havalimanlari')
     await expect(page.locator('html')).toHaveAttribute('lang', 'tr')
     await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
-    // Önce Türkiye, sonra yakın ülkeler (M6d, D-080): iki gerçek tablo, ikisinin de başlığı var.
+    // Önce Türkiye, sonra Türkiye dışındakiler (M6d, D-080): iki gerçek tablo, ikisinin de başlığı var.
     const tables = page.locator('main table')
     await expect(tables).toHaveCount(2)
     for (const caption of await tables.locator('caption').all())

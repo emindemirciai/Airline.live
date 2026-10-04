@@ -31,15 +31,15 @@ export const tr = {
       title: 'Türkiye’deki havalimanları: IATA ve ICAO kodları',
       description:
         'Türkiye’deki {count} havalimanının IATA ve ICAO kodları, illeri ve en uzun pistleri; her biri için canlı harita bağlantısı. Kaynak: OurAirports.',
-      /** Liste yakın ülkelerdeki havalimanlarını da içeriyorsa (M6d, D-080). */
+      /** Liste Türkiye dışındaki havalimanlarını da içeriyorsa (M6d, D-080; başlık M6g, D-088). */
       descriptionWithForeign:
-        'Türkiye’deki {count} havalimanı ile yakın ülkelerdeki {foreign} havalimanının IATA ve ICAO kodları ve en uzun pistleri; her biri için canlı harita bağlantısı. Kaynak: OurAirports.',
+        'Türkiye’deki {count} havalimanı ile Türkiye dışındaki {foreign} havalimanının IATA ve ICAO kodları ve en uzun pistleri; her biri için canlı harita bağlantısı. Kaynak: OurAirports.',
     },
     airport: {
       title: '{name} ({iata}/{icao}) canlı hava trafiği ve pistler',
       /**
        * `{facts}`: aşağıdaki parçalardan veriye göre seçilenler, "; " ile birleşik. `{place}`: Türkiye'de
-       * il, yakın ülkelerde ülke (M6d).
+       * il, Türkiye dışında ülke (M6d).
        */
       description: '{name}, {place}: {facts}. {live}',
       descriptionNoFacts: '{name}, {place}. {live}',
@@ -71,16 +71,16 @@ export const tr = {
     ogTagline: 'Türkiye canlı uçuş takibi',
   },
   /**
-   * Havalimanı listesi (`/havalimanlari`): önce Türkiye, sonra yakın ülkeler (M6d, D-080). Yakın
-   * ülkeler bölümü açık halkalardaki havalimanlarıdır (`ENABLED_AIRPORT_RING`); `{km}` o halkanın
-   * sınırıdır.
+   * Havalimanı listesi (`/havalimanlari`): önce Türkiye, sonra Türkiye dışındaki havalimanları (M6d,
+   * D-080; 2. halkadan beri "yakın ülkeler" yerine bu başlık, kullanıcı kararı 2026-10-03, D-088).
+   * Bu bölüm açık halkalardaki havalimanlarıdır (`ENABLED_AIRPORT_RING`); `{km}` o halkanın sınırıdır.
    */
   airports: {
     title: 'Havalimanları',
     summary:
       'Listede {count} havalimanı var; her havalimanının sayfasında pistleri, hava durumu ve canlı harita bağlantısı bulunur.',
     summaryWithForeign:
-      'Listede Türkiye’deki {count} havalimanı ve yakın ülkelerdeki {foreign} havalimanı var; her havalimanının sayfasında pistleri, hava durumu ve canlı harita bağlantısı bulunur.',
+      'Listede Türkiye’deki {count} havalimanı ve Türkiye dışındaki {foreign} havalimanı var; her havalimanının sayfasında pistleri, hava durumu ve canlı harita bağlantısı bulunur.',
     turkeyHeading: 'Türkiye’deki havalimanları',
     scope: 'Listede IATA kodu olan havalimanları yer alır; bazı küçük havalimanları listelenmez.',
     names:
@@ -96,7 +96,7 @@ export const tr = {
       longestRunway: 'En uzun pist',
     },
     foreign: {
-      heading: 'Yakın ülkelerdeki havalimanları',
+      heading: 'Türkiye dışındaki havalimanları',
       scope:
         'Türkiye’deki en yakın havalimanına uzaklığı en fazla {km} olan, IATA kodlu büyük ve orta boy havalimanları yer alır; bazı havalimanları listelenmez.',
       /** Bütün halkalar açıksa (uzaklık sınırı yok). */
@@ -104,13 +104,13 @@ export const tr = {
         'IATA kodlu büyük ve orta boy havalimanları yer alır; bazı havalimanları listelenmez.',
       coverage:
         'Canlı uçak verisi Türkiye odaklıdır: bu havalimanlarının çoğu canlı veri çekim alanının dışındadır ve çevrelerindeki uçaklar canlı haritada görünmeyebilir. Her havalimanının sayfası bunu ayrıca belirtir.',
-      caption: 'Yakın ülkelerdeki havalimanları, ülke adına göre sıralı',
+      caption: 'Türkiye dışındaki havalimanları, ülke adına göre sıralı',
       distanceNote:
         'Türkiye’ye uzaklık, Türkiye’deki en yakın IATA kodlu havalimanına kuş uçuşu mesafedir; bu havalimanı listede olmayan küçük bir alan da olabilir (Gökçeada gibi).',
       /** llms.txt satırındaki not (lib/seo/llms.ts). */
       distance: 'Türkiye’ye uzaklık {distance}',
       names:
-        'Türkçe adlarda yerleşik Türkçe yer adları kullanılır (Atina, Selanik, Tiflis); İngilizce adlar havalimanlarının OurAirports’taki adlarıdır. Ülke adları havalimanının OurAirports kaydından gelir; Ercan Havalimanı KKTC’de gösterilir.',
+        'Türkçe adlarda bugün kullanılan yerleşik Türkçe yer adları yazılır (Atina, Selanik, Kahire); böyle bir adı olmayan yer yerel adıyla kalır (Iași, Timișoara). İngilizce adlar havalimanlarının OurAirports’taki adlarıdır. Ülke adları havalimanının OurAirports kaydından gelir; Ercan Havalimanı KKTC’de gösterilir.',
     },
     empty: 'Havalimanı verisi henüz yüklenmedi. Biraz sonra yeniden dene.',
   },
@@ -201,7 +201,7 @@ export const tr = {
     },
     nearby: {
       heading: 'En yakın havalimanları',
-      /** `{place}`: Türkiye'de il, yakın ülkelerde ülke. */
+      /** `{place}`: Türkiye'de il, Türkiye dışında ülke. */
       item: '{airport}, {place}: {distance}',
       note: 'Mesafeler havalimanı merkezleri arasındaki kuş uçuşu mesafedir.',
     },
@@ -753,7 +753,7 @@ export const tr = {
       map: 'Canlı harita: uçakların konumu, yüksekliği, yer hızı, dikey hızı ve kimlik bilgileri (sefer no, çağrı kodu, tescil, uçak tipi).',
       search: 'Arama: havadaki uçağı sefer no, çağrı kodu, tescil ya da hex koduyla bulma.',
       airports:
-        'Havalimanları: Türkiye’deki ve yakın ülkelerdeki havalimanlarının kodları, pistleri ve en yakın havalimanları.',
+        'Havalimanları: Türkiye’deki ve Türkiye dışındaki havalimanlarının kodları, pistleri ve en yakın havalimanları.',
       weather:
         'Hava durumu: her havalimanı sayfasında son havacılık hava raporu (METAR), havalimanı tahmini (TAF) ve son 24 saatin rapor kaydı; haritada havalimanına tıklayınca kısa özeti.',
     },
@@ -777,13 +777,13 @@ export const tr = {
       stations: 'İzlenen havalimanları:',
       /**
        * Kapsama planının (packages/geo/src/coverage.ts) dışında kalan Türkiye havalimanları, veriden.
-       * Yakın ülkelerdeki havalimanları `abroad` cümlesiyle anlatılır (M6d).
+       * Türkiye dışındaki havalimanları `abroad` cümlesiyle anlatılır (M6d).
        */
       outside:
         'Türkiye’de canlı veri çekim alanının dışında kalan havalimanları; çevrelerindeki uçaklar haritada görünmeyebilir:',
       /** `{km}`: açık halkaların sınırı (`ENABLED_AIRPORT_RING`, D-080). */
       abroad:
-        'Yakın ülkelerdeki havalimanları da listelenir: Türkiye’deki en yakın havalimanına uzaklığı en fazla {km} olan, IATA kodlu büyük ve orta boy havalimanları.',
+        'Türkiye dışındaki havalimanları da listelenir: Türkiye’deki en yakın havalimanına uzaklığı en fazla {km} olan, IATA kodlu büyük ve orta boy havalimanları.',
       /** Bütün halkalar açıksa (uzaklık sınırı yok). */
       abroadAll:
         'Türkiye dışındaki havalimanları da listelenir: IATA kodlu büyük ve orta boy havalimanları.',
@@ -833,6 +833,11 @@ export const tr = {
     dataAttributionPrefix: 'Canlı uçuş verisi:',
     /** Atıf satırındaki kullanım koşulları bağlantısı (E204 §3.1c.5, D-075). */
     termsLink: 'Koşullar',
+    /**
+     * Atıf şeridinin başındaki site künyesinin ("havayolu v0.16.1") erişilebilir adı; bağlantı
+     * Yenilikler sayfasına gider (D-089). `{credit}` görünen metindir ve adın başında kalır (WCAG 2.5.3).
+     */
+    siteCreditLabel: '{credit}, yenilikler',
     search: {
       /**
        * Arama kutusunun erişilebilir adı tam metindir; görünen ipucu (`placeholder`) 375 px'lik

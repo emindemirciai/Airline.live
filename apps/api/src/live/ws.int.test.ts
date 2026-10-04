@@ -6,7 +6,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { testApp, testEnv } from '../test/helpers'
 import { aircraft, FakeLiveSource, type WsMessage } from './test/ws-fakes'
 import type { Bbox, PublicAircraft } from './types'
-import { closeLiveSockets, registerLiveWs, WS_MAX_PAYLOAD_BYTES, WS_RATE_LIMIT } from './ws'
+import { closeLiveSockets, registerLiveWs, WS_MAX_PAYLOAD_BYTES, wsRateLimit } from './ws'
 import { WS_LIMITS } from './ws-hub'
 
 // Gerçek Fastify (127.0.0.1, rastgele port) ve `ws` istemcisi; canlı veri test içi kaynaktan gelir.
@@ -169,9 +169,11 @@ describe('/v1/ws gerçek sunucuda', () => {
     expect(replacement.ws.readyState).toBe(WebSocket.OPEN)
   })
 
-  it(`el sıkışması IP başına dakikada ${WS_RATE_LIMIT.max} ile sınırlıdır (429)`, async () => {
+  // Test ortamı (APP_ENV=test) üretim dışıdır: sınır üretimdekinin iki katıdır (`wsRateLimit`, D-088).
+  const handshakeLimit = wsRateLimit('test').max
+  it(`el sıkışması IP başına dakikada ${handshakeLimit} ile sınırlıdır (429)`, async () => {
     const { url } = await realApp(new FakeLiveSource([], 0))
-    for (let i = 0; i < WS_RATE_LIMIT.max; i++) {
+    for (let i = 0; i < handshakeLimit; i++) {
       const client = await Client.open(url)
       client.ws.close(1000)
       await client.closed

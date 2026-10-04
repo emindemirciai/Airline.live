@@ -120,7 +120,7 @@ export function airportSelection(
     : { error: AIRPORT_ERRORS.badCountry }
 }
 
-/** Açık halkanın sınırı, açıklama metni için (": Türkiye'ye ≤ 500 km"); son halkada boş. */
+/** Açık halkanın sınırı, açıklama metni için (": Türkiye'ye ≤ 1000 km"); son halkada boş. */
 function enabledRingLimit(): string {
   const limit = airportRingLimitKm(ENABLED_AIRPORT_RING)
   return limit === null ? '' : `: Türkiye'ye ≤ ${limit} km`

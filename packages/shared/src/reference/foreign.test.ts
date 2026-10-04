@@ -21,6 +21,8 @@ import {
   foreignAirportName,
   isEnabledAirportRing,
   isForeignCandidate,
+  OURAIRPORTS_ICAO_CORRECTIONS,
+  ourAirportsIcao,
   REFERENCE_AIRFIELD_NAMES,
   referenceAirfieldName,
   translatedAirportName,
@@ -28,7 +30,8 @@ import {
 } from './index'
 
 // Commit'li OurAirports alt kümesi (tools/fixtures/README.md): Türkiye'nin bütün kayıtları, birkaç
-// uzak havalimanı ve 1. halkanın havalimanları (D-080). Alanlar tırnaklı; `""` kaçışlı tırnaktır.
+// uzak havalimanı, 1. ve 2. halkanın havalimanları (D-080, D-088). Alanlar tırnaklı; `""` kaçışlı
+// tırnaktır.
 const csv = (path: string) => {
   const text = readFileSync(new URL(`../../../../tools/fixtures/${path}`, import.meta.url), 'utf8')
   const [header = '', ...lines] = text.split(/\r?\n/)
@@ -43,8 +46,15 @@ const csv = (path: string) => {
 }
 
 const rows = csv('ourairports/airports.csv')
+/** Listedeki kimlik: kanonik ICAO, kaynak düzeltmeleriyle (İskenderiye HEAX → HEBA, D-088). */
 const icaoOf = (r: Map<string, string>) =>
-  (r.get('icao_code') || r.get('gps_code') || r.get('ident') || '').trim().toUpperCase()
+  ourAirportsIcao({
+    ident: r.get('ident') ?? '',
+    icaoCode: r.get('icao_code'),
+    gpsCode: r.get('gps_code'),
+  })
+/** Adlarda art arda boşluk teke iner (`@havayolu/db` liste kuralı; Bacău, D-088). */
+const cleanName = (name: string) => name.replace(/\s+/g, ' ').trim()
 const IATA = /^[A-Z]{3}$/
 const LISTABLE = ['large_airport', 'medium_airport', 'small_airport']
 
@@ -79,16 +89,25 @@ const candidates = rows
   .map((r) => {
     const here = position(r)
     const distance = Math.min(...turkish.map((tr) => km(here, tr)))
-    return { icao: icaoOf(r), name: r.get('name') ?? '', ring: airportRing(distance) }
+    return {
+      icao: icaoOf(r),
+      name: cleanName(r.get('name') ?? ''),
+      country: r.get('iso_country') ?? '',
+      distance,
+      ring: airportRing(distance),
+    }
   })
 const ringOne = candidates.filter((c) => c.ring === 1)
+const ringTwo = candidates.filter((c) => c.ring === 2)
+/** Açık halkalardaki yabancı havalimanları (M6g'den beri 1. ve 2. halka, D-088). */
+const listed = candidates.filter((c) => c.ring <= ENABLED_AIRPORT_RING)
 
 describe('halkalar', () => {
-  it('sınırlar, halka sayısı ve açık halka (M6d: 1. halka)', () => {
+  it('sınırlar, halka sayısı ve açık halka (M6g: 2. halka, D-088)', () => {
     expect(AIRPORT_RINGS_KM).toEqual([500, 1000, 2000, 5000])
     expect(AIRPORT_RING_COUNT).toBe(5)
-    expect(ENABLED_AIRPORT_RING).toBe(1)
-    expect(AIRPORT_RING_CONFIG).toEqual({ ringsKm: [500, 1000, 2000, 5000], enabledRing: 1 })
+    expect(ENABLED_AIRPORT_RING).toBe(2)
+    expect(AIRPORT_RING_CONFIG).toEqual({ ringsKm: [500, 1000, 2000, 5000], enabledRing: 2 })
     expect(TURKEY_COUNTRY).toBe('TR')
   })
 
@@ -114,7 +133,8 @@ describe('halkalar', () => {
     expect(airportRingLimitKm(1.5)).toBeNull()
     expect(isEnabledAirportRing(0)).toBe(true)
     expect(isEnabledAirportRing(1)).toBe(true)
-    expect(isEnabledAirportRing(2)).toBe(false)
+    expect(isEnabledAirportRing(2)).toBe(true)
+    expect(isEnabledAirportRing(3)).toBe(false)
     expect(isEnabledAirportRing(-1)).toBe(false)
     expect(isEnabledAirportRing(0.5)).toBe(false)
   })
@@ -132,17 +152,42 @@ describe('halkalar', () => {
 
   it("fixture: halka analiziyle aynı kural 75 havalimanı verir (Türkiye'ye en yakın 48 km)", () => {
     expect(ringOne).toHaveLength(75)
-    // Sekiz uzak fixture havalimanı (EGLL, KJFK …) 1. halkada değildir.
-    expect(candidates.filter((c) => c.ring > 1).length).toBeGreaterThanOrEqual(8)
+    // Sekiz uzak fixture havalimanı (EGLL, KJFK …) açık halkalarda değildir.
+    expect(candidates.filter((c) => c.ring > 2).length).toBeGreaterThanOrEqual(8)
     expect(ringOne.map((c) => c.icao)).toEqual(
       expect.arrayContaining(['LGAV', 'LCEN', 'UGTB', 'BKPR', 'ORSJ', 'URSS']),
     )
   })
+
+  it('fixture: 2. halka 89 havalimanı, 14 yeni ülke; en yakını Ben Gurion, en uzağı Kuveyt (D-088)', () => {
+    expect(ringTwo).toHaveLength(89)
+    expect(listed).toHaveLength(164)
+    const byDistance = ringTwo.toSorted((a, b) => a.distance - b.distance)
+    // Ben Gurion 500,44 km: tam km'ye yuvarlanınca 500 olur ama halkası 2'dir.
+    expect(byDistance[0]?.icao).toBe('LLBG')
+    expect(byDistance[0]?.distance).toBeGreaterThan(500)
+    expect(byDistance[0]?.distance).toBeLessThan(501)
+    expect(byDistance.at(-1)?.icao).toBe('OKKK')
+    expect(byDistance.at(-1)?.distance).toBeLessThanOrEqual(1000)
+    const ringOneCountries = new Set(ringOne.map((c) => c.country))
+    const newCountries = [...new Set(ringTwo.map((c) => c.country))]
+      .filter((code) => !ringOneCountries.has(code))
+      .sort()
+    expect(newCountries).toEqual(
+      ['AL', 'BA', 'EG', 'HR', 'HU', 'IT', 'KW', 'KZ', 'LY', 'MD', 'ME', 'SA', 'SK', 'TM'].sort(),
+    )
+    expect(ringTwo.map((c) => c.icao)).toEqual(
+      expect.arrayContaining(['HECA', 'OIIE', 'LYBE', 'LHBP', 'LIRN', 'UBBB', 'HEBA']),
+    )
+    // Kaynaktaki yanlış kod listede görünmez (İskenderiye, D-088).
+    expect(listed.map((c) => c.icao)).not.toContain('HEAX')
+  })
 })
 
 describe('FOREIGN_AIRPORT_NAMES', () => {
-  it("fixture'daki 1. halkanın her havalimanı için tam bir kayıt vardır, fazlası yoktur", () => {
-    expect(Object.keys(FOREIGN_AIRPORT_NAMES).sort()).toEqual(ringOne.map((c) => c.icao).sort())
+  it("fixture'daki açık halkaların (1. ve 2.) her havalimanı için tam bir kayıt vardır, fazlası yoktur", () => {
+    expect(Object.keys(FOREIGN_AIRPORT_NAMES)).toHaveLength(164)
+    expect(Object.keys(FOREIGN_AIRPORT_NAMES).sort()).toEqual(listed.map((c) => c.icao).sort())
     // Türkiye tablosuyla çakışma yok.
     for (const icao of Object.keys(FOREIGN_AIRPORT_NAMES)) {
       expect(Object.hasOwn(AIRPORT_NAMES, icao), icao).toBe(false)
@@ -161,11 +206,15 @@ describe('FOREIGN_AIRPORT_NAMES', () => {
     expect(new Set(tr).size).toBe(tr.length)
   })
 
-  it('İngilizce ad OurAirports adıdır; yalnızca Bağdat kısaltılmıştır', () => {
-    const differs = ringOne
+  it('İngilizce ad OurAirports adıdır; yalnızca Bağdat ve Podgorica kısaltılmıştır', () => {
+    // Karşılaştırma boşluğu teke indirilmiş adla (Bacău'nun kaynaktaki adında çift boşluk var).
+    const differs = listed
       .filter((c) => FOREIGN_AIRPORT_NAMES[c.icao]?.en !== c.name)
       .map((c) => c.icao)
-    expect(differs).toEqual(['ORBI'])
+      .sort()
+    expect(differs).toEqual(['LYPG', 'ORBI'])
+    expect(FOREIGN_AIRPORT_NAMES.LYPG?.en).toBe('Podgorica Airport')
+    expect(FOREIGN_AIRPORT_NAMES.LRBC?.en).toBe('Bacău George Enescu International Airport')
   })
 
   it('Türkçe yer adları (exonym) ve özel adlar', () => {
@@ -180,6 +229,53 @@ describe('FOREIGN_AIRPORT_NAMES', () => {
     expect(tr('LGKO')).toBe('İstanköy Hipokrat Havalimanı')
     expect(tr('LCEN')).toBe('Ercan Havalimanı')
     expect(tr('ORSJ')).toBe('Süleymaniye Celal Talabani Havalimanı')
+  })
+
+  it('2. halka: Türkçe yer adları, kişi adları ve D-088 yazım kararları', () => {
+    const tr = (icao: string) => FOREIGN_AIRPORT_NAMES[icao]?.tr
+    expect(tr('HECA')).toBe('Kahire Havalimanı')
+    expect(tr('HEBA')).toBe('İskenderiye Havalimanı')
+    expect(tr('HESH')).toBe('Şarm el-Şeyh Havalimanı')
+    expect(tr('LQSA')).toBe('Saraybosna Havalimanı')
+    expect(tr('LHBP')).toBe('Budapeşte Liszt Ferenc Havalimanı')
+    expect(tr('LYBE')).toBe('Belgrad Nikola Tesla Havalimanı')
+    expect(tr('LIRN')).toBe('Napoli Havalimanı')
+    expect(tr('OIIE')).toBe('Tahran İmam Humeyni Havalimanı')
+    expect(tr('UBBB')).toBe('Bakü Haydar Aliyev Havalimanı')
+    expect(tr('LATI')).toBe('Tiran Rahibe Teresa Havalimanı')
+    expect(tr('OJAI')).toBe('Amman Kraliçe Alia Havalimanı')
+    expect(tr('LIBC')).toBe('Crotone Pisagor Havalimanı')
+    expect(tr('LRSV')).toBe('Suceava Büyük Stefan Havalimanı')
+    expect(tr('OIFM')).toBe('İsfahan Şehit Beheşti Havalimanı')
+    // Resmî adın ayırt edici özel adı korunur (siyasi ad dahil, D-080 kuralı).
+    expect(tr('OIAW')).toBe('Ahvaz Kasım Süleymani Havalimanı')
+    // Yalnız tarihte kalan biçimler kullanılmaz: Yaş, Temeşvar, Katanya değil.
+    expect(tr('LRIA')).toBe('Iași Havalimanı')
+    expect(tr('LRTR')).toBe('Timișoara Traian Vuia Havalimanı')
+    expect(tr('LICC')).toBe('Catania Fontanarossa Havalimanı')
+    expect(tr('OEGT')).toBe('Kurayyat Havalimanı')
+    expect(tr('LDSP')).toBe('Split Aziz Hieronymus Havalimanı')
+    // Adı şehir taşımayan havalimanında şehir önde.
+    expect(tr('LRBM')).toBe('Baia Mare Maramureș Havalimanı')
+    expect(tr('HLLQ')).toBe('Beyda El Abrak Havalimanı')
+    expect(tr('OESK')).toBe('Sekaka El Cevf Havalimanı')
+  })
+
+  it('kaynak düzeltmesi: İskenderiye OurAirports HEAX → HEBA; yalnız yanlış değer durdukça', () => {
+    expect(OURAIRPORTS_ICAO_CORRECTIONS).toEqual({ HEBA: { icaoCode: 'HEAX', icao: 'HEBA' } })
+    const alexandria = rows.find((r) => r.get('ident') === 'HEBA')
+    expect(alexandria?.get('icao_code')).toBe('HEAX')
+    expect(alexandria?.get('gps_code')).toBe('HEAX')
+    expect(alexandria && icaoOf(alexandria)).toBe('HEBA')
+    expect(ourAirportsIcao({ ident: ' heba ', icaoCode: ' heax ', gpsCode: 'HEAX' })).toBe('HEBA')
+    // OurAirports düzeltirse ya da başka bir koda geçerse tablo devre dışıdır.
+    expect(ourAirportsIcao({ ident: 'HEBA', icaoCode: 'HEBA', gpsCode: 'HEAX' })).toBe('HEBA')
+    expect(ourAirportsIcao({ ident: 'HEBA', icaoCode: 'HEZZ', gpsCode: null })).toBe('HEZZ')
+    // Genel kural: icao_code, yoksa gps_code, o da yoksa ident.
+    expect(ourAirportsIcao({ ident: 'ORSU', icaoCode: 'ORSJ', gpsCode: 'ORSU' })).toBe('ORSJ')
+    expect(ourAirportsIcao({ ident: 'TM-0002', icaoCode: '', gpsCode: ' utan ' })).toBe('UTAN')
+    expect(ourAirportsIcao({ ident: 'x1', icaoCode: null, gpsCode: undefined })).toBe('X1')
+    expect(ourAirportsIcao({ ident: 'toString', icaoCode: null, gpsCode: null })).toBe('TOSTRING')
   })
 
   it('airportDisplayName yurt dışı tablosunu kullanır; bilinmeyen havalimanı kuralla çevrilir', () => {
@@ -230,6 +326,12 @@ describe('FOREIGN_AIRPORT_NAMES', () => {
     expect(airportLocality(at('LGST', 'Crete Island'), 'tr')).toBe('Sitia')
     expect(airportLocality(at('LGAV', 'Spata-Artemida'), 'tr')).toBe('Atina')
     expect(airportLocality(at('LCEN', 'Tymbou (Kirklar)', 'CY', 'CY-02'), 'tr')).toBe('Lefkoşa')
+    // 2. halka (D-088): yerleşim boş, yazım hatalı ya da köy adı.
+    expect(airportLocality(at('OICK', null, 'IR', 'IR-20'), 'tr')).toBe('Hürremabad')
+    expect(airportLocality(at('OICK', null, 'IR', 'IR-20'), 'en')).toBe('Khorramabad')
+    expect(airportLocality(at('HLLQ', 'Al Albraq', 'LY', 'LY-JA'), 'en')).toBe('Bayda')
+    expect(airportLocality(at('HESX', 'Al Jiza', 'EG', 'EG-GZ'), 'tr')).toBe('Gize')
+    expect(airportLocality(at('LATI', 'Rinas', 'AL', 'AL-02'), 'en')).toBe('Tirana')
     expect(foreignAirportCity(' lgav ')?.en).toBe('Athens')
     expect(foreignAirportCity('toString')).toBeUndefined()
     // Tabloda olmayan yabancı havalimanı: İngilizce sayfada temiz OurAirports yerleşimi.
@@ -306,13 +408,20 @@ describe('ülke adları', () => {
     expect(countryName('1A', 'en')).toBe('1A')
   })
 
-  it("fixture'daki 1. halka ülkelerinin hepsi Intl'de adlandırılır", () => {
-    const countries = new Set(
-      rows
-        .filter((r) => ringOne.some((c) => c.icao === icaoOf(r)))
-        .map((r) => r.get('iso_country') ?? ''),
-    )
-    expect(countries.size).toBeGreaterThanOrEqual(15)
+  it('countryName: 2. halkanın yeni ülkeleri; İngilizcede "&" yerine "and" (D-088)', () => {
+    expect(countryName('EG', 'tr')).toBe('Mısır')
+    expect(countryName('IT', 'tr')).toBe('İtalya')
+    expect(countryName('KW', 'tr')).toBe('Kuveyt')
+    expect(countryName('ME', 'tr')).toBe('Karadağ')
+    expect(countryName('BA', 'tr')).toBe('Bosna-Hersek')
+    expect(countryName('BA', 'en')).toBe('Bosnia and Herzegovina')
+    expect(countryName('TT', 'en')).toBe('Trinidad and Tobago')
+    expect(countryName('SK', 'en')).toBe('Slovakia')
+  })
+
+  it("fixture'daki açık halkaların ülkelerinin hepsi Intl'de adlandırılır (2. halkayla 31)", () => {
+    const countries = new Set(listed.map((c) => c.country))
+    expect(countries.size).toBe(31)
     for (const code of countries) {
       for (const locale of ['tr', 'en'] as const) {
         expect(countryName(code, locale), `${code} ${locale}`).not.toBe(code)

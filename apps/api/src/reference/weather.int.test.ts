@@ -194,10 +194,9 @@ describe('hava durumu uçları (gerçek PostgreSQL)', () => {
       observedAt: ago(10 * MIN).toISOString(),
       raw: metars[0]?.raw,
     })
-    expect(ltfm?.tafs.map((t) => t.issuedAt)).toEqual([
-      ago(140 * MIN).toISOString(),
-      ago(8 * HOUR).toISOString(),
-    ])
+    // Yürürlükteki TAF (D-088): 8 saat önceki TAF'ın kalan geçerliliğini (17 saat sonrasına kadar)
+    // 140 dk önceki TAF kapsar; eskisi güncel havada yok, kayıtta var.
+    expect(ltfm?.tafs.map((t) => t.issuedAt)).toEqual([ago(140 * MIN).toISOString()])
     expect(byIcao.get('LTBA')?.metar?.raw).toBe(metars[5]?.raw)
     // Eski gözlem yine en yeni rapordur; yaşını arayüz gösterir.
     expect(byIcao.get('LTCW')?.metar?.observedAt).toBe(ago(8 * HOUR).toISOString())
@@ -206,7 +205,7 @@ describe('hava durumu uçları (gerçek PostgreSQL)', () => {
     expect(withMetar.sort()).toEqual(['LTBA', 'LTCW', 'LTFM'])
   })
 
-  it('GET /v1/weather?scope=listed: Türkiye ve 1. halka, liste sırasıyla; yurt dışı raporları', async () => {
+  it('GET /v1/weather?scope=listed: Türkiye ve açık halkalar, liste sırasıyla; yurt dışı raporları', async () => {
     const res = await get('/v1/weather?scope=listed')
     expect(res.statusCode).toBe(200)
     const body = res.json() as WeatherBulkResponse
@@ -234,7 +233,7 @@ describe('hava durumu uçları (gerçek PostgreSQL)', () => {
       expect(AirportWeatherSchema.parse(body)).toEqual(body)
       expect(body.icao, code).toBe('LTFM')
       expect(body.metar?.raw, code).toBe(metars[0]?.raw)
-      expect(body.tafs, code).toHaveLength(2)
+      expect(body.tafs, code).toHaveLength(1)
     }
     const kco = await get('/v1/airports/KCO/weather')
     expect(kco.statusCode).toBe(200)

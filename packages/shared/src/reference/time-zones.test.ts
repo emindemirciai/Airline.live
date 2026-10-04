@@ -9,14 +9,16 @@ import {
   ENABLED_AIRPORT_RING,
   isForeignCandidate,
   isSupportedTimeZone,
+  ourAirportsIcao,
   REGION_TIME_ZONES,
 } from './index'
 
 /**
- * 1. ve 2. halkanın 164 havalimanı (OurAirports 2026-10-01 indirmesi; 2. halka henüz listede ve
- * fixture'da değil): "ICAO bölge dilim". Beklenen dilimler M6f araştırmasının karşılaştırmasıdır
- * (tzdb `zone.tab` açıklamaları ve bölge kuralları); Sohum kullanıcı kararıyla Moskova saatidir,
- * Volgograd kendi dilimidir (Moskova kuralları). Ülke, bölge kodunun önekidir.
+ * 1. ve 2. halkanın 164 havalimanı (OurAirports 2026-10-01 indirmesi; ikisi de listede ve fixture'da,
+ * D-088): "ICAO bölge dilim". İskenderiye uygulamadaki koduyla (HEBA; OurAirports `icao_code`
+ * HEAX). Beklenen dilimler M6f araştırmasının karşılaştırmasıdır (tzdb `zone.tab` açıklamaları ve
+ * bölge kuralları); Sohum kullanıcı kararıyla Moskova saatidir, Volgograd kendi dilimidir (Moskova
+ * kuralları). Ülke, bölge kodunun önekidir.
  */
 const RING_AIRPORTS: readonly string[] = [
   // 1. halka
@@ -98,7 +100,7 @@ const RING_AIRPORTS: readonly string[] = [
   // 2. halka
   'HEAL EG-MT Africa/Cairo',
   'HEAR EG-SIN Africa/Cairo',
-  'HEAX EG-ALX Africa/Cairo',
+  'HEBA EG-ALX Africa/Cairo',
   'HECA EG-C Africa/Cairo',
   'HECP EG-C Africa/Cairo',
   'HEMM EG-MT Africa/Cairo',
@@ -354,7 +356,11 @@ const rows = (() => {
   })
 })()
 const icaoOf = (r: Map<string, string>) =>
-  (r.get('icao_code') || r.get('gps_code') || r.get('ident') || '').trim().toUpperCase()
+  ourAirportsIcao({
+    ident: r.get('ident') ?? '',
+    icaoCode: r.get('icao_code'),
+    gpsCode: r.get('gps_code'),
+  })
 const fixtureAirport = (r: Map<string, string>) => ({
   icao: icaoOf(r),
   country: r.get('iso_country') ?? '',
@@ -405,7 +411,8 @@ describe('fixture: listelenen her havalimanının dilimi var', () => {
         const distance = Math.min(...references.map((tr) => km(here, tr)))
         return airportRing(distance) <= ENABLED_AIRPORT_RING
       })
-    expect(listed.length).toBeGreaterThanOrEqual(75)
+    // M6g'den beri 1. ve 2. halka açık: 75 + 89 (D-088); her biri beklenen tablodadır.
+    expect(listed).toHaveLength(164)
     for (const r of listed) {
       const airport = fixtureAirport(r)
       const zone = airportTimeZone(airport)
