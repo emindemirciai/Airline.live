@@ -1,14 +1,16 @@
 /**
  * Etiket ayarı (domain.md → Harita etiketleri): seçili uçak ve diğer uçaklar için ayrı ayrı
- * Gizle / Kısa / Tam (varsayılan ikisi için de Tam); havalimanları için Gizle / Kod / Kod ve ad
- * (varsayılan Kod, kullanıcı kararı 2026-10-03, D-084). Cihazda (localStorage) saklanır. Depolama
- * kapalı ya da bozuk olabilir (gizli pencere, silinmiş site verisi): her erişim korunur, okunamayan
- * değer varsayılana döner. Havalimanı alanı olmayan eski kayıt geçerlidir (havalimanları Kod).
+ * Gizle / Kısa / Tam (varsayılan ikisi için de Tam); havalimanları için Gizle / Kod (varsayılan
+ * Kod, kullanıcı kararı 2026-10-03, D-084). Cihazda (localStorage) saklanır. Depolama kapalı ya da
+ * bozuk olabilir (gizli pencere, silinmiş site verisi): her erişim korunur, okunamayan değer
+ * varsayılana döner. Havalimanı alanı olmayan eski kayıt geçerlidir (havalimanları Kod). "Kod ve
+ * ad" 2026-10-04'te kullanıcı isteğiyle kaldırıldı (D-084): o seçenekle saklanmış `'name'` değeri
+ * de Kod okunur.
  */
 import type { LabelMode } from './label-text'
 
-/** Havalimanı etiketi: yazı yok (pin kalır), IATA kodu ya da kod ve kısa ad. */
-export type AirportLabelMode = 'hidden' | 'code' | 'name'
+/** Havalimanı etiketi: yazı yok (pin kalır) ya da IATA kodu. */
+export type AirportLabelMode = 'hidden' | 'code'
 
 export interface LabelSettings {
   selected: LabelMode
@@ -19,8 +21,8 @@ export interface LabelSettings {
 /** Seçenek sırası: Gizle, Kısa, Tam (domain.md → Harita etiketleri). */
 export const LABEL_MODES: readonly LabelMode[] = ['hidden', 'short', 'full']
 
-/** Seçenek sırası: Gizle, Kod, Kod ve ad. */
-export const AIRPORT_LABEL_MODES: readonly AirportLabelMode[] = ['hidden', 'code', 'name']
+/** Seçenek sırası: Gizle, Kod. */
+export const AIRPORT_LABEL_MODES: readonly AirportLabelMode[] = ['hidden', 'code']
 
 export const DEFAULT_LABEL_SETTINGS: Readonly<LabelSettings> = Object.freeze({
   selected: 'full',

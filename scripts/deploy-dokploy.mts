@@ -152,6 +152,15 @@ async function listDeployments(config: DeployConfig, deps: DeployDeps): Promise<
   )
 }
 
+/**
+ * Başlığa yazılacak sürüm: `1.2.3` ya da `1.2.3-rc.1` biçiminde değilse (boş, çok satırlı, garip)
+ * null; başlık o zaman sürümsüz kalır.
+ */
+export function appVersion(raw: string | undefined): string | null {
+  const value = raw?.trim() ?? ''
+  return /^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/.test(value) ? value : null
+}
+
 /** compose.deploy gövdesi: yalnızca composeId ve title. freshVolumes asla eklenmez. */
 export function deployRequestBody(config: Pick<DeployConfig, 'composeId' | 'title'>): string {
   return JSON.stringify({ composeId: config.composeId, title: config.title })
@@ -385,9 +394,14 @@ export function planFromEnv(env: Record<string, string | undefined>): Plan {
   }
   const sha7 = value('EXPECTED_SHA').slice(0, 7).toLowerCase()
   const runId = env.GITHUB_RUN_ID ?? 'yerel'
+  // Sürüm (kök package.json, CI APP_VERSION ile verir) başlıkta yazılır: Dokploy'da hangi sürümün
+  // yayımlandığı görünür (kullanıcı isteği 2026-10-04, D-087). Geçersiz ya da boşsa yazılmaz.
+  const version = appVersion(env.APP_VERSION)
   // Dal tetiğinde başlık commit mesajıdır (İngilizce, ASCII; CLAUDE.md → Adlandırma).
   const defaultTitle =
-    trigger === 'branch' ? `deploy ${sha7} (run ${runId})` : `gh-${sha7}-${runId}`
+    trigger === 'branch'
+      ? `deploy ${version ? `v${version} ` : ''}${sha7} (run ${runId})`
+      : `gh-${version ? `v${version}-` : ''}${sha7}-${runId}`
   return {
     kind: 'run',
     config: {

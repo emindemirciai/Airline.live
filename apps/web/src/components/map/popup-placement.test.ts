@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest'
-import { POPUP_GAP_PX, POPUP_MARGIN_PX, POPUP_SIDE_GAP_PX, placePopup } from './popup-placement'
+import {
+  POPUP_GAP_PX,
+  POPUP_MARGIN_PX,
+  POPUP_SIDE_GAP_PX,
+  placePopup,
+  type PopupRect,
+} from './popup-placement'
 
 const view = { width: 1000, height: 600 }
 const size = { width: 300, height: 280 }
@@ -82,5 +88,56 @@ describe('placePopup', () => {
     const { left, top } = placePopup({ anchor: { x: 200.4, y: 300.7 }, size, view })
     expect(Number.isInteger(left)).toBe(true)
     expect(Number.isInteger(top)).toBe(true)
+  })
+})
+
+describe('placePopup: kaçınılacak paneller (D-085)', () => {
+  // Dört yönün de sığdığı görünüm: sağ {544, 260}, sol {156, 260}, alt {350, 414}, üst {350, 106}.
+  const wide = { width: 1000, height: 800 }
+  const anchor = { x: 500, y: 400 }
+  const place = (avoid: readonly PopupRect[]) => placePopup({ anchor, size, view: wide, avoid })
+  /** Sağ üstteki uçak listesi gibi: sağ yönü örter. */
+  const list: PopupRect = { left: 700, top: 0, width: 300, height: 400 }
+
+  it('kaçınılacak alan yoksa sonuç eskisiyle aynıdır', () => {
+    expect(place([])).toEqual({ left: 544, top: 260, side: 'right' })
+    for (let x = -100; x <= 1100; x += 50) {
+      for (let y = -100; y <= 700; y += 50) {
+        const input = { anchor: { x, y }, size, view }
+        expect(placePopup({ ...input, avoid: [] })).toEqual(placePopup(input))
+      }
+    }
+  })
+
+  it('sağ yönü örten panel varsa sol seçilir', () => {
+    expect(place([list])).toEqual({ left: 156, top: 260, side: 'left' })
+  })
+
+  it('sağ ve sol örtülüyse alt seçilir', () => {
+    const left: PopupRect = { left: 0, top: 200, width: 300, height: 200 }
+    expect(place([list, left])).toEqual({ left: 350, top: 414, side: 'below' })
+  })
+
+  it('her yön örtülüyse en az örten seçilir; eşitlikte sıradaki ilki', () => {
+    // Sağ yarı ve sol yarı: sağ 300×280, sol 252×280, alt ve üst (58 + 138)×280 örtülür.
+    const right: PopupRect = { left: 520, top: 0, width: 480, height: 800 }
+    const left: PopupRect = { left: 0, top: 0, width: 400, height: 800 }
+    expect(place([right, left])).toEqual({ left: 350, top: 414, side: 'below' })
+    // Bütün görünümü örten panel: hepsi eşit, ilk yön (sağ).
+    expect(place([{ left: 0, top: 0, width: 1000, height: 800 }]).side).toBe('right')
+  })
+
+  it('panelin çevresinde kenar boşluğu kadar yer bırakılır', () => {
+    // Sağ yöndeki pencere x 544–844'tedir.
+    const near: PopupRect = { left: 844 + POPUP_MARGIN_PX - 2, top: 260, width: 100, height: 100 }
+    expect(place([near]).side).toBe('left')
+    const clear: PopupRect = { ...near, left: 844 + POPUP_MARGIN_PX + 1 }
+    expect(place([clear]).side).toBe('right')
+  })
+
+  it('hiçbir yön sığmazsa kaçınma yok sayılır, pencere görünümün içine sıkıştırılır', () => {
+    const tiny = { width: 320, height: 300 }
+    const avoid: PopupRect[] = [{ left: 0, top: 0, width: 320, height: 300 }]
+    expect(placePopup({ anchor: { x: 160, y: 150 }, size, view: tiny, avoid }).side).toBe('inside')
   })
 })

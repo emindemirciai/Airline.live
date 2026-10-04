@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import {
+  alongTrackKm,
   bearingDifference,
   circleContainsCircle,
   circleContainsPoint,
+  crossTrackKm,
   destinationPoint,
   distanceKm,
   distanceNm,
@@ -104,6 +106,53 @@ describe('birim dönüşümleri', () => {
   it('m ↔ ft', () => {
     expect(ftToM(1000)).toBeCloseTo(304.8, 6)
     expect(mToFt(304.8)).toBeCloseTo(1000, 6)
+  })
+})
+
+describe('crossTrackKm ve alongTrackKm (pist hizası)', () => {
+  const origin = { lat: 41, lon: 29 }
+
+  it('kuzeye giden hattın 1 km doğusundaki nokta: yanal +1 km, boyuna ≈ 0', () => {
+    const p = destinationPoint(origin, 90, 1)
+    expect(crossTrackKm(p, origin, 0)).toBeCloseTo(1, 3)
+    expect(alongTrackKm(p, origin, 0)).toBeCloseTo(0, 3)
+    // Batıdaki nokta solda: işaret eksi.
+    expect(crossTrackKm(destinationPoint(origin, 270, 1), origin, 0)).toBeCloseTo(-1, 3)
+  })
+
+  it('hattın gerisindeki nokta eksi, ilerisindeki artı boyuna uzaklık verir', () => {
+    expect(alongTrackKm(destinationPoint(origin, 180, 5), origin, 0)).toBeCloseTo(-5, 3)
+    expect(crossTrackKm(destinationPoint(origin, 180, 5), origin, 0)).toBeCloseTo(0, 6)
+    const ahead = destinationPoint(destinationPoint(origin, 0, 3), 90, 1)
+    expect(alongTrackKm(ahead, origin, 0)).toBeCloseTo(3, 2)
+    expect(crossTrackKm(ahead, origin, 0)).toBeCloseTo(1, 2)
+  })
+
+  it('pist eşiğinden önce son yaklaşmada: boyuna eksi, yanal sıfıra yakın (LTFM 35L)', () => {
+    // OurAirports runways.csv: 35L eşiği ve karşı ucu (tools/src/scenarios/airports.ts).
+    const threshold = { lat: 41.26190185546875, lon: 28.725299835205078 }
+    const farEnd = { lat: 41.29880142211914, lon: 28.72450065612793 }
+    const bearing = initialBearing(threshold, farEnd)
+    const onFinal = destinationPoint(threshold, bearing + 180, 8)
+    expect(alongTrackKm(onFinal, threshold, bearing)).toBeCloseTo(-8, 3)
+    expect(Math.abs(crossTrackKm(onFinal, threshold, bearing))).toBeLessThan(0.001)
+    expect(alongTrackKm(farEnd, threshold, bearing)).toBeCloseTo(distanceKm(threshold, farEnd), 6)
+  })
+
+  it('aynı nokta sıfırdır; yön [0, 360) dışından da verilebilir', () => {
+    expect(crossTrackKm(origin, origin, 45)).toBe(0)
+    expect(alongTrackKm(origin, origin, 45)).toBe(0)
+    const p = destinationPoint(origin, 90, 1)
+    expect(crossTrackKm(p, origin, 360)).toBeCloseTo(crossTrackKm(p, origin, 0), 9)
+    expect(alongTrackKm(p, origin, -360)).toBeCloseTo(alongTrackKm(p, origin, 0), 9)
+  })
+
+  it('180. boylamı geçen hatta da doğrudur', () => {
+    const east = { lat: 0, lon: 179.99 }
+    const p = destinationPoint(east, 90, 10)
+    expect(p.lon).toBeLessThan(0)
+    expect(alongTrackKm(p, east, 90)).toBeCloseTo(10, 6)
+    expect(crossTrackKm(p, east, 90)).toBeCloseTo(0, 6)
   })
 })
 

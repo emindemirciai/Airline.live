@@ -5,6 +5,7 @@ import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
 import type { TrackedAircraft } from '../../../lib/live/store'
 import type { LabelSettings } from '../../../lib/map/label-settings'
+import type { AircraftPlaceView } from './aircraft-place'
 import { AircraftTable } from './aircraft-table'
 import { InfoCard } from './info-card'
 import { LabelSettingsControl, LabelSettingsPanel } from './label-settings-control'
@@ -146,6 +147,11 @@ describe('InfoCard', () => {
 })
 
 describe('AircraftTable', () => {
+  /** Durum hücresi (D-085): THY974 IST'ye yaklaşmada, PRIVATE_JET yolda (rozetsiz). */
+  const placeOf = (ac: TrackedAircraft): AircraftPlaceView =>
+    ac.hex === THY974.hex
+      ? { phase: 'approaching', badge: 'Yaklaşmada', text: 'IST, 18 km', airport: 'LTFM' }
+      : { phase: 'enRoute', badge: null, text: 'SAW, 45 km kuzeyinde', airport: 'LTFJ' }
   const render = (props: Partial<Parameters<typeof AircraftTable>[0]> = {}) =>
     renderToStaticMarkup(
       createElement(AircraftTable, {
@@ -153,44 +159,129 @@ describe('AircraftTable', () => {
         total: 2,
         selectedHex: '3c6444',
         onSelect: noop,
+        placeOf,
+        sheet: false,
+        wideOpen: true,
+        onWideOpenChange: noop,
         locale: 'tr',
         units: 'metric',
         messages: tr.table,
         ...props,
       }),
     )
+  /** Sütun başlıklarının görünen metni ve ekran okuyucu metni (`.sr-only`). */
+  const columnHeaders = (html: string) =>
+    [...html.matchAll(/<th scope="col"[^>]*>(.*?)<\/th>/g)].map((m) => {
+      const cell = m[1] ?? ''
+      const visible = cell.replace(/<span class="sr-only">.*?<\/span>/g, '')
+      const hidden = /<span class="sr-only">(.*?)<\/span>/.exec(cell)?.[1] ?? null
+      return { visible: textOf(visible), srOnly: hidden }
+    })
 
-  it('gerçek tablo: başlık, sütun başlıkları, satır başına hex ve seçim durumu', () => {
+  it('gerçek tablo: başlık, dört sütun (Sefer, Kuyruk, Yükseklik, Konum ve durum), seçim durumu', () => {
     const html = render()
     expect(html).toContain('<caption>Haritada görünen uçaklar</caption>')
-    const columns = [...html.matchAll(/<th scope="col"[^>]*>([^<]+)<\/th>/g)].map((m) => m[1])
-    expect(columns).toEqual(['Sefer', 'Tip', 'Yükseklik', 'Hız', 'Konum'])
+    expect(columnHeaders(html)).toEqual([
+      { visible: 'Sefer', srOnly: null },
+      { visible: 'Kuyruk', srOnly: 'Kuyruk tescili' },
+      { visible: 'Yükseklik', srOnly: null },
+      { visible: 'Konum ve durum', srOnly: null },
+    ])
+    // Görünen "Kuyruk" ekran okuyucudan gizlidir; erişilebilir ad "Kuyruk tescili"dir (WCAG 2.5.3).
+    expect(html).toContain('<span aria-hidden="true">Kuyruk</span>')
     expect(html).toMatch(/<tr data-hex="4bb26c" aria-selected="false"/)
     expect(html).toMatch(/<tr data-hex="3c6444" aria-selected="true" class="is-selected"/)
+    // Tip ve Hız listeden çıktı (bilgi kartında kalır).
+    expect(textOf(html)).not.toContain('A21N')
+    expect(textOf(html)).not.toContain('km/sa')
   })
 
-  it('her satırın ilk hücresinde klavye için bir düğme, son hücrede konum vardır', () => {
+  it('satır: klavye düğmesi, tescil (boşsa "—"), yükseklik ("yerde"), durum rozeti ve konum', () => {
     const html = render()
     expect(html).toMatch(
       /<th scope="row"><button type="button"[^>]*aria-label="TK-974 uçağını seç"/,
     )
-    expect(html).toMatch(/<td class="mono">41\.275, 28\.752<\/td><\/tr>/)
-    expect(textOf(html)).toContain('DCABC — yerde 22 km/sa 40.900, 29.300')
+    expect(textOf(html)).toContain('TK-974 TC-LSA 333 m Yaklaşmada IST, 18 km')
+    expect(textOf(html)).toContain('DCABC — yerde SAW, 45 km kuzeyinde')
+    expect(html).toContain('<td class="map-table__reg mono">TC-LSA</td>')
+    expect(html).toContain('<td class="map-table__reg mono">—</td>')
+    // Sayı ile birim bölünmez boşlukla birleşir: dar sütunda kırılmaz.
+    expect(html).toContain('333 m')
+    expect(html).toMatch(
+      /<td class="map-table__place" data-phase="approaching" data-airport="LTFM"><span class="map-table__phase">Yaklaşmada<\/span> IST, 18 km<\/td>/,
+    )
+    // Yoldaki uçakta rozet yoktur.
+    expect(html).toMatch(
+      /<td class="map-table__place" data-phase="enRoute" data-airport="LTFJ">SAW, 45 km kuzeyinde<\/td>/,
+    )
+    // Havalimanı yokken konum koordinattır, havalimanı özniteliği yazılmaz.
+    const bare = render({
+      placeOf: () => ({ phase: 'enRoute', badge: null, text: '41.275, 28.752', airport: null }),
+    })
+    expect(bare).toContain('<td class="map-table__place" data-phase="enRoute">41.275, 28.752</td>')
   })
 
-  it('satır sınırı aşılınca başlık "ilk N / toplam" olur; boş listede açıklama satırı', () => {
+  it('durumlar canlı bölge değildir: değişince duyurulmaz', () => {
+    const html = render()
+    expect(html).not.toContain('aria-live')
+    expect(html).not.toMatch(/role="(status|alert|log)"/)
+  })
+
+  it('"Durumlar tahminidir" notu tablonun altında, aria-describedby ile bağlı; TR ve EN', () => {
+    const html = render()
+    const describedBy = /<table class="map-table__table" aria-describedby="([^"]+)"/.exec(html)?.[1]
+    expect(describedBy).toBeTruthy()
+    expect(html).toContain(`<p id="${describedBy}" class="map-table__note">${tr.table.note}</p>`)
+    expect(html.indexOf('</table>')).toBeLessThan(html.indexOf('class="map-table__note"'))
+    expect(tr.table.note).toMatch(/^Durumlar tahminidir/)
+    expect(tr.table.note).toContain('PIA, LADD')
+    const english = render({ locale: 'en', units: 'aviation', messages: en.table })
+    expect(english).toContain('<caption>Aircraft visible on the map</caption>')
+    expect(columnHeaders(english).map((c) => c.visible)).toEqual([
+      'Flight',
+      'Tail',
+      'Altitude',
+      'Location and status',
+    ])
+    expect(columnHeaders(english)[1]?.srOnly).toBe('Tail number')
+    expect(textOf(english)).toContain('TK-974 TC-LSA 1,093 ft')
+    expect(textOf(english)).toContain('DCABC — on ground')
+    expect(english).toContain(en.table.note)
+    expect(en.table.note).toMatch(/^Statuses are estimates/)
+  })
+
+  it('satır sınırı aşılınca başlık "ilk N / toplam" olur; boş listede dört sütunluk açıklama satırı', () => {
     expect(render({ total: 180 })).toContain(
       '<caption>Haritada görünen uçaklar (ilk 2 / 180)</caption>',
     )
     const empty = render({ rows: [], total: 0 })
-    expect(empty).toMatch(/<td colspan="5"/i)
+    expect(empty).toMatch(/<td colspan="4"/i)
     expect(empty).toContain(tr.table.empty)
   })
 
-  it('dar ekran düğmesi listeyi açıp kapatır (başlangıçta kapalı)', () => {
+  it('geniş ekran: başlık düğmesi açık listeyi daraltır; hâl dışarıdan gelir (cihazda saklanır)', () => {
     const html = render()
-    expect(html).toMatch(/aria-expanded="false"[^>]*>.*Uçak listesini göster/)
-    expect(html).toContain('data-expanded="false"')
+    const toggle = /<button type="button" class="map-table__toggle"[^>]*>/.exec(html)?.[0] ?? ''
+    expect(toggle).toContain('aria-expanded="true"')
+    const controls = /aria-controls="([^"]+)"/.exec(toggle)?.[1]
+    expect(html).toContain(`<div id="${controls}" class="map-table__body">`)
+    expect(textOf(html)).toMatch(/^Uçak listesini gizle 2 /)
+    expect(html).toContain('data-wide-open="true"')
+    // Sayı rozeti ve ok simgesi ekran okuyucudan gizlidir.
+    expect(html).toContain('<span class="map-table__count mono" aria-hidden="true">2</span>')
+    expect(html).toMatch(/<svg class="map-table__chevron"[^>]*aria-hidden="true"/)
+
+    const closed = render({ wideOpen: false })
+    expect(closed).toMatch(/aria-expanded="false"[^>]*>.*Uçak listesini göster/)
+    expect(closed).toContain('data-wide-open="false"')
+  })
+
+  it('dar ekran: liste her açılışta kapalı başlar, geniş ekranın kaydına bakmaz', () => {
+    // Sunucu çizimi geniş ekranı varsayar; telefonda CSS `data-phone-open="false"`a bakar.
+    expect(render()).toContain('data-phone-open="false"')
+    const phone = render({ sheet: true, wideOpen: true })
+    expect(phone).toMatch(/aria-expanded="false"[^>]*>.*Uçak listesini göster/)
+    expect(phone).toContain('data-phone-open="false"')
   })
 })
 
@@ -352,15 +443,15 @@ describe('LabelSettingsPanel (D-084)', () => {
       }),
     )
 
-  it('üç grup: Seçili uçak, Diğer uçaklar, Havalimanları (Gizle / Kod / Kod ve ad)', () => {
+  it('üç grup: Seçili uçak, Diğer uçaklar, Havalimanları (Gizle / Kod)', () => {
     const html = render({ selected: 'full', others: 'short', airports: 'code' })
     expect(html).toMatch(/^<div id="labels" class="map-panel map-labels__panel" role="group"/)
     const found = groups(html)
     expect(found.map((g) => g.legend)).toEqual(['Seçili uçak', 'Diğer uçaklar', 'Havalimanları'])
+    // "Kod ve ad" 2026-10-04'te kaldırıldı: ad, havalimanı penceresindedir (kullanıcı isteği).
     expect(found[2]?.options.map((o) => [o.mode, o.text])).toEqual([
       ['hidden', 'Gizle'],
       ['code', 'Kod'],
-      ['name', 'Kod ve ad'],
     ])
     // Her grubun radyo adı ayrıdır (ok tuşları yalnızca kendi grubunda gezer).
     expect(new Set(found.map((g) => g.options[0]?.name)).size).toBe(3)
@@ -371,19 +462,22 @@ describe('LabelSettingsPanel (D-084)', () => {
     expect(found[0]?.options.find((o) => o.checked)?.mode).toBe('full')
     expect(found[1]?.options.find((o) => o.checked)?.mode).toBe('short')
     expect(found[2]?.options.find((o) => o.checked)?.mode).toBe('code')
-    expect(textOf(html)).toContain('Kod ve ad: yakınlaştırınca havalimanının kısa adı da yazılır.')
+    expect(textOf(html)).toContain('Kısa: yalnızca sefer no. Tam: sefer no, hız ve yükseklik.')
+    expect(textOf(html)).not.toContain('Kod ve ad')
   })
 
   it('seçili havalimanı seçeneği ayardan gelir; İngilizce metinler', () => {
-    for (const airports of ['hidden', 'code', 'name'] as const) {
+    for (const airports of ['hidden', 'code'] as const) {
       const found = groups(render({ selected: 'full', others: 'full', airports }))
       expect(found[2]?.options.find((o) => o.checked)?.mode, airports).toBe(airports)
     }
     const en = groups(
-      render({ selected: 'full', others: 'full', airports: 'name' }, getMessages('en').map.labels),
+      render(
+        { selected: 'full', others: 'full', airports: 'hidden' },
+        getMessages('en').map.labels,
+      ),
     )
     expect(en.map((g) => g.legend)).toEqual(['Selected aircraft', 'Other aircraft', 'Airports'])
-    // "Code and name" 300 px panelin üçüncü sütununa sığmıyordu (iki satır); kısa karşılığı.
-    expect(en[2]?.options.map((o) => o.text)).toEqual(['Hide', 'Code', 'With name'])
+    expect(en[2]?.options.map((o) => o.text)).toEqual(['Hide', 'Code'])
   })
 })

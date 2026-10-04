@@ -4,10 +4,11 @@ import type { UnitSystem } from '@havayolu/i18n'
 import type { Airport, Locale } from '@havayolu/shared'
 import { useEffect, useEffectEvent, useImperativeHandle, useRef, type Ref } from 'react'
 import type { AircraftStore } from '../../lib/live/store'
+import type { ScreenRect } from '../../lib/map/label-layout'
 import type { LabelSettings } from '../../lib/map/label-settings'
 import type { Basemap } from '../../lib/map-config'
 import { SELECT_MIN_ZOOM, type MapViewport } from './camera'
-import { MapController, type ScreenPoint } from './map-controller'
+import { MapController, type MapInsets, type ScreenPoint } from './map-controller'
 import { supportsWebGL2 } from './webgl'
 
 /** Üst bileşenin haritaya verdiği komutlar (kamera, havalimanı penceresinin dayanağı). */
@@ -38,8 +39,10 @@ export interface MapViewProps {
   labelSettings: LabelSettings
   locale: Locale
   units: UnitSystem
-  /** Haritanın altını örten panelin yüksekliği (dar ekranda bilgi kartı), CSS px. */
-  bottomInset: number
+  /** Haritayı örten panellerin payı (dar ekranda alttaki kart, geniş ekranda soldaki kart), CSS px. */
+  insets: MapInsets
+  /** Haritanın üstündeki opak paneller (haritaya göre, CSS px): seçili etiket bunları örtmez. */
+  panels: readonly ScreenRect[]
   onSelect: (hex: string) => void
   onAirportSelect: (icao: string) => void
   onEmptyClick: () => void
@@ -67,7 +70,8 @@ export function MapView({
   labelSettings,
   locale,
   units,
-  bottomInset,
+  insets,
+  panels,
   onSelect,
   onAirportSelect,
   onEmptyClick,
@@ -84,7 +88,7 @@ export function MapView({
     target: { lat: number; lon: number }
     listener: (point: ScreenPoint) => void
   } | null>(null)
-  const state = { selectedHex, following, labelSettings, airports, locale, units, bottomInset }
+  const state = { selectedHex, following, labelSettings, airports, locale, units, insets, panels }
   const stateRef = useRef(state)
 
   const handleSelect = useEffectEvent((hex: string) => onSelect(hex))

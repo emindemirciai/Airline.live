@@ -869,14 +869,46 @@ export const tr = {
       caption: 'Haritada görünen uçaklar',
       captionLimited: 'Haritada görünen uçaklar (ilk {shown} / {total})',
       flight: 'Sefer',
-      type: 'Tip',
+      /** Sütun başlığının görünen adı; erişilebilir adı `registrationLabel` (D-085). */
+      registration: 'Kuyruk',
+      registrationLabel: 'Kuyruk tescili',
       altitude: 'Yükseklik',
-      speed: 'Hız',
-      position: 'Konum',
+      place: 'Konum ve durum',
       empty: 'Bu alanda şu an uçak görünmüyor.',
       show: 'Uçak listesini göster',
       hide: 'Uçak listesini gizle',
       select: '{flight} uçağını seç',
+      /** Listenin altındaki not (web-ui.md: tahmini bilgi "tahmini" etiketi taşır; D-085). */
+      note: 'Durumlar tahminidir: ADS-B konumu, yüksekliği ve dikey hızından en yakın havalimanına göre hesaplanır. Kuyruk tescili boşsa bilinmiyor ya da gizlilik programı (PIA, LADD) nedeniyle gösterilmiyor.',
+      /**
+       * "Konum ve durum" hücresinin rozeti (D-085; domain.md → Haritadaki uçak listesi). Yoldaki
+       * uçakta rozet yoktur, yalnızca konum yazılır. "İnişte" son yaklaşmadır, teker koyma değildir.
+       */
+      phase: {
+        approaching: 'Yaklaşmada',
+        landing: 'İnişte',
+        onGround: 'Yerde',
+        lowAltLost: 'Alçakta sinyal kaybı',
+      },
+      /**
+       * Konum metni: `{airport}` IATA kodu, `{distance}` havalimanı merkezine yatay uzaklık. Kod başta
+       * ve virgülle yazılır; "IST'nin" gibi ek gerekmez.
+       */
+      placeDistance: '{airport}, {distance}',
+      placeRunway: '{airport}, pist {runway}',
+      placeOver: '{airport} üzerinde',
+      /** "IST, 45 km kuzeyinde": `{direction}` havalimanından uçağa 8 yönden biri (`direction`). */
+      placeBearing: '{airport}, {distance} {direction}',
+      direction: {
+        N: 'kuzeyinde',
+        NE: 'kuzeydoğusunda',
+        E: 'doğusunda',
+        SE: 'güneydoğusunda',
+        S: 'güneyinde',
+        SW: 'güneybatısında',
+        W: 'batısında',
+        NW: 'kuzeybatısında',
+      },
     },
     labels: {
       button: 'Etiketler',
@@ -886,14 +918,13 @@ export const tr = {
       hidden: 'Gizle',
       short: 'Kısa',
       full: 'Tam',
-      /** Havalimanı etiketleri (D-084): Gizle / Kod / Kod ve ad; pinler her zaman görünür. */
+      /** Havalimanı etiketleri (D-084): Gizle / Kod; pinler her zaman görünür. */
       airports: 'Havalimanları',
       airportModes: {
         hidden: 'Gizle',
         code: 'Kod',
-        name: 'Kod ve ad',
       },
-      hint: 'Kısa: yalnızca sefer no. Tam: sefer no, hız ve yükseklik. Kod ve ad: yakınlaştırınca havalimanının kısa adı da yazılır.',
+      hint: 'Kısa: yalnızca sefer no. Tam: sefer no, hız ve yükseklik.',
     },
     /** Havalimanı penceresinin klavye yolu: görünümdeki havalimanları listesi (D-078). */
     airportList: {

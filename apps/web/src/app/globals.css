@@ -632,6 +632,12 @@ body:has(.map-page) .site-footer {
    */
   --map-controls-bottom: var(--map-attrib-space);
   --map-panel-top: var(--map-gutter);
+  /*
+   * Geniş ekranda sol sütunun (arama, durum, kart) ve sağ üstteki uçak listesinin genişliği
+   * (D-085). Yüzde, değişkenin kullanıldığı yerde haritanın genişliğine göre çözülür.
+   */
+  --map-left-width: 380px;
+  --map-table-width: min(440px, calc(100% - var(--map-left-width) - 3 * var(--map-gutter)));
   position: relative;
   isolation: isolate;
   container-type: size;
@@ -658,10 +664,33 @@ body:has(.map-page) .site-footer {
   pointer-events: none;
 }
 
+/*
+ * Sol sütun (D-085): arama, durum şeridi ve seçili uçağın kartı alt alta. Sütun konumlandırılmamıştır
+ * (static) ve `.live-map`'in akıştaki tek öğesidir: haritanın öteki bütün katmanları (tuval,
+ * etiketler, iletiler, havalimanı penceresi, liste, denetimler, atıf) `position: absolute` olmalıdır.
+ * Böylece geniş ekranda çocuklar sütunda akar (arama sonuçları kartı aşağı iter, kartın altında
+ * kalmaz), 1180 px ve üstünde durum şeridi yine haritaya göre konumlanır, telefonda da çocuklar
+ * haritaya göre bugünkü yerlerine döner. Sütunun boş yeri haritanın sürüklenmesini engellemez.
+ */
+.live-map__left {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: min(var(--map-left-width), calc(100% - 2 * var(--map-gutter)));
+  max-height: calc(100% - var(--map-gutter) - var(--map-attrib-space));
+  margin: var(--map-gutter) 0 0 var(--map-gutter);
+  pointer-events: none;
+}
+
 /* Konum kapsayıcıları: görünümleri yoktur; boşken yer kaplamaz. */
-.live-map__search,
-.live-map__status,
-.live-map__card,
+.live-map__left > * {
+  position: relative;
+  z-index: 3;
+  flex: none;
+  min-width: 0;
+  pointer-events: auto;
+}
+
 .live-map__table,
 .live-map__controls {
   position: absolute;
@@ -670,37 +699,60 @@ body:has(.map-page) .site-footer {
 }
 
 .live-map__search {
-  top: var(--map-gutter);
-  left: var(--map-gutter);
   z-index: 4;
-  width: min(380px, calc(100% - 2 * var(--map-gutter)));
 }
 
+/* İçeriği kadar geniştir. Etkileşimsiz: haritanın sürüklenmesini engellemez. */
 .live-map__status {
-  top: calc(var(--map-gutter) + 60px);
-  left: var(--map-gutter);
-  max-width: min(380px, calc(100% - 2 * var(--map-gutter)));
-  /* Etkileşimsiz: haritanın sürüklenmesini engellemez. */
+  align-self: flex-start;
+  max-width: 100%;
   pointer-events: none;
 }
 
+/* Arama ve durum şeridinin altında; sütunda kalan yüksekliğe sığar, içi kayar. */
 .live-map__card {
-  top: var(--map-gutter);
-  right: var(--map-gutter);
   z-index: 5;
   display: flex;
+  flex: 0 1 auto;
   flex-direction: column;
-  width: min(360px, calc(100% - 2 * var(--map-gutter)));
-  max-height: calc(100% - 2 * var(--map-gutter) - var(--map-attrib-space) - 56px);
+  min-height: 0;
 }
 
+/*
+ * Haritada görünen uçaklar listesi (D-085): sağ üstte, en çok 440 px genişlikte. Alt kenarı haritanın
+ * ortasının en az `--map-table-clear` (12 px) üstünde kalır ve sağ alttaki denetimlere (en çok üç
+ * düğme ve aralar 136 px, artı 16 px) ulaşmaz; uzun liste içinde kayar. Daraltılınca yalnızca başlık
+ * düğmesi kalır. Seçili uçağın etiketi listeyi örtmeyen yere geçer (label-layout.ts, `panels`).
+ */
 .live-map__table {
-  bottom: var(--map-attrib-space);
-  left: var(--map-gutter);
+  --map-table-clear: var(--map-gutter);
+  top: var(--map-gutter);
+  right: var(--map-gutter);
   display: flex;
   flex-direction: column;
-  width: min(520px, calc(100% - 2 * var(--map-gutter)));
-  max-height: 40%;
+  width: var(--map-table-width);
+  max-height: min(
+    calc(50% - var(--map-gutter) - var(--map-table-clear)),
+    calc(100% - var(--map-gutter) - var(--map-attrib-space) - 152px)
+  );
+}
+
+/*
+ * 959 px ve altında liste haritanın ortasındaki sütuna uzanır: ortalanan seçili uçağın simgesi
+ * (52 px, yarısı 26 px) listenin sol kenarını aşar (geniş ekranda sol kenar `100% − 452 px`,
+ * simgenin sağı `50% + 26 px`; 960 px'te eşitlenir; 832 px'in altında kart haritayı sağa kaydırır).
+ * Alt kenar ortanın 30 px üstünde biter: simge listenin altında kalmaz.
+ */
+@media (min-width: 768px) and (max-width: 959px) {
+  .live-map__table {
+    --map-table-clear: 30px;
+  }
+}
+
+@media (min-width: 768px) {
+  .live-map__table:has(.map-table[data-wide-open='false']) {
+    width: auto;
+  }
 }
 
 .live-map__controls {
@@ -760,12 +812,19 @@ body:has(.map-page) .site-footer {
   text-align: center;
 }
 
+/*
+ * 1180 px ve üstünde durum şeridi sütundan çıkar: üstte, sol sütun ile uçak listesi arasındaki
+ * boşlukta ortalı (1180 px'te 320 px). Daha dar ekranda arama ile kartın arasındadır.
+ */
 @media (min-width: 1180px) {
   .live-map__status {
+    position: absolute;
     top: var(--map-gutter);
-    left: 50%;
-    max-width: min(440px, calc(100% - 820px));
-    transform: translateX(-50%);
+    right: calc(var(--map-gutter) + var(--map-table-width) + 8px);
+    left: calc(var(--map-gutter) + var(--map-left-width) + 8px);
+    width: fit-content;
+    max-width: none;
+    margin-inline: auto;
   }
 }
 
@@ -1083,11 +1142,15 @@ body:has(.map-page) .site-footer {
   overflow: hidden;
 }
 
+/*
+ * Başlık düğmesi listeyi açar ya da daraltır (D-085): geniş ekranda hâl cihazda saklanır, telefonda
+ * her açılışta kapalıdır. Geniş ekranda ok açıkken yukarı döner (telefonda tersi, aşağıda).
+ */
 .map-table__toggle {
-  display: none;
+  display: flex;
+  flex: none;
   align-items: center;
-  justify-content: space-between;
-  gap: 10px;
+  gap: 8px;
   min-height: 40px;
   padding: 0 12px;
   border: 0;
@@ -1097,7 +1160,32 @@ body:has(.map-page) .site-footer {
   font: inherit;
   font-size: 0.875rem;
   font-weight: 600;
+  text-align: left;
   cursor: pointer;
+}
+
+.map-table__toggle-label {
+  flex: 1 1 auto;
+}
+
+.map-table__chevron {
+  flex: none;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  transition: transform 150ms ease;
+}
+
+.map-table__toggle[aria-expanded='true'] .map-table__chevron {
+  transform: rotate(180deg);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .map-table__chevron {
+    transition: none;
+  }
 }
 
 /*
@@ -1188,6 +1276,63 @@ body:has(.map-page) .site-footer {
   cursor: default;
 }
 
+/* "Konum ve durum": tek kırılan sütun; dar listede (768 px, telefon) satır kırılır, yana kaymaz. */
+.map-table__table .map-table__place {
+  min-width: 7rem;
+  white-space: normal;
+}
+
+/*
+ * Durum rozeti (Yaklaşmada, İnişte, Yerde, Alçakta sinyal kaybı): anlamı yazıdadır, renk taşımaz;
+ * koyu yazı açık turkuaz zeminde (~13:1).
+ */
+.map-table__phase {
+  display: inline-block;
+  max-width: 100%;
+  padding: 0 5px;
+  border: 1px solid var(--map-line-strong);
+  border-radius: 4px;
+  background: var(--map-panel-raised);
+  color: var(--map-ink);
+  font-weight: 700;
+}
+
+/* "Durumlar tahminidir" notu (web-ui.md: tahmini bilgi "tahmini" etiketi taşır). */
+.map-table__note {
+  margin: 0;
+  padding: 6px 10px 8px;
+  border-top: 1px solid var(--map-line);
+  color: var(--map-muted);
+  font-size: 0.75rem;
+  line-height: 1.4;
+}
+
+@media (min-width: 768px) {
+  .map-table[data-wide-open='false'] .map-table__body {
+    display: none;
+  }
+
+  .map-table[data-wide-open='true'] .map-table__toggle {
+    border-bottom: 1px solid var(--map-line);
+    border-radius: 10px 10px 0 0;
+  }
+}
+
+/*
+ * 768–1023 px: liste daha dardır (768 px'te 352 px). Uzun sefer no, tescil ve "10.668 m" ile dört
+ * sütun yana kaymadan sığsın diye hücre iç boşluğu ve konum sütununun en küçük genişliği daralır.
+ */
+@media (min-width: 768px) and (max-width: 1023px) {
+  .map-table__table th,
+  .map-table__table td {
+    padding-inline: 8px;
+  }
+
+  .map-table__table .map-table__place {
+    min-width: 6rem;
+  }
+}
+
 /* Etiket ayarları */
 .map-labels {
   position: relative;
@@ -1238,9 +1383,11 @@ body:has(.map-page) .site-footer {
   font-weight: 600;
 }
 
+/* Seçenekler eşit genişlikte satırı doldurur: uçaklarda üç, havalimanlarında iki (D-084). */
 .map-seg {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-auto-columns: minmax(0, 1fr);
+  grid-auto-flow: column;
   gap: 2px;
   padding: 3px;
   background: var(--map-panel-raised);
@@ -1382,7 +1529,10 @@ body:has(.map-page) .site-footer {
   background-color: var(--map-panel);
 }
 
-/* Telefon ve dar ekran: arama üstte tam genişlik, kart alttan açılan sayfa, liste kapalı. */
+/*
+ * Telefon ve dar ekran: arama üstte tam genişlik, kart alttan açılan sayfa, liste sol altta ve kapalı
+ * (D-085). Sol sütunun çocukları haritaya göre konumlanır (sütun konumlandırılmamıştır).
+ */
 @media (max-width: 767px) {
   .live-map {
     --map-gutter: 16px;
@@ -1390,10 +1540,21 @@ body:has(.map-page) .site-footer {
     --map-panel-top: 74px;
   }
 
+  .live-map__left {
+    display: block;
+    width: auto;
+    max-height: none;
+    margin: 0;
+  }
+
+  .live-map__left > * {
+    position: absolute;
+  }
+
   .live-map__search {
     top: 12px;
     right: var(--map-gutter);
-    width: auto;
+    left: var(--map-gutter);
   }
 
   /* Arama ipucu 375 px'te de kesilmesin: gönder düğmesinin yan boşluğu daralır, kutu genişler. */
@@ -1404,15 +1565,14 @@ body:has(.map-page) .site-footer {
   .live-map__status {
     top: 68px;
     right: var(--map-gutter);
+    left: var(--map-gutter);
     max-width: none;
   }
 
   .live-map__card {
-    top: auto;
     right: 0;
     bottom: 0;
     left: 0;
-    width: auto;
     max-height: 55%;
   }
 
@@ -1422,28 +1582,48 @@ body:has(.map-page) .site-footer {
     border-radius: 14px 14px 0 0;
   }
 
+  /* Liste sol altta, düğmeyle açılır (her açılışta kapalı); açıkken en çok haritanın %45'i. */
   .live-map__table {
+    top: auto;
+    right: auto;
+    bottom: var(--map-attrib-space);
+    left: var(--map-gutter);
     width: auto;
     max-width: calc(100% - 2 * var(--map-gutter));
     max-height: 45%;
   }
 
   /* Açılan liste sağ alttaki denetimlerin üstüne çıkar; kapatınca denetimler yeniden görünür. */
-  .live-map__table:has(.map-table[data-expanded='true']) {
+  .live-map__table:has(.map-table[data-phone-open='true']) {
     z-index: 4;
   }
 
-  .map-table__toggle {
-    display: flex;
-  }
-
-  .map-table[data-expanded='false'] .map-table__body {
+  .map-table[data-phone-open='false'] .map-table__body {
     display: none;
   }
 
-  .map-table[data-expanded='true'] .map-table__toggle {
+  .map-table[data-phone-open='true'] .map-table__toggle {
     border-bottom: 1px solid var(--map-line);
     border-radius: 10px 10px 0 0;
+  }
+
+  /* Liste alttan yukarı açılır: ok kapalıyken yukarı, açıkken aşağı bakar. */
+  .map-table__toggle[aria-expanded='false'] .map-table__chevron {
+    transform: rotate(180deg);
+  }
+
+  .map-table__toggle[aria-expanded='true'] .map-table__chevron {
+    transform: none;
+  }
+
+  /* 375 px'te dört sütun yana kaymadan sığar: hücre iç boşluğu daralır. */
+  .map-table__table th,
+  .map-table__table td {
+    padding-inline: 6px;
+  }
+
+  .map-table__table .map-table__place {
+    min-width: 6rem;
   }
 
   .map-card__title {

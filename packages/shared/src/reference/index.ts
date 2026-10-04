@@ -1,5 +1,4 @@
 export * from './airport-detail'
-export * from './airport-map-names'
 export * from './airport-names'
 export * from './airport-rings'
 export * from './countries'
