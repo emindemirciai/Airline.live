@@ -1080,7 +1080,7 @@ Hedef sürüm 0.18.1 (`main` `1b745cd` = v0.18.0'dan). Karar D-093'tedir.
 
 **Kapsam:**
 - `@fastify/compress` 9.2.0 (`fastify ^5`, 2026-08-08 yayımı; ücretsiz, MIT). API'de `helmet`'ten hemen sonra, bütün yollardan önce kaydedilir: `encodings: ['br', 'gzip']` (istemci ikisini de kabul ediyorsa br), eşik 1 KB (eklenti varsayılanı), brotli kalitesi 4 (eklenti varsayılanı). İstek gövdeleri açılmaz (`globalDecompression: false`).
-- Ölçüm (üretim gövdeleri, yerel Node): havalimanı listesi 111.224 → br 24.292 (1,3 ms) / gzip 23.763 bayt; toplu hava 1.339.535 → br 68.408 (5,6 ms) / gzip 77.653 bayt; LTFM'nin 24 saatlik kaydı 65.399 → gzip 2.385 bayt.
+- Ölçüm (üretim gövdeleri, yerel Node): haritanın havalimanı ve pist listesi (`include=runways`) 439.090 → br 75.715 / gzip 78.666 bayt; pistsiz liste 111.224 → br 24.292 (1,3 ms) / gzip 23.763 bayt; toplu hava 1.339.535 → br 68.408 (5,6 ms) / gzip 77.653 bayt; LTFM'nin 24 saatlik kaydı 65.399 → gzip 2.385 bayt.
 - Tarayıcının doğrudan API'den aldıkları: harita havalimanı listesi, havalimanı penceresinin havası, METAR/TAF kaydı. Toplu hava web sunucusunun iç isteğidir (Node `fetch` sıkıştırmayı kendisi açar).
 - WebSocket etkilenmez (yükseltme yanıtının gövdesi yok).
 
@@ -1093,7 +1093,7 @@ Hedef sürüm 0.18.1 (`main` `1b745cd` = v0.18.0'dan). Karar D-093'tedir.
 
 **Çıktı kaydı (2026-10-04):**
 - `pnpm ci:full` → yeşil: birim web 769, shared 640, api 259 (+3), worker 200, i18n 98, geo 36 (öbürleri önbellekten aynı); entegrasyon db 84, api 26, worker 12; `test:migration-upgrade` 6 → 6; e2e 124/124.
-- v0.18.0 `releasedAt` 2026-10-04T19:45:30Z (GitHub Release). `pnpm stats` → 559 dosya, 105.495 satır (kod 96.118, belge 6.162).
+- v0.18.0 `releasedAt` 2026-10-04T19:45:30Z (GitHub Release). `pnpm stats` → 559 dosya, 105.499 satır (kod 96.118, belge 6.166).
 
 ## M6h — 3. halka (v0.18.0)
 Onay: 2026-10-04 kullanıcı isteği "sonraki işlerden birine bir halka daha ekle" ve kapalı havalimanı kararı (2022'den beri sivil uçuşa kapalı olduğu hâlde OurAirports'ta tarifeli görünen havalimanları listede kalır, sayfada ve pencerede "Sivil uçuşlara kapalı olabilir (2022’den beri)" notu); diğer seçimler M6h araştırmasının önerileri (orkestratör varsayılanı 2026-10-04)

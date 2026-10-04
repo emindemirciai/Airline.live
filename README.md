@@ -41,7 +41,7 @@ Türkiye odaklı sivil havacılık uçuş takip platformu. Canlı harita, uçuş
 | Yeniliklerde her sürümün yayın tarihi ve saati | ✅ v0.17.1 |
 | Haritada kesikli ülke sınırları (OpenStreetMap) | ✅ v0.17.2 |
 | 3. halka: 2.000 km’ye kadar 278 havalimanı daha (toplam 503); 2022’den beri kapalı olabilecek havalimanlarında not | ✅ Parça 1 · M6h |
-| API yanıtları sıkıştırılmış (br/gzip): harita havalimanı listesi ~24 KB | ✅ v0.18.1 |
+| API yanıtları sıkıştırılmış (br/gzip): haritanın havalimanı ve pist listesi 440 KB → ~76 KB | ✅ v0.18.1 |
 | Yeni logo (halkanın içinden geçen uçak): başlık, sekme simgesi, uygulama simgeleri, paylaşım görselleri | ✅ Parça 1 · M6l |
 | Uçak listesi sağ üstte: sefer, kuyruk tescili, yükseklik, konum ve tahmini durum (yerde, inişte, yaklaşmada) | ✅ Parça 1 · M6k |
 | 10 km ve iniş bildirimi (web push) | ⏳ Parça 2 · M4 |
@@ -74,7 +74,7 @@ pnpm dev
 - `docs/DECISIONS.md`: kararlar ve gerekçeleri
 
 ### İstatistik (v0.18.1)
-Git'te 559 dosya, **105.495 satır**. Bunun 96.118 satırı kod (TypeScript, TSX, CSS, JS), 6.162 satırı belgedir. Lockfile, `docs/research/` ve elle yazılmayan veri (fixture CSV ve JSON dosyaları, drizzle şema snapshot'ları) hariç tutulur. Güncel değer için `pnpm stats` çalıştır.
+Git'te 559 dosya, **105.499 satır**. Bunun 96.118 satırı kod (TypeScript, TSX, CSS, JS), 6.166 satırı belgedir. Lockfile, `docs/research/` ve elle yazılmayan veri (fixture CSV ve JSON dosyaları, drizzle şema snapshot'ları) hariç tutulur. Güncel değer için `pnpm stats` çalıştır.
 
 | Alan | Satır |
 |---|---|
@@ -83,7 +83,7 @@ Git'te 559 dosya, **105.495 satır**. Bunun 96.118 satırı kod (TypeScript, TSX
 | apps/api | 12.546 |
 | apps/worker | 9.898 |
 | packages/db | 8.133 |
-| docs | 4.503 |
+| docs | 4.507 |
 | packages/i18n | 4.218 |
 | packages/providers | 4.218 |
 | scripts | 2.289 |
@@ -136,7 +136,7 @@ A Türkiye-focused civil aviation flight tracker. It offers a live map and lets 
 | Release date and time for every version on What’s new | ✅ v0.17.1 |
 | Dashed country borders on the map (OpenStreetMap) | ✅ v0.17.2 |
 | Ring 3: 278 more airports up to 2,000 km (503 in total); note on airports that may be closed since 2022 | ✅ Part 1 · M6h |
-| Compressed API responses (br/gzip): the map airport list is ~24 KB | ✅ v0.18.1 |
+| Compressed API responses (br/gzip): the map airport and runway list goes from 440 KB to ~76 KB | ✅ v0.18.1 |
 | New logo (a plane flying through the ring): header, tab icon, app icons, share images | ✅ Part 1 · M6l |
 | Aircraft list at the top right: flight, tail number, altitude, location and estimated status (on ground, landing, approaching) | ✅ Part 1 · M6k |
 | 10 km and landing alerts (web push) | ⏳ Part 2 · M4 |
@@ -169,7 +169,7 @@ Then open `http://localhost:3100/` (live map), `/havalimanlari`, `/istasyon/LTFM
 - `docs/DECISIONS.md`: decisions and rationale
 
 ### Stats (v0.18.1)
-559 files and **105,495 lines** in git: 96,118 lines of code (TypeScript, TSX, CSS, JS) and 6,162 lines of documentation. The lockfile, `docs/research/` and generated data (fixture CSV and JSON files, drizzle schema snapshots) are excluded. Run `pnpm stats` for current numbers.
+559 files and **105,499 lines** in git: 96,118 lines of code (TypeScript, TSX, CSS, JS) and 6,166 lines of documentation. The lockfile, `docs/research/` and generated data (fixture CSV and JSON files, drizzle schema snapshots) are excluded. Run `pnpm stats` for current numbers.
 
 ### License, data and attribution
 - Code is licensed under the [MIT License](LICENSE): © 2026 [emindemirciai](https://github.com/emindemirciai). All copies or substantial portions of the code must include the copyright notice and license text; copying or distributing without them infringes the license and the copyright. The **havayolu** name and logo are not covered by the MIT License; rights reserved. The same notice appears in the page source of the site.
