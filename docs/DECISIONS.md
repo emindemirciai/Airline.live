@@ -2,6 +2,9 @@
 
 Her karar tarih, gerekçe ve varsa alternatifiyle yazılır. En yeni karar en üsttedir.
 
+## 2026-10-04 — Yayın başlığında sürüm
+- **D-087 Dokploy'daki yayın başlığı sürümü taşır.** Kullanıcı isteği (2026-10-04): "commit atarken versiyon da yaz. dokploydan takip ederken versiyon deploy olup olmadığı belli olsun." Dokploy, `release` dalındaki commit mesajını gösterir (D-070); bu mesajı `scripts/deploy-dokploy.mts` yazar. CI artık kök `package.json` sürümünü `APP_VERSION` ile verir; başlık `deploy v0.16.0 3d06660 (run …)` (API tetiğinde `gh-v0.16.0-3d06660-…`) olur. Geri almada geri dönülen commit'in sürümü yazılır: `rollback v0.15.0 f574987 (run …)`. Sürüm `1.2.3` ya da `1.2.3-rc.1` biçiminde değilse başlık sürümsüz kalır. Ajanın commit ve merge başlıkları da `(vX.Y.Z)` taşır (`gh pr merge --merge --subject …`).
+
 ## 2026-10-03 — Parça 1 M6k uçak listesi: sağ üst köşe, sefer, kuyruk, yükseklik, konum ve durum
 - **D-085 Haritada görünen uçaklar listesi sağ üst köşeye taşınır; sütunlar Sefer, Kuyruk, Yükseklik, Konum ve durum olur; durum ADS-B verisinden tahmin edilir ve yalnızca gösterimdir.**
   - **Kullanıcı isteği (2026-10-03, üretimdeki haritanın ekran görüntüsüyle):** "Haritada görünen uçakları ekranın sağ üst köşesine yerleştir. aranan uçaklar kalsın solda sadece. uçaklar listelenmeye başlayınca ekranın bir tarafı en azından kullanılabilsin. Sefer / Kuyruk(tescil-reg) / Yükseklik / Konum ve Durum (yaklaşıyorsa ya da inişte ise veya yerde ise bildir.)" O gün liste sol altta, 520 px genişlik ve %40 yükseklikle haritanın üstündeydi; bilgi kartı sağ üstteydi. Açık sorularda araştırmanın önerdiği varsayılanlar uygulandı (telefon düzeni, "İnişte", "Yolda" yazılmaz, sıra, "—", Tip ve Hız, durum şeridi, yalnız geniş ekranda saklama).

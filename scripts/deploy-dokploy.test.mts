@@ -8,6 +8,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
 import {
+  appVersion,
   deployRequestBody,
   gitPushDeployCommit,
   isNonDeployPath,
@@ -394,6 +395,32 @@ describe('planFromEnv', () => {
     })
   })
 
+  it("APP_VERSION verilince başlıkta sürüm yazar (Dokploy'da görünür, D-087)", () => {
+    const plan = planFromEnv({ ...branchMode, APP_VERSION: '0.16.0' })
+    expect(plan.kind === 'run' && plan.config.title).toBe('deploy v0.16.0 1234567 (run 42)')
+    // DEPLOY_TITLE (rollback) her zaman önceliklidir.
+    const rollback = planFromEnv({
+      ...branchMode,
+      APP_VERSION: '0.16.0',
+      DEPLOY_TITLE: 'rollback v0.15.0 abcdef0 (run 7)',
+    })
+    expect(rollback.kind === 'run' && rollback.config.title).toBe(
+      'rollback v0.15.0 abcdef0 (run 7)',
+    )
+  })
+
+  it('geçersiz ya da boş APP_VERSION başlığa yazılmaz', () => {
+    for (const bad of ['', '  ', 'main', '1.2', 'v1.2.3', '1.2.3\nrm -rf', '1.2.3 extra']) {
+      const plan = planFromEnv({ ...branchMode, APP_VERSION: bad })
+      expect(plan.kind === 'run' && plan.config.title, JSON.stringify(bad)).toBe(
+        'deploy 1234567 (run 42)',
+      )
+    }
+    expect(appVersion(' 0.16.0 ')).toBe('0.16.0')
+    expect(appVersion('1.0.0-rc.1')).toBe('1.0.0-rc.1')
+    expect(appVersion(undefined)).toBeNull()
+  })
+
   it('dal adı doğrulanır; main ve bilinmeyen tetik reddedilir', () => {
     expect(planFromEnv({ ...branchMode, DEPLOY_BRANCH: 'main' }).kind).toBe('error')
     expect(planFromEnv({ ...branchMode, DEPLOY_BRANCH: 'a b' }).kind).toBe('error')
@@ -438,6 +465,8 @@ describe('planFromEnv', () => {
     const plan = planFromEnv(complete)
     expect(plan.kind).toBe('run')
     expect(plan.kind === 'run' && plan.config.title).toBe('gh-1234567-42')
+    const versioned = planFromEnv({ ...complete, APP_VERSION: '0.16.0' })
+    expect(versioned.kind === 'run' && versioned.config.title).toBe('gh-v0.16.0-1234567-42')
     expect(plan.kind === 'run' && plan.config.skipUnchanged).toBe(false)
     const release = planFromEnv({ ...complete, SKIP_UNCHANGED: 'true' })
     expect(release.kind === 'run' && release.config.skipUnchanged).toBe(true)

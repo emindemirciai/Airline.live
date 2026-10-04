@@ -73,6 +73,14 @@ jobs:
           node-version-file: .nvmrc
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      # Geri dönülen commit'in sürümü yayın başlığına yazılır (D-087); okunamazsa boş kalır.
+      - name: Read the target version
+        id: version
+        env:
+          TARGET: ${{ steps.sha.outputs.full }}
+        run: |
+          version="$(git show "${TARGET}:package.json" 2>/dev/null | node -e "let s='';process.stdin.on('data',(c)=>(s+=c)).on('end',()=>{try{process.stdout.write(JSON.parse(s).version||'')}catch{}})")"
+          echo "version=${version}" >> "$GITHUB_OUTPUT"
       - name: Deploy (release branch → Dokploy Autodeploy) and verify
         env:
           DEPLOY_ENABLED: ${{ vars.DEPLOY_ENABLED }}
@@ -84,5 +92,5 @@ jobs:
           API_URL: ${{ vars.API_URL }}
           WEB_URL: ${{ vars.WEB_URL }}
           EXPECTED_SHA: ${{ steps.sha.outputs.full }}
-          DEPLOY_TITLE: rollback ${{ steps.sha.outputs.short }} (run ${{ github.run_id }})
+          DEPLOY_TITLE: rollback ${{ steps.version.outputs.version && format('v{0} ', steps.version.outputs.version) || '' }}${{ steps.sha.outputs.short }} (run ${{ github.run_id }})
         run: pnpm run deploy:dokploy

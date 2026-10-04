@@ -139,9 +139,15 @@ jobs:
           cache: pnpm
       - if: steps.head.outputs.latest == 'true'
         run: pnpm install --frozen-lockfile
+      # Yayın başlığında (release dalındaki commit mesajı) sürüm görünsün diye (D-087).
+      - name: Read the app version
+        id: version
+        if: steps.head.outputs.latest == 'true'
+        run: echo "version=$(node -p "require('./package.json').version")" >> "$GITHUB_OUTPUT"
       - name: Deploy (release branch → Dokploy Autodeploy) and verify
         if: steps.head.outputs.latest == 'true'
         env:
+          APP_VERSION: ${{ steps.version.outputs.version }}
           DEPLOY_ENABLED: ${{ vars.DEPLOY_ENABLED }}
           # Boşsa: dal tetiği, dal adı release (D-070). api seçilirse aşağıdaki Dokploy sırları gerekir.
           DEPLOY_TRIGGER: ${{ vars.DEPLOY_TRIGGER }}
