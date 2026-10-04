@@ -56,6 +56,97 @@ Her karar tarih, gerekçe ve varsa alternatifiyle yazılır. En yeni karar en ü
     - **e2e:** Viyana (LOWW, 1.149 km, referansı Gökçeada küçük alanı) 3. halka örneğidir: API'de halka 3; 3. halkada uzaklık > 1.000 ve ≤ 2.000; liste satırında ad, ülke ve uzaklık; `/istasyon/LOWW` ve `/en/istasyon/LOWW` (ad, Avusturya / Austria, dizine eklenir, JSON-LD `addressCountry` AT, Europe/Vienna yerel saati; saat deseni artık UTC+1'i de kabul eder); `/istasyon/vie` ve `/en/istasyon/vie` → 308; `?havalimani=LOWW` haritada Viyana'da açar, listeden açılan pencere Avusturya'yı ve Viyana'nın saatini gösterir, not göstermez. Voronej (UUOO) sayfası iki dilde notu (`role="note"`) gösterir ve dizine eklenir. IST ve Atina pencere testleri hava isteğinin `/v1/airports/<ICAO>/weather` olduğunu ve `/v1/weather`'ın istenmediğini denetler. Sayılar `e2e/support.ts`'tedir (`RING3_AIRPORT_COUNT` 278, `FOREIGN_AIRPORT_COUNT` 442, `LISTED_AIRPORT_COUNT` 503, `INDEXABLE_LISTED_AIRPORT_COUNT` 498, `RING_LIMITS_KM[3]` 2.000, `RING3_AIRPORT`, `CIVIL_CLOSURE_AIRPORT`). Viyana'nın harita testi bir harita yüklemesi (WebSocket el sıkışması) ekler; üretim dışındaki sınır dakikada 60'tır (D-088).
   - **Testler (web):** `pnpm --filter @havayolu/web test` (748: 503 havalimanı, 75 + 89 + 278, 3. halka 1.000 km'nin dışında ve 2.000 km'ye kadar, Gachsaran 1.006 km; "2.000 km" liste, `/hakkinda` ve llms.txt'te; ilk ülke Afganistan / Afghanistan; Viyana sayfası ve penceresi, Voronej notu iki dilde ve yalnız dört havalimanında; pencere yanıtın ICAO'sunu denetler; tek havalimanı isteği; `rememberStation` sınırı; bellek önbelleği tek uçuş, 60 sn, 10 dk eski veri, 15 sn yeniden deneme, 503 istasyon tek ayrıştırma, `no-store`; kayıt 900 sn; z5'te 503 kod ve `RectObstacles` doğrusal taramayla eşit; pencerede 503 havalimanının yeri ve dilimi, Viyana yaz ve kış saati; paylaşım görseli örneklemi), `pnpm --filter @havayolu/i18n test` (97: `formatSinceYear`, not metni iki dilde), `pnpm typecheck:e2e`, `pnpm lint:e2e`. e2e bu oturumda çalıştırılmadı (birleştirici `ci:full`'unda).
 
+## 2026-10-04 — Haritada kesikli ülke sınırları
+- **D-092 Haritada ülke sınırları beyaz kesikli çizgiyle, altında koyu bir kenarla çizilir. Uydu altlığında sınırlar OpenFreeMap'in vektör karolarından ayrı bir katmandır; OpenFreeMap'in koyu stilinde stilin kendi sınır katmanlarının yerine aynı görünüm girer. Yerel test stilinde sınır yoktur.**
+  - **Kullanıcı isteği (2026-10-04):** "haritada ülke sınırları kesikli kesikli çizgilerle belirgin olmalı."
+  - **Neden ayrı bir katman:** Esri World Imagery yalnızca görüntüdür, sınır çizgisi taşımaz (D-075). Sınırlar izinli harita kaynağı OpenFreeMap'ten gelir (OpenMapTiles şeması, OSM verisi, ODbL).
+    - Kaynak, OpenFreeMap stillerinin kullandığı TileJSON'dur: `https://tiles.openfreemap.org/planet` (`OPENFREEMAP_TILEJSON_URL`). OpenFreeMap README'si `/planet/latest`'ı da belgeler; ikisi de son karo sürümüne gider. Koyu stile geçilince tarayıcı aynı karoları yeniden kullanabilir.
+    - Kaynak kimliği `hy-country-borders`'tır; karolar z0–z4'te Natural Earth, z5–z14'te OSM verisidir.
+  - **Süzgeç: yalnızca kara ülke sınırları.** Katman `boundary`'dir ve üç koşul aranır (`COUNTRY_BORDER_FILTER`):
+    - `admin_level = 2`: il ve eyalet sınırı çizilmez.
+    - `maritime ≠ 1`: karasuları ve deniz yetki alanı çizgileri denizi kesikli çizgiyle doldurmaz (Ege ve Karadeniz).
+    - `claimed_by` yok: OpenMapTiles bu alanı bir ülkenin kendi iddiasına göre görmek istediği çizgiye koyar. Bu çizgiler çizilmez; haritada OSM'nin fiilî durum ("on the ground") kuralıyla çizilen sınır kalır. Böylece hangi ülkenin iddiasını göstereceğimizi seçmek zorunda kalmayız.
+  - **Tartışmalı sınırlar (`disputed = 1`):** aynı beyaz renk ve aynı koyu kenarla noktalı çizilir (`[0, 2,5]`, yuvarlak uç: kalınlık çapında nokta).
+    - Neden: tartışmalı sınırı ayırt etmek kartografik gelenektir. Aynı kesikle çizmek tartışmayı gizler; başka bir renk (ör. kırmızı) ise siyasi bir vurgu olurdu.
+    - Kıbrıs'taki ayrım çizgisinin nasıl görüneceği OSM verisine bağlıdır: ülke sınırı, tartışmalı sınır ya da hiç çizilmemiş olabilir. Kod buna özel kural taşımaz. Yayından sonra bakılır ve kullanıcıya gösterilir (ACTIVATION); değişiklik isterse ayrı karardır.
+  - **Görünüm** (`packages/shared/src/map/borders.ts`; mobil aynı nesneleri kullanır):
+    - **Çizgi:** beyaz (`MAP_COLORS.border` #FFFFFF), opak ve kesikli. `line-dasharray [2, 3]` yuvarlak uçla çizilir; MapLibre her çizginin iki ucuna yarım kalınlık eklediği için görünen çizgi 3, boşluk 2 kalınlıktır. Kalınlık z3'te 1 px, z6'da 1,5 px, z10 ve üstünde 2,25 px'tir.
+    - **Kenar:** düz (kesiksiz), `MAP_COLORS.borderCasing` #0B2A33, 0,6 saydamlıkta; çizgiden 2–2,5 px geniştir (z3'te 3, z10'da 4,75 px). Beyaz çizgi açık toprakta ve karda da okunur, görüntü örtülmez.
+    - **Saydamlık istisnası:** haritadaki "saydamlık yok" kuralı içerik içindir (etiket, panel, iz). Kenar bir haledir; çizginin kendisi opaktır (`colors.ts` açıklaması).
+    - **Kapsam:** katmanların yakınlaştırma sınırı yoktur; harita z2–z17 arasında her yerde sınırları çizer.
+  - **Sıra:**
+    - **Uydu:** görüntünün hemen üstünde kenar, kesikli çizgi, noktalı çizgi. Havalimanı pinleri, iz ve uçaklar stil yüklenince `addLayer` ile en üste eklenir; etiketler ayrı tuvaldedir.
+    - **Koyu stil:** sınırlar ilk `boundary` katmanının yerine girer: yer adlarının altında, yol ve suyun üstünde.
+  - **Koyu stil (uydunun yedeği ve anahtarsız altlık):** indirilen OpenMapTiles stilinde `boundary` katmanından çizilen bütün çizgi katmanları (ülke ve il sınırı) çıkar (`withCountryBorders`). Yerlerine aynı üç katman, stilin `openmaptiles` kaynağıyla girer.
+    - İl sınırları da çıkar: uyduda yoktur ve kesikli il sınırı kesikli ülke sınırıyla karışırdı.
+    - `boundary` katmanı olmayan stiller (Protomaps şeması `boundaries`) olduğu gibi kalır.
+    - Adım bayrağı `BasemapStep.countryBorders`'tır: uydu ve vektör adımlarında açık, yerel stil ve düz arka planda kapalıdır.
+  - **Yerel test stili:** `/test-style.json`'a dokunulmaz, sınır kaynağı eklenmez; `EXTERNAL_PROVIDERS_DISABLED=true` iken dış istek gitmez. Birim testleri bunu doğrular. e2e de açılışta OpenFreeMap ya da vektör karo isteği olmadığını ve şeritte OpenStreetMap atfı bulunmadığını denetler.
+  - **Atıf:**
+    - Metin, OpenFreeMap'in istediği "OpenFreeMap © OpenMapTiles Data from OpenStreetMap"tır (bağlantılı, `lang="en"`, `OPENFREEMAP_ATTRIBUTION`). Sınır kaynağının `attribution` alanındadır ve TileJSON'daki atfın yerine geçer.
+    - MapLibre bir kaynağın atfını yalnızca o kaynağı kullanan görünür bir katman varken şeride koyar. Sınır katmanları her yakınlaştırmada çizildiğinden, uyduda sınırlar varken atıf da vardır. Kaynak yüklenemezse atıf da çıkmaz.
+    - Şeridin sırası: künye (D-089), Esri, OpenFreeMap, ardından "Canlı uçuş verisi: ADSB.lol — ODbL 1.0 · Koşullar". MapLibre girdileri ham HTML uzunluğuna göre, kısadan uzuna sıralar. Bugünkü metinlerle sıra Türkçede ve İngilizcede aynıdır: Esri (140 karakter), OpenFreeMap (209), canlı veri girdisi (Türkçe 237, İngilizce 236); koyu stilde OpenFreeMap, ardından canlı veri. Bu, D-089'daki "canlı veri girdisi şeridin sonuna düşer" kuralıyla uyumludur; `attribution.test.ts` sırayı iki dilde denetler, metinler değişip sıra kayarsa test kırılır. Esri ve ADSB.lol metinleri değişmez.
+    - Telefonda şerit bir satır uzayabilir; yüksekliği zaten ölçülüyor (`--map-attrib-space`, D-089).
+    - `/hakkinda` ve `/kullanim-kosullari`'daki harita kaynağı cümleleri uydudaki ülke sınırlarını da anar.
+  - **Hata yönetimi:** sınır kaynağı altlık zincirinin hata sayımına girmez (`NON_BASEMAP_SOURCES`; önceden yalnızca kendi GeoJSON kaynaklarımız vardı).
+    - Hariç tutulmasaydı OpenFreeMap'in TileJSON ya da karo hatası uyduyu da düşürürdü: üç hata uyduyu koyu stile, o da OpenFreeMap olduğundan düz arka plana götürürdü.
+    - Şimdi OpenFreeMap kesintisinde uydu yerinde kalır; yalnızca sınırlar ve OSM atfı çıkmaz. Koyu stilde sınırlar altlığın kendi kaynağındandır; onun hataları yine altlığındır.
+  - **Performans ve istek hacmi:** tek ek vektör kaynaktır. Kaynağın `maxzoom`'u 10'dur (`COUNTRY_BORDER_SOURCE_MAX_ZOOM`); MapLibre'de stildeki değer TileJSON'daki 14'e üstün gelir.
+    - z10'a kadar her yeni görünüm 512 px'lik karolar ister: 1920×1080'de ~9–20, telefonda ~4–6. Bu, Esri'nin 256 px'lik karolarının yaklaşık dörtte biridir.
+    - z10'un üstünde 1–4 z10 karosu büyütülür; havalimanı yakınlaştırmalarında (z11–z17) bina, adres ve yer imi taşıyan ağır karolar yalnızca sınır için indirilmez.
+    - Bedeli: z10 karosundaki sınır yaklaşık bir piksellik genellemeyle gelir (OpenMapTiles `ZRes(11)` ≈ 76 m). Bu yüzden sınır çizgisi uydudaki nehir ya da çit çizgisinden z12'de en çok ~4 px, z14'te ~16 px sapabilir. Ülke sınırının yakın görünümde metre doğruluğu bu ürün için gerekmez.
+    - MapLibre karonun bütün katmanlarını indirir (yalnızca `boundary`'yi değil); bu kabul edildi.
+    - OpenFreeMap görüntüleme ya da istek sayısına sınır koymaz. Her istek bir kullanıcının kendi görünümüdür: toplu indirme, aracı sunucu ve sunucu önbelleği yoktur. Bayt hacmi yayından sonra ölçülür (ACTIVATION).
+  - **Lisans:** OSM verisi ODbL'dir. Paylaşım şartı türetilmiş veritabanı içindir; karolar yalnızca tarayıcıda çizilir (üretilmiş eser, ODbL §4.3: yalnızca atıf).
+    - Esri E204 §3.1a.4, Esri çıktısının açık veritabanı lisansına bağlanmasını yasaklar. Sınır çizgileri ve görüntü yalnızca tarayıcıda üst üste çizilir; birleşik bir veritabanı oluşmaz.
+    - Lisans kaydı: data-sources.md §6 ve `packages/providers` → `openFreeMap` (7 alan, sınır kullanımı açıklamada).
+  - **Değerlendirilip seçilmeyenler:**
+    - Esri'nin görüntü üstü sınır ve yer adı katmanı: istenmeyen yer adlarını da getirir, kesik ve renk bizim elimizde olmaz; büyük olasılıkla aynı aylık karo kotasından da harcar (doğrulanmadı).
+    - Natural Earth sınırlarını kendi sunucumuzdan GeoJSON olarak vermek: kamu malıdır ama 1:10m ölçeği yakın görünümde kabadır ve birkaç MB'lık bir dosya her açılışta inerdi.
+    - OpenFreeMap'in koyu stilini uydunun üstüne yarı saydam bindirmek: yollar, yer adları ve su dolgusu da gelirdi.
+    - Kaynağın `maxzoom`'unu 12 ya da 14 bırakmak: daha keskin sınır karşılığında havalimanı yakınlaştırmalarında her görünümde 15–20 ağır karo inerdi.
+
+## 2026-10-04 — Yeniliklerde yayın tarihi ve saati
+- **D-091 Yenilikler sayfası her sürümün yayın tarihini saatiyle gösterir. Saat changelog'daki `releasedAt`'tan (sürümün GitHub Release'inin yayımlanma anı) gelir; her yayın adımı önceki sürümün `releasedAt`'ını yazar.**
+  - **Kullanıcı isteği (2026-10-04):** "yeniliklerdeki yayın tarihine tarih ve saat ekle." Sayfa yalnızca günü gösteriyordu ("Yayın tarihi: 4 Ekim 2026").
+  - **Veri:** `ChangelogEntry.releasedAt` isteğe bağlıdır: ISO 8601 UTC, saniyeye kadar, salisesiz (`2026-10-04T17:27:12Z`; GitHub `publishedAt` biçimi). `date` kalır: Türkiye takvim günüdür; site haritasının `lastmod`'u, JSON-LD `dateModified` ve sıralama denetimi onu kullanır. `validateChangelog` (`pnpm changelog:check`, CI) denetler: biçim ve takvimde var olan an; anın İstanbul'daki günü `date`'tir; iki ardışık kayıtta da varsa yeniden eskiye kesin azalır.
+  - **Kaynak:** GitHub Release `publishedAt`. CI'daki `github-release` işi release'i üretim yayını doğrulandıktan sonra açar (D-067). Bu an sürümün canlıya çıkışından birkaç dakika sonradır: birleştirmeden canlıya ~5 dk, release ~10 dk (D-070; v0.17.0'da birleştirme 17:17:12Z, release 17:27:12Z).
+  - **Süreç kuralı:**
+    - Yeni sürüm changelog'a `releasedAt`'sız eklenir; yayın anı birleştirme ve yayından sonra belli olur.
+    - Her yayın adımı, yeni kaydı eklerken önceki sürümün `releasedAt`'ını `gh release view v<önceki> --json publishedAt` ile yazar. Anın İstanbul'daki günü kayıttaki `date`'ten farklıysa `date` düzeltilir.
+    - Birim testi (`packages/shared/src/changelog/changelog.test.ts`) en yeni sürüm dışında her sürümde `releasedAt` olduğunu denetler; unutulursa `pnpm test` kırmızıdır.
+    - Yayına hiç çıkmamış bir sürüm olursa (yayın başarısız, düzeltme sürümü geldi) `releasedAt`'ı yazılmaz; test o sürüm için kararla istisna alır.
+  - **Çalışan sürüm:** `releasedAt`'ı olmayan ve sunucuda çalışan sürüm (`currentVersion()`) için web sunucusunun açılış anı gösterilir (`apps/web/src/lib/server-start.ts`).
+    - Kaynak `performance.timeOrigin`'dir (Node'da sürecin başlangıcı), saniyeye yuvarlanır. Üretimde süreç konteynerle başlar; yeni sürümün yayını konteyneri yeniden kurduğu için bu an sürümün canlıya girdiği andır. Geliştirmede `pnpm dev`'in açılışıdır.
+    - Modül yüklenirken `new Date()` okunmadı: Next.js sayfa modülünü ilk istekte yükler, an ilk ziyaretin saati olurdu.
+    - Sınır: konteyner aynı sürümle yeniden başlarsa (sunucu yeniden açılışı, elle yeniden yayın) sayfa yeni açılış anını gösterir. Bir sonraki yayında `releasedAt` yazılınca an kalıcı olur.
+    - `releasedAt`'ı olmayan ve çalışmayan sürümde yalnızca gün yazılır (`<time datetime="YYYY-MM-DD">`).
+  - **Gösterim:**
+    - Europe/Istanbul, 24 saat. Türkçe "4 Ekim 2026, 20:27 (Türkiye saati)". İlk taslakta yerleşik kısaltma "TSİ" kullanılmıştı; `.claude/rules/web-ui.md` sade görünümde kısaltma yasakladığı için açık yazıldı (orkestratör kararı 2026-10-04, kullanıcı o gün soru istemedi). Dilim Türkiye'nin kendisi olduğundan ofset yazılmaz. İngilizce "4 October 2026, 20:27 (UTC+3)"; ofset `Intl`'den gelir (D-084).
+    - Gün de İstanbul takvimindedir: UTC 23:17 ertesi gün 02:17'dir (v0.11.0: "2 Ekim 2026, 02:17 (Türkiye saati)").
+    - Metni `formatReleaseTime` (`@havayolu/i18n`) yazar; şablon `changelog.releasedAtValue` (`{date}, {time} ({zone})`). Dilim etiketi kodda dile göredir (`RELEASE_ZONE`), çünkü iki dilin metinleri aynı yer tutucuları taşımalıdır.
+    - `<time datetime>` ISO anını taşır. "Yayın tarihi:" etiketi `<time>`'ın dışındadır.
+    - Saat sunucuda, mutlak olarak yazılır; istemcide yeniden hesaplanmaz, hidrasyon farkı olmaz. Sayfa istek anında çizilir (`connection()`): build'de üretilseydi derleme anı gömülürdü.
+  - **CHANGELOG.md ve GitHub Release notu:** başlık `## v0.17.0 — 2026-10-04 20:27 (UTC+3)`, notun son satırı `Tarih / Date: 2026-10-04 20:27 (UTC+3)` (`releaseStamp`, iki dilde aynı). Yeni sürümün notu açılırken `releasedAt` henüz yoktur, notta yalnızca gün yazar; GitHub release sayfası yayımlanma anını zaten gösterir. Release başlığı değişmedi.
+  - **Geriye dönük doldurma, v0.5.0 ve sonrası:** GitHub Release `publishedAt` (`gh release list`, 2026-10-04). TSİ ile:
+    - 4 Ekim: v0.17.0 20:27, v0.16.1 17:25, v0.16.0 16:40
+    - 3 Ekim: v0.15.0 20:25, v0.14.1 19:55, v0.14.0 19:36, v0.13.1 18:09, v0.13.0 02:47
+    - 2 Ekim: v0.12.0 23:46, v0.11.0 02:17
+    - 1 Ekim: v0.10.0 01:49
+    - 30 Eylül: v0.9.0 23:50
+    - 29 Eylül: v0.8.0 00:32
+    - 28 Eylül: v0.7.1 22:49, v0.7.0 09:58
+    - 27 Eylül: v0.6.0 12:24, v0.5.2 11:30, v0.5.1 10:59, v0.5.0 10:37
+  - **Geriye dönük doldurma, v0.1.0–v0.4.0:**
+    - Bu release'ler 2026-09-27 07:15–07:16Z'de toplu açıldı (D-067); `publishedAt` yayın anı değildir.
+    - Yerine sürümün `main`'e girdiği an yazıldı: kök `package.json`'u o sürümü taşıyan, `main`'deki ilk commit'in committer saati (`git log --first-parent main -- package.json`). v0.1.0'da `package.json` yoktu; `CHANGELOG.md`'yi v0.1.0 ile getiren ilk commit kullanıldı (`9996ec1`).
+    - Anlar GitHub'ın bu release'lere yazdığı `createdAt` ile saniyesi saniyesine aynıdır. TSİ ile: v0.4.0 27 Eylül 08:45 (`8389ef1`, #6); v0.3.2 25 Eylül 21:19 (`95e126a`, #4); v0.3.1 21:19 (`e258b26`, #3); v0.3.0 21:18 (`15d2e64`, #2); v0.2.0 21:16 (`ac71d28`, #1); v0.1.0 18:07 (`9996ec1`).
+    - v0.1.0–v0.3.2 üretime hiç çıkmadı (yalnızca yerel). v0.4.0 2026-09-27'de Dokploy'dan elle yayına alındı; o yayının saati kayıtlı değildir.
+  - **Düzeltilen günler:**
+    - v0.9.0 `2026-09-29` → `2026-09-30`: birleştirme 30 Eylül 23:42, release 23:50 TSİ; kayıt bir gün önce yazılmıştı.
+    - v0.4.0 `2026-09-26` → `2026-09-27`: birleştirme 27 Eylül 08:45 TSİ.
+    - Gün farkı görünen diğerleri doğrudur: v0.13.0, v0.11.0, v0.10.0 ve v0.8.0 UTC'de önceki gün, İstanbul'da gece yarısından sonra yayımlandı.
+
 ## 2026-10-04 — Haritanın atıf şeridinde site künyesi
 - **D-089 Haritanın atıf şeridi sitenin kendi künyesiyle başlar ("havayolu v<sürüm>", Yenilikler bağlantısı); Esri ve ADSB.lol atıfları olduğu gibi kalır.**
   - **Kullanıcı isteği (2026-10-04, şeridin ekran görüntüsüyle: "Powered by Esri | Esri, Vantor, Earthstar Geographics, and the GIS User Community | Canlı uçuş verisi: ADSB.lol — ODbL 1.0 · Koşullar"):** "şuranın başına da site versiyonunu ekle. neden esri yazıyor orada? ben yaptım ya bu siteyi?"

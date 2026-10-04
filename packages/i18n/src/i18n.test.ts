@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest'
-import { format, formatDate, formatSinceYear, getMessages, resolveLocale } from './index'
+import {
+  format,
+  formatDate,
+  formatReleaseTime,
+  formatSinceYear,
+  getMessages,
+  resolveLocale,
+} from './index'
 
 type Tree = { [key: string]: string | Tree }
 
@@ -134,5 +141,25 @@ describe('i18n', () => {
     )
     expect(tr.map.airportPopup.civilClosure).toBe(tr.airport.civilClosure)
     expect(en.map.airportPopup.civilClosure).toBe(en.airport.civilClosure)
+  })
+
+  it('yayın anı: İstanbul saatiyle gün, 24 saatlik saat ve dilim etiketi (D-091)', () => {
+    expect(formatReleaseTime('2026-10-04T17:27:12Z', 'tr')).toBe(
+      '4 Ekim 2026, 20:27 (Türkiye saati)',
+    )
+    expect(formatReleaseTime('2026-10-04T17:27:12Z', 'en')).toBe('4 October 2026, 20:27 (UTC+3)')
+    // Gün de İstanbul takvimindedir: UTC 23:17 ertesi gün 02:17'dir.
+    expect(formatReleaseTime('2026-10-01T23:17:49Z', 'tr')).toBe(
+      '2 Ekim 2026, 02:17 (Türkiye saati)',
+    )
+    expect(formatReleaseTime('2026-10-01T23:17:49Z', 'en')).toBe('2 October 2026, 02:17 (UTC+3)')
+    // Gece yarısı 00:00 yazılır (24:00 değil); Date ve epoch ms de kabul edilir.
+    expect(formatReleaseTime(new Date('2026-09-30T21:00:00Z'), 'tr')).toBe(
+      '1 Ekim 2026, 00:00 (Türkiye saati)',
+    )
+    expect(formatReleaseTime(Date.UTC(2026, 8, 25, 15, 7, 8), 'en')).toBe(
+      '25 September 2026, 18:07 (UTC+3)',
+    )
+    expect(formatReleaseTime('bozuk', 'tr')).toBe('—')
   })
 })

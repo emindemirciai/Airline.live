@@ -809,7 +809,7 @@ export const tr = {
         'Resmî Türkçe havalimanı adları: DHMİ, havalimanı işletmecileri ve Ulaştırma ve Altyapı Bakanlığı; askerî hava üsleri bulunduğu yerin adıyla yazılır; henüz doğrulanmamış yeni adlarda OurAirports.',
       airlines: 'Havayolu kodları: {source}, CC0 (atıf zorunlu değildir, nezaketen anılır).',
       vector:
-        'Vektör harita: {openFreeMap} © {openMapTiles}, harita verisi © {openStreetMap} katkıcıları (ODbL).',
+        'Vektör harita ve uydu haritasındaki ülke sınırları: {openFreeMap} © {openMapTiles}, harita verisi © {openStreetMap} katkıcıları (ODbL).',
       satellite: 'Uydu görüntüsü (gösterildiğinde): {esri}.',
       weather:
         'Hava durumu: {source} (NOAA Aviation Weather Center); raporları havalimanlarının meteoroloji birimleri hazırlar. Otomatik çözümlenir; resmî brifing yerine geçmez.',
@@ -1022,6 +1022,11 @@ export const tr = {
     current: 'Güncel sürüm',
     tryIt: 'Dene',
     released: 'Yayın tarihi',
+    /**
+     * Yayın anı (D-091, `formatReleaseTime`): Europe/Istanbul'da gün, 24 saatlik saat ve dilim
+     * etiketi. `{zone}` Türkçede "Türkiye saati", İngilizcede o anki UTC farkıdır ("UTC+3").
+     */
+    releasedAtValue: '{date}, {time} ({zone})',
   },
   admin: {
     title: 'Yönetim',
@@ -1172,7 +1177,7 @@ export const tr = {
       tiles:
         'Uydu harita karoları (Esri) yalnızca bu sitede görüntülenmek içindir: indirilemez, kazınamaz, tarayıcının standart önbelleği dışında önbelleğe alınamaz ya da saklanamaz ve yeniden dağıtılamaz.',
       vector:
-        'Vektör harita gösterildiğinde altlığı {openFreeMap} ya da yedek vektör harita sağlar. Harita verisi: © {openMapTiles}, © {openStreetMap} katkıcıları (ODbL).',
+        'Uydu haritasındaki ülke sınırlarını ve vektör harita gösterildiğinde altlığı {openFreeMap} sağlar (vektör altlık yedek bir vektör haritadan da gelebilir). Harita verisi: © {openMapTiles}, © {openStreetMap} katkıcıları (ODbL).',
     },
     use: {
       heading: 'Kullanım kuralları',

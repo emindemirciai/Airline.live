@@ -41,6 +41,11 @@ test('harita IST/LTFM merkezli açılır, atıflar görünür, replay uçağı t
   page,
   request,
 }) => {
+  // Yerel test stilinde ülke sınırı yoktur (D-092): sınır kaynağı (OpenFreeMap TileJSON'u ve
+  // karoları) hiç istenmez, şeritte OpenStreetMap atfı çıkmaz. Harita sayfasının bütün istekleri
+  // toplanır.
+  const requested: string[] = []
+  page.on('request', (sent) => requested.push(sent.url()))
   await openMap(page)
   await expect(page.locator('.live-map__labels')).toBeAttached()
   // Açılış görünümü IST/LTFM merkezlidir (D-079): görünümdeki ilk havalimanı IST, LTFM'deki taksi
@@ -68,6 +73,22 @@ test('harita IST/LTFM merkezli açılır, atıflar görünür, replay uçağı t
   await expect(creditLink).toHaveText(credit)
   await expect(creditLink).toHaveAttribute('href', '/yenilikler')
   await expect(page.locator('.live-map__status')).toContainText('Veri yaşı')
+  // Yerel test stili (D-092): stil yerelden geldi; sınır kaynağı, vektör karo ya da OpenFreeMap
+  // isteği yok; atıfta OpenStreetMap/OpenMapTiles yok.
+  expect(requested.some((url) => new URL(url).pathname === '/test-style.json')).toBe(true)
+  const borderRequests = requested.filter((url) => {
+    const { hostname, pathname } = new URL(url)
+    return (
+      hostname.endsWith('openfreemap.org') ||
+      pathname.endsWith('.pbf') ||
+      pathname.endsWith('.mvt') ||
+      pathname === '/planet' ||
+      pathname.startsWith('/planet/')
+    )
+  })
+  expect(borderRequests).toEqual([])
+  await expect(attribution).not.toContainText('OpenStreetMap')
+  await expect(attribution).not.toContainText('OpenMapTiles')
 
   const row = aircraftRow(page, near.hex)
   await expect(row).toBeVisible({ timeout: 30_000 })
@@ -374,6 +395,7 @@ test('havalimanı etiketi Kod ya da Gizle; cihazda saklanır; Kod’da kutu, Giz
   const button = page.getByRole('button', { name: 'Etiketler' })
   const airports = page.getByRole('group', { name: 'Havalimanları', exact: true })
   const others = page.getByRole('group', { name: 'Diğer uçaklar' })
+  const selected = page.getByRole('group', { name: 'Seçili uçak' })
   const mode = (name: string) => airports.getByRole('radio', { name, exact: true })
   const popup = page.locator(
     `.live-map [role="dialog"].map-popup[data-icao="${PRIMARY_AIRPORT.icao}"]`,
@@ -413,10 +435,14 @@ test('havalimanı etiketi Kod ya da Gizle; cihazda saklanır; Kod’da kutu, Giz
   await expect(mode('Gizle')).toBeChecked()
   await expect(others.getByRole('radio', { name: 'Tam' })).toBeChecked()
 
-  // Gizle: kutu çizilmez, pin görünür ve tıklanır kalır. Diğer uçakların etiketi de gizlenir: tuvalde
-  // hiçbir şey kalmaz ve pinin başını bir uçak etiketi örtmez (etiket tıklaması önce gelir, D-079).
+  // Gizle: kutu çizilmez, pin görünür ve tıklanır kalır. Seçili ve diğer uçakların etiketi de
+  // gizlenir: tuvalde hiçbir şey kalmaz ve pinin başını bir uçak etiketi örtmez (etiket tıklaması
+  // önce gelir, D-079). Seçili uçak da gizlenir: önceki tıklama yerdeki uçağı seçmişse adres
+  // `?hex=` taşır ve yenilemede seçim geri gelir; o uçağın etiketi tuvali boyardı (CI'da bir kez
+  // 8.448 piksel, v0.17.0 PR'ı).
   await others.getByRole('radio', { name: 'Gizle' }).check()
-  await expect.poll(stored).toEqual({ selected: 'full', others: 'hidden', airports: 'hidden' })
+  await selected.getByRole('radio', { name: 'Gizle' }).check()
+  await expect.poll(stored).toEqual({ selected: 'hidden', others: 'hidden', airports: 'hidden' })
   await page.keyboard.press('Escape')
   await expect.poll(() => paintedPixels(page), { timeout: 10_000 }).toBe(0)
   // Pinin başı: ucu havalimanı merkezinde (harita ortası), baş ~13 px yukarıda.

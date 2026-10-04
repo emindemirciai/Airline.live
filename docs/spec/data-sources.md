@@ -217,6 +217,29 @@ Doğrulama: 2026-10-03 (tzdb 2026c `zone.tab`, `zone1970.tab`, `iso3166.tab`; No
 - **Self-host yedeği (RUNBOOK):** Protomaps PMTiles bölgesel kesit. Tüm dünya dosyası ~120 GB'tır ve KVM 2 diskine sığmaz. Kod BSD, karolar ODbL (OSM atfı zorunlu).
 - MapTiler Free ticari kullanıma kapalıdır.
 - **Uydu anahtarı yokken:** Harita koyu stille açılır ve yollar gizlenir: `source-layer`'ı `transportation` ya da `transportation_name` olan katmanlar kapanır, `aeroway` kalır (D-075).
+- **Ülke sınırları (D-092; doğrulama 2026-10-04: openfreemap.org ana sayfa ve ToS, OpenFreeMap README, openfreemap-styles deposu, openmaptiles.org/schema ve OpenMapTiles `layers/boundary`):**
+  - **Uydu üstünde:** Esri görüntüsünde sınır yoktur. Uyduya OpenFreeMap'in OpenMapTiles vektör karolarından ayrı bir kaynak eklenir. TileJSON `https://tiles.openfreemap.org/planet`'tır: OpenFreeMap stillerinin kullandığı adres. README `/planet/latest`'ı da belgeler; ikisi de son yayımlanan karo sürümüne gider.
+  - **Süzgeç:** Katman `boundary`'dir. Yalnızca kara ülke sınırları çizilir: `admin_level = 2`, `maritime ≠ 1` ve `claimed_by` yok. `claimed_by`, bir ülkenin kendi iddiasına göre görmek istediği çizgidir. Karolar z0–z4'te Natural Earth, z5–z14'te OSM verisidir.
+  - **Koyu stilde:** indirilen OpenMapTiles stilinde `boundary` katmanından çizilen bütün çizgi katmanları (ülke ve il sınırı) çıkar. Yerlerine uydudaki üç katman, stilin kendi kaynağıyla girer.
+  - **Yerel stilde** (`EXTERNAL_PROVIDERS_DISABLED=true`) sınır kaynağı hiç eklenmez; dış istek gitmez.
+  - **Aracı yok:** Karoları tarayıcı doğrudan çeker. Worker, API ve CDN aracılık etmez, sunucu önbelleği yoktur; service worker karo saklamaz (yukarıdaki önbellek yasağı ve Esri E204 §3.1d.2 aynı yolu ister).
+  - **İstek hacmi:** Kaynağın `maxzoom`'u 10'dur; MapLibre'de stildeki değer TileJSON'daki 14'e üstün gelir.
+    - z10'a kadar her yeni görünüm 512 px'lik karolar ister: 1920×1080'de ~9–20, telefonda ~4–6. Bu, Esri'nin 256 px'lik karolarının yaklaşık dörtte biridir.
+    - z10'un üstünde 1–4 z10 karosu büyütülür; çoğu zaten tarayıcı önbelleğindedir. Sayfa açılışında bir de TileJSON isteği vardır.
+    - MapLibre karonun bütün katmanlarını indirir (yalnızca `boundary`'yi değil); bu kabul edildi. Bayt hacmi yayından sonra ölçülür (ACTIVATION).
+    - OpenFreeMap'in şartı: "there are no limits on the number of map views or requests". ToS izinsiz otomatik veri toplamayı yasaklar; her istek bir kullanıcının görünümüdür, toplu indirme yoktur. Referrer başına sınır 2025'te plan olarak duyurulmuştu; uygulandığı doğrulanamadı (2026-09-25 araştırması).
+  - **Hata:** TileJSON ya da karo hatası altlık zincirini etkilemez (`NON_BASEMAP_SOURCES`). Uydu yerinde kalır; yalnızca sınırlar çizilmez ve OSM atfı şeritten düşer.
+  - **Atıf:** Sınır kaynağı kendi atfını taşır (`OPENFREEMAP_ATTRIBUTION`; TileJSON'daki atfın yerine). MapLibre onu sınır katmanları çizilirken şeride koyar; katmanlar her yakınlaştırmada çizilir. Esri ve canlı veri atıfları değişmez, site künyesi ilk sıradadır (D-089).
+  - **Esri ile birlikte:** E204 §3.1a.4, Esri çıktısının açık veritabanı lisansına bağlanmasını yasaklar. Sınır çizgileri ve görüntü yalnızca tarayıcıda üst üste çizilir. ODbL'nin üretilmiş eser kuralı (§4.3) yalnızca atıf ister; birleşik bir veritabanı oluşmaz ve Esri görüntüsü ODbL'ye girmez.
+
+**Lisans kaydı** (§ "Lisans kaydı"ndaki 7 alan; `packages/providers/src/license.ts` → `openFreeMap`)
+- `commercialUse`: `true`. SSS'deki "Is commercial usage allowed?" sorusunun yanıtı "Yes"tir.
+- `attribution`: "OpenFreeMap © OpenMapTiles Data from OpenStreetMap". OpenMapTiles ve OSM kısmı zorunludur, OpenFreeMap kısmı tavsiye edilir. Vektör altlıkta ve uydudaki sınırlar çizilirken haritada görünür.
+- `shareAlike`: `none`. OSM verisi ODbL'dir ama paylaşım şartı türetilmiş veritabanı içindir. Karolar yalnızca tarayıcıda çizilir (üretilmiş eser); saklanmaz ve hiçbir veritabanımıza girmez.
+- `rateLimit`: Sayı sınırı yok, SLA yok, toplu indirme yasak.
+- `b2cDisplayAllowed`: `true`.
+- `mixingWithOtherRealtimeAllowed`: `true`. Canlı uçaklar ve uydu görüntüsüyle birlikte gösterilmesini yasaklayan bir şart bulunmadı.
+- `maxRawStorageDays`: `null`. Kaynak bir sınır koymaz; biz hiç saklamayız (karo ve stil yalnızca tarayıcının standart önbelleğindedir).
 
 ## 6a. Uydu altlığı — Esri World Imagery
 Doğrulama: 2026-09-28 (Esri'nin fiyat sayfası, E204 sözleşmesi ve geliştirici belgeleri; D-075). Kullanıcı ücretsiz katmanı seçti (2026-09-28).

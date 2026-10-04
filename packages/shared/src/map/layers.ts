@@ -9,10 +9,17 @@ import { MAP_COLORS } from './colors'
 
 type StyleLiteral = string | number | boolean
 
-/** Bu dosyada kullanılan stil ifadeleri (style-spec `ExpressionSpecification` alt kümesi). */
+/**
+ * Haritanın kendi katmanlarında (bu dosya ve borders.ts) kullanılan stil ifadeleri (style-spec
+ * `ExpressionSpecification` alt kümesi).
+ */
 export type StyleExpression =
   | ['get', string]
+  | ['has', string]
   | ['zoom']
+  | ['==' | '!=', StyleExpression, StyleLiteral]
+  | ['!', StyleExpression]
+  | ['all', ...StyleExpression[]]
   | ['case', StyleExpression, StyleLiteral | StyleExpression, StyleLiteral | StyleExpression]
   | ['interpolate', ['linear'], StyleExpression, ...number[]]
 
@@ -21,8 +28,12 @@ export type StyleValue<T extends StyleLiteral> = T | StyleExpression
 
 interface LayerStyleBase {
   id: string
-  /** GeoJSON kaynağının kimliği. */
+  /** Kaynağın kimliği: kendi GeoJSON kaynaklarımız ya da ülke sınırlarının vektör karo kaynağı. */
   source: string
+  /** Vektör karo kaynağındaki katman (ülke sınırları: OpenMapTiles `boundary`). */
+  'source-layer'?: string
+  /** Süzgeç; yalnızca ifade sözdizimi (eski `["==", "alan", değer]` biçimi kullanılmaz). */
+  filter?: StyleExpression
   minzoom?: number
   maxzoom?: number
 }
@@ -67,6 +78,8 @@ export interface LineLayerStyle extends LayerStyleBase {
     'line-color': StyleValue<string>
     'line-width'?: StyleValue<number>
     'line-opacity'?: StyleValue<number>
+    /** Kesikli çizgi: çizgi ve boşluk uzunlukları, çizgi kalınlığı biriminde. */
+    'line-dasharray'?: number[]
   }
 }
 

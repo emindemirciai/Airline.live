@@ -673,7 +673,7 @@ export const en: Messages = {
         'Official Turkish airport names: DHMİ, the airport operators and the Ministry of Transport and Infrastructure (English names are translations of them); military air bases are named after their location; OurAirports for new names not confirmed yet.',
       airlines: 'Airline codes: {source}, CC0 (no attribution required; credited as a courtesy).',
       vector:
-        'Vector map: {openFreeMap} © {openMapTiles}, map data © {openStreetMap} contributors (ODbL).',
+        'Vector map and the country borders on the satellite map: {openFreeMap} © {openMapTiles}, map data © {openStreetMap} contributors (ODbL).',
       satellite: 'Satellite imagery (when shown): {esri}.',
       weather:
         'Weather: {source} (NOAA Aviation Weather Center); reports are produced by the airports’ meteorological offices. Automatically decoded; not an official briefing.',
@@ -855,6 +855,7 @@ export const en: Messages = {
     current: 'Current version',
     tryIt: 'Try it',
     released: 'Released',
+    releasedAtValue: '{date}, {time} ({zone})',
   },
   admin: {
     title: 'Administration',
@@ -998,7 +999,7 @@ export const en: Messages = {
       tiles:
         'Satellite map tiles (Esri) are for viewing on this site only: you may not download, scrape, cache or store them (beyond your browser’s standard cache) or redistribute them.',
       vector:
-        'When the vector map is shown, it is provided by {openFreeMap} or a backup vector map. Map data: © {openMapTiles}, © {openStreetMap} contributors (ODbL).',
+        'The country borders on the satellite map and, when the vector map is shown, the base map are provided by {openFreeMap} (the vector base map may also come from a backup vector map). Map data: © {openMapTiles}, © {openStreetMap} contributors (ODbL).',
     },
     use: {
       heading: 'Acceptable use',

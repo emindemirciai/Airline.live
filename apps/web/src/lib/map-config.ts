@@ -21,6 +21,8 @@ export type Basemap =
       vectorFallbackStyleUrl: string | null
       /** Yedek vektör stile geçilirse yollar gizlenir. */
       hideRoads: true
+      /** Uydunun üstündeki kesikli ülke sınırlarının kaynağı (OpenFreeMap, D-092). */
+      countryBorders: CountryBorders
     }
   | {
       kind: 'vector'
@@ -31,6 +33,17 @@ export type Basemap =
       attribution: string
     }
   | { kind: 'local'; styleUrl: string; attribution: string }
+
+/**
+ * Uydu altlığının üstünde çizilen ülke sınırlarının vektör kaynağı (D-092). Karoları tarayıcı
+ * doğrudan çeker; worker, API ya da CDN aracılık etmez ve önbelleğe almaz. Atıf, sınır katmanları
+ * görünürken haritanın atıf şeridine girer.
+ */
+export interface CountryBorders {
+  /** OpenMapTiles şemalı TileJSON adresi. */
+  url: string
+  attribution: string
+}
 
 export interface DataAttribution {
   label: string
@@ -79,6 +92,14 @@ export const ESRI_ATTRIBUTION =
 
 export const OPENFREEMAP_ATTRIBUTION =
   '<span lang="en"><a href="https://openfreemap.org">OpenFreeMap</a> © <a href="https://www.openmaptiles.org/">OpenMapTiles</a> Data from <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a></span>'
+
+/**
+ * OpenFreeMap'in OpenMapTiles vektör karolarının TileJSON adresi: OpenFreeMap stillerinin
+ * (`/styles/dark`, `/styles/liberty`) kullandığı adresle aynıdır (openfreemap-styles deposu; README
+ * `/planet/latest`'ı da belgeler). TileJSON sürümlü karo adreslerini verir; koyu stile geçilince
+ * tarayıcı aynı karoları yeniden kullanabilir.
+ */
+export const OPENFREEMAP_TILEJSON_URL = 'https://tiles.openfreemap.org/planet'
 
 /** "Canlı uçuş verisi: ADSB.lol — ODbL 1.0"; bağlantılar zorunludur (data-sources.md §1). */
 export const DATA_ATTRIBUTION: DataAttribution = {
@@ -135,6 +156,7 @@ function resolveBasemap(env: MapEnvInput): Basemap {
       fallbackStyleUrl,
       vectorFallbackStyleUrl: vectorFallback === fallbackStyleUrl ? null : vectorFallback,
       hideRoads: true,
+      countryBorders: { url: OPENFREEMAP_TILEJSON_URL, attribution: OPENFREEMAP_ATTRIBUTION },
     }
   }
   return {
@@ -149,8 +171,12 @@ function resolveBasemap(env: MapEnvInput): Basemap {
 /**
  * Altlık zinciri (D-075):
  * 1. `MAP_STYLE_URL` bir site yoluysa ya da dış sağlayıcılar kapalıysa yerel stil
- * 2. `ESRI_API_KEY` varsa uydu; yedeği koyu vektör stil, onun yedeği `MAP_STYLE_FALLBACK_URL`
+ * 2. `ESRI_API_KEY` varsa uydu (üstünde OpenFreeMap'ten kesikli ülke sınırları, D-092); yedeği
+ *    koyu vektör stil, onun yedeği `MAP_STYLE_FALLBACK_URL`
  * 3. yoksa koyu vektör stil (OpenFreeMap), yollar gizli; yedeği `MAP_STYLE_FALLBACK_URL`
+ *
+ * Vektör stillerde ülke sınırları indirilen stilde kesikli çizgiye çevrilir (basemap.ts); yerel
+ * stilde (1) sınır yoktur ve dış istek gitmez.
  */
 export function resolveMapConfig(env: MapEnvInput): MapConfig {
   return {
