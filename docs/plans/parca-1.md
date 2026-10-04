@@ -26,7 +26,7 @@ Durumlar: `[ ]` başlamadı, `[~]` sürüyor, `[k]` kod bitti ve kullanıcı do�
 | M6f | Adlar ve saat: askerî ve sivil havalimanı adları TR/EN, haritada havalimanı adı etiketi, yurt dışında yerel saat ve UTC farkı | `p1/m6f-names-time` | [x] tamam; üretimde doğrulandı (2026-10-03, v0.14.0): İncirlik Hava Üssü / Incirlik Air Base, Ankara (Etimesgut), /istasyon/LGAV "Yerel saat 19:37 (UTC+3)" | #20 |
 | M6e.2 | Rüzgâr renkleri ve rüzgâr kesmesi (yama, v0.14.1) | `p1/m6e2-wind-colors` | [x] tamam; üretimde doğrulandı (2026-10-03, v0.14.1): UGTB, UGKO, LGMK kehribar, LGKP ve LRCK açık yeşil | #21 |
 | M6l | Logo: A · Halka | `p1/m6l-logo` | [x] tamam; üretimde doğrulandı (2026-10-03, v0.15.0): başlıkta yeni işaret, /icon/512 ve /icon/maskable, 512 px simgede kuyruk kırıntısı yok | #22 |
-| M6k | Uçak listesi sağ üstte: sefer, kuyruk, yükseklik, konum ve durum | `p1/m6k-aircraft-list` | [~] | — |
+| M6k | Uçak listesi sağ üstte: sefer, kuyruk, yükseklik, konum ve durum | `p1/m6k-aircraft-list` | [k] kod bitti; üretimde listenin ve durumların görülmesi bekliyor (ACTIVATION) | #23 |
 | M6g | Türkiye dışındaki havalimanları, 2. halka (≤ 1.000 km) | `p1/m6g-ring2` | [ ] | — |
 | M7a | Canlı araçlar: `smoke:live`, `record` | `p1/m7a-live-tools` | [ ] | — |
 | M6h | 3. halka (≤ 2.000 km) | `p1/m6h-ring3` | [ ] | — |
@@ -896,6 +896,10 @@ Hedef sürüm 0.16.0. Karar D-085'tedir.
   - 375 px'te liste kapalı başlar, açılınca dört sütun, atıfın üstünde, yatay taşma yok.
 - `pnpm ci:full` yeşil; PR'da CI (`e2e` dahil) yeşil.
 - **Yayından sonra (`[k]`):** üretimde 1280 px'te liste sağ üstte, IST'ye gelen en az bir uçakta "Yaklaşmada" ya da "İnişte" görülür (Atatürk değil), daraltma yenilemede kalır, 768/1024 px'te seçili uçak listenin altında kalmaz, 375 px'te düğme çalışır (ACTIVATION → "M6k yayın doğrulaması").
+
+- **Yayın adımı (2026-10-04):** dal v0.15.0 (logo) ile birleştirildi; karar ve plan çakışmaları iki bölüm korunarak çözüldü.
+- **`pnpm ci:full` → yeşil:** birim testleri web 724, shared 546, api 251, worker 200, providers 120, i18n 94, tools 74, db 44, geo 36, scripts 31; entegrasyon db 82, api 26, worker 12; migration yükseltme 6 → 6; `compose:guard`; E2E 113/113.
+- `pnpm stats` → 548 dosya, 98.374 satır (89.683 kod).
 
 ## M7 — Canlı araçlar ve kapsama raporu
 Ayrıntılar `docs/prompts/parca-1.md`'dedir. Başlarken bu dosyaya dizinler ve kabul komutları eklenir.
