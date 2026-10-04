@@ -30,8 +30,8 @@ Durumlar: `[ ]` başlamadı, `[~]` sürüyor, `[k]` kod bitti ve kullanıcı do�
 | M6e.3 | Derecelendirilmiş rüzgâr renkleri (yama, v0.16.1) | `p1/m6e3-wind-scale` | [x] tamam; üretimde doğrulandı (2026-10-04, v0.16.1): LTFM, LTBA, LGAV kehribar, LTAC sarı, UGTB yeşil-sarı, LTAI yeşil | #24 |
 | M6g | Türkiye dışındaki havalimanları, 2. halka (≤ 1.000 km); haritanın atıf şeridinde site künyesi | `p1/m6g-ring2` | [k] kod bitti; üretimde 225 havalimanı ve HEBA hava durumunun görülmesi bekliyor (ACTIVATION) | #25 |
 | M6e.4 | Yeniliklerde yayın tarihi ve saati (yama, v0.17.1) | `p1/changelog-time` | [x] tamam; üretimde doğrulandı (2026-10-04, v0.17.1): /yenilikler v0.17.1 "4 Ekim 2026, 21:36 (Türkiye saati)" (sunucunun açılışı), v0.17.0 20:27 | #26 |
-| M6e.5 | Haritada kesikli ülke sınırları (yama, v0.17.2) | `p1/map-borders` | [k] kod bitti; üretimde sınırların görülmesi bekliyor (ACTIVATION) | #27 |
-| M6h | 3. halka (≤ 2.000 km) — kullanıcı isteğiyle M7a'nın önüne alındı (2026-10-04); sivil uçuşa kapalı olabilecek havalimanı notu | `p1/m6h-ring3` | [~] | — |
+| M6e.5 | Haritada kesikli ülke sınırları (yama, v0.17.2) | `p1/map-borders` | [x] tamam; üretimde doğrulandı (2026-10-04, v0.17.2): Balkanlarda kesikli sınırlar, şeritte OpenFreeMap atfı | #27 |
+| M6h | 3. halka (≤ 2.000 km) — kullanıcı isteğiyle M7a'nın önüne alındı (2026-10-04); sivil uçuşa kapalı olabilecek havalimanı notu | `p1/m6h-ring3` | [k] kod bitti; üretimde 503 havalimanı ve Özbek istasyonlarının hava durumu bekliyor (ACTIVATION) | #28 |
 | M7a | Canlı araçlar: `smoke:live`, `record` | `p1/m7a-live-tools` | [ ] | — |
 | M7b | Kapsama ölçümü ve raporu (`coverage:probe`, `coverage:report`) | `p1/m7b-coverage` | [ ] | — |
 | M6i | 4. halka (≤ 5.000 km); haritada görünür alana göre havalimanı yükleme, AWC toplu dosyası | `p1/m6i-ring4` | [ ] | — |
@@ -1129,6 +1129,11 @@ Hedef sürüm 0.18.0 (dal `p1/m6g-ring2`'nin v0.17.0 sürüm commit'i `5f34acb`'
 - `turbo run typecheck lint --force` → 18/18; `pnpm typecheck:e2e`, `pnpm lint:e2e`, `pnpm typecheck:scripts`, `pnpm check:eol`, `prettier --check .` → yeşil.
 - Sayılar her yerde aynı: listelenen 503 (61 + 75 + 89 + 278), Türkiye dışı 442, dizine eklenen 498, site haritası 1.006, llms.txt 498 satır (`e2e/support.ts` sabitleri, birim testleri, D-090, ACTIVATION). Not metni belgelerde de sitedeki gibi "2022’den beri" yazılır.
 - Çalıştırılmayanlar: `pnpm test:integration`, `pnpm test:migration-upgrade`, `pnpm test:e2e` (`ci:full`, `origin/main` alındıktan sonra).
+
+**Çıktı kaydı (2026-10-04, yayın; `origin/main` v0.17.2 alındıktan sonra `0d83f44`):**
+- `pnpm ci:full` → `ci:local` yeşil (birim: web 769, shared 640, api 256, worker 200, providers 127, i18n 98, tools 74, db 50, geo 36), `compose:guard` yeşil, entegrasyon db 84, api 26, worker 12, `test:migration-upgrade` 6 → 6.
+- İlk e2e denemesi kurulumda 228 havalimanı gördü: yerel geliştirme veritabanı 3. halkadan önceki içe aktarmayı tutuyordu (worker tablo boşken ya da son denetim 24 saatten eskiyken yeniden aktarır). `reference_sources`'taki iki OurAirports satırı yerelde migration 0005'teki gibi sıfırlandı. İkinci denemede kurulum 503'ü gördü; sayfalar web'in yerel geliştirme veri önbelleğinden (`apps/web/.next/dev/cache/fetch-cache`, 1 saat) eski 228'lik listeyi sundu ve 11 test düştü. Önbellek silindi ve yalnız `pnpm test:e2e` yeniden çalıştırıldı: 124 test geçti (3,3 dk). Bu iki durum yalnızca yereldir; CI her çalıştırmada boş veritabanı ve boş önbellekle başlar. Üretimde liste, içe aktarmadan sonra en geç 1 saat içinde tazelenir (önbellek penceresi, M6g'deki gibi).
+- `pnpm stats` → 559 dosya, 105.368 satır (kod 96.039, belge 6.115).
 
 ## M7 — Canlı araçlar ve kapsama raporu
 Ayrıntılar `docs/prompts/parca-1.md`'dedir. Başlarken bu dosyaya dizinler ve kabul komutları eklenir.
