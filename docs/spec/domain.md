@@ -38,7 +38,7 @@ Olay motoru, bildirimler ve arayüz bu dosyadaki tanımlara uyar. **Motorun büt
   4. ineceği pist (Pist 35L); yalnızca bir piste hizalanmış yaklaşmada
 - **Kısa:** yalnızca sefer no (yoksa çağrı kodu).
 - **Göster/gizle:** Seçili uçak ve diğer uçaklar için ayrı ayrı Gizle, Kısa ya da Tam seçilir. Varsayılan ikisi için de Tam'dır. Ayar haritadaki "Etiketler" düğmesinden açılır ve cihazda saklanır.
-- **Havalimanı etiketleri (D-084):** Aynı panelin "Havalimanları" grubunda Gizle, Kod ya da Kod ve ad seçilir; varsayılan Kod'dur (IATA kodu, z ≥ 5). Kod ve ad, z ≥ 7'de kodun yanına en çok 16 karakterlik kısa adı yazar (İstanbul, Sabiha Gökçen, Esenboğa, Atina); yer yoksa yalnız kod kalır. Gizle yalnız yazıyı kaldırır: pinler görünür ve tıklanır kalır.
+- **Havalimanı etiketleri (D-084):** Aynı panelin "Havalimanları" grubunda Gizle ya da Kod seçilir; varsayılan Kod'dur (IATA kodu, z ≥ 5). Haritada havalimanı adı yazılmaz: ad, pin ya da koda tıklanınca açılan havalimanı penceresindedir ("Kod ve ad" 2026-10-04'te kullanıcı isteğiyle kaldırıldı; o seçenekle saklanmış ayar Kod okunur). Gizle yalnız yazıyı kaldırır: pinler her zaman görünür ve tıklanır kalır.
 - **Yerleşim:** Etiketler üst üste binmez; yer yoksa etiket yana kayar ve ince bir çizgiyle uçağa bağlanır. Etiket zemini opaktır.
 - Tasarım: https://claude.ai/artifact/Tsu4WTeQu8CxqvyZXpTSYD (Parça 1 M6 ve Parça 3 bu tasarıma göre yapılır).
 

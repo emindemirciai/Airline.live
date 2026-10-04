@@ -928,14 +928,13 @@ export const tr = {
       hidden: 'Gizle',
       short: 'Kısa',
       full: 'Tam',
-      /** Havalimanı etiketleri (D-084): Gizle / Kod / Kod ve ad; pinler her zaman görünür. */
+      /** Havalimanı etiketleri (D-084): Gizle / Kod; pinler her zaman görünür. */
       airports: 'Havalimanları',
       airportModes: {
         hidden: 'Gizle',
         code: 'Kod',
-        name: 'Kod ve ad',
       },
-      hint: 'Kısa: yalnızca sefer no. Tam: sefer no, hız ve yükseklik. Kod ve ad: yakınlaştırınca havalimanının kısa adı da yazılır.',
+      hint: 'Kısa: yalnızca sefer no. Tam: sefer no, hız ve yükseklik.',
     },
     /** Havalimanı penceresinin klavye yolu: görünümdeki havalimanları listesi (D-078). */
     airportList: {

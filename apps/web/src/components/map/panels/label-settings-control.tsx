@@ -18,8 +18,8 @@ export interface LabelSettingsControlProps {
 
 /**
  * "Etiketler" düğmesi ve açılır ayar paneli: seçili uçak ve diğer uçaklar için ayrı ayrı Gizle,
- * Kısa ya da Tam; havalimanları için Gizle, Kod ya da Kod ve ad (D-084). Denetimli bileşendir;
- * saklama (`hy:map:labels`) üst bileşenin işidir. Panel Escape'le ve dışına tıklanınca kapanır;
+ * Kısa ya da Tam; havalimanları için Gizle ya da Kod (D-084). Denetimli bileşendir; saklama
+ * (`hy:map:labels`) üst bileşenin işidir. Panel Escape'le ve dışına tıklanınca kapanır;
  * Escape odağı düğmeye geri verir ve tüketilir.
  */
 export function LabelSettingsControl({ value, onChange, messages }: LabelSettingsControlProps) {

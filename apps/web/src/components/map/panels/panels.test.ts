@@ -443,15 +443,15 @@ describe('LabelSettingsPanel (D-084)', () => {
       }),
     )
 
-  it('üç grup: Seçili uçak, Diğer uçaklar, Havalimanları (Gizle / Kod / Kod ve ad)', () => {
+  it('üç grup: Seçili uçak, Diğer uçaklar, Havalimanları (Gizle / Kod)', () => {
     const html = render({ selected: 'full', others: 'short', airports: 'code' })
     expect(html).toMatch(/^<div id="labels" class="map-panel map-labels__panel" role="group"/)
     const found = groups(html)
     expect(found.map((g) => g.legend)).toEqual(['Seçili uçak', 'Diğer uçaklar', 'Havalimanları'])
+    // "Kod ve ad" 2026-10-04'te kaldırıldı: ad, havalimanı penceresindedir (kullanıcı isteği).
     expect(found[2]?.options.map((o) => [o.mode, o.text])).toEqual([
       ['hidden', 'Gizle'],
       ['code', 'Kod'],
-      ['name', 'Kod ve ad'],
     ])
     // Her grubun radyo adı ayrıdır (ok tuşları yalnızca kendi grubunda gezer).
     expect(new Set(found.map((g) => g.options[0]?.name)).size).toBe(3)
@@ -462,19 +462,22 @@ describe('LabelSettingsPanel (D-084)', () => {
     expect(found[0]?.options.find((o) => o.checked)?.mode).toBe('full')
     expect(found[1]?.options.find((o) => o.checked)?.mode).toBe('short')
     expect(found[2]?.options.find((o) => o.checked)?.mode).toBe('code')
-    expect(textOf(html)).toContain('Kod ve ad: yakınlaştırınca havalimanının kısa adı da yazılır.')
+    expect(textOf(html)).toContain('Kısa: yalnızca sefer no. Tam: sefer no, hız ve yükseklik.')
+    expect(textOf(html)).not.toContain('Kod ve ad')
   })
 
   it('seçili havalimanı seçeneği ayardan gelir; İngilizce metinler', () => {
-    for (const airports of ['hidden', 'code', 'name'] as const) {
+    for (const airports of ['hidden', 'code'] as const) {
       const found = groups(render({ selected: 'full', others: 'full', airports }))
       expect(found[2]?.options.find((o) => o.checked)?.mode, airports).toBe(airports)
     }
     const en = groups(
-      render({ selected: 'full', others: 'full', airports: 'name' }, getMessages('en').map.labels),
+      render(
+        { selected: 'full', others: 'full', airports: 'hidden' },
+        getMessages('en').map.labels,
+      ),
     )
     expect(en.map((g) => g.legend)).toEqual(['Selected aircraft', 'Other aircraft', 'Airports'])
-    // "Code and name" 300 px panelin üçüncü sütununa sığmıyordu (iki satır); kısa karşılığı.
-    expect(en[2]?.options.map((o) => o.text)).toEqual(['Hide', 'Code', 'With name'])
+    expect(en[2]?.options.map((o) => o.text)).toEqual(['Hide', 'Code'])
   })
 })

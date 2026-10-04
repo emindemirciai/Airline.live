@@ -1383,9 +1383,11 @@ body:has(.map-page) .site-footer {
   font-weight: 600;
 }
 
+/* Seçenekler eşit genişlikte satırı doldurur: uçaklarda üç, havalimanlarında iki (D-084). */
 .map-seg {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-auto-columns: minmax(0, 1fr);
+  grid-auto-flow: column;
   gap: 2px;
   padding: 3px;
   background: var(--map-panel-raised);

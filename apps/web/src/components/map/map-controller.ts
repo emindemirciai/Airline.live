@@ -55,7 +55,6 @@ import {
   type AirportPinImage,
 } from './icons'
 import {
-  AIRPORT_NAME_FONT,
   LabelPainter,
   NORMAL_THEME,
   pinGeometry,
@@ -908,13 +907,7 @@ export class MapController {
   private loadFonts(): void {
     if (typeof document === 'undefined' || !('fonts' in document)) return
     const fonts = [NORMAL_THEME.primaryFont, NORMAL_THEME.secondaryFont, SELECTED_THEME.primaryFont]
-    // Havalimanı kısa adları Türkçe ve Latin genişletilmiş harfler taşır (ğ, ş, İ, ă): yazı tipinin o
-    // alt kümesi de yüklenir; yoksa tuval ilk çizimde yedek yazı tipini kullanırdı (D-084).
-    const loads = [
-      ...fonts.map((font) => document.fonts.load(font)),
-      document.fonts.load(AIRPORT_NAME_FONT, 'ÇçĞğİıÖöŞşÜüĂăÂâ'),
-    ]
-    Promise.all(loads).then(
+    Promise.all(fonts.map((font) => document.fonts.load(font))).then(
       () => {
         if (this.destroyed) return
         this.painter.invalidateText()

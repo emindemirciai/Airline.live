@@ -783,9 +783,8 @@ export const en: Messages = {
       airportModes: {
         hidden: 'Hide',
         code: 'Code',
-        name: 'With name',
       },
-      hint: 'Short: flight number only. Full: flight number, speed and altitude. With name: the airport’s short name is added next to its code when you zoom in.',
+      hint: 'Short: flight number only. Full: flight number, speed and altitude.',
     },
     airportList: {
       button: 'Airports',

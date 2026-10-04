@@ -124,7 +124,6 @@ describe('sameViewState (D-084)', () => {
     for (const change of [
       { selected: 'short' },
       { others: 'hidden' },
-      { airports: 'name' },
       { airports: 'hidden' },
     ] as const) {
       const next = { ...base, labelSettings: { ...DEFAULT_LABEL_SETTINGS, ...change } }
