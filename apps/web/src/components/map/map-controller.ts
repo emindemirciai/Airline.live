@@ -36,6 +36,7 @@ import type { AircraftStore } from '../../lib/live/store'
 import type { ScreenRect } from '../../lib/map/label-layout'
 import { sameLabelSettings, type LabelSettings } from '../../lib/map/label-settings'
 import type { Basemap } from '../../lib/map-config'
+import { prependSiteCredit } from './attribution'
 import {
   BasemapController,
   basemapSteps,
@@ -202,6 +203,8 @@ export interface MapControllerOptions {
   basemap: Basemap
   /** Atıf denetimine her zaman eklenen HTML (canlı veri atfı, ADSB.lol ODbL). */
   customAttribution: string
+  /** Atıf şeridinin başına konan site künyesi, HTML (`siteCreditHtml`, D-089). */
+  siteCredit: string
   /** Harita tuvalinin erişilebilir adı. */
   mapLabel: string
   store: AircraftStore
@@ -406,6 +409,11 @@ export class MapController {
       maxPitch: 0,
       locale: { 'Map.Title': this.options.mapLabel },
     })
+    // Atıf denetimi kurucuda eklenir; site künyesi şeridin başına, MapLibre girdilerinin önüne
+    // konur (D-089). Girdiler uzunluğa göre sıralandığından künye girdi olarak ilk sırada kalmazdı.
+    if (!prependSiteCredit(container, this.options.siteCredit)) {
+      console.warn('Site credit could not be added to the map attribution')
+    }
     map.touchZoomRotate.disableRotation()
     map.keyboard.disableRotation()
     this.map = map

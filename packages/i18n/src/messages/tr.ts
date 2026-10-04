@@ -833,6 +833,11 @@ export const tr = {
     dataAttributionPrefix: 'Canlı uçuş verisi:',
     /** Atıf satırındaki kullanım koşulları bağlantısı (E204 §3.1c.5, D-075). */
     termsLink: 'Koşullar',
+    /**
+     * Atıf şeridinin başındaki site künyesinin ("havayolu v0.16.1") erişilebilir adı; bağlantı
+     * Yenilikler sayfasına gider (D-089). `{credit}` görünen metindir ve adın başında kalır (WCAG 2.5.3).
+     */
+    siteCreditLabel: '{credit}, yenilikler',
     search: {
       /**
        * Arama kutusunun erişilebilir adı tam metindir; görünen ipucu (`placeholder`) 375 px'lik

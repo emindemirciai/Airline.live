@@ -699,6 +699,7 @@ export const en: Messages = {
     nav: 'Map',
     dataAttributionPrefix: 'Live flight data:',
     termsLink: 'Terms',
+    siteCreditLabel: '{credit}, what’s new',
     search: {
       label: 'Search aircraft: flight number, callsign, registration or hex',
       placeholder: 'Flight no., callsign, reg., hex',
