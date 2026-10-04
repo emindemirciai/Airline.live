@@ -4,6 +4,7 @@ import {
   ESRI_ATTRIBUTION,
   LOCAL_STYLE_URL,
   OPENFREEMAP_ATTRIBUTION,
+  OPENFREEMAP_TILEJSON_URL,
   resolveMapConfig,
   type MapEnvInput,
 } from './map-config'
@@ -75,9 +76,28 @@ describe('resolveMapConfig — altlık zinciri', () => {
       fallbackStyleUrl: 'https://tiles.openfreemap.org/styles/dark',
       vectorFallbackStyleUrl: null,
       hideRoads: true,
+      countryBorders: {
+        url: 'https://tiles.openfreemap.org/planet',
+        attribution: OPENFREEMAP_ATTRIBUTION,
+      },
     })
     expect(ESRI_ATTRIBUTION).toContain('Powered by <a href="https://www.esri.com/">Esri</a>')
     expect(ESRI_ATTRIBUTION).toContain('Esri, Vantor, Earthstar Geographics, and the GIS User')
+  })
+
+  it('ülke sınırları (D-092): uyduda OpenFreeMap TileJSON’u ve atfı; yerel ve vektör altlıkta ayrı kaynak yok', () => {
+    const satellite = resolveMapConfig({ ...production, ESRI_API_KEY: 'key' }).basemap
+    expect(satellite).toMatchObject({
+      kind: 'satellite',
+      countryBorders: { url: OPENFREEMAP_TILEJSON_URL, attribution: OPENFREEMAP_ATTRIBUTION },
+    })
+    expect(OPENFREEMAP_TILEJSON_URL).toBe('https://tiles.openfreemap.org/planet')
+    // Sınır kaynağı da yalnızca https'tir ve tarayıcıya giden yapılandırmada sır yoktur.
+    expect(new URL(OPENFREEMAP_TILEJSON_URL).protocol).toBe('https:')
+    const local = resolveMapConfig({ ...production, EXTERNAL_PROVIDERS_DISABLED: true }).basemap
+    expect(local).not.toHaveProperty('countryBorders')
+    expect(JSON.stringify(local)).not.toContain('openfreemap')
+    expect(resolveMapConfig(production).basemap).not.toHaveProperty('countryBorders')
   })
 
   it('uydu zinciri de MAP_STYLE_FALLBACK_URL yedeğini taşır (koyu stille aynıysa bir kez)', () => {

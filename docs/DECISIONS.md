@@ -2,6 +2,56 @@
 
 Her karar tarih, gerekçe ve varsa alternatifiyle yazılır. En yeni karar en üsttedir.
 
+## 2026-10-04 — Haritada kesikli ülke sınırları
+- **D-092 Haritada ülke sınırları beyaz kesikli çizgiyle, altında koyu bir kenarla çizilir. Uydu altlığında sınırlar OpenFreeMap'in vektör karolarından ayrı bir katmandır; OpenFreeMap'in koyu stilinde stilin kendi sınır katmanlarının yerine aynı görünüm girer. Yerel test stilinde sınır yoktur.**
+  - **Kullanıcı isteği (2026-10-04):** "haritada ülke sınırları kesikli kesikli çizgilerle belirgin olmalı."
+  - **Neden ayrı bir katman:** Esri World Imagery yalnızca görüntüdür, sınır çizgisi taşımaz (D-075). Sınırlar izinli harita kaynağı OpenFreeMap'ten gelir (OpenMapTiles şeması, OSM verisi, ODbL).
+    - Kaynak, OpenFreeMap stillerinin kullandığı TileJSON'dur: `https://tiles.openfreemap.org/planet` (`OPENFREEMAP_TILEJSON_URL`). OpenFreeMap README'si `/planet/latest`'ı da belgeler; ikisi de son karo sürümüne gider. Koyu stile geçilince tarayıcı aynı karoları yeniden kullanabilir.
+    - Kaynak kimliği `hy-country-borders`'tır; karolar z0–z4'te Natural Earth, z5–z14'te OSM verisidir.
+  - **Süzgeç: yalnızca kara ülke sınırları.** Katman `boundary`'dir ve üç koşul aranır (`COUNTRY_BORDER_FILTER`):
+    - `admin_level = 2`: il ve eyalet sınırı çizilmez.
+    - `maritime ≠ 1`: karasuları ve deniz yetki alanı çizgileri denizi kesikli çizgiyle doldurmaz (Ege ve Karadeniz).
+    - `claimed_by` yok: OpenMapTiles bu alanı bir ülkenin kendi iddiasına göre görmek istediği çizgiye koyar. Bu çizgiler çizilmez; haritada OSM'nin fiilî durum ("on the ground") kuralıyla çizilen sınır kalır. Böylece hangi ülkenin iddiasını göstereceğimizi seçmek zorunda kalmayız.
+  - **Tartışmalı sınırlar (`disputed = 1`):** aynı beyaz renk ve aynı koyu kenarla noktalı çizilir (`[0, 2,5]`, yuvarlak uç: kalınlık çapında nokta).
+    - Neden: tartışmalı sınırı ayırt etmek kartografik gelenektir. Aynı kesikle çizmek tartışmayı gizler; başka bir renk (ör. kırmızı) ise siyasi bir vurgu olurdu.
+    - Kıbrıs'taki ayrım çizgisinin nasıl görüneceği OSM verisine bağlıdır: ülke sınırı, tartışmalı sınır ya da hiç çizilmemiş olabilir. Kod buna özel kural taşımaz. Yayından sonra bakılır ve kullanıcıya gösterilir (ACTIVATION); değişiklik isterse ayrı karardır.
+  - **Görünüm** (`packages/shared/src/map/borders.ts`; mobil aynı nesneleri kullanır):
+    - **Çizgi:** beyaz (`MAP_COLORS.border` #FFFFFF), opak ve kesikli. `line-dasharray [2, 3]` yuvarlak uçla çizilir; MapLibre her çizginin iki ucuna yarım kalınlık eklediği için görünen çizgi 3, boşluk 2 kalınlıktır. Kalınlık z3'te 1 px, z6'da 1,5 px, z10 ve üstünde 2,25 px'tir.
+    - **Kenar:** düz (kesiksiz), `MAP_COLORS.borderCasing` #0B2A33, 0,6 saydamlıkta; çizgiden 2–2,5 px geniştir (z3'te 3, z10'da 4,75 px). Beyaz çizgi açık toprakta ve karda da okunur, görüntü örtülmez.
+    - **Saydamlık istisnası:** haritadaki "saydamlık yok" kuralı içerik içindir (etiket, panel, iz). Kenar bir haledir; çizginin kendisi opaktır (`colors.ts` açıklaması).
+    - **Kapsam:** katmanların yakınlaştırma sınırı yoktur; harita z2–z17 arasında her yerde sınırları çizer.
+  - **Sıra:**
+    - **Uydu:** görüntünün hemen üstünde kenar, kesikli çizgi, noktalı çizgi. Havalimanı pinleri, iz ve uçaklar stil yüklenince `addLayer` ile en üste eklenir; etiketler ayrı tuvaldedir.
+    - **Koyu stil:** sınırlar ilk `boundary` katmanının yerine girer: yer adlarının altında, yol ve suyun üstünde.
+  - **Koyu stil (uydunun yedeği ve anahtarsız altlık):** indirilen OpenMapTiles stilinde `boundary` katmanından çizilen bütün çizgi katmanları (ülke ve il sınırı) çıkar (`withCountryBorders`). Yerlerine aynı üç katman, stilin `openmaptiles` kaynağıyla girer.
+    - İl sınırları da çıkar: uyduda yoktur ve kesikli il sınırı kesikli ülke sınırıyla karışırdı.
+    - `boundary` katmanı olmayan stiller (Protomaps şeması `boundaries`) olduğu gibi kalır.
+    - Adım bayrağı `BasemapStep.countryBorders`'tır: uydu ve vektör adımlarında açık, yerel stil ve düz arka planda kapalıdır.
+  - **Yerel test stili:** `/test-style.json`'a dokunulmaz, sınır kaynağı eklenmez; `EXTERNAL_PROVIDERS_DISABLED=true` iken dış istek gitmez. Birim testleri bunu doğrular. e2e de açılışta OpenFreeMap ya da vektör karo isteği olmadığını ve şeritte OpenStreetMap atfı bulunmadığını denetler.
+  - **Atıf:**
+    - Metin, OpenFreeMap'in istediği "OpenFreeMap © OpenMapTiles Data from OpenStreetMap"tır (bağlantılı, `lang="en"`, `OPENFREEMAP_ATTRIBUTION`). Sınır kaynağının `attribution` alanındadır ve TileJSON'daki atfın yerine geçer.
+    - MapLibre bir kaynağın atfını yalnızca o kaynağı kullanan görünür bir katman varken şeride koyar. Sınır katmanları her yakınlaştırmada çizildiğinden, uyduda sınırlar varken atıf da vardır. Kaynak yüklenemezse atıf da çıkmaz.
+    - Şeridin sırası: künye (D-089), Esri, OpenFreeMap, ardından "Canlı uçuş verisi: ADSB.lol — ODbL 1.0 · Koşullar". MapLibre girdileri ham HTML uzunluğuna göre, kısadan uzuna sıralar. Bugünkü metinlerle sıra Türkçede ve İngilizcede aynıdır: Esri (140 karakter), OpenFreeMap (209), canlı veri girdisi (Türkçe 237, İngilizce 236); koyu stilde OpenFreeMap, ardından canlı veri. Bu, D-089'daki "canlı veri girdisi şeridin sonuna düşer" kuralıyla uyumludur; `attribution.test.ts` sırayı iki dilde denetler, metinler değişip sıra kayarsa test kırılır. Esri ve ADSB.lol metinleri değişmez.
+    - Telefonda şerit bir satır uzayabilir; yüksekliği zaten ölçülüyor (`--map-attrib-space`, D-089).
+    - `/hakkinda` ve `/kullanim-kosullari`'daki harita kaynağı cümleleri uydudaki ülke sınırlarını da anar.
+  - **Hata yönetimi:** sınır kaynağı altlık zincirinin hata sayımına girmez (`NON_BASEMAP_SOURCES`; önceden yalnızca kendi GeoJSON kaynaklarımız vardı).
+    - Hariç tutulmasaydı OpenFreeMap'in TileJSON ya da karo hatası uyduyu da düşürürdü: üç hata uyduyu koyu stile, o da OpenFreeMap olduğundan düz arka plana götürürdü.
+    - Şimdi OpenFreeMap kesintisinde uydu yerinde kalır; yalnızca sınırlar ve OSM atfı çıkmaz. Koyu stilde sınırlar altlığın kendi kaynağındandır; onun hataları yine altlığındır.
+  - **Performans ve istek hacmi:** tek ek vektör kaynaktır. Kaynağın `maxzoom`'u 10'dur (`COUNTRY_BORDER_SOURCE_MAX_ZOOM`); MapLibre'de stildeki değer TileJSON'daki 14'e üstün gelir.
+    - z10'a kadar her yeni görünüm 512 px'lik karolar ister: 1920×1080'de ~9–20, telefonda ~4–6. Bu, Esri'nin 256 px'lik karolarının yaklaşık dörtte biridir.
+    - z10'un üstünde 1–4 z10 karosu büyütülür; havalimanı yakınlaştırmalarında (z11–z17) bina, adres ve yer imi taşıyan ağır karolar yalnızca sınır için indirilmez.
+    - Bedeli: z10 karosundaki sınır yaklaşık bir piksellik genellemeyle gelir (OpenMapTiles `ZRes(11)` ≈ 76 m). Bu yüzden sınır çizgisi uydudaki nehir ya da çit çizgisinden z12'de en çok ~4 px, z14'te ~16 px sapabilir. Ülke sınırının yakın görünümde metre doğruluğu bu ürün için gerekmez.
+    - MapLibre karonun bütün katmanlarını indirir (yalnızca `boundary`'yi değil); bu kabul edildi.
+    - OpenFreeMap görüntüleme ya da istek sayısına sınır koymaz. Her istek bir kullanıcının kendi görünümüdür: toplu indirme, aracı sunucu ve sunucu önbelleği yoktur. Bayt hacmi yayından sonra ölçülür (ACTIVATION).
+  - **Lisans:** OSM verisi ODbL'dir. Paylaşım şartı türetilmiş veritabanı içindir; karolar yalnızca tarayıcıda çizilir (üretilmiş eser, ODbL §4.3: yalnızca atıf).
+    - Esri E204 §3.1a.4, Esri çıktısının açık veritabanı lisansına bağlanmasını yasaklar. Sınır çizgileri ve görüntü yalnızca tarayıcıda üst üste çizilir; birleşik bir veritabanı oluşmaz.
+    - Lisans kaydı: data-sources.md §6 ve `packages/providers` → `openFreeMap` (7 alan, sınır kullanımı açıklamada).
+  - **Değerlendirilip seçilmeyenler:**
+    - Esri'nin görüntü üstü sınır ve yer adı katmanı: istenmeyen yer adlarını da getirir, kesik ve renk bizim elimizde olmaz; büyük olasılıkla aynı aylık karo kotasından da harcar (doğrulanmadı).
+    - Natural Earth sınırlarını kendi sunucumuzdan GeoJSON olarak vermek: kamu malıdır ama 1:10m ölçeği yakın görünümde kabadır ve birkaç MB'lık bir dosya her açılışta inerdi.
+    - OpenFreeMap'in koyu stilini uydunun üstüne yarı saydam bindirmek: yollar, yer adları ve su dolgusu da gelirdi.
+    - Kaynağın `maxzoom`'unu 12 ya da 14 bırakmak: daha keskin sınır karşılığında havalimanı yakınlaştırmalarında her görünümde 15–20 ağır karo inerdi.
+
 ## 2026-10-04 — Yeniliklerde yayın tarihi ve saati
 - **D-091 Yenilikler sayfası her sürümün yayın tarihini saatiyle gösterir. Saat changelog'daki `releasedAt`'tan (sürümün GitHub Release'inin yayımlanma anı) gelir; her yayın adımı önceki sürümün `releasedAt`'ını yazar.**
   - **Kullanıcı isteği (2026-10-04):** "yeniliklerdeki yayın tarihine tarih ve saat ekle." Sayfa yalnızca günü gösteriyordu ("Yayın tarihi: 4 Ekim 2026").

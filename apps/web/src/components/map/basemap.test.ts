@@ -1,26 +1,49 @@
+import { readFileSync } from 'node:fs'
+import { fileURLToPath } from 'node:url'
+import {
+  AIRCRAFT_LAYER_ID,
+  AIRPORT_LAYER_ID,
+  COUNTRY_BORDER_CASING_LAYER_ID,
+  COUNTRY_BORDER_DASH,
+  COUNTRY_BORDER_DISPUTED_LAYER_ID,
+  COUNTRY_BORDER_FILTER,
+  COUNTRY_BORDER_LAYER_ID,
+  COUNTRY_BORDER_SOURCE_ID,
+  DISPUTED_BORDER_DASH,
+  LIVE_MAP_LAYERS,
+  TRAIL_LAYER_ID,
+  countryBorderLayers,
+} from '@havayolu/shared'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   ESRI_ATTRIBUTION,
   OPENFREEMAP_ATTRIBUTION,
+  OPENFREEMAP_TILEJSON_URL,
   resolveMapConfig,
   type Basemap,
 } from '../../lib/map-config'
 import {
   BASEMAP_MAX_FAILURES,
   BasemapController,
+  NON_BASEMAP_SOURCES,
+  SATELLITE_SOURCE_ID,
   STYLE_LOAD_TIMEOUT_MS,
   STYLE_RETRY_DELAY_MS,
   basemapSteps,
   fetchStyle,
   plainStyle,
+  prepareFetchedStyle,
   roadLayerIds,
   satelliteStyle,
   withAttribution,
+  withCountryBorders,
   type BasemapStep,
   type MapStyle,
 } from './basemap'
 
 const resolveUrl = (url: string) => new URL(url, 'http://localhost:3100/').href
+
+const borders = { url: OPENFREEMAP_TILEJSON_URL, attribution: OPENFREEMAP_ATTRIBUTION }
 
 const satellite = {
   kind: 'satellite',
@@ -29,6 +52,7 @@ const satellite = {
   fallbackStyleUrl: 'https://tiles.openfreemap.org/styles/dark',
   vectorFallbackStyleUrl: null,
   hideRoads: true,
+  countryBorders: borders,
 } satisfies Basemap
 
 describe('basemapSteps', () => {
@@ -36,15 +60,22 @@ describe('basemapSteps', () => {
     const steps = basemapSteps(satellite, resolveUrl)
     expect(steps).toHaveLength(3)
     const [first, second, last] = steps
-    expect(first?.style).toEqual(satelliteStyle(satellite.tilesUrl, ESRI_ATTRIBUTION))
+    expect(first?.style).toEqual(satelliteStyle(satellite.tilesUrl, ESRI_ATTRIBUTION, borders))
     expect(first?.hideRoads).toBe(false)
     expect(second).toEqual({
       style: 'https://tiles.openfreemap.org/styles/dark',
       hideRoads: true,
       attribution: OPENFREEMAP_ATTRIBUTION,
+      countryBorders: true,
       plain: false,
     })
-    expect(last).toEqual({ style: plainStyle(), hideRoads: false, attribution: null, plain: true })
+    expect(last).toEqual({
+      style: plainStyle(),
+      hideRoads: false,
+      attribution: null,
+      countryBorders: false,
+      plain: true,
+    })
   })
 
   it('uydu: koyu vektör stilden sonra MAP_STYLE_FALLBACK_URL (kendi atfı, yollar gizli) denenir', () => {
@@ -54,7 +85,7 @@ describe('basemapSteps', () => {
     )
     expect(steps.map((step) => [step.style, step.hideRoads, step.attribution, step.plain])).toEqual(
       [
-        [satelliteStyle(satellite.tilesUrl, ESRI_ATTRIBUTION), false, null, false],
+        [satelliteStyle(satellite.tilesUrl, ESRI_ATTRIBUTION, borders), false, null, false],
         ['https://tiles.openfreemap.org/styles/dark', true, OPENFREEMAP_ATTRIBUTION, false],
         ['https://maps.example/protomaps.json', true, null, false],
         [plainStyle(), false, null, true],
@@ -100,7 +131,7 @@ describe('basemapSteps', () => {
   })
 
   it('uydu stili: 256 px raster karo, en fazla z19, atıf kaynakta; glif ve sprite yok', () => {
-    const style = satelliteStyle('https://t/{z}/{y}/{x}', 'Powered by Esri')
+    const style = satelliteStyle('https://t/{z}/{y}/{x}', 'Powered by Esri', null)
     expect(style.sources.satellite).toEqual({
       type: 'raster',
       tiles: ['https://t/{z}/{y}/{x}'],
@@ -151,6 +182,265 @@ describe('roadLayerIds ve withAttribution', () => {
     })
     expect(result.sources.points).toBe(style.sources.points)
     expect(style.sources.openmaptiles).toHaveProperty('attribution', 'eski')
+  })
+})
+
+/** Yerel test stili (`apps/web/public/test-style.json`): geliştirme, testler ve CI bununla açılır. */
+function testStyle(): MapStyle {
+  const path = fileURLToPath(new URL('../../../public/test-style.json', import.meta.url))
+  return JSON.parse(readFileSync(path, 'utf8')) as MapStyle
+}
+
+/**
+ * OpenFreeMap koyu stilinin (`openfreemap-styles` deposu, `styles/dark/style.json`) katman düzeninin
+ * özeti: il sınırı kesikli gri, ülke sınırı düz gri (iki yakınlaştırma aralığı), üstünde yer adları.
+ */
+function darkStyle(): MapStyle {
+  const boundary = { type: 'line', source: 'openmaptiles', 'source-layer': 'boundary' } as const
+  return {
+    version: 8,
+    sources: {
+      openmaptiles: { type: 'vector', url: 'https://tiles.openfreemap.org/planet' },
+    },
+    layers: [
+      { id: 'background', type: 'background', paint: { 'background-color': 'rgb(12,12,12)' } },
+      { id: 'water', type: 'fill', source: 'openmaptiles', 'source-layer': 'water' },
+      {
+        id: 'highway_major_inner',
+        type: 'line',
+        source: 'openmaptiles',
+        'source-layer': 'transportation',
+      },
+      {
+        ...boundary,
+        id: 'boundary_state',
+        filter: ['==', ['get', 'admin_level'], 4],
+        paint: { 'line-color': 'hsl(0,0%,21%)', 'line-dasharray': [2, 2] },
+      },
+      {
+        ...boundary,
+        id: 'boundary_country_z0-4',
+        maxzoom: 5,
+        filter: ['all', ['==', ['get', 'admin_level'], 2], ['!', ['has', 'claimed_by']]],
+        paint: { 'line-color': 'hsl(0,0%,23%)' },
+      },
+      {
+        ...boundary,
+        id: 'boundary_country_z5-',
+        minzoom: 5,
+        filter: ['==', ['get', 'admin_level'], 2],
+        paint: { 'line-color': 'hsl(0,0%,23%)' },
+      },
+      {
+        id: 'place_country_major',
+        type: 'symbol',
+        source: 'openmaptiles',
+        'source-layer': 'place',
+        layout: { 'text-field': '{name}' },
+      },
+    ],
+  }
+}
+
+const BORDER_LAYER_IDS = [
+  COUNTRY_BORDER_CASING_LAYER_ID,
+  COUNTRY_BORDER_LAYER_ID,
+  COUNTRY_BORDER_DISPUTED_LAYER_ID,
+]
+
+/** Stilin karo kaynaklarının atıfları (MapLibre şeride, kaynağı kullanan katman görünürken koyar). */
+function sourceAttributions(style: MapStyle): string[] {
+  return Object.values(style.sources).flatMap((source) =>
+    'attribution' in source && typeof source.attribution === 'string' ? [source.attribution] : [],
+  )
+}
+
+describe('ülke sınırları (D-092)', () => {
+  it('uydu stili: OpenFreeMap TileJSON’undan ayrı vektör kaynak, en büyük karo z10, atıf kaynakta', () => {
+    const style = satelliteStyle(satellite.tilesUrl, ESRI_ATTRIBUTION, borders)
+    expect(Object.keys(style.sources)).toEqual([SATELLITE_SOURCE_ID, COUNTRY_BORDER_SOURCE_ID])
+    expect(style.sources[COUNTRY_BORDER_SOURCE_ID]).toEqual({
+      type: 'vector',
+      url: 'https://tiles.openfreemap.org/planet',
+      maxzoom: 10,
+      attribution: OPENFREEMAP_ATTRIBUTION,
+    })
+    expect(OPENFREEMAP_TILEJSON_URL).toBe('https://tiles.openfreemap.org/planet')
+    // Raster kaynak değişmedi; glif ve sprite yine yok (sınır katmanları metin çizmez).
+    expect(style.sources[SATELLITE_SOURCE_ID]).toEqual(
+      satelliteStyle(satellite.tilesUrl, ESRI_ATTRIBUTION, null).sources[SATELLITE_SOURCE_ID],
+    )
+    expect(style).not.toHaveProperty('glyphs')
+    expect(style).not.toHaveProperty('sprite')
+  })
+
+  it('uydu stili: kenar, kesikli ve noktalı katman görüntünün hemen üstünde, boundary süzgeciyle', () => {
+    const style = satelliteStyle(satellite.tilesUrl, ESRI_ATTRIBUTION, borders)
+    expect(style.layers.map((layer) => layer.id)).toEqual([
+      'background',
+      SATELLITE_SOURCE_ID,
+      ...BORDER_LAYER_IDS,
+    ])
+    expect(style.layers.slice(2)).toEqual(countryBorderLayers(COUNTRY_BORDER_SOURCE_ID))
+    for (const layer of style.layers.slice(2)) {
+      expect(layer).toMatchObject({
+        type: 'line',
+        source: COUNTRY_BORDER_SOURCE_ID,
+        'source-layer': 'boundary',
+      })
+      expect(JSON.stringify((layer as { filter?: unknown }).filter)).toContain(
+        JSON.stringify(COUNTRY_BORDER_FILTER),
+      )
+    }
+    const [casing, line, disputed] = style.layers.slice(2) as {
+      paint: Record<string, unknown>
+    }[]
+    expect(casing?.paint).not.toHaveProperty('line-dasharray')
+    expect(casing?.paint['line-opacity']).toBeLessThan(1)
+    expect(line?.paint['line-dasharray']).toEqual(COUNTRY_BORDER_DASH)
+    expect(disputed?.paint['line-dasharray']).toEqual(DISPUTED_BORDER_DASH)
+  })
+
+  it('sıra: sınırlar görüntünün üstünde; havalimanı pinleri, iz ve uçaklar sınırların üstünde', () => {
+    // Denetleyici kendi katmanlarını stil yüklenince `addLayer` ile (beforeId'siz) en üste ekler.
+    const order = [
+      ...satelliteStyle(satellite.tilesUrl, ESRI_ATTRIBUTION, borders).layers.map(
+        (layer) => layer.id,
+      ),
+      ...LIVE_MAP_LAYERS.map((layer) => layer.id),
+    ]
+    const lastBorder = Math.max(...BORDER_LAYER_IDS.map((id) => order.indexOf(id)))
+    const firstBorder = Math.min(...BORDER_LAYER_IDS.map((id) => order.indexOf(id)))
+    expect(firstBorder).toBeGreaterThan(order.indexOf(SATELLITE_SOURCE_ID))
+    for (const id of [AIRPORT_LAYER_ID, TRAIL_LAYER_ID, AIRCRAFT_LAYER_ID]) {
+      expect(order.indexOf(id), id).toBeGreaterThan(lastBorder)
+    }
+  })
+
+  it('atıf: OpenFreeMap/OpenMapTiles/OSM yalnızca sınırlar açıkken; Esri atfı değişmez', () => {
+    const withBorders = sourceAttributions(
+      satelliteStyle(satellite.tilesUrl, ESRI_ATTRIBUTION, borders),
+    )
+    expect(withBorders).toEqual([ESRI_ATTRIBUTION, OPENFREEMAP_ATTRIBUTION])
+    expect(withBorders[1]).toContain('>OpenFreeMap</a> © <a href="https://www.openmaptiles.org/">')
+    expect(withBorders[1]).toContain(
+      'Data from <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+    )
+    const withoutBorders = sourceAttributions(
+      satelliteStyle(satellite.tilesUrl, ESRI_ATTRIBUTION, null),
+    )
+    expect(withoutBorders).toEqual([ESRI_ATTRIBUTION])
+    expect(withoutBorders.join(' ')).not.toContain('OpenStreetMap')
+    // Sınır kaynağını yalnızca sınır katmanları kullanır: atıf, sınırlar çizilirken şeritte durur.
+    const users = satelliteStyle(satellite.tilesUrl, ESRI_ATTRIBUTION, borders).layers.filter(
+      (layer) => (layer as { source?: unknown }).source === COUNTRY_BORDER_SOURCE_ID,
+    )
+    expect(users.map((layer) => layer.id)).toEqual(BORDER_LAYER_IDS)
+  })
+
+  it('adımlar: uydu ve vektör adımlarında sınırlar açık; yerel stil ve düz arka planda kapalı', () => {
+    const satelliteSteps = basemapSteps(
+      { ...satellite, vectorFallbackStyleUrl: 'https://maps.example/protomaps.json' },
+      resolveUrl,
+    )
+    expect(satelliteSteps.map((step) => [step.plain, step.countryBorders])).toEqual([
+      [false, true],
+      [false, true],
+      [false, true],
+      [true, false],
+    ])
+    const vectorSteps = basemapSteps(
+      {
+        kind: 'vector',
+        styleUrl: 'https://tiles.openfreemap.org/styles/dark',
+        fallbackStyleUrl: 'https://tiles.openfreemap.org/styles/liberty',
+        hideRoads: true,
+        attribution: OPENFREEMAP_ATTRIBUTION,
+      },
+      resolveUrl,
+    )
+    expect(vectorSteps.map((step) => step.countryBorders)).toEqual([true, true, false])
+    const localSteps = basemapSteps(
+      resolveMapConfig({
+        API_HOST: 'localhost:4100',
+        MAP_STYLE_URL: 'https://tiles.openfreemap.org/styles/liberty',
+        EXTERNAL_PROVIDERS_DISABLED: true,
+        ESRI_API_KEY: 'key',
+      }).basemap,
+      resolveUrl,
+    )
+    expect(localSteps.map((step) => [step.style, step.countryBorders])).toEqual([
+      ['http://localhost:3100/test-style.json', false],
+      [plainStyle(), false],
+    ])
+  })
+
+  it('OpenFreeMap stili: boundary çizgileri çıkar, bizimkiler ilkinin yerine ve stilin kaynağıyla girer', () => {
+    const original = darkStyle()
+    const result = withCountryBorders(original)
+    expect(result.layers.map((layer) => layer.id)).toEqual([
+      'background',
+      'water',
+      'highway_major_inner',
+      ...BORDER_LAYER_IDS,
+      'place_country_major',
+    ])
+    expect(result.layers.slice(3, 6)).toEqual(countryBorderLayers('openmaptiles'))
+    expect(result.sources).toBe(original.sources)
+    // Uydudakiyle aynı görünüm: kaynak dışında her şey (süzgeç, kesik, kenar, kimlik) aynı.
+    const withoutSource = (layers: readonly object[]) =>
+      layers.map((layer) => ({ ...layer, source: null }))
+    expect(withoutSource(result.layers.slice(3, 6))).toEqual(
+      withoutSource(satelliteStyle(satellite.tilesUrl, ESRI_ATTRIBUTION, borders).layers.slice(2)),
+    )
+    // Girdi değişmez.
+    expect(original.layers).toHaveLength(7)
+    expect(original).toEqual(darkStyle())
+  })
+
+  it('withCountryBorders: boundary katmanı olmayan stil olduğu gibi döner; ikinci uygulama bir şey değiştirmez', () => {
+    const local = testStyle()
+    expect(withCountryBorders(local)).toBe(local)
+    const protomaps: MapStyle = {
+      version: 8,
+      sources: { protomaps: { type: 'vector', url: 'https://maps.example/tiles.json' } },
+      layers: [
+        { id: 'boundaries', type: 'line', source: 'protomaps', 'source-layer': 'boundaries' },
+      ],
+    }
+    expect(withCountryBorders(protomaps)).toBe(protomaps)
+    const once = withCountryBorders(darkStyle())
+    expect(withCountryBorders(once)).toEqual(once)
+  })
+
+  it('yerel test stili: dış kaynak yok, sınır katmanı yok; hazırlık onu değiştirmez', () => {
+    const local = testStyle()
+    expect(local.sources).toEqual({})
+    expect(local.layers.map((layer) => layer.id)).toEqual(['background'])
+    const [localStep] = basemapSteps(
+      resolveMapConfig({
+        API_HOST: 'localhost:4100',
+        MAP_STYLE_URL: '/test-style.json',
+        EXTERNAL_PROVIDERS_DISABLED: true,
+      }).basemap,
+      resolveUrl,
+    )
+    if (!localStep) throw new Error('local step missing')
+    expect(prepareFetchedStyle(local, localStep)).toBe(local)
+    // Sınırlar açık bir adımda bile boundary katmanı olmayan stile kaynak eklenmez.
+    expect(prepareFetchedStyle(local, { ...localStep, countryBorders: true })).toBe(local)
+  })
+
+  it('prepareFetchedStyle: OpenFreeMap yedeğinde sınırlar kesikli olur ve atıf adımınkine döner', () => {
+    const [, fallback] = basemapSteps(satellite, resolveUrl)
+    if (!fallback) throw new Error('fallback step missing')
+    const prepared = prepareFetchedStyle(darkStyle(), fallback)
+    expect(prepared.layers.map((layer) => layer.id)).toContain(COUNTRY_BORDER_LAYER_ID)
+    expect(prepared.layers.map((layer) => layer.id)).not.toContain('boundary_country_z5-')
+    expect(sourceAttributions(prepared)).toEqual([OPENFREEMAP_ATTRIBUTION])
+    // Sınırlar kapalı adımda yalnızca atıf yazılır.
+    const plainPrepared = prepareFetchedStyle(darkStyle(), { ...fallback, countryBorders: false })
+    expect(plainPrepared.layers.map((layer) => layer.id)).toContain('boundary_country_z5-')
   })
 })
 
@@ -262,6 +552,25 @@ describe('BasemapController', () => {
       h.controller.error({})
     }
     expect(h.controller.step).toBe(steps[0])
+  })
+
+  it('uydunun üstündeki sınır kaynağının hataları ve karoları uyduyu değiştirmez (D-092)', () => {
+    // Denetleyicinin haritadaki kuralı: kaynak haritada var ve NON_BASEMAP_SOURCES'ta değil.
+    const present = new Set([SATELLITE_SOURCE_ID, COUNTRY_BORDER_SOURCE_ID, 'hy-aircraft'])
+    const basemapSources = new Set([...present].filter((id) => !NON_BASEMAP_SOURCES.has(id)))
+    expect([...basemapSources]).toEqual([SATELLITE_SOURCE_ID])
+    const h = harness(steps, basemapSources)
+    h.controller.start()
+    h.controller.styleLoaded()
+    // OpenFreeMap kesintisi: TileJSON ve karo hataları kaynak kimliğiyle gelir, sayılmaz.
+    for (let i = 0; i < 5; i++) h.controller.error({ sourceId: COUNTRY_BORDER_SOURCE_ID })
+    expect(h.controller.step).toBe(steps[0])
+    // Sınır karosunun yüklenmesi uydunun ardışık hata sayacını sıfırlamaz.
+    h.controller.error({ sourceId: SATELLITE_SOURCE_ID })
+    h.controller.error({ sourceId: SATELLITE_SOURCE_ID })
+    h.controller.tileLoaded(COUNTRY_BORDER_SOURCE_ID)
+    h.controller.error({ sourceId: SATELLITE_SOURCE_ID })
+    expect(h.controller.step).toBe(steps[1])
   })
 
   it('son adım düz arka plandır: şerit açılır, sonraki hatalar yok sayılır', () => {

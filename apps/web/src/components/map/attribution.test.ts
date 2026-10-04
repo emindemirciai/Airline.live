@@ -1,10 +1,10 @@
 import { getMessages } from '@havayolu/i18n'
-import { currentVersion } from '@havayolu/shared'
+import { currentVersion, LOCALES } from '@havayolu/shared'
 import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
 import { localePath } from '../../lib/locale-routing'
-import { DATA_ATTRIBUTION } from '../../lib/map-config'
+import { DATA_ATTRIBUTION, ESRI_ATTRIBUTION, OPENFREEMAP_ATTRIBUTION } from '../../lib/map-config'
 import { TERMS_PATH } from '../../lib/terms'
 import {
   ATTRIBUTION_INNER_SELECTOR,
@@ -55,6 +55,36 @@ describe('mapCustomAttributionHtml', () => {
       `<a href="/en/kullanim-kosullari">${termsLink}</a>`,
     )
     expect(termsLinkHtml('x', '/a"b')).toBe('<a href="/a&quot;b">x</a>')
+  })
+
+  /**
+   * MapLibre (`AttributionControl._updateAttributions`) girdileri ham HTML uzunluğuna göre,
+   * kısadan uzuna sıralar. D-089 ve D-092 şerit sırasını bu uzunluklara dayanarak belgeler:
+   * uyduda Esri, OpenFreeMap, canlı veri; koyu stilde OpenFreeMap, canlı veri; iki dilde de aynı.
+   * Metinlerden biri değişip sıra kayarsa bu test belgeleri güncellemeyi hatırlatır.
+   */
+  it('canlı veri girdisi iki dilde de altlık atıflarından uzundur: şeridin sonundadır (D-089, D-092)', () => {
+    const mapLibreOrder = (entries: string[]) => [...entries].sort((a, b) => a.length - b.length)
+    for (const locale of LOCALES) {
+      const { dataAttributionPrefix, termsLink } = getMessages(locale).map
+      const live = mapCustomAttributionHtml(
+        DATA_ATTRIBUTION,
+        dataAttributionPrefix,
+        termsLink,
+        localePath(locale, TERMS_PATH),
+      )
+      expect(ESRI_ATTRIBUTION.length).toBeLessThan(OPENFREEMAP_ATTRIBUTION.length)
+      expect(OPENFREEMAP_ATTRIBUTION.length).toBeLessThan(live.length)
+      expect(mapLibreOrder([live, OPENFREEMAP_ATTRIBUTION, ESRI_ATTRIBUTION])).toEqual([
+        ESRI_ATTRIBUTION,
+        OPENFREEMAP_ATTRIBUTION,
+        live,
+      ])
+      expect(mapLibreOrder([live, OPENFREEMAP_ATTRIBUTION])).toEqual([
+        OPENFREEMAP_ATTRIBUTION,
+        live,
+      ])
+    }
   })
 })
 

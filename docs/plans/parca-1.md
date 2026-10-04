@@ -29,7 +29,8 @@ Durumlar: `[ ]` başlamadı, `[~]` sürüyor, `[k]` kod bitti ve kullanıcı do�
 | M6k | Uçak listesi sağ üstte: sefer, kuyruk, yükseklik, konum ve durum | `p1/m6k-aircraft-list` | [k] kod bitti; üretimde listenin ve durumların görülmesi bekliyor (ACTIVATION) | #23 |
 | M6e.3 | Derecelendirilmiş rüzgâr renkleri (yama, v0.16.1) | `p1/m6e3-wind-scale` | [x] tamam; üretimde doğrulandı (2026-10-04, v0.16.1): LTFM, LTBA, LGAV kehribar, LTAC sarı, UGTB yeşil-sarı, LTAI yeşil | #24 |
 | M6g | Türkiye dışındaki havalimanları, 2. halka (≤ 1.000 km); haritanın atıf şeridinde site künyesi | `p1/m6g-ring2` | [k] kod bitti; üretimde 225 havalimanı ve HEBA hava durumunun görülmesi bekliyor (ACTIVATION) | #25 |
-| M6e.4 | Yeniliklerde yayın tarihi ve saati (yama, v0.17.1) | `p1/changelog-time` | [k] kod bitti; üretimde yayın saatinin görülmesi bekliyor | #26 |
+| M6e.4 | Yeniliklerde yayın tarihi ve saati (yama, v0.17.1) | `p1/changelog-time` | [x] tamam; üretimde doğrulandı (2026-10-04, v0.17.1): /yenilikler v0.17.1 "4 Ekim 2026, 21:36 (Türkiye saati)" (sunucunun açılışı), v0.17.0 20:27 | #26 |
+| M6e.5 | Haritada kesikli ülke sınırları (yama, v0.17.2) | `p1/map-borders` | [k] kod bitti; üretimde sınırların görülmesi bekliyor (ACTIVATION) | #27 |
 | M6h | 3. halka (≤ 2.000 km) — kullanıcı isteğiyle M7a'nın önüne alındı (2026-10-04) | `p1/m6h-ring3` | [ ] | — |
 | M7a | Canlı araçlar: `smoke:live`, `record` | `p1/m7a-live-tools` | [ ] | — |
 | M7b | Kapsama ölçümü ve raporu (`coverage:probe`, `coverage:report`) | `p1/m7b-coverage` | [ ] | — |
@@ -1032,6 +1033,44 @@ Hedef sürüm 0.17.1 (`main` `fb6e0cc` = v0.17.0'dan). Karar D-091'dedir.
 - `pnpm dev` önizlemesi: v0.17.0'ın `releasedAt`'ı geçici olarak silinince kart sunucunun açılış anını gösterdi ("4 Ekim 2026, 20:58 (TSİ)", `datetime` 17:58:06Z; ilk istekten ~8 sn önce, TR ve EN'de ve yeniden yüklemede aynı); geri konunca "4 Ekim 2026, 20:27 (TSİ)". Hidrasyon uyarısı yok.
 
 - **Yayın adımı (2026-10-04):** Türkçe dilim etiketi "TSİ" yerine açık "Türkiye saati" (web-ui kuralı: sade görünümde kısaltma yok). Bağımsız denetim: 25 sürümün saati GitHub kayıtlarıyla birebir, 8 mutasyonun hepsi yakalandı. **`pnpm ci:full` → yeşil:** birim testleri web 745, shared 624, api 255, worker 200, providers 121, i18n 97, tools 74, db 47, geo 36, scripts 39; entegrasyon db 83, api 26, worker 12; E2E 120/120. `pnpm stats` → 554 dosya, 101.595 satır (92.544 kod).
+
+## M6e.5 — Ülke sınırları (v0.17.2)
+Onay: 2026-10-04 (kullanıcı isteği: "haritada ülke sınırları kesikli kesikli çizgilerle belirgin olmalı."; yama sürümü, D-082)
+
+Hedef sürüm 0.17.2 (`main` `fb6e0cc` = v0.17.0'dan; v0.17.1 ayrı yamadadır). Karar D-092'dedir.
+
+**Kapsam:**
+- **Uydu:** Esri görüntüsünün üstüne OpenFreeMap'in vektör karolarından (TileJSON `https://tiles.openfreemap.org/planet`, kaynak `hy-country-borders`, `maxzoom` 10) kesikli ülke sınırları. Katman `boundary`; süzgeç `admin_level = 2`, `maritime ≠ 1`, `claimed_by` yok.
+- **Görünüm:** beyaz kesikli çizgi (`[2, 3]` yuvarlak uçla, görünen 3:2; z3 1 px → z10+ 2,25 px), altında #0B2A33 0,6 saydamlıkta düz kenar (çizgiden 2–2,5 px geniş). Tartışmalı sınır (`disputed = 1`) aynı renk ve kenarla noktalı. Her yakınlaştırmada; görüntünün üstünde, pin, iz ve uçakların altında.
+- **Koyu stil** (uydunun yedeği ve anahtarsız altlık): indirilen stilin `boundary` çizgi katmanları (ülke ve il) çıkar, aynı üç katman stilin kaynağıyla ilk sınır katmanının yerine (yer adlarının altına) girer.
+- **Yerel test stili:** dokunulmaz; sınır kaynağı yok, dış istek yok.
+- **Atıf:** sınırlar çizilirken şeritte "OpenFreeMap © OpenMapTiles Data from OpenStreetMap" (sınır kaynağının atfı); künye ilk sırada (D-089), Esri ve ADSB.lol metinleri değişmez. `/hakkinda` ve `/kullanim-kosullari` harita kaynağı cümleleri uydudaki sınırları da anar.
+- **Hata:** sınır kaynağının TileJSON ve karo hataları altlık zincirine sayılmaz; OpenFreeMap kesintisinde uydu kalır.
+
+**Dosyalar:**
+- `packages/shared/src/map/borders.ts` (yeni: kaynak ve katman kimlikleri, `COUNTRY_BORDER_FILTER`, kesikler, kalınlıklar, `countryBorderLayers`, `countryBorderSource`, `COUNTRY_BORDER_SOURCE_MAX_ZOOM`), `layers.ts` (tipler: `source-layer`, `filter`, `line-dasharray`, süzgeç ifadeleri), `colors.ts` (`border`, `borderCasing`), `index.ts`; `borders.test.ts`
+- `apps/web/src/lib/map-config.ts` (`OPENFREEMAP_TILEJSON_URL`, `CountryBorders`, uydu altlığında `countryBorders`); `map-config.test.ts`
+- `apps/web/src/components/map/basemap.ts` (`satelliteStyle(…, borders)`, `withCountryBorders`, `prepareFetchedStyle`, `BasemapStep.countryBorders`, `NON_BASEMAP_SOURCES`), `map-controller.ts` (hazırlık ve hata kaynağı kuralı); `basemap.test.ts`, `attribution.test.ts` (şerit sırası)
+- `packages/i18n/src/messages/{tr,en}.ts` (`about.sources.vector`, `terms.map.vector`)
+- `packages/providers/src/license.ts` (açıklama), `license.test.ts`
+- `e2e/tests/live-map.spec.ts` (yerel stilde sınır kaynağı ve OpenFreeMap isteği yok, atıfta OSM yok)
+- Belgeler: D-092, `docs/spec/data-sources.md` §6 (sınır katmanı, istek hacmi, 7 alanlı lisans kaydı), `docs/REFERENCES.md` (OpenFreeMap ve OpenMapTiles belgeleri), `ATTRIBUTION.md`, `docs/ACTIVATION.md` ("M6e.5 yayın doğrulaması")
+
+**Kabul komutları:**
+- `pnpm --filter @havayolu/shared test` → katman sırası ve kimlikler, süzgeç (kara/deniz/il/iddia/tartışmalı), görünen kesik 3:2 ve nokta, kenar ≥ 2 px geniş ve yarı saydam, kalınlık z3 1 px → z10+ 2–2,5 px, kaynak `maxzoom` 10
+- `pnpm --filter @havayolu/web test` → uydu stilinde sınır kaynağı (TileJSON, z10, atıf) ve katmanlar görüntünün üstünde, canlı katmanların altında; OSM atfı yalnızca sınırlar açıkken; adım bayrakları (uydu ve vektör açık, yerel ve düz kapalı); koyu stilde `boundary` katmanlarının yerine aynı katmanlar; test stili ve Protomaps şeması değişmez; sınır kaynağının hataları uyduyu değiştirmez; yapılandırmada TileJSON adresi; MapLibre'nin uzunluk sıralamasıyla şerit iki dilde de Esri, OpenFreeMap, canlı veri (koyu stilde OpenFreeMap, canlı veri)
+- `pnpm --filter @havayolu/providers test`, `pnpm --filter @havayolu/i18n test`
+- `pnpm typecheck`, `pnpm lint`, `pnpm typecheck:e2e`, `pnpm lint:e2e`, `pnpm format`, `pnpm check:eol`
+- `pnpm test:e2e` → `live-map.spec.ts` ilk test: `/test-style.json` istendi, OpenFreeMap/`.pbf`/`/planet` isteği yok, atıfta OpenStreetMap ve OpenMapTiles yok
+- `pnpm ci:full` yeşil; PR'da CI (`e2e` dahil) yeşil
+- **Kullanıcıya bağlı (`[k]`):** yayından sonra üretimde sınırların görünümü, atıf şeridi, istek ve bayt hacmi (ACTIVATION → "M6e.5 yayın doğrulaması")
+
+**Çıktı kaydı (2026-10-04, uygulama; sürüm, changelog ve README yayın adımındadır; e2e ve `ci:full` bu adımda çalıştırılmadı, sunucu açılmadı):**
+- Birim testleri: `@havayolu/shared` 625 (+9, `borders.test.ts`), `@havayolu/web` 748 (+12: `basemap.test.ts` +10, `map-config.test.ts` +1, `attribution.test.ts` +1: şerit sırası iki dilde), `@havayolu/providers` 122 (+1), `@havayolu/i18n` 96.
+- Stil denetimi (geçici betik, MapLibre style-spec 26.4.4 `validateStyleMin`): sınırlı uydu stili, sınırları çevrilmiş koyu stil ve düz stil 0 hata. Süzgeçler aynı kütüphanenin `featureFilter`'ıyla: kara sınırı (`maritime` 0 ya da yok) kenar + kesikli; tartışmalı kenar + noktalı; deniz, il ve `claimed_by` çizgisi hiçbir katmanda.
+- `pnpm typecheck` (9/9), `pnpm lint` (9/9), `pnpm typecheck:e2e`, `pnpm lint:e2e`, `pnpm format`, `pnpm check:eol` → yeşil.
+
+- **Yayın adımı (2026-10-04):** dal v0.17.1 ile birleştirildi; v0.17.1 `releasedAt` 2026-10-04T18:36:55Z (GitHub Release). **`pnpm ci:full` → yeşil:** birim testleri web 757, shared 633, api 255, worker 200, providers 122, i18n 97, tools 74, db 47, geo 36, scripts 39; entegrasyon db 83, api 26, worker 12; E2E 120/120. `pnpm stats` → 556 dosya, 102.656 satır (93.466 kod).
 
 ## M7 — Canlı araçlar ve kapsama raporu
 Ayrıntılar `docs/prompts/parca-1.md`'dedir. Başlarken bu dosyaya dizinler ve kabul komutları eklenir.
