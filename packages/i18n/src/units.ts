@@ -148,14 +148,19 @@ export function formatVerticalRate(fpm: number | null, opts?: UnitOptions): stri
 
 /**
  * Yatay mesafe (km girdi). 10'un altında bir ondalık ("6,0 km", "3,2 NM"), üstünde tam sayı;
- * yuvarlama 10'a ulaşırsa tam sayı yazılır (9,96 km → "10 km").
+ * yuvarlama 10'a ulaşırsa tam sayı yazılır (9,96 km → "10 km"). `nowrap` sayı ile birimi bölünmez
+ * boşlukla birleştirir (`formatAltitude` gibi; uçak listesinin konum sütunu, D-085).
  */
-export function formatDistance(km: number | null, opts?: UnitOptions): string {
+export function formatDistance(
+  km: number | null,
+  opts?: UnitOptions & { nowrap?: boolean },
+): string {
   const { units, locale } = resolve(opts)
   if (!known(km)) return NO_VALUE
   const value = units === 'metric' ? km : km / KM_PER_NM
   const digits: FractionDigits = Math.round(Math.abs(value) * 10) / 10 < 10 ? 1 : 0
-  return `${formatNumber(value, locale, digits, 'negative')} ${LABELS[locale].distance[units]}`
+  const space = opts?.nowrap ? NBSP : ' '
+  return `${formatNumber(value, locale, digits, 'negative')}${space}${LABELS[locale].distance[units]}`
 }
 
 /**

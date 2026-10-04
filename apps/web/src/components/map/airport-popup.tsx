@@ -21,8 +21,9 @@ import {
 } from './airport-popup-model'
 import type { MapViewHandle } from './map-view'
 import type { ScreenPoint } from './map-controller'
-import { placePopup } from './popup-placement'
+import { placePopup, type PopupRect } from './popup-placement'
 import type { BulkWeatherState } from './use-airport-weather'
+import { MAP_PANEL_SELECTOR } from './use-map-panels'
 
 export interface AirportPopupProps {
   airport: MapAirport
@@ -78,6 +79,9 @@ function focusPlaceIn(root: HTMLElement | null): FocusPlace {
  *   yüklenmesi ve hatası ekran okuyucuya kibarca bildirilir (`role="status"`).
  * - Geniş ekranda pencere noktanın yanında durur ve harita kaydıkça onunla gider: yer, React dışında
  *   harita her çizildiğinde (`trackPoint`) hesaplanır ve doğrudan stile yazılır.
+ * - Geniş ekranda pencere uçak listesini, arama kutusunu ve sağ alttaki düğmeleri örtmeyen yanı seçer
+ *   (D-085; `data-map-panel` taşıyan kapsayıcılar, live-map.tsx). Panellerin yeri her karede
+ *   ölçülmez: boyutları değişince (`ResizeObserver`) yenilenir.
  */
 export function AirportPopup({
   airport,
@@ -145,12 +149,33 @@ export function AirportPopup({
     root.dataset.placed = 'false'
     let anchor: ScreenPoint | null = null
     let last = ''
+    // Kaçınılacak paneller (uçak listesi, arama, sağ alttaki düğmeler), pencere katmanına göre.
+    const avoidElements = [
+      ...(layer.closest('.live-map')?.querySelectorAll<HTMLElement>(MAP_PANEL_SELECTOR) ?? []),
+    ]
+    let avoid: PopupRect[] = []
+    const measureAvoid = () => {
+      const origin = layer.getBoundingClientRect()
+      avoid = avoidElements.flatMap((element) => {
+        const box = element.getBoundingClientRect()
+        if (box.width === 0 || box.height === 0) return []
+        return [
+          {
+            left: box.left - origin.left,
+            top: box.top - origin.top,
+            width: box.width,
+            height: box.height,
+          },
+        ]
+      })
+    }
     const place = () => {
       if (!anchor) return
       const placement = placePopup({
         anchor,
         size: { width: root.offsetWidth, height: root.offsetHeight },
         view: { width: layer.clientWidth, height: layer.clientHeight },
+        avoid,
       })
       const transform = `translate(${placement.left}px, ${placement.top}px)`
       if (transform !== last) {
@@ -160,13 +185,18 @@ export function AirportPopup({
       }
       root.dataset.placed = 'true'
     }
+    measureAvoid()
     const stop = mapRef.current?.trackPoint({ lat: airport.lat, lon: airport.lon }, (point) => {
       anchor = point
       place()
     })
-    const observer = new ResizeObserver(place)
+    const observer = new ResizeObserver(() => {
+      measureAvoid()
+      place()
+    })
     observer.observe(root)
     observer.observe(layer)
+    for (const element of avoidElements) observer.observe(element)
     return () => {
       stop?.()
       observer.disconnect()

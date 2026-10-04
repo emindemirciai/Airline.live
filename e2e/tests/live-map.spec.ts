@@ -1,13 +1,23 @@
 // Canlı harita (Parça 1 M6) kabul akışı: harita IST/LTFM merkezli açılır (D-079) → yaklaşmadaki
-// replay uçağı tabloda görünür ve konumu değişir → satıra tıklayınca bilgi kartı açılır → arama
-// (her yerdeki) uçağı bulur → /?hex= ile doğrudan açılış aynı uçağı seçer → etiket ayarı (uçaklar ve
-// havalimanları, D-084) cihazda saklanır. Tablo, haritanın erişilebilir karşılığıdır; testler
-// uçakları WebGL tuvalinden değil tablodan okur. Havalimanı kutuları etiket tuvalinin
-// piksellerinden okunur (`e2e/label-canvas.ts`).
+// replay uçağı tabloda görünür ve yüksekliği değişir → liste sağ üsttedir; sütunlar, tahmini
+// durumlar ve daraltmanın saklanması (D-085) → satıra tıklayınca bilgi kartı solda açılır, tablette
+// seçili uçağın etiketi ve simgesi listenin altında kalmaz → arama (her yerdeki) uçağı bulur →
+// /?hex= ile doğrudan açılış aynı uçağı seçer → etiket ayarı (uçaklar ve havalimanları, D-084)
+// cihazda saklanır. Tablo, haritanın erişilebilir karşılığıdır; testler uçakları WebGL tuvalinden
+// değil tablodan okur. Havalimanı kutuları ve seçili etiket etiket tuvalinin piksellerinden okunur
+// (`e2e/label-canvas.ts`).
 import { expect, test, type Locator, type Page } from '@playwright/test'
-import { canvasChips, CODE_CHIP_MAX_WIDTH, mapCenter, paintedPixels } from '../label-canvas'
 import {
+  canvasChips,
+  CODE_CHIP_MAX_WIDTH,
+  mapCenter,
+  paintedPixels,
+  selectedLabelPixels,
+} from '../label-canvas'
+import {
+  AIRCRAFT_LIST_KEY,
   aircraftRow,
+  aircraftTable,
   airportListCodes,
   APPROACH_AIRCRAFT,
   declineAnalytics,
@@ -33,7 +43,7 @@ test.beforeEach(async ({ context }) => {
   await declineAnalytics(context)
 })
 
-test('harita IST/LTFM merkezli açılır, atıflar görünür, replay uçağı tabloda konumunu günceller', async ({
+test('harita IST/LTFM merkezli açılır, atıflar görünür, replay uçağı tabloda yüksekliğini günceller', async ({
   page,
 }) => {
   await openMap(page)
@@ -54,16 +64,141 @@ test('harita IST/LTFM merkezli açılır, atıflar görünür, replay uçağı t
 
   const row = aircraftRow(page, near.hex)
   await expect(row).toBeVisible({ timeout: 30_000 })
-  // Konum sütunu en sondadır: "enlem, boylam", 3 ondalık (~100 m); uçak ~230 m/sn gider.
-  const position = row.locator('td').last()
-  await expect(position).toHaveText(/-?\d+[.,]\d{3}/)
-  const first = (await position.textContent())?.trim()
+  // Sütunlar Sefer, Kuyruk, Yükseklik, Konum ve durum (D-085). Yaklaşmadaki uçak ~15 ft/sn alçalır,
+  // yükseklik 25 ft adımla ~1,7 sn'de bir değişir; konum IST'ye göre yazılır.
+  const altitude = row.locator('td').nth(1)
+  await expect(altitude).toHaveText(/\d/)
+  await expect(row.locator('td.map-table__place')).toContainText('IST')
+  const first = (await altitude.textContent())?.trim()
   await expect
-    .poll(async () => (await position.textContent())?.trim(), { timeout: 6_000, intervals: [500] })
+    .poll(async () => (await altitude.textContent())?.trim(), { timeout: 6_000, intervals: [500] })
     .not.toBe(first)
 })
 
-test('satıra tıklayınca bilgi kartı açılır; seçim adrese yazılır, kart kapanınca silinir', async ({
+test('uçak listesi sağ üstte; Sefer, Kuyruk, Yükseklik, Konum ve durum; durumlar; daraltma cihazda saklanır (1280, D-085)', async ({
+  page,
+}) => {
+  // İki sayfa yüklemesi (açılış ve yenileme): her yükleme bir WebSocket el sıkışmasıdır.
+  await openMap(page)
+  const table = aircraftTable(page)
+  const taxi = aircraftRow(page, TAXI_AIRCRAFT.hex)
+  const approach = aircraftRow(page, APPROACH_AIRCRAFT.hex)
+  await expect(taxi).toBeVisible({ timeout: 30_000 })
+  await expect(approach).toBeVisible({ timeout: 30_000 })
+
+  // Dört sütun; "Kuyruk"un erişilebilir adı "Kuyruk tescili"dir. Tip ve Hız listede yoktur.
+  await expect(table.locator('thead th')).toHaveCount(4)
+  for (const name of ['Sefer', 'Kuyruk tescili', 'Yükseklik', 'Konum ve durum']) {
+    await expect(table.getByRole('columnheader', { name, exact: true })).toHaveCount(1)
+  }
+  await expect(table.getByRole('columnheader', { name: 'Tip', exact: true })).toHaveCount(0)
+  await expect(table.getByRole('columnheader', { name: 'Hız', exact: true })).toHaveCount(0)
+
+  // HYS092 LTFM'de taksi yapar: "Yerde", IST; kuyruk tescili görünür.
+  await expect(taxi.locator('td').first()).toHaveText('TC-SYN92')
+  const taxiPlace = taxi.locator('td.map-table__place')
+  await expect(taxiPlace).toHaveAttribute('data-phase', 'onGround', { timeout: 15_000 })
+  await expect(taxiPlace.locator('.map-table__phase')).toHaveText('Yerde')
+  await expect(taxiPlace).toContainText('IST')
+  // HYS091 35L'ye son yaklaşmadadır: duvar saatine göre "Yaklaşmada" ya da "İnişte", hep IST.
+  const approachPlace = approach.locator('td.map-table__place')
+  await expect(approachPlace).toHaveAttribute('data-phase', /^(approaching|landing)$/, {
+    timeout: 15_000,
+  })
+  await expect(approachPlace.locator('.map-table__phase')).toHaveText(/^(Yaklaşmada|İnişte)$/)
+  await expect(approachPlace).toContainText('IST')
+  // Seyirdeki uçaklar (35.000 ft) yoldadır: rozet yok, yalnızca konum.
+  const cruise = await table
+    .locator('tbody tr[data-hex^="ff000"] td.map-table__place')
+    .evaluateAll((cells) =>
+      cells.map((cell) => ({
+        phase: cell.getAttribute('data-phase'),
+        badge: cell.querySelector('.map-table__phase') !== null,
+      })),
+    )
+  for (const cell of cruise) expect(cell).toEqual({ phase: 'enRoute', badge: false })
+
+  // Yer: haritanın sağ üstünde 12 px kenarla; alt kenarı haritanın ortasının en az 12 px üstünde;
+  // arama, durum şeridi, sağ alttaki düğmeler ve atıfla çakışmaz.
+  const layout = await listLayout(page)
+  expect(layout).not.toBeNull()
+  if (!layout) return
+  const { map, list } = layout
+  expect(Math.abs(list.top - map.top - 12)).toBeLessThanOrEqual(2)
+  expect(Math.abs(map.right - list.right - 12)).toBeLessThanOrEqual(2)
+  expect(list.bottom - map.top).toBeLessThanOrEqual(map.height / 2 - 12 + 1)
+  expect(layout.overlaps).toEqual([])
+
+  // Daraltma: tablo gizlenir, hâl cihazda saklanır ve yenilemede kalır; açınca yeniden yazılır.
+  const toggle = page.locator('.live-map__table .map-table__toggle')
+  const stored = () => page.evaluate((key) => window.localStorage.getItem(key), AIRCRAFT_LIST_KEY)
+  await expect(toggle).toHaveAttribute('aria-expanded', 'true')
+  await expect(toggle).toHaveAccessibleName('Uçak listesini gizle')
+  await toggle.click()
+  await expect(toggle).toHaveAttribute('aria-expanded', 'false')
+  await expect(toggle).toHaveAccessibleName('Uçak listesini göster')
+  await expect(table).toBeHidden()
+  await expect.poll(stored).toBe('closed')
+  // Daraltılmış liste yalnızca başlık düğmesidir: sağ üstte kalır, eskisinden dardır.
+  const collapsed = await listLayout(page)
+  expect(collapsed?.list.width ?? Infinity).toBeLessThan(list.width)
+  expect(
+    Math.abs((collapsed?.map.right ?? 0) - (collapsed?.list.right ?? 0) - 12),
+  ).toBeLessThanOrEqual(2)
+
+  await page.reload()
+  await waitForMap(page)
+  await expect(toggle).toHaveAttribute('aria-expanded', 'false')
+  await expect(table).toBeHidden()
+  expect(await stored()).toBe('closed')
+  await toggle.click()
+  await expect(toggle).toHaveAttribute('aria-expanded', 'true')
+  await expect(table).toBeVisible()
+  await expect.poll(stored).toBe('open')
+})
+
+test('havalimanı penceresi uçak listesinin altında kalmaz (1280, D-085)', async ({ page }) => {
+  // IST haritanın ortasındadır; pencerenin olağan yeri (sağ) sağ üstteki listeyi örterdi.
+  await page.goto(`/?havalimani=${PRIMARY_AIRPORT.icao}`)
+  await waitForMap(page)
+  const toggle = page.getByRole('button', { name: 'Havalimanları', exact: true })
+  const item = page.getByRole('button', { name: new RegExp(`^${PRIMARY_AIRPORT.iata}\\b`) })
+  await expect(async () => {
+    if ((await toggle.getAttribute('aria-expanded')) === 'true') await toggle.click()
+    await toggle.click()
+    await item.click({ timeout: 2_000 })
+  }).toPass({ timeout: 15_000 })
+  const popup = page.locator(
+    `.live-map [role="dialog"].map-popup[data-icao="${PRIMARY_AIRPORT.icao}"]`,
+  )
+  await expect(popup).toBeVisible()
+  await expect(popup).toHaveAttribute('data-placed', 'true')
+  await expect(page.locator('.live-map__table .map-table__toggle')).toHaveAttribute(
+    'aria-expanded',
+    'true',
+  )
+  // Harita IST'ye uçarken pencere de kayar; yerleşince listeyle çakışmaz (hangi yan seçilirse
+  // seçilsin geçerli: sağ yan listeyi örterdi, sol yan örtmez).
+  await expect
+    .poll(
+      () =>
+        popup.evaluate((element) => {
+          const box = element.getBoundingClientRect()
+          const list = document.querySelector('.live-map__table')?.getBoundingClientRect()
+          if (!list) return 'liste yok'
+          const overlaps =
+            box.left < list.right &&
+            list.left < box.right &&
+            box.top < list.bottom &&
+            list.top < box.bottom
+          return overlaps ? `çakışıyor (${element.getAttribute('data-side') ?? '?'})` : 'ayrı'
+        }),
+      { timeout: 10_000 },
+    )
+    .toBe('ayrı')
+})
+
+test('satıra tıklayınca bilgi kartı açılır; tablette seçili uçak listenin altında kalmaz; seçim adrese yazılır, kart kapanınca silinir (D-085)', async ({
   page,
 }) => {
   await openMap(page)
@@ -75,6 +210,54 @@ test('satıra tıklayınca bilgi kartı açılır; seçim adrese yazılır, kart
   await expect(card).toBeVisible()
   await expect(card).toContainText(near.callsign)
   await expect(row).toHaveAttribute('aria-selected', 'true')
+  // Kart solda, aramanın altındadır (D-085); sağ üstteki liste açık kalır ve kartla çakışmaz.
+  const cardBox = await card.boundingBox()
+  const searchBox = await page.locator('.live-map__search').boundingBox()
+  const listBox = await page.locator('.live-map__table').boundingBox()
+  expect(cardBox && searchBox && listBox).toBeTruthy()
+  if (cardBox && searchBox && listBox) {
+    expect(cardBox.x).toBeLessThan(400)
+    expect(cardBox.y).toBeGreaterThanOrEqual(searchBox.y + searchBox.height)
+    expect(cardBox.x + cardBox.width).toBeLessThanOrEqual(listBox.x)
+  }
+
+  // Tablet genişliğinde (D-085): satıra tıklamak uçağı ortalar (768 px'te kartın sağındaki bölgenin
+  // ortasına) ve 768–1180 px'te liste o sütuna uzanır. Seçili etiket listenin altında kalmaz, başka
+  // konuma geçer; 960 px'in altında liste dolu olsa da ortalanan simgenin (52 px) üstünde biter.
+  // Aynı sayfada boyut değişir (yeni WebSocket el sıkışması yok). Replay'de satır azdır: liste dolu
+  // (50 satır) gibi en yüksek boyuna zorlanır; kapsayıcısı `max-height` ile sınırlıdır.
+  const fillList = (minHeight: string) =>
+    page.locator('.live-map__table .map-table').evaluate((element, value) => {
+      ;(element as HTMLElement).style.minHeight = value
+    }, minHeight)
+  await fillList('200vh')
+  for (const size of [
+    { width: 1024, height: 768 },
+    { width: 768, height: 1024 },
+  ]) {
+    await page.setViewportSize(size)
+    await expect
+      .poll(
+        async () => {
+          const { total, under } = await selectedLabelPixels(page, '.live-map__table')
+          return total === 0 ? 'etiket yok' : `${under} piksel listenin altında`
+        },
+        { timeout: 10_000 },
+      )
+      .toBe('0 piksel listenin altında')
+    const centre = await mapCenter(page)
+    const list = await page.locator('.live-map__table').boundingBox()
+    expect(list).not.toBeNull()
+    if (!list) continue
+    if (size.width === 1024) {
+      // Kart haritanın ortasına uzanmaz (pay yok): simge listenin solunda kalır.
+      expect(list.x).toBeGreaterThanOrEqual(centre.x + 26)
+    } else {
+      // Liste ortadaki sütunu kaplar: alt kenarı ortalanan simgenin üstünde biter.
+      expect(list.y + list.height).toBeLessThanOrEqual(centre.y - 26)
+    }
+  }
+  await fillList('')
   await expect(page).toHaveURL(hexParam(near.hex))
   await expect(card.getByRole('button', { name: 'Uçağı ortala' })).toHaveAttribute(
     'aria-pressed',
@@ -303,7 +486,9 @@ test.describe('arama kutusunun ipucu kesilmez', () => {
 test.describe('telefon genişliği', () => {
   test.use({ viewport: { width: 375, height: 812 } })
 
-  test('sayfa yatay kaymaz; arama ve atıf erişilebilir; harita IST’de açılır', async ({ page }) => {
+  test('sayfa yatay kaymaz; arama ve atıf erişilebilir; harita IST’de açılır; uçak listesi sol altta, kapalı başlar', async ({
+    page,
+  }) => {
     await openMap(page)
     expect((await airportListCodes(page))[0]).toBe(PRIMARY_AIRPORT.iata)
     await expect(page.getByRole('search').getByRole('searchbox')).toBeVisible()
@@ -312,6 +497,28 @@ test.describe('telefon genişliği', () => {
       () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
     )
     expect(overflow).toBeLessThanOrEqual(0)
+
+    // Telefonda liste sol alttaki düğmeyle açılır ve her açılışta kapalı başlar (D-085).
+    const toggle = page.getByRole('button', { name: 'Uçak listesini göster' })
+    await expect(toggle).toHaveAttribute('aria-expanded', 'false')
+    await expect(aircraftTable(page)).toBeHidden()
+    await toggle.click()
+    const hide = page.getByRole('button', { name: 'Uçak listesini gizle' })
+    await expect(hide).toHaveAttribute('aria-expanded', 'true')
+    await expect(aircraftRow(page, TAXI_AIRCRAFT.hex)).toBeVisible({ timeout: 30_000 })
+    await expect(aircraftTable(page).locator('thead th')).toHaveCount(4)
+    // Liste atıf satırının üstündedir; dört sütun yana kaymadan sığar (konum sütunu kırılır).
+    const fit = await page.evaluate(() => {
+      const list = document.querySelector('.live-map__table')?.getBoundingClientRect()
+      const attrib = document.querySelector('.maplibregl-ctrl-attrib')?.getBoundingClientRect()
+      const body = document.querySelector('.live-map__table .map-table__body')
+      return {
+        aboveAttribution: list && attrib ? list.bottom <= attrib.top + 1 : false,
+        bodyOverflow: body ? body.scrollWidth - body.clientWidth : Infinity,
+        pageOverflow: document.documentElement.scrollWidth - document.documentElement.clientWidth,
+      }
+    })
+    expect(fit).toEqual({ aboveAttribution: true, bodyOverflow: 0, pageOverflow: 0 })
   })
 })
 
@@ -405,5 +612,57 @@ async function unreachableParts(panel: Locator): Promise<string[]> {
     if (scrolled !== 0) failures.push(`sayfa kaydı ${scrolled}`)
     root.scrollTop = 0
     return failures
+  })
+}
+
+interface Box {
+  top: number
+  right: number
+  bottom: number
+  left: number
+  width: number
+  height: number
+}
+
+/**
+ * Uçak listesinin (`.live-map__table`) ve haritanın kutusu, CSS px; listeyle çakışan paneller (arama,
+ * durum şeridi, sağ alttaki düğmeler, atıf). Boş (sıfır boyutlu) panel çakışmaz.
+ */
+async function listLayout(page: Page): Promise<{ map: Box; list: Box; overlaps: string[] } | null> {
+  return page.evaluate(() => {
+    const box = (selector: string) => {
+      const r = document.querySelector(selector)?.getBoundingClientRect()
+      return r
+        ? {
+            top: r.top,
+            right: r.right,
+            bottom: r.bottom,
+            left: r.left,
+            width: r.width,
+            height: r.height,
+          }
+        : null
+    }
+    const map = box('.live-map')
+    const list = box('.live-map__table')
+    if (!map || !list) return null
+    const overlaps = [
+      '.live-map__search',
+      '.live-map__status',
+      '.live-map__controls',
+      '.maplibregl-ctrl-attrib',
+    ].filter((selector) => {
+      const other = box(selector)
+      return (
+        other !== null &&
+        other.width > 0 &&
+        other.height > 0 &&
+        list.left < other.right &&
+        other.left < list.right &&
+        list.top < other.bottom &&
+        other.top < list.bottom
+      )
+    })
+    return { map, list, overlaps }
   })
 }

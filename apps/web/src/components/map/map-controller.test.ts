@@ -5,6 +5,9 @@ import { INITIAL_BOUNDS, INITIAL_MAX_ZOOM, initialZoom, PRIMARY_AIRPORT_VIEW } f
 import { DEFAULT_LABEL_SETTINGS } from '../../lib/map/label-settings'
 import {
   iconScaleAt,
+  mapPadding,
+  NO_INSETS,
+  NO_PANELS,
   resolveHit,
   sameViewState,
   type HitCandidates,
@@ -110,7 +113,8 @@ describe('sameViewState (D-084)', () => {
     airports: [],
     locale: 'tr',
     units: 'metric',
-    bottomInset: 0,
+    insets: NO_INSETS,
+    panels: NO_PANELS,
   }
 
   it('etiket ayarının her alanı yeniden çizim ister: havalimanı etiketi dahil', () => {
@@ -127,5 +131,37 @@ describe('sameViewState (D-084)', () => {
       expect(sameViewState(base, next), JSON.stringify(change)).toBe(false)
     }
     expect(sameViewState(base, { ...base, locale: 'en' })).toBe(false)
+  })
+})
+
+describe('panel payı (D-085)', () => {
+  const base: MapViewState = {
+    selectedHex: null,
+    following: false,
+    labelSettings: DEFAULT_LABEL_SETTINGS,
+    airports: [],
+    locale: 'tr',
+    units: 'metric',
+    insets: NO_INSETS,
+    panels: NO_PANELS,
+  }
+
+  it('alttaki ve soldaki pay ayrı ayrı yeniden yerleşim ister; aynı değerli yeni nesne istemez', () => {
+    expect(sameViewState(base, { ...base, insets: { bottom: 0, left: 0 } })).toBe(true)
+    expect(sameViewState(base, { ...base, insets: { bottom: 320, left: 0 } })).toBe(false)
+    expect(sameViewState(base, { ...base, insets: { bottom: 0, left: 400 } })).toBe(false)
+  })
+
+  it('panel dikdörtgenleri (seçili etiket örtmez) başvuruyla karşılaştırılır', () => {
+    const panels = [{ x: 404, y: 12, width: 352, height: 442 }]
+    expect(sameViewState({ ...base, panels }, { ...base, panels })).toBe(true)
+    expect(sameViewState(base, { ...base, panels })).toBe(false)
+    expect(sameViewState({ ...base, panels }, { ...base, panels: [...panels] })).toBe(false)
+  })
+
+  it('MapLibre dolgusu: üst ve sağ 0, alt ve sol paydan; negatif pay 0', () => {
+    expect(mapPadding({ bottom: 320, left: 0 })).toEqual({ top: 0, right: 0, bottom: 320, left: 0 })
+    expect(mapPadding({ bottom: 0, left: 400 })).toEqual({ top: 0, right: 0, bottom: 0, left: 400 })
+    expect(mapPadding({ bottom: -5, left: -1 })).toEqual({ top: 0, right: 0, bottom: 0, left: 0 })
   })
 })

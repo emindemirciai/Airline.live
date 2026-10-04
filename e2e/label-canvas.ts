@@ -127,3 +127,56 @@ export async function mapCenter(page: Page): Promise<{ x: number; y: number }> {
   if (!box) throw new Error('harita tuvali yok')
   return { x: box.x + box.width / 2, y: box.y + box.height / 2 }
 }
+
+/** Seçili uçak etiketinin zemini (`MAP_COLORS.selected`): #FFB300. */
+const SELECTED_FILL = { r: 255, g: 179, b: 0 }
+
+/**
+ * Seçili uçak etiketinin tuvaldeki pikselleri (zemin rengi #FFB300, tam opak): toplam ve `selector`
+ * elemanının kutusunun içine düşenler. Etiket tuvali panellerin altındadır; panelin örttüğü
+ * pikseller de okunur (D-085: seçili etiket listenin altında kalmaz).
+ */
+export async function selectedLabelPixels(
+  page: Page,
+  selector: string,
+): Promise<{ total: number; under: number }> {
+  return page.locator('.live-map .live-map__labels').evaluate(
+    (element, { selector, fill }) => {
+      const canvas = element as HTMLCanvasElement
+      const ctx = canvas.getContext('2d')
+      const panel = document.querySelector(selector)?.getBoundingClientRect()
+      if (!ctx || canvas.width === 0 || !panel) return { total: 0, under: 0 }
+      const { data, width, height } = ctx.getImageData(0, 0, canvas.width, canvas.height)
+      const rect = canvas.getBoundingClientRect()
+      const scale = canvas.width / rect.width
+      let total = 0
+      let under = 0
+      for (let y = 0; y < height; y++) {
+        for (let x = 0; x < width; x++) {
+          const i = (y * width + x) * 4
+          if (
+            data[i] !== fill.r ||
+            data[i + 1] !== fill.g ||
+            data[i + 2] !== fill.b ||
+            data[i + 3] !== 255
+          ) {
+            continue
+          }
+          total++
+          const pageX = rect.left + (x + 0.5) / scale
+          const pageY = rect.top + (y + 0.5) / scale
+          if (
+            pageX > panel.left &&
+            pageX < panel.right &&
+            pageY > panel.top &&
+            pageY < panel.bottom
+          ) {
+            under++
+          }
+        }
+      }
+      return { total, under }
+    },
+    { selector, fill: SELECTED_FILL },
+  )
+}

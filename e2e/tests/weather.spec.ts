@@ -629,11 +629,14 @@ test.describe('harita: havalimanı penceresi', () => {
     await expect(popup).toBeHidden()
     await expect(page.locator('.live-map .maplibregl-canvas')).toBeFocused()
 
-    // Haritada boş bir yere tıklamak kapatır (havalimanı merkezinin kuzeybatısı: taksi turu doğudadır).
+    // Haritada boş bir yere tıklamak kapatır: havalimanı merkezinin kuzeybatısı (taksi turu doğuda,
+    // yaklaşma hattı güneydedir). Merkezden 450 px batıya tıklanır: pencere hangi yanda olursa olsun
+    // (merkezden en çok 44 + 320 px; sağ üstteki liste yüzünden genellikle solda, D-085) tıklama
+    // pencerenin dışında ve arama kutusunun altında kalır.
     await clickPrimaryChip(page)
     await expect(popup).toBeVisible()
     const center = await mapCenter(page)
-    await page.mouse.click(center.x - 150, center.y - 100)
+    await page.mouse.click(center.x - 450, center.y - 100)
     await expect(popup).toBeHidden()
 
     // Uçak seçmek pencereyi kapatır ve bilgi kartını açar. Arama kutusundayken basılan Escape

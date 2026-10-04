@@ -8,6 +8,11 @@
  * olan noktanın sağındaki ya da solundaki IATA kodunu da açıkta bırakır (labels.ts). Hiçbir yön sığmıyorsa (çok küçük görünüm
  * ya da nokta görünümün dışına kaydırılmış) pencere görünümün içine sıkıştırılır: kapatma düğmesi
  * ve bağlantı her zaman erişilebilir kalır.
+ *
+ * Kaçınılacak alanlar (D-085; uçak listesi, arama kutusu, sağ alttaki düğmeler): sığan yönlerden
+ * hiçbirini örtmeyen ilki seçilir; hepsi örtüyorsa en az örteni (eşitlikte sıradaki ilki). Pencere
+ * o zaman panelin üstünde çizilir, kapatma düğmesi ve bağlantı yine erişilebilir kalır. Kaçınılacak
+ * alan yoksa sonuç eskisiyle aynıdır.
  */
 
 export type PopupSide = 'right' | 'left' | 'below' | 'above' | 'inside'
@@ -17,6 +22,14 @@ export interface PopupPlacement {
   left: number
   top: number
   side: PopupSide
+}
+
+/** Görünümün sol üst köşesine göre dikdörtgen, CSS px. */
+export interface PopupRect {
+  left: number
+  top: number
+  width: number
+  height: number
 }
 
 export interface PlacementInput {
@@ -30,8 +43,10 @@ export interface PlacementInput {
   sideGap?: number
   /** Nokta ile pencere arası, alt ve üst konumda. */
   gap?: number
-  /** Görünüm kenarında bırakılan boşluk. */
+  /** Görünüm kenarında bırakılan boşluk; kaçınılacak alanların çevresinde de bırakılır. */
   margin?: number
+  /** Pencerenin örtmemesi gereken paneller (görünüme göre), CSS px. */
+  avoid?: readonly PopupRect[]
 }
 
 /** Alt ve üst konumda noktanın yarıçapı ve tıklama payı kadar boşluk: pencere noktayı örtmez. */
@@ -47,6 +62,13 @@ function clamp(value: number, min: number, max: number): number {
   return max < min ? min : Math.min(Math.max(value, min), max)
 }
 
+/** İki dikdörtgenin kesişim alanı, px²; kesişmiyorlarsa 0. */
+function overlapArea(a: PopupRect, b: PopupRect): number {
+  const width = Math.min(a.left + a.width, b.left + b.width) - Math.max(a.left, b.left)
+  const height = Math.min(a.top + a.height, b.top + b.height) - Math.max(a.top, b.top)
+  return width > 0 && height > 0 ? width * height : 0
+}
+
 export function placePopup({
   anchor,
   size,
@@ -54,6 +76,7 @@ export function placePopup({
   sideGap = POPUP_SIDE_GAP_PX,
   gap = POPUP_GAP_PX,
   margin = POPUP_MARGIN_PX,
+  avoid = [],
 }: PlacementInput): PopupPlacement {
   const { x, y } = anchor
   const { width, height } = size
@@ -69,27 +92,54 @@ export function placePopup({
     side: placement.side,
   })
 
+  // Sığan yönler, sırayla (sağ, sol, alt, üst).
+  const candidates: PopupPlacement[] = []
   if (fitsHeight) {
     const top = clamp(y - height / 2, minTop, maxTop)
     if (x + sideGap + width <= view.width - margin && x + sideGap >= minLeft) {
-      return round({ left: x + sideGap, top, side: 'right' })
+      candidates.push(round({ left: x + sideGap, top, side: 'right' }))
     }
     if (x - sideGap - width >= margin && x - sideGap <= view.width - margin) {
-      return round({ left: x - sideGap - width, top, side: 'left' })
+      candidates.push(round({ left: x - sideGap - width, top, side: 'left' }))
     }
   }
   if (fitsWidth) {
     const left = clamp(x - width / 2, minLeft, maxLeft)
     if (y + gap + height <= view.height - margin && y + gap >= minTop) {
-      return round({ left, top: y + gap, side: 'below' })
+      candidates.push(round({ left, top: y + gap, side: 'below' }))
     }
     if (y - gap - height >= margin && y - gap <= view.height - margin) {
-      return round({ left, top: y - gap - height, side: 'above' })
+      candidates.push(round({ left, top: y - gap - height, side: 'above' }))
     }
   }
-  return round({
-    left: clamp(x + sideGap, minLeft, maxLeft),
-    top: clamp(y - height / 2, minTop, maxTop),
-    side: 'inside',
-  })
+
+  const first = candidates[0]
+  if (first === undefined) {
+    return round({
+      left: clamp(x + sideGap, minLeft, maxLeft),
+      top: clamp(y - height / 2, minTop, maxTop),
+      side: 'inside',
+    })
+  }
+  if (avoid.length === 0) return first
+
+  // Paneller kenar boşluğu kadar büyütülür: pencere panele yapışmaz.
+  const grown = avoid.map((rect) => ({
+    left: rect.left - margin,
+    top: rect.top - margin,
+    width: rect.width + 2 * margin,
+    height: rect.height + 2 * margin,
+  }))
+  let best = first
+  let bestOverlap = Infinity
+  for (const candidate of candidates) {
+    const box = { left: candidate.left, top: candidate.top, width, height }
+    const overlap = grown.reduce((sum, rect) => sum + overlapArea(box, rect), 0)
+    if (overlap === 0) return candidate
+    if (overlap < bestOverlap) {
+      best = candidate
+      bestOverlap = overlap
+    }
+  }
+  return best
 }

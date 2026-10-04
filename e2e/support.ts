@@ -141,6 +141,8 @@ export const E2E_ANALYZE_SITE_ID = 'e2e.localhost'
 
 export const CONSENT_COOKIE = 'hy_consent'
 export const LABEL_SETTINGS_KEY = 'hy:map:labels'
+/** Uçak listesinin geniş ekrandaki açık ya da daraltılmış hâli (D-085; lib/map/list-settings.ts). */
+export const AIRCRAFT_LIST_KEY = 'hy:map:list'
 
 /** Arama sonuçsuz kalınca gösterilen metin (docs/prompts/parca-1.md → M6, birebir). */
 export const NOT_FOUND_TEXT =

@@ -869,14 +869,46 @@ export const tr = {
       caption: 'Haritada görünen uçaklar',
       captionLimited: 'Haritada görünen uçaklar (ilk {shown} / {total})',
       flight: 'Sefer',
-      type: 'Tip',
+      /** Sütun başlığının görünen adı; erişilebilir adı `registrationLabel` (D-085). */
+      registration: 'Kuyruk',
+      registrationLabel: 'Kuyruk tescili',
       altitude: 'Yükseklik',
-      speed: 'Hız',
-      position: 'Konum',
+      place: 'Konum ve durum',
       empty: 'Bu alanda şu an uçak görünmüyor.',
       show: 'Uçak listesini göster',
       hide: 'Uçak listesini gizle',
       select: '{flight} uçağını seç',
+      /** Listenin altındaki not (web-ui.md: tahmini bilgi "tahmini" etiketi taşır; D-085). */
+      note: 'Durumlar tahminidir: ADS-B konumu, yüksekliği ve dikey hızından en yakın havalimanına göre hesaplanır. Kuyruk tescili boşsa bilinmiyor ya da gizlilik programı (PIA, LADD) nedeniyle gösterilmiyor.',
+      /**
+       * "Konum ve durum" hücresinin rozeti (D-085; domain.md → Haritadaki uçak listesi). Yoldaki
+       * uçakta rozet yoktur, yalnızca konum yazılır. "İnişte" son yaklaşmadır, teker koyma değildir.
+       */
+      phase: {
+        approaching: 'Yaklaşmada',
+        landing: 'İnişte',
+        onGround: 'Yerde',
+        lowAltLost: 'Alçakta sinyal kaybı',
+      },
+      /**
+       * Konum metni: `{airport}` IATA kodu, `{distance}` havalimanı merkezine yatay uzaklık. Kod başta
+       * ve virgülle yazılır; "IST'nin" gibi ek gerekmez.
+       */
+      placeDistance: '{airport}, {distance}',
+      placeRunway: '{airport}, pist {runway}',
+      placeOver: '{airport} üzerinde',
+      /** "IST, 45 km kuzeyinde": `{direction}` havalimanından uçağa 8 yönden biri (`direction`). */
+      placeBearing: '{airport}, {distance} {direction}',
+      direction: {
+        N: 'kuzeyinde',
+        NE: 'kuzeydoğusunda',
+        E: 'doğusunda',
+        SE: 'güneydoğusunda',
+        S: 'güneyinde',
+        SW: 'güneybatısında',
+        W: 'batısında',
+        NW: 'kuzeybatısında',
+      },
     },
     labels: {
       button: 'Etiketler',

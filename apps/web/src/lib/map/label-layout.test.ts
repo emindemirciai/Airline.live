@@ -119,6 +119,53 @@ describe('layoutLabels — ayrılmış alanlar', () => {
   })
 })
 
+describe('layoutLabels — haritanın üstündeki paneller (D-085)', () => {
+  // 768 px'teki gibi: liste sağ üstte, alt kenarı ortalanan seçili uçağın 30 px üstünde.
+  const list = { x: 404, y: 12, width: 352, height: 258 }
+  const selected = box('sel', 584, 300, { width: 126, height: 39, priority: 2 })
+  const hits = (label: PlacedLabel, size: LabelBox, r: typeof list) =>
+    label.x < r.x + r.width &&
+    label.x + size.width > r.x &&
+    label.y < r.y + r.height &&
+    label.y + size.height > r.y
+
+  it('seçili etiket listeye değen sağ üst yerine listenin dışındaki ilk konuma (sağ alt) geçer', () => {
+    // Panel yokken sağ üstte, listenin altında kalırdı.
+    const [plain] = layoutLabels([selected], VIEW, { mustPlace: 'sel' })
+    expect(plain).toMatchObject({ x: 584 + NEAR, y: 300 - 39 - 1, leader: false })
+    expect(hits(plain as PlacedLabel, selected, list)).toBe(true)
+
+    const [moved] = layoutLabels([selected], VIEW, { mustPlace: 'sel', panels: [list] })
+    expect(moved).toEqual({ id: 'sel', x: 584 + NEAR, y: 301, leader: false })
+    expect(hits(moved as PlacedLabel, selected, list)).toBe(false)
+  })
+
+  it('panel yalnızca seçili etiketi etkiler; diğer etiketler panelin altında kalabilir', () => {
+    const other = box('other', 584, 300, { width: 126, height: 39 })
+    expect(layoutLabels([other], VIEW, { panels: [list] })).toEqual([
+      { id: 'other', x: 584 + NEAR, y: 260, leader: false },
+    ])
+  })
+
+  it('her yer doluysa seçili etiket paneli örtmeyen yakın konuma, o da yoksa ilk yakın konuma', () => {
+    const obstacles = []
+    for (let x = 0; x <= VIEW.width; x += 10) {
+      for (let y = 0; y <= VIEW.height; y += 10) obstacles.push({ x, y })
+    }
+    const [label] = layoutLabels([selected], VIEW, {
+      obstacles,
+      mustPlace: 'sel',
+      panels: [list],
+    })
+    expect(label).toEqual({ id: 'sel', x: 584 + NEAR, y: 301, leader: false })
+    // Bütün yakın konumları örten panel: ilk yakın konum (sağ üst).
+    const everywhere = { x: 0, y: 0, width: VIEW.width, height: VIEW.height }
+    expect(
+      layoutLabels([selected], VIEW, { obstacles, mustPlace: 'sel', panels: [everywhere] }),
+    ).toEqual([{ id: 'sel', x: 584 + NEAR, y: 260, leader: false }])
+  })
+})
+
 describe('layoutLabels — öncelik', () => {
   it('çekişmeli yeri yüksek öncelikli alır; eşitlikte kimlik sırası belirler', () => {
     const placed = layoutLabels(

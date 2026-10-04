@@ -9,6 +9,8 @@
  * Yalnızca `mustPlace` ile verilen etiket (seçili uçak) simgesi görünümdeyse her zaman yerleşir;
  * geçerli yer yoksa ilk yakın konuma, gerekirse çakışarak. Diğerleri (seçim yokken en öncelikli
  * olan da) yer bulamazsa çizilmez. Simgesi görünümün tümüyle dışında kalan uçağın etiketi yoktur.
+ * Seçili etiket ayrıca haritanın üstündeki panellere (`panels`: arama, kart, liste, düğmeler)
+ * değmeyen konumu seçer; ortalanan seçili uçağın etiketi listenin altında kalmaz (D-085).
  *
  * Çakışma denetimi düzenli ızgarayla yapılır; 500 etiket birkaç ms sürer.
  */
@@ -33,6 +35,14 @@ export interface PlacedLabel {
   leader: boolean
 }
 
+/** Ekranda dikdörtgen: sol üst köşe ve boyut, CSS px. */
+export interface ScreenRect {
+  x: number
+  y: number
+  width: number
+  height: number
+}
+
 export interface LabelLayoutOptions {
   /** Simgenin çakışma yarıçapı, px. */
   iconRadius?: number
@@ -45,12 +55,19 @@ export interface LabelLayoutOptions {
    * etiketler bunları yerleşmiş bir etiket gibi örtmez. Yalnızca `mustPlace` etiketi yer bulamazsa
    * üstüne gelebilir.
    */
-  reserved?: readonly { x: number; y: number; width: number; height: number }[]
+  reserved?: readonly ScreenRect[]
   /**
    * Yer bulamasa da (çakışarak) yerleşecek etiketin kimliği: seçili uçak. Verilmezse her etiket yer
    * bulamayınca atlanır.
    */
   mustPlace?: string | null
+  /**
+   * Haritanın üstündeki opak paneller (arama, bilgi kartı, uçak listesi, sağ alttaki düğmeler; D-085):
+   * `mustPlace` etiketi (seçili uçak) bunlara değmeyen ilk konumu seçer; yer yoksa paneli örtmeyen
+   * yakın konuma, o da yoksa yine ilk yakın konuma yerleşir. Diğer etiketler panelin altında
+   * kalabilir (panel opaktır, etiketi örter).
+   */
+  panels?: readonly ScreenRect[]
 }
 
 export const LABEL_ICON_RADIUS = 14
@@ -237,12 +254,24 @@ export function layoutLabels(
   const result: PlacedLabel[] = []
   const mustPlace = opts.mustPlace ?? null
 
+  // Paneller (yalnızca seçili etiket için): etiketler arası boşluk kadar genişletilmiş.
+  const panels: Rect[] = (opts.panels ?? []).map((p) => ({
+    x0: p.x - LABEL_MARGIN,
+    y0: p.y - LABEL_MARGIN,
+    x1: p.x + p.width + LABEL_MARGIN,
+    y1: p.y + p.height + LABEL_MARGIN,
+  }))
+  const clearOfPanels = (r: Rect) =>
+    panels.every((p) => r.x1 <= p.x0 || r.x0 >= p.x1 || r.y1 <= p.y0 || r.y0 >= p.y1)
+
   const placeBox = (box: LabelBox): void => {
     // Simgesi görünmeyen uçağın etiketi (kenarda, çizgisi dışarıyı gösteren) kafa karıştırır.
     if (!(box.width > 0 && box.height > 0) || !iconVisible(box.anchorX, box.anchorY)) return
+    const avoidPanels = box.id === mustPlace && panels.length > 0
     for (const slot of candidates) {
       const rect = rectAt(box, slot)
       if (!inside(rect) || !free(rect)) continue
+      if (avoidPanels && !clearOfPanels(rect)) continue
       place(rect)
       result.push({ id: box.id, x: rect.x0, y: rect.y0, leader: slot.leader })
       return
@@ -252,7 +281,7 @@ export function layoutLabels(
       box.anchorX >= 0 && box.anchorX <= width && box.anchorY >= 0 && box.anchorY <= height
     if (box.id !== mustPlace || !anchorVisible) return
     const nearRects = candidates.filter((slot) => !slot.leader).map((slot) => rectAt(box, slot))
-    let rect = nearRects.find(inside)
+    let rect = nearRects.find((r) => inside(r) && clearOfPanels(r)) ?? nearRects.find(inside)
     if (!rect) {
       const [first] = nearRects
       const x0 = Math.min(Math.max(first?.x0 ?? 0, 0), Math.max(0, width - box.width))

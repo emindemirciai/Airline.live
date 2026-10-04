@@ -40,7 +40,13 @@ import {
   type Locale,
 } from '@havayolu/shared'
 import type { TrackedAircraft } from '../../lib/live/store'
-import { CircleObstacles, layoutLabels, leaderEnd, type LabelBox } from '../../lib/map/label-layout'
+import {
+  CircleObstacles,
+  layoutLabels,
+  leaderEnd,
+  type LabelBox,
+  type ScreenRect,
+} from '../../lib/map/label-layout'
 import type { LabelSettings } from '../../lib/map/label-settings'
 import { labelContent, type LabelContent, type LabelMode } from '../../lib/map/label-text'
 
@@ -188,6 +194,11 @@ export interface LabelFrame {
   pinScale?: number
   /** Birincil istasyonun ICAO kodu (IST/LTFM): kodu yerdeki uçakların üstüne yazılabilir. */
   primaryIcao?: string | null
+  /**
+   * Haritanın üstündeki opak paneller (tuvale göre, CSS px): seçili uçağın etiketi bunları örtmeyen
+   * konumu seçer (D-085).
+   */
+  panels?: readonly ScreenRect[]
 }
 
 /** Ölçülmüş etiket: içerik, kutu boyutu ve tema. */
@@ -545,6 +556,8 @@ export class LabelPainter {
         .map((chip) => ({ x: chip.x, y: chip.y, width: chip.codeWidth, height: chip.height })),
       // Yalnızca seçili uçağın etiketi yer bulamasa da çizilir; diğerleri simge örtmez.
       mustPlace: frame.selectedHex,
+      // Seçili etiket listenin, aramanın, kartın ve düğmelerin altında kalmaz (D-085).
+      panels: frame.panels ?? [],
     })
     // Önce çizgiler, sonra kutular: kutu çizginin ucunu örter. Seçili etiket en son (üstte).
     placed.sort((a, b) => Number(a.id === frame.selectedHex) - Number(b.id === frame.selectedHex))

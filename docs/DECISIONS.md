@@ -2,6 +2,46 @@
 
 Her karar tarih, gerekçe ve varsa alternatifiyle yazılır. En yeni karar en üsttedir.
 
+## 2026-10-03 — Parça 1 M6k uçak listesi: sağ üst köşe, sefer, kuyruk, yükseklik, konum ve durum
+- **D-085 Haritada görünen uçaklar listesi sağ üst köşeye taşınır; sütunlar Sefer, Kuyruk, Yükseklik, Konum ve durum olur; durum ADS-B verisinden tahmin edilir ve yalnızca gösterimdir.**
+  - **Kullanıcı isteği (2026-10-03, üretimdeki haritanın ekran görüntüsüyle):** "Haritada görünen uçakları ekranın sağ üst köşesine yerleştir. aranan uçaklar kalsın solda sadece. uçaklar listelenmeye başlayınca ekranın bir tarafı en azından kullanılabilsin. Sefer / Kuyruk(tescil-reg) / Yükseklik / Konum ve Durum (yaklaşıyorsa ya da inişte ise veya yerde ise bildir.)" O gün liste sol altta, 520 px genişlik ve %40 yükseklikle haritanın üstündeydi; bilgi kartı sağ üstteydi. Açık sorularda araştırmanın önerdiği varsayılanlar uygulandı (telefon düzeni, "İnişte", "Yolda" yazılmaz, sıra, "—", Tip ve Hız, durum şeridi, yalnız geniş ekranda saklama).
+  - **Yerleşim (768 px ve üstü):**
+    - Liste sağ üsttedir: genişlik `min(440 px, harita − 380 px − 3 kenar boşluğu)`, yükseklik en çok haritanın yarısı eksi 24 px (alt kenarı ortanın 12 px üstünde), sağ alttaki düğmelere ulaşmaz, içinde kayar. 959 px ve altında liste haritanın ortasındaki sütuna uzanır; alt kenarı ortanın 30 px üstünde biter ve ortalanan seçili uçağın simgesi (52 px) altında kalmaz.
+    - Seçili uçağın etiketi haritanın üstündeki panelleri (arama, kart, liste, sağ alttaki düğmeler; `data-map-panel`) örtmeyen ilk konumu seçer; yer yoksa paneli örtmeyen yakın konuma, o da yoksa yine çizilir. Gözden geçirmede (2026-10-04) 768–~1180 px'te ortalanan uçağın sağ üstündeki etiketi ve simgesinin üstü listenin altında kalıyordu. Diğer etiketler değişmedi (panel opaktır, altındakini örter). Panellerin yeri her karede ölçülmez; boyutları ya da kart değişince yenilenir.
+    - Başlık düğmesi ("Uçak listesini gizle/göster", sayı rozeti, ok) listeyi daraltır; daraltılmış hâl cihazda saklanır (`hy:map:list`: `open` | `closed`; varsayılan açık; okunamayan ya da geçersiz değer açık sayılır). Daraltılınca yalnızca düğme kalır.
+    - Sol sütunda yalnızca arama ve aranan ya da seçilen uçağın bilgi kartı durur; kart sağ üstten aramanın altına taşındı. Sütun konumlandırılmamış (static) bir bloktur ve haritanın akıştaki tek öğesidir; öteki katmanlar `position: absolute`'tur. Arama sonuçları kartı aşağı iter, kartın altında kalmaz.
+    - Durum şeridi 1180 px ve üstünde iki sütunun arasındaki boşlukta ortalanır, altında arama ile kartın arasındadır.
+    - Havalimanı penceresi listeyi, aramayı ve sağ alttaki düğmeleri örtmeyen ilk yanı seçer (sağ, sol, alt, üst); hiçbiri yoksa en az örteni seçer ve panelin üstünde çizilir (1280 × 720'de ~516 px'ten uzun IST penceresi solda açılır ve arama kutusunu birkaç piksel örtebilir). Panellerin yeri her karede ölçülmez, boyutları değişince yenilenir. Kaçınılacak alan yoksa yerleşim eskisiyle aynıdır.
+    - Kart haritanın ortasını örttüğünde (768–~830 px) harita sola boşluk alır; "Uçağı ortala" uçağı görünür bölgede tutar. Alt boşluk (telefonda alttaki kart ya da pencere) ile aynı yoldan verilir (`insets`: `bottom`, `left`); ölçünün kökü haritanın kendisidir.
+  - **Telefon (767 px ve altı):** bugünkü sol alt düğme ve alttan açılan liste kalır (kapalı başlar, en çok %45, saklanmaz). Üstte arama ve durum şeridi vardır; alt düğme başparmağa yakındır, kart ve pencereyle aynı alt sayfa düzenindedir. 375 px'te dört sütun yana kaymadan sığar (konum sütunu kırılır).
+  - **Sütunlar:**
+    - Sefer: sefer no, yoksa çağrı kodu, tescil, hex.
+    - Kuyruk: tescil; boşsa "—". Sütun başlığının erişilebilir adı "Kuyruk tescili"dir (görünen ad içinde, WCAG 2.5.3).
+    - Yükseklik: "yerde" dahil; sayı ile birim bölünmez.
+    - Konum ve durum: durum rozeti (Yaklaşmada, İnişte, Yerde, Alçakta sinyal kaybı) ve en yakın havalimanına göre konum. Rozetin anlamı yazıdadır, renk taşımaz.
+    - Tip ve Hız listeden çıktı; bilgi kartında ve etiketlerde kalır.
+  - **Gizlilik:** PIA ve LADD uçaklarında tescil API'den gelmez. Tescili bilinmeyen uçakta da boştur; istemci ikisini ayırt edemez. Bu yüzden "Gizli" yazılmaz, "—" yazılır ve liste notu ikisini de söyler. API'ye "tescil gizli" alanı eklenmez: uçağın PIA'da olduğunu açığa vururdu.
+  - **Durum kuralları:** domain.md → "Haritadaki uçak listesi: tahmini durum". Eşikler domain.md'nin motor değerlerinden gelir: 6 km yerde, 30 km ve 10.000 ft varış, −300 ft/dk, pist hizası 15° ve 1 km, 15 km ve 4.000 ft hizalı yaklaşma, iniş 1.000 ft ve 8 km, alçakta sinyal kaybı 30 sn, 3.000 ft ve 20 km; `baro_tolerant` +300 ft.
+    - Eklenenler: 3° süzülüş zarfı (yakın bir havalimanının üstünden geçen uçak ona "yaklaşmada" görünmesin), çıkış eşikleri ve 5 sn onay (etiket her örnekte titremesin).
+    - **Havalimanı seçimi (gözden geçirme 2026-10-04):** araştırmanın merkeze göre kuralı (iz farkı ≤ 90°, en yakın havalimanı, gösterilen havalimanı tırmanmadıkça tutulur) IST ve SAW varışlarının rüzgâr altı kollarında ve yan yaklaşmalarında 1–3 dk "Yaklaşmada ISL" (Atatürk) gösteriyordu; 90° yanda kalan havalimanını da kabul ediyordu. Değişenler:
+      - merkeze göre kurallar (hizasız İnişte ve Yaklaşmada) yalnızca tarifeli seferi olan havalimanlarında uygulanır (OurAirports `scheduled_service`; listede 10 tarifesiz havalimanı var: Atatürk ve hava üsleri). Tarifesiz havalimanına inen uçak pist hizasından yine "Yaklaşmada" ve "İnişte" görünür. Motorun varış kuralı da yalnızca istasyonlar içindir;
+      - havalimanına doğru girişte iz farkı ≤ 45° (domain'in "mesafe azalıyor"una daha yakın), gösterilen havalimanı için çıkışta ≤ 90° (havalimanı arkada kalınca yaklaşma biter);
+      - birden çok aday varsa kendi başına uyan, önceki durumdan yalnızca tutulandan önce gelir; sonra gösterilen havalimanı, sonra iz yönüne en yakın, sonra en yakın.
+      - Bilinen sınır: güzergâh bilinmediği için başka bir havalimanına giderken tarifeli bir havalimanının önünden alçalarak geçen uçak (ör. Trakya'dan IST'ye gelirken Çorlu/TEQ) kısa süre ona "Yaklaşmada" görünebilir. Süzülüş zarfındaki +300 ft tolerans korunur (9.000 ft'te 25 km güneydeki IST varışı yaklaşmada kalır).
+    - Hesap istemcidedir, depo her değiştiğinde (WebSocket farkı) yapılır. Her kare yapılmaz, sunucu yükü yoktur.
+    - "İnişte" bir gösterim adıdır (son yaklaşma); "Teker koydu" ve "Muhtemelen indi" motorun doğrulama kurallarına bağlı kalır ve listede kullanılmaz.
+    - Listenin altında "Durumlar tahminidir" notu durur ve tabloya `aria-describedby` ile bağlıdır. Durumlar canlı bölge değildir: değişince ekran okuyucuya duyurulmaz (durum şeridindeki veri yaşıyla aynı ilke).
+  - **Sıra:** değişmedi (görünüm ortasına uzaklık, ilk 50). Duruma göre sıralama satırları yer değiştirtirdi.
+  - **Değerlendirilip kullanılmayanlar:**
+    - telefonda sağ üst liste (arama ve durum şeridiyle çakışır);
+    - pencere açılınca listeyi kendiliğinden daraltmak (kullanıcının ayarını değiştirirdi);
+    - durumu sunucuda hesaplamak (motor Parça 2'de gelir; liste o zaman motor durumuna geçer);
+    - "Yolda" etiketi (istenmedi, gürültü);
+    - "IST'nin" gibi ekler (havalimanı kodlarında ünlü uyumu belirsiz; kod başta ve virgülle yazılır);
+    - QNH ile yükseklik (toplu hava yalnızca pencere açıkken çekilir);
+    - seçili uçak için üstten pay (gözden geçirme 2026-10-04): harita merkezi listenin altına inerdi, liste açıkken uçak ekranın alt çeyreğinde kalırdı; payı listenin gerçek yüksekliğinden almak satır sayısı değiştikçe haritayı kendiliğinden kaydırırdı;
+    - listeyi her genişlikte etiket boyu kadar kısaltmak (seçili etiketin yüksekliği içeriğe göre değişir; liste 1024 px'te ~6 satıra inerdi).
+
 ## 2026-10-03 — Parça 1 M6f adlar ve saat: havalimanı adları TR/EN, haritada ad etiketi, yurt dışında yerel saat
 - **D-084 Havalimanı adları iki dilde düzeltilir, haritada havalimanı adı etiketi açılıp kapanır, Türkiye dışındaki havalimanlarında yerel saat UTC farkıyla gösterilir.** Yerel saat bölümü D-080'in "yakın ülkeler için saat dilimi verisi tutulmaz" kuralının yerine geçer.
   - **Adlar** (kullanıcı isteği 2026-10-03: "askerî havalimanları ve normal havalimanları türkçe ingilizce dil desteğine uygun olsun. hata var ise düzelt"):

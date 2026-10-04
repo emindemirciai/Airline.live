@@ -36,6 +36,7 @@ import {
   type MapViewport,
 } from './camera'
 import { DataAttributionNotice } from './data-attribution'
+import { NO_INSETS, type MapInsets } from './map-controller'
 import { MapView, type MapViewHandle } from './map-view'
 import {
   AircraftTable,
@@ -45,9 +46,13 @@ import {
   SearchBox,
   StatusStrip,
 } from './panels'
+import { aircraftPlace } from './panels/aircraft-place'
+import { useAircraftListOpen } from './use-aircraft-list-open'
 import { useBulkWeather } from './use-airport-weather'
+import { useFlightPhases } from './use-flight-phases'
 import { useLabelSettings } from './use-label-settings'
 import { useLive } from './use-live'
+import { useMapPanels } from './use-map-panels'
 import { supportsWebGL2 } from './webgl'
 
 export interface LiveMapProps {
@@ -93,6 +98,26 @@ const BOTTOM_SHEET_QUERY = '(max-width: 767px)'
 const ATTRIB_MIN_SPACE_PX = 36
 const ATTRIB_GAP_PX = 6
 
+/**
+ * Geniş ekranda soldaki bilgi kartı haritanın ortasına bu kadar yaklaşınca (ortadaki uçak simgesi
+ * ve etiketi) harita sola pay alır; pay, kartın sağ kenarı ve aradaki boşluktur (D-085).
+ */
+const CARD_CENTER_CLEARANCE_PX = 24
+const CARD_INSET_GAP_PX = 8
+
+/**
+ * Haritayı örten panelin payı. Dar ekranda alttan açılan kart ya da havalimanı penceresi haritanın
+ * altını örter; geniş ekranda soldaki bilgi kartı ancak haritanın ortasına uzanırsa (768 px'e yakın
+ * genişlikte) sola pay verir. Ölçüler harita köküne (`.live-map`) göredir.
+ */
+function panelInsets(root: DOMRect, panel: DOMRect, sheet: boolean, leftCard: boolean): MapInsets {
+  if (sheet) return { bottom: Math.max(0, Math.round(root.bottom - panel.top)), left: 0 }
+  if (!leftCard) return NO_INSETS
+  const cardRight = panel.right - root.left
+  if (cardRight + CARD_CENTER_CLEARANCE_PX <= root.width / 2) return NO_INSETS
+  return { bottom: 0, left: Math.round(cardRight + CARD_INSET_GAP_PX) }
+}
+
 const subscribeNever = () => () => {}
 const webglServerSnapshot = () => null
 
@@ -106,9 +131,14 @@ const sheetServerSnapshot = () => false
 
 /**
  * Canlı harita sayfasının durumu: seçili uçak (adreste `?hex=`), "Uçağı ortala", açık havalimanı
- * penceresi, etiket ayarı (cihazda), altlık hatası, bağlantı durumu ve saniyelik saat. Harita
- * (`MapView`) ve paneller buradan beslenir. Tablo ve kart en fazla saniyede ~2 kez yeniden çizilir;
- * uçakların hareketi React dışında, haritanın çizim döngüsündedir.
+ * penceresi, etiket ayarı ve geniş ekranda uçak listesinin daraltılmış hâli (cihazda), listenin
+ * tahmini durumları, altlık hatası, bağlantı durumu ve saniyelik saat. Harita (`MapView`) ve paneller
+ * buradan beslenir. Tablo ve kart en fazla saniyede ~2 kez yeniden çizilir; uçakların hareketi React
+ * dışında, haritanın çizim döngüsündedir.
+ *
+ * Yerleşim (D-085): solda arama, durum şeridi ve bilgi kartı (`.live-map__left`); sağ üstte uçak
+ * listesi (telefonda sol altta, düğmeyle açılır); sağ altta denetimler. Havalimanı penceresi
+ * ve seçili uçağın etiketi `data-map-panel` taşıyan panelleri örtmeyen yeri seçer.
  *
  * Uçak bilgi kartı ile havalimanı penceresi aynı anda açık olmaz: uçak seçmek pencereyi kapatır,
  * havalimanına tıklamak uçak seçimini kaldırır.
@@ -133,6 +163,7 @@ export function LiveMap({
   const [weatherClock] = useState(() => WallClock.preferDevice())
   const popupNow = useWallNow(weatherClock, 1_000)
   const [labelSettings, setLabelSettings] = useLabelSettings()
+  const [listOpen, setListOpen] = useAircraftListOpen()
   const webgl = useSyncExternalStore(subscribeNever, supportsWebGL2, webglServerSnapshot)
   const mapRef = useRef<MapViewHandle>(null)
   const cardRef = useRef<HTMLDivElement>(null)
@@ -150,7 +181,7 @@ export function LiveMap({
   const [mapFailed, setMapFailed] = useState(false)
   const [basemapFailed, setBasemapFailed] = useState(false)
   const [heldSelected, setHeldSelected] = useState<TrackedAircraft | null>(null)
-  const [bottomInset, setBottomInset] = useState(0)
+  const [insets, setInsets] = useState<MapInsets>(NO_INSETS)
   const [sharedLink, setSharedLink] = useState<SharedLinkState>(() => initialSharedLink(initialHex))
   // `?havalimani=` hedefi havalimanı listesi gelince bir kez uygulanır; seçim ya da sürükleme iptal eder.
   const pendingAirportRef = useRef<string | null>(initialHex === null ? initialAirport : null)
@@ -310,24 +341,39 @@ export function LiveMap({
     popupIcao === null ? undefined : airports.find((airport) => airport.icao === popupIcao)
   const popupOpen = popupAirport !== undefined
   const weather = useBulkWeather(config.apiBaseUrl, popupOpen, weatherClock)
+  // Listenin tahmini durumları (D-085): depo değiştikçe sınıflandırılır, çizimde yalnızca okunur.
+  const phases = useFlightPhases(store, airports)
+  // Haritanın üstündeki paneller: seçili uçağın etiketi bunların altında kalmaz (D-085). Kart açılıp
+  // kapanınca panel kümesi değişir.
+  const panels = useMapPanels(rootRef, cardOpen)
 
   // Dar ekranda kart ya da havalimanı penceresi haritanın altını örter: yüksekliği haritaya alt
   // boşluk olarak verilir, seçili uçak (ve "Uçağı ortala") kartın üstündeki görünür bölgede kalır.
+  // Geniş ekranda kart soldadır (D-085); haritanın ortasını örtecekse harita sola pay alır. Kök her
+  // zaman `.live-map`'tir: kart sol sütunun (`.live-map__left`) içindedir.
   useEffect(() => {
-    const card = cardOpen ? cardRef.current : popupOpen ? popupRef.current : null
-    const root = card?.parentElement
-    if (!card || !root) {
-      setBottomInset(0)
+    const panel = cardOpen ? cardRef.current : popupOpen ? popupRef.current : null
+    const root = rootRef.current
+    if (!panel || !root) {
+      setInsets(NO_INSETS)
       return
     }
+    const leftCard = panel === cardRef.current
     const sheet = window.matchMedia(BOTTOM_SHEET_QUERY)
     const measure = () => {
-      const covered = root.getBoundingClientRect().bottom - card.getBoundingClientRect().top
-      setBottomInset(sheet.matches ? Math.max(0, Math.round(covered)) : 0)
+      const next = panelInsets(
+        root.getBoundingClientRect(),
+        panel.getBoundingClientRect(),
+        sheet.matches,
+        leftCard,
+      )
+      setInsets((previous) =>
+        previous.bottom === next.bottom && previous.left === next.left ? previous : next,
+      )
     }
     measure()
     const observer = new ResizeObserver(measure)
-    observer.observe(card)
+    observer.observe(panel)
     observer.observe(root)
     sheet.addEventListener('change', measure)
     return () => {
@@ -336,6 +382,8 @@ export function LiveMap({
     }
   }, [cardOpen, popupOpen])
   const { rows, total } = visibleAircraft(store.list(), viewport.bounds, viewport.center)
+  const placeOf = (ac: TrackedAircraft) =>
+    aircraftPlace(ac, phases.get(ac.hex), now, messages.table, { locale, units })
   const showLoading = webgl !== false && !mapReady
   // Atıf, harita çizildiğinde MapLibre'nin atıf kutusundadır; harita yokken (yükleniyor, WebGL2
   // yok, kurulamadı) panellerdeki canlı veri için aynı atıf sayfada gösterilir.
@@ -382,7 +430,8 @@ export function LiveMap({
           labelSettings={labelSettings}
           locale={locale}
           units={units}
-          bottomInset={bottomInset}
+          insets={insets}
+          panels={panels}
           onSelect={select}
           onAirportSelect={openAirport}
           onEmptyClick={closeAirport}
@@ -398,23 +447,43 @@ export function LiveMap({
           {messages.loading}
         </p>
       ) : null}
-      <div className="live-map__search">
-        <SearchBox
-          apiBaseUrl={config.apiBaseUrl}
-          messages={messages.search}
-          onFound={showAircraft}
-          notice={sharedLink.phase === 'missing' ? messages.search.notFound : null}
-        />
-      </div>
-      <div className="live-map__status">
-        <StatusStrip
-          status={store.status}
-          coverage={store.coverage}
-          connection={live.connection}
-          basemapFailed={basemapFailed}
-          now={now}
-          messages={messages.status}
-        />
+      {/*
+       * Sol sütun (D-085): arama, durum şeridi ve seçili uçağın kartı. Konumlandırılmamış, akıştaki
+       * tek öğedir; haritanın öteki bütün katmanları `position: absolute` olmalıdır (globals.css).
+       */}
+      <div className="live-map__left">
+        <div className="live-map__search" data-map-panel="">
+          <SearchBox
+            apiBaseUrl={config.apiBaseUrl}
+            messages={messages.search}
+            onFound={showAircraft}
+            notice={sharedLink.phase === 'missing' ? messages.search.notFound : null}
+          />
+        </div>
+        <div className="live-map__status">
+          <StatusStrip
+            status={store.status}
+            coverage={store.coverage}
+            connection={live.connection}
+            basemapFailed={basemapFailed}
+            now={now}
+            messages={messages.status}
+          />
+        </div>
+        {selected ? (
+          <div ref={cardRef} className="live-map__card" data-map-panel="">
+            <InfoCard
+              aircraft={selected}
+              now={now}
+              locale={locale}
+              units={units}
+              following={following}
+              onToggleFollow={toggleFollow}
+              onClose={closeCard}
+              messages={messages.card}
+            />
+          </div>
+        ) : null}
       </div>
       {popupAirport && popupNow !== null ? (
         <div ref={popupRef} className="live-map__popup">
@@ -431,32 +500,22 @@ export function LiveMap({
           />
         </div>
       ) : null}
-      {selected ? (
-        <div ref={cardRef} className="live-map__card">
-          <InfoCard
-            aircraft={selected}
-            now={now}
-            locale={locale}
-            units={units}
-            following={following}
-            onToggleFollow={toggleFollow}
-            onClose={closeCard}
-            messages={messages.card}
-          />
-        </div>
-      ) : null}
-      <div className="live-map__table">
+      <div className="live-map__table" data-map-panel="">
         <AircraftTable
           rows={rows}
           total={total}
           selectedHex={selectedHex}
           onSelect={selectFromTable}
+          placeOf={placeOf}
+          sheet={sheetLayout}
+          wideOpen={listOpen}
+          onWideOpenChange={setListOpen}
           locale={locale}
           units={units}
           messages={messages.table}
         />
       </div>
-      <div className="live-map__controls">
+      <div className="live-map__controls" data-map-panel="">
         {consentSettingsLabel ? (
           <ConsentSettingsButton label={consentSettingsLabel} className="map-button" />
         ) : null}
