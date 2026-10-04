@@ -13,20 +13,19 @@ export interface CanvasChip {
 /** Kod kutusunun kenar rengi (`MAP_COLORS.labelBorder`, D-081): #B9E2E6. */
 const CHIP_BORDER = { r: 185, g: 226, b: 230 }
 
-/** Yalnız koddan oluşan kutunun en çok genişliği (iç beyazı; "IST" ~30 px, kod ve ad daha geniş). */
-export const CODE_CHIP_MAX_WIDTH = 48
+/** Kod kutusunun en çok genişliği (iç beyazı; "IST" ~30 px). Haritada ad yazılmaz (D-084). */
+const CODE_CHIP_MAX_WIDTH = 48
 
 /**
  * Tuvaldeki havalimanı kutuları, `near`a uzaklığa göre sıralı. Uçak etiketleri de kod kutusu gibi
  * beyaz zeminli ve #B9E2E6 kenarlıdır (D-081): tuvaldeki beyaz pikseller tek bir kutu sayılmaz.
  * Beyaz pikseller bağlı bölgelere ayrılır; kod kutusu yüksekliğinde (iç beyazı 11–15 px; uçak
- * etiketi daha yüksektir), en az 14 ve en çok `maxWidth` px geniş ve sol ile sağ kenarı #B9E2E6
- * tonunda olan bölgeler kutudur. Kod ve ad kutusu (D-084) aynı yükseklikte, daha geniştir.
+ * etiketi daha yüksektir), en az 14 ve en çok `CODE_CHIP_MAX_WIDTH` px geniş ve sol ile sağ kenarı
+ * #B9E2E6 tonunda olan bölgeler kutudur.
  */
 export async function canvasChips(
   page: Page,
   near: { x: number; y: number },
-  maxWidth = 240,
 ): Promise<CanvasChip[]> {
   return page.locator('.live-map .live-map__labels').evaluate(
     (element, { near, border, maxWidth }) => {
@@ -104,7 +103,7 @@ export async function canvasChips(
       const distance = (c: { x: number; y: number }) => Math.hypot(c.x - near.x, c.y - near.y)
       return chips.sort((a, b) => distance(a) - distance(b))
     },
-    { near, border: CHIP_BORDER, maxWidth },
+    { near, border: CHIP_BORDER, maxWidth: CODE_CHIP_MAX_WIDTH },
   )
 }
 

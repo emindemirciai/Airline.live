@@ -26,6 +26,10 @@ export const CHANGELOG: readonly ChangelogEntry[] = [
         tr: 'Havalimanı penceresi ve seçili uçağın etiketi listenin, aramanın ve sağ alttaki düğmelerin altında kalmaz.',
         en: 'The airport window and the selected aircraft’s label no longer end up under the list, the search box or the bottom-right buttons.',
       },
+      {
+        tr: 'Haritadaki havalimanı etiketlerinde yalnızca kod gösterilir; “Kod ve ad” seçeneği kaldırıldı. Ad ve ayrıntılar havalimanına tıklayınca açılan pencerede. Etiketler menüsünde Havalimanları için Gizle ya da Kod seçilir; kırmızı iğneler her zaman haritada kalır.',
+        en: 'Airport labels on the map show only the code; the “With name” option was removed. The name and details are in the window that opens when you click the airport. In the Labels menu, Airports can be Hide or Code; the red pins always stay on the map.',
+      },
     ],
     tryLinks: [{ path: '/?havalimani=LTFM', label: { tr: 'Canlı harita', en: 'Live map' } }],
   },

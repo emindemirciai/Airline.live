@@ -850,6 +850,7 @@ Hedef sürüm 0.16.0. Karar D-085'tedir.
   - 1280 × 720'de ~516 px'ten uzun IST penceresi solda açılır ve arama kutusunu birkaç piksel örtebilir (bütün yanlar bir paneli örtünce en az örten yan seçilir);
   - güzergâh bilinmediği için başka bir havalimanına giderken tarifeli bir havalimanının önünden alçalarak geçen uçak (ör. Trakya'dan IST'ye gelirken TEQ) kısa süre ona "Yaklaşmada" görünebilir;
   - seçili etiket, bütün yakın ve çizgili konumlar doluysa panelin üstüne gelebilir.
+- **Ek (2026-10-04, kullanıcı isteği; v0.16.0 ile yayımlanır):** "Havalimanları etiketi kod ve ad ı kaldır. tıklayınca detaylı veri var. adına gerek yok orada": Etiketler → Havalimanları yalnız Gizle / Kod (varsayılan Kod); saklanmış "Kod ve ad" ayarı Kod okunur. Kısa ad tablosu (`airport-map-names.ts`), adlı kutu çizimi ve ilgili i18n metinleri kaldırıldı; pinler her zaman görünür ve tıklanır. Karar D-084'e tarihli madde olarak eklendi.
 
 **Dizinler ve dosyalar:**
 - **`packages/geo/src/`:** `index.ts` (`crossTrackKm`, `alongTrackKm`); test `geo.test.ts`
@@ -900,6 +901,7 @@ Hedef sürüm 0.16.0. Karar D-085'tedir.
 - **Yayın adımı (2026-10-04):** dal v0.15.0 (logo) ile birleştirildi; karar ve plan çakışmaları iki bölüm korunarak çözüldü.
 - **`pnpm ci:full` → yeşil:** birim testleri web 724, shared 546, api 251, worker 200, providers 120, i18n 94, tools 74, db 44, geo 36, scripts 31; entegrasyon db 82, api 26, worker 12; migration yükseltme 6 → 6; `compose:guard`; E2E 113/113.
 - `pnpm stats` → 548 dosya, 98.374 satır (89.683 kod).
+- **"Kod ve ad" kaldırıldı (2026-10-04, aynı sürüm):** bağımsız kontrol 6 mutasyonun 5ini birim testleriyle, 1ini e2e ile yakaladı; `pnpm ci:full` → yeşil: birim testleri web 718, shared 541, api 251, worker 200, providers 120, i18n 94, tools 74, db 44, geo 36, scripts 33; entegrasyon db 82, api 26, worker 12; E2E 113/113. `pnpm stats` → 547 dosya, 98.022 satır (89.302 kod).
 
 ## M7 — Canlı araçlar ve kapsama raporu
 Ayrıntılar `docs/prompts/parca-1.md`'dedir. Başlarken bu dosyaya dizinler ve kabul komutları eklenir.

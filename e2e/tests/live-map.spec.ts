@@ -7,13 +7,7 @@
 // değil tablodan okur. Havalimanı kutuları ve seçili etiket etiket tuvalinin piksellerinden okunur
 // (`e2e/label-canvas.ts`).
 import { expect, test, type Locator, type Page } from '@playwright/test'
-import {
-  canvasChips,
-  CODE_CHIP_MAX_WIDTH,
-  mapCenter,
-  paintedPixels,
-  selectedLabelPixels,
-} from '../label-canvas'
+import { canvasChips, mapCenter, paintedPixels, selectedLabelPixels } from '../label-canvas'
 import {
   AIRCRAFT_LIST_KEY,
   aircraftRow,
@@ -356,11 +350,11 @@ test('etiket ayarı cihazda saklanır ve yeniden açılışta geri gelir; harita
   await expect(selected.getByRole('radio', { name: 'Tam' })).toBeChecked()
 })
 
-test('havalimanı etiketi Kod, Kod ve ad, Gizle; cihazda saklanır; kutu ve Gizle’de pin tıklanır (D-084)', async ({
+test('havalimanı etiketi Kod ya da Gizle; cihazda saklanır; Kod’da kutu, Gizle’de pin tıklanır (D-084)', async ({
   page,
 }) => {
-  // `?havalimani=LTFM` haritayı IST'de z10'da açar (ad z ≥ 7'de yazılır). Tek sayfa yüklemesi ve
-  // bir yenileme: her yükleme bir WebSocket el sıkışmasıdır (`WS_RATE_LIMIT`).
+  // `?havalimani=LTFM` haritayı IST'de z10'da açar. Tek sayfa yüklemesi ve bir yenileme: her
+  // yükleme bir WebSocket el sıkışmasıdır (`WS_RATE_LIMIT`).
   await page.goto(`/?havalimani=${PRIMARY_AIRPORT.icao}`)
   await waitForMap(page)
   await expect(aircraftRow(page, TAXI_AIRCRAFT.hex)).toHaveCount(1, { timeout: 30_000 })
@@ -377,37 +371,37 @@ test('havalimanı etiketi Kod, Kod ve ad, Gizle; cihazda saklanır; kutu ve Gizl
       return raw === null ? null : (JSON.parse(raw) as unknown)
     }, LABEL_SETTINGS_KEY)
 
-  // Varsayılan Kod (kullanıcı kararı 2026-10-03): IST kutusunda yalnız kod; tıklanınca pencere.
+  // Yalnız iki seçenek: "Kod ve ad" 2026-10-04'te kaldırıldı (ad havalimanı penceresindedir).
+  // Varsayılan Kod (kullanıcı kararı 2026-10-03): z10'da da IST kutusunda yalnız kod; tıklanınca
+  // pencere.
   await button.click()
+  await expect(airports.getByRole('radio')).toHaveCount(2)
+  await expect(mode('Gizle')).not.toBeChecked()
   await expect(mode('Kod')).toBeChecked()
   await page.keyboard.press('Escape')
-  await clickPrimaryChip(page, popup, 'code')
+  await clickPrimaryChip(page, popup)
   await page.keyboard.press('Escape')
   await expect(popup).toBeHidden()
 
-  // Kod ve ad klavyeyle seçilir: ok tuşu yalnız kendi grubunda gezer, uçak grupları değişmez.
+  // Gizle klavyeyle seçilir: ok tuşu yalnız kendi grubunda gezer, uçak grupları değişmez.
   await button.click()
   await mode('Kod').focus()
-  await page.keyboard.press('ArrowRight')
-  await expect(mode('Kod ve ad')).toBeChecked()
-  await expect.poll(stored).toEqual({ selected: 'full', others: 'full', airports: 'name' })
+  await page.keyboard.press('ArrowLeft')
+  await expect(mode('Gizle')).toBeChecked()
+  await expect(others.getByRole('radio', { name: 'Tam' })).toBeChecked()
+  await expect.poll(stored).toEqual({ selected: 'full', others: 'full', airports: 'hidden' })
   await page.keyboard.press('Escape')
   await expect(button).toHaveAttribute('aria-expanded', 'false')
-  // z10: IST kutusu kısa adı da yazar ("IST İstanbul", daha geniş); adın üstü de pencereyi açar.
-  await clickPrimaryChip(page, popup, 'name')
-  await page.keyboard.press('Escape')
-  await expect(popup).toBeHidden()
 
   // Ayar yeniden açılışta geri gelir; harita yine IST'dedir.
   await page.reload()
   await waitForMap(page)
   await button.click()
-  await expect(mode('Kod ve ad')).toBeChecked()
+  await expect(mode('Gizle')).toBeChecked()
   await expect(others.getByRole('radio', { name: 'Tam' })).toBeChecked()
 
   // Gizle: kutu çizilmez, pin görünür ve tıklanır kalır. Diğer uçakların etiketi de gizlenir: tuvalde
   // hiçbir şey kalmaz ve pinin başını bir uçak etiketi örtmez (etiket tıklaması önce gelir, D-079).
-  await mode('Gizle').check()
   await others.getByRole('radio', { name: 'Gizle' }).check()
   await expect.poll(stored).toEqual({ selected: 'full', others: 'hidden', airports: 'hidden' })
   await page.keyboard.press('Escape')
@@ -425,15 +419,11 @@ test('havalimanı etiketi Kod, Kod ve ad, Gizle; cihazda saklanır; kutu ve Gizl
 const PIN_HEAD_OFFSET_PX = 15
 
 /**
- * IST kutusuna tıklar ve pencerenin açıldığını bekler. Kutu pin başına en yakın kutudur (Kod:
- * yalnız kod genişliğinde, kodun ortasına; Kod ve ad: daha geniş, adın sonuna tıklanır). Uçaklar
- * ilerledikçe kutu yer değiştirebileceği için tıklama pencere açılana kadar yinelenir.
+ * IST kutusunun ortasına tıklar ve pencerenin açıldığını bekler. Kutu pin başına en yakın kod
+ * kutusudur (`canvasChips`: yalnız kod genişliğinde). Uçaklar ilerledikçe kutu yer değiştirebileceği
+ * için tıklama pencere açılana kadar yinelenir.
  */
-async function clickPrimaryChip(
-  page: Page,
-  popup: Locator,
-  expected: 'code' | 'name',
-): Promise<void> {
+async function clickPrimaryChip(page: Page, popup: Locator): Promise<void> {
   await expect(async () => {
     const center = await mapCenter(page)
     const head = { x: center.x, y: center.y - PIN_HEAD_OFFSET_PX }
@@ -442,10 +432,7 @@ async function clickPrimaryChip(
     if (!chip) return
     // Kutu pin başının yanındadır (sağında, solunda, üstünde ya da noktanın altında; D-079).
     expect(Math.hypot(chip.x - head.x, chip.y - head.y)).toBeLessThanOrEqual(30 + chip.width / 2)
-    if (expected === 'code') expect(chip.width).toBeLessThanOrEqual(CODE_CHIP_MAX_WIDTH)
-    else expect(chip.width).toBeGreaterThan(CODE_CHIP_MAX_WIDTH + 20)
-    const x = expected === 'code' ? chip.x : chip.x + chip.width / 2 - 6
-    await page.mouse.click(x, chip.y)
+    await page.mouse.click(chip.x, chip.y)
     await expect(popup).toBeVisible({ timeout: 2_000 })
   }).toPass({ timeout: 20_000 })
 }

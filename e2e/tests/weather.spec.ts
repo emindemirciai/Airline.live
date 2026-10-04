@@ -24,7 +24,7 @@
 //   açık yeşil ve "Hafif rüzgâr" etiketiyle (LTAJ `09005KT`)
 import { expect, test, type Locator, type Page } from '@playwright/test'
 import { jsonLdBlocks, metaContents, titles } from '../html'
-import { canvasChips, CODE_CHIP_MAX_WIDTH, mapCenter } from '../label-canvas'
+import { canvasChips, mapCenter } from '../label-canvas'
 import {
   aircraftRow,
   AIRPORT_COUNT,
@@ -1278,7 +1278,7 @@ async function clickPrimaryChip(page: Page): Promise<void> {
   await expect(async () => {
     const center = await mapCenter(page)
     const head = { x: center.x, y: center.y - PIN_HEAD_OFFSET_PX }
-    const [chip = null] = await canvasChips(page, head, CODE_CHIP_MAX_WIDTH)
+    const [chip = null] = await canvasChips(page, head)
     expect(chip, 'IST kodu tuvalde çizili').not.toBeNull()
     if (!chip) return
     // Kod pin başının yanındadır (sağında, solunda, üstünde ya da noktanın altında; D-079).

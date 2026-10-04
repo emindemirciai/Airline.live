@@ -35,7 +35,7 @@ Türkiye odaklı sivil havacılık uçuş takip platformu. Canlı harita, uçuş
 | Havalimanlarında canlı hava durumu (METAR/TAF; rüzgâr, yağmur, kar, gök gürültüsü, sis), METAR/TAF kaydı, haritada kırmızı iğne ve havalimanı penceresi, IST merkezli açılış | ✅ Parça 1 · M6c |
 | Yakın ülkelerdeki 75 havalimanı (Türkiye’deki en yakın havalimanına ≤ 500 km): sayfa, pistler, hava durumu, haritada iğne ve pencere; Ercan KKTC; açık turkuaz tema; hava durumu satırlarında simge ve vurgu | ✅ Parça 1 · M6d |
 | Rüzgâr km/sa ve knot ile; etkili rüzgâr (MGM meydan uyarı ölçütü) ve şiddet adı; şimşek ve yıldırım uyarısı; hizalı havalimanı penceresi | ✅ Parça 1 · M6e, v0.13.1 |
-| Askerî ve sivil havalimanı adları TR/EN; haritada havalimanı adı etiketi (Gizle / Kod / Kod ve ad); yurt dışında yerel saat ve UTC farkı | ✅ Parça 1 · M6f |
+| Askerî ve sivil havalimanı adları TR/EN; haritada havalimanı etiketi (Gizle / Kod); yurt dışında yerel saat ve UTC farkı | ✅ Parça 1 · M6f |
 | Rüzgâr renkleri (≤ 10 km/sa yeşil; ≥ 31 km/sa ya da hamle ≥ 46 km/sa turuncu) ve rüzgâr kesmesi uyarısı | ✅ v0.14.1 |
 | Yeni logo (halkanın içinden geçen uçak): başlık, sekme simgesi, uygulama simgeleri, paylaşım görselleri | ✅ Parça 1 · M6l |
 | Uçak listesi sağ üstte: sefer, kuyruk tescili, yükseklik, konum ve tahmini durum (yerde, inişte, yaklaşmada) | ✅ Parça 1 · M6k |
@@ -69,7 +69,7 @@ pnpm dev
 - `docs/DECISIONS.md`: kararlar ve gerekçeleri
 
 ### İstatistik (v0.16.0)
-Git'te 548 dosya, **98.374 satır**. Bunun 89.683 satırı kod (TypeScript, TSX, CSS, JS), 5.491 satırı belgedir. Lockfile, `docs/research/` ve elle yazılmayan veri (fixture CSV ve JSON dosyaları, drizzle şema snapshot'ları) hariç tutulur. Güncel değer için `pnpm stats` çalıştır.
+Git'te 547 dosya, **98.022 satır**. Bunun 89.302 satırı kod (TypeScript, TSX, CSS, JS), 5.506 satırı belgedir. Lockfile, `docs/research/` ve elle yazılmayan veri (fixture CSV ve JSON dosyaları, drizzle şema snapshot'ları) hariç tutulur. Güncel değer için `pnpm stats` çalıştır.
 
 | Alan | Satır |
 |---|---|
@@ -125,7 +125,7 @@ A Türkiye-focused civil aviation flight tracker. It offers a live map and lets 
 | Live airport weather (METAR/TAF; wind, rain, snow, thunderstorm, fog), METAR/TAF log, red map pins and airport window on the map, map opens on IST | ✅ Part 1 · M6c |
 | 75 airports in nearby countries (within 500 km of the nearest airport in Türkiye): pages, runways, weather, map pins and window; Ercan in the TRNC; light turquoise theme; weather row icons and highlights | ✅ Part 1 · M6d |
 | Wind in km/h and knots; significant wind (Turkish aerodrome warning threshold) with strength names; lightning warnings; aligned airport window | ✅ Part 1 · M6e, v0.13.1 |
-| Military and civil airport names in TR/EN; airport name labels on the map (Hide / Code / With name); local time with UTC offset abroad | ✅ Part 1 · M6f |
+| Military and civil airport names in TR/EN; airport labels on the map (Hide / Code); local time with UTC offset abroad | ✅ Part 1 · M6f |
 | Wind colours (≤ 10 km/h green; ≥ 31 km/h or gusts ≥ 46 km/h amber) and wind shear warnings | ✅ v0.14.1 |
 | New logo (a plane flying through the ring): header, tab icon, app icons, share images | ✅ Part 1 · M6l |
 | Aircraft list at the top right: flight, tail number, altitude, location and estimated status (on ground, landing, approaching) | ✅ Part 1 · M6k |
@@ -159,7 +159,7 @@ Then open `http://localhost:3100/` (live map), `/havalimanlari`, `/istasyon/LTFM
 - `docs/DECISIONS.md`: decisions and rationale
 
 ### Stats (v0.16.0)
-548 files and **98,374 lines** in git: 89,683 lines of code (TypeScript, TSX, CSS, JS) and 5,491 lines of documentation. The lockfile, `docs/research/` and generated data (fixture CSV and JSON files, drizzle schema snapshots) are excluded. Run `pnpm stats` for current numbers.
+547 files and **98,022 lines** in git: 89,302 lines of code (TypeScript, TSX, CSS, JS) and 5,506 lines of documentation. The lockfile, `docs/research/` and generated data (fixture CSV and JSON files, drizzle schema snapshots) are excluded. Run `pnpm stats` for current numbers.
 
 ### License, data and attribution
 - Code is licensed under the [MIT License](LICENSE): © 2026 [emindemirciai](https://github.com/emindemirciai). All copies or substantial portions of the code must include the copyright notice and license text; copying or distributing without them infringes the license and the copyright. The **havayolu** name and logo are not covered by the MIT License; rights reserved. The same notice appears in the page source of the site.
