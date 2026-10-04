@@ -41,6 +41,11 @@ test('harita IST/LTFM merkezli açılır, atıflar görünür, replay uçağı t
   page,
   request,
 }) => {
+  // Yerel test stilinde ülke sınırı yoktur (D-092): sınır kaynağı (OpenFreeMap TileJSON'u ve
+  // karoları) hiç istenmez, şeritte OpenStreetMap atfı çıkmaz. Harita sayfasının bütün istekleri
+  // toplanır.
+  const requested: string[] = []
+  page.on('request', (sent) => requested.push(sent.url()))
   await openMap(page)
   await expect(page.locator('.live-map__labels')).toBeAttached()
   // Açılış görünümü IST/LTFM merkezlidir (D-079): görünümdeki ilk havalimanı IST, LTFM'deki taksi
@@ -68,6 +73,22 @@ test('harita IST/LTFM merkezli açılır, atıflar görünür, replay uçağı t
   await expect(creditLink).toHaveText(credit)
   await expect(creditLink).toHaveAttribute('href', '/yenilikler')
   await expect(page.locator('.live-map__status')).toContainText('Veri yaşı')
+  // Yerel test stili (D-092): stil yerelden geldi; sınır kaynağı, vektör karo ya da OpenFreeMap
+  // isteği yok; atıfta OpenStreetMap/OpenMapTiles yok.
+  expect(requested.some((url) => new URL(url).pathname === '/test-style.json')).toBe(true)
+  const borderRequests = requested.filter((url) => {
+    const { hostname, pathname } = new URL(url)
+    return (
+      hostname.endsWith('openfreemap.org') ||
+      pathname.endsWith('.pbf') ||
+      pathname.endsWith('.mvt') ||
+      pathname === '/planet' ||
+      pathname.startsWith('/planet/')
+    )
+  })
+  expect(borderRequests).toEqual([])
+  await expect(attribution).not.toContainText('OpenStreetMap')
+  await expect(attribution).not.toContainText('OpenMapTiles')
 
   const row = aircraftRow(page, near.hex)
   await expect(row).toBeVisible({ timeout: 30_000 })
