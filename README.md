@@ -2,7 +2,7 @@
 
 **[Türkçe](#türkçe) · [English](#english)**
 
-![sürüm](https://img.shields.io/badge/s%C3%BCr%C3%BCm-v0.17.2-blue) ![lisans](https://img.shields.io/badge/lisans-MIT-green) ![durum](https://img.shields.io/badge/durum-geli%C5%9Ftirme-yellow)
+![sürüm](https://img.shields.io/badge/s%C3%BCr%C3%BCm-v0.18.0-blue) ![lisans](https://img.shields.io/badge/lisans-MIT-green) ![durum](https://img.shields.io/badge/durum-geli%C5%9Ftirme-yellow)
 
 ---
 
@@ -14,7 +14,7 @@ Türkiye odaklı sivil havacılık uçuş takip platformu. Canlı harita, uçuş
 
 > **Bilinen sınır:** Kendi ADS-B alıcımız olmadığı için İstanbul Havalimanı'nda iniş anı çoğunlukla doğrudan görülmez. İniş bildirimi çoğu uçuşta "muhtemelen indi (tahmini saat)" olarak ve son sinyalden 1–1,5 dk sonra gelir. Bazı uçuşlarda yalnızca "iniş verisi alınamadı" denebilir.
 
-### Durum — v0.17.2
+### Durum — v0.18.0
 | Alan | Durum |
 |---|---|
 | Yol haritası, veri kaynakları, mimari | ✅ Hazır ve doğrulandı |
@@ -40,6 +40,7 @@ Türkiye odaklı sivil havacılık uçuş takip platformu. Canlı harita, uçuş
 | 2. halka: 1.000 km’ye kadar 89 havalimanı daha (toplam 225); haritanın atıf şeridinde site adı ve sürüm | ✅ Parça 1 · M6g |
 | Yeniliklerde her sürümün yayın tarihi ve saati | ✅ v0.17.1 |
 | Haritada kesikli ülke sınırları (OpenStreetMap) | ✅ v0.17.2 |
+| 3. halka: 2.000 km’ye kadar 278 havalimanı daha (toplam 503); 2022’den beri kapalı olabilecek havalimanlarında not | ✅ Parça 1 · M6h |
 | Yeni logo (halkanın içinden geçen uçak): başlık, sekme simgesi, uygulama simgeleri, paylaşım görselleri | ✅ Parça 1 · M6l |
 | Uçak listesi sağ üstte: sefer, kuyruk tescili, yükseklik, konum ve tahmini durum (yerde, inişte, yaklaşmada) | ✅ Parça 1 · M6k |
 | 10 km ve iniş bildirimi (web push) | ⏳ Parça 2 · M4 |
@@ -72,7 +73,7 @@ pnpm dev
 - `docs/DECISIONS.md`: kararlar ve gerekçeleri
 
 ### İstatistik (v0.17.2)
-Git'te 556 dosya, **102.656 satır**. Bunun 93.466 satırı kod (TypeScript, TSX, CSS, JS), 5.976 satırı belgedir. Lockfile, `docs/research/` ve elle yazılmayan veri (fixture CSV ve JSON dosyaları, drizzle şema snapshot'ları) hariç tutulur. Güncel değer için `pnpm stats` çalıştır.
+Git'te 559 dosya, **105.368 satır**. Bunun 96.039 satırı kod (TypeScript, TSX, CSS, JS), 6.115 satırı belgedir. Lockfile, `docs/research/` ve elle yazılmayan veri (fixture CSV ve JSON dosyaları, drizzle şema snapshot'ları) hariç tutulur. Güncel değer için `pnpm stats` çalıştır.
 
 | Alan | Satır |
 |---|---|
@@ -107,7 +108,7 @@ A Türkiye-focused civil aviation flight tracker. It offers a live map and lets 
 
 > **Known limitation:** Without our own ADS-B receiver, the moment of touchdown at Istanbul Airport is usually not observed directly. For most flights the landing alert says "probably landed (estimated time)" and arrives 1–1.5 minutes after the last signal. For some flights it can only say "landing data unavailable".
 
-### Status — v0.17.2
+### Status — v0.18.0
 | Area | Status |
 |---|---|
 | Roadmap, data sources, architecture | ✅ Done and verified |
@@ -133,6 +134,7 @@ A Türkiye-focused civil aviation flight tracker. It offers a live map and lets 
 | Ring 2: 89 more airports up to 1,000 km (225 in total); site name and version in the map attribution strip | ✅ Part 1 · M6g |
 | Release date and time for every version on What’s new | ✅ v0.17.1 |
 | Dashed country borders on the map (OpenStreetMap) | ✅ v0.17.2 |
+| Ring 3: 278 more airports up to 2,000 km (503 in total); note on airports that may be closed since 2022 | ✅ Part 1 · M6h |
 | New logo (a plane flying through the ring): header, tab icon, app icons, share images | ✅ Part 1 · M6l |
 | Aircraft list at the top right: flight, tail number, altitude, location and estimated status (on ground, landing, approaching) | ✅ Part 1 · M6k |
 | 10 km and landing alerts (web push) | ⏳ Part 2 · M4 |
@@ -165,7 +167,7 @@ Then open `http://localhost:3100/` (live map), `/havalimanlari`, `/istasyon/LTFM
 - `docs/DECISIONS.md`: decisions and rationale
 
 ### Stats (v0.17.2)
-556 files and **102,656 lines** in git: 93,466 lines of code (TypeScript, TSX, CSS, JS) and 5,976 lines of documentation. The lockfile, `docs/research/` and generated data (fixture CSV and JSON files, drizzle schema snapshots) are excluded. Run `pnpm stats` for current numbers.
+559 files and **105,368 lines** in git: 96,039 lines of code (TypeScript, TSX, CSS, JS) and 6,115 lines of documentation. The lockfile, `docs/research/` and generated data (fixture CSV and JSON files, drizzle schema snapshots) are excluded. Run `pnpm stats` for current numbers.
 
 ### License, data and attribution
 - Code is licensed under the [MIT License](LICENSE): © 2026 [emindemirciai](https://github.com/emindemirciai). All copies or substantial portions of the code must include the copyright notice and license text; copying or distributing without them infringes the license and the copyright. The **havayolu** name and logo are not covered by the MIT License; rights reserved. The same notice appears in the page source of the site.

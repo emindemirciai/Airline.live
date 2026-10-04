@@ -30,8 +30,8 @@ Durumlar: `[ ]` başlamadı, `[~]` sürüyor, `[k]` kod bitti ve kullanıcı do�
 | M6e.3 | Derecelendirilmiş rüzgâr renkleri (yama, v0.16.1) | `p1/m6e3-wind-scale` | [x] tamam; üretimde doğrulandı (2026-10-04, v0.16.1): LTFM, LTBA, LGAV kehribar, LTAC sarı, UGTB yeşil-sarı, LTAI yeşil | #24 |
 | M6g | Türkiye dışındaki havalimanları, 2. halka (≤ 1.000 km); haritanın atıf şeridinde site künyesi | `p1/m6g-ring2` | [k] kod bitti; üretimde 225 havalimanı ve HEBA hava durumunun görülmesi bekliyor (ACTIVATION) | #25 |
 | M6e.4 | Yeniliklerde yayın tarihi ve saati (yama, v0.17.1) | `p1/changelog-time` | [x] tamam; üretimde doğrulandı (2026-10-04, v0.17.1): /yenilikler v0.17.1 "4 Ekim 2026, 21:36 (Türkiye saati)" (sunucunun açılışı), v0.17.0 20:27 | #26 |
-| M6e.5 | Haritada kesikli ülke sınırları (yama, v0.17.2) | `p1/map-borders` | [k] kod bitti; üretimde sınırların görülmesi bekliyor (ACTIVATION) | #27 |
-| M6h | 3. halka (≤ 2.000 km) — kullanıcı isteğiyle M7a'nın önüne alındı (2026-10-04) | `p1/m6h-ring3` | [ ] | — |
+| M6e.5 | Haritada kesikli ülke sınırları (yama, v0.17.2) | `p1/map-borders` | [x] tamam; üretimde doğrulandı (2026-10-04, v0.17.2): Balkanlarda kesikli sınırlar, şeritte OpenFreeMap atfı | #27 |
+| M6h | 3. halka (≤ 2.000 km) — kullanıcı isteğiyle M7a'nın önüne alındı (2026-10-04); sivil uçuşa kapalı olabilecek havalimanı notu | `p1/m6h-ring3` | [k] kod bitti; üretimde 503 havalimanı ve Özbek istasyonlarının hava durumu bekliyor (ACTIVATION) | #28 |
 | M7a | Canlı araçlar: `smoke:live`, `record` | `p1/m7a-live-tools` | [ ] | — |
 | M7b | Kapsama ölçümü ve raporu (`coverage:probe`, `coverage:report`) | `p1/m7b-coverage` | [ ] | — |
 | M6i | 4. halka (≤ 5.000 km); haritada görünür alana göre havalimanı yükleme, AWC toplu dosyası | `p1/m6i-ring4` | [ ] | — |
@@ -1071,6 +1071,69 @@ Hedef sürüm 0.17.2 (`main` `fb6e0cc` = v0.17.0'dan; v0.17.1 ayrı yamadadır).
 - `pnpm typecheck` (9/9), `pnpm lint` (9/9), `pnpm typecheck:e2e`, `pnpm lint:e2e`, `pnpm format`, `pnpm check:eol` → yeşil.
 
 - **Yayın adımı (2026-10-04):** dal v0.17.1 ile birleştirildi; v0.17.1 `releasedAt` 2026-10-04T18:36:55Z (GitHub Release). **`pnpm ci:full` → yeşil:** birim testleri web 757, shared 633, api 255, worker 200, providers 122, i18n 97, tools 74, db 47, geo 36, scripts 39; entegrasyon db 83, api 26, worker 12; E2E 120/120. `pnpm stats` → 556 dosya, 102.656 satır (93.466 kod).
+
+## M6h — 3. halka (v0.18.0)
+Onay: 2026-10-04 kullanıcı isteği "sonraki işlerden birine bir halka daha ekle" ve kapalı havalimanı kararı (2022'den beri sivil uçuşa kapalı olduğu hâlde OurAirports'ta tarifeli görünen havalimanları listede kalır, sayfada ve pencerede "Sivil uçuşlara kapalı olabilir (2022’den beri)" notu); diğer seçimler M6h araştırmasının önerileri (orkestratör varsayılanı 2026-10-04)
+
+Hedef sürüm 0.18.0 (dal `p1/m6g-ring2`'nin v0.17.0 sürüm commit'i `5f34acb`'den açıldı; PR #25 sonra `main`'e birleşti, `fb6e0cc`, v0.17.0 yayında). `main`'deki tek fark e2e düzeltmesi `f602d59`'dur (`e2e/tests/live-map.spec.ts`); dal `ci:full`'dan önce `origin/main`'i merge commit ile alır (çakışma yok). Kararlar D-090'dadır; kural D-080'in aynısıdır. Migration yoktur: üretim veritabanı 3. halkanın havalimanlarını zaten tutar. Plan sırası M6g → M6h → M7a (D-082).
+
+**Kapsam:**
+- **Halka:** `ENABLED_AIRPORT_RING` 2 → 3; listelenen havalimanları 225 → 503 (61 + 75 + 89 + 278), 27 yeni ülke (açık halkalarda 58). En yakını Gachsaran (1.006 km), en uzağı Växjö (1.994 km). Fixture'ın uzak örneklerinden Frankfurt, Dubai ve Doha Hamad 3. halkadadır ve listelenir. Dizine eklenen sayfa 498.
+- **Fixture:** 2026-10-01 indirmesinden (yeniden indirme yok) 275 havalimanı ve 389 açık pist dosyaların sonuna; `FIXTURE_RINGS_KM = [500, 1000, 2000]`; üretim aynı baytları verir (876 / 747 satır).
+- **Adlar, şehirler, ülkeler:** 278 havalimanının TR/EN adı ve şehri (D-080/D-084/D-088 kuralları; Béjaïa, Krakov, Marsa Alam, Navoi, Tozeur, Menorca, Szczecin varsayılan yazımları); ülke adları `Intl`; şehir istisnası Ercan + Bahreyn (Manama) + Malta (Valletta); Basel-Mulhouse-Freiburg → Mulhouse; Kızıldeniz → Kızıldeniz / Red Sea; Ebu Musa İran (OurAirports ülkesi); İngilizce ad kuralı EuroAirport'u kapsar; Cuxhaven ve Guemar kısaltılır.
+- **Saat dilimleri:** 49 yeni bölge kuralı (Almanya'da OurAirports'un DE-BR kodu dahil, İspanya, Kazakistan, Rusya'nın Samara/Saratov/Ulyanovsk/Yekaterinburg/Kaliningrad dilimleri, Özbekistan); 442 havalimanının dilimi testle.
+- **Kaynak düzeltmeleri:** API'nin ad temizliği tek başına duran küçük harfli "airport"u "Airport" yapar (dokuz Fransız havalimanı); Voronej ve Linz'in boş pist satırları gizli; karşı ucu olmayan satır pist değildir (Stuttgart'ın iki helikopter alanı; genel kural); yeni kaplama kodları; Özbekistan UZxx (OurAirports kimliği UTxx).
+- **Sivil uçuşa kapalı olabilecek havalimanları:** küratörlü, belgeli liste `CIVIL_FLIGHT_CLOSURES` (`@havayolu/shared`; Rosaviatsiya'nın 2022-02-24 kısıtlamasındaki on Rusya havalimanı; listede olanlar Krasnodar, Gelencik, Elista, Voronej); API sözleşmesi değişmez; not sayfada ve harita penceresinde (web).
+- **Hava durumu ve ölçek (bbox yok; 4. halka M6i'de):** istasyon 503; METAR 7, TAF 3 istek (saatte ~96); yayından sonra 278 yeni istasyon 47 istekte 24 saat (ilk çalışma 50 istek), tam doldurma 84 istek; AWC istekleri arasında en az 700 ms (`AWC_MIN_REQUEST_INTERVAL_MS`, dakikada en çok 86); geçmiş önbelleği 1.024; toplu hava bütçesi yalnız API/mobil (en kötü < 4 MB); harita penceresi tek havalimanının havasını ister, sayfalar toplu havayı web belleğinde 60 sn tutar, METAR/TAF kaydı önbelleği 900 sn (web).
+- **Sayfalar ve harita (web):** tablo 442 satır; site haritası 1.006 adres, llms.txt 498 havalimanı satırı; "2.000 km" / "2,000 km"; 3. halka sayfaları ve pencere ülke ve yerel saatle; z5'te 503 kod; kapalı havalimanı notu.
+
+**Dizinler ve dosyalar (veri ve backend):**
+- `packages/shared/src/reference/`: `airport-rings.ts` (`ENABLED_AIRPORT_RING` 3), `foreign-airport-names.ts` (442 ad ve şehir), `time-zones.ts` (49 bölge kuralı), `runway-surface.ts` (kaplama kodları), `civil-closures.ts` (yeni), `index.ts`; testler `foreign.test.ts`, `names.test.ts`, `time-zones.test.ts`, `reference.test.ts`, `civil-closures.test.ts` (yeni)
+- `packages/db/src/airports.ts` (`cleanAirportName`, `HIDDEN_RUNWAY_IDS`, `isHiddenRunway`); `airports.test.ts`, `airports.int.test.ts`
+- `packages/providers/src/weather/aviationweather.ts` (`AWC_MIN_REQUEST_INTERVAL_MS`, `minIntervalMs`, `monotonicNow`, `sleep`); `aviationweather.test.ts`; `packages/providers/src/reference/reference.test.ts` (876 satır)
+- `apps/worker/src/jobs/weather.ts` (açıklama); `weather.test.ts`, `jobs.int.test.ts`
+- `apps/api/src/reference/`: `weather.ts` (`WEATHER_HISTORY_CACHE_MAX_ENTRIES` 1.024), `airports.ts` (açıklama); `weather.test.ts`, `rings.test.ts`, `airport-details.int.test.ts`
+- `tools/fixtures/ourairports/airports.csv`, `runways.csv`, `tools/fixtures/README.md`, `scripts/make-reference-fixtures.mts`
+- Belgeler: D-090, `docs/spec/data-sources.md` §3, §5 ve saat dilimleri, `docs/RUNBOOK.md` (istek sayıları), `docs/ACTIVATION.md` ("M6h yayın doğrulaması")
+
+**Dizinler ve dosyalar (sayfalar ve testler, web):**
+- `packages/i18n/src/`: `messages/{tr,en}.ts` (`airport.civilClosure`, `map.airportPopup.civilClosure`), `index.ts` (`formatSinceYear`: "2022’den" / "2022"); `i18n.test.ts`
+- `apps/web/src/components/map/`: `use-airport-weather.ts` (`useAirportWeather`: tek havalimanı, son 32 havalimanı, `rememberStation`), `airport-popup-model.ts` (`AirportWeatherState`, yanıtın ICAO denetimi, `closure`), `airport-popup.tsx` (not), `live-map.tsx`, `labels.ts` (`RectObstacles` ile yerleşim), `airport-data.ts` (ölçek notu); testler `use-airport-weather.test.ts`, `airport-popup-model.test.ts`, `airport-popup.test.ts`, `labels.test.ts`
+- `apps/web/src/lib/`: `weather.ts` (`createMemoryCache`, toplu hava web belleğinde 60 sn, `no-store`; kayıt 900 sn), `map/label-layout.ts` (`RectObstacles`), `airports.ts` (boyut notu), `test/ourairports-fixture.ts` (gizli pistler, tek uçlu satır, "airport"); testler `weather.test.ts`, `map/label-layout.test.ts`
+- `apps/web/src/components/airports/`: `civil-closure.ts` (yeni, `civilClosureNote`), `airport-view.tsx` (not), `airport-weather.tsx` ve `weather-client.ts` (açıklama); testler `airport-view.test.ts`, `airport-text.test.ts`, `airport-og.test.ts`; `components/about/about-content.test.ts`, `app/llms.txt/route.test.ts`; `app/globals.css` (`.civil-closure`)
+- `e2e/`: `support.ts` (`RING3_AIRPORT_COUNT`, 442 / 503 / 498, `RING_LIMITS_KM[3]`, `RING3_AIRPORT` Viyana, `CIVIL_CLOSURE_AIRPORT` Voronej), `tests/foreign-airports.spec.ts`, `tests/seo.spec.ts`, `tests/weather.spec.ts`, `tests/app.setup.ts`
+
+**Kabul komutları:**
+- `pnpm --filter @havayolu/shared test` → halka 3 açık; fixture'da 3. halka 278 (275 yeni + EDDF, OMDB, OTHH) ve 27 yeni ülke; 442 ad ve şehir; İngilizce ad kuralı (sapmalar: Bağdat, Podgorica, Cuxhaven, Guemar); küçük harfli "airport" dokuz satırda; şehir istisnaları; 442 havalimanının dilimi (Samara +4, Kaliningrad +2, Ufa +5, Herat +4:30); yeni kaplama kodları; kapalı havalimanı listesi
+- `pnpm --filter @havayolu/db test` ve `pnpm test:integration` → ad temizliği, gizli pistler (Voronej, Linz, Stuttgart helikopter); 503 havalimanı; API'de 61 + 442 (`[434, 442]`); worker istasyon listesi 503
+- `pnpm --filter @havayolu/api test` → iki paketin ad temizliği ve UZxx kuralı aynı; geçmiş önbelleği ≥ 1.006; 503 istasyonun toplu gövdesi (en kötü 3,41 MB < 4 MB; tek TAF 2,23 MB < 2,6 MB)
+- `pnpm --filter @havayolu/worker test` ve `@havayolu/providers` → METAR 80 × 6 + 23, TAF 200 + 200 + 103, 278 yeni istasyon 47 istekte 24 saat (ilk çalışma 50), tam doldurma 84; istekler arası en kısa aralık (sahte saat)
+- `pnpm exec tsx scripts/make-reference-fixtures.mts <ham-klasör> <çıktı>` → commit'li fixture'la bayt bayt aynı
+- `pnpm --filter @havayolu/web test` → 503 (75 + 89 + 278); 3. halka > 1.000 ve ≤ 2.000 km; "2.000 km" / "2,000 km"; ilk ülke Afganistan; Viyana sayfası ve penceresi; Voronej notu iki dilde, yalnız URKG, URKK, URWI, UUOO; pencere tek havalimanını ister ve yanıtın ICAO'sunu denetler; toplu hava web belleğinde (tek uçuş, dakikada bir istek, `no-store`, 10 dk eski veri, 15 sn yeniden deneme); kayıt 900 sn; z5'te 503 kod, `RectObstacles` doğrusal taramayla eşit; paylaşım görseli örneklemi ağsız
+- `pnpm --filter @havayolu/i18n test` → `formatSinceYear` ve not metni; `pnpm typecheck:e2e`, `pnpm lint:e2e`
+- `pnpm test:e2e`: kurulum 503; API `scope=listed` 61 + 442 (halka 1: 75 ≤ 500; 2: 89, 500–1.000; 3: 278, 1.000–2.000), Viyana halka 3, EGLL yok; liste 442 satır, ItemList 503; `/istasyon/LOWW` iki dilde; `/istasyon/vie` → 308; site haritası 1.006; llms.txt 498; `?havalimani=LOWW`
+- `pnpm ci:full` yeşil; PR'da CI (`e2e` dahil) yeşil
+- **Kullanıcıya bağlı (`[k]`):** yayından sonra `scope=listed` 503; Özbekistan istasyonlarının METAR'ı UZxx koduyla (UTxx değil); ilk METAR çalışmasında 429 yok, AWC istek hızı; toplu hava gövdesinin boyutu ve sayfa hava durumunun gelmesi; kapalı havalimanı notu (ACTIVATION → "M6h yayın doğrulaması")
+
+**Çıktı kaydı (2026-10-04, veri ve backend; sürüm, changelog ve README yayın adımındadır):**
+- Fixture: ham dosyalardan üretim (çıktı scratchpad'e) commit'li `airports.csv` (876 satır) ve `runways.csv` (747 satır) ile bayt bayt aynı ("airports 437 + rings 75 + 89 + 275, runways 146 + 601").
+- Birim testleri: `@havayolu/shared` 623, `@havayolu/db` 50, `@havayolu/api` 256, `@havayolu/worker` 200, `@havayolu/providers` 126, `@havayolu/tools` 74, `pnpm test:scripts` 33. Toplu hava gövdesi testte ölçüldü: en kötü 3.406.965 bayt (< 4 MB), tek TAF 2.233.969 bayt (< 2,6 MB).
+- `pnpm typecheck` (9/9), `pnpm typecheck:scripts`, `pnpm lint` (9/9), `pnpm check:eol`, Prettier (değişen dosyalar) → yeşil. Entegrasyon testleri (db, api, worker) güncellendi ama bu oturumda çalıştırılmadı (veritabanı birleştirici `ci:full`'unda).
+
+**Çıktı kaydı (2026-10-04, web):**
+- Birim testleri: `@havayolu/web` 748 (63 dosya), `@havayolu/i18n` 97. `pnpm typecheck` (9/9), `pnpm lint` (9/9), `pnpm typecheck:e2e`, `pnpm lint:e2e`, `pnpm check:eol`, Prettier (değişen dosyalar) → yeşil. e2e güncellendi, bu oturumda çalıştırılmadı (birleştirici `ci:full`'unda).
+- Ölçümler (Node, yerel): z5 kod yerleşimi 400–503 görünür havalimanıyla doğrusal taramada medyan 1,4–3,4 ms, `RectObstacles` ile 1,1–1,3 ms; liste sayfası HTML'i 106 KB (gzip 17 KB), üretim React'iyle çizim 40–50 ms; llms.txt 107 KB, 498 havalimanı satırı; havalimanı listesi yanıtı 448 KB, denetimi ~6 ms; paylaşım görseli örneklemi 35 görsel, ~1,5 sn; ayrıştırılmış toplu hava JSON'un ~1,5 katı yığın; LTFM'nin 24 saatlik kaydı 70 KB.
+
+**Çıktı kaydı (2026-10-04, birleştirme; iki işin birlikte hâli, sunucu ve veritabanı olmadan):**
+- `turbo run test --force` → 9/9 paket: web 748, shared 623, api 256, worker 200, providers 126, i18n 97, tools 74, db 50, geo 36. `pnpm test:scripts` 33.
+- `turbo run typecheck lint --force` → 18/18; `pnpm typecheck:e2e`, `pnpm lint:e2e`, `pnpm typecheck:scripts`, `pnpm check:eol`, `prettier --check .` → yeşil.
+- Sayılar her yerde aynı: listelenen 503 (61 + 75 + 89 + 278), Türkiye dışı 442, dizine eklenen 498, site haritası 1.006, llms.txt 498 satır (`e2e/support.ts` sabitleri, birim testleri, D-090, ACTIVATION). Not metni belgelerde de sitedeki gibi "2022’den beri" yazılır.
+- Çalıştırılmayanlar: `pnpm test:integration`, `pnpm test:migration-upgrade`, `pnpm test:e2e` (`ci:full`, `origin/main` alındıktan sonra).
+
+**Çıktı kaydı (2026-10-04, yayın; `origin/main` v0.17.2 alındıktan sonra `0d83f44`):**
+- `pnpm ci:full` → `ci:local` yeşil (birim: web 769, shared 640, api 256, worker 200, providers 127, i18n 98, tools 74, db 50, geo 36), `compose:guard` yeşil, entegrasyon db 84, api 26, worker 12, `test:migration-upgrade` 6 → 6.
+- İlk e2e denemesi kurulumda 228 havalimanı gördü: yerel geliştirme veritabanı 3. halkadan önceki içe aktarmayı tutuyordu (worker tablo boşken ya da son denetim 24 saatten eskiyken yeniden aktarır). `reference_sources`'taki iki OurAirports satırı yerelde migration 0005'teki gibi sıfırlandı. İkinci denemede kurulum 503'ü gördü; sayfalar web'in yerel geliştirme veri önbelleğinden (`apps/web/.next/dev/cache/fetch-cache`, 1 saat) eski 228'lik listeyi sundu ve 11 test düştü. Önbellek silindi ve yalnız `pnpm test:e2e` yeniden çalıştırıldı: 124 test geçti (3,3 dk). Bu iki durum yalnızca yereldir; CI her çalıştırmada boş veritabanı ve boş önbellekle başlar. Üretimde liste, içe aktarmadan sonra en geç 1 saat içinde tazelenir (önbellek penceresi, M6g'deki gibi).
+- `pnpm stats` → 559 dosya, 105.368 satır (kod 96.039, belge 6.115).
 
 ## M7 — Canlı araçlar ve kapsama raporu
 Ayrıntılar `docs/prompts/parca-1.md`'dedir. Başlarken bu dosyaya dizinler ve kabul komutları eklenir.

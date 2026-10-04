@@ -30,8 +30,8 @@ import {
 } from './index'
 
 // Commit'li OurAirports alt kümesi (tools/fixtures/README.md): Türkiye'nin bütün kayıtları, birkaç
-// uzak havalimanı, 1. ve 2. halkanın havalimanları (D-080, D-088). Alanlar tırnaklı; `""` kaçışlı
-// tırnaktır.
+// uzak havalimanı, 1., 2. ve 3. halkanın havalimanları (D-080, D-088, D-090). Alanlar tırnaklı; `""`
+// kaçışlı tırnaktır.
 const csv = (path: string) => {
   const text = readFileSync(new URL(`../../../../tools/fixtures/${path}`, import.meta.url), 'utf8')
   const [header = '', ...lines] = text.split(/\r?\n/)
@@ -53,8 +53,15 @@ const icaoOf = (r: Map<string, string>) =>
     icaoCode: r.get('icao_code'),
     gpsCode: r.get('gps_code'),
   })
-/** Adlarda art arda boşluk teke iner (`@havayolu/db` liste kuralı; Bacău, D-088). */
-const cleanName = (name: string) => name.replace(/\s+/g, ' ').trim()
+/**
+ * `@havayolu/db` `cleanAirportName` kuralı: art arda boşluk teke iner (Bacău, D-088), tek başına
+ * duran küçük harfli "airport" "Airport" olur (dokuz Fransız havalimanı, D-090).
+ */
+const cleanName = (name: string) =>
+  name
+    .replace(/\s+/g, ' ')
+    .trim()
+    .replace(/\bairport\b/g, 'Airport')
 const IATA = /^[A-Z]{3}$/
 const LISTABLE = ['large_airport', 'medium_airport', 'small_airport']
 
@@ -99,15 +106,18 @@ const candidates = rows
   })
 const ringOne = candidates.filter((c) => c.ring === 1)
 const ringTwo = candidates.filter((c) => c.ring === 2)
-/** Açık halkalardaki yabancı havalimanları (M6g'den beri 1. ve 2. halka, D-088). */
+const ringThree = candidates.filter((c) => c.ring === 3)
+/** Açık halkalardaki yabancı havalimanları (M6h'den beri 1., 2. ve 3. halka, D-090). */
 const listed = candidates.filter((c) => c.ring <= ENABLED_AIRPORT_RING)
+/** Türkçe adında şehir geçmeyen havalimanları: Ercan (Lefkoşa), Malta (Valletta), Bahreyn (Manama). */
+const CITY_NOT_IN_NAME = ['LCEN', 'LMML', 'OBBI']
 
 describe('halkalar', () => {
-  it('sınırlar, halka sayısı ve açık halka (M6g: 2. halka, D-088)', () => {
+  it('sınırlar, halka sayısı ve açık halka (M6h: 3. halka, D-090)', () => {
     expect(AIRPORT_RINGS_KM).toEqual([500, 1000, 2000, 5000])
     expect(AIRPORT_RING_COUNT).toBe(5)
-    expect(ENABLED_AIRPORT_RING).toBe(2)
-    expect(AIRPORT_RING_CONFIG).toEqual({ ringsKm: [500, 1000, 2000, 5000], enabledRing: 2 })
+    expect(ENABLED_AIRPORT_RING).toBe(3)
+    expect(AIRPORT_RING_CONFIG).toEqual({ ringsKm: [500, 1000, 2000, 5000], enabledRing: 3 })
     expect(TURKEY_COUNTRY).toBe('TR')
   })
 
@@ -134,7 +144,8 @@ describe('halkalar', () => {
     expect(isEnabledAirportRing(0)).toBe(true)
     expect(isEnabledAirportRing(1)).toBe(true)
     expect(isEnabledAirportRing(2)).toBe(true)
-    expect(isEnabledAirportRing(3)).toBe(false)
+    expect(isEnabledAirportRing(3)).toBe(true)
+    expect(isEnabledAirportRing(4)).toBe(false)
     expect(isEnabledAirportRing(-1)).toBe(false)
     expect(isEnabledAirportRing(0.5)).toBe(false)
   })
@@ -152,8 +163,14 @@ describe('halkalar', () => {
 
   it("fixture: halka analiziyle aynı kural 75 havalimanı verir (Türkiye'ye en yakın 48 km)", () => {
     expect(ringOne).toHaveLength(75)
-    // Sekiz uzak fixture havalimanı (EGLL, KJFK …) açık halkalarda değildir.
-    expect(candidates.filter((c) => c.ring > 2).length).toBeGreaterThanOrEqual(8)
+    // Sekiz uzak fixture havalimanından beşi (EGLL, LFPG, EHAM, LEMD, KJFK) açık halkalarda
+    // değildir; EDDF, OMDB ve OTHH 3. halkadadır (D-090).
+    expect(
+      candidates
+        .filter((c) => c.ring > 3)
+        .map((c) => c.icao)
+        .sort(),
+    ).toEqual(['EGLL', 'EHAM', 'KJFK', 'LEMD', 'LFPG'])
     expect(ringOne.map((c) => c.icao)).toEqual(
       expect.arrayContaining(['LGAV', 'LCEN', 'UGTB', 'BKPR', 'ORSJ', 'URSS']),
     )
@@ -161,7 +178,6 @@ describe('halkalar', () => {
 
   it('fixture: 2. halka 89 havalimanı, 14 yeni ülke; en yakını Ben Gurion, en uzağı Kuveyt (D-088)', () => {
     expect(ringTwo).toHaveLength(89)
-    expect(listed).toHaveLength(164)
     const byDistance = ringTwo.toSorted((a, b) => a.distance - b.distance)
     // Ben Gurion 500,44 km: tam km'ye yuvarlanınca 500 olur ama halkası 2'dir.
     expect(byDistance[0]?.icao).toBe('LLBG')
@@ -182,11 +198,41 @@ describe('halkalar', () => {
     // Kaynaktaki yanlış kod listede görünmez (İskenderiye, D-088).
     expect(listed.map((c) => c.icao)).not.toContain('HEAX')
   })
+
+  it('fixture: 3. halka 278 havalimanı, 27 yeni ülke; en yakını Gachsaran, en uzağı Växjö (D-090)', () => {
+    expect(ringThree).toHaveLength(278)
+    expect(listed).toHaveLength(442)
+    expect(listed).toHaveLength(ringOne.length + ringTwo.length + ringThree.length)
+    const byDistance = ringThree.toSorted((a, b) => a.distance - b.distance)
+    // 1.000 km sınırında yuvarlama vakası yok: en yakını 1.006 km (Hakkari Yüksekova'ya).
+    expect(byDistance[0]?.icao).toBe('OIAH')
+    expect(byDistance[0]?.distance).toBeGreaterThan(1006)
+    expect(byDistance[0]?.distance).toBeLessThan(1007)
+    expect(byDistance.at(-1)?.icao).toBe('ESMX')
+    expect(byDistance.at(-1)?.distance).toBeLessThanOrEqual(2000)
+    const earlier = new Set([...ringOne, ...ringTwo].map((c) => c.country))
+    const newCountries = [...new Set(ringThree.map((c) => c.country))]
+      .filter((code) => !earlier.has(code))
+      .sort()
+    expect(newCountries).toEqual(
+      [
+        ...['AE', 'AF', 'AT', 'BE', 'BH', 'BY', 'CH', 'CZ', 'DE', 'DK', 'DZ', 'EE', 'ES', 'FR'],
+        ...['LT', 'LU', 'LV', 'MT', 'NL', 'OM', 'PL', 'QA', 'SD', 'SE', 'SI', 'TN', 'UZ'],
+      ].sort(),
+    )
+    // Fixture'ın uzak örneklerinden üçü 3. halkadadır; Özbekistan UZxx koduyla (OurAirports UTxx).
+    expect(ringThree.map((c) => c.icao)).toEqual(
+      expect.arrayContaining(['EDDF', 'OMDB', 'OTHH', 'LOWW', 'UUEE', 'OERK', 'LIRF', 'UZSS']),
+    )
+    expect(ringThree.map((c) => c.icao)).not.toContain('UTSS')
+    // Barselona (2.003 km) 4. halkadadır; fixture'da yoktur.
+    expect(candidates.map((c) => c.icao)).not.toContain('LEBL')
+  })
 })
 
 describe('FOREIGN_AIRPORT_NAMES', () => {
-  it("fixture'daki açık halkaların (1. ve 2.) her havalimanı için tam bir kayıt vardır, fazlası yoktur", () => {
-    expect(Object.keys(FOREIGN_AIRPORT_NAMES)).toHaveLength(164)
+  it("fixture'daki açık halkaların (1., 2. ve 3.) her havalimanı için tam bir kayıt vardır, fazlası yoktur", () => {
+    expect(Object.keys(FOREIGN_AIRPORT_NAMES)).toHaveLength(442)
     expect(Object.keys(FOREIGN_AIRPORT_NAMES).sort()).toEqual(listed.map((c) => c.icao).sort())
     // Türkiye tablosuyla çakışma yok.
     for (const icao of Object.keys(FOREIGN_AIRPORT_NAMES)) {
@@ -199,22 +245,38 @@ describe('FOREIGN_AIRPORT_NAMES', () => {
       expect(name.tr, icao).toMatch(/^\S.* Havalimanı$/)
       expect(name.tr, icao).toBe(name.tr.trim())
       expect(name.tr, icao).not.toMatch(/Airport|International|National|Uluslararası|Ulusal/)
-      expect(name.en, icao).toMatch(/\bAirport\b/)
-      expect(name.en, icao).not.toMatch(/Havalimanı/)
+      // "Airport" sözcüğün parçası da olabilir: EuroAirport Basel-Mulhouse-Freiburg (D-090).
+      expect(name.en, icao).toMatch(/Airport/)
+      expect(name.en, icao).not.toMatch(/Havalimanı|\bairport\b/)
     }
     const tr = Object.values(FOREIGN_AIRPORT_NAMES).map((n) => n.tr)
     expect(new Set(tr).size).toBe(tr.length)
   })
 
-  it('İngilizce ad OurAirports adıdır; yalnızca Bağdat ve Podgorica kısaltılmıştır', () => {
-    // Karşılaştırma boşluğu teke indirilmiş adla (Bacău'nun kaynaktaki adında çift boşluk var).
+  it('İngilizce ad OurAirports adıdır; yalnızca Bağdat, Podgorica, Cuxhaven ve Guemar kısaltılmıştır', () => {
+    // Karşılaştırma API'nin ad temizliğinden geçmiş adla: Bacău'nun kaynaktaki adında çift boşluk,
+    // dokuz Fransız havalimanının adında küçük harfli "airport" var (D-088, D-090).
     const differs = listed
       .filter((c) => FOREIGN_AIRPORT_NAMES[c.icao]?.en !== c.name)
       .map((c) => c.icao)
       .sort()
-    expect(differs).toEqual(['LYPG', 'ORBI'])
+    expect(differs).toEqual(['DAUO', 'ETMN', 'LYPG', 'ORBI'])
     expect(FOREIGN_AIRPORT_NAMES.LYPG?.en).toBe('Podgorica Airport')
+    expect(FOREIGN_AIRPORT_NAMES.ETMN?.en).toBe('Sea-Airport Cuxhaven/Nordholz')
+    expect(FOREIGN_AIRPORT_NAMES.DAUO?.en).toBe('Guemar Airport')
     expect(FOREIGN_AIRPORT_NAMES.LRBC?.en).toBe('Bacău George Enescu International Airport')
+    const raw = (icao: string) => rows.find((r) => icaoOf(r) === icao)?.get('name')
+    expect(raw('LFKB')).toBe('Bastia-Poretta International airport')
+    expect(FOREIGN_AIRPORT_NAMES.LFKB?.en).toBe('Bastia-Poretta International Airport')
+    expect(raw('LFLW')).toBe('Aurillac airport')
+    expect(FOREIGN_AIRPORT_NAMES.LFLW?.en).toBe('Aurillac Airport')
+    const lowercase = rows
+      .filter((r) => /\bairport\b/.test(r.get('name') ?? ''))
+      .map(icaoOf)
+      .sort()
+    expect(lowercase).toEqual([
+      ...['LFKB', 'LFKJ', 'LFLB', 'LFLC', 'LFLP', 'LFLW', 'LFMU', 'LFMV', 'LFOK'],
+    ])
   })
 
   it('Türkçe yer adları (exonym) ve özel adlar', () => {
@@ -261,6 +323,47 @@ describe('FOREIGN_AIRPORT_NAMES', () => {
     expect(tr('OESK')).toBe('Sekaka El Cevf Havalimanı')
   })
 
+  it('3. halka: Türkçe yer adları, kişi adları ve D-090 yazım kararları', () => {
+    const tr = (icao: string) => FOREIGN_AIRPORT_NAMES[icao]?.tr
+    expect(tr('LOWW')).toBe('Viyana Havalimanı')
+    expect(tr('EDDM')).toBe('Münih Havalimanı')
+    expect(tr('EDDK')).toBe('Köln/Bonn Havalimanı')
+    expect(tr('LSZH')).toBe('Zürih Havalimanı')
+    expect(tr('LSGG')).toBe('Cenevre Havalimanı')
+    expect(tr('LKPR')).toBe('Prag Václav Havel Havalimanı')
+    expect(tr('EPWA')).toBe('Varşova Chopin Havalimanı')
+    expect(tr('LIRF')).toBe('Roma Fiumicino Leonardo da Vinci Havalimanı')
+    expect(tr('LIMJ')).toBe('Cenova Kristof Kolomb Havalimanı')
+    expect(tr('LFKJ')).toBe('Ajaccio Napolyon Bonapart Havalimanı')
+    expect(tr('EPWR')).toBe('Wrocław Kopernik Havalimanı')
+    expect(tr('UUEE')).toBe('Moskova Şeremetyevo Havalimanı')
+    expect(tr('UUOO')).toBe('Voronej Havalimanı')
+    expect(tr('UAOO')).toBe('Kızılorda Korkut Ata Havalimanı')
+    expect(tr('OERK')).toBe('Riyad Kral Halid Havalimanı')
+    expect(tr('OEJN')).toBe('Cidde Kral Abdulaziz Havalimanı')
+    expect(tr('OMDB')).toBe('Dubai Havalimanı')
+    expect(tr('OTHH')).toBe('Doha Hamad Havalimanı')
+    expect(tr('OIKK')).toBe('Kirman Ayetullah Haşimi Rafsancani Havalimanı')
+    expect(tr('DTMB')).toBe('Monastir Habib Burgiba Havalimanı')
+    expect(tr('OAHR')).toBe('Herat Hace Abdullah Ensari Havalimanı')
+    // Varsayılan yazımlar (orkestratör varsayılanı 2026-10-04; kullanıcı itiraz edebilir).
+    expect(tr('DAAE')).toBe('Béjaïa Soummam-Abane Ramdane Havalimanı')
+    expect(tr('EPKK')).toBe('Krakov Papa II. Jean Paul Havalimanı')
+    expect(tr('HEMA')).toBe('Marsa Alam Havalimanı')
+    expect(tr('UZSA')).toBe('Navoi Havalimanı')
+    expect(tr('DTTZ')).toBe('Tozeur Nefta Havalimanı')
+    expect(tr('LEMH')).toBe('Menorca Havalimanı')
+    expect(tr('EPSC')).toBe('Szczecin-Goleniów Dayanışma Havalimanı')
+    // Ülke adını taşıyan havalimanları ve şehir yerine bölge.
+    expect(tr('OBBI')).toBe('Bahreyn Havalimanı')
+    expect(tr('LMML')).toBe('Malta Havalimanı')
+    expect(tr('OERS')).toBe('Kızıldeniz Havalimanı')
+    expect(tr('LFSB')).toBe('Basel-Mulhouse-Freiburg Havalimanı')
+    expect(FOREIGN_AIRPORT_NAMES.LFSB?.en).toBe('EuroAirport Basel–Mulhouse–Freiburg')
+    // Tartışmalı ada OurAirports ülkesiyle (İran) ve kendi adıyla (D-080 karar 2).
+    expect(tr('OIBA')).toBe('Ebu Musa Havalimanı')
+  })
+
   it('kaynak düzeltmesi: İskenderiye OurAirports HEAX → HEBA; yalnız yanlış değer durdukça', () => {
     expect(OURAIRPORTS_ICAO_CORRECTIONS).toEqual({ HEBA: { icaoCode: 'HEAX', icao: 'HEBA' } })
     const alexandria = rows.find((r) => r.get('ident') === 'HEBA')
@@ -286,9 +389,13 @@ describe('FOREIGN_AIRPORT_NAMES', () => {
     )
     const ltfm = { icao: 'LTFM', name: 'Istanbul Airport' }
     expect(airportDisplayName(ltfm, 'tr')).toBe('İstanbul Havalimanı')
-    const ommb = { icao: 'OMDB', name: 'Dubai International Airport' }
-    expect(airportDisplayName(ommb, 'tr')).toBe('Dubai Uluslararası Havalimanı')
-    expect(airportDisplayName(ommb, 'en')).toBe('Dubai International Airport')
+    // OMDB 3. halkada tabloya girdi (D-090); tabloda olmayan örnek JFK (5. halka).
+    const omdb = { icao: 'OMDB', name: 'Dubai International Airport' }
+    expect(airportDisplayName(omdb, 'tr')).toBe('Dubai Havalimanı')
+    expect(airportDisplayName(omdb, 'en')).toBe('Dubai International Airport')
+    const kjfk = { icao: 'KJFK', name: 'John F. Kennedy International Airport' }
+    expect(airportDisplayName(kjfk, 'tr')).toBe('John F. Kennedy Uluslararası Havalimanı')
+    expect(airportDisplayName(kjfk, 'en')).toBe('John F. Kennedy International Airport')
     // Yurt dışı adı resmî Türkçe ad değildir: kaynak OurAirports kalır.
     expect(airportNameSource('LGAV')).toBe('ourairports')
     expect(foreignAirportName(' lgav ')?.en).toBe(lgav.name)
@@ -306,8 +413,14 @@ describe('FOREIGN_AIRPORT_NAMES', () => {
         expect(value, icao).toMatch(/^\p{Lu}/u)
         expect(value, icao).not.toMatch(/Island|Airport|Havalimanı|\(|,/)
       }
-      // Türkçe şehir adı Türkçe havalimanı adındaki yer adıdır; Ercan Lefkoşa'nın havalimanıdır.
-      if (icao !== 'LCEN') expect(FOREIGN_AIRPORT_NAMES[icao]?.tr, icao).toContain(city.tr)
+      // Türkçe şehir adı Türkçe havalimanı adındaki yer adıdır; Ercan Lefkoşa'nın, Bahreyn
+      // Havalimanı Manama'nın, Malta Havalimanı Valletta'nın havalimanıdır (D-090).
+      if (!CITY_NOT_IN_NAME.includes(icao)) {
+        expect(FOREIGN_AIRPORT_NAMES[icao]?.tr, icao).toContain(city.tr)
+      }
+    }
+    for (const icao of CITY_NOT_IN_NAME) {
+      expect(FOREIGN_AIRPORT_NAMES[icao]?.tr, icao).not.toContain(FOREIGN_AIRPORT_CITIES[icao]?.tr)
     }
   })
 
@@ -332,6 +445,17 @@ describe('FOREIGN_AIRPORT_NAMES', () => {
     expect(airportLocality(at('HLLQ', 'Al Albraq', 'LY', 'LY-JA'), 'en')).toBe('Bayda')
     expect(airportLocality(at('HESX', 'Al Jiza', 'EG', 'EG-GZ'), 'tr')).toBe('Gize')
     expect(airportLocality(at('LATI', 'Rinas', 'AL', 'AL-02'), 'en')).toBe('Tirana')
+    // 3. halka (D-090): yanıltıcı yerleşim, bölge adı, ülke adını taşıyan havalimanı.
+    const hahn = at('EDFH', 'Frankfurt am Main (Lautzenhausen)', 'DE', 'DE-RP')
+    expect(airportLocality(hahn, 'tr')).toBe('Hahn')
+    expect(airportLocality(at('OEGS', 'Qassim', 'SA', 'SA-05'), 'tr')).toBe('Bureyde')
+    expect(airportLocality(at('OEGS', 'Qassim', 'SA', 'SA-05'), 'en')).toBe('Buraidah')
+    expect(airportLocality(at('LFSB', 'Bâle / Mulhouse', 'FR', 'FR-GES'), 'en')).toBe('Mulhouse')
+    expect(airportLocality(at('OBBI', 'Manama', 'BH', 'BH-13'), 'tr')).toBe('Manama')
+    expect(airportLocality(at('LMML', 'Valletta', 'MT', 'MT-25'), 'tr')).toBe('Valletta')
+    expect(airportLocality(at('OERS', 'Hanak', 'SA', 'SA-07'), 'tr')).toBe('Kızıldeniz')
+    expect(airportLocality(at('OERS', 'Hanak', 'SA', 'SA-07'), 'en')).toBe('Red Sea')
+    expect(airportLocality(at('LOWW', 'Vienna', 'AT', 'AT-3'), 'tr')).toBe('Viyana')
     expect(foreignAirportCity(' lgav ')?.en).toBe('Athens')
     expect(foreignAirportCity('toString')).toBeUndefined()
     // Tabloda olmayan yabancı havalimanı: İngilizce sayfada temiz OurAirports yerleşimi.
@@ -419,9 +543,22 @@ describe('ülke adları', () => {
     expect(countryName('SK', 'en')).toBe('Slovakia')
   })
 
-  it("fixture'daki açık halkaların ülkelerinin hepsi Intl'de adlandırılır (2. halkayla 31)", () => {
+  it('countryName: 3. halkanın yeni ülkeleri (D-090)', () => {
+    expect(countryName('DE', 'tr')).toBe('Almanya')
+    expect(countryName('AT', 'tr')).toBe('Avusturya')
+    expect(countryName('CZ', 'tr')).toBe('Çekya')
+    expect(countryName('CZ', 'en')).toBe('Czechia')
+    expect(countryName('AE', 'tr')).toBe('Birleşik Arap Emirlikleri')
+    expect(countryName('AE', 'en')).toBe('United Arab Emirates')
+    expect(countryName('CH', 'tr')).toBe('İsviçre')
+    expect(countryName('BY', 'en')).toBe('Belarus')
+    expect(countryName('NL', 'tr')).toBe('Hollanda')
+    expect(countryName('UZ', 'tr')).toBe('Özbekistan')
+  })
+
+  it("fixture'daki açık halkaların ülkelerinin hepsi Intl'de adlandırılır (3. halkayla 58)", () => {
     const countries = new Set(listed.map((c) => c.country))
-    expect(countries.size).toBe(31)
+    expect(countries.size).toBe(58)
     for (const code of countries) {
       for (const locale of ['tr', 'en'] as const) {
         expect(countryName(code, locale), `${code} ${locale}`).not.toBe(code)

@@ -322,6 +322,33 @@ export class CircleObstacles {
   }
 }
 
+/**
+ * Dikdörtgen engeller için ızgaralı çakışma dizini (M6h, D-090): havalimanı kodları (labels.ts)
+ * yerleşmiş kodlarla çakışma denetimini her yeni kod için bütün listede değil, yalnız değdiği
+ * hücrelerde yapar. Kenar teması çakışma sayılmaz (doğrusal taramayla aynı sonuç).
+ */
+export class RectObstacles {
+  private readonly grid: Grid<Rect>
+
+  constructor(view: { width: number; height: number }) {
+    this.grid = new Grid(view.width, view.height)
+  }
+
+  add(x: number, y: number, width: number, height: number): void {
+    const rect = { x0: x, y0: y, x1: x + width, y1: y + height }
+    this.grid.insert(rect, rect)
+  }
+
+  /** Dikdörtgen (`x`, `y` sol üst köşe) herhangi bir engelle kesişiyor mu. */
+  hits(x: number, y: number, width: number, height: number): boolean {
+    const area = { x0: x, y0: y, x1: x + width, y1: y + height }
+    return this.grid.some(
+      area,
+      (r) => area.x0 < r.x1 && area.x1 > r.x0 && area.y0 < r.y1 && area.y1 > r.y0,
+    )
+  }
+}
+
 /** Çizginin etiket tarafındaki ucu: etiket dikdörtgeninin simgeye en yakın noktası. */
 export function leaderEnd(
   anchorX: number,

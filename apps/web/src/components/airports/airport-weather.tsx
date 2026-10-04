@@ -28,7 +28,8 @@ export interface AirportWeatherSectionProps {
 
 /**
  * Havalimanı sayfasının hava durumu ve METAR/TAF kaydı bölümleri (M6c). Sunucuda toplu hava durumu
- * (60 sn önbellek) ve havalimanının 24 saatlik kaydı (5 dk önbellek) okunur; hata sayfaya taşınmaz.
+ * (web belleğinde 60 sn, D-090) ve havalimanının 24 saatlik kaydı (15 dk önbellek) okunur; hata
+ * sayfaya taşınmaz.
  * Bölümler istemci adasında çizilir ve açık sekmede tazelenir. Sayfa bunu Suspense içinde verir.
  * Saatler havalimanının yerel saatidir (`airportTimeZone`, D-084); dilimi bilinmeyen yabancı
  * havalimanında Türkiye saatiyle ve öyle etiketlenerek yazılır (D-080).

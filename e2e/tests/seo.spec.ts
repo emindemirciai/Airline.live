@@ -37,6 +37,7 @@ import {
   REPLAY_AIRCRAFT,
   RING1_AIRPORT,
   RING2_AIRPORT,
+  RING3_AIRPORT,
   UNLISTED_FOREIGN_AIRPORT,
   sitePath,
   STATIC_PUBLIC_PATHS,
@@ -357,10 +358,10 @@ test.describe('kök dosyalar', () => {
     expect(body).toContain('xmlns:xhtml="http://www.w3.org/1999/xhtml"')
     const entries = parseSitemap(body)
 
-    // Havalimanları: Türkiye'nin dizine eklenen 56'sı ve Türkiye dışındaki 164'ü (1. ve 2. halka;
-    // D-080, D-084, D-088): (220 + 5) × 2 = 450 adres.
+    // Havalimanları: Türkiye'nin dizine eklenen 56'sı ve Türkiye dışındaki 442'si (1.–3. halka;
+    // D-080, D-084, D-088, D-090): (498 + 5) × 2 = 1.006 adres (50.000 sınırının çok altında).
     expect(entries).toHaveLength((INDEXABLE_LISTED_AIRPORT_COUNT + STATIC_PUBLIC_PATHS.length) * 2)
-    expect(entries).toHaveLength(450)
+    expect(entries).toHaveLength(1006)
     const byLoc = new Map(entries.map((entry) => [entry.loc, entry]))
     expect(byLoc.size, 'yinelenen adres yok').toBe(entries.length)
     const paths = entries.map((entry) => sitePath(entry.loc, 'loc'))
@@ -471,24 +472,27 @@ test.describe('kök dosyalar', () => {
     expect(icaos.has(NON_INDEXABLE_AIRPORT.icao)).toBe(false)
     expect(icaos.has(UNLISTED_FOREIGN_AIRPORT.icao)).toBe(false)
     // Türkiye dışındakiler ayrı bir bölümdedir (D-080): başlık Türkiye listesinden sonra gelir; Atina
-    // (1. halka) ve Kahire (2. halka) satırları o bölümdedir. Başlık 2. halkadan beri "Türkiye
-    // dışındaki havalimanları"dır, kapsam 1.000 km'dir (kullanıcı kararı 2026-10-03, D-088).
+    // (1. halka), Kahire (2. halka) ve Viyana (3. halka) satırları o bölümdedir. Başlık 2. halkadan
+    // beri "Türkiye dışındaki havalimanları"dır (kullanıcı kararı 2026-10-03, D-088); kapsam 3.
+    // halkadan beri 2.000 km'dir (D-090).
     const lines = body.split('\n')
     const foreignHeading = lines.indexOf(
       '## Türkiye dışındaki havalimanları / Airports outside Türkiye',
     )
     expect(foreignHeading, 'Türkiye dışındakiler başlığı').toBeGreaterThan(0)
     expect(body).not.toMatch(/[Yy]akın ülke|neighbouring/)
-    expect(body).toContain('uzaklığı en fazla 1.000 km olan')
-    expect(body).toContain('at most 1,000 km from the nearest airport in Türkiye')
+    expect(body).toContain('uzaklığı en fazla 2.000 km olan')
+    expect(body).toContain('at most 2,000 km from the nearest airport in Türkiye')
     const ring1Line = lines.findIndex((line) => line.includes(`/istasyon/${RING1_AIRPORT.icao})`))
     const ring2Line = lines.findIndex((line) => line.includes(`/istasyon/${RING2_AIRPORT.icao})`))
+    const ring3Line = lines.findIndex((line) => line.includes(`/istasyon/${RING3_AIRPORT.icao})`))
     const primaryLine = lines.findIndex((line) =>
       line.includes(`/istasyon/${PRIMARY_AIRPORT.icao})`),
     )
     expect(primaryLine).toBeLessThan(foreignHeading)
     expect(ring1Line).toBeGreaterThan(foreignHeading)
     expect(ring2Line).toBeGreaterThan(foreignHeading)
+    expect(ring3Line).toBeGreaterThan(foreignHeading)
   })
 
   test('manifest ve ikonlar', async ({ request }) => {

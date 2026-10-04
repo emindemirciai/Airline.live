@@ -14,6 +14,7 @@ import {
   AIRPORT_RINGS_KM,
   airportRing,
   ENABLED_AIRPORT_RING,
+  FOREIGN_AIRPORT_NAMES,
   isForeignCandidate,
   OURAIRPORTS_ICAO_CORRECTIONS,
   ourAirportsIcao,
@@ -110,6 +111,8 @@ describe('halka kuralı: shared ile db aynı', () => {
       { ident: 'EG-0078', icaoCode: 'HEAX', gpsCode: null },
       { ident: 'ORSU', icaoCode: 'ORSJ', gpsCode: 'ORSU' },
       { ident: 'TM-0002', icaoCode: ' ', gpsCode: 'utan' },
+      // Özbekistan: OurAirports kimliği UTxx, ICAO'su UZxx (D-090).
+      { ident: 'UTSS', icaoCode: 'UZSS', gpsCode: 'UTSS' },
       { ident: 'tr-0099', icaoCode: null, gpsCode: null },
       { ident: 'toString', icaoCode: null, gpsCode: null },
     ]
@@ -120,5 +123,20 @@ describe('halka kuralı: shared ile db aynı', () => {
     expect(cleanAirportName(' Bacău George Enescu International  Airport ')).toBe(
       'Bacău George Enescu International Airport',
     )
+    expect(ourAirportsIcao({ ident: 'UTSS', icaoCode: 'UZSS', gpsCode: 'UTSS' })).toBe('UZSS')
+  })
+
+  it("API'nin ad temizliği shared'daki İngilizce adlarla aynı sonucu verir (D-088, D-090)", () => {
+    // OurAirports adı → API adı = küratörlü İngilizce ad (sayfada "OurAirports'taki adı" satırı yok).
+    const sources: Record<string, string> = {
+      LRBC: 'Bacău George Enescu International  Airport',
+      LFKB: 'Bastia-Poretta International airport',
+      LFOK: 'Chalons Vatry airport',
+      LFSB: 'EuroAirport Basel–Mulhouse–Freiburg',
+      LOWW: 'Vienna International Airport',
+    }
+    for (const [icao, source] of Object.entries(sources)) {
+      expect(cleanAirportName(source), icao).toBe(FOREIGN_AIRPORT_NAMES[icao]?.en)
+    }
   })
 })

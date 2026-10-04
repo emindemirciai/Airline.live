@@ -243,26 +243,85 @@ export const COUNTRY_TIME_ZONES: Readonly<Record<string, string>> = {
 
 /**
  * Çok dilimli ülkelerde bölge (ISO 3166-2, OurAirports `iso_region`) → dilim. Açık halkaların
- * gerektirdiği bölgeler (1. ve 2. halka; 2. halka hazır):
+ * gerektirdiği bölgeler (1., 2. ve 3. halka; 3. halka 49 kural ekledi, D-090):
  * - Rusya: Kuzey Kafkasya, Krasnodar, Rostov ve Kalmukya Moskova saatidir; Volgograd kendi
- *   dilimidir (Moskova kuralları); Astrahan UTC+4'tür.
- * - Kazakistan: Mangistav (Aktav). 2024'ten beri bütün ülke UTC+5'tir; tzdb dilimleri ayrı tutar.
+ *   dilimidir (Moskova kuralları); Astrahan UTC+4'tür. 3. halkada Moskova şehri ve bölgesi,
+ *   Voronej, Penza, Mordovya, Nijniy Novgorod, İvanovo, Tataristan, Çuvaşistan, Yaroslavl, Kostroma,
+ *   Pskov ve Vologda Moskova saatidir (UTC+3); Samara ve Udmurtya Europe/Samara, Saratov
+ *   Europe/Saratov, Ulyanovsk Europe/Ulyanovsk (UTC+4); Orenburg ve Başkurdistan Asia/Yekaterinburg
+ *   (UTC+5); Kaliningrad Europe/Kaliningrad (UTC+2).
+ * - Kazakistan: Mangistav (Aktav), 3. halkada Atırav, Batı Kazakistan (Oral), Aktöbe, Kızılorda ve
+ *   Baykonur (Asia/Qyzylorda; Baykonur Rusya'ya kiralıdır ama OurAirports ve ISO'da Kazakistan'dır).
+ *   2024'ten beri bütün ülke UTC+5'tir; tzdb dilimleri ayrı tutar.
+ * - Almanya (Europe/Berlin ve Büsingen; Büsingen'de havalimanı yok), İspanya (Kanarya ve Ceuta ayrı
+ *   dilimdir) ve Özbekistan'ın batısı (Asia/Samarkand; Taşkent Asia/Tashkent, 4. halkada).
  */
 export const REGION_TIME_ZONES: Readonly<Record<string, string>> = {
+  // Almanya'nın 16 eyaleti; Brandenburg OurAirports'ta DE-BR'dir (ISO kodu DE-BB, ikisi de yazılı).
+  'DE-BB': 'Europe/Berlin',
+  'DE-BE': 'Europe/Berlin',
+  'DE-BR': 'Europe/Berlin',
+  'DE-BW': 'Europe/Berlin',
+  'DE-BY': 'Europe/Berlin',
+  'DE-HB': 'Europe/Berlin',
+  'DE-HE': 'Europe/Berlin',
+  'DE-HH': 'Europe/Berlin',
+  'DE-MV': 'Europe/Berlin',
+  'DE-NI': 'Europe/Berlin',
+  'DE-NW': 'Europe/Berlin',
+  'DE-RP': 'Europe/Berlin',
+  'DE-SH': 'Europe/Berlin',
+  'DE-SL': 'Europe/Berlin',
+  'DE-SN': 'Europe/Berlin',
+  'DE-ST': 'Europe/Berlin',
+  'DE-TH': 'Europe/Berlin',
+  // İspanya: Katalonya ve Balear Adaları (Kanarya Atlantic/Canary, Ceuta ve Melilla Africa/Ceuta).
+  'ES-CT': 'Europe/Madrid',
+  'ES-IB': 'Europe/Madrid',
+  'KZ-AKT': 'Asia/Aqtobe',
+  'KZ-ATY': 'Asia/Atyrau',
+  'KZ-BAY': 'Asia/Qyzylorda',
+  'KZ-KZY': 'Asia/Qyzylorda',
   'KZ-MAN': 'Asia/Aqtau',
+  'KZ-ZAP': 'Asia/Oral',
   'RU-AD': 'Europe/Moscow',
   'RU-AST': 'Europe/Astrakhan',
+  'RU-BA': 'Asia/Yekaterinburg',
   'RU-CE': 'Europe/Moscow',
+  'RU-CU': 'Europe/Moscow',
   'RU-DA': 'Europe/Moscow',
   'RU-IN': 'Europe/Moscow',
+  'RU-IVA': 'Europe/Moscow',
   'RU-KB': 'Europe/Moscow',
   'RU-KC': 'Europe/Moscow',
   'RU-KDA': 'Europe/Moscow',
+  'RU-KGD': 'Europe/Kaliningrad',
   'RU-KL': 'Europe/Moscow',
+  'RU-KOS': 'Europe/Moscow',
+  'RU-MO': 'Europe/Moscow',
+  'RU-MOS': 'Europe/Moscow',
+  'RU-MOW': 'Europe/Moscow',
+  'RU-NIZ': 'Europe/Moscow',
+  'RU-ORE': 'Asia/Yekaterinburg',
+  'RU-PNZ': 'Europe/Moscow',
+  'RU-PSK': 'Europe/Moscow',
   'RU-ROS': 'Europe/Moscow',
+  'RU-SAM': 'Europe/Samara',
+  'RU-SAR': 'Europe/Saratov',
   'RU-SE': 'Europe/Moscow',
   'RU-STA': 'Europe/Moscow',
+  'RU-TA': 'Europe/Moscow',
+  'RU-UD': 'Europe/Samara',
+  'RU-ULY': 'Europe/Ulyanovsk',
   'RU-VGG': 'Europe/Volgograd',
+  'RU-VLG': 'Europe/Moscow',
+  'RU-VOR': 'Europe/Moscow',
+  'RU-YAR': 'Europe/Moscow',
+  'UZ-BU': 'Asia/Samarkand',
+  'UZ-NW': 'Asia/Samarkand',
+  'UZ-QR': 'Asia/Samarkand',
+  'UZ-SA': 'Asia/Samarkand',
+  'UZ-XO': 'Asia/Samarkand',
 }
 
 /**

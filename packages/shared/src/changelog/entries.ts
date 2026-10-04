@@ -12,8 +12,35 @@ import type { ChangelogEntry } from './types'
  */
 export const CHANGELOG: readonly ChangelogEntry[] = [
   {
+    version: '0.18.0',
+    date: '2026-10-04',
+    title: {
+      tr: '3. halka: 2.000 km’ye kadar 278 havalimanı daha',
+      en: 'Ring 3: 278 more airports up to 2,000 km',
+    },
+    items: [
+      {
+        tr: 'Türkiye’deki en yakın havalimanına 1.000 ile 2.000 km arasındaki 278 havalimanı eklendi: Moskova, Viyana, Roma, Berlin, Frankfurt, Varşova, Prag, Münih, Milano, Dubai, Doha, Riyad, Cidde, Cezayir ve diğerleri. Her birinin Türkçe adı, sayfası, pistleri, canlı hava durumu ve yerel saati var. Listede artık 503 havalimanı var.',
+        en: 'Added 278 airports between 1,000 and 2,000 km from the nearest airport in Türkiye: Moscow, Vienna, Rome, Berlin, Frankfurt, Warsaw, Prague, Munich, Milan, Dubai, Doha, Riyadh, Jeddah, Algiers and others. Each has its page, runways, live weather and local time. The list now holds 503 airports.',
+      },
+      {
+        tr: '2022’den beri sivil uçuşlara kapalı olduğu bilinen ama kaynakta hâlâ tarifeli görünen havalimanlarında (Krasnodar, Gelencik, Elista, Voronej) sayfada ve pencerede “Sivil uçuşlara kapalı olabilir (2022’den beri)” notu yazar.',
+        en: 'Airports known to be closed to civil flights since 2022 but still listed as scheduled in the source (Krasnodar, Gelendzhik, Elista, Voronezh) show the note “May be closed to civil flights (since 2022)” on their page and in the map window.',
+      },
+      {
+        tr: 'Haritadaki havalimanı penceresi artık yalnızca o havalimanının hava durumunu yükler; sayfa ve pencere daha hızlı açılır.',
+        en: 'The map’s airport window now loads only that airport’s weather, so it opens faster.',
+      },
+    ],
+    tryLinks: [
+      { path: '/havalimanlari', label: { tr: 'Havalimanları', en: 'Airports' } },
+      { path: '/istasyon/LOWW', label: { tr: 'Viyana Havalimanı', en: 'Vienna Airport' } },
+    ],
+  },
+  {
     version: '0.17.2',
     date: '2026-10-04',
+    releasedAt: '2026-10-04T19:03:24Z',
     title: {
       tr: 'Haritada kesikli ülke sınırları',
       en: 'Dashed country borders on the map',

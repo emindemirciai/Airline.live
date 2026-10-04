@@ -5,7 +5,7 @@ import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
 import type { MapAirport } from './airport-data'
 import { AirportPopup } from './airport-popup'
-import type { BulkWeatherState } from './use-airport-weather'
+import type { AirportWeatherState } from './use-airport-weather'
 
 const IST: MapAirport = {
   icao: 'LTFM',
@@ -66,7 +66,7 @@ const CAI: MapAirport = {
 }
 
 /** LTFM'nin son raporu: hafif sağanak, kuvvetli rüzgâr (hamleli), CB; 10 dakika önce. */
-function weatherState(raw: string, icao = 'LTFM'): BulkWeatherState {
+function weatherState(raw: string, icao = 'LTFM'): AirportWeatherState {
   const observedAt = new Date(NOW - 10 * 60_000).toISOString()
   const metar: AirportMetar = { ...decodeMetar(raw, { observedAt }), observedAt }
   const station: AirportWeather = {
@@ -75,10 +75,7 @@ function weatherState(raw: string, icao = 'LTFM'): BulkWeatherState {
     metar,
     tafs: [],
   }
-  return {
-    data: { generatedAt: new Date(NOW).toISOString(), stations: new Map([[icao, station]]) },
-    failed: false,
-  }
+  return { data: station, failed: false }
 }
 
 /** Etiketsiz görünür metin (boşluklar sadeleşmiş). */
@@ -114,7 +111,7 @@ function factRow(
 
 function render(
   locale: Locale,
-  weather: BulkWeatherState,
+  weather: AirportWeatherState,
   sheet = false,
   airport: MapAirport = IST,
   now = NOW,
@@ -343,11 +340,17 @@ describe('AirportPopup', () => {
   it('hava durumu: yükleniyor, alınamıyor, rapor yok', () => {
     expect(render('tr', { data: null, failed: false })).toContain('Hava durumu yükleniyor…')
     expect(render('tr', { data: null, failed: true })).toContain('Hava durumu şu an alınamıyor.')
-    const empty: BulkWeatherState = {
-      data: { generatedAt: new Date(NOW).toISOString(), stations: new Map() },
-      failed: false,
+    // Bilinen havalimanında rapor yoksa API 200 ve `metar: null` verir.
+    const noReport: AirportWeather = {
+      icao: 'LTFM',
+      generatedAt: new Date(NOW).toISOString(),
+      metar: null,
+      tafs: [],
     }
-    expect(render('tr', empty)).toContain('Hava durumu raporu yok')
+    expect(render('tr', { data: noReport, failed: false })).toContain('Hava durumu raporu yok')
+    // Önceki havalimanının yanıtı bu havalimanının raporu sayılmaz.
+    const other = { data: { ...noReport, icao: 'LTBA' }, failed: false }
+    expect(render('tr', other)).toContain('Hava durumu yükleniyor…')
   })
 
   it('yakın ülke havalimanı: il yerine ülke; havalimanının yerel saati ve UTC farkı (D-084)', () => {
@@ -399,6 +402,74 @@ describe('AirportPopup', () => {
       Date.parse('2026-11-02T21:05:00Z'),
     )
     expect(factRow(winter, 'localTime')?.value).toBe('23:05 (UTC+2)')
+  })
+
+  it('3. halka havalimanı (Viyana): ülke Avusturya, yerel saat Viyana’nın; kışın UTC+1 (D-090)', () => {
+    const vie: MapAirport = {
+      ...IST,
+      icao: 'LOWW',
+      iata: 'VIE',
+      name: 'Vienna International Airport',
+      city: 'Vienna',
+      lat: 48.110298,
+      lon: 16.5697,
+      elevationFt: 600,
+      country: 'AT',
+      ring: 3,
+      distanceToTrKm: 1149,
+      isoRegion: 'AT-3',
+      municipality: 'Vienna',
+      runways: [{ lengthFt: 11811 }, { lengthFt: 11483 }],
+    }
+    const html = render('tr', { data: null, failed: false }, false, vie)
+    expect(html).toContain('data-icao="LOWW"')
+    expect(html).toContain('VIE · LOWW')
+    expect(html).toContain('<h2 class="map-popup__title">Viyana Havalimanı</h2>')
+    expect(html).toContain('<p class="map-popup__place">Avusturya</p>')
+    // 1 Ekim 13:00Z: Viyana yaz saatinde (UTC+2); 2 Kasım kışın (UTC+1).
+    expect(factRow(html, 'localTime')?.value).toBe('15:00 (UTC+2)')
+    expect(html).toContain('href="/istasyon/LOWW"')
+    expect(html).not.toContain('civil-closure')
+    const english = render('en', { data: null, failed: false }, false, vie)
+    expect(english).toContain('<h2 class="map-popup__title">Vienna International Airport</h2>')
+    expect(english).toContain('<p class="map-popup__place">Austria</p>')
+    const winter = render(
+      'tr',
+      { data: null, failed: false },
+      false,
+      vie,
+      Date.parse('2026-11-02T21:05:00Z'),
+    )
+    expect(factRow(winter, 'localTime')?.value).toBe('22:05 (UTC+1)')
+  })
+
+  it('sivil uçuşlara kapalı olabilecek havalimanı (Voronej): görünür not, iki dilde (D-090)', () => {
+    const voz: MapAirport = {
+      ...IST,
+      icao: 'UUOO',
+      iata: 'VOZ',
+      name: 'Voronezh International Airport',
+      city: 'Voronezh',
+      lat: 51.814201,
+      lon: 39.229599,
+      elevationFt: 514,
+      country: 'RU',
+      ring: 3,
+      distanceToTrKm: 1134,
+      isoRegion: 'RU-VOR',
+      municipality: 'Voronezh',
+      runways: [{ lengthFt: 7546 }],
+    }
+    const html = render('tr', { data: null, failed: false }, false, voz)
+    // Not başlığın altında, bilgi satırlarından önce; ekran okuyucuya not olarak okunur.
+    expect(html).toMatch(
+      /<\/header><p class="civil-closure" role="note">Sivil uçuşlara kapalı olabilir \(2022’den beri\)<\/p><dl/,
+    )
+    expect(render('en', { data: null, failed: false }, false, voz)).toContain(
+      '<p class="civil-closure" role="note">May be closed to civil flights (since 2022)</p>',
+    )
+    // Listede olmayan havalimanında not yok.
+    expect(render('tr', { data: null, failed: false })).not.toContain('civil-closure')
   })
 
   it('gözlem saati havalimanının yerel saatiyle; dilimi bilinmeyen havalimanında UTC ile', () => {

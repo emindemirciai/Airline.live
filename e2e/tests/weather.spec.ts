@@ -11,7 +11,8 @@
 //   engellemez, D-079); "Havalimanları" listesiyle klavyeden açılır ve kapanınca odak o düğmeye
 //   döner; Escape (başka bir katmanın değilse), boş yere tıklama ve uçak seçimi kapatır; dar
 //   ekranda pencere alttan açılan sayfadır; pencerede gün doğumu ve batımı yoktur, hava durumu
-//   sayfayla aynı satırları, sıcaklık kutucuğunu ve vurguyu taşır (kullanıcı kararı 2026-10-02)
+//   sayfayla aynı satırları, sıcaklık kutucuğunu ve vurguyu taşır (kullanıcı kararı 2026-10-02);
+//   pencerenin havası tek havalimanı isteğiyle gelir, toplu yanıt istenmez (M6h, D-090)
 // - M6e (D-083): rüzgâr km/sa ve parantezde kt; etkili rüzgârın satırı kehribar ve şiddetin adı
 //   etiketle; havalimanında ve çevresinde oraj ile kümülonimbüste şimşek ve yıldırım uyarısı (metin ve
 //   kehribar vurgu)
@@ -658,6 +659,14 @@ test.describe('harita: havalimanı penceresi', () => {
   test('IST koduna tıklayınca pencere açılır; Escape, boş yere tıklama ve uçak seçimi kapatır', async ({
     page,
   }) => {
+    // Pencerenin hava isteği tek havalimanınındır (D-090); toplu yanıt (`/v1/weather`) istenmez.
+    const weatherRequests: string[] = []
+    page.on('request', (request) => {
+      const url = new URL(request.url())
+      if (url.origin === API_URL && url.pathname.includes('weather')) {
+        weatherRequests.push(`${url.pathname}${url.search}`)
+      }
+    })
     await openAtPrimaryAirport(page)
     const popup = airportPopup(page)
 
@@ -678,11 +687,13 @@ test.describe('harita: havalimanı penceresi', () => {
     await expect(popup).not.toContainText('Gün doğumu')
     await expect(popup).not.toContainText('Gün batımı')
 
-    // Hava durumu ilk açılışta toplu istekle gelir; havalimanı sayfasıyla aynı sözcükler.
+    // Hava durumu ilk açılışta havalimanının kendi isteğiyle gelir (`/v1/airports/LTFM/weather`,
+    // D-090; harita açılışında istek yok); havalimanı sayfasıyla aynı sözcükler.
     const weather = popup.getByRole('region', { name: 'Hava durumu' })
     await expect(row(weather, COPY.tr.rows.wind)).toContainText(COPY.tr.speedUnit, {
       timeout: 15_000,
     })
+    expect(weatherRequests).toEqual([`/v1/airports/${icao}/weather`])
     await expect(weather).toContainText(COPY.tr.windLevel)
     await expect(row(weather, COPY.tr.rows.rain)).toContainText(COPY.tr.rainValue)
     await expect(row(weather, COPY.tr.rows.snow)).toContainText(COPY.tr.none)

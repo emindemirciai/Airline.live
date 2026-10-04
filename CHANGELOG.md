@@ -8,7 +8,29 @@
 
 ---
 
-## v0.17.2 — 2026-10-04
+## v0.18.0 — 2026-10-04
+
+### Türkçe
+**3. halka: 2.000 km’ye kadar 278 havalimanı daha**
+
+- Türkiye’deki en yakın havalimanına 1.000 ile 2.000 km arasındaki 278 havalimanı eklendi: Moskova, Viyana, Roma, Berlin, Frankfurt, Varşova, Prag, Münih, Milano, Dubai, Doha, Riyad, Cidde, Cezayir ve diğerleri. Her birinin Türkçe adı, sayfası, pistleri, canlı hava durumu ve yerel saati var. Listede artık 503 havalimanı var.
+- 2022’den beri sivil uçuşlara kapalı olduğu bilinen ama kaynakta hâlâ tarifeli görünen havalimanlarında (Krasnodar, Gelencik, Elista, Voronej) sayfada ve pencerede “Sivil uçuşlara kapalı olabilir (2022’den beri)” notu yazar.
+- Haritadaki havalimanı penceresi artık yalnızca o havalimanının hava durumunu yükler; sayfa ve pencere daha hızlı açılır.
+
+Dene: [Havalimanları](/havalimanlari) · [Viyana Havalimanı](/istasyon/LOWW)
+
+### English
+**Ring 3: 278 more airports up to 2,000 km**
+
+- Added 278 airports between 1,000 and 2,000 km from the nearest airport in Türkiye: Moscow, Vienna, Rome, Berlin, Frankfurt, Warsaw, Prague, Munich, Milan, Dubai, Doha, Riyadh, Jeddah, Algiers and others. Each has its page, runways, live weather and local time. The list now holds 503 airports.
+- Airports known to be closed to civil flights since 2022 but still listed as scheduled in the source (Krasnodar, Gelendzhik, Elista, Voronezh) show the note “May be closed to civil flights (since 2022)” on their page and in the map window.
+- The map’s airport window now loads only that airport’s weather, so it opens faster.
+
+Try it: [Airports](/havalimanlari) · [Vienna Airport](/istasyon/LOWW)
+
+---
+
+## v0.17.2 — 2026-10-04 22:03 (UTC+3)
 
 ### Türkçe
 **Haritada kesikli ülke sınırları**

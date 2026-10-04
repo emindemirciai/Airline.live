@@ -147,9 +147,17 @@ export function ourAirportsIcao(
 /**
  * Görünen ad: kırpılmış, art arda boşluklar teke inmiş (D-088; Bacău'nun OurAirports adında
  * "International  Airport"). Yoksa İngilizce sayfa, aynı görünen iki adı farklı sayıp
- * "OurAirports'taki adı" satırını gereksiz yere yazardı.
+ * "OurAirports'taki adı" satırını gereksiz yere yazardı. Tek başına duran küçük harfli "airport"
+ * "Airport" yapılır (D-090; 3. halkada dokuz Fransız havalimanı: "Bastia-Poretta International
+ * airport", "Aurillac airport"); küçük harfli ad İngilizce başlıkta özensiz görünürdü. Yalnız boşluk
+ * ve bu tek sözcüğün büyük harfi değişir ("Airportville", "Sea-Airport" gibi sözcüklere dokunulmaz).
+ * Web'in test yardımcısı (`apps/web/src/lib/test/ourairports-fixture.ts`) aynı kuralı yazar.
  */
-export const cleanAirportName = (name: string): string => name.trim().replace(/\s+/g, ' ')
+export const cleanAirportName = (name: string): string =>
+  name
+    .trim()
+    .replace(/\s+/g, ' ')
+    .replace(/\bairport\b/g, 'Airport')
 
 const countryOf = (row: Pick<AirportSourceRow, 'isoCountry'>) => row.isoCountry.trim().toUpperCase()
 
@@ -575,23 +583,39 @@ export interface StationSourceRow {
 }
 
 /**
- * Gösterilmeyen pist satırları (D-088), OurAirports pist kimliğine göre. Hepsi aynı havalimanında
- * bilgili bir pistin yanında duran, uzunluğu, genişliği ve uç koordinatları olmayan, kaplaması "UNK"
- * yinelenen kayıtlardır; gösterilseler sayfa ve pencere havalimanında bir pist fazla sayardı. Satır
+ * Gösterilmeyen pist satırları (D-088, D-090), OurAirports pist kimliğine göre. Hepsi aynı
+ * havalimanında bilgili bir pistin yanında duran, uzunluğu, genişliği ve uç koordinatları olmayan
+ * (kaplaması "UNK" ya da "GRS") yinelenen kayıtlardır; gösterilseler sayfa ve pencere havalimanında
+ * bir pist fazla sayardı. Satır
  * veritabanında kalır; yalnız hâlâ boşken (uzunluk ve genişlik yok) gizlenir, OurAirports satırı
  * doldurursa yeniden görünür. Eşik koordinatı ölçüt değildir: uç koordinatı olmayan pistin eşiği içe
  * aktarımda havalimanı merkezine (ARP) düşer (`arp_fallback`).
  * - 260339: Taba (HETB) "04/22"; havalimanının tek pisti 04L/22R (4.000 m) olarak kayıtlı.
  * - 260408: Cluj-Napoca (LRCL) "08/26"; kayıtlı pist 07/25 (2.040 m). Pist yeniden numaralanmış ve
  *   uzatılmış olabilir; doğrulanamadı, veri olduğu gibi kalır.
+ * - 504922: Linz (LOWL) "07H/25H"; havalimanının 08/26 (3.000 m) ve 08E/26E çim pisti kayıtlı.
+ * - 608245: Voronej (UUOO) "18/36"; kayıtlı pist 12/30 (2.300 m).
  */
 export const HIDDEN_RUNWAY_IDS: Readonly<Record<number, string>> = {
   260339: 'HETB 04/22',
   260408: 'LRCL 08/26',
+  504922: 'LOWL 07H/25H',
+  608245: 'UUOO 18/36',
 }
 
-/** Pist satırı gizlenir mi: tabloda ve hâlâ boş (uzunluk ve genişlik yok). */
-export function isHiddenRunway(row: Pick<RunwaySourceRow, 'id' | 'lengthFt' | 'widthFt'>): boolean {
+/**
+ * Pist satırı gizlenir mi:
+ * - `HIDDEN_RUNWAY_IDS`'te ve hâlâ boş (uzunluk ve genişlik yok; D-088), ya da
+ * - karşı ucu yok (`he_ident` boş; D-090, genel kural). Pistin iki ucu vardır; tek uçlu satır
+ *   helikopter iniş alanıdır: Stuttgart'ın (EDDS) "H-NORTH" ve "H-SOUTH" satırları (30 × 30 m)
+ *   gösterilseydi sayfa ve pencere üç pist sayardı. 2026-10-01 indirmesinin bütün adaylarında bu
+ *   biçimde yalnız yedi satır var; fixture'da Stuttgart'ın ikisi ve listelenmeyen iki Türkiye
+ *   kaydının (LTAO, TR-0315) "H" satırı.
+ */
+export function isHiddenRunway(
+  row: Pick<RunwaySourceRow, 'id' | 'lengthFt' | 'widthFt' | 'heIdent'>,
+): boolean {
+  if (present(row.heIdent) === null) return true
   return Object.hasOwn(HIDDEN_RUNWAY_IDS, row.id) && row.lengthFt === null && row.widthFt === null
 }
 

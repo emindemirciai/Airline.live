@@ -35,9 +35,16 @@ const SURFACE_CODES: Readonly<Record<string, RunwaySurfaceKey>> = {
   'CONCRETE/ASPHALT': 'mixed',
   'ASP/CON': 'mixed',
   'CON/ASP': 'mixed',
+  // 3. halkada Polonya'nın pistleri (Łódź, Wrocław, Rzeszów; D-090).
+  'ASPH-CONC': 'mixed',
+  'CONC-ASPH': 'mixed',
+  'ASPH/CONC': 'mixed',
+  'CONC/ASPH': 'mixed',
   PER: 'paved',
   GRS: 'grass',
   GRASS: 'grass',
+  // Rzeszów'ün (EPRZ) acil iniş şeridi; D-090.
+  'GRS EMERGENCY STRIP': 'grass',
   TURF: 'grass',
   GROUND: 'dirt',
   DIRT: 'dirt',
