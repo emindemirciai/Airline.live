@@ -12,8 +12,24 @@ import type { ChangelogEntry } from './types'
  */
 export const CHANGELOG: readonly ChangelogEntry[] = [
   {
+    version: '0.17.2',
+    date: '2026-10-04',
+    title: {
+      tr: 'Haritada kesikli ülke sınırları',
+      en: 'Dashed country borders on the map',
+    },
+    items: [
+      {
+        tr: 'Uydu haritasında ülke sınırları beyaz kesikli çizgiyle ve koyu bir kenarla belirgin; tartışmalı sınırlar noktalı. Deniz sınırları ve il sınırları çizilmez. Sınır verisi OpenStreetMap’ten (OpenFreeMap) gelir; atıfı haritanın alt şeridindedir.',
+        en: 'Country borders now stand out on the satellite map as white dashed lines with a dark edge; disputed borders are dotted. Sea and province borders are not drawn. Border data comes from OpenStreetMap (OpenFreeMap), credited in the strip at the bottom of the map.',
+      },
+    ],
+    tryLinks: [{ path: '/', label: { tr: 'Canlı harita', en: 'Live map' } }],
+  },
+  {
     version: '0.17.1',
     date: '2026-10-04',
+    releasedAt: '2026-10-04T18:36:55Z',
     title: {
       tr: 'Yeniliklerde yayın tarihi ve saati',
       en: 'Release date and time on What’s new',

@@ -29,8 +29,8 @@ Durumlar: `[ ]` başlamadı, `[~]` sürüyor, `[k]` kod bitti ve kullanıcı do�
 | M6k | Uçak listesi sağ üstte: sefer, kuyruk, yükseklik, konum ve durum | `p1/m6k-aircraft-list` | [k] kod bitti; üretimde listenin ve durumların görülmesi bekliyor (ACTIVATION) | #23 |
 | M6e.3 | Derecelendirilmiş rüzgâr renkleri (yama, v0.16.1) | `p1/m6e3-wind-scale` | [x] tamam; üretimde doğrulandı (2026-10-04, v0.16.1): LTFM, LTBA, LGAV kehribar, LTAC sarı, UGTB yeşil-sarı, LTAI yeşil | #24 |
 | M6g | Türkiye dışındaki havalimanları, 2. halka (≤ 1.000 km); haritanın atıf şeridinde site künyesi | `p1/m6g-ring2` | [k] kod bitti; üretimde 225 havalimanı ve HEBA hava durumunun görülmesi bekliyor (ACTIVATION) | #25 |
-| M6e.4 | Yeniliklerde yayın tarihi ve saati (yama, v0.17.1) | `p1/changelog-time` | [k] kod bitti; üretimde yayın saatinin görülmesi bekliyor | #26 |
-| M6e.5 | Haritada kesikli ülke sınırları (yama, v0.17.2) | `p1/map-borders` | [~] | — |
+| M6e.4 | Yeniliklerde yayın tarihi ve saati (yama, v0.17.1) | `p1/changelog-time` | [x] tamam; üretimde doğrulandı (2026-10-04, v0.17.1): /yenilikler v0.17.1 "4 Ekim 2026, 21:36 (Türkiye saati)" (sunucunun açılışı), v0.17.0 20:27 | #26 |
+| M6e.5 | Haritada kesikli ülke sınırları (yama, v0.17.2) | `p1/map-borders` | [k] kod bitti; üretimde sınırların görülmesi bekliyor (ACTIVATION) | #27 |
 | M6h | 3. halka (≤ 2.000 km) — kullanıcı isteğiyle M7a'nın önüne alındı (2026-10-04) | `p1/m6h-ring3` | [ ] | — |
 | M7a | Canlı araçlar: `smoke:live`, `record` | `p1/m7a-live-tools` | [ ] | — |
 | M7b | Kapsama ölçümü ve raporu (`coverage:probe`, `coverage:report`) | `p1/m7b-coverage` | [ ] | — |
@@ -1069,6 +1069,8 @@ Hedef sürüm 0.17.2 (`main` `fb6e0cc` = v0.17.0'dan; v0.17.1 ayrı yamadadır).
 - Birim testleri: `@havayolu/shared` 625 (+9, `borders.test.ts`), `@havayolu/web` 748 (+12: `basemap.test.ts` +10, `map-config.test.ts` +1, `attribution.test.ts` +1: şerit sırası iki dilde), `@havayolu/providers` 122 (+1), `@havayolu/i18n` 96.
 - Stil denetimi (geçici betik, MapLibre style-spec 26.4.4 `validateStyleMin`): sınırlı uydu stili, sınırları çevrilmiş koyu stil ve düz stil 0 hata. Süzgeçler aynı kütüphanenin `featureFilter`'ıyla: kara sınırı (`maritime` 0 ya da yok) kenar + kesikli; tartışmalı kenar + noktalı; deniz, il ve `claimed_by` çizgisi hiçbir katmanda.
 - `pnpm typecheck` (9/9), `pnpm lint` (9/9), `pnpm typecheck:e2e`, `pnpm lint:e2e`, `pnpm format`, `pnpm check:eol` → yeşil.
+
+- **Yayın adımı (2026-10-04):** dal v0.17.1 ile birleştirildi; v0.17.1 `releasedAt` 2026-10-04T18:36:55Z (GitHub Release). **`pnpm ci:full` → yeşil:** birim testleri web 757, shared 633, api 255, worker 200, providers 122, i18n 97, tools 74, db 47, geo 36, scripts 39; entegrasyon db 83, api 26, worker 12; E2E 120/120. `pnpm stats` → 556 dosya, 102.656 satır (93.466 kod).
 
 ## M7 — Canlı araçlar ve kapsama raporu
 Ayrıntılar `docs/prompts/parca-1.md`'dedir. Başlarken bu dosyaya dizinler ve kabul komutları eklenir.
