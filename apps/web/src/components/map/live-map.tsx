@@ -26,7 +26,12 @@ import { WallClock } from '../../lib/wall-clock'
 import { ConsentSettingsButton } from '../analytics-consent'
 import { airportsInView, fetchMapAirports, type MapAirport } from './airport-data'
 import { AirportPopup } from './airport-popup'
-import { mapCustomAttributionHtml } from './attribution'
+import {
+  mapCustomAttributionHtml,
+  siteCredit as buildSiteCredit,
+  siteCreditHtml,
+  type SiteVersion,
+} from './attribution'
 import {
   AIRPORT_MIN_ZOOM,
   INITIAL_BOUNDS,
@@ -73,7 +78,15 @@ export interface LiveMapProps {
    * onay harita denetimlerinden geri alınır. Analiz kapalıysa null.
    */
   consentSettingsLabel: string | null
+  /**
+   * Sitenin adı ve sürümü (alt bilgidekiyle aynı: `appName(env)`, `currentVersion()`). Harita
+   * sayfasında alt bilgi gizli olduğundan atıf şeridinin başında künye olarak gösterilir (D-089).
+   */
+  site: SiteVersion
 }
+
+/** Künyenin bağlantısı: Yenilikler sayfası (sayfanın dilinde, `localePath`). */
+const CHANGELOG_PATH = '/yenilikler'
 
 /**
  * Harita görünümü gelmeden (WebGL2 yok, harita yükleniyor) abonelik açılış görünümünün (IST/LTFM
@@ -151,6 +164,7 @@ export function LiveMap({
   initialHex,
   initialAirport,
   consentSettingsLabel,
+  site,
 }: LiveMapProps) {
   const units = DEFAULT_UNIT_SYSTEM
   const live = useLive(config.wsUrl)
@@ -330,6 +344,9 @@ export function LiveMap({
     messages.termsLink,
     termsHref,
   )
+  // Atıf şeridinin başındaki künye (D-089): "havayolu v0.16.1", Yenilikler sayfasına gider.
+  const credit = buildSiteCredit(site, localePath(locale, CHANGELOG_PATH), messages.siteCreditLabel)
+  const creditHtml = siteCreditHtml(credit)
   // Seçili uçak görünümün dışına çıkınca abonelikten ve depodan düşer. Kart kullanıcı kapatana kadar
   // son bilinen durumla açık kalır ("Son görülme" ilerler); uçak geri gelince yeniden canlanır.
   // Önceki çizimden türetilen durum (React belgesi: "storing information from previous renders").
@@ -422,6 +439,7 @@ export function LiveMap({
           ref={mapRef}
           basemap={config.basemap}
           customAttribution={customAttribution}
+          siteCredit={creditHtml}
           mapLabel={messages.mapLabel}
           store={store}
           airports={airports}
@@ -537,6 +555,7 @@ export function LiveMap({
           prefix={messages.dataAttributionPrefix}
           termsLabel={messages.termsLink}
           termsHref={termsHref}
+          siteCredit={credit}
         />
       )}
     </div>

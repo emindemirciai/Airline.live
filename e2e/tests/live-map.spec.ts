@@ -39,6 +39,7 @@ test.beforeEach(async ({ context }) => {
 
 test('harita IST/LTFM merkezli açılır, atıflar görünür, replay uçağı tabloda yüksekliğini günceller', async ({
   page,
+  request,
 }) => {
   await openMap(page)
   await expect(page.locator('.live-map__labels')).toBeAttached()
@@ -54,6 +55,18 @@ test('harita IST/LTFM merkezli açılır, atıflar görünür, replay uçağı t
     'https://adsb.lol',
   )
   await expect(attribution.getByRole('link', { name: 'ODbL' })).toBeVisible()
+  // Şerit sitenin kendi künyesiyle başlar (D-089): "havayolu v<sürüm>", sürüm alt bilgidekiyle ve
+  // /api/version'dakiyle aynıdır; bağlantı Yenilikler sayfasına gider. Zorunlu atıflar yerinde kalır.
+  const { version } = (await (await request.get('/api/version')).json()) as { version: string }
+  const credit = `havayolu v${version}`
+  await expect(attribution).toHaveText(
+    new RegExp(`^${credit.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')} \\| `),
+  )
+  await expect(attribution).toContainText('Canlı uçuş verisi: ADSB.lol — ODbL 1.0 · Koşullar')
+  const creditLink = attribution.getByRole('link').first()
+  await expect(creditLink).toHaveAccessibleName(`${credit}, yenilikler`)
+  await expect(creditLink).toHaveText(credit)
+  await expect(creditLink).toHaveAttribute('href', '/yenilikler')
   await expect(page.locator('.live-map__status')).toContainText('Veri yaşı')
 
   const row = aircraftRow(page, near.hex)
@@ -479,7 +492,15 @@ test.describe('telefon genişliği', () => {
     await openMap(page)
     expect((await airportListCodes(page))[0]).toBe(PRIMARY_AIRPORT.iata)
     await expect(page.getByRole('search').getByRole('searchbox')).toBeVisible()
-    await expect(page.locator('.maplibregl-ctrl-attrib')).toBeVisible()
+    const attribution = page.locator('.maplibregl-ctrl-attrib')
+    await expect(attribution).toBeVisible()
+    // Künye şeridin başında; zorunlu atıflar ve Koşullar ekranın içinde kalır (D-089).
+    await expect(attribution).toHaveText(/^havayolu v\d+\.\d+\.\d+\S* \| Canlı uçuş verisi:/)
+    for (const name of ['ADSB.lol', 'ODbL 1.0', 'Koşullar']) {
+      await expect(attribution.getByRole('link', { name, exact: true })).toBeInViewport({
+        ratio: 1,
+      })
+    }
     const overflow = await page.evaluate(
       () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
     )
@@ -506,6 +527,24 @@ test.describe('telefon genişliği', () => {
       }
     })
     expect(fit).toEqual({ aboveAttribution: true, bodyOverflow: 0, pageOverflow: 0 })
+  })
+
+  test('İngilizce haritada şerit künyeyle başlar; künye /en/yenilikler’e gider (D-089)', async ({
+    page,
+  }) => {
+    await openMap(page, '/en')
+    const attribution = page.locator('.maplibregl-ctrl-attrib')
+    await expect(attribution).toHaveText(/^havayolu v\d+\.\d+\.\d+\S* \| Live flight data:/)
+    await expect(attribution).toContainText('Live flight data: ADSB.lol — ODbL 1.0 · Terms')
+    const creditLink = attribution.getByRole('link').first()
+    await expect(creditLink).toHaveAccessibleName(/^havayolu v\d+\.\d+\.\d+\S*, what’s new$/)
+    await expect(creditLink).toHaveAttribute('href', '/en/yenilikler')
+    await expect(creditLink).toBeInViewport({ ratio: 1 })
+    for (const name of ['ADSB.lol', 'ODbL 1.0', 'Terms']) {
+      await expect(attribution.getByRole('link', { name, exact: true })).toBeInViewport({
+        ratio: 1,
+      })
+    }
   })
 })
 
