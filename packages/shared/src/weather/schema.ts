@@ -120,6 +120,20 @@ export const LIGHT_WINDS = ['calm', 'lightVariable', 'light'] as const
 export type LightWind = (typeof LIGHT_WINDS)[number]
 
 /**
+ * Rüzgâr satırının renk basamağı (D-083; kullanıcı isteği 2026-10-04: "rüzgâr varsa renkli belirt",
+ * derecelendirilmiş), zayıftan güçlüye; `windTier`. Rüzgâr varsa satır her zaman renklidir, basamağın
+ * adı da yazılır (etiket ya da değer):
+ * - `calm` açık yeşil: sakin ya da gösterilen hız (ve hamle) ≤ 10 km/sa (`LightWind`);
+ * - `breeze` limon yeşili: gösterilen hız 11–19 km/sa ("Tatlı rüzgâr");
+ * - `moderate` sarı: 20 km/sa ve üstü, `fresh` eşiğinin altında ("Orta rüzgâr");
+ * - `fresh` kehribar: `gusty`, `fresh` düzeyleri (ortalama 17–19 kt ya da hamle 25–29 kt);
+ * - `strong` turuncu: `gusts`, `strong`, `nearGale` (MGM meydan uyarısı eşiğinden 34 kt'nin altına);
+ * - `storm` kırmızı: `gale` ve üstü (ortalama ≥ 34 kt, Beaufort 8; hamle ≥ 43 kt).
+ */
+export const WIND_TIERS = ['calm', 'breeze', 'moderate', 'fresh', 'strong', 'storm'] as const
+export type WindTier = (typeof WIND_TIERS)[number]
+
+/**
  * Şimşek ve yıldırım uyarısı (D-083), güncel gözlemden: `here` havalimanında oraj ve yağış (ya da
  * yağış belirlenemedi), `hereDry` havalimanında yağışsız oraj (rapor temiz çözüldü), `vicinity`
  * çevrede oraj (VCTS), `cloudPrecip` kümülonimbüs ve havalimanında yağış var ama oraj bildirilmedi

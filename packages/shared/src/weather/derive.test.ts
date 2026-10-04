@@ -9,9 +9,11 @@ import {
   offScaleWind,
   relativeHumidity,
   windLevel,
+  windLevelTier,
+  windTier,
 } from './derive'
 import { decodeMetar } from './metar'
-import { WIND_LEVELS, type Sky, type Wind, type WindLevel } from './schema'
+import { WIND_LEVELS, WIND_TIERS, type Sky, type Wind, type WindLevel } from './schema'
 
 const layers = (...items: [string | null, number | null, string | null][]): Sky => ({
   kind: 'layers',
@@ -202,6 +204,110 @@ describe('hafif rüzgâr: gösterilen hız ≤ 10 km/sa (kullanıcı kararı 202
     expect(lightWind(wind(5))).toBe('light')
     expect(lightWind(wind(6))).toBeNull()
     expect(lightWind({ ...wind(6), speedKmh: 10 })).toBe('light')
+  })
+})
+
+describe('rüzgârın renk basamağı (kullanıcı isteği 2026-10-04: derecelendirilmiş, D-083)', () => {
+  const decode = (group: string) =>
+    decodeMetar(`LTXX 041250Z ${group} 9999 FEW030 10/05 Q1010`, {
+      referenceTime: '2026-10-04T13:00:00Z',
+    }).wind
+  it.each([
+    ['00000KT', 'calm'],
+    ['VRB01KT', 'calm'],
+    ['VRB03KT', 'calm'],
+    ['VRB05KT', 'calm'],
+    ['VRB06KT', 'breeze'],
+    // 10/11 km/sa (gösterilen değer): 5 kt = 9, 6 kt = 11; KMH olduğu gibi; MPS 2 m/s = 7, 3 m/s = 11.
+    // 6 kt ve 3 m/s MGM'de Beaufort 2 "Hafif Rüzgâr"dır; burada tatlıdır, çünkü sınır kullanıcının
+    // hafif rüzgâr kuralıdır (2026-10-03, D-083), MGM'nin 6/7 kt sınırı değil.
+    ['27005KT', 'calm'],
+    ['27006KT', 'breeze'],
+    ['27010KMH', 'calm'],
+    ['27011KMH', 'breeze'],
+    ['27002MPS', 'calm'],
+    ['27003MPS', 'breeze'],
+    // 19/20 km/sa: 10 kt = 19, 11 kt = 20; MPS 5 m/s = 18, 6 m/s = 22.
+    ['27010KT', 'breeze'],
+    ['27011KT', 'moderate'],
+    ['27019KMH', 'breeze'],
+    ['27020KMH', 'moderate'],
+    ['27005MPS', 'breeze'],
+    ['27006MPS', 'moderate'],
+    // 30/31 km/sa ile 16/17 kt aynı sınırdır: 16 kt = 30, 17 kt = 31; 30 KMH = 16 kt, 31 KMH = 17 kt;
+    // 8 m/s = 29 km/sa (16 kt), 9 m/s = 32 km/sa (17 kt).
+    ['27016KT', 'moderate'],
+    ['27017KT', 'fresh'],
+    ['27030KMH', 'moderate'],
+    ['27031KMH', 'fresh'],
+    ['27008MPS', 'moderate'],
+    ['27009MPS', 'fresh'],
+    // Hamle: büyük olan gösterilen değer basamağı belirler (hafif rüzgâr kuralıyla aynı).
+    ['27004G14KT', 'moderate'],
+    ['27010G20KT', 'moderate'],
+    ['27010G24KT', 'moderate'],
+    ['27010G25KT', 'fresh'],
+    ['27015G29KT', 'fresh'],
+    ['27015G30KT', 'strong'],
+    // Kehribar ile turuncu: ortalama 19/20 kt (MGM meydan uyarısı).
+    ['27019KT', 'fresh'],
+    ['27020KT', 'strong'],
+    ['27019G29KT', 'fresh'],
+    // Turuncu ile kırmızı: ortalama 33/34 kt (Beaufort 8), hamle 42/43 kt (Met Office "Gale").
+    ['27033KT', 'strong'],
+    ['27034KT', 'storm'],
+    ['27025G42KT', 'strong'],
+    ['27025G43KT', 'storm'],
+    ['27064KT', 'storm'],
+    // Ölçek üstü en az kendi düzeyidir.
+    ['270P99KT', 'storm'],
+    ['27020GP99KT', 'storm'],
+    ['270P49MPS', 'storm'],
+    // Bilinmeyen hız: vurgu yok.
+    ['/////KT', null],
+    ['270//KT', null],
+  ] as const)('%s → %s', (group, tier) => {
+    expect(windTier(decode(group))).toBe(tier)
+  })
+
+  it('basamak düzeyden gelir; hafif rüzgâr yeşildir; rüzgâr yoksa null', () => {
+    expect(windTier(null)).toBeNull()
+    expect(windTier(wind(null))).toBeNull()
+    // Hız bilinmiyor ama hamle meydan uyarısı eşiğinde: düzey (`gusts`) gibi.
+    expect(windTier(wind(null, 35))).toBe('strong')
+    // Ölçek üstü küçük değer yalnız alt sınırdır: hafif sayılmaz.
+    expect(windTier(wind(5, null, true))).toBe('breeze')
+    // Eski API yanıtı (`speedKmh` yok): kt'den çevrilir.
+    expect([windTier(wind(10)), windTier(wind(11))]).toEqual(['breeze', 'moderate'])
+    expect(windTier({ ...wind(11), speedKmh: 19 })).toBe('breeze')
+    for (const [group, light] of [
+      ['00000KT', 'calm'],
+      ['VRB02KT', 'lightVariable'],
+      ['27005KT', 'light'],
+    ] as const) {
+      expect([windTier(decode(group)), lightWind(decode(group))], group).toEqual(['calm', light])
+    }
+  })
+
+  it('her şiddet düzeyinin basamağı: gusty ve fresh kehribar, nearGale’e kadar turuncu, gale ve üstü kırmızı', () => {
+    expect(Object.fromEntries(WIND_LEVELS.map((level) => [level, windLevelTier(level)]))).toEqual({
+      gusty: 'fresh',
+      fresh: 'fresh',
+      gusts: 'strong',
+      strong: 'strong',
+      nearGale: 'strong',
+      gale: 'storm',
+      severeGale: 'storm',
+      storm: 'storm',
+      violentStorm: 'storm',
+      hurricane: 'storm',
+    })
+    expect([...WIND_TIERS]).toEqual(['calm', 'breeze', 'moderate', 'fresh', 'strong', 'storm'])
+    // Meydan uyarısı (API `derived.strongWind`) değişmedi: turuncu ve kırmızı basamaklardır.
+    for (const group of ['27016KT', '27017KT', '27010G25KT', '27020KT', '27015G30KT', '27034KT']) {
+      const w = decode(group)
+      expect(isStrongWind(w), group).toBe(windTier(w) === 'strong' || windTier(w) === 'storm')
+    }
   })
 })
 

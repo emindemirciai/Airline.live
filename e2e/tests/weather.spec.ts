@@ -22,6 +22,11 @@
 // - M6e.2 (D-083, kullanıcı kararı 2026-10-03): rüzgâr satırı ortalama ≥ 17 kt ya da hamle ≥ 25 kt'de
 //   kehribar ve şiddetin adıyla (LTAI `20015G28KT` "Hamleli rüzgâr"), gösterilen hız ≤ 10 km/sa'da
 //   açık yeşil ve "Hafif rüzgâr" etiketiyle (LTAJ `09005KT`)
+// - M6e.3 (D-083, kullanıcı isteği 2026-10-04): rüzgâr satırı derecelendirilmiştir, rüzgâr varsa her
+//   zaman renklidir ve basamağın adı yazılır: açık yeşil (LTAJ), limon yeşili "Tatlı rüzgâr" (LTDB
+//   `18006KT`, 11 km/sa), sarı "Orta rüzgâr" (LTAC `32012KT`, 22 km/sa), kehribar (LTAI "Hamleli
+//   rüzgâr"), turuncu (IST `03018G32KT` "Kuvvetli hamle", meydan uyarısı); her basamağın zemini ve
+//   yazı rengi (kırmızı dahil) ölçülür
 import { expect, test, type Locator, type Page } from '@playwright/test'
 import { jsonLdBlocks, metaContents, titles } from '../html'
 import { canvasChips, mapCenter } from '../label-canvas'
@@ -58,11 +63,25 @@ const LATEST_GROUP = PRIMARY_WEATHER.latestMetarGroups[0]
 /**
  * Hizası ölçülen havalimanı pencereleri ve vurgulu satırları (fixture: IST
  * `03018G32KT -SHRA FEW025CB`, LTAI `20015G28KT +TSRA SCT015CB`; LTAI'nin rüzgârı M6e.2'den beri
- * hamle 25 kt eşiğiyle kehribardır, D-083).
+ * hamle 25 kt eşiğiyle kehribardır, IST'ninki M6e.3'ten beri meydan uyarısı turuncusudur, D-083).
  */
 const ALIGNED_AIRPORTS = [
-  { icao: 'LTFM', iata: 'IST', tones: ['wind', 'rain', 'thunder'] },
-  { icao: 'LTAI', iata: 'AYT', tones: ['wind', 'rain', 'thunder'] },
+  { icao: 'LTFM', iata: 'IST', tones: ['strong', 'rain', 'thunder'] },
+  { icao: 'LTAI', iata: 'AYT', tones: ['fresh', 'rain', 'thunder'] },
+] as const
+
+/**
+ * Rüzgâr basamaklarının zemini ve yazısı (weather-rows.css; M6e.3, D-083): açık yeşil, limon yeşili,
+ * sarı, kehribar, turuncu, kırmızı. Fixture'da kırmızı basamak yoktur; renkleri satırın `data-tone`'u
+ * tarayıcıda değiştirilerek ölçülür.
+ */
+const WIND_TONES = [
+  { tone: 'calm', background: 'rgb(220, 252, 231)', color: 'rgb(22, 101, 52)' },
+  { tone: 'breeze', background: 'rgb(236, 252, 203)', color: 'rgb(63, 98, 18)' },
+  { tone: 'moderate', background: 'rgb(253, 249, 176)', color: 'rgb(113, 90, 0)' },
+  { tone: 'fresh', background: 'rgb(254, 243, 199)', color: 'rgb(146, 64, 14)' },
+  { tone: 'strong', background: 'rgb(255, 237, 213)', color: 'rgb(154, 52, 18)' },
+  { tone: 'storm', background: 'rgb(254, 226, 226)', color: 'rgb(153, 27, 27)' },
 ] as const
 
 /**
@@ -99,12 +118,19 @@ const COPY = {
      */
     speedDual: /\d+\u00a0km\/sa\u00a0\(\d+\u00a0kt\)/,
     gust: 'hamle',
-    /** Fixture IST `03018G32KT`: ortalama eşiğin altında, hamle 32 kt → "Kuvvetli hamle" (D-083). */
+    /**
+     * Fixture IST `03018G32KT`: ortalama meydan uyarısı eşiğinin altında, hamle 32 kt → "Kuvvetli
+     * hamle", turuncu (D-083; M6e.3).
+     */
     windLevel: 'Kuvvetli hamle',
     /** Fixture LTAI `20015G28KT`: hamle 25 kt'yi geçti, 30 kt'nin altında (M6e.2, D-083). */
     gustyLevel: 'Hamleli rüzgâr',
     /** Fixture LTAJ `09005KT`: 9 km/sa, açık yeşil satır ve etiket (M6e.2, D-083). */
     lightWind: 'Hafif rüzgâr',
+    /** Fixture LTDB `18006KT`: 11 km/sa, limon yeşili (M6e.3, D-083). */
+    breezeWind: 'Tatlı rüzgâr',
+    /** Fixture LTAC `32012KT`: 22 km/sa, sarı (M6e.3, D-083). */
+    moderateWind: 'Orta rüzgâr',
     rainValue: 'Hafif sağanak yağmur',
     none: 'Yok',
     cb: 'kümülonimbüs',
@@ -156,6 +182,8 @@ const COPY = {
     windLevel: 'Strong gusts',
     gustyLevel: 'Gusty wind',
     lightWind: 'Light wind',
+    breezeWind: 'Gentle breeze',
+    moderateWind: 'Moderate wind',
     rainValue: 'Light rain showers',
     none: 'None',
     cb: 'cumulonimbus',
@@ -198,8 +226,9 @@ const TEMPERATURE_CHIP = /^\s*−?\d+ °C\s*$/
 
 /**
  * Hava durumu satırları (sayfa ve pencere ortak): sıcaklık kutucuğu başlığın yanındadır; yağmur
- * satırı vurgulu, "Yok" satırları sade; etkili rüzgâr ve kümülonimbüsün yıldırım olasılığı kehribar
- * vurgulu (D-083); simgeler ekran okuyucudan gizli; sayıdan önce ayraç yok.
+ * satırı vurgulu, "Yok" satırları sade; meydan uyarısı eşiğindeki rüzgâr turuncu (M6e.3) ve
+ * kümülonimbüsün yıldırım olasılığı kehribar vurgulu (D-083); simgeler ekran okuyucudan gizli; sayıdan
+ * önce ayraç yok.
  */
 async function expectWeatherPresentation(scope: Locator, locale: Locale): Promise<void> {
   const copy = COPY[locale]
@@ -208,10 +237,14 @@ async function expectWeatherPresentation(scope: Locator, locale: Locale): Promis
   await expect(rainRow).toHaveAttribute('data-tone', 'rain')
   // Vurgu yalnız renk değildir: değer kalındır ve olayın adını yazar.
   await expect(row(scope, copy.rows.rain)).toHaveCSS('font-weight', '700')
-  // Rüzgâr km/sa ve kt; hamle eşiği aşıldı: satır kehribar, şiddetin adı etiket olarak yazılır.
+  // Rüzgâr km/sa ve kt; hamle meydan uyarısı eşiğini aştı: satır turuncu, şiddetin adı etiket olarak
+  // yazılır (M6e.3, D-083).
   const wind = row(scope, copy.rows.wind)
+  const strong = WIND_TONES[4]
   await expect(wind).toContainText(copy.speedDual)
-  await expect(wind.locator('xpath=..')).toHaveAttribute('data-tone', 'wind')
+  await expect(wind.locator('xpath=..')).toHaveAttribute('data-tone', strong.tone)
+  await expect(wind.locator('xpath=..')).toHaveCSS('background-color', strong.background)
+  await expect(wind).toHaveCSS('color', strong.color)
   await expect(wind.locator('.wx-tag')).toHaveText(copy.windLevel)
   await expect(wind).toHaveCSS('font-weight', '700')
   // Kümülonimbüs ve yağış var, gök gürültüsü bildirilmedi: tehlike yazılır; kehribar.
@@ -450,8 +483,11 @@ test.describe('havalimanı sayfası', () => {
         'rain',
       )
       const gusty = row(here, copy.rows.wind)
+      const fresh = WIND_TONES[3]
       await expect(gusty).toContainText(copy.speedDual)
-      await expect(gusty.locator('xpath=..')).toHaveAttribute('data-tone', 'wind')
+      await expect(gusty.locator('xpath=..')).toHaveAttribute('data-tone', fresh.tone)
+      await expect(gusty.locator('xpath=..')).toHaveCSS('background-color', fresh.background)
+      await expect(gusty).toHaveCSS('color', fresh.color)
       await expect(gusty.locator('.wx-tag')).toHaveText(copy.gustyLevel)
 
       // LTAJ (fixture `09005KT`, 9 km/sa): açık yeşil satır; renk tek ipucu değildir, yanında
@@ -463,6 +499,44 @@ test.describe('havalimanı sayfası', () => {
       await expect(light.locator('xpath=..')).toHaveCSS('background-color', 'rgb(220, 252, 231)')
       await expect(light).toHaveCSS('color', 'rgb(22, 101, 52)')
       await expect(light.locator('.wx-tag')).toHaveText(copy.lightWind)
+
+      // Derecelendirilmiş rüzgâr (M6e.3, kullanıcı isteği 2026-10-04): LTDB `18006KT` (11 km/sa)
+      // limon yeşili "Tatlı rüzgâr", LTAC `32012KT` (22 km/sa) sarı "Orta rüzgâr"; eskiden sadeydi.
+      // Etiket beyaz zeminde satırın yazı rengindedir.
+      for (const [code, tone, tag] of [
+        ['LTDB', WIND_TONES[1], copy.breezeWind],
+        ['LTAC', WIND_TONES[2], copy.moderateWind],
+      ] as const) {
+        await page.goto(path(code))
+        const wind = row(weatherSection(page, locale), copy.rows.wind)
+        await expect(wind, code).toContainText(copy.speedDual)
+        await expect(wind.locator('xpath=..'), code).toHaveAttribute('data-tone', tone.tone)
+        await expect(wind.locator('xpath=..'), code).toHaveCSS('background-color', tone.background)
+        await expect(wind, code).toHaveCSS('color', tone.color)
+        await expect(wind, code).toHaveCSS('font-weight', '700')
+        await expect(wind.locator('.wx-tag'), code).toHaveText(tag)
+        await expect(wind.locator('.wx-tag'), code).toHaveCSS('color', tone.color)
+        await expect(wind.locator('.wx-tag'), code).toHaveCSS(
+          'background-color',
+          'rgb(255, 255, 255)',
+        )
+      }
+
+      // Her basamağın zemini ve yazısı (kırmızı fixture'da yok): LTAC'nin satırının basamağı
+      // hidrasyondan sonra (göreli yaş yalnız istemcide yazılır) tarayıcıda değiştirilir.
+      const section = weatherSection(page, locale)
+      await expect(section).toContainText(copy.observedAgo)
+      const windRow = row(section, copy.rows.wind).locator('xpath=..')
+      for (const tone of WIND_TONES) {
+        await windRow.evaluate(
+          (element, value) => element.setAttribute('data-tone', value),
+          tone.tone,
+        )
+        await expect(windRow, tone.tone).toHaveCSS('background-color', tone.background)
+        await expect(windRow.locator('dd'), tone.tone).toHaveCSS('color', tone.color)
+        await expect(windRow.locator('dt'), tone.tone).toHaveCSS('color', tone.color)
+        await expect(windRow.locator('.wx-tag'), tone.tone).toHaveCSS('color', tone.color)
+      }
 
       // LTAU (fixture `VCTS SCT040CB`): çevrede oraj; yıldırım havalimanına da düşebilir.
       await page.goto(path('LTAU'))

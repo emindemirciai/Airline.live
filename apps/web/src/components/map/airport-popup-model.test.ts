@@ -281,9 +281,10 @@ describe('popupWeatherView', () => {
     expect(value(view, 'fog')).toBe('Yok')
     expect(value(view, 'visibility')).toBe('10 km ve üzeri')
     expect(view.observed).toBe('Gözlem 15:50, 10 dakika önce')
-    // Var olan olay (yağmur), etkili rüzgâr ve yıldırım tehlikesi (CB ve yağış) vurgulanır; "Yok" sade.
+    // Var olan olay (yağmur), rüzgâr (hamle 32 kt: meydan uyarısı, turuncu; M6e.3) ve yıldırım
+    // tehlikesi (CB ve yağış) vurgulanır; "Yok" sade.
     expect(view.rows.map((row) => [row.key, row.tone])).toEqual([
-      ['wind', 'wind'],
+      ['wind', 'strong'],
       ['rain', 'rain'],
       ['snow', null],
       ['thunder', 'thunder'],
@@ -320,11 +321,14 @@ describe('popupWeatherView', () => {
     expect(s.headline).toBe('Snow')
     expect(s.temperature).toBe('\u22121 °C')
     expect([tone(s, 'rain'), tone(s, 'snow'), tone(s, 'fog')]).toEqual([null, 'snow', 'fog'])
+    // 12 kt (22 km/sa): sarı "Orta rüzgâr" (M6e.3; eskiden sade).
+    expect([tone(s, 'wind'), s.rows[0]?.strong]).toEqual(['moderate', 'Moderate wind'])
     const f = report(popupWeatherView(data, 'LTCG', NOW, 'tr', w, t))
     expect(value(f, 'fog')).toBe('Sis')
     expect(tone(f, 'fog')).toBe('fog')
     expect(value(f, 'wind')).toBe('Sakin')
     expect(f.rows[0]?.strong).toBeNull()
+    expect(tone(f, 'wind')).toBe('calm')
     expect(value(f, 'visibility')).toBe('200 m')
     const h = report(popupWeatherView(data, 'LTBS', NOW, 'tr', w, t))
     // Sözcük seçimi havalimanı sayfasıyla ortaktır (summarizeMetar); TS için "fırtına" denmez.
@@ -337,6 +341,8 @@ describe('popupWeatherView', () => {
       'thunder',
       'hail',
     ])
+    // 15G27: kehribar "Hamleli rüzgâr".
+    expect([tone(h, 'wind'), h.rows[0]?.strong]).toEqual(['fresh', 'Hamleli rüzgâr'])
   })
 
   it('çevredeki oraj yıldırım uyarısıyla vurgulanır; "Belirlenemedi" vurgulanmaz', () => {
