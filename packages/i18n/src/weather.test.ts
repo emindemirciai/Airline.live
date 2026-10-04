@@ -75,6 +75,7 @@ function rows(raw: string, options = TR) {
     strongWind: summary.strongWind,
     level: summary.windLevel ? options.t.wind.level[summary.windLevel] : null,
     windLight: summary.windLight,
+    tier: summary.windTier,
     shear: text(summary.windShear),
     lightning: summary.lightning,
   }
@@ -151,6 +152,30 @@ describe('hava durumu metin anahtarları', () => {
       'Harikeyn (orkan)',
     ])
     expect(Object.keys(getMessages('en').weather.wind.level)).toEqual([...WIND_LEVELS])
+  })
+
+  it('derecelendirilmiş rüzgâr basamaklarının adları iki dilde; ayrı ve ayraçsız (M6e.3, D-083)', () => {
+    const tr = getMessages('tr').weather.wind
+    const en = getMessages('en').weather.wind
+    expect([tr.light, tr.breeze, tr.moderate]).toEqual([
+      'Hafif rüzgâr',
+      'Tatlı rüzgâr',
+      'Orta rüzgâr',
+    ])
+    expect([en.light, en.breeze, en.moderate]).toEqual([
+      'Light wind',
+      'Gentle breeze',
+      'Moderate wind',
+    ])
+    for (const wind of [tr, en]) {
+      // Her basamağın adı başkadır (renk tek ipucu değildir); şiddet adlarıyla da çakışmaz.
+      const names = [wind.light, wind.breeze, wind.moderate, ...Object.values(wind.level)]
+      expect(new Set(names).size).toBe(names.length)
+      for (const text of [wind.light, wind.breeze, wind.moderate]) {
+        expect(text).not.toMatch(/[·–]\s*(?:\{|[−-]?\d)/)
+        expect(text).not.toMatch(/\{\w+\}/)
+      }
+    }
   })
 
   it('sayıdan ya da sayı yazan yer tutucudan önce "·" ya da "–" yok (eksi gibi okunur; 2026-10-02)', () => {
@@ -716,6 +741,52 @@ describe('M6e.2: rüzgâr renkleri ve rüzgâr kesmesi (kullanıcı kararı 2026
     expect([urss.wind, urss.windLight]).toEqual([
       'Kuzeybatıdan 11 km/sa (6 kt), yönü batı ile kuzey arasında değişiyor',
       null,
+    ])
+  })
+
+  it('üretim METAR’ları (2026-10-03 16:56Z): her basamağın değeri iki dilde (M6e.3)', () => {
+    // Sınırlar gösterilen km/sa'dadır: 6 kt = 11 km/sa tatlı, 10 kt = 19 km/sa tatlı, 11 kt = 20
+    // km/sa orta, 16 kt = 30 km/sa orta, 17 kt = 31 km/sa kehribar "Sert rüzgâr".
+    const cases = [
+      ['METAR LGKP 031620Z 03005KT 9999 FEW020TCU SCT025 20/14 Q1018', 'calm'],
+      ['METAR LTAI 031620Z 28006KT 240V300 9999 SCT030 BKN080 21/12 Q1018 NOSIG', 'breeze'],
+      ['METAR LGRX 031620Z 07010KT 9999 FEW030 22/05 Q1025', 'breeze'],
+      ['METAR LGSK 031620Z 01011KT 9999 FEW015 20/09 Q1026', 'moderate'],
+      ['METAR LTBA 031620Z 05016KT 9999 FEW035 17/11 Q1028', 'moderate'],
+      ['METAR LGAV 031650Z 36017KT 9999 BKN030 19/09 Q1025 NOSIG', 'fresh'],
+      ['METAR UGTB 031630Z 33027KT CAVOK 14/05 Q1021 NOSIG', 'strong'],
+      ['METAR LGMK 031620Z 36030G45KT 9999 SCT018 20/11 Q1020', 'storm'],
+    ] as const
+    expect(cases.map(([raw]) => [rows(raw).wind, rows(raw).tier])).toEqual([
+      ['Kuzeydoğudan 9 km/sa (5 kt)', 'calm'],
+      ['Batıdan 11 km/sa (6 kt), yönü güneybatı ile kuzeybatı arasında değişiyor', 'breeze'],
+      ['Doğudan 19 km/sa (10 kt)', 'breeze'],
+      ['Kuzeyden 20 km/sa (11 kt)', 'moderate'],
+      ['Kuzeydoğudan 30 km/sa (16 kt)', 'moderate'],
+      ['Kuzeyden 31 km/sa (17 kt)', 'fresh'],
+      ['Kuzeybatıdan 50 km/sa (27 kt)', 'strong'],
+      ['Kuzeyden 56 km/sa (30 kt), hamle 83 km/sa (45 kt)', 'storm'],
+    ])
+    expect(cases.map(([raw]) => rows(raw, EN).wind)).toEqual([
+      'From the northeast 9 km/h (5 kt)',
+      'From the west 11 km/h (6 kt), varying between southwest and northwest',
+      'From the east 19 km/h (10 kt)',
+      'From the north 20 km/h (11 kt)',
+      'From the northeast 30 km/h (16 kt)',
+      'From the north 31 km/h (17 kt)',
+      'From the northwest 50 km/h (27 kt)',
+      'From the north 56 km/h (30 kt), gusts 83 km/h (45 kt)',
+    ])
+    // Kehribar, turuncu ve kırmızı basamakların adı şiddet düzeyindendir.
+    expect(cases.slice(5).map(([raw]) => rows(raw).level)).toEqual([
+      'Sert rüzgâr',
+      'Kuvvetli rüzgâr',
+      'Fırtına',
+    ])
+    expect(cases.slice(5).map(([raw]) => rows(raw, EN).level)).toEqual([
+      'Fresh wind',
+      'Strong wind',
+      'Gale',
     ])
   })
 

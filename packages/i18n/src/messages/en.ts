@@ -407,6 +407,8 @@ export const en: Messages = {
       shearRunway: 'Wind shear reported: runway {runway}',
       shearRunways: 'Wind shear reported: runways {runways}',
       light: 'Light wind',
+      breeze: 'Gentle breeze',
+      moderate: 'Moderate wind',
       level: {
         gusty: 'Gusty wind',
         fresh: 'Fresh wind',

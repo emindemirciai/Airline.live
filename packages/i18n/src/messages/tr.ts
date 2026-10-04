@@ -488,6 +488,16 @@ export const tr = {
        */
       light: 'Hafif rüzgâr',
       /**
+       * Derecelendirilmiş rüzgâr renkleri (kullanıcı isteği 2026-10-04, D-083): gösterilen hız 11–19
+       * km/sa limon yeşili satırda "Tatlı rüzgâr", 20 km/sa ve üstü (ortalama 17 kt, hamle 25 kt
+       * eşiğinin altında) sarı satırda "Orta rüzgâr". Adlar MGM Beaufort 3 ve 4'ündür; 6 kt (11
+       * km/sa, 3 m/s) MGM'de Beaufort 2 "Hafif Rüzgâr"dır ama burada "Tatlı rüzgâr" olur, çünkü 10/11
+       * km/sa sınırı kullanıcının hafif rüzgâr kuralıdır (2026-10-03). Rüzgâr kesmesi satırı kehribar
+       * yaptığında yazılmaz.
+       */
+      breeze: 'Tatlı rüzgâr',
+      moderate: 'Orta rüzgâr',
+      /**
        * Etkili rüzgârın şiddeti (D-083): rüzgâr satırının etiketi ve TAF öğesi. Satırın vurgu eşiği
        * ortalama ≥ 17 kt (MGM Beaufort 5) ya da hamle ≥ 25 kt'dir (kullanıcı kararı 2026-10-03); TAF
        * öğesi MGM meydan uyarısı eşiğiyle seçilir (ortalama ≥ 20 kt ya da hamle ≥ 30 kt, `gusts` ve

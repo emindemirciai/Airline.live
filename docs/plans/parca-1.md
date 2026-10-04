@@ -27,6 +27,7 @@ Durumlar: `[ ]` başlamadı, `[~]` sürüyor, `[k]` kod bitti ve kullanıcı do�
 | M6e.2 | Rüzgâr renkleri ve rüzgâr kesmesi (yama, v0.14.1) | `p1/m6e2-wind-colors` | [x] tamam; üretimde doğrulandı (2026-10-03, v0.14.1): UGTB, UGKO, LGMK kehribar, LGKP ve LRCK açık yeşil | #21 |
 | M6l | Logo: A · Halka | `p1/m6l-logo` | [x] tamam; üretimde doğrulandı (2026-10-03, v0.15.0): başlıkta yeni işaret, /icon/512 ve /icon/maskable, 512 px simgede kuyruk kırıntısı yok | #22 |
 | M6k | Uçak listesi sağ üstte: sefer, kuyruk, yükseklik, konum ve durum | `p1/m6k-aircraft-list` | [k] kod bitti; üretimde listenin ve durumların görülmesi bekliyor (ACTIVATION) | #23 |
+| M6e.3 | Derecelendirilmiş rüzgâr renkleri (yama, v0.16.1) | `p1/m6e3-wind-scale` | [~] | — |
 | M6g | Türkiye dışındaki havalimanları, 2. halka (≤ 1.000 km) | `p1/m6g-ring2` | [ ] | — |
 | M7a | Canlı araçlar: `smoke:live`, `record` | `p1/m7a-live-tools` | [ ] | — |
 | M6h | 3. halka (≤ 2.000 km) | `p1/m6h-ring3` | [ ] | — |
@@ -900,6 +901,36 @@ Hedef sürüm 0.16.0. Karar D-085'tedir.
 - **Yayın adımı (2026-10-04):** dal v0.15.0 (logo) ile birleştirildi; karar ve plan çakışmaları iki bölüm korunarak çözüldü.
 - **`pnpm ci:full` → yeşil:** birim testleri web 724, shared 546, api 251, worker 200, providers 120, i18n 94, tools 74, db 44, geo 36, scripts 31; entegrasyon db 82, api 26, worker 12; migration yükseltme 6 → 6; `compose:guard`; E2E 113/113.
 - `pnpm stats` → 548 dosya, 98.374 satır (89.683 kod).
+
+## M6e.3 — Derecelendirilmiş rüzgâr renkleri (v0.16.1)
+Onay: 2026-10-04 (kullanıcı isteği: "rüzgar için yeşil kod yaptık ya belli bir km/knot ta renk yok ama rüzgar var. derecelendirmeli yap. rüzgar varsa renkli belirt."; yama sürümü, D-082)
+
+Hedef sürüm 0.16.1 (M6k'nin v0.16.0 dalının üstünden, `2323db0`). Karar D-083'teki "2026-10-04 kullanıcı isteği: derecelendirilmiş rüzgâr renkleri" maddesidir.
+
+**Kapsam:**
+- Rüzgâr varsa rüzgâr satırı her zaman renklidir ve basamağın adı metin olarak yazılır: ≤ 10 km/sa (sakin dahil) açık yeşil "Hafif rüzgâr" (değişmedi), 11–19 km/sa limon yeşili "Tatlı rüzgâr", 20 km/sa ve üstü (ortalama < 17 kt, hamle < 25 kt) sarı "Orta rüzgâr", ortalama 17–19 kt ya da hamle 25–29 kt kehribar (değişmedi), MGM meydan uyarısından 34 kt'ye turuncu, ortalama ≥ 34 kt ya da hamle ≥ 43 kt kırmızı.
+- km/sa sınırları gösterilen değere göredir (ortalama ile hamlenin büyüğü), kt sınırları mevcut düzeylerinkidir; P99 en az kendi düzeyi; bilinmeyen hız ve NIL vurgusuz; VRB hafif rüzgâr açık yeşil, değeri değişmedi. Rüzgâr kesmesi satırı en az kehribar yapar (kesme basamağı yükselttiyse hafif, tatlı ve orta rüzgârın adı yazılmaz).
+- Pencere ve havalimanı sayfası aynı satırlardır (`phenomenonRows`). Gök gürültüsü, dolu ve diğer olayların kehribarı, API `derived.strongWind`, TAF'ın rüzgâr öğesi değişmedi.
+
+**Dosyalar:**
+- `packages/shared/src/weather/schema.ts` (`WIND_TIERS`, `WindTier`), `derive.ts` (`BREEZE_WIND_MAX_KMH`, `windLevelTier`, `windTier`), `summary.ts` (`WeatherSummary.windTier`), `index.ts`; `derive.test.ts`, `summary.test.ts`
+- `packages/i18n/src/messages/tr.ts`, `en.ts` (`weather.wind.breeze`, `weather.wind.moderate`), `weather.test.ts`
+- `apps/web/src/components/airports/weather-rows.ts` (`WeatherTone` = basamaklar ve olaylar, `windRow`, `windTag`), `weather-row-list.tsx` (açıklama), `weather-rows.css` (dört yeni basamak rengi, kehribar ton adı `fresh`, `forced-colors` çerçeveleri); `airport-weather.test.ts`, `components/map/airport-popup.test.ts`, `components/map/airport-popup-model.test.ts`
+- `e2e/tests/weather.spec.ts` (IST turuncu, LTAI `fresh`, LTDB limon yeşili, LTAC sarı; altı basamağın renkleri)
+- `docs/DECISIONS.md` (D-083 alt maddesi)
+
+**Kabul komutları:**
+- `pnpm --filter @havayolu/shared test` → basamak sınırları (10/11, 19/20, 30/31 km/sa ve 16/17 kt; KT, KMH, MPS), hamle 24/25, 29/30, 42/43 kt, ortalama 19/20, 33/34 kt, P99, bilinmeyen hız; her basamaktan üretim METAR'ı
+- `pnpm --filter @havayolu/i18n test` → yeni adlar iki dilde, eşlik, sayıdan önce ayraç yok
+- `pnpm --filter @havayolu/web test` → sayfa ve pencerede ton ve etiket; bütün fixture istasyonları; kesme
+- `pnpm test:e2e` → `weather.spec.ts`: IST satırı turuncu (`rgb(255, 237, 213)` zemin, `rgb(154, 52, 18)` yazı), LTAI kehribar, LTDB limon yeşili "Tatlı rüzgâr", LTAC sarı "Orta rüzgâr", altı basamağın zemini ve yazısı
+- `pnpm ci:full` yeşil; PR'da CI (`e2e` dahil) yeşil
+
+**Çıktı kaydı (2026-10-04, uygulama; sürüm, changelog ve README yayın adımındadır; e2e ve `ci:full` bu adımda çalıştırılmadı):**
+- Üretim anlık görüntüsü (2026-10-03 16:56Z, METAR'ı olan 122 istasyon) çalışma ağacının çözücüsü ve arayüzün `phenomenonRows`'u ile: açık yeşil 51 (35 "Hafif rüzgâr", 14 "Hafif ve değişken yönlü", 2 "Sakin"), limon yeşili 37, sarı 22, kehribar 7, turuncu 5, kırmızı 0, vurgusuz 0. v0.14.1 kuralıyla 51 / 59 sade / 12 kehribar. 15:37Z görüntüsünde 36 / 44 / 21 / 12 / 9 / 0.
+- Karşıtlık (betikle; yazı/zemin, yazı/beyaz etiket): açık yeşil 6,49 / 7,13; limon yeşili 6,52 / 7,08; sarı 6,12 / 6,64; kehribar 6,37 / 7,09; turuncu 6,38 / 7,31; kırmızı 6,80 / 8,31. Önerilen yellow-100 kehribardan CIEDE2000 ile yalnız 3,4 ayrıldığı için sarı `#FDF9B0` / `#715A00` seçildi (6,7).
+- Birim testleri: `pnpm --filter @havayolu/shared test` → 614 (+68), `@havayolu/i18n` → 96 (+2), `@havayolu/web` → 726 (+2; mevcut testlerdeki ton beklentileri gerekçesiyle güncellendi).
+- `pnpm typecheck` (9/9), `pnpm lint` (9/9), `pnpm typecheck:e2e`, `pnpm lint:e2e`, `pnpm format`, `pnpm check:eol` → yeşil.
 
 ## M7 — Canlı araçlar ve kapsama raporu
 Ayrıntılar `docs/prompts/parca-1.md`'dedir. Başlarken bu dosyaya dizinler ve kabul komutları eklenir.
