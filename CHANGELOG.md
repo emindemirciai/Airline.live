@@ -8,6 +8,24 @@
 
 ---
 
+## v0.16.1 — 2026-10-04
+
+### Türkçe
+**Derecelendirilmiş rüzgâr renkleri**
+
+- Rüzgâr varsa rüzgâr satırı her zaman renkli ve şiddetinin adıyla yazılır: 10 km/sa’e kadar yeşil (Hafif rüzgâr), 11–19 km/sa yeşil-sarı (Tatlı rüzgâr), 20–30 km/sa sarı (Orta rüzgâr), 31 km/sa’ten ya da 46 km/sa hamleden itibaren kehribar (Sert / Hamleli rüzgâr), MGM uyarı eşiğinden (37 km/sa ya da 56 km/sa hamle) itibaren turuncu (Kuvvetli rüzgâr, Fırtınamsı rüzgâr), 63 km/sa’ten itibaren kırmızı (Fırtına ve üstü). Pencerede ve havalimanı sayfasında aynı.
+
+Dene: [Haritada İstanbul](/?havalimani=LTFM)
+
+### English
+**Graded wind colours**
+
+- Whenever there is wind, the wind row is coloured and names its strength: green up to 10 km/h (Light wind), lime 11–19 km/h (Gentle breeze), yellow 20–30 km/h (Moderate wind), amber from 31 km/h or 46 km/h gusts (Fresh / Gusty wind), orange from the Turkish aerodrome warning threshold of 37 km/h or 56 km/h gusts (Strong wind, Near gale), red from 63 km/h (Gale and above). The same in the map window and on the airport page.
+
+Try it: [Istanbul on the map](/?havalimani=LTFM)
+
+---
+
 ## v0.16.0 — 2026-10-04
 
 ### Türkçe

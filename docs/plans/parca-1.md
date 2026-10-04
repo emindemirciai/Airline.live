@@ -27,7 +27,7 @@ Durumlar: `[ ]` başlamadı, `[~]` sürüyor, `[k]` kod bitti ve kullanıcı do�
 | M6e.2 | Rüzgâr renkleri ve rüzgâr kesmesi (yama, v0.14.1) | `p1/m6e2-wind-colors` | [x] tamam; üretimde doğrulandı (2026-10-03, v0.14.1): UGTB, UGKO, LGMK kehribar, LGKP ve LRCK açık yeşil | #21 |
 | M6l | Logo: A · Halka | `p1/m6l-logo` | [x] tamam; üretimde doğrulandı (2026-10-03, v0.15.0): başlıkta yeni işaret, /icon/512 ve /icon/maskable, 512 px simgede kuyruk kırıntısı yok | #22 |
 | M6k | Uçak listesi sağ üstte: sefer, kuyruk, yükseklik, konum ve durum | `p1/m6k-aircraft-list` | [k] kod bitti; üretimde listenin ve durumların görülmesi bekliyor (ACTIVATION) | #23 |
-| M6e.3 | Derecelendirilmiş rüzgâr renkleri (yama, v0.16.1) | `p1/m6e3-wind-scale` | [~] | — |
+| M6e.3 | Derecelendirilmiş rüzgâr renkleri (yama, v0.16.1) | `p1/m6e3-wind-scale` | [k] kod bitti; üretimde renklerin görülmesi bekliyor | #24 |
 | M6g | Türkiye dışındaki havalimanları, 2. halka (≤ 1.000 km) | `p1/m6g-ring2` | [ ] | — |
 | M7a | Canlı araçlar: `smoke:live`, `record` | `p1/m7a-live-tools` | [ ] | — |
 | M6h | 3. halka (≤ 2.000 km) | `p1/m6h-ring3` | [ ] | — |
@@ -933,6 +933,8 @@ Hedef sürüm 0.16.1 (M6k'nin v0.16.0 dalının üstünden, `2323db0`). Karar D-
 - Karşıtlık (betikle; yazı/zemin, yazı/beyaz etiket): açık yeşil 6,49 / 7,13; limon yeşili 6,52 / 7,08; sarı 6,12 / 6,64; kehribar 6,37 / 7,09; turuncu 6,38 / 7,31; kırmızı 6,80 / 8,31. Önerilen yellow-100 kehribardan CIEDE2000 ile yalnız 3,4 ayrıldığı için sarı `#FDF9B0` / `#715A00` seçildi (6,7).
 - Birim testleri: `pnpm --filter @havayolu/shared test` → 614 (+68), `@havayolu/i18n` → 96 (+2), `@havayolu/web` → 726 (+2; mevcut testlerdeki ton beklentileri gerekçesiyle güncellendi).
 - `pnpm typecheck` (9/9), `pnpm lint` (9/9), `pnpm typecheck:e2e`, `pnpm lint:e2e`, `pnpm format`, `pnpm check:eol` → yeşil.
+
+- **Yayın adımı (2026-10-04):** dal v0.16.0 ile çakışmasız birleşti. **`pnpm ci:full` → yeşil:** birim testleri web 720, shared 609, api 251, worker 200, providers 120, i18n 96, tools 74, db 44, geo 36, scripts 33; entegrasyon db 82, api 26, worker 12; E2E 113/113. `pnpm stats` → 547 dosya, 98.817 satır (90.015 kod).
 
 ## M7 — Canlı araçlar ve kapsama raporu
 Ayrıntılar `docs/prompts/parca-1.md`'dedir. Başlarken bu dosyaya dizinler ve kabul komutları eklenir.
