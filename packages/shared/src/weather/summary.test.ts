@@ -16,7 +16,15 @@ import {
   type WeatherPhraseKey,
   type WeatherText,
 } from './phrase'
-import type { DecodedMetar, DecodedTaf, LightningRisk, LightWind, WindLevel } from './schema'
+import {
+  WIND_TIERS,
+  type DecodedMetar,
+  type DecodedTaf,
+  type LightningRisk,
+  type LightWind,
+  type WindLevel,
+  type WindTier,
+} from './schema'
 import { summarizeMetar, summarizeTaf, type WeatherSummary } from './summary'
 import { decodeTaf } from './taf'
 import { fake, fakeMeasure, keyTemplate } from './test/fake-text'
@@ -549,11 +557,136 @@ describe('summarizeMetar: rüzgâr renkleri ve rüzgâr kesmesi (M6e.2, 2026-10-
     const calm = summarizeMetar(metar('LTXX 031250Z 00000KT 9999 FEW030 10/05 Q1010 WS ALL RWY'))
     expect([calm.windLight, fake(calm.windShear)]).toEqual(['calm', 'weather.wind.shearAll'])
     const nil = summarizeMetar(metar('LTXX 031250Z NIL'))
-    expect([nil.windShear, nil.windLight, nil.windLevel, nil.strongWind]).toEqual([
+    expect([nil.windShear, nil.windLight, nil.windLevel, nil.strongWind, nil.windTier]).toEqual([
       null,
       null,
       null,
       false,
+      null,
+    ])
+  })
+})
+
+describe('summarizeMetar: derecelendirilmiş rüzgâr renkleri (M6e.3, 2026-10-04, D-083)', () => {
+  /**
+   * Üretimdeki gerçek METAR'lar (havayolu.live hava API'si, 2026-10-03 16:56Z; METAR'ı olan 122
+   * istasyon). Kullanıcı: "belli bir km/knot'ta renk yok ama rüzgâr var. derecelendirmeli yap". Eski
+   * kuralda 11 km/sa ile 16 kt arası (bu anlık görüntüde 59 istasyon) sadeydi. Her basamaktan örnek;
+   * kırmızı basamak bu anlık görüntünün METAR'larında yoktur, üretim TAF'larındaki rüzgâr grupları
+   * (LGMK `36030G45KT`, UGTB `32028G44KT`) METAR biçiminde sınanır. Sütunlar: METAR, basamak
+   * (`windTier`), şiddet (`windLevel`), meydan uyarısı (`strongWind`), hafif rüzgâr (`windLight`).
+   */
+  const PRODUCTION: readonly (readonly [
+    string,
+    WindTier,
+    WindLevel | null,
+    boolean,
+    LightWind | null,
+  ])[] = [
+    ['METAR LRBS 031630Z 00000KT CAVOK 17/03 Q1031 NOSIG', 'calm', null, false, 'calm'],
+    [
+      'METAR LTDB 031620Z VRB02KT 9999 FEW030 SCT100 21/17 Q1019 NOSIG',
+      'calm',
+      null,
+      false,
+      'lightVariable',
+    ],
+    // 5 kt = 9 km/sa: açık yeşil.
+    ['METAR LGKP 031620Z 03005KT 9999 FEW020TCU SCT025 20/14 Q1018', 'calm', null, false, 'light'],
+    [
+      'METAR URML 031630Z 32001MPS 9999 FEW053 12/09 Q1024 R32/190095 NOSIG RMK R32/VRB01MPS QNH768 QFE767/1023',
+      'calm',
+      null,
+      false,
+      'light',
+    ],
+    // 6 kt = 11 km/sa: eskiden sade, artık limon yeşili "Tatlı rüzgâr".
+    [
+      'METAR LTAI 031620Z 28006KT 240V300 9999 SCT030 BKN080 21/12 Q1018 NOSIG',
+      'breeze',
+      null,
+      false,
+      null,
+    ],
+    [
+      'METAR URSS 031630Z 33003MPS 290V020 9999 NSC 14/11 Q1022 R02/010070 R06/010070 NOSIG RMK R06/33003G07MPS QFE765',
+      'breeze',
+      null,
+      false,
+      null,
+    ],
+    ['METAR OSDI 031600Z 25009KT CAVOK 24/09 Q1020', 'breeze', null, false, null],
+    // 10 kt = 19 km/sa: tatlı rüzgârın üst ucu.
+    ['METAR LGRX 031620Z 07010KT 9999 FEW030 22/05 Q1025', 'breeze', null, false, null],
+    // 11 kt = 20 km/sa: sarı "Orta rüzgâr".
+    ['METAR LGSK 031620Z 01011KT 9999 FEW015 20/09 Q1026', 'moderate', null, false, null],
+    [
+      'METAR LTBJ 031620Z 36013KT 9999 FEW030 SCT100 21/08 Q1020 NOSIG',
+      'moderate',
+      null,
+      false,
+      null,
+    ],
+    // 16 kt = 30 km/sa: orta rüzgârın üst ucu.
+    ['METAR LTBA 031620Z 05016KT 9999 FEW035 17/11 Q1028', 'moderate', null, false, null],
+    // Hamle 24 kt (44 km/sa) eşiğin altında; ortalama 10 kt, hamle 20 kt (37 km/sa).
+    [
+      'METAR LGSA 031620Z 35014G24KT 9999 FEW010 FEW016TCU BKN025 BKN080 18/13 Q1022',
+      'moderate',
+      null,
+      false,
+      null,
+    ],
+    ['METAR LGHI 031550Z 01010G20KT CAVOK 21/12 Q1021', 'moderate', null, false, null],
+    // 17 kt = 31 km/sa: kehribar (değişmedi).
+    ['METAR LGAV 031650Z 36017KT 9999 BKN030 19/09 Q1025 NOSIG', 'fresh', 'fresh', false, null],
+    ['METAR LTBH 031550Z 04019KT 9999 FEW035 19/08 Q1026', 'fresh', 'fresh', false, null],
+    [
+      'METAR UGSB 031630Z 24016G26KT 9999 FEW037 BKN076 18/10 Q1026 NOSIG',
+      'fresh',
+      'gusty',
+      false,
+      null,
+    ],
+    // MGM meydan uyarısı: turuncu.
+    ['METAR LGSR 031620Z 33020KT 9999 SCT020 20/15 Q1020', 'strong', 'strong', true, null],
+    ['METAR LTFD 031550Z 06020G32KT 9999 FEW035 19/09 Q1024', 'strong', 'strong', true, null],
+    [
+      'METAR UGKO 031630Z 24023G36KT 9999 SCT030 BKN078 16/09 Q1022 NOSIG',
+      'strong',
+      'strong',
+      true,
+      null,
+    ],
+    ['METAR UGTB 031630Z 33027KT CAVOK 14/05 Q1021 NOSIG', 'strong', 'strong', true, null],
+    ['METAR LGMK 031620Z 36021KT 9999 FEW020 20/11 Q1020 WS R34', 'strong', 'strong', true, null],
+    // Üretim TAF'larının rüzgâr grupları: hamle ≥ 43 kt "Fırtına", kırmızı.
+    ['METAR LGMK 031620Z 36030G45KT 9999 SCT018 20/11 Q1020', 'storm', 'gale', true, null],
+    ['METAR UGTB 031630Z 32028G44KT 9999 SCT060 14/05 Q1021', 'storm', 'gale', true, null],
+  ]
+
+  it.each(PRODUCTION)('%s', (raw, tier, level, strong, light) => {
+    const s = summarizeMetar(metar(raw))
+    expect([s.windTier, s.windLevel, s.strongWind, s.windLight]).toEqual([
+      tier,
+      level,
+      strong,
+      light,
+    ])
+  })
+
+  it('her basamaktan en az bir üretim örneği; bilinmeyen rüzgâr ve NIL vurgusuz', () => {
+    const tiers = new Set(PRODUCTION.map(([, tier]) => tier))
+    expect([...WIND_TIERS].filter((tier) => !tiers.has(tier))).toEqual([])
+    const at = (group: string) =>
+      summarizeMetar(metar(`LTXX 041250Z ${group} 9999 FEW030 10/05 Q1010`)).windTier
+    expect([at('/////KT'), at('160//KT')]).toEqual([null, null])
+    expect(summarizeMetar(metar('METAR LTBQ 041250Z NIL')).windTier).toBeNull()
+    // Rüzgâr kesmesi basamağı değiştirmez (arayüz satırı en az kehribar yapar).
+    const shear = summarizeMetar(metar('LTXX 041250Z 16008KT 9999 FEW030 10/05 Q1010 WS R34'))
+    expect([shear.windTier, fake(shear.windShear)]).toEqual([
+      'breeze',
+      'weather.wind.shearRunway(34)',
     ])
   })
 })

@@ -227,8 +227,9 @@ describe('AirportPopup', () => {
       open: '<div class="wx-row" data-row="rain" data-tone="rain">',
       value: 'Hafif sağanak yağmur',
     })
+    // Hamle 32 kt: MGM meydan uyarısı, turuncu "Kuvvetli hamle" (M6e.3, D-083).
     expect(weatherRow(html, 'wind')?.open).toBe(
-      '<div class="wx-row" data-row="wind" data-tone="wind">',
+      '<div class="wx-row" data-row="wind" data-tone="strong">',
     )
     expect(weatherRow(html, 'thunder')).toEqual({
       open: '<div class="wx-row" data-row="thunder" data-tone="thunder">',
@@ -277,11 +278,11 @@ describe('AirportPopup', () => {
     expect(weatherRow(storm, 'rain')?.open).toContain('data-tone="rain"')
   })
 
-  it('hava durumu: rüzgâr renkleri ve rüzgâr kesmesi pencerede de aynı (M6e.2, D-083)', () => {
+  it('hava durumu: derecelendirilmiş rüzgâr renkleri ve rüzgâr kesmesi pencerede de aynı (M6e.2, M6e.3; D-083)', () => {
     // Üretim LGMK: 19 kt "Sert rüzgâr" ve pist 34'te rüzgâr kesmesi.
     const shear = render('tr', weatherState('LGMK 011250Z 35019KT 9999 FEW018 20/15 Q1020 WS R34'))
     expect(weatherRow(shear, 'wind')).toEqual({
-      open: '<div class="wx-row" data-row="wind" data-tone="wind">',
+      open: '<div class="wx-row" data-row="wind" data-tone="fresh">',
       value: 'Kuzeyden 35 km/sa (19 kt) Sert rüzgâr Rüzgâr kesmesi bildirildi: pist 34',
     })
     expect(shear).toContain('<span class="wx-note">Rüzgâr kesmesi bildirildi: pist 34</span>')
@@ -292,15 +293,33 @@ describe('AirportPopup', () => {
       value: 'From the southwest 9 km/h (5 kt) Light wind',
     })
     expect(light).toContain('<dl class="wx-rows wx-rows--popup">')
-    // 6 kt (11 km/sa) ve 16 kt: sade.
-    for (const raw of [
-      'LTFM 011250Z 24006KT 9999 FEW030 20/15 Q1020',
-      'LTFM 011250Z 24016KT 9999 FEW030 20/15 Q1020',
-    ]) {
-      expect(weatherRow(render('tr', weatherState(raw)), 'wind')?.open, raw).toBe(
-        '<div class="wx-row" data-row="wind">',
-      )
+    // Derecelendirilmiş renkler (M6e.3, kullanıcı isteği 2026-10-04): rüzgâr varsa satır renklidir,
+    // basamağın adı etikettir. 6 kt (11 km/sa) ve 16 kt (30 km/sa) eskiden sadeydi.
+    for (const [group, tone, value] of [
+      ['24006KT', 'breeze', 'Güneybatıdan 11 km/sa (6 kt) Tatlı rüzgâr'],
+      ['24010KT', 'breeze', 'Güneybatıdan 19 km/sa (10 kt) Tatlı rüzgâr'],
+      ['24011KT', 'moderate', 'Güneybatıdan 20 km/sa (11 kt) Orta rüzgâr'],
+      ['24016KT', 'moderate', 'Güneybatıdan 30 km/sa (16 kt) Orta rüzgâr'],
+      ['24017KT', 'fresh', 'Güneybatıdan 31 km/sa (17 kt) Sert rüzgâr'],
+      ['24020KT', 'strong', 'Güneybatıdan 37 km/sa (20 kt) Kuvvetli rüzgâr'],
+      ['24034KT', 'storm', 'Güneybatıdan 63 km/sa (34 kt) Fırtına'],
+    ] as const) {
+      const html = render('tr', weatherState(`LTFM 011250Z ${group} 9999 FEW030 20/15 Q1020`))
+      expect(weatherRow(html, 'wind'), group).toEqual({
+        open: `<div class="wx-row" data-row="wind" data-tone="${tone}">`,
+        value,
+      })
     }
+    // Sayfayla aynı satırlar: İngilizce adlar.
+    const moderate = render('en', weatherState('LTFM 011250Z 24014KT 9999 FEW030 20/15 Q1020'))
+    expect(weatherRow(moderate, 'wind')?.value).toBe(
+      'From the southwest 26 km/h (14 kt) Moderate wind',
+    )
+    // Bilinmeyen hız: vurgusuz.
+    expect(
+      weatherRow(render('tr', weatherState('LTFM 011250Z /////KT 9999 FEW030 20/15 Q1020')), 'wind')
+        ?.open,
+    ).toBe('<div class="wx-row" data-row="wind">')
   })
 
   it('hava durumu: yükleniyor, alınamıyor, rapor yok', () => {

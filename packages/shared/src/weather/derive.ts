@@ -12,6 +12,7 @@ import {
   type WeatherIconCategory,
   type Wind,
   type WindLevel,
+  type WindTier,
 } from './schema'
 import {
   isDustSandGroup,
@@ -44,6 +45,17 @@ export const GUSTY_WIND_GUST_KT = 25
  * 3 m/s (11 km/sa) değildir.
  */
 export const LIGHT_WIND_MAX_KMH = 10
+
+/**
+ * "Tatlı rüzgâr"ın (`breeze`) üst sınırı, km/sa (kullanıcı isteği 2026-10-04, D-083): gösterilen hız
+ * 11–19 km/sa limon yeşili, 20 km/sa ve üstü (vurgu eşiğine kadar) sarı "Orta rüzgâr"dır. Sınır
+ * hafif rüzgârınki gibi gösterilen km/sa'dadır: KT raporunda 10 kt (19 km/sa) tatlı, 11 kt (20 km/sa)
+ * orta; 16 kt (30 km/sa) orta, 17 kt (31 km/sa) kehribar "Sert rüzgâr". MGM Beaufort ıskalasında 3
+ * "Tatlı Rüzgâr" 7–10 kt, 4 "Orta Rüzgâr" 11–16 kt'dir. Alt uç MGM'ye uymaz: 6 kt (11 km/sa, 3 m/s)
+ * MGM'de Beaufort 2 "Hafif Rüzgâr"dır ama burada tatlıdır, çünkü 10/11 km/sa sınırı kullanıcının
+ * hafif rüzgâr kuralıdır (`LIGHT_WIND_MAX_KMH`).
+ */
+export const BREEZE_WIND_MAX_KMH = 19
 
 const COVER_ORDER: Record<CloudCover, number> = { FEW: 1, SCT: 2, BKN: 3, OVC: 4 }
 
@@ -204,6 +216,52 @@ export function lightWind(wind: Wind | null): LightWind | null {
   if (shownKmh(wind.speedKt, wind.speedKmh) > LIGHT_WIND_MAX_KMH) return null
   if (wind.gustKt !== null && shownKmh(wind.gustKt, wind.gustKmh) > LIGHT_WIND_MAX_KMH) return null
   return isLightAndVariable(wind) ? 'lightVariable' : 'light'
+}
+
+/**
+ * Şiddet düzeyinin renk basamağı (D-083, kullanıcı isteği 2026-10-04): `gusty` ve `fresh` kehribar;
+ * meydan uyarısı eşiğinden (`gusts`, `strong`) Beaufort 8'in altına (`nearGale`, ortalama 28–33 kt)
+ * turuncu; `gale` ve üstü (ortalama ≥ 34 kt ya da hamle ≥ 43 kt; Met Office hamle karşılıkları)
+ * kırmızı.
+ */
+const LEVEL_TIERS: Record<WindLevel, Extract<WindTier, 'fresh' | 'strong' | 'storm'>> = {
+  gusty: 'fresh',
+  fresh: 'fresh',
+  gusts: 'strong',
+  strong: 'strong',
+  nearGale: 'strong',
+  gale: 'storm',
+  severeGale: 'storm',
+  storm: 'storm',
+  violentStorm: 'storm',
+  hurricane: 'storm',
+}
+
+/** Şiddet düzeyinin renk basamağı (`fresh`, `strong`, `storm`). */
+export function windLevelTier(level: WindLevel): WindTier {
+  return LEVEL_TIERS[level]
+}
+
+/**
+ * Rüzgâr satırının renk basamağı (kullanıcı isteği 2026-10-04: "rüzgâr varsa renkli belirt",
+ * derecelendirilmiş; D-083). Önce şiddet düzeyi (`windLevel`, kt eşikleri değişmedi; ölçek üstü P99
+ * 100 kt sayılır, en az kendi düzeyidir); düzey yoksa gösterilen km/sa (ortalama ve varsa hamlenin
+ * büyüğü; hafif rüzgâr kuralıyla aynı): sakin ya da ≤ 10 km/sa `calm`, 11–19 km/sa `breeze`, 20 km/sa
+ * ve üstü `moderate` (ortalama < 17 kt, hamle < 25 kt; ör. `10G20KT`, hamle 37 km/sa, sarıdır).
+ * Ölçek üstü değer yalnız alt sınırdır: hafif sayılmaz. Bilinmeyen hızda (`/////KT`) ve rüzgâr
+ * yoksa null.
+ */
+export function windTier(wind: Wind | null): WindTier | null {
+  if (!wind) return null
+  if (wind.calm) return 'calm'
+  const level = windLevel(wind)
+  if (level !== null) return LEVEL_TIERS[level]
+  if (wind.speedKt === null || !Number.isFinite(wind.speedKt)) return null
+  if (lightWind(wind) !== null) return 'calm'
+  const gust =
+    wind.gustKt !== null && Number.isFinite(wind.gustKt) ? shownKmh(wind.gustKt, wind.gustKmh) : 0
+  const kmh = Math.max(shownKmh(wind.speedKt, wind.speedKmh), gust)
+  return kmh <= BREEZE_WIND_MAX_KMH ? 'breeze' : 'moderate'
 }
 
 /** Hava olayı bayrakları (havalimanındaki ve çevredeki gruplar ayrı). */

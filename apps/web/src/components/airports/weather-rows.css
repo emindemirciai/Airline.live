@@ -2,9 +2,9 @@
  * Hava durumu satırları, sıcaklık kutucuğu ve rüzgâr şiddeti etiketi (weather-row-list.tsx; harita
  * penceresi ve havalimanı sayfası). "Açık turkuaz" teması (D-081): vurgu beyaz panelde açık zemin ve
  * koyu yazıdır; yazı zeminine karşı en az 4,5:1'dir (yağmur 7,2; kar 6,6; kehribar 6,4; gri 8,3;
- * açık yeşil 6,5). Vurgu yalnız renkle verilmez: satırın etiketi ve değeri kalındır, değer olayın
- * adını, şimşek ve yıldırım uyarısını, rüzgâr kesmesini ya da (etiketle) rüzgârın şiddetini ve
- * hafifliğini yazar (D-083).
+ * rüzgâr basamakları: açık yeşil 6,5, limon yeşili 6,5, sarı 6,1, kehribar 6,4, turuncu 6,4, kırmızı
+ * 6,8). Vurgu yalnız renkle verilmez: satırın etiketi ve değeri kalındır, değer olayın adını, şimşek
+ * ve yıldırım uyarısını, rüzgâr kesmesini ya da (etiketle) rüzgâr basamağının adını yazar (D-083).
  * Sıcaklık kutucuğu vurgu turkuazıdır (`--accent`): beyaz yazı 4,75:1 (#0b8f9b zeminde 3,9:1
  * kalırdı). Kehribar yazı sitenin uyarı rengidir (`--warn`). Temel token'lar globals.css → `:root`.
  * Düzen: sayfada `wx-rows--page` (dar ekranda etiket değerin üstünde); harita penceresinde
@@ -18,9 +18,24 @@
   --wx-snow-ink: #075985;
   --wx-warn-bg: #fef3c7;
   --wx-warn-ink: var(--warn);
-  /* Hafif rüzgâr (≤ 10 km/sa; kullanıcı kararı 2026-10-03, D-083): açık yeşil, yazı 6,49:1. */
+  /*
+   * Rüzgâr basamakları (kullanıcı isteği 2026-10-04, D-083; zayıftan güçlüye). Yazı zeminde / beyaz
+   * etikette: açık yeşil (≤ 10 km/sa) 6,49 / 7,13; limon yeşili (11–19 km/sa) 6,52 / 7,08; sarı
+   * (20 km/sa ve üstü) 6,12 / 6,64; kehribar (`--wx-warn-*`) 6,37 / 7,09; turuncu 6,38 / 7,31; kırmızı
+   * 6,80 / 8,31. Sarı, önerilen yellow-100 (`#fef9c3`) değildir: o, kehribar zeminden yalnız 3,4
+   * renk farkıyla (CIEDE2000) ayrılıyordu, iki satır aynı görünürdü; `#fdf9b0` limon yeşilinden 7,9,
+   * kehribardan 6,7 ayrılır (diğer komşular 7,8 ile 13,0 arası), yazısı zeytin sarısıdır.
+   */
   --wx-calm-bg: #dcfce7;
   --wx-calm-ink: #166534;
+  --wx-breeze-bg: #ecfccb;
+  --wx-breeze-ink: #3f6212;
+  --wx-moderate-bg: #fdf9b0;
+  --wx-moderate-ink: #715a00;
+  --wx-strong-bg: #ffedd5;
+  --wx-strong-ink: #9a3412;
+  --wx-storm-bg: #fee2e2;
+  --wx-storm-ink: #991b1b;
   --wx-fog-bg: #e5e7eb;
   --wx-fog-ink: #374151;
   --wx-temp-bg: var(--accent);
@@ -99,10 +114,10 @@
 }
 
 /*
- * Kehribar: etkili rüzgâr ve rüzgâr kesmesi, şimşek ve yıldırım riski, dolu ve diğer olaylar
- * (D-081, D-083).
+ * Kehribar: ortalama 17–19 kt ya da hamle 25–29 kt rüzgâr ve rüzgâr kesmesi (`fresh`), şimşek ve
+ * yıldırım riski, dolu ve diğer olaylar (D-081, D-083).
  */
-.wx-row[data-tone='wind'],
+.wx-row[data-tone='fresh'],
 .wx-row[data-tone='thunder'],
 .wx-row[data-tone='hail'],
 .wx-row[data-tone='other'] {
@@ -115,13 +130,40 @@
   --wx-tone-ink: var(--wx-fog-ink);
 }
 
-/* Açık yeşil: hafif rüzgâr (gösterilen hız ≤ 10 km/sa, sakin dahil; D-083). */
+/*
+ * Rüzgâr basamakları (D-083; kullanıcı isteği 2026-10-04): açık yeşil hafif (gösterilen hız ≤ 10
+ * km/sa, sakin dahil), limon yeşili tatlı (11–19 km/sa), sarı orta (20 km/sa ve üstü), kehribar
+ * yukarıda, turuncu meydan uyarısı eşiğinden 34 kt'ye, kırmızı 34 kt ve üstü.
+ */
 .wx-row[data-tone='calm'] {
   --wx-tone-bg: var(--wx-calm-bg);
   --wx-tone-ink: var(--wx-calm-ink);
 }
 
-/* Rüzgâr şiddeti etiketi ("Kuvvetli rüzgâr"): sığmazsa alt satıra geçer, değerin kutusundan taşmaz. */
+.wx-row[data-tone='breeze'] {
+  --wx-tone-bg: var(--wx-breeze-bg);
+  --wx-tone-ink: var(--wx-breeze-ink);
+}
+
+.wx-row[data-tone='moderate'] {
+  --wx-tone-bg: var(--wx-moderate-bg);
+  --wx-tone-ink: var(--wx-moderate-ink);
+}
+
+.wx-row[data-tone='strong'] {
+  --wx-tone-bg: var(--wx-strong-bg);
+  --wx-tone-ink: var(--wx-strong-ink);
+}
+
+.wx-row[data-tone='storm'] {
+  --wx-tone-bg: var(--wx-storm-bg);
+  --wx-tone-ink: var(--wx-storm-ink);
+}
+
+/*
+ * Rüzgâr basamağının etiketi ("Tatlı rüzgâr", "Kuvvetli rüzgâr"): sığmazsa alt satıra geçer, değerin
+ * kutusundan taşmaz.
+ */
 .wx-tag {
   display: inline-block;
   max-width: 100%;
@@ -135,7 +177,7 @@
 
 /*
  * Vurgulu satırın içindeki etiket zeminde kaybolmasın: beyaz zemin, satırın renginde yazı ve kenar
- * (kehribar 7,09:1; açık yeşil satırda yeşil 7,13:1).
+ * (açık yeşil 7,13; limon yeşili 7,08; sarı 6,64; kehribar 7,09; turuncu 7,31; kırmızı 8,31:1).
  */
 .wx-row[data-tone] .wx-tag {
   background: var(--surface);
@@ -161,12 +203,24 @@
   white-space: nowrap;
 }
 
-/* Yüksek karşıtlık kipinde zeminler kalkar: vurgu ve kutucuklar çerçeveyle ayrılır. */
+/*
+ * Yüksek karşıtlık kipinde zeminler kalkar: vurgu ve kutucuklar çerçeveyle ayrılır. Rüzgâr basamağı
+ * etiketle okunur; meydan uyarısı ve üstü (turuncu) kalın, fırtına (kırmızı) çift çerçeveyle de
+ * ayrılır (D-083).
+ */
 @media (forced-colors: active) {
   .wx-row[data-tone],
   .wx-tag,
   .wx-temp {
     border: 1px solid CanvasText;
+  }
+
+  .wx-row[data-tone='strong'] {
+    border-width: 2px;
+  }
+
+  .wx-row[data-tone='storm'] {
+    border: 3px double CanvasText;
   }
 }
 

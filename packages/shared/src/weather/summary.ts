@@ -7,6 +7,7 @@ import {
   lightWind,
   offScaleWind,
   windLevel,
+  windTier,
 } from './derive'
 import { list, phrase, type Measure, type Phrase, type WeatherText } from './phrase'
 import {
@@ -24,6 +25,7 @@ import {
   type Wind,
   type WindLevel,
   type WindShear,
+  type WindTier,
 } from './schema'
 import { localDayDifference, toDate, TURKEY_TIME_ZONE, type DateInput } from './time'
 import {
@@ -76,7 +78,7 @@ export interface WeatherSummaryRows {
  * Olay satırının durumu: `present` havalimanında var, `vicinity` yalnız çevresinde, `recent` kısa
  * süre önce vardı, `none` yok, `undetermined` belirlenemedi. Arayüz `present` satırı vurgular
  * (kullanıcı kararı 2026-10-02); gök gürültüsü satırının vurgusu `lightning`'den, rüzgârınki
- * `windLevel`'dan gelir (D-083). Satırın metni her durumu ayrıca söyler.
+ * `windTier`'dan gelir (D-083). Satırın metni her durumu ayrıca söyler.
  */
 export type PhenomenonPresence = 'present' | 'vicinity' | 'recent' | 'none' | 'undetermined'
 
@@ -113,8 +115,8 @@ export interface WeatherSummary {
    */
   trend: TrendWindow
   /**
-   * Etkili rüzgârın şiddeti (D-083; `windLevel`): rüzgâr satırı kehribar vurgulanır, yanında şiddetin
-   * adı (`weather.wind.level.*`: "Sert rüzgâr", "Hamleli rüzgâr", "Kuvvetli rüzgâr", "Fırtına" …)
+   * Etkili rüzgârın şiddeti (D-083; `windLevel`): rüzgâr satırı kehribar, turuncu ya da kırmızıdır
+   * (`windTier`), yanında şiddetin adı (`weather.wind.level.*`: "Sert rüzgâr", "Hamleli rüzgâr", "Kuvvetli rüzgâr", "Fırtına" …)
    * yazılır. Vurgu eşiğinin (ortalama 17 kt, hamle 25 kt; kullanıcı kararı 2026-10-03) altında ya da
    * NIL'de null.
    */
@@ -126,11 +128,19 @@ export interface WeatherSummary {
   strongWind: boolean
   /**
    * Hafif rüzgâr (gösterilen hız ≤ 10 km/sa, sakin dahil; kullanıcı kararı 2026-10-03, D-083): rüzgâr
-   * satırı açık yeşildir. `light` iken arayüz "Hafif rüzgâr" etiketini yazar; `calm` ve
+   * satırı açık yeşildir (`windTier` `calm`). `light` iken arayüz "Hafif rüzgâr" etiketini yazar; `calm` ve
    * `lightVariable` iken değer bunu zaten söyler. Rüzgâr kesmesi bildirildiyse satır yine kehribardır.
    * Bilinmeyen rüzgârda ve NIL'de null.
    */
   windLight: LightWind | null
+  /**
+   * Rüzgâr satırının renk basamağı (`windTier`; kullanıcı isteği 2026-10-04, D-083): rüzgâr varsa
+   * satır her zaman renklidir; `calm` açık yeşil, `breeze` limon yeşili ("Tatlı rüzgâr"), `moderate`
+   * sarı ("Orta rüzgâr"), `fresh` kehribar, `strong` turuncu, `storm` kırmızı (son üçünün adı
+   * `windLevel`'dandır). Rüzgâr kesmesi bildirildiyse arayüz satırı en az kehribar yapar. Bilinmeyen
+   * rüzgârda ve NIL'de null.
+   */
+  windTier: WindTier | null
   /**
    * Rüzgâr kesmesi (`WS R34`, `WS ALL RWY`; WMO-306 FM 15, MGM Havacılık Meteorolojisi IV.1.3.9.4):
    * "Rüzgâr kesmesi bildirildi: pist 34". Rüzgâr satırında değerin altına yazılır, satır kehribardır
@@ -607,6 +617,7 @@ export function summarizeMetar(
     windLevel: level,
     strongWind: !m.nil && isStrongWind(m.wind),
     windLight: m.nil ? null : lightWind(m.wind),
+    windTier: m.nil ? null : windTier(m.wind),
     windShear: m.nil ? null : windShearText(m.windShear),
     lightning,
     undetermined,

@@ -201,10 +201,10 @@ describe('WeatherPanel: bütün fixture durumları', () => {
       '<div class="wx-row" data-row="pressure"><dt><span class="wx-icon" aria-hidden="true"></span>Basınç</dt>',
     )
     expect(html).toContain('<dl class="wx-rows wx-rows--page">')
-    // LTFM: hamle 32 kt (kehribar rüzgâr), hafif sağanak (mavi), CB ve yağışta şimşek ve yıldırım
-    // tehlikesi (kehribar); kar ve sis yok (D-083).
+    // LTFM: hamle 32 kt (meydan uyarısı, turuncu rüzgâr; M6e.3), hafif sağanak (mavi), CB ve yağışta
+    // şimşek ve yıldırım tehlikesi (kehribar); kar ve sis yok (D-083).
     expect(['wind', 'rain', 'snow', 'thunder', 'fog'].map((key) => tone(html, key))).toEqual([
-      'wind',
+      'strong',
       'rain',
       null,
       'thunder',
@@ -225,26 +225,27 @@ describe('WeatherPanel: bütün fixture durumları', () => {
     ])
     // Çevredeki gök gürültüsü: yıldırım havalimanına da düşebilir, vurgulanır (D-083).
     expect(tone(panel(fixtureWeather('LTAU')), 'thunder')).toBe('thunder')
-    // Rüzgâr eşiğin altında vurgusuz ve etiketsiz (LTAC 12 kt); kuvvetli kuzeybatı (LGTS 26G38).
-    const calm = panel(fixtureWeather('LTAC'))
-    expect(tone(calm, 'wind')).toBeNull()
-    expect(calm).not.toContain('wx-tag')
+    // Rüzgâr varsa satır her zaman renklidir (M6e.3): LTAC 12 kt (22 km/sa) sarı "Orta rüzgâr";
+    // kuvvetli kuzeybatı (LGTS 26G38) turuncu.
+    const moderate = panel(fixtureWeather('LTAC'))
+    expect(tone(moderate, 'wind')).toBe('moderate')
+    expect(row(moderate, 'wind')).toBe('Kuzeybatıdan 22 km/sa (12 kt) Orta rüzgâr')
     const vardar = panel(fixtureWeather('LGTS'), { timeZone: 'Europe/Athens' })
-    expect(tone(vardar, 'wind')).toBe('wind')
+    expect(tone(vardar, 'wind')).toBe('strong')
     expect(row(vardar, 'wind')).toBe(
       'Kuzeybatıdan 48 km/sa (26 kt), hamle 70 km/sa (38 kt) Kuvvetli rüzgâr',
     )
   })
 
-  it('rüzgâr renkleri (M6e.2, kullanıcı kararı 2026-10-03): ≥ 17 kt ya da hamle ≥ 25 kt kehribar, ≤ 10 km/sa açık yeşil, arası sade', () => {
+  it('rüzgâr renkleri (M6e.2; M6e.3 ile derecelendirildi): 17–19 kt ya da hamle 25–29 kt kehribar, ≤ 10 km/sa açık yeşil', () => {
     // LTAI 15G28: hamle 25 kt'yi geçti, meydan uyarısı eşiğinin (30 kt) altında: "Hamleli rüzgâr".
     const gusty = panel(fixtureWeather('LTAI'))
-    expect(tone(gusty, 'wind')).toBe('wind')
+    expect(tone(gusty, 'wind')).toBe('fresh')
     expect(gusty).toContain('<span class="wx-tag">Hamleli rüzgâr</span>')
     expect(text(panel(fixtureWeather('LTAI'), { locale: 'en' }))).toContain('Gusty wind')
     // LTBS SPECI 15G27 (dolu ve oraj da var): aynı düzey; eski 20/30 kt kuralında sadeydi.
     const hail = panel(fixtureWeather('LTBS'))
-    expect(tone(hail, 'wind')).toBe('wind')
+    expect(tone(hail, 'wind')).toBe('fresh')
     expect(row(hail, 'wind')).toBe(
       'Batıdan 28 km/sa (15 kt), hamle 50 km/sa (27 kt) Hamleli rüzgâr',
     )
@@ -267,14 +268,88 @@ describe('WeatherPanel: bütün fixture durumları', () => {
       expect(row(html, 'wind'), icao).toBe(value)
       expect(html, icao).not.toContain('wx-tag')
     }
-    // LTDB 6 kt = 11 km/sa: yeşil değil; LTAC 12 kt ve LGAV 16 kt: sade.
-    for (const icao of ['LTDB', 'LTAC', 'LGAV'] as const) {
-      const html = panel(fixtureWeather(icao), {
-        timeZone: icao === 'LGAV' ? 'Europe/Athens' : 'Europe/Istanbul',
-      })
-      expect(tone(html, 'wind'), icao).toBeNull()
-      expect(html, icao).not.toContain('wx-tag')
+    // LTDB 6 kt = 11 km/sa: yeşil değil, limon yeşili "Tatlı rüzgâr" (M6e.3; eskiden sade).
+    const breeze = panel(fixtureWeather('LTDB'))
+    expect(tone(breeze, 'wind')).toBe('breeze')
+    expect(row(breeze, 'wind')).toBe('Güneyden 11 km/sa (6 kt) Tatlı rüzgâr')
+  })
+
+  it('derecelendirilmiş rüzgâr renkleri (M6e.3, kullanıcı isteği 2026-10-04): bütün fixture istasyonları', () => {
+    // Rüzgâr varsa satır her zaman renklidir ve basamağın adı yazılır; NIL (LTBQ) raporda rüzgâr
+    // satırı yoktur (`undefined`), renk ve etiket de yok.
+    const expected: Record<(typeof STATIONS)[number], [string | null | undefined, string | null]> =
+      {
+        LTFM: ['strong', 'Kuvvetli hamle'],
+        LTBA: ['breeze', 'Tatlı rüzgâr'],
+        LTAC: ['moderate', 'Orta rüzgâr'],
+        LTAI: ['fresh', 'Hamleli rüzgâr'],
+        LTBJ: ['calm', null],
+        LTCG: ['calm', null],
+        LTFJ: ['breeze', 'Tatlı rüzgâr'],
+        LTCE: ['strong', 'Kuvvetli rüzgâr'],
+        LTDB: ['breeze', 'Tatlı rüzgâr'],
+        LTAU: ['breeze', 'Tatlı rüzgâr'],
+        LTBS: ['fresh', 'Hamleli rüzgâr'],
+        LTCF: ['calm', null],
+        LTAJ: ['calm', 'Hafif rüzgâr'],
+        LTCW: ['calm', 'Hafif rüzgâr'],
+        LTBQ: [undefined, null],
+      }
+    const tag = (html: string) => /<span class="wx-tag">(.*?)<\/span>/.exec(html)?.[1] ?? null
+    for (const icao of STATIONS) {
+      const html = panel(fixtureWeather(icao))
+      expect([tone(html, 'wind'), tag(html)], icao).toEqual(expected[icao])
     }
+    const foreign: Record<(typeof FOREIGN_STATIONS)[number], [string, string | null]> = {
+      LGAV: ['moderate', 'Moderate wind'],
+      LGTS: ['strong', 'Strong wind'],
+      LCLK: ['moderate', 'Moderate wind'],
+      LCEN: ['breeze', 'Gentle breeze'],
+      LBSF: ['calm', null],
+      UGTB: ['moderate', 'Moderate wind'],
+    }
+    for (const icao of FOREIGN_STATIONS) {
+      const html = panel(fixtureWeather(icao), { locale: 'en', timeZone: FOREIGN_ZONES[icao] })
+      expect([tone(html, 'wind'), tag(html)], icao).toEqual(foreign[icao])
+    }
+  })
+
+  it('derecelendirilmiş rüzgâr renkleri: sınırlar ve kırmızı basamak (M6e.3)', () => {
+    const observedAt = '2026-01-15T12:50:00.000Z'
+    const at = (group: string, locale: 'tr' | 'en' = 'tr') =>
+      panel(
+        {
+          icao: 'LTXX',
+          generatedAt: observedAt,
+          metar: metarFromRaw(`LTXX 151250Z ${group} 9999 FEW030 10/05 Q1010`, observedAt),
+          tafs: [],
+        },
+        { locale },
+      )
+    for (const [group, expectedTone, value] of [
+      ['27005KT', 'calm', 'Batıdan 9 km/sa (5 kt) Hafif rüzgâr'],
+      ['27006KT', 'breeze', 'Batıdan 11 km/sa (6 kt) Tatlı rüzgâr'],
+      ['27010KT', 'breeze', 'Batıdan 19 km/sa (10 kt) Tatlı rüzgâr'],
+      ['27011KT', 'moderate', 'Batıdan 20 km/sa (11 kt) Orta rüzgâr'],
+      ['27016KT', 'moderate', 'Batıdan 30 km/sa (16 kt) Orta rüzgâr'],
+      ['27017KT', 'fresh', 'Batıdan 31 km/sa (17 kt) Sert rüzgâr'],
+      ['27010G24KT', 'moderate', 'Batıdan 19 km/sa (10 kt), hamle 44 km/sa (24 kt) Orta rüzgâr'],
+      ['27010G25KT', 'fresh', 'Batıdan 19 km/sa (10 kt), hamle 46 km/sa (25 kt) Hamleli rüzgâr'],
+      ['27015G29KT', 'fresh', 'Batıdan 28 km/sa (15 kt), hamle 54 km/sa (29 kt) Hamleli rüzgâr'],
+      ['27015G30KT', 'strong', 'Batıdan 28 km/sa (15 kt), hamle 56 km/sa (30 kt) Kuvvetli hamle'],
+      ['27033KT', 'strong', 'Batıdan 61 km/sa (33 kt) Fırtınamsı rüzgâr'],
+      ['27034KT', 'storm', 'Batıdan 63 km/sa (34 kt) Fırtına'],
+      ['27025G43KT', 'storm', 'Batıdan 46 km/sa (25 kt), hamle 80 km/sa (43 kt) Fırtına'],
+      ['270P99KT', 'storm', 'Batıdan 185 km/sa (100 kt) ve üzeri Harikeyn (orkan)'],
+    ] as const) {
+      const html = at(group)
+      expect([tone(html, 'wind'), row(html, 'wind')], group).toEqual([expectedTone, value])
+    }
+    expect(row(at('27011KT', 'en'), 'wind')).toBe('From the west 20 km/h (11 kt) Moderate wind')
+    expect(row(at('27006KT', 'en'), 'wind')).toBe('From the west 11 km/h (6 kt) Gentle breeze')
+    // Bilinmeyen hız: vurgusuz, etiketsiz.
+    const unknown = at('/////KT')
+    expect([tone(unknown, 'wind'), row(unknown, 'wind')]).toEqual([null, 'Belirlenemedi'])
   })
 
   it('rüzgâr kesmesi (üretim LGMK `WS R34`): satır kehribar, şiddetin adı ve kesme değerin altında', () => {
@@ -287,7 +362,7 @@ describe('WeatherPanel: bütün fixture durumları', () => {
     })
     const lgmk = station('LGMK 151250Z 35019KT 9999 FEW018 20/15 Q1020 WS R34')
     const html = panel(lgmk, { timeZone: 'Europe/Athens' })
-    expect(tone(html, 'wind')).toBe('wind')
+    expect(tone(html, 'wind')).toBe('fresh')
     expect(html).toContain(
       'Kuzeyden 35 km/sa (19 kt) <span class="wx-tag">Sert rüzgâr</span> <span class="wx-note">Rüzgâr kesmesi bildirildi: pist 34</span></dd>',
     )
@@ -298,14 +373,35 @@ describe('WeatherPanel: bütün fixture durumları', () => {
     const calm = panel(station('LGMK 151250Z 00000KT 9999 FEW018 20/15 Q1020 WS ALL RWY'), {
       timeZone: 'Europe/Athens',
     })
-    expect(tone(calm, 'wind')).toBe('wind')
+    expect(tone(calm, 'wind')).toBe('fresh')
     expect(row(calm, 'wind')).toBe('Sakin Rüzgâr kesmesi bildirildi: bütün pistler')
     expect(calm).not.toContain('wx-tag')
     const light = panel(station('LGMK 151250Z 18004KT 9999 FEW018 20/15 Q1020 WS R16'), {
       timeZone: 'Europe/Athens',
     })
-    expect(tone(light, 'wind')).toBe('wind')
+    expect(tone(light, 'wind')).toBe('fresh')
     expect(row(light, 'wind')).toBe('Güneyden 7 km/sa (4 kt) Rüzgâr kesmesi bildirildi: pist 16')
+    // Tatlı ve orta rüzgârda da (M6e.3): kesme satırı kehribar yapar, basamağın adı yazılmaz.
+    for (const [group, value] of [
+      ['18008KT', 'Güneyden 15 km/sa (8 kt)'],
+      ['18014KT', 'Güneyden 26 km/sa (14 kt)'],
+    ] as const) {
+      const sheared = panel(station(`LGMK 151250Z ${group} 9999 FEW018 20/15 Q1020 WS R16`), {
+        timeZone: 'Europe/Athens',
+      })
+      expect([tone(sheared, 'wind'), row(sheared, 'wind')], group).toEqual([
+        'fresh',
+        `${value} Rüzgâr kesmesi bildirildi: pist 16`,
+      ])
+    }
+    // Üretim LGMK (2026-10-03 16:56Z) 21 kt ve kesme: turuncu kalır, kesme basamağı düşürmez.
+    const strong = panel(station('LGMK 151250Z 36021KT 9999 FEW020 20/11 Q1020 WS R34'), {
+      timeZone: 'Europe/Athens',
+    })
+    expect([tone(strong, 'wind'), row(strong, 'wind')]).toEqual([
+      'strong',
+      'Kuzeyden 39 km/sa (21 kt) Kuvvetli rüzgâr Rüzgâr kesmesi bildirildi: pist 34',
+    ])
   })
 
   it('LTFM: tahmin özeti niteleyicisiyle, geçerlilik sonu; yerel saat ve gün doğumu/batımı', () => {

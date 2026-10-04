@@ -1,6 +1,7 @@
 export * from './age'
 export * from './compass'
 export {
+  BREEZE_WIND_MAX_KMH,
   ceilingFt,
   FRESH_WIND_MEAN_KT,
   GUSTY_WIND_GUST_KT,
@@ -16,6 +17,8 @@ export {
   STRONG_WIND_GUST_KT,
   STRONG_WIND_MEAN_KT,
   windLevel,
+  windLevelTier,
+  windTier,
 } from './derive'
 export { isColourState } from './groups'
 export {
