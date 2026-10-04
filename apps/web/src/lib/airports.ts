@@ -22,6 +22,9 @@ export { isTurkish } from '../components/airports/airport-text'
  * - İstemci başlıkları (X-Forwarded-For, CF-Connecting-IP) **iletilmez**: Next önbellek anahtarı
  *   istek başlıklarını içerir (next/dist/server/lib/incremental-cache → generateCacheKey); iletilse
  *   önbellek ziyaretçi başına bölünürdü.
+ * - Boyut (3. halka, D-090): 503 havalimanı ve pistleri ~0,45 MB (base64 ~0,6 MB); Next veri
+ *   önbelleğinin 2 MiB öğe sınırının altındadır. Gövdenin denetimi (`parseAirportsBody`) sayfa
+ *   çizimi başına ~6 ms'dir (Node, ölçüm). Görünür alana göre yükleme 4. halkadadır (M6i).
  * - İstek başına tek çağrı: React `cache()`.
  * - Next yalnızca 200 yanıtı önbelleğe alır; API ulaşılamazsa sayfa 500 verir (yumuşak 404 değil),
  *   önbellekte eski kopya varsa o sunulur.

@@ -67,8 +67,8 @@ setup('havalimanı referans verisi API’de', async ({ request }) => {
     )
     .toBe(AIRPORT_COUNT)
 
-  // Listelenen havalimanları (M6d, D-080; M6g, D-088): Türkiye + 1. ve 2. halka. Sayfalar, site
-  // haritası ve harita bu listeyi kullanır; halka üyeliği API'de hesaplanıp önbelleğe alınır.
+  // Listelenen havalimanları (M6d, D-080; M6g, D-088; M6h, D-090): Türkiye + 1.–3. halka. Sayfalar,
+  // site haritası ve harita bu listeyi kullanır; halka üyeliği API'de hesaplanıp önbelleğe alınır.
   await expect
     .poll(
       async () => {
@@ -81,7 +81,7 @@ setup('havalimanı referans verisi API’de', async ({ request }) => {
       },
       {
         message:
-          'API listelenen havalimanlarını (Türkiye + 1. ve 2. halka) döndürmedi (GET /v1/airports?scope=listed)',
+          'API listelenen havalimanlarını (Türkiye + 1.–3. halka) döndürmedi (GET /v1/airports?scope=listed)',
         timeout: 90_000,
         intervals: [3_000],
       },
@@ -96,10 +96,10 @@ setup('havalimanı referans verisi API’de', async ({ request }) => {
 })
 
 // Hava durumu (D-078): worker'ın `jobs` rolü fixture'daki METAR ve TAF'ları referans verisinden
-// sonra yükler (tools/fixtures/weather). API yanıtları 60 sn, havalimanı sayfasının toplu hava isteği
-// de 60 sn önbelleklidir; sayfalar veri gelmeden derletilirse ilk dakika "rapor yok" gösterirdi. Bu
-// yüzden sayfalar istenmeden önce LTFM'nin METAR/TAF kaydının dolması ve toplu yanıtta son METAR'ın
-// görünmesi beklenir.
+// sonra yükler (tools/fixtures/weather). API yanıtları 60 sn, havalimanı sayfasının toplu hava yanıtı
+// da web belleğinde 60 sn tutulur (D-090); sayfalar veri gelmeden derletilirse ilk dakika "rapor yok"
+// gösterirdi. Bu yüzden sayfalar istenmeden önce LTFM'nin METAR/TAF kaydının dolması ve toplu
+// yanıtta son METAR'ın görünmesi beklenir.
 setup('hava durumu verisi API’de', async ({ request }) => {
   setup.setTimeout(240_000)
   const history = `${API_URL}/v1/airports/${PRIMARY_AIRPORT.icao}/weather/history?hours=24`
@@ -147,8 +147,9 @@ setup('hava durumu verisi API’de', async ({ request }) => {
     )
     .toContain(PRIMARY_WEATHER.latestMetarGroups[0])
 
-  // Haritanın penceresi ve Türkiye dışındaki sayfalar listelenen havalimanlarının toplu yanıtını
-  // kullanır (`scope=listed`, ayrı önbellek kaydı): 1. halkadaki fixture istasyonu da görünmeli.
+  // Havalimanı sayfaları listelenen havalimanlarının toplu yanıtını kullanır (`scope=listed`, ayrı
+  // önbellek kaydı): 1. halkadaki fixture istasyonu da görünmeli. Harita penceresi 3. halkadan beri
+  // tek havalimanını ister (`/v1/airports/<ICAO>/weather`, D-090).
   await expect
     .poll(
       async () => {

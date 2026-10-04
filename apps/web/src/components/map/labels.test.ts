@@ -422,12 +422,13 @@ describe('LabelPainter.airportHitTest', () => {
   })
 })
 
-describe('listelenen bütün havalimanları z5’te (2. halka, 225 havalimanı; D-088)', () => {
-  // Web Mercator, z5: 1440×900 görünüm Napoli'den Balkanabat'a, Košice'den Şarm el-Şeyh'e bütün
-  // listeyi kapsar; kodların yazıldığı en uzak yakınlaştırmadır (AIRPORT_LABEL_MIN_ZOOM), görünümdeki
-  // havalimanı sayısı en büyüktür. Kod yerleşimi haritanın her `render` olayında çalışır.
+describe('listelenen bütün havalimanları z5’te (3. halka, 503 havalimanı; D-090)', () => {
+  // Web Mercator, z5: kodların yazıldığı en uzak yakınlaştırma (AIRPORT_LABEL_MIN_ZOOM), görünümdeki
+  // havalimanı sayısı en büyüktür. 2560×1440 görünüm Palma'dan Semerkant'a, Pärnu'dan Port Sudan'a
+  // bütün listeyi kapsar (1440×900'de ~437'si görünür). Kod yerleşimi haritanın her `render`
+  // olayında yalnız görünümdekilere yapılır.
   const ZOOM = AIRPORT_LABEL_MIN_ZOOM
-  const VIEW = { width: 1440, height: 900 }
+  const VIEW = { width: 2560, height: 1440 }
   const world = 256 * 2 ** ZOOM
   const project = (lat: number, lon: number) => {
     const sin = Math.sin((lat * Math.PI) / 180)
@@ -436,14 +437,14 @@ describe('listelenen bütün havalimanları z5’te (2. halka, 225 havalimanı; 
       y: (0.5 - Math.log((1 + sin) / (1 - sin)) / (4 * Math.PI)) * world,
     }
   }
-  const centre = project(38.5, 31)
+  const centre = project(41.5, 35)
   const screen: ScreenAirport[] = fixtureListedAirports().map((airport) => {
     const { x, y } = project(airport.lat, airport.lon)
     return { airport, x: x - centre.x + VIEW.width / 2, y: y - centre.y + VIEW.height / 2 }
   })
 
   it('hepsi görünümde; kodlar birbirini örtmez, görünümden taşmaz, her havalimanına en çok bir kod', () => {
-    expect(screen).toHaveLength(225)
+    expect(screen).toHaveLength(503)
     for (const { airport, x, y } of screen) {
       expect(x >= 0 && x <= VIEW.width && y >= 0 && y <= VIEW.height, airport.icao).toBe(true)
     }

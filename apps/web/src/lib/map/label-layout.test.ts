@@ -5,6 +5,7 @@ import {
   LABEL_ICON_RADIUS,
   layoutLabels,
   leaderEnd,
+  RectObstacles,
   type LabelBox,
   type PlacedLabel,
 } from './label-layout'
@@ -322,6 +323,41 @@ describe('CircleObstacles', () => {
     expect(obstacles.hits(108, 108, 20, 20)).toBe(false)
     expect(obstacles.hits(106, 106, 20, 20)).toBe(true)
     expect(obstacles.hits(300, 300, 20, 20)).toBe(false)
+  })
+})
+
+describe('RectObstacles (D-090)', () => {
+  it('kesişen dikdörtgeni bulur; kenar teması kesişme değildir; görünüm dışı da güvenli', () => {
+    const obstacles = new RectObstacles(VIEW)
+    obstacles.add(100, 100, 40, 20)
+    expect(obstacles.hits(130, 110, 20, 20)).toBe(true)
+    expect(obstacles.hits(140, 100, 20, 20)).toBe(false)
+    expect(obstacles.hits(100, 120, 40, 20)).toBe(false)
+    expect(obstacles.hits(-50, -50, 1000, 1000)).toBe(true)
+    expect(obstacles.hits(-50, -50, 10, 10)).toBe(false)
+  })
+
+  it('doğrusal taramayla aynı sonucu verir (rastgele 2.000 sorgu)', () => {
+    // Belirlenimci sözde rastgele sayılar (LCG): test her koşuda aynıdır.
+    let seed = 42
+    const random = () => {
+      seed = (seed * 1_103_515_245 + 12_345) % 2 ** 31
+      return seed / 2 ** 31
+    }
+    const obstacles = new RectObstacles(VIEW)
+    const rects: { x: number; y: number; w: number; h: number }[] = []
+    for (let i = 0; i < 300; i++) {
+      const rect = { x: random() * 820 - 10, y: random() * 620 - 10, w: 10 + random() * 40, h: 18 }
+      rects.push(rect)
+      obstacles.add(rect.x, rect.y, rect.w, rect.h)
+    }
+    for (let i = 0; i < 2000; i++) {
+      const q = { x: random() * 820 - 10, y: random() * 620 - 10, w: 10 + random() * 60, h: 22 }
+      const linear = rects.some(
+        (r) => q.x < r.x + r.w && q.x + q.w > r.x && q.y < r.y + r.h && q.y + q.h > r.y,
+      )
+      expect(obstacles.hits(q.x, q.y, q.w, q.h)).toBe(linear)
+    }
   })
 })
 

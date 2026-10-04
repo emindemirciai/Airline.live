@@ -16,7 +16,7 @@ import {
   returnFocusTarget,
   type PopupWeatherReport,
 } from './airport-popup-model'
-import type { BulkWeatherState } from './use-airport-weather'
+import type { AirportWeatherState } from './use-airport-weather'
 
 const tr = getMessages('tr')
 const en = getMessages('en')
@@ -87,14 +87,9 @@ function metar(raw: string, observedAt: string): AirportMetar {
   return { ...decodeMetar(raw, { observedAt }), observedAt }
 }
 
-function state(stations: AirportWeather[], failed = false): BulkWeatherState {
-  return {
-    data: {
-      generatedAt: new Date(NOW).toISOString(),
-      stations: new Map(stations.map((station) => [station.icao, station])),
-    },
-    failed,
-  }
+/** Pencerenin tek havalimanı yanıtı (`useAirportWeather`, D-090). */
+function state(weather: AirportWeather, failed = false): AirportWeatherState {
+  return { data: weather, failed }
 }
 
 const station = (icao: string, m: AirportMetar | null): AirportWeather => ({
@@ -164,12 +159,12 @@ describe('havalimanı bilgileri', () => {
     expect(popupTimeZone(JFK)).toBeNull()
   })
 
-  it('listelenen her havalimanının penceresinde yer ve saat dilimi vardır (2. halka dahil, D-088)', () => {
-    // API kaydı haritanın okuyucusundan geçer (`toMapAirport`): sayfadaki listeyle aynı 225 kayıt.
+  it('listelenen her havalimanının penceresinde yer ve saat dilimi vardır (3. halka dahil, D-090)', () => {
+    // API kaydı haritanın okuyucusundan geçer (`toMapAirport`): sayfadaki listeyle aynı 503 kayıt.
     const listed = fixtureListedAirports().map((airport) => toMapAirport(airport))
     expect(listed.filter((airport) => airport === null)).toEqual([])
     const map = new Map(listed.flatMap((airport) => (airport ? [[airport.icao, airport]] : [])))
-    expect(map.size).toBe(225)
+    expect(map.size).toBe(503)
     for (const airport of map.values()) {
       expect(airportPlace(airport, 'tr'), airport.icao).not.toBeNull()
       expect(airportPlace(airport, 'en'), airport.icao).not.toBeNull()
@@ -198,9 +193,47 @@ describe('havalimanı bilgileri', () => {
       ['URWI', 'Europe/Moscow'],
       ['UATE', 'Asia/Aqtau'],
       ['UTAK', 'Asia/Ashgabat'],
+      // 3. halka (D-090): Almanya, Rusya, Kazakistan, Özbekistan ve İspanya bölge kuralıyla.
+      ['LOWW', 'Europe/Vienna'],
+      ['EDDF', 'Europe/Berlin'],
+      ['EDDB', 'Europe/Berlin'],
+      ['UUEE', 'Europe/Moscow'],
+      ['UWWW', 'Europe/Samara'],
+      ['UMKK', 'Europe/Kaliningrad'],
+      ['UWUU', 'Asia/Yekaterinburg'],
+      ['UAOO', 'Asia/Qyzylorda'],
+      ['UZSS', 'Asia/Samarkand'],
+      ['LEPA', 'Europe/Madrid'],
+      ['OAHR', 'Asia/Kabul'],
+      ['OMDB', 'Asia/Dubai'],
     ] as const) {
       expect(popupTimeZone(of(icao)), icao).toBe(zone)
     }
+    expect(airportPlace(of('LOWW'), 'tr')).toBe('Avusturya')
+    expect(airportPlace(of('LOWW'), 'en')).toBe('Austria')
+  })
+
+  it('sivil uçuşlara kapalı olabilecek havalimanında not; diğerlerinde yok (D-090)', () => {
+    const listed = new Map(
+      fixtureListedAirports().flatMap((airport) => {
+        const map = toMapAirport(airport)
+        return map ? [[map.icao, map] as const] : []
+      }),
+    )
+    const closed = [...listed.values()].filter(
+      (airport) => airportFacts(airport, NOW, 'tr', tr.map.airportPopup).closure !== null,
+    )
+    // Listelenenler: Krasnodar, Gelencik (1. halka), Elista (2. halka), Voronej (3. halka).
+    expect(closed.map((airport) => airport.icao).sort()).toEqual(['URKG', 'URKK', 'URWI', 'UUOO'])
+    const voronezh = listed.get('UUOO')
+    if (!voronezh) throw new Error('fixture has no UUOO')
+    expect(airportFacts(voronezh, NOW, 'tr', tr.map.airportPopup).closure).toBe(
+      'Sivil uçuşlara kapalı olabilir (2022’den beri)',
+    )
+    expect(airportFacts(voronezh, NOW, 'en', en.map.airportPopup).closure).toBe(
+      'May be closed to civil flights (since 2022)',
+    )
+    expect(airportFacts(IST, NOW, 'tr', tr.map.airportPopup).closure).toBeNull()
   })
 
   it('saat havalimanının yerel saatiyle; saat yoksa "—"', () => {
@@ -280,12 +313,16 @@ describe('popupWeatherView', () => {
     })
   })
 
-  it('istasyon yanıtta yoksa, raporu yoksa ya da 12 saatten eskiyse "Hava durumu raporu yok"', () => {
+  it('raporu yoksa ya da 12 saatten eskiyse "Hava durumu raporu yok"; başka havalimanının yanıtı sayılmaz', () => {
     const none = { kind: 'none', text: 'Hava durumu raporu yok' }
-    expect(popupWeatherView(state([]), 'LTBQ', NOW, 'tr', w, t)).toEqual(none)
-    expect(popupWeatherView(state([station('LTBQ', null)]), 'LTBQ', NOW, 'tr', w, t)).toEqual(none)
+    // Pencere başka havalimanına geçerken önceki havalimanının yanıtı gösterilmez: yükleniyor.
+    expect(popupWeatherView(state(station('LTFM', null)), 'LTBQ', NOW, 'tr', w, t)).toEqual({
+      kind: 'loading',
+      text: t.loading,
+    })
+    expect(popupWeatherView(state(station('LTBQ', null)), 'LTBQ', NOW, 'tr', w, t)).toEqual(none)
     const old = metar('LTCW 010050Z 36004KT 9999 FEW050 M05/M09 Q1024', minutesAgo(13 * 60))
-    expect(popupWeatherView(state([station('LTCW', old)]), 'LTCW', NOW, 'tr', w, t)).toEqual(none)
+    expect(popupWeatherView(state(station('LTCW', old)), 'LTCW', NOW, 'tr', w, t)).toEqual(none)
   })
 
   it('yağmur, kar, gök gürültüsü ve sis her zaman yazılır; hamle, rüzgâr şiddeti, yıldırım', () => {
@@ -293,7 +330,7 @@ describe('popupWeatherView', () => {
       'LTFM 011250Z 03018G32KT 9999 -SHRA FEW025CB BKN035 09/05 Q1009 TEMPO 4000 SHRA',
       minutesAgo(10),
     )
-    const view = report(popupWeatherView(state([station('LTFM', m)]), 'LTFM', NOW, 'tr', w, t))
+    const view = report(popupWeatherView(state(station('LTFM', m)), 'LTFM', NOW, 'tr', w, t))
     expect(view.ageClass).toBe('fresh')
     expect(view.note).toBeNull()
     // Sıcaklık başlığa eklenmez, ayrı kutucuktur.
@@ -335,7 +372,7 @@ describe('popupWeatherView', () => {
 
   it('gözlem saati havalimanının yerel saatiyle; dilim bilinmiyorsa UTC ile yazılır', () => {
     const m = metar('LGAV 011250Z 36012KT CAVOK 22/10 Q1015 NOSIG', minutesAgo(10))
-    const data = state([station('LGAV', m)])
+    const data = state(station('LGAV', m))
     const athens = report(popupWeatherView(data, 'LGAV', NOW, 'tr', w, t, popupTimeZone(ATH)))
     expect(athens.observed).toBe('Gözlem 15:50, 10 dakika önce')
     const view = report(popupWeatherView(data, 'LGAV', NOW, 'tr', w, t, null))
@@ -353,8 +390,16 @@ describe('popupWeatherView', () => {
       'SPECI LTBS 011242Z 25015G27KT 2000 +TSRAGR SCT012CB BKN025 12/10 Q1007',
       minutesAgo(20),
     )
-    const data = state([station('LTAC', snow), station('LTCG', fog), station('LTBS', hail)])
-    const s = report(popupWeatherView(data, 'LTAC', NOW, 'en', en.weather, en.map.airportPopup))
+    const s = report(
+      popupWeatherView(
+        state(station('LTAC', snow)),
+        'LTAC',
+        NOW,
+        'en',
+        en.weather,
+        en.map.airportPopup,
+      ),
+    )
     expect(value(s, 'snow')).toBe('Snow')
     expect(value(s, 'fog')).toBe('Mist')
     // Sıfırın altı: gerçek eksi işareti (U+2212) ayrı kutucukta; başlıkta sayı yok.
@@ -363,14 +408,14 @@ describe('popupWeatherView', () => {
     expect([tone(s, 'rain'), tone(s, 'snow'), tone(s, 'fog')]).toEqual([null, 'snow', 'fog'])
     // 12 kt (22 km/sa): sarı "Orta rüzgâr" (M6e.3; eskiden sade).
     expect([tone(s, 'wind'), s.rows[0]?.strong]).toEqual(['moderate', 'Moderate wind'])
-    const f = report(popupWeatherView(data, 'LTCG', NOW, 'tr', w, t))
+    const f = report(popupWeatherView(state(station('LTCG', fog)), 'LTCG', NOW, 'tr', w, t))
     expect(value(f, 'fog')).toBe('Sis')
     expect(tone(f, 'fog')).toBe('fog')
     expect(value(f, 'wind')).toBe('Sakin')
     expect(f.rows[0]?.strong).toBeNull()
     expect(tone(f, 'wind')).toBe('calm')
     expect(value(f, 'visibility')).toBe('200 m')
-    const h = report(popupWeatherView(data, 'LTBS', NOW, 'tr', w, t))
+    const h = report(popupWeatherView(state(station('LTBS', hail)), 'LTBS', NOW, 'tr', w, t))
     // Sözcük seçimi havalimanı sayfasıyla ortaktır (summarizeMetar); TS için "fırtına" denmez.
     expect(value(h, 'rain')).toMatch(/^Dolulu, .*gök gürültülü sağanak$/)
     expect(value(h, 'thunder')).toBe('Gök gürültüsü var; şimşek ve yıldırım tehlikesi')
@@ -388,13 +433,12 @@ describe('popupWeatherView', () => {
   it('çevredeki oraj yıldırım uyarısıyla vurgulanır; "Belirlenemedi" vurgulanmaz', () => {
     const near = metar('LTAU 011250Z 23008KT 9999 VCTS SCT040CB 07/M01 Q1013 NOSIG', minutesAgo(5))
     const auto = metar('LTXX 011250Z AUTO 03010KT 9999 // NCD 10/05 Q1010', minutesAgo(5))
-    const data = state([station('LTAU', near), station('LTXX', auto)])
-    const v = report(popupWeatherView(data, 'LTAU', NOW, 'tr', w, t))
+    const v = report(popupWeatherView(state(station('LTAU', near)), 'LTAU', NOW, 'tr', w, t))
     expect(value(v, 'thunder')).toBe(
       'Havalimanı çevresinde gök gürültüsü var; yıldırım havalimanına da düşebilir',
     )
     expect(tone(v, 'thunder')).toBe('thunder')
-    const a = report(popupWeatherView(data, 'LTXX', NOW, 'tr', w, t))
+    const a = report(popupWeatherView(state(station('LTXX', auto)), 'LTXX', NOW, 'tr', w, t))
     for (const key of ['rain', 'snow', 'thunder', 'fog']) {
       expect(value(a, key), key).toBe('Belirlenemedi')
       expect(tone(a, key), key).toBeNull()
@@ -410,7 +454,7 @@ describe('popupWeatherView', () => {
     ]
     for (const raw of raws) {
       const icao = raw.slice(0, 4)
-      const data = state([station(icao, metar(raw, minutesAgo(130)))])
+      const data = state(station(icao, metar(raw, minutesAgo(130))))
       for (const [locale, messages] of [
         ['tr', tr],
         ['en', en],
@@ -434,7 +478,7 @@ describe('popupWeatherView', () => {
 
   it('90 dakika–3 saat: gecikmiş gözlem notu, değerler gösterilir', () => {
     const m = metar('LTAJ 011120Z 09005KT 9999 SCT030 11/02 Q1016 NOSIG', minutesAgo(130))
-    const view = report(popupWeatherView(state([station('LTAJ', m)]), 'LTAJ', NOW, 'tr', w, t))
+    const view = report(popupWeatherView(state(station('LTAJ', m)), 'LTAJ', NOW, 'tr', w, t))
     expect(view.ageClass).toBe('delayed')
     expect(view.note).toContain('Gecikmiş gözlem')
     expect(view.rows.length).toBeGreaterThan(0)
@@ -444,7 +488,7 @@ describe('popupWeatherView', () => {
 
   it('3–12 saat: eski gözlemin değerleri güncel gibi gösterilmez', () => {
     const m = metar('LTCW 010450Z 36004KT 9999 FEW050 M05/M09 Q1024', minutesAgo(8 * 60 + 10))
-    const view = report(popupWeatherView(state([station('LTCW', m)]), 'LTCW', NOW, 'tr', w, t))
+    const view = report(popupWeatherView(state(station('LTCW', m)), 'LTCW', NOW, 'tr', w, t))
     expect(view.ageClass).toBe('stale')
     expect(view.headline).toBeNull()
     expect(view.temperature).toBeNull()
@@ -455,9 +499,7 @@ describe('popupWeatherView', () => {
 
   it('son istek başarısız olsa da eldeki veri gösterilir', () => {
     const m = metar('LTBA 011250Z 04008KT CAVOK 10/03 Q1010 NOSIG', minutesAgo(5))
-    const view = report(
-      popupWeatherView(state([station('LTBA', m)], true), 'LTBA', NOW, 'tr', w, t),
-    )
+    const view = report(popupWeatherView(state(station('LTBA', m), true), 'LTBA', NOW, 'tr', w, t))
     expect(value(view, 'visibility')).toBe('10 km ve üzeri')
   })
 
@@ -465,7 +507,7 @@ describe('popupWeatherView', () => {
     const error = vi.spyOn(console, 'error').mockImplementation(() => undefined)
     const m = metar('LTBA 011250Z 04008KT CAVOK 10/03 Q1010 NOSIG', minutesAgo(5))
     const broken = { ...m, weather: null } as unknown as AirportMetar
-    expect(popupWeatherView(state([station('LTBA', broken)]), 'LTBA', NOW, 'tr', w, t)).toEqual({
+    expect(popupWeatherView(state(station('LTBA', broken)), 'LTBA', NOW, 'tr', w, t)).toEqual({
       kind: 'unavailable',
       text: t.unavailable,
     })
@@ -515,15 +557,15 @@ describe('Escape ve ekran okuyucu bildirimi', () => {
     expect(popupStatusText(loading)).toBe(t.loading)
     const failed = popupWeatherView({ data: null, failed: true }, 'LTFM', NOW, 'tr', w, t)
     expect(popupStatusText(failed)).toBe(t.unavailable)
-    const none = popupWeatherView(state([station('LTFM', null)]), 'LTFM', NOW, 'tr', w, t)
+    const none = popupWeatherView(state(station('LTFM', null)), 'LTFM', NOW, 'tr', w, t)
     expect(popupStatusText(none)).toBe(t.noReport)
     const loaded = popupWeatherView(
-      state([
+      state(
         station(
           'LTFM',
           metar('LTFM 011250Z 03018G32KT 9999 -SHRA FEW025CB 09/05 Q1009', minutesAgo(10)),
         ),
-      ]),
+      ),
       'LTFM',
       NOW,
       'tr',

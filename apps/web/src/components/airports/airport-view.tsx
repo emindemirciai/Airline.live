@@ -41,6 +41,7 @@ import {
   runwayDesignator,
 } from './airport-text'
 import { Breadcrumbs } from './breadcrumbs'
+import { civilClosureNote } from './civil-closure'
 import { airportCrumbs } from './crumbs'
 import { AVIATION_WEATHER_URL } from './weather-links'
 
@@ -114,6 +115,10 @@ const displacedFt = (end: RunwayDetail['ends'][number]) =>
  * Yakın ülkelerdeki havalimanı (M6d, D-080): yer satırı yerleşim ve ülkedir, il satırı yerine ülke ve
  * Türkiye'deki en yakın havalimanı yazılır; "… ilindeki diğer havalimanları" cümlesi yalnızca
  * Türkiye'dedir. En yakın havalimanları Türkiye ve yakın ülkeleri karışık içerebilir.
+ *
+ * Sivil uçuşlara kapalı olabilecek havalimanı (kullanıcı kararı 2026-10-04, D-090; Krasnodar,
+ * Gelencik, Elista, Voronej): başlığın altında kehribar not (`role="note"`), harita penceresiyle aynı
+ * metin. Not yalnız görünür metindir; başlık, açıklama ve JSON-LD değişmez.
  */
 export function AirportView({ locale, app, airport, airports, weather }: AirportViewProps) {
   const messages = getMessages(locale)
@@ -132,6 +137,8 @@ export function AirportView({ locale, app, airport, airports, weather }: Airport
   const nameSource = airportNameSource(airport.icao)
   const covered = isInLiveCoverage(airport, liveCoveragePlan(airports))
   const district = airportLocality(airport, locale)
+  // Sivil uçuşlara kapalı olabilecek havalimanı (D-090): başlığın altında görünür not.
+  const closure = civilClosureNote(airport.icao, locale, t.civilClosure)
 
   const runwaySentence =
     count === 1 && longest
@@ -160,6 +167,11 @@ export function AirportView({ locale, app, airport, airports, weather }: Airport
           </span>
         </h1>
         <p className="airport-location">{airportLocation(airport, locale)}</p>
+        {closure ? (
+          <p className="civil-closure" role="note">
+            {closure}
+          </p>
+        ) : null}
       </header>
 
       <p className="lead airport-lead">

@@ -35,7 +35,7 @@ import { AIRPORT_ERRORS, AIRPORTS_CACHE_CONTROL } from './airports'
 
 // Gerçek PostgreSQL (yerelde `pnpm dev:infra`, CI'da dev compose); bu teste ait veritabanı. Veri,
 // worker'ın içe aktarımıyla aynı ayrıştırıcıdan geçen commit'li OurAirports alt kümesidir
-// (tools/fixtures/README.md: Türkiye'nin bütün kayıtları, birkaç uzak havalimanı, 1. ve 2. halka).
+// (tools/fixtures/README.md: Türkiye'nin bütün kayıtları, birkaç uzak havalimanı, 1., 2. ve 3. halka).
 const adminUrl =
   process.env.TEST_DATABASE_ADMIN_URL ??
   'postgres://havayolu:havayolu_dev_only@localhost:45432/postgres'
@@ -95,7 +95,7 @@ const arps = new Map<number, LatLon>(
 const runwayRows = parseRunways(fixture('ourairports/runways.csv'), arps).rows
 
 /**
- * Açık halkaların (1. ve 2., ≤ 1.000 km; D-088) beklenen ICAO'ları, içe aktarılan satırlardan
+ * Açık halkaların (1.–3., ≤ 2.000 km; D-090) beklenen ICAO'ları, içe aktarılan satırlardan
  * (veritabanından bağımsız hesap). ICAO kaynak düzeltmeleriyle (İskenderiye HEAX → HEBA).
  */
 function expectedListedForeign(): string[] {
@@ -109,7 +109,7 @@ function expectedListedForeign(): string[] {
       (r) => r.isoCountry !== 'TR' && isForeignCandidate(r.type, r.scheduledService, r.iataCode),
     )
     .filter((r) =>
-      turkey.some((tr) => distanceKm({ lat: r.latitudeDeg, lon: r.longitudeDeg }, tr) <= 1000),
+      turkey.some((tr) => distanceKm({ lat: r.latitudeDeg, lon: r.longitudeDeg }, tr) <= 2000),
     )
     .map((r) => ourAirportsIcao(r))
     .sort()
@@ -262,7 +262,7 @@ describe('havalimanı ayrıntıları (gerçek PostgreSQL, OurAirports fixture)',
     }
   })
 
-  it('scope=listed&include=runways: 61 Türkiye + 1. ve 2. halka; yurt dışı adları, ülkeleri, pistleri', async () => {
+  it('scope=listed&include=runways: 61 Türkiye + 1.–3. halka; yurt dışı adları, ülkeleri, pistleri', async () => {
     const instance = await app()
     try {
       const res = await instance.inject({
@@ -280,9 +280,9 @@ describe('havalimanı ayrıntıları (gerçek PostgreSQL, OurAirports fixture)',
       // @havayolu/geo): uzaklık referansı Türkiye'nin içe aktarılmış IATA kodlu alanlarıdır. Bugünkü
       // süzgeçle 1. halka 72; Türkiye'nin IATA kodlu tarifesiz küçük alanları da (Gökçeada …) içe
       // aktarılırsa Priştine, Preveze ve Niş de girer: 75 (D-080; packages/db airports.int.test.ts
-      // iki durumu ayrı sınar). 2. halkayla (D-088) 161 ya da 164.
+      // iki durumu ayrı sınar). 3. halkayla (D-090) 434 ya da 442 (2. halkada 161 ya da 164).
       expect(foreign.map((a) => a.icao).sort()).toEqual(expectedListedForeign())
-      expect([161, 164]).toContain(foreign.length)
+      expect([434, 442]).toContain(foreign.length)
       expect(body.airports).toHaveLength(61 + foreign.length)
 
       const plain = (
@@ -290,11 +290,13 @@ describe('havalimanı ayrıntıları (gerçek PostgreSQL, OurAirports fixture)',
       ).json() as { scope: string; airports: { icao: string }[] }
       expect(plain.airports.map((a) => a.icao)).toEqual(body.airports.map((a) => a.icao))
 
+      const ringLimitKm: Record<number, number> = { 1: 500, 2: 1000, 3: 2000 }
       for (const airport of foreign) {
-        expect([1, 2], airport.icao).toContain(airport.ring)
+        expect([1, 2, 3], airport.icao).toContain(airport.ring)
         expect(airport.distanceToTrKm, airport.icao).toBeLessThanOrEqual(
-          airport.ring === 1 ? 500 : 1000,
+          ringLimitKm[airport.ring] ?? 0,
         )
+        if (airport.ring === 3) expect(airport.distanceToTrKm, airport.icao).toBeGreaterThan(1000)
         expect(airport.scheduled, airport.icao).toBe(true)
         expect(foreignAirportName(airport.icao), airport.icao).toBeDefined()
         expect(countryName(airport.country, 'tr'), airport.icao).not.toBe(airport.country)
@@ -321,6 +323,27 @@ describe('havalimanı ayrıntıları (gerçek PostgreSQL, OurAirports fixture)',
       expect(body.airports.find((a) => a.icao === 'LRBC')?.name).toBe(
         'Bacău George Enescu International Airport',
       )
+      // 3. halka (D-090): Voronej ve Linz'in boş pist satırları gizli; Stuttgart'ın karşı ucu
+      // olmayan iki helikopter satırı pist sayılmaz; küçük harfli "airport" "Airport" okunur;
+      // Özbekistan UZxx koduyla (OurAirports kimliği UTxx).
+      expect(runwayNames('UUOO')).toEqual(['12'])
+      expect(runwayNames('LOWL')).toEqual(['08', '08E'])
+      expect(runwayNames('EDDS')).toEqual(['07'])
+      expect(body.airports.find((a) => a.icao === 'LFLW')?.name).toBe('Aurillac Airport')
+      expect(body.airports.find((a) => a.iata === 'SKD')).toMatchObject({ icao: 'UZSS', ring: 3 })
+      expect(body.airports.find((a) => a.iata === 'VIE')).toMatchObject({
+        icao: 'LOWW',
+        country: 'AT',
+        isoRegion: 'AT-9',
+        ring: 3,
+        distanceToTrKm: 1149,
+      })
+      for (const icao of ['EGLL', 'LFPG', 'EHAM', 'LEMD', 'KJFK']) {
+        expect(
+          body.airports.map((a) => a.icao),
+          icao,
+        ).not.toContain(icao)
+      }
       // Ben Gurion 500,44 km: yanıtta 500 km, halkası 2.
       expect(body.airports.find((a) => a.icao === 'LLBG')).toMatchObject({
         ring: 2,

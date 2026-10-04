@@ -1,13 +1,13 @@
 import { decodeMetar, type AirportWeather } from '@havayolu/shared'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { ApiError } from '../../lib/live/api'
+import { fetchAirportWeather } from '../airports/weather-client'
 import {
+  nextWeatherFetchAt,
+  rememberStation,
+  WEATHER_CACHE_AIRPORTS,
   WEATHER_REFRESH_MS,
   WEATHER_RETRY_MS,
-  fetchBulkWeather,
-  nextWeatherFetchAt,
-  parseBulkWeather,
-  weatherUrl,
+  type AirportWeatherState,
 } from './use-airport-weather'
 
 const OBSERVED = '2026-10-01T12:50:00.000Z'
@@ -21,21 +21,6 @@ const LTFM: AirportWeather = {
     observedAt: OBSERVED,
   },
   tafs: [],
-}
-const LTBQ: AirportWeather = { ...LTFM, icao: 'LTBQ', metar: null }
-/** Yakın ülkedeki listelenen havalimanı (1. halka, D-080): aynı toplu yanıtta gelir. */
-const LGAV: AirportWeather = {
-  ...LTFM,
-  icao: 'LGAV',
-  metar: {
-    ...decodeMetar('LGAV 011250Z 36012KT CAVOK 22/10 Q1015 NOSIG', { observedAt: OBSERVED }),
-    observedAt: OBSERVED,
-  },
-}
-const BODY = {
-  generatedAt: '2026-10-01T13:00:00.000Z',
-  attribution: { text: 'NOAA Aviation Weather Center', url: 'https://aviationweather.gov/' },
-  stations: [LTFM, LTBQ, LGAV, { icao: 'bozuk' }],
 }
 
 afterEach(() => {
@@ -69,67 +54,57 @@ describe('nextWeatherFetchAt', () => {
   })
 })
 
-describe('weatherUrl', () => {
-  it('toplu uç nokta, haritadaki havalimanlarıyla aynı küme (listelenenler, D-080)', () => {
-    expect(String(weatherUrl('http://localhost:4100'))).toBe(
-      'http://localhost:4100/v1/weather?scope=listed',
-    )
-    expect(String(weatherUrl('https://api.havayolu.live/'))).toBe(
-      'https://api.havayolu.live/v1/weather?scope=listed',
-    )
+describe('rememberStation: son açılan havalimanlarının verisi', () => {
+  const entry = (icao: string): AirportWeatherState => ({
+    data: { ...LTFM, icao },
+    failed: false,
+  })
+
+  it('yeni Map döner (React durumu); aynı havalimanı yeniden yazılınca en yeni olur', () => {
+    const first = rememberStation(new Map(), 'LTFM', entry('LTFM'))
+    const second = rememberStation(first, 'LGAV', entry('LGAV'))
+    expect(second).not.toBe(first)
+    expect([...first.keys()]).toEqual(['LTFM'])
+    const touched = rememberStation(second, 'LTFM', { data: null, failed: true })
+    expect([...touched.keys()]).toEqual(['LGAV', 'LTFM'])
+    expect(touched.get('LTFM')).toEqual({ data: null, failed: true })
+  })
+
+  it('en çok WEATHER_CACHE_AIRPORTS havalimanı; en eski kullanılan atılır', () => {
+    expect(WEATHER_CACHE_AIRPORTS).toBe(32)
+    let entries: ReadonlyMap<string, AirportWeatherState> = new Map()
+    const codes = Array.from({ length: 40 }, (_, i) => `LT${String(i).padStart(2, '0')}`)
+    for (const icao of codes) entries = rememberStation(entries, icao, entry(icao))
+    expect(entries.size).toBe(WEATHER_CACHE_AIRPORTS)
+    expect([...entries.keys()]).toEqual(codes.slice(-WEATHER_CACHE_AIRPORTS))
+    expect(rememberStation(entries, 'LTFM', entry('LTFM'), 2).size).toBe(2)
   })
 })
 
-describe('parseBulkWeather', () => {
-  it('istasyonları ICAO koduyla eşler; bozuk kayıt atlanır', () => {
-    // JSON gidiş-dönüşü: API yanıtındaki biçim.
-    const parsed = parseBulkWeather(JSON.parse(JSON.stringify(BODY)))
-    expect(parsed?.generatedAt).toBe(BODY.generatedAt)
-    expect([...(parsed?.stations.keys() ?? [])]).toEqual(['LTFM', 'LTBQ', 'LGAV'])
-    expect(parsed?.stations.get('LTFM')?.metar?.wind?.gustKt).toBe(32)
-    expect(parsed?.stations.get('LTBQ')?.metar).toBeNull()
-    expect(parsed?.stations.get('LGAV')?.metar?.raw).toContain('CAVOK')
-  })
-
-  it('zarf bozuksa null', () => {
-    expect(parseBulkWeather(null)).toBeNull()
-    expect(parseBulkWeather({ stations: [] })).toBeNull()
-    expect(parseBulkWeather({ generatedAt: BODY.generatedAt, stations: {} })).toBeNull()
-  })
-})
-
-describe('fetchBulkWeather', () => {
-  function mockFetch(status: number, body: unknown) {
+describe('pencerenin isteği: tek havalimanı (D-090)', () => {
+  it('GET /v1/airports/<ICAO>/weather, iptal sinyaliyle; toplu yanıt istenmez', async () => {
     const fetchMock = vi.fn(
-      async (_url: URL, _init?: RequestInit) =>
-        new Response(typeof body === 'string' ? body : JSON.stringify(body), {
-          status,
+      async (_url: string, _init?: RequestInit) =>
+        new Response(JSON.stringify(LTFM), {
+          status: 200,
           headers: { 'content-type': 'application/json' },
         }),
     )
     vi.stubGlobal('fetch', fetchMock)
-    return fetchMock
-  }
-
-  it('tek istek, iptal sinyaliyle', async () => {
-    const fetchMock = mockFetch(200, BODY)
     const controller = new AbortController()
-    const result = await fetchBulkWeather('http://localhost:4100', controller.signal)
-    expect(result.stations.size).toBe(3)
+    const result = await fetchAirportWeather('http://localhost:4100', 'LTFM', controller.signal)
+    expect(result?.metar?.wind?.gustKt).toBe(32)
+    expect(fetchMock).toHaveBeenCalledOnce()
     const [url, init] = fetchMock.mock.calls[0] ?? []
-    expect(String(url)).toBe('http://localhost:4100/v1/weather?scope=listed')
+    expect(url).toBe('http://localhost:4100/v1/airports/LTFM/weather')
     expect(init?.signal).toBe(controller.signal)
   })
 
-  it('2xx olmayan, JSON olmayan ya da zarfı bozuk yanıtta ApiError', async () => {
-    mockFetch(503, { error: 'weather_unavailable' })
-    await expect(fetchBulkWeather('http://localhost:4100')).rejects.toMatchObject({
-      name: 'ApiError',
-      status: 503,
-    })
-    mockFetch(200, 'not json')
-    await expect(fetchBulkWeather('http://localhost:4100')).rejects.toBeInstanceOf(ApiError)
-    mockFetch(200, { generatedAt: BODY.generatedAt })
-    await expect(fetchBulkWeather('http://localhost:4100')).rejects.toBeInstanceOf(ApiError)
+  it('başarısız ya da bozuk yanıt null (pencere "alınamıyor" der, eldeki veri korunur)', async () => {
+    const signal = new AbortController().signal
+    vi.stubGlobal('fetch', async () => new Response('down', { status: 503 }))
+    expect(await fetchAirportWeather('http://localhost:4100', 'LTFM', signal)).toBeNull()
+    vi.stubGlobal('fetch', async () => new Response(JSON.stringify({ icao: 'LTFM' })))
+    expect(await fetchAirportWeather('http://localhost:4100', 'LTFM', signal)).toBeNull()
   })
 })

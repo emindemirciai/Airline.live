@@ -78,7 +78,7 @@ export async function fetchWeatherHistory(
 
 /**
  * Sunucu çiziminin verisi bir başarılı istek sayılır mı: güncel hava ve kayıt ayrı önbelleklerden
- * gelir (60 sn ve 5 dk), ikisi de `WEATHER_STALE_ON_MOUNT_MS`'den yeniyse evet. Yaş sunucu saatiyle
+ * gelir (60 sn ve 15 dk, D-090), ikisi de `WEATHER_STALE_ON_MOUNT_MS`'den yeniyse evet. Yaş sunucu saatiyle
  * ölçülür (`serverNow`: çizim anına bağlı duvar saati); dönen an, yenileme zamanlayıcısının
  * kullandığı `Date.now()` saatindedir. Biri eksik, bozuk ya da eskiyse null (ada hemen yeniler).
  */

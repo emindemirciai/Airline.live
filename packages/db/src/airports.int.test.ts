@@ -27,8 +27,8 @@ const airportsFixture = fileURLToPath(
 )
 
 /**
- * 1. halka açık (M6d'nin ayarı; bugünkü `@havayolu/shared` `AIRPORT_RING_CONFIG` 2. halkadır, D-088).
- * Testler 1. halkayı sabit tutar; 2. halka ayrı durumda (`enabledRing: 2`) denetlenir.
+ * 1. halka açık (M6d'nin ayarı; bugünkü `@havayolu/shared` `AIRPORT_RING_CONFIG` 3. halkadır, D-090).
+ * Testler 1. halkayı sabit tutar; 2. ve 3. halka ayrı durumlarda (`enabledRing: 2`, `3`) denetlenir.
  */
 const RINGS: AirportRingConfig = { ringsKm: [500, 1000, 2000, 5000], enabledRing: 1 }
 
@@ -342,6 +342,56 @@ describe('listListedAirports (D-080)', () => {
     expect(alexandria).toMatchObject({ icao: 'HEBA', iata: 'HBE', ring: 2 })
     expect((await findAirportDetail(database.db, 'HBE', RINGS))?.icao).toBe('HEBA')
     expect(await findAirportDetail(database.db, 'HEAX', RINGS)).toBeNull()
+  })
+
+  it('3. halka açık (M6h, D-090): 61 + 75 + 89 + 278 = 503; Viyana, UZxx kodları, ad temizliği', async () => {
+    await database.db.insert(airports).values(readFixture())
+    const list = await listListedAirports(database.db, { ...RINGS, enabledRing: 3 })
+    expect(list).toHaveLength(503)
+    expect(new Set(list.map((a) => a.icao)).size).toBe(503)
+    expect(new Set(list.map((a) => a.iata)).size).toBe(503)
+    const foreign = list.filter((a) => a.country !== 'TR')
+    expect(foreign).toHaveLength(442)
+    expect(foreign.filter((a) => a.ring === 1)).toHaveLength(75)
+    expect(foreign.filter((a) => a.ring === 2)).toHaveLength(89)
+    const ringThree = foreign.filter((a) => a.ring === 3)
+    expect(ringThree).toHaveLength(278)
+    for (const airport of ringThree) {
+      // En yakını Gachsaran 1.006 km: 1.000 km sınırında yuvarlama vakası yok.
+      expect(airport.distanceToTrKm, airport.icao).toBeGreaterThan(1000)
+      expect(airport.distanceToTrKm, airport.icao).toBeLessThanOrEqual(2000)
+    }
+    expect(list.find((a) => a.icao === 'OIAH')).toMatchObject({ ring: 3, distanceToTrKm: 1006 })
+    expect(list.find((a) => a.icao === 'ESMX')).toMatchObject({ ring: 3, distanceToTrKm: 1994 })
+    expect(list.find((a) => a.iata === 'VIE')).toMatchObject({
+      icao: 'LOWW',
+      country: 'AT',
+      ring: 3,
+      distanceToTrKm: 1149,
+    })
+    // Fixture'ın uzak örneklerinden üçü 3. halkadadır; beşi değildir.
+    for (const icao of ['EDDF', 'OMDB', 'OTHH']) {
+      expect(list.find((a) => a.icao === icao)?.ring, icao).toBe(3)
+    }
+    for (const icao of ['EGLL', 'LFPG', 'EHAM', 'LEMD', 'KJFK']) {
+      expect(
+        list.map((a) => a.icao),
+        icao,
+      ).not.toContain(icao)
+    }
+    // Özbekistan: OurAirports kimliği UTxx, ICAO'su UZxx; Kızıldeniz'in kimliği "RSI".
+    expect(list.find((a) => a.iata === 'SKD')?.icao).toBe('UZSS')
+    expect(list.map((a) => a.icao)).not.toContain('UTSS')
+    expect(list.find((a) => a.iata === 'RSI')?.icao).toBe('OERS')
+    // Küçük harfli "airport" okurken "Airport" olur (Bastia).
+    expect(list.find((a) => a.icao === 'LFKB')?.name).toBe('Bastia-Poretta International Airport')
+    // 1. ve 2. halka ve Türkiye değişmez.
+    const ringTwoList = await listListedAirports(database.db, { ...RINGS, enabledRing: 2 })
+    expect(list.filter((a) => a.ring <= 2).map((a) => a.icao)).toEqual(
+      ringTwoList.map((a) => a.icao),
+    )
+    const vienna = await findAirportDetail(database.db, 'vie', RINGS)
+    expect(vienna).toMatchObject({ icao: 'LOWW', ring: 3, nearestTr: { icao: 'LTFK' } })
   })
 
   it('uzaklık referansı küçük alanlar olmadan (M6d öncesi süzgeç) 1. halka daralır: 61 + 72', async () => {

@@ -48,20 +48,35 @@ describe('fixture', () => {
     expect(AIRPORTS.every((a) => a.runways.length > 0)).toBe(true)
   })
 
-  it('1. ve 2. halka: Türkiye dışındaki 164 havalimanı 1.000 km içinde, tarifeli ve Türkçe adlı (D-080, D-088)', () => {
+  it('1.–3. halka: Türkiye dışındaki 442 havalimanı 2.000 km içinde, tarifeli ve Türkçe adlı (D-080, D-088, D-090)', () => {
     const ring1 = FOREIGN.filter((a) => a.ring === 1)
     const ring2 = FOREIGN.filter((a) => a.ring === 2)
+    const ring3 = FOREIGN.filter((a) => a.ring === 3)
     expect(ring1).toHaveLength(75)
     expect(ring2).toHaveLength(89)
-    expect(FOREIGN).toHaveLength(ring1.length + ring2.length)
+    expect(ring3).toHaveLength(278)
+    expect(FOREIGN).toHaveLength(ring1.length + ring2.length + ring3.length)
     expect(LISTED).toHaveLength(AIRPORTS.length + FOREIGN.length)
-    expect(LISTED).toHaveLength(225)
+    expect(LISTED).toHaveLength(503)
     expect(FOREIGN.every((a) => a.scheduled)).toBe(true)
     expect(ring1.every((a) => (a.distanceToTrKm ?? Infinity) <= 500)).toBe(true)
     // Uzaklık tam km'ye yuvarlıdır, halka tam uzaklıktandır: Ben Gurion 500,44 km → 500, 2. halka.
     expect(ring2.every((a) => (a.distanceToTrKm ?? -1) >= 500)).toBe(true)
     expect(ring2.every((a) => (a.distanceToTrKm ?? Infinity) <= 1000)).toBe(true)
     expect(byIcao('LLBG')).toMatchObject({ ring: 2, distanceToTrKm: 500 })
+    // 3. halka 1.000 km'nin dışındadır (en yakını Gachsaran, 1.006 km; yuvarlama sınırı vakası yok).
+    expect(ring3.every((a) => (a.distanceToTrKm ?? -1) > 1000)).toBe(true)
+    expect(ring3.every((a) => (a.distanceToTrKm ?? Infinity) <= 2000)).toBe(true)
+    expect(byIcao('OIAH')).toMatchObject({ ring: 3, distanceToTrKm: 1006 })
+    expect(byIcao('LOWW')).toMatchObject({ ring: 3, country: 'AT' })
+    // Fixture'ın uzak örneklerinden Frankfurt, Dubai ve Doha Hamad 3. halkadadır ve listelenir.
+    for (const icao of ['EDDF', 'OMDB', 'OTHH']) expect(byIcao(icao).ring).toBe(3)
+    for (const icao of ['EGLL', 'LFPG', 'EHAM', 'LEMD', 'KJFK']) {
+      expect(
+        LISTED.some((a) => a.icao === icao),
+        icao,
+      ).toBe(false)
+    }
     expect(FOREIGN.filter((a) => foreignAirportName(a.icao) === undefined)).toEqual([])
     expect(FOREIGN.filter((a) => foreignAirportCity(a.icao) === undefined)).toEqual([])
     expect(AIRPORTS.every((a) => a.country === 'TR' && a.ring === 0)).toBe(true)
@@ -74,6 +89,13 @@ describe('fixture', () => {
     expect(byIcao('HETB').runways).toHaveLength(1)
     expect(byIcao('LRCL').runways).toHaveLength(1)
     expect(byIcao('LRBC').name).toBe('Bacău George Enescu International Airport')
+    // D-090: Voronej ve Linz'in boş satırı gizli, Stuttgart'ın tek uçlu helikopter alanları pist
+    // değildir; Fransız adlarındaki küçük harfli "airport" büyük harfle yazılır.
+    expect(byIcao('UUOO').runways).toHaveLength(1)
+    expect(byIcao('LOWL').runways).toHaveLength(2)
+    expect(byIcao('EDDS').runways).toHaveLength(1)
+    expect(byIcao('LFKB').name).toBe('Bastia-Poretta International Airport')
+    expect(LISTED.filter((a) => /\bairport\b/.test(a.name)).map((a) => a.icao)).toEqual([])
   })
 })
 
@@ -227,9 +249,9 @@ describe('yer: il ya da ülke (D-080)', () => {
     expect(airportLocation(heathrow, 'en')).toBe('London, United Kingdom')
   })
 
-  it('açık halkaların sınırı ortak yapılandırmadan gelir (2. halka 1.000 km, D-088)', () => {
+  it('açık halkaların sınırı ortak yapılandırmadan gelir (3. halka 2.000 km, D-090)', () => {
     expect(listedRadiusKm()).toBe(AIRPORT_RINGS_KM[ENABLED_AIRPORT_RING - 1])
-    expect(listedRadiusKm()).toBe(1000)
+    expect(listedRadiusKm()).toBe(2000)
   })
 })
 
@@ -318,14 +340,14 @@ describe('sortByCountry', () => {
     const rows = sortByCountry(FOREIGN, 'tr')
     const countries = rows.map((a) => airportCountry(a, 'tr'))
     expect(countries).toEqual(countries.toSorted((a, b) => collator.compare(a, b)))
-    // 2. halkadan beri ilk ülke Arnavutluk'tur (D-088; 1. halkada Azerbaycan).
-    expect(countries[0]).toBe('Arnavutluk')
+    // 3. halkadan beri ilk ülke Afganistan'dır (D-090; 2. halkada Arnavutluk, 1. halkada Azerbaycan).
+    expect(countries[0]).toBe('Afganistan')
     // Türk alfabesi: Irak I'dan, İran İ'den sonra gelir; Yunanistan en sondadır.
     expect(countries.indexOf('İran')).toBeGreaterThan(countries.lastIndexOf('Irak'))
     expect(countries.at(-1)).toBe('Yunanistan')
     const greece = rows.filter((a) => a.country === 'GR').map((a) => airportName(a, 'tr'))
     expect(greece).toEqual(greece.toSorted((a, b) => collator.compare(a, b)))
     const en = sortByCountry(FOREIGN, 'en').map((a) => airportCountry(a, 'en'))
-    expect(en[0]).toBe('Albania')
+    expect(en[0]).toBe('Afghanistan')
   })
 })

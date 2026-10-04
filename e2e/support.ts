@@ -45,21 +45,23 @@ export const AIRPORT_COUNT = 61
 export const INDEXABLE_AIRPORT_COUNT = 56
 
 /**
- * Türkiye dışındaki listelenen havalimanları (M6d, D-080; M6g, D-088): 1. ve 2. halka, yani IATA
- * kodlu en yakın Türkiye havalimanına en çok 1.000 km olan, OurAirports'ta tarifeli seferi kayıtlı
- * büyük ve orta boy havalimanları. Fixture'a 2026-10-01 indirmesinden eklenen 75 + 89 havalimanının
- * hepsi bu kuraldadır ve hepsi dizine eklenir. Fixture'daki uzak havalimanları (EGLL, KJFK …)
- * listelenmez.
+ * Türkiye dışındaki listelenen havalimanları (M6d, D-080; M6g, D-088; M6h, D-090): 1.–3. halka,
+ * yani IATA kodlu en yakın Türkiye havalimanına en çok 2.000 km olan, OurAirports'ta tarifeli seferi
+ * kayıtlı büyük ve orta boy havalimanları. Fixture'a 2026-10-01 indirmesinden eklenen 75 + 89 + 275
+ * havalimanı ve fixture'ın uzak örneklerinden 3. halkadaki Frankfurt, Dubai ve Doha Hamad bu
+ * kuraldadır ve hepsi dizine eklenir. Fixture'ın diğer uzak havalimanları (EGLL, LFPG, EHAM, LEMD,
+ * KJFK) listelenmez.
  */
 export const RING1_AIRPORT_COUNT = 75
 export const RING2_AIRPORT_COUNT = 89
-export const FOREIGN_AIRPORT_COUNT = RING1_AIRPORT_COUNT + RING2_AIRPORT_COUNT
-/** `GET /v1/airports?scope=listed`: 61 Türkiye + 164 Türkiye dışı = 225. */
+export const RING3_AIRPORT_COUNT = 278
+export const FOREIGN_AIRPORT_COUNT = RING1_AIRPORT_COUNT + RING2_AIRPORT_COUNT + RING3_AIRPORT_COUNT
+/** `GET /v1/airports?scope=listed`: 61 Türkiye + 442 Türkiye dışı = 503. */
 export const LISTED_AIRPORT_COUNT = AIRPORT_COUNT + FOREIGN_AIRPORT_COUNT
-/** Dizine eklenen havalimanı sayfaları: Türkiye'nin 56'sı ve Türkiye dışındakilerin hepsi (220). */
+/** Dizine eklenen havalimanı sayfaları: Türkiye'nin 56'sı ve Türkiye dışındakilerin hepsi (498). */
 export const INDEXABLE_LISTED_AIRPORT_COUNT = INDEXABLE_AIRPORT_COUNT + FOREIGN_AIRPORT_COUNT
 /** Halkaların üst sınırları, km (`AIRPORT_RINGS_KM`; D-080). */
-export const RING_LIMITS_KM = { 1: 500, 2: 1000 } as const
+export const RING_LIMITS_KM = { 1: 500, 2: 1000, 3: 2000 } as const
 
 /**
  * 1. halkadan örnek havalimanı: Atina (en yakın Türkiye havalimanına ~275 km). OurAirports ülkesi
@@ -96,11 +98,36 @@ export const RING2_AIRPORT = {
  * API uzaklığı tam km'ye yuvarlar (500): 2. halkada uzaklık 500'den küçük değildir, 500 olabilir.
  */
 export const RING2_BOUNDARY_AIRPORT = { icao: 'LLBG', iata: 'TLV', distanceToTrKm: 500 } as const
+/**
+ * 3. halkadan örnek havalimanı (D-090): Viyana (Türkiye'deki en yakın IATA kodlu alan listelenmeyen
+ * Gökçeada, 1.149 km). OurAirports ülkesi AT; saat dilimi Europe/Vienna (yazın UTC+2, kışın UTC+1).
+ * 3. halkada uzaklık 1.000 km'den büyüktür (en yakını Gachsaran, 1.006 km; yuvarlama sınırı yok).
+ */
+export const RING3_AIRPORT = {
+  icao: 'LOWW',
+  iata: 'VIE',
+  country: 'AT',
+  countryTr: 'Avusturya',
+  countryEn: 'Austria',
+  nameTr: 'Viyana Havalimanı',
+  nameEn: 'Vienna International Airport',
+  timeZone: 'Europe/Vienna',
+} as const
+/**
+ * Sivil uçuşlara kapalı olabilecek listelenen havalimanı (kullanıcı kararı 2026-10-04, D-090):
+ * Voronej (3. halka). Sayfası ve haritadaki penceresi notu gösterir; listede kalır, dizine eklenir.
+ */
+export const CIVIL_CLOSURE_AIRPORT = {
+  icao: 'UUOO',
+  iata: 'VOZ',
+  noteTr: 'Sivil uçuşlara kapalı olabilir (2022’den beri)',
+  noteEn: 'May be closed to civil flights (since 2022)',
+} as const
 /** Hava durumu fixture'ı elle yazılmış 1. halka havalimanları (M6d). */
 export const RING1_WEATHER_AIRPORTS = ['LGAV', 'LCLK', 'LCEN', 'UGTB', 'LBSF', 'LGTS'] as const
 /**
  * Referans fixture'ında olan ama listelenmeyen uzak havalimanı (Londra Heathrow; Türkiye'ye
- * ~2.500 km, 4. halka): sayfası 404'tür.
+ * ~2.375 km, 4. halka): sayfası 404'tür.
  */
 export const UNLISTED_FOREIGN_AIRPORT = { icao: 'EGLL', iata: 'LHR' } as const
 /** Sitemap'teki havalimanı dışı sayfalar; her birinin `/en` ikizi de vardır (D-076). */
