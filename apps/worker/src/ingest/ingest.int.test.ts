@@ -212,7 +212,8 @@ describe('ingest (gerçek PostgreSQL + redis-live)', () => {
               seen: 0.2,
               dbFlags: 0,
             },
-            // FL350, uzakta; bayrağı bilinmiyor (veritabanısız readsb).
+            // FL350, uzakta; bayrağı bilinmiyor (veritabanısız readsb). Yalnızca geometrik dikey
+            // hız gelir.
             {
               hex: 'fe0003',
               type: 'adsb_icao',
@@ -220,6 +221,7 @@ describe('ingest (gerçek PostgreSQL + redis-live)', () => {
               alt_baro: 35000,
               gs: 450,
               track: 90,
+              geom_rate: 64,
               lat: 39,
               lon: 35,
               seen_pos: 0.5,
@@ -276,6 +278,44 @@ describe('ingest (gerçek PostgreSQL + redis-live)', () => {
           const sources = await database.sql<{ source: number }[]>`
             select distinct source from track_points_sampled`
           expect(sources.map((r) => r.source)).toEqual([16])
+          // Ham seen_pos ve baro_rate iki tabloya da yazılır (D-097); görünen dikey hız
+          // barometrik yoksa geometrikten gelir, ham baro_rate boş kalır.
+          const raw = (table: 'track_points_sampled' | 'track_points_fine') =>
+            database.sql<
+              {
+                hex: string
+                seen_pos_s: number | null
+                baro_rate_fpm: number | null
+                vertical_rate_fpm: number | null
+              }[]
+            >`
+              select distinct f.hex, t.seen_pos_s, t.baro_rate_fpm, t.vertical_rate_fpm
+              from ${database.sql(table)} t join flights f on f.id = t.flight_id
+              order by f.hex`
+          const expected = [
+            {
+              hex: 'fe0001',
+              seen_pos_s: expect.closeTo(0.3, 5) as number,
+              baro_rate_fpm: -704,
+              vertical_rate_fpm: -704,
+            },
+            {
+              hex: 'fe0002',
+              seen_pos_s: expect.closeTo(0.4, 5) as number,
+              baro_rate_fpm: null,
+              vertical_rate_fpm: null,
+            },
+            {
+              hex: 'fe0003',
+              seen_pos_s: expect.closeTo(0.5, 5) as number,
+              baro_rate_fpm: null,
+              vertical_rate_fpm: 64,
+            },
+          ]
+          expect((await raw('track_points_sampled')).map((r) => ({ ...r }))).toEqual(expected)
+          expect((await raw('track_points_fine')).map((r) => ({ ...r }))).toEqual(
+            expected.slice(0, 2),
+          )
 
           await waitFor('localReceiver ok', async () => {
             const rows = await database.sql<{ status: string; circuit: string }[]>`
@@ -577,6 +617,8 @@ describe('ingest (gerçek PostgreSQL + redis-live)', () => {
         verticalRateFpm: null,
         onGround,
         source: 16,
+        seenPosS: 0.2,
+        baroRateFpm: null,
       }) satisfies TrackPointRow
     // G: park eden uçağın 20 dk bölünmesiyle açılmış kaydı (25 dk önce; satırı yalnızca ilk örnek).
     const parked = await createFlight(database.sql, {

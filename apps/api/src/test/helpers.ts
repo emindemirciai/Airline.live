@@ -212,6 +212,7 @@ export function aircraftState(overrides: Partial<AircraftState> = {}): AircraftS
     squawk: '2301',
     emergency: null,
     sampleTime: Date.UTC(2026, 8, 28, 12, 0, 0),
+    seenPosS: 0.4,
     source: 'adsbLol',
     ...overrides,
   }

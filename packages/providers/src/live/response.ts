@@ -11,6 +11,7 @@ import { positionSource, type AircraftState, type LiveSourceId } from '../aircra
  *   türediğini söylüyorsa (`type` adsb_icao iken bile, ör. GPS karıştırmada) o kaynak kullanılır.
  * - `dbFlags`: adsb.lol'de alan yoksa 0; yerel alıcıda (veritabanısız readsb) bilinmiyor = null.
  *   Alan var ama geçersizse kayıt reddedilir (gizlilik kapalı varsayımla, D-071).
+ * - `seen_pos` ham hâliyle `seenPosS`'e geçer (yoksa null; `seen` yerine konmaz, D-097).
  */
 
 const num = z.number().finite().optional().catch(undefined)
@@ -173,6 +174,7 @@ function toState(raw: RawAircraft, nowMs: number, source: LiveSourceId): Aircraf
     squawk: raw.squawk?.trim() || null,
     emergency,
     sampleTime: nowMs - Math.round(ageSec * 1000),
+    seenPosS: orNull(raw.seen_pos),
     source,
   }
 }

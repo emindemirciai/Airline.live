@@ -186,5 +186,6 @@ Tahmini varış yalnızca havadaki uçak için konumdan hesaplanır ve "tahmini"
 - **`track_points_fine`:** tam çözünürlük, 30 gün. Şunlar yazılır:
   - (a) bu istasyon için varış ya da kalkış olarak sınıflanmış, ARP'a ≤ 30 km ve AGL < 10.000 ft olan uçaklar
   - (b) takip listesindeki uçaklar (konumdan bağımsız)
+- **İz satırı:** konum, irtifa (barometrik, geometrik), yer hızı, yön, görünen dikey hız (`vertical_rate_fpm`: barometrik, yoksa geometrik), yerde bayrağı, konum kaynağı kodu ve kapsama raporu için iki ham değer (D-097): `seen_pos_s` (kaynağın bildirdiği konum yaşı, sn) ve `baro_rate_fpm` (barometrik dikey hız). Kaynak göndermediyse ikisi de null'dır; yerlerine `seen` ya da geometrik hız konmaz. v0.20.0'dan önce yazılan satırlarda null'dır.
 - **Özetler:** `flights` ve `events` en az 365 gün tutulur. İz verisi süresi dolan bir uçuş sayfası olay zaman çizelgesini göstermeye devam eder ve "iz verisi saklama süresini aştı" der.
 - İz tabloları yedeğe girmez (infra.md → Yedekleme).

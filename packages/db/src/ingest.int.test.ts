@@ -287,6 +287,8 @@ describe('insertTrackPoints', () => {
     verticalRateFpm: -704.5,
     onGround: false,
     source: 0,
+    seenPosS: 0.4,
+    baroRateFpm: -704.5,
     ...extra,
   })
 
@@ -318,8 +320,11 @@ describe('insertTrackPoints', () => {
         vertical_rate_fpm: number
         lat: number
         source: number
+        seen_pos_s: number
+        baro_rate_fpm: number
       }[]
-    >`select alt_baro_ft, alt_geom_ft, gs_kt, track_deg, vertical_rate_fpm, lat, source
+    >`select alt_baro_ft, alt_geom_ft, gs_kt, track_deg, vertical_rate_fpm, lat, source,
+        seen_pos_s, baro_rate_fpm
       from track_points_sampled_p20260120 where flight_id = 1 and ts = '2026-01-20T11:00:00Z'`
     expect(first).toEqual({
       alt_baro_ft: 3025,
@@ -329,6 +334,8 @@ describe('insertTrackPoints', () => {
       vertical_rate_fpm: -704,
       lat: 41.274874,
       source: 0,
+      seen_pos_s: expect.closeTo(0.4, 6) as number,
+      baro_rate_fpm: -704,
     })
     const [second] = await check<
       { alt_baro_ft: number | null; gs_kt: number | null; on_ground: boolean }[]
@@ -353,12 +360,16 @@ describe('insertTrackPoints', () => {
         verticalRateFpm: -3e9,
         gsKt: 1e39,
         trackDeg: 1e-50,
+        seenPosS: 1e39,
+        baroRateFpm: -3e9,
       }),
       point(8, new Date(ts.getTime() + 1000), {
         altBaroFt: -2_147_483_648,
         gsKt: Number.POSITIVE_INFINITY,
         trackDeg: -1e-50,
         verticalRateFpm: Number.NEGATIVE_INFINITY,
+        seenPosS: Number.NaN,
+        baroRateFpm: Number.POSITIVE_INFINITY,
       }),
       point(8, new Date(ts.getTime() + 2000), { altBaroFt: -2_147_483_649, gsKt: 1e-40 }),
     ]
@@ -372,8 +383,11 @@ describe('insertTrackPoints', () => {
           gs_kt: number | null
           track_deg: number | null
           vertical_rate_fpm: number | null
+          seen_pos_s: number | null
+          baro_rate_fpm: number | null
         }[]
-      >`select alt_baro_ft, alt_geom_ft, gs_kt, track_deg, vertical_rate_fpm
+      >`select alt_baro_ft, alt_geom_ft, gs_kt, track_deg, vertical_rate_fpm, seen_pos_s,
+          baro_rate_fpm
         from track_points_sampled where flight_id = 8 order by ts`
       expect(got[0]).toEqual({
         alt_baro_ft: 2_147_483_647,
@@ -381,18 +395,51 @@ describe('insertTrackPoints', () => {
         gs_kt: null,
         track_deg: 0,
         vertical_rate_fpm: null,
+        seen_pos_s: null,
+        baro_rate_fpm: null,
       })
       expect(got[1]).toMatchObject({
         alt_baro_ft: -2_147_483_648,
         gs_kt: null,
         track_deg: 0,
         vertical_rate_fpm: null,
+        seen_pos_s: null,
+        baro_rate_fpm: null,
       })
       expect(got[2]?.alt_baro_ft).toBeNull()
       // Float4'ün alt-normal aralığındaki değer yazılır (sıfır değil).
       expect(got[2]?.gs_kt).toBeGreaterThan(0)
       expect(got[2]?.gs_kt).toBeLessThan(1e-39)
     }
+  })
+
+  it('ham seen_pos ve baro_rate iki tabloya da yazılır; verilmeyen değer null okunur', async () => {
+    const ts = at('2026-01-20T11:40:00Z')
+    const rows = [
+      point(11, ts, { seenPosS: 2.75, baroRateFpm: -1216, verticalRateFpm: -1216 }),
+      // Barometrik hız yok, görünen dikey hız geometrikten gelir: ham sütun boş kalır.
+      point(11, new Date(ts.getTime() + 1000), {
+        seenPosS: null,
+        baroRateFpm: null,
+        verticalRateFpm: -640,
+      }),
+    ]
+    for (const table of ['track_points_sampled', 'track_points_fine'] as const) {
+      expect(await insertTrackPoints(sql, table, rows)).toBe(2)
+      const got = await check<
+        { seen_pos_s: number | null; baro_rate_fpm: number | null; vertical_rate_fpm: number }[]
+      >`select seen_pos_s, baro_rate_fpm, vertical_rate_fpm from ${check(table)}
+        where flight_id = 11 order by ts`
+      expect(got).toEqual([
+        { seen_pos_s: 2.75, baro_rate_fpm: -1216, vertical_rate_fpm: -1216 },
+        { seen_pos_s: null, baro_rate_fpm: null, vertical_rate_fpm: -640 },
+      ])
+    }
+    // Satırlar günün partition'ına düştü; DEFAULT boş kalır.
+    expect(await defaultPartitionRows(sql)).toEqual({
+      track_points_sampled: 0,
+      track_points_fine: 0,
+    })
   })
 
   it("1000'den fazla satırı partilere böler; tablolar birbirinden bağımsızdır", async () => {
@@ -758,6 +805,8 @@ describe('düz postgres-js istemcisi (Drizzle olmadan)', () => {
           verticalRateFpm: null,
           onGround: true,
           source: 1,
+          seenPosS: 0.1,
+          baroRateFpm: null,
         },
       ]),
     ).toBe(1)

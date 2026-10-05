@@ -190,6 +190,68 @@ describe('yanıt biçimi kuralları (data-sources.md §1)', () => {
   })
 })
 
+describe('ham seen_pos ve baro_rate (D-097)', () => {
+  it('gerçek kayıtta seen_pos ve baro_rate olduğu gibi taşınır', () => {
+    const pgt = parseLiveResponse(point, 'adsbLol').aircraft.find((a) => a.hex === '4b8750')
+    expect(pgt).toMatchObject({
+      seenPosS: base.seen_pos,
+      baroRateFpm: base.baro_rate,
+      geomRateFpm: base.geom_rate,
+    })
+  })
+
+  it('seen_pos yoksa null olur; seen yalnızca örnek zamanında kullanılır', () => {
+    const [onlySeen] = one({ seen: 3 }, ['seen_pos']).aircraft
+    expect(onlySeen).toMatchObject({ seenPosS: null, sampleTime: point.now - 3000 })
+    const [neither] = one({}, ['seen_pos', 'seen']).aircraft
+    expect(neither).toMatchObject({ seenPosS: null, sampleTime: point.now })
+    // Tip uyuşmayan değer yok sayılır.
+    expect(one({ seen_pos: '0.5', seen: 1 }).aircraft[0]).toMatchObject({
+      seenPosS: null,
+      sampleTime: point.now - 1000,
+    })
+  })
+
+  it('seen_pos kırpılmaz: negatif değer ham kalır, örnek zamanı yine geleceğe gitmez', () => {
+    expect(one({ seen_pos: -5 }).aircraft[0]).toMatchObject({
+      seenPosS: -5,
+      sampleTime: point.now,
+    })
+    expect(one({ seen_pos: 0 }).aircraft[0]?.seenPosS).toBe(0)
+    expect(one({ seen_pos: 59.9 }).aircraft[0]?.seenPosS).toBe(59.9)
+  })
+
+  it('baro_rate yoksa null olur; yerine geom_rate konmaz', () => {
+    expect(one({ geom_rate: -640 }, ['baro_rate']).aircraft[0]).toMatchObject({
+      baroRateFpm: null,
+      geomRateFpm: -640,
+    })
+    expect(one({}, ['baro_rate', 'geom_rate']).aircraft[0]).toMatchObject({
+      baroRateFpm: null,
+      geomRateFpm: null,
+    })
+    expect(one({ baro_rate: -1216 }, ['geom_rate']).aircraft[0]).toMatchObject({
+      baroRateFpm: -1216,
+      geomRateFpm: null,
+    })
+  })
+
+  it('yerel alıcı (readsb aircraft.json) da aynı alanları verir', () => {
+    const readsb = (record: Record<string, unknown>) =>
+      parseLiveResponse({ now: 1_790_498_951.5, messages: 1, aircraft: [record] }, 'localReceiver')
+        .aircraft[0]
+    expect(
+      readsb({ hex: '4b8750', lat: 41, lon: 29, seen_pos: 1.25, baro_rate: -832 }),
+    ).toMatchObject({ seenPosS: 1.25, baroRateFpm: -832, sampleTime: 1_790_498_950_250 })
+    expect(readsb({ hex: '4b8750', lat: 41, lon: 29, seen: 2, geom_rate: 64 })).toMatchObject({
+      seenPosS: null,
+      baroRateFpm: null,
+      geomRateFpm: 64,
+      sampleTime: 1_790_498_949_500,
+    })
+  })
+})
+
 describe('saat', () => {
   it('negatif seen_pos gelecekte örnek üretmez; seen_pos yoksa seen kullanılır', () => {
     expect(one({ seen_pos: -5 }).aircraft[0]?.sampleTime).toBe(point.now)

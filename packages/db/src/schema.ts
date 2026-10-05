@@ -218,10 +218,21 @@ const trackPoints = (name: string) =>
       altGeomFt: integer('alt_geom_ft'),
       gsKt: real('gs_kt'),
       trackDeg: real('track_deg'),
+      /** Görünen dikey hız: barometrik, yoksa geometrik (fpm). */
       verticalRateFpm: integer('vertical_rate_fpm'),
       onGround: boolean('on_ground').notNull().default(false),
       /** Konum kaynağı kodu (sağlayıcı ve konum türü; M3). */
       source: smallint('source').notNull(),
+      /**
+       * Kaynağın bildirdiği ham `seen_pos` (sn): örnekteki konumun yaşı. Kaynak göndermediyse
+       * null; `seen` yerine konmaz. 0006'dan önceki satırlarda null (D-097).
+       */
+      seenPosS: real('seen_pos_s'),
+      /**
+       * Kaynağın bildirdiği ham barometrik dikey hız (fpm); yoksa null, geometrik hız yerine
+       * konmaz. 0006'dan önceki satırlarda null (D-097).
+       */
+      baroRateFpm: integer('baro_rate_fpm'),
     },
     (t) => [
       primaryKey({ columns: [t.flightId, t.ts] }),

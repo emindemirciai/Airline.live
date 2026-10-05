@@ -29,6 +29,8 @@ const row = (flightId: number, offsetSec: number): TrackPointRow => ({
   verticalRateFpm: -700,
   onGround: false,
   source: 16,
+  seenPosS: 0.5,
+  baroRateFpm: -700,
 })
 
 const touch = (id: number, offsetSec: number, over: Partial<FlightTouch> = {}): FlightTouch => ({

@@ -35,6 +35,7 @@ function state(overrides: Partial<AircraftState> = {}): AircraftState {
     squawk: null,
     emergency: null,
     sampleTime: 1_000_000,
+    seenPosS: null,
     source: 'adsbLol',
     ...overrides,
   }

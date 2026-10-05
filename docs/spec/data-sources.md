@@ -91,6 +91,7 @@ Durum geçişleri `provider_health`'e yazılır.
   - adsb.lol: `sampleTime_ms = now − round(seen_pos × 1000)`.
   - readsb `aircraft.json` (yerel alıcı; `now` **saniye**, ondalıklı): `sampleTime_ms = round((now − seen_pos) × 1000)`.
   - Birim kontrolü: `now > 1e12` ise ms'dir.
+  - `seen_pos` yoksa örnek zamanı `seen`'den, o da yoksa `now`'dan hesaplanır. Ham `seen_pos` ayrıca olduğu gibi (kırpılmadan) `AircraftState.seenPosS`'e ve iz tablolarının `seen_pos_s` sütununa geçer; gelmediyse null'dır, `seen` yerine konmaz (D-097).
 - **Alan kuralları:**
   - Veri yoksa anahtar hiç gelmez; zod şemasında her alan opsiyoneldir.
   - `flight` 8 karaktere boşlukla doldurulur. Kırpılır; boş kalırsa `null` olur.
