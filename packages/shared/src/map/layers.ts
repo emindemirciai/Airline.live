@@ -3,7 +3,7 @@
  * `packages/shared` MapLibre'ye bağımlı değildir; aşağıdaki yerel tipler MapLibre stil
  * belirtiminin (style-spec) katman JSON'unun alt kümesidir, web `map.addLayer()`'a olduğu gibi
  * verir, mobil de aynı nesneleri kullanır. Katman sırası alttan üste: havalimanları, iz, uçaklar.
- * Ülke adları (country-labels.ts, D-095) bu listede değildir: web onları havalimanlarının altına
+ * Ülke adları (country-labels.ts, D-095, D-096) bu listede değildir: web onları havalimanlarının altına
  * ekler; mobil şimdilik eklemez.
  */
 import { AIRPORT_PIN_ICON_ID, AIRPORT_PIN_MARGIN } from './airport-pin'
@@ -29,6 +29,15 @@ export type StyleExpression =
 
 /** Sabit değer ya da ifade. */
 export type StyleValue<T extends StyleLiteral> = T | StyleExpression
+
+/**
+ * Boya özelliğinin geçişi, ms (style-spec `TransitionSpecification`). Stilde `transition` yoksa
+ * MapLibre `setPaintProperty` sonrasında her geçişli özelliği 300 ms'de kaydırır.
+ */
+export interface StyleTransition {
+  duration: number
+  delay: number
+}
 
 interface LayerStyleBase {
   id: string
@@ -78,8 +87,6 @@ export interface TextSymbolLayerStyle extends LayerStyleBase {
     /** Satır kırma genişliği, em (bu genişliği aşan metin boşluklardan kırılır). */
     'text-max-width'?: number
     'text-anchor'?: 'center' | 'top' | 'bottom' | 'left' | 'right'
-    /** Yazının çapadan kayması, em: [sağa, aşağı]. */
-    'text-offset'?: [number, number] | StyleExpression
     'text-justify'?: 'center' | 'left' | 'right' | 'auto'
     /** Çakışma kutusunun her yanına eklenen pay, px. */
     'text-padding'?: number
@@ -95,8 +102,10 @@ export interface TextSymbolLayerStyle extends LayerStyleBase {
     'text-halo-color'?: StyleValue<string>
     /** Halenin genişliği, px. */
     'text-halo-width'?: StyleValue<number>
+    'text-halo-width-transition'?: StyleTransition
     /** Halenin yumuşaklığı, px. */
     'text-halo-blur'?: StyleValue<number>
+    'text-halo-blur-transition'?: StyleTransition
     'text-opacity'?: StyleValue<number>
   }
 }

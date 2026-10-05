@@ -6,11 +6,8 @@ import {
   COUNTRY_LABEL_FONT,
   COUNTRY_LABEL_LETTER_SPACING,
   COUNTRY_LABEL_MAX_WIDTH_EM,
-  COUNTRY_LABEL_TIERS,
-  countryLabelMaxWidth,
-  countryLabelPoints,
-  countryLabelSizeAt,
-  type CountryLabelPoint,
+  COUNTRY_LABEL_PLACEMENTS,
+  countryLabelLines,
 } from '@havayolu/shared'
 import { describe, expect, it } from 'vitest'
 import { plainStyle, type MapStyle } from './basemap'
@@ -173,31 +170,20 @@ function lineWidth(text: string): number {
   return width - COUNTRY_LABEL_LETTER_SPACING
 }
 
-/** Satır kırma genişliğini aşan adın satırları: tek boşluktan en dengeli iki satır. */
-function lines(text: string, maxWidth: number): string[] {
-  if (lineWidth(text) <= maxWidth) return [text]
-  const words = text.split(' ')
-  let best = [text]
-  let bestWidth = lineWidth(text)
-  for (let i = 1; i < words.length; i++) {
-    const split = [words.slice(0, i).join(' '), words.slice(i).join(' ')]
-    const widest = Math.max(...split.map(lineWidth))
-    if (widest < bestWidth) {
-      best = split
-      bestWidth = widest
-    }
-  }
-  return best
-}
+/**
+ * Haritada yazılabilecek bütün adlar (yerleşim tablosundaki 59 ülke, iki dil; hiç sığmayanlar da),
+ * satırlarıyla.
+ */
+const LABELS = (['tr', 'en'] as const).flatMap((locale) =>
+  Object.values(COUNTRY_LABEL_PLACEMENTS[locale]).map((row) => ({
+    name: row.name,
+    lines: countryLabelLines(row.name, locale),
+  })),
+)
 
-const LABELS: CountryLabelPoint['properties'][] = [
-  ...countryLabelPoints('tr'),
-  ...countryLabelPoints('en'),
-].map((point) => point.properties)
-
-describe('ülke adlarının yazı tipi kapsamı ve genişliği (D-095)', () => {
+describe('ülke adlarının yazı tipi kapsamı ve genişliği (D-095, D-096)', () => {
   it('her adın her harfi iki dosyadan birinin aralığında ve yazı tipinde var', () => {
-    const chars = new Set(LABELS.flatMap((label) => [...label.name]))
+    const chars = new Set(LABELS.flatMap((label) => [...label.lines.join('')]))
     expect(chars.size).toBeGreaterThan(26)
     for (const char of chars) expect(() => advance(char), char).not.toThrow()
     // Türkçe büyük harfler latin-ext'ten gelir.
@@ -211,29 +197,15 @@ describe('ülke adlarının yazı tipi kapsamı ve genişliği (D-095)', () => {
     }
   })
 
-  it('geniş haritada hiçbir ad kırılmaz: en uzunu (BİRLEŞİK ARAP EMİRLİKLERİ) 24 em’in altında', () => {
-    const widths = LABELS.map((label) => [label.name, lineWidth(label.name)] as const)
+  it('MapLibre ad satırlarına kendi kırmasını eklemez: her adın toplam genişliği 24 em’in altında', () => {
+    expect(LABELS).toHaveLength(118)
+    const widths = LABELS.map((label) => [label.name, lineWidth(label.lines.join(' '))] as const)
     for (const [name, width] of widths) expect(width, name).toBeLessThan(COUNTRY_LABEL_MAX_WIDTH_EM)
     const widest = widths.toSorted((a, b) => b[1] - a[1])[0]
     expect(widest?.[0]).toBe('BİRLEŞİK ARAP EMİRLİKLERİ')
     expect(widest?.[1]).toBeCloseTo(21.42, 1)
+    // tools/src/country-labels/label-model.test.ts aynı genişlikleri kendi tablosundan hesaplar.
     expect(lineWidth('TÜRKİYE')).toBeCloseTo(6.17, 1)
     expect(lineWidth('SUUDİ ARABİSTAN')).toBeCloseTo(13.42, 1)
-  })
-
-  it('dar haritada (375 px) kademe 1–2 adlarının en geniş satırı z5’te haritanın %70’ini aşmaz', () => {
-    const limit = 0.7 * 375
-    const wrapped: string[] = []
-    for (const label of LABELS) {
-      if (label.tier === 3) continue
-      const size = countryLabelSizeAt(label.tier, true, 5)
-      const broken = lines(label.name, countryLabelMaxWidth(label.tier, true))
-      expect(broken.length, label.name).toBeLessThanOrEqual(2)
-      if (broken.length === 2) wrapped.push(broken.join(' / '))
-      const widest = Math.max(...broken.map(lineWidth)) * size
-      expect(widest, label.name).toBeLessThanOrEqual(limit)
-    }
-    expect(wrapped.toSorted()).toEqual(['SAUDI / ARABIA', 'SUUDİ / ARABİSTAN'])
-    expect(COUNTRY_LABEL_TIERS).toEqual([3, 2, 1])
   })
 })

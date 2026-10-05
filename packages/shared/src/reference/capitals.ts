@@ -1,23 +1,17 @@
 import type { LocalizedText } from '../locale'
 
 /**
- * Haritada ülke adının yazıldığı başkentler (D-095). Genel coğrafi bilgidir; bir veri sağlayıcısı
- * (`packages/providers`) değildir: hiçbir şey indirilmez, `DATA_USAGE_MODE` kapısı yoktur.
+ * Ülkelerin başkentleri (D-095): haritada ülke adı, sığıyorsa başkentinde ortalı yazılır; sığmıyorsa
+ * ülkenin içinde başkente en yakın uygun noktada (D-096, `COUNTRY_LABEL_PLACEMENTS`). Genel
+ * coğrafi bilgidir; bir veri sağlayıcısı (`packages/providers`) değildir: hiçbir şey indirilmez,
+ * `DATA_USAGE_MODE` kapısı yoktur.
  *
  * - `code`: ISO 3166-1 alpha-2 (Kosova XK). Ad `countryLabelText` ile `Intl`'den gelir.
  * - `capital`: başkentin Türkçe ve İngilizce adı; yalnızca okuyan için, haritada yazılmaz.
  * - `lat`, `lon`: şehir merkezi, 0,01 dereceye yuvarlanmış.
  * - `areaKm2`: iç sular dahil toplam yüzölçümü, 100 km²'ye yuvarlanmış. Fransa, Danimarka ve
  *   Hollanda yalnızca Avrupa'daki toprağıyla; Sırbistan Kosova'sız; Kıbrıs adanın tamamıyla. Ad
- *   boyunu (kademe) ve yerleşim önceliğini belirler.
- * - `labelOffsetEm`: isteğe bağlı; adın başkentten kayması, em, [sağa, aşağı] (yazı boyuyla
- *   ölçeklenir). Kural "ad başkentte ortalı"dır; istisna yalnızca adın başka türlü hiç yer
- *   bulamadığı ülkeye verilir (D-095). Bugün tek istisna Slovakya'dır: Bratislava Viyana'nın
- *   ~55 km doğusunda ve yalnızca 0,06° güneyindedir; daha büyük olan Avusturya önce yerleştiğinden
- *   SLOVAKYA, adlar silinmeye başlayana (z7) kadar hiçbir yakınlaştırmada tam görünmüyordu. Ad
- *   2,5 em yukarıda, Bratislava'nın kuzeyinde (Slovakya'nın içinde) AVUSTURYA'nın çakışma
- *   kutusunun üstünde kalır. Yerleşim modeli testi (country-label-placement.test.ts) her başkentin
- *   adının silinmeden önce yerleştiğini ve istisnanın hâlâ gerektiğini denetler.
+ *   boyunu (kademe) ve katmanlardaki sırayı belirler.
  *
  * Kapsam: listelenen havalimanı olan her ülke (Türkiye ve açık halkalar, `ENABLED_AIRPORT_RING`),
  * İsrail hariç; artı "boşluk" ülkesi Ukrayna (`HOLE_COUNTRIES`). Yeni halka açılınca kapsam testi
@@ -29,7 +23,6 @@ export interface CountryCapital {
   lat: number
   lon: number
   areaKm2: number
-  labelOffsetEm?: readonly [x: number, y: number]
 }
 
 function row(
@@ -39,17 +32,11 @@ function row(
   lat: number,
   lon: number,
   areaKm2: number,
-  labelOffsetEm?: readonly [x: number, y: number],
 ): CountryCapital {
-  const capital: CountryCapital = { code, capital: { tr, en }, lat, lon, areaKm2 }
-  if (labelOffsetEm) capital.labelOffsetEm = labelOffsetEm
-  return capital
+  return { code, capital: { tr, en }, lat, lon, areaKm2 }
 }
 
-/**
- * Başkentler, koda göre sıralı: kod, başkentin Türkçe ve İngilizce adı, enlem, boylam, km², varsa
- * adın kayması (em).
- */
+/** Başkentler, koda göre sıralı: kod, başkentin Türkçe ve İngilizce adı, enlem, boylam, km². */
 export const COUNTRY_CAPITALS: readonly CountryCapital[] = [
   row('AE', 'Abu Dabi', 'Abu Dhabi', 24.45, 54.38, 83_600),
   row('AF', 'Kabil', 'Kabul', 34.53, 69.18, 652_200),
@@ -102,7 +89,7 @@ export const COUNTRY_CAPITALS: readonly CountryCapital[] = [
   row('SD', 'Hartum', 'Khartoum', 15.5, 32.56, 1_861_500),
   row('SE', 'Stockholm', 'Stockholm', 59.33, 18.07, 450_300),
   row('SI', 'Ljubljana', 'Ljubljana', 46.06, 14.51, 20_300),
-  row('SK', 'Bratislava', 'Bratislava', 48.15, 17.11, 49_000, [0, -2.5]),
+  row('SK', 'Bratislava', 'Bratislava', 48.15, 17.11, 49_000),
   row('SY', 'Şam', 'Damascus', 33.51, 36.29, 185_200),
   row('TM', 'Aşkabat', 'Ashgabat', 37.96, 58.36, 491_200),
   row('TN', 'Tunus', 'Tunis', 36.81, 10.18, 163_600),

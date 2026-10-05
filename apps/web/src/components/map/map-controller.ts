@@ -11,8 +11,8 @@
  * Harita koddaki düz arka plan stiliyle açılır; kendi katmanlarımız hemen eklenir ve uçaklar altlık
  * zinciri (basemap.ts) yüklenirken, yeniden denenirken ya da hiç yüklenemezken de çizilir.
  *
- * Ülke adları (D-095) havalimanı pinlerinin altındaki GL katmanlarıdır (country-labels.ts); yazı
- * tipleri haritaya verilen her stile `font-faces` olarak eklenir (map-fonts.ts).
+ * Ülke adları (D-095, D-096) havalimanı pinlerinin altındaki GL katmanlarıdır (country-labels.ts);
+ * yazı tipleri haritaya verilen her stile `font-faces` olarak eklenir (map-fonts.ts).
  *
  * Çizim döngüsü tek bir `requestAnimationFrame` döngüsüdür; en fazla ~66 ms'de bir (≈15 kare/sn)
  * gösterim konumlarını hesaplar. Uçak ve iz kaynaklarına `setData` yalnızca bir şey değişince
@@ -278,8 +278,9 @@ export function sameViewState(a: MapViewState, b: MapViewState): boolean {
 }
 
 /**
- * Kendi katmanlarımız alttan üste: ülke adları (kademe 3, 2, 1; D-095), sonra havalimanı pinleri,
- * iz ve uçaklar. Adlar pinlerin altında kalır; pin, iz ve uçak hep çizilir ve yerleşime katılmaz.
+ * Kendi katmanlarımız alttan üste: ülke adları (40 katman: kademe 3, 2, 1 ve ilk sığma
+ * yakınlaştırması; D-095, D-096), sonra havalimanı pinleri, iz ve uçaklar. Adlar pinlerin altında
+ * kalır; pin, iz ve uçak hep çizilir ve yerleşime katılmaz.
  */
 export function overlayLayers(options: CountryLabelLayerOptions): MapLayerStyle[] {
   return [...countryLabelLayers(options), ...LIVE_MAP_LAYERS]
@@ -878,7 +879,7 @@ export class MapController {
   private resizeLabels(): void {
     const { container } = this.options
     this.painter.resize(container.clientWidth, container.clientHeight, window.devicePixelRatio)
-    // Dar harita sınırı (767 px) geçilince ülke adlarının boyu ve satır kırması değişir.
+    // Dar harita sınırı (767 px) geçilince ülke adlarının boyu, yeri ve ilk yakınlaştırması değişir.
     const compact = isCompactMap(container.clientWidth)
     if (compact !== this.countryLabels.current.compact) {
       this.countryLabels.update({ ...this.countryLabels.current, compact })

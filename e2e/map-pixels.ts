@@ -1,5 +1,6 @@
-// Haritanın WebGL tuvalinden piksel okuma (D-095): pin ucundaki kesitte ülke adının çizildiğini ve
-// pinin kırmızısının ad açıkken de görünür kaldığını doğrulamak için. Çizim sırasını (ad pinin
+// Haritanın WebGL tuvalinden piksel okuma (D-095, D-096): pin ucundaki kesitte ülke adının
+// çizildiğini, pinin kırmızısının ad açıkken de görünür kaldığını ve adın çizilen piksellerinin
+// modelin öngördüğü kutunun içinde kaldığını doğrulamak için. Çizim sırasını (ad pinin
 // altında mı) bu kesit ayırt etmez; sıra birim testindedir (live-map.spec.ts'teki açıklama). Tuval
 // `preserveDrawingBuffer` olmadan çizildiğinden pikseller sayfanın ekran görüntüsünden okunur; PNG
 // sayfanın içinde çözülür (ek bağımlılık yok).
@@ -51,5 +52,67 @@ export async function pinPixels(page: Page, tip: { x: number; y: number }): Prom
       return { red: count, other: other.join(',') }
     },
     { data: png.toString('base64'), red: PIN_RED, tolerance: PIN_RED_TOLERANCE },
+  )
+}
+
+/** Kesitin (sayfa koordinatı, CSS px) ekran görüntüsü, PNG base64. */
+export async function clipImage(
+  page: Page,
+  clip: { x: number; y: number; width: number; height: number },
+): Promise<string> {
+  const png = await page.screenshot({ clip, animations: 'disabled', caret: 'hide' })
+  return png.toString('base64')
+}
+
+/** İki kesit görüntüsünde farklı piksellerin sınırları (kesite göre, dahil) ve sayısı. */
+export interface ChangedPixels {
+  count: number
+  minX: number
+  minY: number
+  maxX: number
+  maxY: number
+}
+
+/**
+ * Aynı kesitin iki görüntüsünü karşılaştırır: bir kanalı `threshold`'dan çok değişen pikseller
+ * (ör. ülke adı açıkken ve kapalıyken). Fark yoksa `count` 0'dır.
+ */
+export async function changedPixels(
+  page: Page,
+  before: string,
+  after: string,
+  threshold = 8,
+): Promise<ChangedPixels> {
+  return page.evaluate(
+    async ({ images, threshold }) => {
+      const decode = async (data: string) => {
+        const bytes = Uint8Array.from(atob(data), (char) => char.charCodeAt(0))
+        const bitmap = await createImageBitmap(new Blob([bytes], { type: 'image/png' }))
+        const canvas = new OffscreenCanvas(bitmap.width, bitmap.height)
+        const ctx = canvas.getContext('2d')
+        if (!ctx) throw new Error('2d context')
+        ctx.drawImage(bitmap, 0, 0)
+        return ctx.getImageData(0, 0, bitmap.width, bitmap.height)
+      }
+      const [a, b] = await Promise.all(images.map(decode))
+      if (!a || !b) throw new Error('decode')
+      const result = { count: 0, minX: Infinity, minY: Infinity, maxX: -Infinity, maxY: -Infinity }
+      for (let y = 0; y < a.height; y++) {
+        for (let x = 0; x < a.width; x++) {
+          const i = (y * a.width + x) * 4
+          let delta = 0
+          for (let c = 0; c < 3; c++)
+            delta = Math.max(delta, Math.abs((a.data[i + c] ?? 0) - (b.data[i + c] ?? 0)))
+          if (delta <= threshold) continue
+          result.count++
+          result.minX = Math.min(result.minX, x)
+          result.minY = Math.min(result.minY, y)
+          result.maxX = Math.max(result.maxX, x)
+          result.maxY = Math.max(result.maxY, y)
+        }
+      }
+      return result
+    },
+    { images: [before, after], threshold },
   )
 }

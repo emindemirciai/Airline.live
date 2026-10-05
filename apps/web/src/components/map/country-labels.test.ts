@@ -1,6 +1,10 @@
 import {
   COUNTRY_LABEL_LAYER_IDS,
+  COUNTRY_LABEL_LAYER_KEYS,
+  COUNTRY_LABEL_PLACEMENTS,
   COUNTRY_LABEL_SOURCE_ID,
+  countryLabelHaloCurve,
+  countryLabelLayerId,
   countryLabelTextSize,
 } from '@havayolu/shared'
 import { describe, expect, it } from 'vitest'
@@ -17,17 +21,39 @@ import {
 } from './country-labels'
 
 describe('countryLabelCollection', () => {
-  it('59 Point; koordinat [boylam, enlem]; özellikler kod, ad, kademe, sıra', () => {
-    const collection = countryLabelCollection('tr')
+  it('56 Point; koordinat [boylam, enlem]; özellikler tablodan, dile ve harita genişliğine göre', () => {
+    const collection = countryLabelCollection('tr', false)
     expect(collection.type).toBe('FeatureCollection')
-    expect(collection.features).toHaveLength(59)
+    expect(collection.features).toHaveLength(56)
+    const turkey = COUNTRY_LABEL_PLACEMENTS.tr.TR?.regular
+    if (!turkey) throw new Error('TR')
     expect(collection.features[0]).toEqual({
       type: 'Feature',
-      geometry: { type: 'Point', coordinates: [32.86, 39.93] },
-      properties: { code: 'TR', name: 'TÜRKİYE', tier: 1, rank: 0 },
+      geometry: { type: 'Point', coordinates: [turkey[0], turkey[1]] },
+      properties: {
+        code: 'TR',
+        name: 'TÜRKİYE',
+        label: 'TÜRKİYE',
+        tier: 1,
+        fitZoom: turkey[2],
+        rank: 0,
+      },
     })
-    const en = countryLabelCollection('en')
+    const en = countryLabelCollection('en', false)
     expect(en.features.find((f) => f.properties.code === 'CY')?.properties.name).toBe('CYPRUS')
+    const compact = countryLabelCollection('tr', true)
+    expect(compact.features[0]?.properties.fitZoom).toBe(
+      COUNTRY_LABEL_PLACEMENTS.tr.TR?.compact?.[2],
+    )
+    expect(compact.features.find((f) => f.properties.code === 'SA')?.properties.label).toBe(
+      'SUUDİ\nARABİSTAN',
+    )
+    for (const code of ['BH', 'LU', 'MT']) {
+      expect(
+        collection.features.some((f) => f.properties.code === code),
+        code,
+      ).toBe(false)
+    }
     expect(JSON.parse(JSON.stringify(collection))).toEqual(collection)
   })
 })
@@ -89,6 +115,8 @@ function harness(state: Partial<CountryLabelState> = {}): Harness {
           }
         : undefined,
     setLayoutProperty: (id, name, value) => calls.push(`${id} ${name} ${JSON.stringify(value)}`),
+    setPaintProperty: (id, name, value) =>
+      calls.push(`${id} paint ${name} ${JSON.stringify(value)}`),
     queryRenderedFeatures: (options) => {
       calls.push(`query ${options.layers.join(',')}`)
       return rendered
@@ -193,7 +221,7 @@ describe('CountryLabelOverlay (D-095)', () => {
     expect(h.calls).toEqual([`query ${COUNTRY_LABEL_LAYER_IDS.join(',')}`])
   })
 
-  it('Gizle: üç katman visibility none; nitelik sorgusuz boş; Göster geri getirir', () => {
+  it('Gizle: 40 katman visibility none; nitelik sorgusuz boş; Göster geri getirir', () => {
     const h = harness()
     h.rendered.push({ properties: { code: 'IR', name: 'İRAN' } })
     install(h)
@@ -214,22 +242,34 @@ describe('CountryLabelOverlay (D-095)', () => {
     expect(h.attribute()).toBe('İRAN')
   })
 
-  it('dar harita: üç katmanın yazı boyu ve satır kırması değişir; dil değişince kaynak yenilenir', () => {
+  it('dar harita: önce 40 katmanın boyu ve halesi küçülür, sonra kaynak; geri dönerken önce kaynak', () => {
     const h = harness()
     install(h)
     h.calls.length = 0
     h.overlay.update({ mode: 'shown', locale: 'tr', compact: true })
-    expect(h.calls).toEqual([
-      `hy-country-labels-3 text-size ${JSON.stringify(countryLabelTextSize(3, true))}`,
-      'hy-country-labels-3 text-max-width 24',
-      `hy-country-labels-2 text-size ${JSON.stringify(countryLabelTextSize(2, true))}`,
-      'hy-country-labels-2 text-max-width 10',
-      `hy-country-labels-1 text-size ${JSON.stringify(countryLabelTextSize(1, true))}`,
-      'hy-country-labels-1 text-max-width 10',
-    ])
+    const sizes = (compact: boolean) =>
+      COUNTRY_LABEL_LAYER_KEYS.flatMap(([tier, fitZoom]) => {
+        const id = countryLabelLayerId(tier, fitZoom)
+        return [
+          `${id} text-size ${JSON.stringify(countryLabelTextSize(tier, compact))}`,
+          `${id} paint text-halo-width ${JSON.stringify(countryLabelHaloCurve(tier, compact, 'width'))}`,
+          `${id} paint text-halo-blur ${JSON.stringify(countryLabelHaloCurve(tier, compact, 'blur'))}`,
+        ]
+      })
+    expect(h.calls).toEqual([...sizes(true), 'setData 56'])
+    expect(h.calls.filter((c) => c.includes('text-max-width'))).toEqual([])
     h.calls.length = 0
-    h.overlay.update({ mode: 'shown', locale: 'en', compact: true })
-    expect(h.calls[0]).toBe('setData 59')
+    h.overlay.update({ mode: 'shown', locale: 'tr', compact: false })
+    expect(h.calls).toEqual(['setData 56', ...sizes(false)])
+  })
+
+  it('dil değişince yalnızca kaynak yenilenir (boy değişmez)', () => {
+    const h = harness()
+    install(h)
+    h.calls.length = 0
+    h.overlay.update({ mode: 'shown', locale: 'en', compact: false })
+    expect(h.calls[0]).toBe('setData 56')
+    expect(h.calls.filter((c) => c.includes('text-size') || c.includes('paint'))).toEqual([])
   })
 
   it('destroy bekleyen zamanlayıcıyı iptal eder', () => {

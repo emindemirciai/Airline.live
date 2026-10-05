@@ -1,7 +1,12 @@
 /**
- * Haritada ülke adları (D-095), web tarafı: GeoJSON kaynağı, ayarın ("Ülke adları" Gizle / Göster)
- * ve pencere boyunun katmanlara uygulanması ve testlerin okuduğu `data-country-labels` niteliği.
- * Katmanların kendisi `@havayolu/shared`'dadır (`countryLabelLayers`).
+ * Haritada ülke adları (D-095, D-096), web tarafı: GeoJSON kaynağı, ayarın ("Ülke adları" Gizle /
+ * Göster) ve pencere boyunun katmanlara uygulanması ve testlerin okuduğu `data-country-labels`
+ * niteliği. Katmanların kendisi `@havayolu/shared`'dadır (`countryLabelLayers`, 40 katman).
+ *
+ * Kaynak dile ve harita genişliğine bağlıdır: her adın yeri ve ilk sığma yakınlaştırması iki dilde ve
+ * iki genişlikte ayrı hesaplanmıştır (`COUNTRY_LABEL_PLACEMENTS`). Dil değişince kaynak, dar harita
+ * sınırı geçilince kaynak ve kademelerin boy ve hale eğrileri yenilenir. Yakınlaştırırken hiçbir
+ * şey yapılmaz: adın görünmesini katmanın `minzoom`'u yönetir.
  *
  * Harita çağrıları yalnızca katmanlar haritadayken yapılır (`CountryLabelOverlay.usable`): stil
  * değişirken (altlık zinciri) katmanlar silinir; o arada `setLayoutProperty` MapLibre'de hata
@@ -12,10 +17,10 @@
 import {
   COUNTRY_LABEL_COMPACT_MAX_WIDTH_PX,
   COUNTRY_LABEL_LAYER_IDS,
+  COUNTRY_LABEL_LAYER_KEYS,
   COUNTRY_LABEL_SOURCE_ID,
-  COUNTRY_LABEL_TIERS,
+  countryLabelHaloCurve,
   countryLabelLayerId,
-  countryLabelMaxWidth,
   countryLabelPoints,
   countryLabelTextSize,
   type CountryLabelFeatureProperties,
@@ -26,11 +31,11 @@ import type { FeatureCollection, PointFeature } from './motion'
 
 export type CountryLabelCollection = FeatureCollection<PointFeature<CountryLabelFeatureProperties>>
 
-/** Ülke adı noktaları, sayfanın dilinde (kaynak verisi). */
-export function countryLabelCollection(locale: Locale): CountryLabelCollection {
+/** Ülke adı noktaları, sayfanın dilinde ve haritanın genişliğine göre (kaynak verisi). */
+export function countryLabelCollection(locale: Locale, compact: boolean): CountryLabelCollection {
   return {
     type: 'FeatureCollection',
-    features: countryLabelPoints(locale).map(({ lat, lon, properties }) => ({
+    features: countryLabelPoints(locale, compact).map(({ lat, lon, properties }) => ({
       type: 'Feature',
       geometry: { type: 'Point', coordinates: [lon, lat] },
       properties,
@@ -43,15 +48,15 @@ export function countryLabelVisibility(mode: CountryLabelMode): 'visible' | 'non
   return mode === 'shown' ? 'visible' : 'none'
 }
 
-/** Dar harita mı (≤ 767 px, sitenin alttan açılan kart kırılımı): küçük boy, satır kırma. */
+/** Dar harita mı (≤ 767 px, sitenin alttan açılan kart kırılımı): küçük boy, kendi yerleri. */
 export function isCompactMap(width: number): boolean {
   return width <= COUNTRY_LABEL_COMPACT_MAX_WIDTH_PX
 }
 
 /**
  * MapLibre'nin yerleştirdiği adlar (`queryRenderedFeatures`), koda göre sıralı ve tekil, `|` ile
- * birleşik. Yerleşmiş ad görünür olmayabilir: saydamlığı 0,1'in altındaki ad (z7,9 gibi) çizilmez
- * ama yerleşmiş sayılır.
+ * birleşik. Yerleşmiş ad görünür olmayabilir: saydamlığı 0,1'in altındaki ad (tam ilk sığma
+ * yakınlaştırmasında ya da z7,9'da) çizilmez ama yerleşmiş sayılır.
  */
 export function renderedCountryLabelNames(
   features: readonly { properties?: Record<string, unknown> | null }[],
@@ -75,6 +80,7 @@ export interface CountryLabelMap {
   getLayer(id: string): unknown
   getSource(id: string): unknown
   setLayoutProperty(layerId: string, name: string, value: unknown): unknown
+  setPaintProperty(layerId: string, name: string, value: unknown): unknown
   queryRenderedFeatures(options: {
     layers: string[]
   }): readonly { properties?: Record<string, unknown> | null }[]
@@ -150,9 +156,9 @@ export class CountryLabelOverlay {
     return this.state
   }
 
-  /** Kaynak verisi, güncel dilde. */
+  /** Kaynak verisi, güncel dilde ve genişlikte. */
   sourceData(): CountryLabelCollection {
-    return countryLabelCollection(this.state.locale)
+    return countryLabelCollection(this.state.locale, this.state.compact)
   }
 
   /** Katmanlar haritaya eklendi (her stil yüklenişinde). */
@@ -166,7 +172,7 @@ export class CountryLabelOverlay {
     this.ready = false
   }
 
-  /** Katmanlar haritada mı: hazır ve üç katman da var (çağrı anında denetlenir). */
+  /** Katmanlar haritada mı: hazır ve 40 katmanın hepsi var (çağrı anında denetlenir). */
   usable(): boolean {
     const map = this.map
     return (
@@ -174,7 +180,12 @@ export class CountryLabelOverlay {
     )
   }
 
-  /** Ayar, dil ya da pencere boyu değişti: katmanlar kullanılabiliyorsa hemen uygulanır. */
+  /**
+   * Ayar, dil ya da pencere boyu değişti: katmanlar kullanılabiliyorsa hemen uygulanır. Dar haritaya
+   * geçerken önce boy küçülür, sonra kaynak (dar haritanın yerleri) gelir; geniş haritaya geçerken
+   * önce kaynak (geniş haritanın daha geç ilk yakınlaştırmaları), sonra boy büyür. Arada ad hiçbir
+   * zaman sığdığından büyük çizilmez.
+   */
   update(next: CountryLabelState): void {
     const previous = this.state
     this.state = { ...next }
@@ -184,18 +195,25 @@ export class CountryLabelOverlay {
       const visibility = countryLabelVisibility(next.mode)
       for (const id of COUNTRY_LABEL_LAYER_IDS) map.setLayoutProperty(id, 'visibility', visibility)
     }
-    if (previous.compact !== next.compact) {
-      for (const tier of COUNTRY_LABEL_TIERS) {
-        const id = countryLabelLayerId(tier)
-        map.setLayoutProperty(id, 'text-size', countryLabelTextSize(tier, next.compact))
-        map.setLayoutProperty(id, 'text-max-width', countryLabelMaxWidth(tier, next.compact))
-      }
-    }
-    if (previous.locale !== next.locale) {
+    const sizeChanged = previous.compact !== next.compact
+    const dataChanged = sizeChanged || previous.locale !== next.locale
+    if (sizeChanged && next.compact) this.applySizes(map, true)
+    if (dataChanged) {
       const source = map.getSource(COUNTRY_LABEL_SOURCE_ID)
-      if (hasSetData(source)) source.setData(countryLabelCollection(next.locale))
+      if (hasSetData(source)) source.setData(this.sourceData())
     }
-    if (previous.mode !== next.mode || previous.locale !== next.locale) this.schedule()
+    if (sizeChanged && !next.compact) this.applySizes(map, false)
+    if (previous.mode !== next.mode || dataChanged) this.schedule()
+  }
+
+  /** Kademelerin boy ve hale eğrileri, her katmanda. */
+  private applySizes(map: CountryLabelMap, compact: boolean): void {
+    for (const [tier, fitZoom] of COUNTRY_LABEL_LAYER_KEYS) {
+      const id = countryLabelLayerId(tier, fitZoom)
+      map.setLayoutProperty(id, 'text-size', countryLabelTextSize(tier, compact))
+      map.setPaintProperty(id, 'text-halo-width', countryLabelHaloCurve(tier, compact, 'width'))
+      map.setPaintProperty(id, 'text-halo-blur', countryLabelHaloCurve(tier, compact, 'blur'))
+    }
   }
 
   /** Haritanın `render` olayı: nitelik en fazla 500 ms'de bir yenilenir. */

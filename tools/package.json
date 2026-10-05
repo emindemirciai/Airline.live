@@ -19,9 +19,12 @@
   },
   "devDependencies": {
     "@havayolu/providers": "workspace:*",
+    "@havayolu/shared": "workspace:*",
     "@types/node": "24.x",
+    "topojson-client": "3.1.0",
     "tsx": "4.23.15",
     "typescript": "6.0.3",
-    "vitest": "5.0.1"
+    "vitest": "5.0.1",
+    "world-atlas": "2.0.2"
   }
 }

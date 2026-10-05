@@ -36,6 +36,20 @@ pnpm --filter @havayolu/tools replay -- --scenario cruise --count 12
   - **Tek kare** (ör. `tools/fixtures/adsblol/point-ltfm-40nm.json`) ya da hepsi aynı anlı kareler döngüye alınmaz. Kare donmuş bir alıcı gibi sunulur: uçaklar yerinde durur ve 60 sn içinde bayatlar, sonra ayrıştırıcı onları reddeder. Ayrıştırıcıyı ve alıcı bağlantısını denemek için yeterlidir; hareket için senaryo ya da çok kareli kayıt kullanılır.
 - **dbFlags:** adsb.lol karesinde eksik `dbFlags` 0 yazılır, çünkü orada yokluk 0 demektir. readsb karesinde eksik bırakılır; yerel alıcıda bu "bilinmiyor" demektir ve uçak gizli sayılır (D-071).
 
+## Ülke adlarının sınır içi yerleşimi (`src/country-labels`, D-096)
+Haritadaki her ülke adının görünür kutusunun ülkenin kara poligonunun içinde kaldığı yeri ve ilk yakınlaştırmayı çevrimdışı hesaplar. İkisi de ağa çıkmaz:
+
+```bash
+# Kökte: node_modules/world-atlas'tan sadeleşmiş poligonlar → tools/fixtures/naturalearth/countries.json
+pnpm country-labels:fixture
+# Kökte: fixture'dan yerleşim tablosu → packages/shared/src/map/country-label-placements.ts
+pnpm country-labels
+```
+
+- **Dosyalar:** `geometry.ts` (Web Mercator, Douglas–Peucker, 180. meridyende sürekli kılma, kırpma, "dikdörtgen çokgenin içinde mi"), `natural-earth.ts` (Natural Earth birimleri, fixture), `label-model.ts` (MapLibre 6.11.2'nin yazıyı çizdiği kutunun modeli, güvenlik payı), `placement.ts` (çapa kuralı, tablo), `cli.ts`.
+- **Adlar** üreticinin çalıştığı Node'un CLDR'ından gelir ve tabloya yazılır; harita bu adı çizer. Node güncellemesi bir adı değiştirirse shared testi kırılır, `pnpm country-labels` yeniden çalıştırılır.
+- **Testler** commit'li tabloyu fixture'dan yeniden hesaplar (sürüklenme), her adın kutusunun ilk yakınlaştırmasından z8'e kadar ülkesinin içinde kaldığını, adların örtüşmediğini, fixture'ın world-atlas'tan yeniden üretilebildiğini ve model değerlerinin yazı tipi dosyalarıyla aynı olduğunu denetler. e2e beklentileri (`e2e/country-label-expectations.ts`) de burada tablodan doğrulanır.
+
 ## Testler
 
 ```bash

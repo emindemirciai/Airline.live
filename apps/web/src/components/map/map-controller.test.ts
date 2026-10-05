@@ -140,23 +140,21 @@ describe('sameViewState (D-084)', () => {
   })
 })
 
-describe('kendi katmanlarımızın sırası (D-095)', () => {
-  it('ülke adları (kademe 3, 2, 1) havalimanı pinlerinin altında; sonra canlı katmanlar', () => {
+describe('kendi katmanlarımızın sırası (D-095, D-096)', () => {
+  it('ülke adları (40 katman: kademe 3, 2, 1) havalimanı pinlerinin altında; sonra canlı katmanlar', () => {
     for (const compact of [false, true]) {
       const ids = overlayLayers({ compact }).map((layer) => layer.id)
       expect(ids).toEqual([...COUNTRY_LABEL_LAYER_IDS, ...LIVE_MAP_LAYERS.map((layer) => layer.id)])
-      expect(ids.indexOf('hy-country-labels-1')).toBeLessThan(ids.indexOf(AIRPORT_LAYER_ID))
+      expect(ids).toHaveLength(40 + LIVE_MAP_LAYERS.length)
+      const lastName = COUNTRY_LABEL_LAYER_IDS.at(-1) ?? ''
+      expect(ids.indexOf(lastName)).toBeLessThan(ids.indexOf(AIRPORT_LAYER_ID))
     }
     const hidden = overlayLayers({ compact: false, visible: false })
     const visibility = (layer: object) =>
       (layer as { layout?: { visibility?: string } }).layout?.visibility
     expect(hidden.map(visibility)).toEqual([
-      'none',
-      'none',
-      'none',
-      undefined,
-      undefined,
-      undefined,
+      ...COUNTRY_LABEL_LAYER_IDS.map(() => 'none'),
+      ...LIVE_MAP_LAYERS.map(() => undefined),
     ])
   })
 })

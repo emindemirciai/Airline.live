@@ -36,7 +36,9 @@
     "db:migrate": "pnpm --filter @havayolu/db db:migrate",
     "db:check": "tsx scripts/check-migrations.mts",
     "test:migration-upgrade": "tsx scripts/test-migration-upgrade.mts",
-    "compose:guard": "tsx scripts/compose-guard.mts"
+    "compose:guard": "tsx scripts/compose-guard.mts",
+    "country-labels:fixture": "tsx tools/src/country-labels/cli.ts fixture && prettier --write tools/fixtures/naturalearth/countries.json",
+    "country-labels": "tsx tools/src/country-labels/cli.ts placements && prettier --write packages/shared/src/map/country-label-placements.ts"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",
