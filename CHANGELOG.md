@@ -8,7 +8,21 @@
 
 ---
 
-## v0.19.1 — 2026-10-05
+## v0.20.0 — 2026-10-05
+
+### Türkçe
+**Kapsama ölçümüne hazırlık**
+
+- Uçuş izlerine iki ölçüm alanı eklendi: her konum örneğinin alıcıya ulaşma gecikmesi ve uçağın barometrik alçalma hızı. Sonraki sürümdeki kapsama raporu, İstanbul ve öbür istasyonlarda inişlerin ne kadarının yerde görüldüğünü bu alanlarla ölçecek. Sitede görünen bir değişiklik yok.
+
+### English
+**Groundwork for coverage measurement**
+
+- Flight tracks now store two more measurements: how old each position report is and the aircraft’s barometric descent rate. The coverage report in the next release will use them to measure how many landings at Istanbul and the other stations are seen on the ground. Nothing changes on the site.
+
+---
+
+## v0.19.1 — 2026-10-05 08:51 (UTC+3)
 
 ### Türkçe
 **Ülke adları sınırların içinde**

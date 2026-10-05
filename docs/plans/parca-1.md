@@ -33,10 +33,12 @@ Durumlar: `[ ]` başlamadı, `[~]` sürüyor, `[k]` kod bitti ve kullanıcı do�
 | M6e.5 | Haritada kesikli ülke sınırları (yama, v0.17.2) | `p1/map-borders` | [x] tamam; üretimde doğrulandı (2026-10-04, v0.17.2): Balkanlarda kesikli sınırlar, şeritte OpenFreeMap atfı | #27 |
 | M6e.6 | API yanıtlarının sıkıştırılması (yama, v0.18.1) | `p1/api-gzip` | [x] tamam; üretimde doğrulandı (2026-10-04, v0.18.1): content-encoding br; haritanın havalimanı ve pist listesi 439.090 → 75.715 bayt; v0.18.1 Release 2026-10-04T20:32:07Z | #29 |
 | M6e.7 | Haritada ülke adları başkentlerde (yama, v0.18.2) | `p1/map-country-labels` | [x] tamam; üretimde doğrulandı (2026-10-05, v0.18.2): uydu üstünde z5'te TÜRKİYE, ROMANYA, BULGARİSTAN, YUNANİSTAN okunur, iğneler ve kesikli sınırlar üstte; Balkanlarda küçük adlar soluk; v0.18.2 Release 2026-10-05T01:08:09Z | #30 |
-| M6e.8 | Ülke adları sınır içinde, kelime başına satır (yama, v0.19.1) | `p1/map-country-fit` | [k] kod bitti; üretimde uydu üstünde görünüm denetimi bekliyor (ACTIVATION) | — |
+| M6e.8 | Ülke adları sınır içinde, kelime başına satır (yama, v0.19.1) | `p1/map-country-fit` | [x] tamam; üretimde doğrulandı (2026-10-05, v0.19.1): uydu üstünde z5,3'te TÜRKİYE sınır içinde (Ankara'nın güneyinde), BOSNA / HERSEK alt alta, adlar kıyıdan taşmıyor; v0.19.1 Release 2026-10-05T05:51:51Z | #32 |
 | M6h | 3. halka (≤ 2.000 km) — kullanıcı isteğiyle M7a'nın önüne alındı (2026-10-04); sivil uçuşa kapalı olabilecek havalimanı notu | `p1/m6h-ring3` | [k] kod bitti; üretimde doğrulandı (2026-10-04, v0.18.0): `scope=listed` 503 (61 + 75 + 89 + 278), Viyana 3. halka 1.149 km, beş Özbek istasyonunun METAR'ı UZxx koduyla, METAR'lı istasyon 463/503, toplu hava 1,34 MB, URKK ve UUOO notu iki dilde; admin Servisler ve worker günlüğü (429 yok) bekliyor (ACTIVATION) | #28 |
-| M7a | Canlı araçlar: `smoke:live`, `record` | `p1/m7a-live-tools` | [k] kod bitti; canlı smoke ve kayıt kullanıcıda (ACTIVATION) | — |
-| M7b | Kapsama ölçümü ve raporu (`coverage:probe`, `coverage:report`) | `p1/m7b-coverage` | [ ] | — |
+| M7a | Canlı araçlar: `smoke:live`, `record` | `p1/m7a-live-tools` | [k] kod bitti; canlı smoke ve kayıt kullanıcıda (ACTIVATION) | #31 |
+| M7b.1 | İz tablolarına ham `seen_pos` ve `baro_rate` (migration 0006, v0.20.0; D-097) | `p1/m7b1-track-columns` | [k] kod bitti; üretimde migration 0006 ve ingest yazımı bekliyor | — |
+| M7b.2 | Kapsama raporu: worker işi, admin sayfası, CLI (`coverage:report`, v0.21.0) | `p1/m7b-coverage` | [ ] | — |
+| M7c | Kapsama ölçümü yedek yolu (`coverage:probe`, v0.22.0) | `p1/m7c-coverage-probe` | [ ] | — |
 | M6i | 4. halka (≤ 5.000 km); haritada görünür alana göre havalimanı yükleme, AWC toplu dosyası | `p1/m6i-ring4` | [ ] | — |
 | M6j | 5. halka (dünyanın geri kalanı, ABD dahil) | `p1/m6j-ring5` | [ ] | — |
 
@@ -1472,6 +1474,50 @@ Kararlar D-094'tedir. Plan sırası M6h → M7a → M7b'dir (D-082).
 - Kuru çalıştırma ve yardım testleri (`vitest run src/live/{record,smoke,args}.test.ts -t "plan|yardım|help"`) → 25 test geçti: plan istek, Redis ve dosya olmadan çıkış 2 verir; eksik kapıları değer yazmadan listeler; ajan oturumunda `--confirm` reddedilir; `--out` repo içinde yalnızca `tools/recordings/tmp` altına yazar.
 - Entegrasyonda (önceki adım) `pnpm record --station LTFM` ve `pnpm smoke:live` kuru çalıştırması çıkış 2 ile yalnızca planı yazdı: ≈199 istek (30 dk) ve ≈30 istek (5 dk); `CONTACT_EMAIL: yok`.
 - `pnpm stats` → 599 dosya, 115.736 satır (kod 105.564, belge 6.705).
+
+## M7b.1 — İz tablolarına seen_pos ve baro_rate (v0.20.0)
+Onay: 2026-09-25 Parça 1 planı (kullanıcı: "Proje + Parça 1'e başla"). M7b'nin üç küçük yayına bölünmesi orkestratör varsayılanıdır (2026-10-05; D-082, D-097; itiraz edilebilir): M7b.1 (bu kilometre taşı), M7b.2 kapsama raporu, M7c `coverage:probe`.
+
+Hedef sürüm 0.20.0 (dal `p1/m7b1-track-columns`, `main` `f2b865b` = v0.19.1'den). Karar D-097'dedir. Sürüm, changelog ve README yayın adımındadır.
+
+**Neden önce:** kapsama raporu tanımları ham `seen_pos`'u ve ham `baro_rate`'i ister; bugünkü iz satırı ikisini de tutmuyor. Sütunlar, ACTIVATION 2. adımı (üretimde adsb.lol çekimi) başlamadan yayında olmalıdır; raporun 24,5 saatlik penceresi, v0.20.0 yayındayken adsb.lol çekiminin başladığı andan (2. adımın deploy'u) itibaren sayılır.
+
+**Kapsam:**
+- **Migration `0006_track_seen_pos_baro_rate`:** `track_points_fine` ve `track_points_sampled`'a `seen_pos_s real` ve `baro_rate_fpm integer` (boş bırakılabilir, varsayılansız; tablo başına tek `ALTER TABLE`). Partition'lı parent'ta yalnızca katalog değişikliğidir; günlük ve DEFAULT partition'lara kendiliğinden geçer, eski satırlar null kalır. Snapshot ve günlük `drizzle-kit generate` ile; 0000–0005 değişmez.
+- **Şema ve yazıcı:** `schema.ts` iz tablosu kurucusu; `TrackPointRow`, `TRACK_COLUMNS` ve `insertTrackPoints` 13 sütun (1.000 satırlık parti = 13.000 parametre < 65.535); iki tabloya da aynı yazıcı yazar.
+- **Sağlayıcılar:** `AircraftState.seenPosS` = ham `seen_pos` (gelmediyse null; `seen` yerine konmaz, kırpılmaz). adsb.lol ve yerel alıcı aynı ayrıştırıcıdan geçer. `vertical_rate_fpm` değişmez (`baroRateFpm ?? geomRateFpm`).
+- **Worker:** `trackRow` `seenPosS` ve `baroRateFpm`'i olduğu gibi yazar.
+- **redis-live ve API:** `seenPosS` `d` JSON'una da girer; API'nin şeması bilinmeyen alanı atar, herkese açık REST/WS çıktısı değişmez.
+
+**Dosyalar:**
+- `packages/db/drizzle/0006_track_seen_pos_baro_rate.sql` (yeni), `packages/db/drizzle/meta/0006_snapshot.json` (yeni), `packages/db/drizzle/meta/_journal.json`
+- `packages/db/src/schema.ts`, `packages/db/src/ingest.ts`; testler `ingest.int.test.ts`, `migrate.int.test.ts`
+- `packages/providers/src/aircraft.ts`, `packages/providers/src/live/response.ts`; testler `response.test.ts`, `adsblol.test.ts`
+- `apps/worker/src/ingest/index.ts`; testler `index.test.ts`, `ingest.int.test.ts`, `writer.test.ts`, `flights.test.ts`, `merge.test.ts`, `tracks.test.ts`
+- `apps/api/src/test/helpers.ts`, `apps/api/src/live/record.test.ts`
+- Belgeler: D-097, `docs/spec/domain.md` (Saklama → İz satırı), `docs/spec/data-sources.md` (Yanıt biçimi → Zaman), `docs/ACTIVATION.md` (2. adım ön koşulu; M6e.8 doğrulananlar), bu plan
+
+**Kabul komutları:**
+- `pnpm --filter @havayolu/providers test` → `seen_pos` var/yok/tip uyuşmuyor/negatif (ham kalır, `sampleTime` kırpılır), `baro_rate` var/yok, yalnız `geom_rate`; yerel alıcı da aynı alanları verir
+- `pnpm --filter @havayolu/worker test` → `trackRow` ham değerleri yazar, geometrik hız ya da `seen` yerine konmaz
+- `pnpm --filter @havayolu/api test` → herkese açık kayıtta `seenPosS` yok; alanı olmayan eski kayıt aynı sonucu verir
+- `pnpm db:check` → boş fark; `pnpm db:migrate` (yerel geliştirme veritabanı) → 0006 uygulanır, mevcut günlük ve DEFAULT partition'larda iki sütun
+- `pnpm test:integration` → db: iki tabloda gidiş-dönüş (değerli ve null satır), sığmayan değer null; 0005'ten yükseltmede partition dosyaları değişmez, eski satırlar null. worker: yerel alıcıdan gelen üç uçağın `seen_pos_s` ve `baro_rate_fpm`'i iki tabloda (yalnız `geom_rate`'li uçakta `baro_rate_fpm` null, `vertical_rate_fpm` 64)
+- `git fetch origin && pnpm test:migration-upgrade` → 6 → 7
+- `pnpm format`, `pnpm lint`, `pnpm typecheck`, `pnpm typecheck:scripts`, `pnpm test`, `pnpm check:eol`
+
+**Çıktı kaydı (2026-10-05, uygulama; sürüm, changelog ve README yayın adımındadır):**
+- `pnpm install` → güncel; `pnpm format`, `pnpm lint` (9/9), `pnpm typecheck` (9/9), `pnpm typecheck:scripts`, `pnpm typecheck:e2e`, `pnpm check:eol` → yeşil.
+- `pnpm db:check` → "No schema changes"; migration `drizzle-kit generate --name track_seen_pos_baro_rate` ile üretildi, SQL tablo başına tek `ALTER TABLE`'a indirildi ve açıklama satırları eklendi.
+- `pnpm test` (9/9) → providers 132 (+5), worker 201 (+1), api 260 (+1); öbürleri değişmedi (web 792, shared 669, tools 296, i18n 98, db 50, geo 36).
+- `pnpm db:migrate` (yerel `app_dev`) → 6 → 7 migration; iki parent ve 34 partition'da (iki DEFAULT dahil, 36 tablo) `seen_pos_s real` ve `baro_rate_fpm integer`, boş bırakılabilir, varsayılansız; partition'ların `relfilenode`'u değişmedi (yeniden yazma yok); eski satırlar (9.951 `track_points_sampled`, 36.592 `track_points_fine`) null.
+- `pnpm test:integration` (6/6) → db 86 (+2: iki tabloda ham sütun gidiş-dönüşü; 0005'ten yükseltme), api 26, worker 12 (yerel alıcı testine ham sütun denetimi eklendi), tools 9.
+- `git fetch origin && pnpm test:migration-upgrade` → `origin/main` (`f2b865b`) 6 → 7.
+
+**Çıktı kaydı (2026-10-05, yayın adımı):**
+- v0.19.1 `releasedAt` 2026-10-05T05:51:51Z (GitHub Release). Sürüm 0.20.0.
+- `pnpm ci:full` → yeşil: birim web 792, shared 669, tools 296, api 260, worker 201, providers 132, i18n 98, db 50, geo 36; entegrasyon db 86, api 26, worker 12, tools 9; `test:migration-upgrade` 6 → 7; e2e 125/125.
+- `pnpm stats` → 611 dosya, 119.485 satır (kod 109.046, belge 6.950).
 
 ## M7b — Kapsama ölçümü ve raporu
 Ayrıntılar `docs/prompts/parca-1.md`'dedir. Başlarken bu dosyaya dizinler ve kabul komutları eklenir.

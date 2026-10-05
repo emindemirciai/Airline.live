@@ -296,6 +296,8 @@ describe('yerel alıcı (readsb aircraft.json)', () => {
       onGround: true,
       dbFlags: null,
       sampleTime: 1_790_498_951_000,
+      seenPosS: 0.5,
+      baroRateFpm: null,
       source: 'localReceiver',
     })
     expect(good.seen[0]?.headers.authorization).toBe('Bearer alici-anahtari')
