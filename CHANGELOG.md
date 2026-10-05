@@ -8,7 +8,29 @@
 
 ---
 
-## v0.19.0 — 2026-10-05
+## v0.19.1 — 2026-10-05
+
+### Türkçe
+**Ülke adları sınırların içinde**
+
+- Ülke adları artık ülkenin sınırlarından ya da kıyısından dışarı taşmaz: ad, ülkenin içine sığdığı yakınlaştırmada görünür. Ad başkentte sığıyorsa orada, sığmıyorsa başkente en yakın uygun yerde durur ve yakınlaştırırken yerinden oynamaz.
+- Birden çok kelimeli adlar alt alta yazılır: SUUDİ / ARABİSTAN, KUZEY / MAKEDONYA, BOSNA / HERSEK.
+- Uzaktan bakınca artık daha az ülke adı görünür; küçük ülkelerin adları yakınlaştırınca çıkar. Bahreyn, Lüksemburg ve Malta, adlar silinmeden önce hiçbir yakınlaştırmada sığmadığı için gösterilmez.
+
+Dene: [Canlı harita](/)
+
+### English
+**Country names stay inside their borders**
+
+- Country names no longer spill over their borders or coastline: a name appears at the zoom level where it fits inside the country. It stays at the capital when it fits there, otherwise at the nearest suitable spot, and it does not move while you zoom.
+- Multi-word names are written one word per line: SAUDI / ARABIA, NORTH / MACEDONIA, BOSNIA AND / HERZEGOVINA.
+- Fewer country names show when zoomed out; smaller countries get their names as you zoom in. Bahrain, Luxembourg and Malta never fit before the names fade out, so they are not labelled.
+
+Try it: [Live map](/)
+
+---
+
+## v0.19.0 — 2026-10-05 05:25 (UTC+3)
 
 ### Türkçe
 **Canlı veri için ölçüm ve kayıt araçları**

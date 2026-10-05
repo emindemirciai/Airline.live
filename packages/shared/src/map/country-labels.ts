@@ -1,27 +1,31 @@
 /**
- * Haritada ülke adları (kullanıcı kararı 2026-10-05, tasarım tuvalinde A · "Sessiz büyük harf",
- * "Saydam olsun"; D-095). Her ülkenin adı başkentinin üstünde, ortalı ve sayfanın dilinde büyük
- * harfle yazılır; işaret noktası yoktur. Ad boyu ülkenin yüzölçümü kademesindendir (capitals.ts).
+ * Haritada ülke adları (D-095, D-096). Kullanıcı kararı 2026-10-05: tasarım tuvalinde A · "Sessiz
+ * büyük harf", "Saydam olsun"; sonra "Ülke isimlerini ülke sınırları dışına taşırma. 2 kelime ise
+ * alt alta yaz." Ad sayfanın dilinde büyük harfle yazılır; işaret noktası yoktur. Ad boyu ülkenin
+ * yüzölçümü kademesindendir (capitals.ts).
  *
+ * - **Sınırın içinde (D-096):** adın görünür kutusu (bütün satırlar, harf aralığı, hale ve güvenlik
+ *   payı) ülkenin kara poligonunun içinde kalmadıkça ad çizilmez. Yer ve ilk yakınlaştırma
+ *   çevrimdışı hesaplanır (`COUNTRY_LABEL_PLACEMENTS`, `pnpm country-labels`): ad sığıyorsa
+ *   başkentte ortalıdır, sığmıyorsa ülkenin içinde başkente en yakın uygun noktada. Ad, ilk sığdığı
+ *   yakınlaştırmanın (`fitZoom`) altında çizilmez; o yakınlaştırmada belirmeye başlar. Hiçbir
+ *   yakınlaştırmada sığmayan küçük ülkenin (Bahreyn, Lüksemburg, Malta) adı yazılmaz.
+ * - **Satır:** her sözcük ayrı satırda, ortalı ("SUUDİ / ARABİSTAN"); bağlaç önceki sözcükle kalır
+ *   ("BOSNIA AND / HERZEGOVINA"); kısa çizgide kırılır, çizgi yazılmaz ("BOSNA / HERSEK").
  * - **Yazı:** sitenin yazı tipi Overpass, 600 ağırlık (`COUNTRY_LABEL_FONT`; web stilin
- *   `font-faces` alanında tanımlar), harf aralığı 0,32 em, satır yüksekliği 1. MapLibre sondaki
- *   harf aralığını satır genişliğinden düşer: ad başkente göre ortalıdır.
- * - **Renk:** beyaz 0,6 saydamlıkta, koyu yumuşak hale 0,85 saydamlıkta, zeminsiz. MapLibre'nin
- *   halesi harfin içini boyamaz (yazının çevresinde bir halkadır): harfin içinden altlık görünür,
- *   okunurluğu koyu halka taşır. Hale genişliği yazı boyuyla orantılıdır ve glif SDF'inin
- *   taşıyabildiği payın içinde kalır (`countryLabelHalo`); tasarımdaki 6 ve 14 px'lik geniş
- *   gölgeler SDF'le çizilemez.
- * - **Yakınlaştırma:** kademe 1 z3'ten, 2 z3,5'ten, 3 z4,5'ten görünür (yarım kademede belirir);
- *   z7'de silinmeye başlar, z8 ve üstünde hiç çizilmez. Açılış görünümünde (IST, z7,8–8,5) ad
- *   yoktur.
- * - **Çakışma:** adlar yalnızca birbiriyle çakışır (6 px payla); üstteki kademe ve kademe içinde
- *   önce gelen sıra (`rank`: Türkiye, sonra büyükten küçüğe) kazanır. Pin, kod ve uçaklar her zaman
- *   adların üstünde çizilir ve yerleşime katılmaz: ad onları gizlemez, onlar adı silmez.
- * - **Kayma:** ad başkentte ortalıdır. Komşusu yüzünden hiç yer bulamayan ülkenin adı belgeli bir
- *   kaymayla yazılır (`CountryCapital.labelOffsetEm`, `text-offset`); bugün yalnızca Slovakya
- *   (2,5 em yukarıda, AVUSTURYA'nın üstünde).
- * - **Satır:** geniş haritada ad tek satırdır. Dar haritada (≤ 767 px) kademe 1 ve 2'nin 10 em'i
- *   aşan çok sözcüklü adları iki satıra kırılır ("SUUDİ / ARABİSTAN").
+ *   `font-faces` alanında tanımlar), harf aralığı 0,32 em, satır yüksekliği 1.
+ * - **Renk:** beyaz 0,6 saydamlıkta, koyu yumuşak hale 0,85 saydamlıkta, zeminsiz. Hale genişliği
+ *   yazı boyuyla orantılıdır ve glif SDF'inin taşıyabildiği payın içinde kalır (`countryLabelHalo`).
+ * - **Yakınlaştırma:** kademe 1 en erken z3'te, 2 z3,5'te, 3 z4,5'te belirir (ad sığıyorsa); yarım
+ *   kademede tam görünür; z7'de silinmeye başlar, z8 ve üstünde hiç çizilmez.
+ * - **Katmanlar:** her (kademe, ilk yakınlaştırma) çifti için bir symbol katmanı (40 katman). Katmanın
+ *   `minzoom`'u adın ilk yakınlaştırmasıdır: MapLibre `minzoom`'u kesirli yakınlaştırmada denetler,
+ *   ad tam o yakınlaştırmada belirir ya da kaybolur. Boy ve hale yalnızca yakınlaştırmaya bağlı
+ *   eğrilerdir; MapLibre bunları çizilen yakınlaştırmada hesaplar, eldeki büyük karodan çizerken de
+ *   modelin boyunu aşmaz.
+ * - **Çakışma:** adlar birbirini silmez (`text-allow-overlap`): her ad kendi ülkesinin içinde
+ *   olduğundan iki ad örtüşemez. Pin, kod ve uçaklar her zaman adların üstünde çizilir ve
+ *   yerleşime katılmaz.
  *
  * Düz nesnelerdir (layers.ts gibi). Katmanlar `LIVE_MAP_LAYERS`'ta değildir: web onları
  * havalimanı pinlerinin altına ekler; mobilde (MapLibre Native) `font-faces` desteği
@@ -34,29 +38,21 @@ import {
   type CountryCapital,
   type CountryLabelTier,
 } from '../reference/capitals'
-import { countryLabelText } from '../reference/countries'
 import { MAP_COLORS, withAlpha } from './colors'
-import type { StyleExpression, TextSymbolLayerStyle } from './layers'
+import { COUNTRY_LABEL_PLACEMENTS } from './country-label-placements'
+import type { StyleExpression, StyleTransition, TextSymbolLayerStyle } from './layers'
 
 export const COUNTRY_LABEL_SOURCE_ID = 'hy-country-labels'
 /** Kaynağın en büyük karo yakınlaştırması: adlar z8'de silindiğinden z7 karosu yeter. */
 export const COUNTRY_LABEL_SOURCE_MAX_ZOOM = 7
 
-/** Kademeler alttan üste (çizim ve yerleşim sırası: üstteki önce yerleşir). */
+/** Kademeler alttan üste (katman sırası). */
 export const COUNTRY_LABEL_TIERS: readonly CountryLabelTier[] = [3, 2, 1]
-
-export function countryLabelLayerId(tier: CountryLabelTier): string {
-  return `hy-country-labels-${tier}`
-}
-
-/** Katman kimlikleri alttan üste: kademe 3, 2, 1. */
-export const COUNTRY_LABEL_LAYER_IDS: readonly string[] =
-  COUNTRY_LABEL_TIERS.map(countryLabelLayerId)
 
 /** Stilin `font-faces` alanındaki yazı tipi adı (Overpass 600). */
 export const COUNTRY_LABEL_FONT = 'Overpass SemiBold'
 
-/** Kademenin görünmeye başladığı yakınlaştırma; ad buradan yarım kademe sonra tam görünür. */
+/** Kademenin en erken görünebildiği yakınlaştırma (ad o yakınlaştırmada sığıyorsa). */
 export const COUNTRY_LABEL_MIN_ZOOM: Readonly<Record<CountryLabelTier, number>> = {
   1: 3,
   2: 3.5,
@@ -68,14 +64,51 @@ export const COUNTRY_LABEL_FADE_IN_ZOOMS = 0.5
 export const COUNTRY_LABEL_FADE_START_ZOOM = 7
 /** Bu yakınlaştırmada ve üstünde ad çizilmez (katmanın `maxzoom`'u). */
 export const COUNTRY_LABEL_MAX_ZOOM = 8
+/** İlk sığma yakınlaştırmalarının adımı. */
+export const COUNTRY_LABEL_FIT_ZOOM_STEP = 0.25
+
+/**
+ * Kademenin olası ilk sığma yakınlaştırmaları: kademenin en küçüğünden silinmenin başlangıcının
+ * bir adım altına (z6,75), 0,25 adımla.
+ */
+export function countryLabelFitZooms(tier: CountryLabelTier): number[] {
+  const zooms: number[] = []
+  const steps = Math.round(
+    (COUNTRY_LABEL_FADE_START_ZOOM - COUNTRY_LABEL_MIN_ZOOM[tier]) / COUNTRY_LABEL_FIT_ZOOM_STEP,
+  )
+  for (let i = 0; i < steps; i++) {
+    zooms.push(COUNTRY_LABEL_MIN_ZOOM[tier] + i * COUNTRY_LABEL_FIT_ZOOM_STEP)
+  }
+  return zooms
+}
+
+/** Katman kimliği: `hy-country-labels-<kademe>-<ilk yakınlaştırma × 100>` (ör. `-1-300`). */
+export function countryLabelLayerId(tier: CountryLabelTier, fitZoom: number): string {
+  return `${COUNTRY_LABEL_SOURCE_ID}-${tier}-${Math.round(fitZoom * 100)}`
+}
+
+/** Katmanların (kademe, ilk yakınlaştırma) çiftleri, alttan üste: kademe 3, 2, 1; z küçükten. */
+export const COUNTRY_LABEL_LAYER_KEYS: readonly (readonly [
+  tier: CountryLabelTier,
+  fitZoom: number,
+])[] = COUNTRY_LABEL_TIERS.flatMap((tier) =>
+  countryLabelFitZooms(tier).map((fitZoom) => [tier, fitZoom] as const),
+)
+
+/** Katman kimlikleri alttan üste (40). */
+export const COUNTRY_LABEL_LAYER_IDS: readonly string[] = COUNTRY_LABEL_LAYER_KEYS.map(
+  ([tier, fitZoom]) => countryLabelLayerId(tier, fitZoom),
+)
 
 /** Yazı boyu durakları: [yakınlaştırma, px]. */
 export type CountryLabelStops = readonly (readonly [zoom: number, value: number])[]
 
 /**
  * Yazı boyu, px. z5'te tasarımın boyları (34 / 22 / 14; tasarım ~z4,9'da çizildi). Düşük
- * yakınlaştırmada eğri diktir: z3'te kademe 1'in en uzun adı (SUUDİ ARABİSTAN) ülkesinden çok
- * taşmaz. Dar haritada (`compact`) kademe 1 ve 2 ~0,8 katıdır; kademe 3 küçülmez.
+ * yakınlaştırmada eğri diktir. Dar haritada (`compact`) kademe 1 ve 2 ~0,8 katıdır; kademe 3
+ * küçülmez. Eğrinin bağıl büyümesi (d ln boy / dz) her yerde ln 2'nin altındadır: harita her
+ * kademede iki kat büyüdüğünden bir yakınlaştırmada sığan ad her büyük yakınlaştırmada da sığar
+ * (D-096; tools'taki test denetler).
  */
 export const COUNTRY_LABEL_SIZES: Readonly<
   Record<'regular' | 'compact', Readonly<Record<CountryLabelTier, CountryLabelStops>>>
@@ -125,11 +158,12 @@ export const COUNTRY_LABEL_COMPACT_MAX_WIDTH_PX = 767
 
 export const COUNTRY_LABEL_LETTER_SPACING = 0.32
 export const COUNTRY_LABEL_LINE_HEIGHT = 1
-/** Satır kırma genişliği, em: en uzun ad (BİRLEŞİK ARAP EMİRLİKLERİ, 21,4 em) de tek satırdır. */
+/**
+ * Satır kırma genişliği, em: her adın toplam genişliğinden büyük (en uzunu BİRLEŞİK ARAP
+ * EMİRLİKLERİ, 21,4 em). MapLibre yalnızca adın kendi satır sonlarından kırar.
+ */
 export const COUNTRY_LABEL_MAX_WIDTH_EM = 24
-/** Dar haritada kademe 1 ve 2'nin satır kırma genişliği, em ("SUUDİ / ARABİSTAN"). */
-export const COUNTRY_LABEL_COMPACT_WRAP_EM = 10
-/** Adların çakışma kutusuna eklenen pay, px. */
+/** Çakışma kutusuna eklenen pay, px (adlar birbirini silmez; vektör yedekte yer adlarını iter). */
 export const COUNTRY_LABEL_PADDING_PX = 6
 
 /** Yazının saydamlığı (beyaz 0,6; kullanıcı: "Saydam olsun"). */
@@ -150,6 +184,12 @@ export const HALO_BLUR_FACTOR = 1.19
 /** Payın hale genişliğine ve yumuşaklığına ayrılan bölümleri (toplam 0,95; kenarda boşluk). */
 export const COUNTRY_LABEL_HALO_WIDTH_SHARE = 0.65
 export const COUNTRY_LABEL_HALO_BLUR_SHARE = 0.3
+/**
+ * Hale genişliği ve yumuşaklığının geçişi: yok. Dar haritaya geçerken boy (yerleşim özelliği)
+ * karolar yenilenince küçülür; hale MapLibre'nin varsayılan 300 ms'lik geçişiyle küçülseydi o arada
+ * küçük harfin glif payını aşar ve glif kutusunda kesilirdi.
+ */
+export const COUNTRY_LABEL_HALO_TRANSITION: Readonly<StyleTransition> = { duration: 0, delay: 0 }
 
 const floor2 = (value: number) => Math.floor(value * 100 + 1e-9) / 100
 
@@ -165,20 +205,51 @@ export function countryLabelHalo(sizePx: number): { width: number; blur: number 
   }
 }
 
-/** Kademenin satır kırma genişliği, em. */
-export function countryLabelMaxWidth(tier: CountryLabelTier, compact: boolean): number {
-  return compact && tier !== 3 ? COUNTRY_LABEL_COMPACT_WRAP_EM : COUNTRY_LABEL_MAX_WIDTH_EM
+/** Kendinden önceki sözcükle aynı satırda kalan bağlaçlar. */
+export const COUNTRY_LABEL_CONNECTORS: Readonly<Record<Locale, readonly string[]>> = {
+  tr: ['VE'],
+  en: ['AND', 'OF', 'THE'],
 }
 
-/** Saydamlık durakları: yarım kademede belirir, z7–8 arasında silinir. */
-export function countryLabelOpacityStops(tier: CountryLabelTier): CountryLabelStops {
-  const min = COUNTRY_LABEL_MIN_ZOOM[tier]
-  return [
-    [min, 0],
-    [min + COUNTRY_LABEL_FADE_IN_ZOOMS, 1],
+/**
+ * Adın satırları (D-096; kullanıcı: "2 kelime ise alt alta yaz"): her sözcük ayrı satırdadır, 3 ve
+ * daha çok sözcükte de. Kısa çizgide kırılır, çizgi yazılmaz ("BOSNA-HERSEK" → BOSNA / HERSEK).
+ * Bağlaç önceki sözcükle kalır ("BOSNIA AND / HERZEGOVINA"); baştaki bağlaç sonrakine katılır.
+ */
+export function countryLabelLines(name: string, locale: Locale): string[] {
+  const connectors = COUNTRY_LABEL_CONNECTORS[locale]
+  const words = name.split(/[\s-]+/).filter((word) => word.length > 0)
+  const lines: string[] = []
+  let pending = ''
+  for (const word of words) {
+    if (connectors.includes(word)) {
+      const last = lines.length - 1
+      if (last >= 0) lines[last] = `${lines[last]} ${word}`
+      else pending = pending ? `${pending} ${word}` : word
+      continue
+    }
+    lines.push(pending ? `${pending} ${word}` : word)
+    pending = ''
+  }
+  if (pending) lines.push(pending)
+  return lines
+}
+
+/**
+ * Saydamlık durakları: ilk sığma yakınlaştırmasında 0, yarım kademe sonra (en geç z7'de) tam, z7–8
+ * arasında silinir. Yinelenen duraklar atılır.
+ */
+export function countryLabelOpacityStops(fitZoom: number): CountryLabelStops {
+  const full = Math.min(fitZoom + COUNTRY_LABEL_FADE_IN_ZOOMS, COUNTRY_LABEL_FADE_START_ZOOM)
+  const stops: [number, number][] = [
+    [fitZoom, 0],
+    [full, 1],
     [COUNTRY_LABEL_FADE_START_ZOOM, 1],
     [COUNTRY_LABEL_MAX_ZOOM, 0],
   ]
+  return stops.filter(
+    (stop, index) => index === 0 || stop[0] > (stops[index - 1]?.[0] ?? -Infinity),
+  )
 }
 
 /** Doğrusal ara değer; ilk duraktan önce ilk, sondan sonra son değer. */
@@ -196,10 +267,10 @@ export function interpolateStops(stops: CountryLabelStops, zoom: number): number
   return last[1]
 }
 
-/** Kademenin yakınlaştırmadaki saydamlığı: katman aralığının dışında 0. */
-export function countryLabelOpacityAt(tier: CountryLabelTier, zoom: number): number {
-  if (zoom < COUNTRY_LABEL_MIN_ZOOM[tier] || zoom >= COUNTRY_LABEL_MAX_ZOOM) return 0
-  return interpolateStops(countryLabelOpacityStops(tier), zoom)
+/** İlk yakınlaştırması `fitZoom` olan adın saydamlığı: katman aralığının dışında 0. */
+export function countryLabelOpacityAt(fitZoom: number, zoom: number): number {
+  if (zoom < fitZoom || zoom >= COUNTRY_LABEL_MAX_ZOOM) return 0
+  return interpolateStops(countryLabelOpacityStops(fitZoom), zoom)
 }
 
 /** Kademenin yakınlaştırmadaki yazı boyu, px. */
@@ -211,10 +282,14 @@ export function countryLabelSizeAt(tier: CountryLabelTier, compact: boolean, zoo
 export interface CountryLabelFeatureProperties {
   /** ISO 3166-1 alpha-2. */
   code: string
-  /** Haritada yazılan ad (`countryLabelText`). */
+  /** Ad, tek satır (`COUNTRY_LABEL_PLACEMENTS`'taki, ölçülen ad; test niteliği bunu okur). */
   name: string
+  /** Haritada yazılan metin: satırlar `\n` ile (`countryLabelLines`). */
+  label: string
   tier: CountryLabelTier
-  /** Yerleşim sırası (`symbol-sort-key`): Türkiye 0, sonra büyük yüzölçümü önce. */
+  /** Adın ilk sığdığı yakınlaştırma; katmanını seçer. */
+  fitZoom: number
+  /** `symbol-sort-key`: Türkiye 0, sonra büyük yüzölçümü önce. */
   rank: number
 }
 
@@ -224,24 +299,38 @@ export interface CountryLabelPoint {
   properties: CountryLabelFeatureProperties
 }
 
-/** Ülkelerin yerleşim sırası: Türkiye, sonra büyükten küçüğe (eşitlikte kod). */
+/** Ülkelerin sırası: Türkiye, sonra büyükten küçüğe (eşitlikte kod). */
 const RANKED_CAPITALS: readonly CountryCapital[] = [...COUNTRY_CAPITALS].sort((a, b) => {
   if (a.code === 'TR' || b.code === 'TR') return a.code === 'TR' ? -1 : 1
   return b.areaKm2 - a.areaKm2 || (a.code < b.code ? -1 : 1)
 })
 
-/** Ülke adı noktaları, sırayla (rank 0'dan). Ad sayfanın dilindedir. */
-export function countryLabelPoints(locale: Locale): CountryLabelPoint[] {
-  return RANKED_CAPITALS.map((capital, rank) => ({
-    lat: capital.lat,
-    lon: capital.lon,
-    properties: {
-      code: capital.code,
-      name: countryLabelText(capital.code, locale),
-      tier: countryLabelTier(capital),
-      rank,
-    },
-  }))
+/**
+ * Ülke adı noktaları, sırayla (rank 0'dan): yer ve ilk yakınlaştırma `COUNTRY_LABEL_PLACEMENTS`'tan,
+ * sayfanın dilinde ve haritanın genişliğine göre. Hiç sığmayan ad yoktur.
+ */
+export function countryLabelPoints(locale: Locale, compact: boolean): CountryLabelPoint[] {
+  const placements = COUNTRY_LABEL_PLACEMENTS[locale]
+  const points: CountryLabelPoint[] = []
+  for (const [rank, capital] of RANKED_CAPITALS.entries()) {
+    const row = Object.hasOwn(placements, capital.code) ? placements[capital.code] : undefined
+    const placement = row?.[compact ? 'compact' : 'regular']
+    if (!row || !placement) continue
+    const [lon, lat, fitZoom] = placement
+    points.push({
+      lat,
+      lon,
+      properties: {
+        code: capital.code,
+        name: row.name,
+        label: countryLabelLines(row.name, locale).join('\n'),
+        tier: countryLabelTier(capital),
+        fitZoom,
+        rank,
+      },
+    })
+  }
+  return points
 }
 
 const zoomCurve = (stops: CountryLabelStops): StyleExpression => [
@@ -251,71 +340,53 @@ const zoomCurve = (stops: CountryLabelStops): StyleExpression => [
   ...stops.flat(),
 ]
 
-const haloCurve = (stops: CountryLabelStops, part: 'width' | 'blur'): StyleExpression =>
-  zoomCurve(stops.map(([zoom, size]) => [zoom, countryLabelHalo(size)[part]] as const))
+const sizesOf = (tier: CountryLabelTier, compact: boolean) =>
+  COUNTRY_LABEL_SIZES[compact ? 'compact' : 'regular'][tier]
+
+/** Kademenin yazı boyu ifadesi (pencere boyu değişince web `setLayoutProperty` ile verir). */
+export function countryLabelTextSize(tier: CountryLabelTier, compact: boolean): StyleExpression {
+  return zoomCurve(sizesOf(tier, compact))
+}
+
+/** Kademenin hale genişliği ya da yumuşaklığı ifadesi (`setPaintProperty` ile değişir). */
+export function countryLabelHaloCurve(
+  tier: CountryLabelTier,
+  compact: boolean,
+  part: 'width' | 'blur',
+): StyleExpression {
+  return zoomCurve(
+    sizesOf(tier, compact).map(([zoom, size]) => [zoom, countryLabelHalo(size)[part]] as const),
+  )
+}
 
 export interface CountryLabelLayerOptions {
-  /** Dar harita (≤ `COUNTRY_LABEL_COMPACT_MAX_WIDTH_PX`): küçük boy, kademe 1–2'de satır kırma. */
+  /** Dar harita (≤ `COUNTRY_LABEL_COMPACT_MAX_WIDTH_PX`): küçük boy. */
   compact: boolean
   /** Ayarda "Gizle" ise false (`visibility: none`; katman hiç çizilmez). Varsayılan true. */
   visible?: boolean
 }
 
-/** Bir kademenin yazı boyu ifadesi (pencere boyu değişince web `setLayoutProperty` ile verir). */
-export function countryLabelTextSize(tier: CountryLabelTier, compact: boolean): StyleExpression {
-  return zoomCurve(COUNTRY_LABEL_SIZES[compact ? 'compact' : 'regular'][tier])
-}
-
-/** Kaymasız ad: başkentte ortalı. */
-export const COUNTRY_LABEL_CENTRED_OFFSET_EM: readonly [x: number, y: number] = [0, 0]
-
-/** Ülke adının başkentten kayması, em, [sağa, aşağı]: kural ortalı, istisna capitals.ts'te. */
-export function countryLabelOffsetEm(code: string): readonly [x: number, y: number] {
-  return (
-    COUNTRY_CAPITALS.find((capital) => capital.code === code)?.labelOffsetEm ??
-    COUNTRY_LABEL_CENTRED_OFFSET_EM
-  )
-}
-
-/**
- * Bir kademenin `text-offset` değeri: kademede kayan ad yoksa [0, 0]; varsa koda göre `match`
- * (kademe 3: `SK` → [0, −2,5], öbürleri [0, 0]).
- */
-export function countryLabelTextOffset(tier: CountryLabelTier): [number, number] | StyleExpression {
-  const branches: (string | StyleExpression)[] = []
-  for (const capital of COUNTRY_CAPITALS) {
-    if (capital.labelOffsetEm && countryLabelTier(capital) === tier) {
-      branches.push(capital.code, ['literal', [...capital.labelOffsetEm]])
-    }
-  }
-  const centred: [number, number] = [...COUNTRY_LABEL_CENTRED_OFFSET_EM]
-  if (branches.length === 0) return centred
-  return ['match', ['get', 'code'], ...branches, ['literal', centred]]
-}
-
-/** Ülke adı katmanları alttan üste: kademe 3, 2, 1. */
+/** Ülke adı katmanları alttan üste: her (kademe, ilk yakınlaştırma) için bir katman (40). */
 export function countryLabelLayers(options: CountryLabelLayerOptions): TextSymbolLayerStyle[] {
   const { compact, visible = true } = options
-  const sizes = COUNTRY_LABEL_SIZES[compact ? 'compact' : 'regular']
-  return COUNTRY_LABEL_TIERS.map((tier) => ({
-    id: countryLabelLayerId(tier),
+  return COUNTRY_LABEL_LAYER_KEYS.map(([tier, fitZoom]) => ({
+    id: countryLabelLayerId(tier, fitZoom),
     type: 'symbol',
     source: COUNTRY_LABEL_SOURCE_ID,
-    filter: ['==', ['get', 'tier'], tier],
-    minzoom: COUNTRY_LABEL_MIN_ZOOM[tier],
+    filter: ['all', ['==', ['get', 'tier'], tier], ['==', ['get', 'fitZoom'], fitZoom]],
+    minzoom: fitZoom,
     maxzoom: COUNTRY_LABEL_MAX_ZOOM,
     layout: {
-      'text-field': ['get', 'name'],
+      'text-field': ['get', 'label'],
       'text-font': [COUNTRY_LABEL_FONT],
-      'text-size': zoomCurve(sizes[tier]),
+      'text-size': countryLabelTextSize(tier, compact),
       'text-letter-spacing': COUNTRY_LABEL_LETTER_SPACING,
       'text-line-height': COUNTRY_LABEL_LINE_HEIGHT,
-      'text-max-width': countryLabelMaxWidth(tier, compact),
+      'text-max-width': COUNTRY_LABEL_MAX_WIDTH_EM,
       'text-anchor': 'center',
-      'text-offset': countryLabelTextOffset(tier),
       'text-justify': 'center',
       'text-padding': COUNTRY_LABEL_PADDING_PX,
-      'text-allow-overlap': false,
+      'text-allow-overlap': true,
       'text-ignore-placement': false,
       'text-rotation-alignment': 'viewport',
       'text-pitch-alignment': 'viewport',
@@ -325,9 +396,11 @@ export function countryLabelLayers(options: CountryLabelLayerOptions): TextSymbo
     paint: {
       'text-color': withAlpha(MAP_COLORS.countryLabel, COUNTRY_LABEL_TEXT_ALPHA),
       'text-halo-color': withAlpha(MAP_COLORS.countryLabelHalo, COUNTRY_LABEL_HALO_ALPHA),
-      'text-halo-width': haloCurve(sizes[tier], 'width'),
-      'text-halo-blur': haloCurve(sizes[tier], 'blur'),
-      'text-opacity': zoomCurve(countryLabelOpacityStops(tier)),
+      'text-halo-width': countryLabelHaloCurve(tier, compact, 'width'),
+      'text-halo-width-transition': { ...COUNTRY_LABEL_HALO_TRANSITION },
+      'text-halo-blur': countryLabelHaloCurve(tier, compact, 'blur'),
+      'text-halo-blur-transition': { ...COUNTRY_LABEL_HALO_TRANSITION },
+      'text-opacity': zoomCurve(countryLabelOpacityStops(fitZoom)),
     },
   }))
 }

@@ -32,7 +32,8 @@ Durumlar: `[ ]` başlamadı, `[~]` sürüyor, `[k]` kod bitti ve kullanıcı do�
 | M6e.4 | Yeniliklerde yayın tarihi ve saati (yama, v0.17.1) | `p1/changelog-time` | [x] tamam; üretimde doğrulandı (2026-10-04, v0.17.1): /yenilikler v0.17.1 "4 Ekim 2026, 21:36 (Türkiye saati)" (sunucunun açılışı), v0.17.0 20:27 | #26 |
 | M6e.5 | Haritada kesikli ülke sınırları (yama, v0.17.2) | `p1/map-borders` | [x] tamam; üretimde doğrulandı (2026-10-04, v0.17.2): Balkanlarda kesikli sınırlar, şeritte OpenFreeMap atfı | #27 |
 | M6e.6 | API yanıtlarının sıkıştırılması (yama, v0.18.1) | `p1/api-gzip` | [x] tamam; üretimde doğrulandı (2026-10-04, v0.18.1): content-encoding br; haritanın havalimanı ve pist listesi 439.090 → 75.715 bayt; v0.18.1 Release 2026-10-04T20:32:07Z | #29 |
-| M6e.7 | Haritada ülke adları başkentlerde (yama, v0.18.2) | `p1/map-country-labels` | [k] kod bitti; üretimde uydu üstünde görünüm denetimi bekliyor (ACTIVATION) | — |
+| M6e.7 | Haritada ülke adları başkentlerde (yama, v0.18.2) | `p1/map-country-labels` | [x] tamam; üretimde doğrulandı (2026-10-05, v0.18.2): uydu üstünde z5'te TÜRKİYE, ROMANYA, BULGARİSTAN, YUNANİSTAN okunur, iğneler ve kesikli sınırlar üstte; Balkanlarda küçük adlar soluk; v0.18.2 Release 2026-10-05T01:08:09Z | #30 |
+| M6e.8 | Ülke adları sınır içinde, kelime başına satır (yama, v0.19.1) | `p1/map-country-fit` | [k] kod bitti; üretimde uydu üstünde görünüm denetimi bekliyor (ACTIVATION) | — |
 | M6h | 3. halka (≤ 2.000 km) — kullanıcı isteğiyle M7a'nın önüne alındı (2026-10-04); sivil uçuşa kapalı olabilecek havalimanı notu | `p1/m6h-ring3` | [k] kod bitti; üretimde doğrulandı (2026-10-04, v0.18.0): `scope=listed` 503 (61 + 75 + 89 + 278), Viyana 3. halka 1.149 km, beş Özbek istasyonunun METAR'ı UZxx koduyla, METAR'lı istasyon 463/503, toplu hava 1,34 MB, URKK ve UUOO notu iki dilde; admin Servisler ve worker günlüğü (429 yok) bekliyor (ACTIVATION) | #28 |
 | M7a | Canlı araçlar: `smoke:live`, `record` | `p1/m7a-live-tools` | [k] kod bitti; canlı smoke ve kayıt kullanıcıda (ACTIVATION) | — |
 | M7b | Kapsama ölçümü ve raporu (`coverage:probe`, `coverage:report`) | `p1/m7b-coverage` | [ ] | — |
@@ -1146,6 +1147,68 @@ Hedef sürüm 0.18.2 (`main` `aebadce` = v0.18.1'den). Karar D-095'tedir.
 - v0.18.1 `releasedAt` 2026-10-04T20:32:07Z (GitHub Release). Sürüm 0.18.2; changelog, README (TR/EN) güncellendi.
 - `pnpm ci:full` → yeşil: birim web 792, shared 673, api 259, worker 200, providers 127, i18n 98, tools 74, db 50; entegrasyon db 84, api 26, worker 12; `test:migration-upgrade` 6 → 6; e2e 125/125.
 - `pnpm stats` → 572 dosya, 108.897 satır (kod 99.129, belge 6.316).
+
+## M6e.8 — Ülke adları sınır içinde
+Onay: 2026-10-05 kullanıcı: "Ülke isimlerini ülke sınırları dışına taşırma. 2 kelime ise alt alta yaz. Sınır içinde kalsın ülke isimleri" (v0.18.2 yayınından sonra; ayrıntılar orkestratör varsayılanı, kullanıcı öğlene kadar soru istemedi; yama sürümü, D-082)
+
+Hedef sürüm yayın adımında belirlenir (dal `p1/map-country-fit`, `main` `787eb97` = v0.18.2'den). Karar D-096'dadır.
+
+**Kapsam:**
+- **Sınırın içinde:** adın görünür kutusu (bütün satırlar, harf aralığı, hale, 3 px + 2 km pay) ülkenin kara poligonunun içine sığmadıkça ad çizilmez; kıyı da sınırdır. Ad ilk sığdığı yakınlaştırmada (0,25 adım, kademenin en küçüğünden önce değil) belirir; hiç sığmayan Bahreyn, Lüksemburg ve Malta yazılmaz.
+- **Çapa:** başkent her dilde ve genişlikte en erken sığmanın en çok 0,5 kademe gerisindeyse ad başkentte; değilse dört bileşimde de en erkenin en çok 0,25 gerisinde sığan, başkente en yakın tek ortak nokta. Slovakya kayması kalkar.
+- **Satır:** her sözcük ayrı satırda, ortalı, her genişlikte (SUUDİ / ARABİSTAN, BİRLEŞİK / ARAP / EMİRLİKLERİ, BOSNA / HERSEK, BOSNIA AND / HERZEGOVINA). Dar haritanın 10 em kuralı kalkar.
+- **Geometri:** Natural Earth 4.1.0 1:10m (`world-atlas@2.0.2`, `topojson-client@3.1.0`; yalnızca `tools`'un geliştirme bağımlılığı). Sadeleşmiş alt küme `tools/fixtures/naturalearth/countries.json` (yalnızca test). Geometri çizilmez; hiçbir şey indirilmez.
+- **Tablo:** `packages/shared/src/map/country-label-placements.ts` (üretilmiş): ülke × dil × düzen → [boylam, enlem, ilk yakınlaştırma] ya da `null`, ad (CLDR'dan, ölçülen metin).
+- **Katmanlar:** her (kademe, ilk yakınlaştırma) için bir symbol katmanı (40): `minzoom` = ilk yakınlaştırma, yalnızca yakınlaştırmaya bağlı boy ve hale, `text-allow-overlap` true (adlar kendi ülkelerinde, örtüşemez). Web dil ve genişlik değişince kaynağı, genişlik değişince boy ve hale eğrilerini yeniler.
+- Kademe boyları, renkler, hale, silinme (z7–8), anahtar, İsrail/Filistin kuralı, pinlerin üstte olması ve yerel test stili değişmez.
+
+**Dosyalar:**
+- `tools/package.json` (`world-atlas` 2.0.2, `topojson-client` 3.1.0, `@havayolu/shared`), `pnpm-lock.yaml`, kök `package.json` (`country-labels`, `country-labels:fixture`)
+- `tools/src/country-labels/` (yeni): `geometry.ts`, `natural-earth.ts`, `label-model.ts`, `placement.ts`, `cli.ts`, `topojson-client.d.ts`; testler `geometry.test.ts`, `natural-earth.test.ts`, `label-model.test.ts`, `placement.test.ts`
+- `tools/fixtures/naturalearth/countries.json` (yeni), `tools/README.md`, `tools/fixtures/README.md`
+- `packages/shared/src/map/country-labels.ts` (40 katman, `countryLabelLines`, `countryLabelPoints(locale, compact)`, `countryLabelHaloCurve`, saydamlık ilk yakınlaştırmadan), `country-label-placements.ts` (yeni, üretilmiş), `layers.ts` (`text-offset` tipi kalktı), `index.ts`; `reference/capitals.ts` (`labelOffsetEm` kalktı); testler `country-labels.test.ts`, `capitals.test.ts`; `country-label-placement.test.ts` silindi (modeli tools'a taşındı)
+- `apps/web/src/components/map/country-labels.ts`, `map-controller.ts` (açıklamalar); testler `country-labels.test.ts`, `map-controller.test.ts`, `map-fonts.test.ts`
+- `e2e/country-label-expectations.ts` (yeni; tools testi tablodan doğrular), `e2e/map-pixels.ts` (`clipImage`, `changedPixels`), `e2e/tests/live-map.spec.ts`
+- `turbo.json` (`@havayolu/tools#test`'in önbellek girdileri: shared, geo, providers kaynakları, e2e beklentileri, `apps/web/package.json`)
+- Belgeler: D-096 (D-095'e işaret satırı), `docs/spec/domain.md`, `docs/spec/data-sources.md` §5b ve yeni §5c, `ATTRIBUTION.md`, `docs/REFERENCES.md`, `docs/ACTIVATION.md` (M6e.7 kapandı, "M6e.8 yayın doğrulaması")
+
+**Kabul komutları:**
+- `pnpm country-labels:fixture` ve `pnpm country-labels` (çevrimdışı) → dosyalarda fark yok
+- `pnpm --filter @havayolu/tools test` → sürüklenme, içerme ve süreklilik, en küçüklük, çapa kuralı, örtüşme yok, Kırım, hiç sığmayanlar (BH LU MT), e2e beklentileri, ödünleşim listeleri; fixture yeniden üretimi, birimler, sapma bütçesi; model değerleri yazı tipi dosyalarından; geometri
+- `pnpm --filter @havayolu/shared test`, `pnpm --filter @havayolu/web test`
+- `pnpm typecheck`, `pnpm typecheck:scripts`, `pnpm lint`, `pnpm typecheck:e2e`, `pnpm lint:e2e`, `pnpm format`, `pnpm check:eol`
+- `pnpm exec playwright test -c e2e/playwright.config.ts e2e/tests/live-map.spec.ts` → Tahran z5'te İRAN, IRAK, TÜRKMENİSTAN (hepsi gelene kadar beklenir); AZERBAYCAN, ERMENİSTAN, KUVEYT, KATAR, BAE yok; İRAN'ın değişen pikselleri modelin kutusunda (±1 px); İRAN'ın kutusundaki IKA pini görünür kalır ve tıklanınca OIIE penceresi açılır; z4'te TÜRKMENİSTAN kaybolur; z9'da ad yok; İngilizcede TÜRKIYE
+- `pnpm ci:full` yeşil; PR'da CI (`e2e` dahil) yeşil
+- **Kullanıcıya bağlı (`[k]`):** yayından sonra uydu üstünde adların sınırların içinde görünümü (ACTIVATION → "M6e.8 yayın doğrulaması")
+- **Açık iş (ajan, ağ gerekir):** Natural Earth kullanım şartları sayfasını ve world-atlas deposunu açıp REFERENCES.md'deki "doğrulanmadı" notunu kaldırmak.
+- **Açık iş (kullanıcı onayı):** iki komut (`pnpm country-labels:fixture`, `pnpm country-labels`) yayın adımında CLAUDE.md Komutlar tablosuna eklendi. CLAUDE.md'deki "İzinli → referans" listesine Natural Earth eklemek bir kural değişikliğidir; kullanıcının onayı beklenir (ACTIVATION "Natural Earth izinli kaynaklar listesine").
+
+**Çıktı kaydı (2026-10-05, uygulama; sürüm, changelog ve README yayın adımındadır):**
+- `pnpm country-labels:fixture` → 59 ülke, 39.984 nokta; `pnpm country-labels` → 0,85 sn (Node 24.16.0, ICU 78.3); dört bileşimde 56 ad, hiç sığmayan BH LU MT; 17 ülke başkentte, 42 ülke ortak noktada (ortanca 99 km, en çok 654 km, CEZAYİR).
+- Birim testleri: `@havayolu/tools` 121 (+47), `@havayolu/shared` 669, `@havayolu/web` 792; öbürleri değişmedi (api 259, worker 200, providers 127, i18n 98, db 50, geo 36).
+- `pnpm typecheck` (9/9), `pnpm typecheck:scripts`, `pnpm lint` (9/9), `pnpm typecheck:e2e`, `pnpm lint:e2e`, `pnpm format`, `pnpm check:eol` → yeşil.
+- E2E (yerel, `pnpm dev:replay`, yerel test stili): `live-map.spec.ts` 23/23 (4 kurulum + 19). Yerel ölçüm: İRAN'ın (Tahran z5) değişen pikselleri x 20–135, y 20–57; modelin kutusu x 20–138, y 20,1–59,8 (kesit koordinatı). `pnpm ci:full` bu adımda çalıştırılmadı.
+- Görsel denetim (geçici Playwright betiği, depoya girmedi; ekran görüntülerinin üstüne Natural Earth sınırları çizildi): Ankara z4/5/6, Belgrad z5/6, Sofya z5, Atina z6, Beyrut z5/6/7, Doha z5/6 (1280 px) ve Ankara, Riyad (375 px), Türkçe ve İngilizce; hiçbir ad sınırını ya da kıyıyı aşmıyor.
+
+**İkinci inceleme düzeltmeleri (2026-10-05):**
+- **Model:** harfler 0,5 birim sağda ve aşağıda modelleniyordu (`leftAdjustment` dörtgen payıyla götürülmemişti, taban çizgisi 22,5 yerine 22); 14 yerleşim 3 px + 2 km payının en çok 0,43 px altındaydı. Model düzeltildi, sabitler MapLibre kaynağıyla testte karşılaştırılır; tablo yeniden üretildi: 14 çapa kaydı, 13 ilk yakınlaştırma değişti. İRAN Tahran'dan 32 km güneydeki ortak noktaya geçti (Tahran'da tr geniş haritada z3,75, ortak noktada z3): e2e'nin pin kesiti ve tıklaması İRAN'ın kutusundaki IKA pinine taşındı (`IKA_PIN_Z5`).
+- **Rusya'nın 180. meridyen şeridi:** halkalar ve yaylar sürekli kılınıyor; fixture'da yalnız RU değişti (39.975 nokta). Testler: kenar boyu, Rusya İskandinavya'yı ve denizi içermez, ülkeler örtüşmez (eski fixture'da 309 İsveç noktası Rusya'nın içindeydi).
+- **Hale geçişi:** `text-halo-width-transition` ve `text-halo-blur-transition` 0 ms (dar haritaya geçerken hale küçük glifin payını aşmasın).
+- **e2e yarışı:** z5'te beklenen adların hepsi (İRAN, IRAK, TÜRKMENİSTAN), z4'te İRAN ve IRAK ile TÜRKMENİSTAN'ın yokluğu birlikte beklenir.
+- **turbo:** `@havayolu/tools#test`'in girdilerine shared, geo, providers kaynakları, e2e beklentileri ve `apps/web/package.json` eklendi (`turbo run test --filter=@havayolu/tools --dry=json`: 138 girdi, 68'i shared).
+- **Belgeler:** data-sources.md §5c ve fixtures README tam kırpma kutusu (20° B–90° D, 8–72° K); ACTIVATION M6e.8 maddesine M6e.7'den kalan denetimler (z7–8 silinme ve IST açılışı, İsrail ve Filistin, soluk küçük adlar, hale, kod kutuları) ve İRAN'ın yeri; ACTIVATION'a "CLAUDE.md eki" (kullanıcı onayı).
+
+**Çıktı kaydı (2026-10-05, ikinci inceleme düzeltmeleri):**
+- `pnpm country-labels:fixture` → 59 ülke, 39.975 nokta (yalnız RU değişti); `pnpm country-labels` → 0,89 sn (Node 24.16.0, ICU 78.3); dört bileşimde 56 ad, hiç sığmayan BH LU MT; 15 ülke başkentte, 44 ülke ortak noktada (ortanca 76 km, %90 358 km, en çok 654 km, CEZAYİR).
+- Birim testleri: `@havayolu/tools` 126 (+5), `@havayolu/shared` 669, `@havayolu/web` 792; öbürleri değişmedi (api 259, worker 200, providers 127, i18n 98, db 50, geo 36).
+- `pnpm format`, `pnpm lint` (9/9), `pnpm typecheck` (9/9), `pnpm typecheck:scripts`, `pnpm test` (9/9), `pnpm typecheck:e2e`, `pnpm lint:e2e`, `pnpm check:eol` → yeşil.
+- E2E (yerel, `pnpm dev:replay`, yerel test stili): `live-map.spec.ts` 23/23 (4 kurulum + 19), 36 sn. Yerel ölçüm (geçici günlük satırıyla, depoya girmedi): İRAN'ın değişen pikselleri kesitte x 14–126, y 14–48; modelin kutusu x 11,8–129,8, y 11,6–51,3 (boşluk 2,2 / 2,8 / 2,4 / 2,3 px; eski model 2,9 / 2,1 / 3,1 / 1,6 px verirdi); IKA pininin kırmızı pikselleri ad açıkken ve kapalıyken 75. `pnpm ci:full` bu adımda çalıştırılmadı.
+
+**Çıktı kaydı (2026-10-05, yayın adımı):**
+- Dal `17d40e3` sonra `origin/main` v0.19.0 ile birleştirildi (`dd82588`). Çakışmalar: plan tablosu, `tools/package.json` (iki tarafın geliştirme bağımlılıkları birlikte), lockfile (`main`'inki + `pnpm install`), iki README (iki bölüm birlikte). v0.19.0 `releasedAt` 2026-10-05T02:25:50Z (GitHub Release). Sürüm 0.19.1.
+- CLAUDE.md Komutlar tablosuna `pnpm country-labels:fixture` · `pnpm country-labels` satırı eklendi. "İzinli → referans" listesi kullanıcının onayına bırakıldı (ACTIVATION).
+- `pnpm ci:full` → yeşil: birim tools 296, web 792, shared 669, api 259, worker 200, providers 127, i18n 98, db 50; entegrasyon db 84, api 26, worker 12, tools 9; `test:migration-upgrade` 6 → 6; e2e 125/125.
+- `pnpm stats` → 610 dosya, 119.046 satır (kod 108.692, belge 6.871).
 
 ## M6h — 3. halka (v0.18.0)
 Onay: 2026-10-04 kullanıcı isteği "sonraki işlerden birine bir halka daha ekle" ve kapalı havalimanı kararı (2022'den beri sivil uçuşa kapalı olduğu hâlde OurAirports'ta tarifeli görünen havalimanları listede kalır, sayfada ve pencerede "Sivil uçuşlara kapalı olabilir (2022’den beri)" notu); diğer seçimler M6h araştırmasının önerileri (orkestratör varsayılanı 2026-10-04)
