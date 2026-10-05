@@ -6,7 +6,8 @@ import {
   AIRPORT_PIN_PATH,
   AIRPORT_PIN_VIEWBOX,
 } from './airport-pin'
-import { MAP_COLORS } from './colors'
+import { MAP_COLORS, withAlpha } from './colors'
+import { COUNTRY_LABEL_LAYER_IDS } from './country-labels'
 import {
   AIRCRAFT_LAYER,
   AIRCRAFT_LAYER_ID,
@@ -72,6 +73,21 @@ describe('MAP_COLORS', () => {
     // Giriş kutusu kenarı (WCAG 1.4.11, en az 3:1).
     expect(contrastRatio(MAP_COLORS.lineStrong, MAP_COLORS.panel)).toBeGreaterThanOrEqual(3)
     expect(contrastRatio(MAP_COLORS.lineStrong, MAP_COLORS.panelRaised)).toBeGreaterThanOrEqual(3)
+  })
+})
+
+describe('withAlpha', () => {
+  it('opak hex rengi rgba() yazar; biçimsiz renk ve aralık dışı saydamlık hata', () => {
+    expect(withAlpha('#FFFFFF', 0.6)).toBe('rgba(255, 255, 255, 0.6)')
+    expect(withAlpha('#000000', 0.85)).toBe('rgba(0, 0, 0, 0.85)')
+    expect(withAlpha('#e53935', 1)).toBe('rgba(229, 57, 53, 1)')
+    expect(withAlpha('#0B2A33', 0)).toBe('rgba(11, 42, 51, 0)')
+    for (const color of ['#FFF', 'FFFFFF', '#GGGGGG', 'rgba(0,0,0,1)']) {
+      expect(() => withAlpha(color, 0.5), color).toThrow(RangeError)
+    }
+    for (const alpha of [-0.1, 1.1, Number.NaN]) {
+      expect(() => withAlpha('#FFFFFF', alpha), String(alpha)).toThrow(RangeError)
+    }
   })
 })
 
@@ -164,6 +180,15 @@ describe('katmanlar', () => {
       'line-opacity': 1,
     })
     expect(TRAIL_LAYER.layout).toEqual({ 'line-cap': 'round', 'line-join': 'round' })
+  })
+
+  it('ülke adları (D-095) canlı katman listesinde değildir: mobil değişmez, pin ve uçaklar hep çizilir', () => {
+    const live = LIVE_MAP_LAYERS.map((layer) => layer.id)
+    for (const id of COUNTRY_LABEL_LAYER_IDS) expect(live).not.toContain(id)
+    for (const layer of [AIRPORT_LAYER, AIRCRAFT_LAYER]) {
+      expect(layer.layout['icon-allow-overlap'], layer.id).toBe(true)
+      expect(layer.layout['icon-ignore-placement'], layer.id).toBe(true)
+    }
   })
 
   it('katmanlar düz JSON: serileştirilip geri okununca aynıdır', () => {

@@ -11,6 +11,9 @@
  * Harita koddaki düz arka plan stiliyle açılır; kendi katmanlarımız hemen eklenir ve uçaklar altlık
  * zinciri (basemap.ts) yüklenirken, yeniden denenirken ya da hiç yüklenemezken de çizilir.
  *
+ * Ülke adları (D-095) havalimanı pinlerinin altındaki GL katmanlarıdır (country-labels.ts); yazı
+ * tipleri haritaya verilen her stile `font-faces` olarak eklenir (map-fonts.ts).
+ *
  * Çizim döngüsü tek bir `requestAnimationFrame` döngüsüdür; en fazla ~66 ms'de bir (≈15 kare/sn)
  * gösterim konumlarını hesaplar. Uçak ve iz kaynaklarına `setData` yalnızca bir şey değişince
  * verilir: küme, seçim, depo sürümü ya da ekranda en az 0,5 px kayan bir simge (motion.ts).
@@ -25,10 +28,15 @@ import {
   AIRPORT_LAYER,
   AIRPORT_LAYER_ID,
   AIRPORT_SOURCE_ID,
+  COUNTRY_LABEL_SOURCE_ID,
+  COUNTRY_LABEL_SOURCE_MAX_ZOOM,
   LIVE_MAP_LAYERS,
   TRAIL_SOURCE_ID,
+  countryLabelLayers,
   type Airport,
+  type CountryLabelLayerOptions,
   type Locale,
+  type MapLayerStyle,
 } from '@havayolu/shared'
 import type * as Maplibre from 'maplibre-gl'
 import { monotonicNow } from '../../lib/live/clock'
@@ -50,6 +58,7 @@ import {
   type MapStyle,
 } from './basemap'
 import { initialZoom, PRIMARY_AIRPORT_VIEW, SELECT_MIN_ZOOM, type MapViewport } from './camera'
+import { CountryLabelOverlay, isCompactMap } from './country-labels'
 import {
   renderAircraftIcons,
   renderAirportPin,
@@ -65,6 +74,7 @@ import {
   type ScreenAircraft,
   type ScreenAirport,
 } from './labels'
+import { withMapFonts } from './map-fonts'
 import { loadMaplibre, type MaplibreModule } from './maplibre-loader'
 import {
   EMPTY_COLLECTION,
@@ -267,6 +277,14 @@ export function sameViewState(a: MapViewState, b: MapViewState): boolean {
   )
 }
 
+/**
+ * Kendi katmanlarımız alttan üste: ülke adları (kademe 3, 2, 1; D-095), sonra havalimanı pinleri,
+ * iz ve uçaklar. Adlar pinlerin altında kalır; pin, iz ve uçak hep çizilir ve yerleşime katılmaz.
+ */
+export function overlayLayers(options: CountryLabelLayerOptions): MapLayerStyle[] {
+  return [...countryLabelLayers(options), ...LIVE_MAP_LAYERS]
+}
+
 /** MapLibre'nin `padding` değeri: üst ve sağ hep 0, negatif pay 0 sayılır. */
 export function mapPadding(insets: MapInsets): {
   top: number
@@ -281,6 +299,7 @@ export class MapController {
   private readonly options: MapControllerOptions
   private readonly painter: LabelPainter
   private readonly motion = new MotionTracker()
+  private readonly countryLabels: CountryLabelOverlay
   private readonly unsubscribeStore: () => void
   private state: MapViewState
   private map: MaplibreMap | null = null
@@ -310,6 +329,14 @@ export class MapController {
     this.options = options
     this.state = options.state
     this.painter = new LabelPainter(options.labelCanvas)
+    this.countryLabels = new CountryLabelOverlay({
+      element: options.container,
+      state: {
+        mode: options.state.labelSettings.countries,
+        locale: options.state.locale,
+        compact: isCompactMap(options.container.clientWidth),
+      },
+    })
     this.unsubscribeStore = options.store.subscribe(() => {
       this.dirty = true
     })
@@ -332,6 +359,16 @@ export class MapController {
     const map = this.map
     if (previous.airports !== next.airports && map && this.overlaysReady) {
       map.getSource<GeoJSONSource>(AIRPORT_SOURCE_ID)?.setData(airportCollection(next.airports))
+    }
+    if (
+      previous.labelSettings.countries !== next.labelSettings.countries ||
+      previous.locale !== next.locale
+    ) {
+      this.countryLabels.update({
+        ...this.countryLabels.current,
+        mode: next.labelSettings.countries,
+        locale: next.locale,
+      })
     }
     if (previous.following !== next.following) this.configureFollow()
     if (
@@ -374,6 +411,7 @@ export class MapController {
     cancelAnimationFrame(this.frameRequest)
     this.styleRequest?.abort()
     if (this.viewportTimer !== null) clearTimeout(this.viewportTimer)
+    this.countryLabels.destroy()
     this.unsubscribeStore()
     this.basemap?.stop()
     this.map?.remove()
@@ -390,7 +428,8 @@ export class MapController {
       center: [PRIMARY_AIRPORT_VIEW.lon, PRIMARY_AIRPORT_VIEW.lat],
       zoom: initialZoom(container.clientWidth, container.clientHeight),
       // Koddaki düz arka plan: kendi katmanlarımız hemen eklenir, uçaklar altlık beklenmeden çizilir.
-      style: plainStyle(),
+      // Ülke adlarının yazı tipi her stile eklenir (`font-faces`; glif adresi yok, D-095).
+      style: withMapFonts(plainStyle(), window.location.origin),
       // Uçak simgeleri yerleşime katılmaz; sembol geçişi yalnızca çizim döngüsünü boşuna döndürür.
       fadeDuration: 0,
       minZoom: 2,
@@ -413,6 +452,7 @@ export class MapController {
     map.keyboard.disableRotation()
     this.map = map
     this.styleKind = 'initial'
+    this.countryLabels.attach(map)
 
     this.basemap = new BasemapController({
       steps: basemapSteps(this.options.basemap, (url) => new URL(url, window.location.href).href),
@@ -434,6 +474,7 @@ export class MapController {
     map.on('render', () => {
       this.drawLabels()
       this.emitTracked()
+      this.countryLabels.rendered()
     })
     map.on('resize', () => this.resizeLabels())
     map.on('moveend', () => {
@@ -510,8 +551,9 @@ export class MapController {
    */
   private setBasemapStyle(map: MaplibreMap, style: MapStyle): void {
     this.overlaysReady = false
+    this.countryLabels.detached()
     this.styleKind = 'basemap'
-    map.setStyle(style, { diff: false })
+    map.setStyle(withMapFonts(style, window.location.origin), { diff: false })
   }
 
   private handleStyleLoad(map: MaplibreMap): void {
@@ -534,8 +576,9 @@ export class MapController {
   }
 
   /**
-   * İkonlar, kaynaklar ve katmanlar (alttan üste: havalimanları, iz, uçaklar). Her stil
-   * değişiminden sonra yeniden eklenir; ikonlar katmandan önce eklenir.
+   * İkonlar, kaynaklar ve katmanlar (alttan üste: ülke adları, havalimanları, iz, uçaklar;
+   * `overlayLayers`). Her stil değişiminden sonra yeniden eklenir; ikonlar katmandan önce eklenir.
+   * Ülke adları güncel ayarla (görünürlük, dar harita, dil) kurulur.
    */
   private installOverlays(map: MaplibreMap): void {
     this.icons ??= renderAircraftIcons(window.devicePixelRatio)
@@ -551,9 +594,25 @@ export class MapController {
     for (const [id, data] of sources) {
       if (!map.getSource(id)) map.addSource(id, { type: 'geojson', data })
     }
-    for (const layer of LIVE_MAP_LAYERS) {
+    const countries = this.countryLabels.current
+    const countrySource = map.getSource<GeoJSONSource>(COUNTRY_LABEL_SOURCE_ID)
+    if (countrySource) {
+      countrySource.setData(this.countryLabels.sourceData())
+    } else {
+      map.addSource(COUNTRY_LABEL_SOURCE_ID, {
+        type: 'geojson',
+        data: this.countryLabels.sourceData(),
+        maxzoom: COUNTRY_LABEL_SOURCE_MAX_ZOOM,
+      })
+    }
+    const layers = overlayLayers({
+      compact: countries.compact,
+      visible: countries.mode === 'shown',
+    })
+    for (const layer of layers) {
       if (!map.getLayer(layer.id)) map.addLayer(layer as AddLayerObject)
     }
+    this.countryLabels.installed()
     this.overlaysReady = true
     this.trailShown = false
     this.dirty = true
@@ -819,6 +878,11 @@ export class MapController {
   private resizeLabels(): void {
     const { container } = this.options
     this.painter.resize(container.clientWidth, container.clientHeight, window.devicePixelRatio)
+    // Dar harita sınırı (767 px) geçilince ülke adlarının boyu ve satır kırması değişir.
+    const compact = isCompactMap(container.clientWidth)
+    if (compact !== this.countryLabels.current.compact) {
+      this.countryLabels.update({ ...this.countryLabels.current, compact })
+    }
     this.map?.triggerRepaint()
   }
 

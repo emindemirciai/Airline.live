@@ -75,6 +75,16 @@ export function countryName(code: string, locale: Locale): string {
     : normalized
 }
 
+/**
+ * Haritadaki ülke adı (D-095): `countryName`, sayfanın dilinin büyük harf kuralıyla. Türkçede
+ * "i" → "İ" ("TÜRKİYE", "KIBRIS"), İngilizcede "i" → "I" ("TÜRKIYE", "ALGERIA"). Ülkeye bağlıdır;
+ * havalimanına bağlı KKTC görünümü (`airportCountryName`) burada uygulanmaz: Kıbrıs'ın adı
+ * Lefkoşa'da "KIBRIS" / "CYPRUS" yazılır.
+ */
+export function countryLabelText(code: string, locale: Locale): string {
+  return countryName(code, locale).toLocaleUpperCase(INTL_LOCALE[locale])
+}
+
 /** Havalimanının ülke görünümü kuralı (yoksa undefined). ICAO kırpılıp büyük harfe çevrilir. */
 function countryOverride(icao: string): DisplayedCountry | undefined {
   const code = icao.trim().toUpperCase()

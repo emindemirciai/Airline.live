@@ -411,7 +411,7 @@ describe('LabelSettingsControl', () => {
   it('kapalıyken yalnızca "Etiketler" düğmesi çizilir', () => {
     const html = renderToStaticMarkup(
       createElement(LabelSettingsControl, {
-        value: { selected: 'full', others: 'full', airports: 'code' },
+        value: { selected: 'full', others: 'full', airports: 'code', countries: 'shown' },
         onChange: noop,
         messages: tr.labels,
       }),
@@ -443,18 +443,28 @@ describe('LabelSettingsPanel (D-084)', () => {
       }),
     )
 
-  it('üç grup: Seçili uçak, Diğer uçaklar, Havalimanları (Gizle / Kod)', () => {
-    const html = render({ selected: 'full', others: 'short', airports: 'code' })
+  it('dört grup: Seçili uçak, Diğer uçaklar, Havalimanları (Gizle / Kod), Ülke adları (Gizle / Göster)', () => {
+    const html = render({ selected: 'full', others: 'short', airports: 'code', countries: 'shown' })
     expect(html).toMatch(/^<div id="labels" class="map-panel map-labels__panel" role="group"/)
     const found = groups(html)
-    expect(found.map((g) => g.legend)).toEqual(['Seçili uçak', 'Diğer uçaklar', 'Havalimanları'])
+    expect(found.map((g) => g.legend)).toEqual([
+      'Seçili uçak',
+      'Diğer uçaklar',
+      'Havalimanları',
+      'Ülke adları',
+    ])
     // "Kod ve ad" 2026-10-04'te kaldırıldı: ad, havalimanı penceresindedir (kullanıcı isteği).
     expect(found[2]?.options.map((o) => [o.mode, o.text])).toEqual([
       ['hidden', 'Gizle'],
       ['code', 'Kod'],
     ])
+    // Ülke adları (D-095): Gizle önce, varsayılan Göster.
+    expect(found[3]?.options.map((o) => [o.mode, o.text, o.checked])).toEqual([
+      ['hidden', 'Gizle', false],
+      ['shown', 'Göster', true],
+    ])
     // Her grubun radyo adı ayrıdır (ok tuşları yalnızca kendi grubunda gezer).
-    expect(new Set(found.map((g) => g.options[0]?.name)).size).toBe(3)
+    expect(new Set(found.map((g) => g.options[0]?.name)).size).toBe(4)
     for (const group of found) {
       expect(new Set(group.options.map((o) => o.name)).size).toBe(1)
       expect(group.options.filter((o) => o.checked)).toHaveLength(1)
@@ -462,22 +472,43 @@ describe('LabelSettingsPanel (D-084)', () => {
     expect(found[0]?.options.find((o) => o.checked)?.mode).toBe('full')
     expect(found[1]?.options.find((o) => o.checked)?.mode).toBe('short')
     expect(found[2]?.options.find((o) => o.checked)?.mode).toBe('code')
-    expect(textOf(html)).toContain('Kısa: yalnızca sefer no. Tam: sefer no, hız ve yükseklik.')
+    expect(textOf(html)).toContain(
+      'Kısa: yalnızca sefer no. Tam: sefer no, hız ve yükseklik. Ülke adları haritayı uzaklaştırınca görünür.',
+    )
     expect(textOf(html)).not.toContain('Kod ve ad')
   })
 
-  it('seçili havalimanı seçeneği ayardan gelir; İngilizce metinler', () => {
+  it('seçili havalimanı ve ülke adı seçeneği ayardan gelir; İngilizce metinler', () => {
     for (const airports of ['hidden', 'code'] as const) {
-      const found = groups(render({ selected: 'full', others: 'full', airports }))
+      const found = groups(
+        render({ selected: 'full', others: 'full', airports, countries: 'shown' }),
+      )
       expect(found[2]?.options.find((o) => o.checked)?.mode, airports).toBe(airports)
     }
-    const en = groups(
-      render(
-        { selected: 'full', others: 'full', airports: 'hidden' },
-        getMessages('en').map.labels,
-      ),
+    for (const countries of ['hidden', 'shown'] as const) {
+      const found = groups(
+        render({ selected: 'full', others: 'full', airports: 'code', countries }),
+      )
+      expect(found[3]?.options.find((o) => o.checked)?.mode, countries).toBe(countries)
+      expect(found[2]?.options.find((o) => o.checked)?.mode, countries).toBe('code')
+    }
+    const enMessages = getMessages('en').map.labels
+    const enHtml = render(
+      { selected: 'full', others: 'full', airports: 'hidden', countries: 'shown' },
+      enMessages,
     )
-    expect(en.map((g) => g.legend)).toEqual(['Selected aircraft', 'Other aircraft', 'Airports'])
+    const en = groups(enHtml)
+    expect(en.map((g) => g.legend)).toEqual([
+      'Selected aircraft',
+      'Other aircraft',
+      'Airports',
+      'Country names',
+    ])
     expect(en[2]?.options.map((o) => o.text)).toEqual(['Hide', 'Code'])
+    expect(en[3]?.options.map((o) => [o.text, o.checked])).toEqual([
+      ['Hide', false],
+      ['Show', true],
+    ])
+    expect(textOf(enHtml)).toContain('Country names appear when you zoom out.')
   })
 })
