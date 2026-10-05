@@ -36,8 +36,8 @@ Durumlar: `[ ]` başlamadı, `[~]` sürüyor, `[k]` kod bitti ve kullanıcı do�
 | M6e.8 | Ülke adları sınır içinde, kelime başına satır (yama, v0.19.1) | `p1/map-country-fit` | [x] tamam; üretimde doğrulandı (2026-10-05, v0.19.1): uydu üstünde z5,3'te TÜRKİYE sınır içinde (Ankara'nın güneyinde), BOSNA / HERSEK alt alta, adlar kıyıdan taşmıyor; v0.19.1 Release 2026-10-05T05:51:51Z | #32 |
 | M6h | 3. halka (≤ 2.000 km) — kullanıcı isteğiyle M7a'nın önüne alındı (2026-10-04); sivil uçuşa kapalı olabilecek havalimanı notu | `p1/m6h-ring3` | [k] kod bitti; üretimde doğrulandı (2026-10-04, v0.18.0): `scope=listed` 503 (61 + 75 + 89 + 278), Viyana 3. halka 1.149 km, beş Özbek istasyonunun METAR'ı UZxx koduyla, METAR'lı istasyon 463/503, toplu hava 1,34 MB, URKK ve UUOO notu iki dilde; admin Servisler ve worker günlüğü (429 yok) bekliyor (ACTIVATION) | #28 |
 | M7a | Canlı araçlar: `smoke:live`, `record` | `p1/m7a-live-tools` | [k] kod bitti; canlı smoke ve kayıt kullanıcıda (ACTIVATION) | #31 |
-| M7b.1 | İz tablolarına ham `seen_pos` ve `baro_rate` (migration 0006, v0.20.0; D-097) | `p1/m7b1-track-columns` | [k] kod bitti; üretimde migration 0006 ve ingest yazımı bekliyor | — |
-| M7b.2 | Kapsama raporu: worker işi, admin sayfası, CLI (`coverage:report`, v0.21.0) | `p1/m7b-coverage` | [ ] | — |
+| M7b.1 | İz tablolarına ham `seen_pos` ve `baro_rate` (migration 0006, v0.20.0; D-097) | `p1/m7b1-track-columns` | [x] tamam; üretimde doğrulandı (2026-10-05, v0.20.0): `hy-migrate` 0006'yı uyguladıktan sonra servisler açıldı, `/version` 0.20.0, `/ready` 200; v0.20.0 Release 2026-10-05T07:45:13Z. Ingest yazımı üretimde adsb.lol açılınca görülür (ACTIVATION 2. adım) | #33 |
+| M7b.2 | Kapsama raporu: worker işi, admin sayfası, CLI (`coverage:report`, v0.21.0; D-098) | `p1/m7b-coverage` | [k] kod bitti; gerçek 24 saatlik rapor üretim ingest'i açıldıktan sonra (ACTIVATION) | — |
 | M7c | Kapsama ölçümü yedek yolu (`coverage:probe`, v0.22.0) | `p1/m7c-coverage-probe` | [ ] | — |
 | M6i | 4. halka (≤ 5.000 km); haritada görünür alana göre havalimanı yükleme, AWC toplu dosyası | `p1/m6i-ring4` | [ ] | — |
 | M6j | 5. halka (dünyanın geri kalanı, ABD dahil) | `p1/m6j-ring5` | [ ] | — |
@@ -1519,5 +1519,119 @@ Hedef sürüm 0.20.0 (dal `p1/m7b1-track-columns`, `main` `f2b865b` = v0.19.1'de
 - `pnpm ci:full` → yeşil: birim web 792, shared 669, tools 296, api 260, worker 201, providers 132, i18n 98, db 50, geo 36; entegrasyon db 86, api 26, worker 12, tools 9; `test:migration-upgrade` 6 → 7; e2e 125/125.
 - `pnpm stats` → 611 dosya, 119.485 satır (kod 109.046, belge 6.950).
 
-## M7b — Kapsama ölçümü ve raporu
-Ayrıntılar `docs/prompts/parca-1.md`'dedir. Başlarken bu dosyaya dizinler ve kabul komutları eklenir.
+## M7b.2 — Kapsama raporu (v0.21.0)
+Onay: 2026-09-25 Parça 1 planı (kullanıcı: "Proje + Parça 1'e başla"). M7b'nin M7b.1, M7b.2 ve M7c'ye bölünmesi orkestratör varsayılanıdır (2026-10-05; D-082, D-097; itiraz edilebilir). Kapsam `docs/prompts/parca-1.md` M7'nin `coverage:report` maddesi, rapor tanımları ve karar kurallarıdır; domain.md "Kapsama kalitesi"ndeki günlük iş de buradadır. Yedek yol `coverage:probe` M7c'dedir. Tasarım seçimleri ve tasarım sonrası değişiklikler orkestratör varsayılanıdır (2026-10-05, D-098; itiraz edilebilir).
+
+Hedef sürüm 0.21.0. Dal `p1/m7b-coverage`, `main` `1afaa28`'den (v0.20.0, PR #33) açıldı; PR tabanı `main`'dir. Migration 0007 gelir; web, api ve worker imajları değişir. Kararlar D-098'dedir. Sürüm, changelog ve README yayın adımındadır.
+
+Ajan üretim veritabanına bağlanmaz. Gerçek rapor, üretim ingest'i v0.20.0 ya da sonrasıyla en az 24 sa 45 dk (24 saatlik pencere + 45 dk kapanma payı) çalıştıktan sonra (ACTIVATION 2. adım) kullanıcının admin panelinden aldığı rapordur. Kilometre taşı `[k]` kapanır.
+
+**Kapsam:**
+- **Tanımlar tek yerde:** `packages/shared/src/arrival-coverage.ts` (sabitler, tipler, tanım sürümü 1; Türkçe metin yok). db okuyucuları değerleri parametre olarak alır, çünkü `packages/db` shared'a bağlı değildir. Worker ve tools aynı sabitleri verir. Tanımların yorumu D-098'dedir; domain.md'nin tanımları değişmez.
+- **Migration 0007** (`0007_arrival_coverage_reports`):
+  - `arrival_coverage_reports`: durum `queued` / `running` / `done` / `failed` (CHECK), saat 1–168 (CHECK), istenme/başlama/bitiş zamanları, pencere, hata, `result jsonb`, `markdown`, tanım sürümü.
+  - Etkin raporun tek olması için `queued`/`running` satırlarına kısmi benzersiz dizin.
+  - `stations.coverage_arrivals_7d` ve `coverage_updated_at`. 0000–0006 değişmez.
+- **Okuyucular** (`packages/db/src/arrival-coverage.ts`) ve rapor satırları (`arrival-coverage-reports.ts`):
+  - Her okuma kendi salt okunur işlemindedir: `statement_timeout` 60 sn, `lock_timeout` 2 sn, 55P03/57014'te en çok 3 deneme.
+  - Aday sorgusu UTC günü başına bir ifadedir; örnekler 200 uçuşluk partilerle birincil anahtar dizininden okunur.
+  - Pencere istatistikleri, sağlayıcının saatleri ve durum aralıkları, METAR QNH.
+- **Worker** (`apps/worker/src/jobs/arrival-coverage/`):
+  - saf sınıflandırıcı ve toplayıcı
+  - Türkçe Markdown (docs/ dilinde bir belge; arayüz metni değildir)
+  - rapor işi: `jobs` rolü `queued` satırı yoklar ve üstlenir, eşzamanlılık 1, 10 dk bütçe
+  - günlük `arrival-coverage-ratio-7d` (00:45 UTC)
+- **API:** `POST` / `GET /v1/admin/arrival-coverage/reports`, `GET …/:id`, `GET …/:id/markdown`. Yönetici oturumu gerekir; kuyruk yoktur, API yalnızca `queued` satır yazar.
+- **Web:** `/admin/kapsama` (yalnızca Türkçe, D-076): "Son 7 gün", başlatma formu, raporlar tablosu, seçili rapor. İndirme ucu `/admin/kapsama/indir?rapor=<id>`.
+- **Yerel CLI `pnpm coverage:report --hours N`** (N: 6, 12, 24, 48, 72 ya da 168; varsayılan 24):
+  - Aynı hesabı (worker'ın kodu) yerel veritabanında çalıştırır ve `tools/recordings/tmp/kapsama-<YYYYMMDD>T<HHmm>Z.md`'ye yazar (pencere sonu, UTC; `wx`, var olan dosya ezilmez).
+  - Kapı: `DATABASE_URL` yalnızca `localhost`, `127.0.0.1` ya da `::1`; `APP_ENV` development ya da test. Ağa çıkmaz, veritabanına yazmaz; ajan ve CI çalıştırabilir.
+  - Çıkış: 0 yazıldı, 1 rapor hesaplanamadı, 2 ret / argüman / veritabanı / dosya, 4 iç hata.
+- **Fixture `pnpm --filter @havayolu/tools arrival-fixture [--clean]`:**
+  - LTAI'ye üç kapanmış sentetik varış yazar (hex `e2e0a1`–`e2e0a3`): biri pistte yerde örnekleriyle, ikisi alçakta kayboluyor.
+  - Önce kendi hex'lerinin uçuşlarını ve iz örneklerini siler (idempotent). `--clean` yalnızca siler.
+  - LTFM kullanılmaz: replay'in `cruise` senaryosu LTFM'ye sonsuz son yaklaşma uçurur ve bunlar yerde örneği olmayan varış sayılır.
+- **e2e** `e2e/tests/admin-coverage.spec.ts`: test yöneticisi değerleri Playwright `webServer` ortamından verilir ve `.env`'deki aynı anahtarları ezer; `.env`'in diğer değerleri (ör. `DATABASE_URL`) okunur, `.env`'e yazılmaz.
+
+**Dosyalar:**
+- `packages/shared/src/arrival-coverage.ts` ve testi, `src/index.ts`
+- `packages/db/`:
+  - `drizzle/0007_arrival_coverage_reports.sql`, `drizzle/meta/0007_snapshot.json`, `drizzle/meta/_journal.json`
+  - `src/schema.ts`, `src/arrival-coverage.ts`, `src/arrival-coverage-reports.ts`, `src/index.ts`
+  - testler `arrival-coverage.test.ts`, `arrival-coverage.int.test.ts`, `migrate.int.test.ts`, `src/test/geodesy.ts`
+- `apps/worker/src/jobs/arrival-coverage/` (sınıflandırıcı, toplayıcı, Markdown, iş, yoklayıcı, testler, `test/synthetic.ts`), `src/jobs/index.ts`, `src/jobs/jobs.int.test.ts` (partition bakımı ile kapsama okumasının sırası), `package.json` (`exports`)
+- `apps/api/src/admin/arrival-coverage.ts` ve testleri (`arrival-coverage.test.ts`, `arrival-coverage.int.test.ts`), `src/app.ts`, `src/index.ts`, `src/test/helpers.ts`, `src/integration.int.test.ts`
+- `apps/web/`:
+  - `src/app/admin/kapsama/` (sayfa, görünüm, form, otomatik yenileme, indirme ucu ve testleri)
+  - `src/app/admin/admin-nav.tsx` (Servisler / Kapsama gezinmesi), `src/app/admin/page.tsx` (bağlantı)
+  - `src/lib/arrival-coverage.ts` ve testi (şemalar, kimlik ve saat denetimi, biçimlendirme), `src/lib/test/coverage-fixture.ts`, `src/lib/admin-api.ts`
+  - `src/app/globals.css` (yönetici gezinmesi, seçim kutusu, kapsama formu, yenileme durumu, ayrıntı ve Markdown kutusu stilleri)
+- `packages/i18n/src/messages/{tr,en}.ts`: `admin.coverage`
+- `tools/`:
+  - `src/arrival-report/`: `args.ts`, `gate.ts`, `report.ts`, `local-generate.ts`, `report-cli.ts`, `fixture.ts`, `fixture-cli.ts` ve testleri (`*.test.ts`, `arrival-report.int.test.ts`, `test/result.ts`)
+  - `package.json`: `arrival-fixture` script'i
+  - `README.md`
+- Kök `package.json`: `coverage:report` script'i; `turbo.json`: `@havayolu/tools#test`'in önbellek anahtarına `packages/db/src` ve `apps/worker/src`
+- `e2e/`: `tests/admin-coverage.spec.ts`, `arrival-fixture.ts` (fixture aracını çalıştırır), `support.ts` (test yöneticisi değerleri; sır değildir), `playwright.config.ts` (`webServer` ortamı)
+- Belgeler: `docs/DECISIONS.md` (D-098), bu plan, `docs/ACTIVATION.md`, `CLAUDE.md` (Komutlar), `docs/spec/domain.md` ("Kapsama kalitesi"nde yalnızca bağlantı), `docs/spec/data-sources.md` (ikinci IP notunda M7c probe'u)
+
+**Kabul komutları:**
+- **Birim testleri:** `pnpm --filter @havayolu/shared test`, `@havayolu/db`, `@havayolu/worker`, `@havayolu/api`, `@havayolu/web`, `@havayolu/i18n` ve `@havayolu/tools` → yeşil. tools testleri şunları doğrular:
+  - argümanlar: `--hours` yalnızca 6/12/24/48/72/168, varsayılan 24, baştaki `--` atlanır; `--clean`; `-h`
+  - kapı: yerel olmayan, geçersiz ya da eksik `DATABASE_URL` ve `APP_ENV=production` ret; ileti adres ve parola içermez
+  - CLI çekirdeği: dosya adı, `wx` (var olan dosya ezilmez), hesap hatasında çıkış 1, PING yoksa çıkış 2, konsol özeti
+  - fixture: worker'ın sınıflandırıcısıyla 3 varış, 1 yerde örneği, 2 `lost_low`; medyan AGL < 1.000 ft, eşiğe medyan < 8 km
+- **`pnpm db:check`** → boş fark. **`pnpm db:migrate`** → 0007 uygulanır. **`git fetch origin && pnpm test:migration-upgrade`** → 7 → 8.
+- **`pnpm test:integration`** (önce `pnpm dev:infra`) → yeşil. tools: `app_test_tools_arrival` veritabanında fixture yazılır (iki kez: idempotent), worker'ın rapor kodu LTAI'de 3 varış, %33,3 ve kural 1 verir; Markdown'da hex yoktur; `--clean` satırları siler.
+- **`pnpm --filter @havayolu/tools arrival-fixture`, ardından `pnpm coverage:report --hours 24`** → LTAI'de 3 varış, yerde örneği %33,3 (1/3), kural 1 uygulanır (sınırda, az örnek), kural 2 uygulanmaz. Çıktı bu plana eklenir.
+- **`pnpm test:e2e`** → `admin-coverage.spec.ts` dahil yeşil: oturumsuz `/admin/kapsama` giriş sayfasına döner; test yöneticisiyle giriş, 24 saatlik rapor, "Hazır"; LTAI satırı 3 varış, %33,3, kural 1; `.md` indirilir (başlık ve ODbL var, fixture hex'i yok); sonda fixture silinir.
+- **Statik denetimler:** `pnpm typecheck`, `pnpm lint`, `pnpm typecheck:scripts`, `pnpm typecheck:e2e`, `pnpm lint:e2e`, `pnpm check:eol`, `prettier --check .` → yeşil.
+
+**Kullanıcıya bağlı (`[k]`)** (ACTIVATION → "M7b.2 kapsama raporu"):
+1. **Ön koşullar:** ACTIVATION 1. adımı (info@adsb.lol) ve 2. adımı (Dokploy'da `CONTACT_EMAIL`) yapılmış, v0.21.0 yayında olmalıdır. Gereken 24 sa 45 dk (24 saatlik pencere + 45 dk kapanma payı), v0.20.0 ya da sonrası yayındayken üretim ingest'inin başladığı andan sayılır (D-097, D-098).
+2. **Rapor:** https://admin.havayolu.live/admin/kapsama → 24 saat → "Raporu başlat" → durum "Hazır" olunca "İndir (.md)". Dosyayı ya da metni ajana ver; ajan onu `docs/reports/kapsama.md` olarak commit'ler ve karar kurallarını Parça 2'nin girdisine işler.
+3. **Kural 2:** Bir istasyonda kural 2 uygulanıyorsa DUR-SOR: rapordaki eşik önerilerinden birini seç ya da yenisini söyle.
+4. **Günlük iş:** Ertesi gün "Son 7 gün" tablosunda güncellenme zamanının, oranların ve varış sayılarının dolduğunu doğrula. Ingest çalışmadan oran "—"dir.
+5. **Yedek yol:** Üretim hazır değilse M7c'nin `pnpm coverage:probe --hours 24`'üdür (henüz yok).
+
+**Çıktı kaydı (2026-10-05, CLI, fixture, e2e ve belgeler; sürüm, changelog ve README yayın adımındadır):**
+- `pnpm --filter @havayolu/tools test` → 25 dosya, 356 test (yeni 5 dosya, 60 test: argümanlar, kapı, CLI çekirdeği, yerel hesap uyarlayıcısı, fixture ve fixture'ın worker'ın sınıflandırıcısı ve toplayıcısıyla sonucu). `pnpm --filter @havayolu/tools test:integration` → 3 dosya, 14 test (`arrival-report.int.test.ts` 5 test: fixture yokken çıkış 1, fixture iki kez yazılınca 3 uçuş, LTAI 3 varış ve %33,3, 6 saatlik pencere, `--clean` yalnızca kendi satırlarını siler).
+- `pnpm --filter @havayolu/tools typecheck`, `pnpm --filter @havayolu/tools lint`, `pnpm typecheck` (9/9), `pnpm typecheck:e2e`, `pnpm lint:e2e`, `pnpm check:eol`, `prettier --check` (tools, e2e, docs, CLAUDE.md) → yeşil.
+- `pnpm --filter @havayolu/tools arrival-fixture` (yerel `app_dev`) → "✓ LTAI fixture'ı yazıldı: 3 uçuş, 116 iz örneği … (iniş eşiği 18C)"; ikinci çalıştırma önce 3 uçuşu siler.
+- `pnpm coverage:report --hours 24` → çıkış 0, `tools/recordings/tmp/kapsama-20261005T0748Z.md`:
+  - `LTAI (AYT): 3 varış · yerde örneği %33,3 (1/3) · medyan AGL 308 ft · eşiğe medyan 1,5 km · Kural 1: uygulanır (sınırda, az örnek) · Kural 2: uygulanmaz (az örnek)`
+  - yerel veritabanındaki eski replay verisinden LTFM'de 1 varış (yerde örneği yok); başlıkta LTFM için `baro_rate`/`seen_pos` boşluk uyarısı (v0.20.0 öncesi satırlar)
+  - Markdown'da fixture hex'i yok; satır sonu LF. `--hours 25` → kullanım metni, çıkış 2.
+- `npx playwright test -c e2e/playwright.config.ts admin-coverage app.setup` → 6/6 (setup 4, `admin-coverage.spec.ts` 2): oturumsuz sayfa ve indirme ucu girişe döner; rapor ~8 sn'de "Hazır", LTAI satırı 3 / %33,3 (1/3) / "Uygulanır (sınırda, az örnek)" / "Uygulanmaz (az örnek)", `.md` indirildi (`kapsama-<UTC>.md`, `admin raporu #<id>`, ODbL, hex yok).
+
+**Bütün dalın denetimi (2026-10-05, birleştirme öncesi; commit yok):**
+- `pnpm install` → güncel; `pnpm format` → değişiklik yok. `pnpm lint` 9/9, `pnpm typecheck` 9/9 (`turbo run typecheck --force` ile önbelleksiz de 9/9), `pnpm typecheck:scripts`, `pnpm typecheck:e2e`, `pnpm lint:e2e`, `pnpm check:eol`, `pnpm changelog:check` (v0.20.0), `prettier --check .` → yeşil. `pnpm build` 5/5 (`/admin/kapsama` ve `/admin/kapsama/indir` derlendi).
+- `pnpm test` → 9 paket, 172 dosya, 2.754 test: providers 132, geo 36, db 61, i18n 98, shared 685, worker 286, web 822, tools 356, api 278. `pnpm test:scripts` → 2 dosya, 39 test.
+- `turbo.json`: `@havayolu/tools#test`'in önbellek anahtarına `packages/db/src` ve `apps/worker/src` eklendi (D-098); kuru çalıştırmada worker'ın 42 ve db'nin 33 dosyası anahtardadır.
+- `pnpm db:check` → boş fark. `pnpm db:migrate` → tamam (yerelde 0007 zaten uygulanmıştı). `git fetch origin && pnpm test:migration-upgrade` → `origin/main` (`1afaa28`) üstünde 7 → 8.
+- `pnpm test:integration` iki kez → ikisinde de yeşil: db 9 dosya / 106 test, api 7 / 30, worker 3 / 16, tools 3 / 14 (toplam 22 dosya, 166 test).
+- `pnpm exec playwright test -c e2e/playwright.config.ts admin-coverage live-map` → 25/25 (setup 4, `admin-coverage.spec.ts` 2, `live-map.spec.ts` 19), 51,2 sn.
+- `pnpm --filter @havayolu/tools arrival-fixture`, ardından `pnpm coverage:report --hours 24` → çıkış 0, `tools/recordings/tmp/kapsama-20261005T0757Z.md` (358 satır, CR yok, fixture hex'i yok). Özet tablosundaki LTAI satırı:
+  - `| LTAI (AYT) | 3 | %33,3 (1/3) | %6,1–%79,2 | 308 ft | 1,5 km | 3 / 0 | — | uygulanır, sınırda, az örnek | uygulanmaz, az örnek |`
+
+**Çıktı kaydı (2026-10-05, inceleme düzeltmeleri; commit yok):**
+- Düzeltmeler (D-098 güncellendi):
+  - **Bütçe ve kapanış okuyucuların içinde:** `ReadOnlyOptions.checkpoint` her ifade denemesinden ve her yeniden deneme beklemesinden önce çağrılır; gün dilimleri, uçuş parçaları ve partiler bütçeyi en geç bir ifade sonra görür.
+  - **Günlük oran işi:** bilinen hatalar ve son 57014/55P03 BullMQ'da yeniden denenmez (`UnrecoverableError`); `aborted` ve bağlantı hataları denenir.
+  - **İz partition bakımı** kapsama raporu ve oran işiyle aynı sıraya girer (DDL kapsama okumasıyla çakışmaz).
+  - **Sağlayıcı bölümü:** satırlar "pencereye değen UTC saatleri" diye adlandırılır, saat aralığı yazılır. Durum geçişleri pencere sonundan 10 dk sonrasına kadar okunur; durum süreleri pencereye kırpılır.
+  - **Kural 2:** `lost_low`'un yanında bütün varışların eşik önerileri de basılır; DUR-SOR satırı basılan tabloyu gösterir.
+  - **Yöntem metni:** aday kutusunun yarı genişliği (15,5 km, kenarı ≈ 31 km) ve geometrik hız satırları yazılır.
+  - **Admin sayfası:** liste bir yenilemede alınamazsa otomatik yenileme sürer. İndirme bağlantılarında `download` özniteliği yoktur. Zaman aşımına uğrayan raporun bitişi zaman aşımı anıdır (süre büyümez); kuyrukta eskiyen raporun penceresi "—"dir.
+  - **Belgeler:** `.env` ifadesi düzeltildi (webServer ortamı aynı anahtarları ezer, `.env`'in diğer değerleri okunur, `.env`'e yazılmaz); "Dosyalar" listesi tamamlandı.
+- `pnpm format` → yalnızca yeni düzenlemeler biçimlendi. `pnpm lint` 9/9, `pnpm typecheck` 9/9, `pnpm typecheck:e2e`, `pnpm lint:e2e`, `pnpm check:eol` → yeşil.
+- `pnpm test` → 9 paket, 172 dosya, 2.768 test: providers 132, geo 36, db 64, i18n 98, shared 685, worker 292, web 827, tools 356, api 278.
+- `pnpm db:check` → boş fark. `pnpm db:migrate` → tamam. `pnpm test:migration-upgrade` → yerel `origin/main` (`1afaa28`) üstünde 7 → 8.
+- `pnpm test:integration` → yeşil: db 9 dosya / 106 test, worker 3 / 17 (yeni: partition işi tutulan kapsama sırasını bekler), api 7 / 30, tools 3 / 14 (toplam 22 dosya, 167 test).
+- `pnpm test:e2e` (tam koşu, 10 spec) → 127/127, 3,6 dk; `admin-coverage.spec.ts` 2/2 (rapor ~12 sn'de "Hazır", `.md` `download` özniteliği olmadan indirildi). Spec LTAI fixture'ını yazar ve sonda siler; diğer spec'ler etkilenmedi.
+
+**Çıktı kaydı (2026-10-05, yayın adımı):**
+- v0.20.0 `releasedAt` 2026-10-05T07:45:13Z (GitHub Release). Sürüm 0.21.0. Plan satırları: M7b.1 `[x]` (üretimde `hy-migrate` 0006, `/ready` 200), M7b.2 `[k]`.
+- İlk `pnpm ci:full` e2e'nin ortasında oturum kapanınca kesildi (52 test geçmişti). İkinci deneme makine yeniden açıldıktan sonra yerel altyapı kapalı olduğu için entegrasyonda düştü (`ioredis` bağlantı hatası); `pnpm dev:infra` ve `pnpm db:migrate` sonrası kalan adımlar yeniden çalıştırıldı.
+- `pnpm ci:full` → yeşil: `ci:local` ve `compose:guard` (ikinci deneme), birim web 827, shared 685, tools 356, worker 292, api 278, providers 132, i18n 98, db 64, geo 36; entegrasyon db 106, worker 17, api 30, tools 14; `test:migration-upgrade` 7 → 8; e2e 127/127.
+- `pnpm stats` → 666 dosya, 135.793 satır (kod 125.082, belge 7.188).

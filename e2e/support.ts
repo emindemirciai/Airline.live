@@ -190,6 +190,31 @@ export const GPTBOT_USER_AGENT =
 export const E2E_ANALYZE_URL = 'http://127.0.0.1:4390'
 export const E2E_ANALYZE_SITE_ID = 'e2e.localhost'
 
+/**
+ * e2e'nin test yöneticisi (sır değildir; yalnızca bu yerel test sunucusunda geçerlidir). Playwright
+ * `webServer` ortamı API'ye `ADMIN_EMAIL` ve `ADMIN_SETUP_TOKEN` olarak verir. Süreç ortamı kökteki
+ * `.env`'in önündedir, ama anahtar başına: bu iki değer `.env`'dekini ezer, `.env`'in diğer
+ * değerleri (ör. `DATABASE_URL`) yine okunur. `.env`'e hiçbir şey yazılmaz (D-098). Anahtar API
+ * kuralına uyar: en az 12 karakter, yalnızca `[A-Za-z0-9_-]`.
+ */
+export const E2E_ADMIN = {
+  email: 'e2e-yonetici@example.com',
+  setupToken: 'e2e-kurulum-anahtari-yalnizca-yerel',
+} as const
+
+/**
+ * Kapsama raporu fixture'ı (`pnpm --filter @havayolu/tools arrival-fixture`, D-098): LTAI'ye üç
+ * kapanmış sentetik varış, biri yerde örneğiyle (tools/src/arrival-report/fixture.ts). Replay
+ * LTAI'ye yaklaşma uçurmadığı için istasyonun satırı yalnızca bu fixture'dan gelir.
+ */
+export const ARRIVAL_FIXTURE = {
+  icao: 'LTAI',
+  iata: 'AYT',
+  hexes: ['e2e0a1', 'e2e0a2', 'e2e0a3'],
+  arrivals: '3',
+  groundShare: '%33,3 (1/3)',
+} as const
+
 export const CONSENT_COOKIE = 'hy_consent'
 export const LABEL_SETTINGS_KEY = 'hy:map:labels'
 /** Uçak listesinin geniş ekrandaki açık ya da daraltılmış hâli (D-085; lib/map/list-settings.ts). */
