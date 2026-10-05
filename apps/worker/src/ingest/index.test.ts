@@ -65,6 +65,7 @@ const state = (hex: string, over: Partial<AircraftState> = {}): AircraftState =>
   squawk: null,
   emergency: null,
   sampleTime: T0,
+  seenPosS: 0.5,
   source: 'adsbLol',
   ...over,
 })
@@ -529,7 +530,26 @@ describe('trackRow', () => {
       verticalRateFpm: -704,
       onGround: false,
       source: trackSourceCode('localReceiver', 'mlat'),
+      seenPosS: 0.5,
+      baroRateFpm: -704,
     })
-    expect(trackRow(1, state('aa0002', { baroRateFpm: null })).verticalRateFpm).toBe(-640)
+  })
+
+  it('ham seen_pos ve baro_rate yerine başka değer konmaz (D-097)', () => {
+    // Barometrik hız yok: görünen dikey hız geometrikten gelir, ham sütun boş kalır.
+    expect(trackRow(1, state('aa0002', { baroRateFpm: null }))).toMatchObject({
+      verticalRateFpm: -640,
+      baroRateFpm: null,
+    })
+    // İkisi de yok.
+    expect(trackRow(1, state('aa0003', { baroRateFpm: null, geomRateFpm: null }))).toMatchObject({
+      verticalRateFpm: null,
+      baroRateFpm: null,
+    })
+    // seen_pos gelmediyse null kalır; sampleTime ne olursa olsun yaş türetilmez.
+    expect(trackRow(1, state('aa0004', { seenPosS: null, sampleTime: T0 - 3_000 }))).toMatchObject({
+      ts: new Date(T0 - 3_000),
+      seenPosS: null,
+    })
   })
 })

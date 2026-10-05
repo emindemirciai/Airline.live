@@ -13,7 +13,7 @@ import type { TrackTable } from './partitions'
  */
 type Sql = postgres.Sql
 
-/** Çok satırlı insert'te parti büyüklüğü (11 sütun × 1000 = 11.000 parametre < 65.535). */
+/** Çok satırlı insert'te parti büyüklüğü (13 sütun × 1000 = 13.000 parametre < 65.535). */
 export const TRACK_INSERT_CHUNK = 1000
 /** `in (...)` listelerinde parti büyüklüğü. */
 const ID_CHUNK = 5000
@@ -255,10 +255,15 @@ export interface TrackPointRow {
   altGeomFt: number | null
   gsKt: number | null
   trackDeg: number | null
+  /** Görünen dikey hız: barometrik, yoksa geometrik (fpm). */
   verticalRateFpm: number | null
   onGround: boolean
   /** `trackSourceCode(sağlayıcı, konum kaynağı)` (D-073). */
   source: number
+  /** Kaynağın bildirdiği ham `seen_pos` (sn); göndermediyse null (D-097). */
+  seenPosS: number | null
+  /** Kaynağın bildirdiği ham barometrik dikey hız (fpm); yoksa null (D-097). */
+  baroRateFpm: number | null
 }
 
 const TRACK_COLUMNS = [
@@ -273,6 +278,8 @@ const TRACK_COLUMNS = [
   'vertical_rate_fpm',
   'on_ground',
   'source',
+  'seen_pos_s',
+  'baro_rate_fpm',
 ] as const
 
 const INT4_MIN = -2_147_483_648
@@ -306,7 +313,8 @@ const count = (value: number) => (Number.isFinite(value) ? Math.max(0, Math.roun
  * Çok satırlı insert, 1000'erlik partilerle; `ON CONFLICT (flight_id, ts) DO NOTHING` sayesinde
  * aynı nokta ikinci kez yazılmaz. Eklenen satır sayısını döndürür. Günün partition'ı yoksa satır
  * DEFAULT partition'a düşer; çağıran açılışta `ensureTrackPartitions` çalıştırır. Sütun türüne
- * sığmayan irtifa, hız, yön ve dikey hız değerleri boş yazılır (`intOrNull`, `realOrNull`).
+ * sığmayan irtifa, hız, yön, dikey hız ve `seen_pos` değerleri boş yazılır (`intOrNull`,
+ * `realOrNull`).
  */
 export async function insertTrackPoints(
   sql: Sql,
@@ -327,6 +335,8 @@ export async function insertTrackPoints(
       vertical_rate_fpm: intOrNull(r.verticalRateFpm),
       on_ground: r.onGround,
       source: Math.round(r.source),
+      seen_pos_s: realOrNull(r.seenPosS),
+      baro_rate_fpm: intOrNull(r.baroRateFpm),
     }))
     const result = await sql`
       insert into ${sql(table)} ${sql(values, TRACK_COLUMNS)}

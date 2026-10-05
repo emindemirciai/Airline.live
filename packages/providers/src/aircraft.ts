@@ -97,6 +97,12 @@ export interface AircraftState {
   // Meta
   /** Konum örneğinin zamanı, UTC epoch ms (domain.md: olay zamanları buradan alınır). */
   sampleTime: number
+  /**
+   * Kaynağın bildirdiği ham `seen_pos` (sn): yanıt anında konumun yaşı. Kaynak göndermediyse null;
+   * `seen` yerine konmaz ve kırpılmaz (`sampleTime` hesabındaki yaş ayrıdır). İz tablolarına
+   * yazılır (kapsama raporu, D-097); herkese açık API'de yer almaz.
+   */
+  seenPosS: number | null
   source: LiveSourceId
 }
 

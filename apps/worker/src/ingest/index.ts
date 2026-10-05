@@ -343,6 +343,9 @@ export function trackRow(flightId: number, s: AircraftState): TrackPointRow {
     verticalRateFpm: s.baroRateFpm ?? s.geomRateFpm,
     onGround: s.onGround,
     source: trackSourceCode(s.source, s.positionSource),
+    // Kapsama raporu için ham değerler (D-097): geometrik hız ya da `seen` yerine konmaz.
+    seenPosS: s.seenPosS,
+    baroRateFpm: s.baroRateFpm,
   }
 }
 

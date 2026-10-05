@@ -12,8 +12,23 @@ import type { ChangelogEntry } from './types'
  */
 export const CHANGELOG: readonly ChangelogEntry[] = [
   {
+    version: '0.20.0',
+    date: '2026-10-05',
+    title: {
+      tr: 'Kapsama ölçümüne hazırlık',
+      en: 'Groundwork for coverage measurement',
+    },
+    items: [
+      {
+        tr: 'Uçuş izlerine iki ölçüm alanı eklendi: her konum örneğinin alıcıya ulaşma gecikmesi ve uçağın barometrik alçalma hızı. Sonraki sürümdeki kapsama raporu, İstanbul ve öbür istasyonlarda inişlerin ne kadarının yerde görüldüğünü bu alanlarla ölçecek. Sitede görünen bir değişiklik yok.',
+        en: 'Flight tracks now store two more measurements: how old each position report is and the aircraft’s barometric descent rate. The coverage report in the next release will use them to measure how many landings at Istanbul and the other stations are seen on the ground. Nothing changes on the site.',
+      },
+    ],
+  },
+  {
     version: '0.19.1',
     date: '2026-10-05',
+    releasedAt: '2026-10-05T05:51:51Z',
     title: {
       tr: 'Ülke adları sınırların içinde',
       en: 'Country names stay inside their borders',

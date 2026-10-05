@@ -35,6 +35,18 @@ describe('toPublicAircraft', () => {
     expect(toPublicAircraft(raw, codes)).toEqual(toPublicAircraft(state, codes))
   })
 
+  it('ham seen_pos herkese açık kayda girmez; alanı olmayan eski kayıt da okunur (D-097)', () => {
+    const state = aircraftState({ seenPosS: 2.5 })
+    const out = toPublicAircraft(state, codes)
+    expect(out).not.toBeNull()
+    expect(Object.values(out ?? {})).not.toContain(2.5)
+    expect(Object.keys(out ?? {}).sort()).toEqual(
+      Object.keys(toPublicAircraft(aircraftState({ seenPosS: null }), codes) ?? {}).sort(),
+    )
+    const { seenPosS: _omitted, ...older } = state
+    expect(toPublicAircraft(older, codes)).toEqual(out)
+  })
+
   it('askeri ve bayrağı bilinmeyen uçak gizlidir (D-071)', () => {
     expect(toPublicAircraft(aircraftState({ dbFlags: 1 }), codes)).toBeNull()
     expect(toPublicAircraft(aircraftState({ dbFlags: 1 | 8 }), codes)).toBeNull()
