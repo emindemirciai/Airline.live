@@ -34,6 +34,7 @@ Durumlar: `[ ]` başlamadı, `[~]` sürüyor, `[k]` kod bitti ve kullanıcı do�
 | M6e.6 | API yanıtlarının sıkıştırılması (yama, v0.18.1) | `p1/api-gzip` | [x] tamam; üretimde doğrulandı (2026-10-04, v0.18.1): content-encoding br; haritanın havalimanı ve pist listesi 439.090 → 75.715 bayt; v0.18.1 Release 2026-10-04T20:32:07Z | #29 |
 | M6e.7 | Haritada ülke adları başkentlerde (yama, v0.18.2) | `p1/map-country-labels` | [x] tamam; üretimde doğrulandı (2026-10-05, v0.18.2): uydu üstünde z5'te TÜRKİYE, ROMANYA, BULGARİSTAN, YUNANİSTAN okunur, iğneler ve kesikli sınırlar üstte; Balkanlarda küçük adlar soluk; v0.18.2 Release 2026-10-05T01:08:09Z | #30 |
 | M6e.8 | Ülke adları sınır içinde, kelime başına satır (yama, v0.19.1) | `p1/map-country-fit` | [x] tamam; üretimde doğrulandı (2026-10-05, v0.19.1): uydu üstünde z5,3'te TÜRKİYE sınır içinde (Ankara'nın güneyinde), BOSNA / HERSEK alt alta, adlar kıyıdan taşmıyor; v0.19.1 Release 2026-10-05T05:51:51Z | #32 |
+| M6e.9 | Ülke adları daha belirgin, boş yerde (yama, v0.21.1; D-099) | `p1/map-country-clear` | [k] kod bitti; üretimde uydu üstünde görünüm denetimi bekliyor (ACTIVATION M6e.9) | — |
 | M6h | 3. halka (≤ 2.000 km) — kullanıcı isteğiyle M7a'nın önüne alındı (2026-10-04); sivil uçuşa kapalı olabilecek havalimanı notu | `p1/m6h-ring3` | [k] kod bitti; üretimde doğrulandı (2026-10-04, v0.18.0): `scope=listed` 503 (61 + 75 + 89 + 278), Viyana 3. halka 1.149 km, beş Özbek istasyonunun METAR'ı UZxx koduyla, METAR'lı istasyon 463/503, toplu hava 1,34 MB, URKK ve UUOO notu iki dilde; admin Servisler ve worker günlüğü (429 yok) bekliyor (ACTIVATION) | #28 |
 | M7a | Canlı araçlar: `smoke:live`, `record` | `p1/m7a-live-tools` | [k] kod bitti; canlı smoke ve kayıt kullanıcıda (ACTIVATION) | #31 |
 | M7b.1 | İz tablolarına ham `seen_pos` ve `baro_rate` (migration 0006, v0.20.0; D-097) | `p1/m7b1-track-columns` | [x] tamam; üretimde doğrulandı (2026-10-05, v0.20.0): `hy-migrate` 0006'yı uyguladıktan sonra servisler açıldı, `/version` 0.20.0, `/ready` 200; v0.20.0 Release 2026-10-05T07:45:13Z. Ingest yazımı üretimde adsb.lol açılınca görülür (ACTIVATION 2. adım) | #33 |
@@ -1211,6 +1212,56 @@ Hedef sürüm yayın adımında belirlenir (dal `p1/map-country-fit`, `main` `78
 - CLAUDE.md Komutlar tablosuna `pnpm country-labels:fixture` · `pnpm country-labels` satırı eklendi. "İzinli → referans" listesi kullanıcının onayına bırakıldı (ACTIVATION).
 - `pnpm ci:full` → yeşil: birim tools 296, web 792, shared 669, api 259, worker 200, providers 127, i18n 98, db 50; entegrasyon db 84, api 26, worker 12, tools 9; `test:migration-upgrade` 6 → 6; e2e 125/125.
 - `pnpm stats` → 610 dosya, 119.046 satır (kod 108.692, belge 6.871).
+
+## M6e.9 — Ülke adları daha belirgin, boş yerde (yama)
+Onay: 2026-10-05 kullanıcı: "boyut iyi fakat az biraz daha belirgin olsun ülke isimleri. boşlukta bir yerde yazsa da olur. mesela rusya ve italya iç içe olmuş yazıları." (v0.19.1 ve v0.20.0 yayınından sonra; ayrıntılar orkestratör varsayılanı, itiraz edilebilir; yama sürümü, D-082)
+
+Hedef sürüm yayın adımında belirlenir (dal `p1/map-country-clear`, `main` `1afaa28` = v0.20.0'dan). Karar D-099'dadır.
+
+**Kapsam:**
+- **Daha belirgin:** yazı beyaz 0,6 → 0,85, hale 0,85 → 0,9; hale payının 0,85'i genişlik, 0,1'i yumuşaklık (önce 0,65 ve 0,3; dış uç yine boy / 8'in içinde). A seçeneğinin karakteri kalır.
+- **Boş yer:** adın görünür kutusuna, yazıldığı yakınlaştırmalarda, listelenen 503 havalimanının pini ve (z5'ten) kodu (pin başının sağında ve solunda: web'in ilk iki adayı) girmez. Engeller commit'li OurAirports fixture'ının 2026-10-01 kopyasından üretimin liste kuralıyla çıkar; yeni fixture yok. Üretimin gece yenilenen listesiyle karşılaştırma kullanıcıdadır (ACTIVATION "Ülke adlarının engelleri").
+- **KIBRIS** kullanıcının D-095 kararıyla Lefkoşa'da kalır (boş yer kuralının tek istisnası; Ercan pini adın üstünde).
+- **Çapa kuralı (başkent kuralının yerine):** her bileşimde en erkenin en çok 1,5 kademe gerisinde sığan, çakışması 0 noktalar; yoksa en erkenin en çok 0,25 gerisinde sığanlar. Sıra: çakışma, ilk sığma düzeylerinin toplamı, görsel merkeze (erişilmezlik kutbu) uzaklık, kuzey, batı. Ülke başına tek ortak nokta.
+- Boy, kademe, yakınlaştırma aralıkları, silinme, sınır içi ve sözcük başına satır kuralları, anahtar, katman yapısı değişmez. Sürüm, `entries.ts`, `CHANGELOG.md` ve README yayın adımındadır.
+
+**Dosyalar:**
+- `tools/src/country-labels/airport-pins.ts` (yeni: listelenen havalimanları, pin ve kod kutusu, dizinli arama), `placement.ts` (boş yer kuralı, görsel merkez, tablo değişkenleri), `label-model.ts` (`visibleBoxAt`), `geometry.ts` (izdüşümde sınıra uzaklık), `cli.ts` (özet; `airports` alt komutu); testler `airport-pins.test.ts` (yeni), `placement.test.ts`, `geometry.test.ts`
+- `packages/shared/src/map/country-label-placements.ts` (yeniden üretildi), `country-labels.ts` (saydamlıklar, hale payları, açıklama), `colors.ts` (açıklama), `reference/capitals.ts` (açıklama: ad başkente bağlı değil); test `country-labels.test.ts`
+- `e2e/country-label-expectations.ts` (İRAN'ın yeni kutusu, z3 listesi, kesirli `minzoom` adları), `e2e/tests/live-map.spec.ts` (IKA kesiti ad açıkken ve kapalıyken aynı; z4 ve z3 adımları; İngilizce açıklaması)
+- `turbo.json` (`@havayolu/tools#test` girdilerine `packages/db/src` ve web `labels.ts`)
+- Belgeler: D-099 (D-096 ve D-095'e işaret satırları), `docs/spec/domain.md`, `docs/spec/data-sources.md` §5b ve §5c, `tools/README.md`, `tools/fixtures/README.md`, `docs/ACTIVATION.md` ("M6e.9 yayın doğrulaması", "Ülke adlarının engelleri", M6e.8 satırından taşınanlar), bu plan
+
+**Kabul komutları:**
+- `pnpm country-labels` (çevrimdışı) → tablo commit'lenenle aynı; özet: 54 ülke boş yerde, 1 kalabalık (TR), 1 başkentte (CY), 3 gizli (BH LU MT)
+- `pnpm --filter @havayolu/tools test` → sürüklenme (fixture'lar), çapa kuralı ve türler, gecikme tablosu, boş yer (TÜRKİYE ve KIBRIS dışında hiçbir adın kutusuna ilk yakınlaştırmasından z7,95'e 0,05 adımla pin ya da kod, sağda ya da solda, girmez), sol kod kutusu ayrıca, İTALYA ve RUSYA, KIBRIS Lefkoşa'da, TÜRKİYE'nin çakışmaları, görsel merkez, e2e beklentileri, Türkiye çevresi; 503 havalimanı, pin ve iki kod kutusu, web sabitleri ve kodun dört adayının sırası, dizinli arama
+- `pnpm --filter @havayolu/shared test`, `pnpm test`
+- `pnpm format`, `pnpm lint`, `pnpm typecheck`, `pnpm typecheck:scripts`, `pnpm typecheck:e2e`, `pnpm lint:e2e`, `pnpm check:eol`
+- `pnpm exec playwright test -c e2e/playwright.config.ts e2e/tests/live-map.spec.ts` → Tahran z5'te İRAN, IRAK, TÜRKMENİSTAN; İRAN'ın değişen pikselleri modelin kutusunda (±1 px); IKA kesiti ad açıkken ve kapalıyken aynı, IKA tıklanır; z4'te AFGANİSTAN, SURİYE, TÜRKİYE gelir, ÖZBEKİSTAN yok; z3'te kesirli adlar kaybolur, İRAN kalır; z9'da ad yok; İngilizcede TÜRKIYE
+- `pnpm ci:full` yeşil; PR'da CI (`e2e` dahil) yeşil
+- **Kullanıcıya bağlı (`[k]`):** yayından sonra uydu üstünde adların belirginliği ve boş yerde durması (ACTIVATION → "M6e.9 yayın doğrulaması")
+
+**Çıktı kaydı (2026-10-05, ilk uygulama; inceleme düzeltmeleri aşağıda):**
+- `pnpm country-labels` → 2,2 sn (Node 24.16.0, ICU 78.3), 503 havalimanı pini; dört bileşimde 56 ad, hiç sığmayan BH LU MT; 55 ülke boş yerde, TÜRKİYE kalabalıkta (çakışma 55 / 50 / 55 / 50; z5'te geniş haritada LTAU ve LTAZ, z5,05'ten sonra 0).
+- z5'te pin ve kod çakışması (geniş harita): Türkçe 35 → 2, İngilizce 34 → 2 (yalnız TÜRKİYE 2 → 2). İTALYA ve RUSYA her yakınlaştırmada 0 (önce z5'te 2 ve 6).
+- Yeni çapalar: İTALYA 12,48° D, 42,84° K (z5,25; İngilizce geniş z4,75), RUSYA 57,51° D, 61,77° K (z3), TÜRKİYE 34,8° D, 39,4° K (z3,25), İRAN 55,6° D, 34° K (z3), YUNANİSTAN 21,6° D, 39,51° K (z6; İngilizce z5,5), ROMANYA 25,5° D, 45,4° K (z4,25).
+- Birim testleri: `@havayolu/tools` 305 (+9), `@havayolu/shared` 670 (+1); öbürleri değişmedi (web 792, api 260, worker 201, providers 132, i18n 98, db 50, geo 36).
+- `pnpm format`, `pnpm lint` (9/9), `pnpm typecheck` (9/9), `pnpm typecheck:scripts`, `pnpm test` (9/9), `pnpm typecheck:e2e`, `pnpm lint:e2e`, `pnpm check:eol` → yeşil.
+- E2E (yerel, `pnpm dev:replay`, yerel test stili): `live-map.spec.ts` 23/23 (4 kurulum + 19; iki koşu, 39 ve 35 sn). `pnpm ci:full` bu adımda çalıştırılmadı (yerel Docker altyapısı başka bir iş akışıyla paylaşılıyor).
+
+**Çıktı kaydı (2026-10-05, inceleme düzeltmeleri; sürüm, changelog ve README yayın adımındadır):**
+- Sol kod kutusu engel sayıldı (`chipLeftBoxPx`, `airportCodeSides: ['right', 'left']`); KIBRIS Lefkoşa'da sabit (`CAPITAL_ANCHORED_CODES`, `capitalAnchored: ['CY']`); "liste üretimdekiyle aynıdır" düzeltildi, `cli.ts airports` ve ACTIVATION "Ülke adlarının engelleri" eklendi; data-sources.md §5b, `capitals.ts` açıklaması, D-095 işaret satırı, M6e.8 satırı güncellendi.
+- `pnpm country-labels` → 2,4 sn (Node 24.16.0, ICU 78.3), 503 havalimanı pini; dört bileşimde 56 ad, hiç sığmayan BH LU MT; 54 ülke boş yerde, TÜRKİYE kalabalıkta (çakışma 57 / 50 / 57 / 50; z5'te geniş haritada ASR ve NAV kodlarının sağdaki ve soldaki kutusu, z5,05'ten sonra 0), KIBRIS başkentte (Ercan; 12 / 12 / 9 / 9).
+- Kayan çapalar (ilk uygulamaya göre): İTALYA 11,4° D, 46,2° K (Trentino; Türkçe geniş z5,25, dar z5, İngilizce geniş z4,75), BOSNA-HERSEK 17,44° D, 44,28° K (z5,25), BELÇİKA 3,92° D, 51,04° K (z5,25), BULGARİSTAN 24,99° D, 43,33° K (z5,5), YUNANİSTAN 21,33° D, 39,51° K (z6,5), HIRVATİSTAN 16,68° D, 45,54° K (z5,5), MACARİSTAN 18,55° D, 47,25° K (z5,5), KUVEYT 47,48° D, 29,7° K (z6,25), KIBRIS 33,36° D, 35,17° K (z6,25; İngilizce z6,5).
+- z5'te pin ve kod çakışması (geniş harita; pin, sağdaki ve soldaki kod sayılarak): Türkçe 58 → 4, İngilizce 57 → 4 (yalnız TÜRKİYE 4 → 4).
+- Birim testleri: `@havayolu/tools` 308 (+3: sol kod kutusu, adlarda sol kod, KIBRIS), `@havayolu/shared` 670; öbürleri değişmedi (web 792, api 260, worker 201, providers 132, i18n 98, db 50, geo 36).
+- `pnpm format`, `pnpm lint` (9/9, önbelleksiz), `pnpm typecheck` (9/9, önbelleksiz), `pnpm test` (9/9, önbelleksiz), `pnpm typecheck:e2e`, `pnpm lint:e2e`, `pnpm check:eol` → yeşil.
+- E2E (yerel, `pnpm dev:replay`, yerel test stili): `live-map.spec.ts` 23/23 (34,7 sn). `pnpm ci:full` çalıştırılmadı (yerel Docker altyapısı başka bir iş akışıyla paylaşılıyor).
+
+**Çıktı kaydı (2026-10-05, yayın adımı):**
+- Dal `734641c` sonra `origin/main` v0.21.0 ile birleştirildi (`45677a7`; çakışma `turbo.json`, `tools/README.md` ve DECISIONS'ta, iki tarafın eklemeleri birlikte). v0.21.0 `releasedAt` 2026-10-05T18:53:30Z (GitHub Release). Sürüm 0.21.1.
+- `pnpm ci:full` → yeşil: birim tools 368, shared 686, web 827, worker 292, api 278, providers 132, i18n 98, db 64, geo 36; entegrasyon db 106, worker 17, api 30, tools 14; `test:migration-upgrade` 8 → 8; e2e 127/127.
+- `pnpm stats` → 668 dosya, 136.876 satır (kod 126.052, belge 7.300).
 
 ## M6h — 3. halka (v0.18.0)
 Onay: 2026-10-04 kullanıcı isteği "sonraki işlerden birine bir halka daha ekle" ve kapalı havalimanı kararı (2022'den beri sivil uçuşa kapalı olduğu hâlde OurAirports'ta tarifeli görünen havalimanları listede kalır, sayfada ve pencerede "Sivil uçuşlara kapalı olabilir (2022’den beri)" notu); diğer seçimler M6h araştırmasının önerileri (orkestratör varsayılanı 2026-10-04)

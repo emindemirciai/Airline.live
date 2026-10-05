@@ -1,14 +1,19 @@
 import type { LocalizedText } from '../locale'
 
 /**
- * Ülkelerin başkentleri (D-095): haritada ülke adı, sığıyorsa başkentinde ortalı yazılır; sığmıyorsa
- * ülkenin içinde başkente en yakın uygun noktada (D-096, `COUNTRY_LABEL_PLACEMENTS`). Genel
- * coğrafi bilgidir; bir veri sağlayıcısı (`packages/providers`) değildir: hiçbir şey indirilmez,
- * `DATA_USAGE_MODE` kapısı yoktur.
+ * Haritada adı yazılan ülkeler ve başkentleri (D-095). Tablo ülkenin ISO kodunu ve yüzölçümünü (ad
+ * boyunun kademesi ve katmanlardaki sıra) verir. Adın yeri başkente bağlı değildir: çevrimdışı
+ * üretici ülkenin içinde havalimanı pinlerinden ve kodlarından uzak boş bir yer, eşitlikte görsel
+ * merkeze en yakın noktayı seçer (D-099, `COUNTRY_LABEL_PLACEMENTS`, data-sources.md §5c). Başkent
+ * konumunu yalnızca KIBRIS kullanır: ad kullanıcı kararıyla Lefkoşa'da yazılır (D-095, D-099).
+ * Başka bir başkentin konumunu değiştirmek adı kaydırmaz. Genel coğrafi bilgidir; bir veri
+ * sağlayıcısı (`packages/providers`) değildir: hiçbir şey indirilmez, `DATA_USAGE_MODE` kapısı yoktur.
  *
  * - `code`: ISO 3166-1 alpha-2 (Kosova XK). Ad `countryLabelText` ile `Intl`'den gelir.
  * - `capital`: başkentin Türkçe ve İngilizce adı; yalnızca okuyan için, haritada yazılmaz.
- * - `lat`, `lon`: şehir merkezi, 0,01 dereceye yuvarlanmış.
+ * - `lat`, `lon`: şehir merkezi, 0,01 dereceye yuvarlanmış. Kapsam testlerinde (başkentin
+ *   havalimanlarına uzaklığı), Natural Earth fixture'ında başkenti içeren küçük adaların
+ *   korunmasında ve KIBRIS'ın çapasında kullanılır.
  * - `areaKm2`: iç sular dahil toplam yüzölçümü, 100 km²'ye yuvarlanmış. Fransa, Danimarka ve
  *   Hollanda yalnızca Avrupa'daki toprağıyla; Sırbistan Kosova'sız; Kıbrıs adanın tamamıyla. Ad
  *   boyunu (kademe) ve katmanlardaki sırayı belirler.

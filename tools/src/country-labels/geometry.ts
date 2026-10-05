@@ -475,7 +475,12 @@ export class ProjectedShape {
     return true
   }
 
-  /** Noktanın en yakın kenara uzaklığı, km (noktanın enlemindeki ölçekle; testler için). */
+  /** Noktanın en yakın kenara uzaklığı, z0 izdüşüm birimi (haritadaki uzaklık; görsel merkez). */
+  distanceToBoundary(lon: number, lat: number): number {
+    return this.distanceToBoundaryKm(lon, lat) * unitsPerKm(lat)
+  }
+
+  /** Noktanın en yakın kenara uzaklığı, km (noktanın enlemindeki ölçekle). */
   distanceToBoundaryKm(lon: number, lat: number): number {
     const px = mercatorX(lon)
     const py = mercatorY(lat)
