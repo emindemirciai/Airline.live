@@ -31,10 +31,10 @@ Durumlar: `[ ]` başlamadı, `[~]` sürüyor, `[k]` kod bitti ve kullanıcı do�
 | M6g | Türkiye dışındaki havalimanları, 2. halka (≤ 1.000 km); haritanın atıf şeridinde site künyesi | `p1/m6g-ring2` | [k] kod bitti; üretimde 225 havalimanı ve HEBA hava durumunun görülmesi bekliyor (ACTIVATION) | #25 |
 | M6e.4 | Yeniliklerde yayın tarihi ve saati (yama, v0.17.1) | `p1/changelog-time` | [x] tamam; üretimde doğrulandı (2026-10-04, v0.17.1): /yenilikler v0.17.1 "4 Ekim 2026, 21:36 (Türkiye saati)" (sunucunun açılışı), v0.17.0 20:27 | #26 |
 | M6e.5 | Haritada kesikli ülke sınırları (yama, v0.17.2) | `p1/map-borders` | [x] tamam; üretimde doğrulandı (2026-10-04, v0.17.2): Balkanlarda kesikli sınırlar, şeritte OpenFreeMap atfı | #27 |
-| M6e.6 | API yanıtlarının sıkıştırılması (yama, v0.18.1) | `p1/api-gzip` | [~] | — |
+| M6e.6 | API yanıtlarının sıkıştırılması (yama, v0.18.1) | `p1/api-gzip` | [x] tamam; üretimde doğrulandı (2026-10-04, v0.18.1): content-encoding br; haritanın havalimanı ve pist listesi 439.090 → 75.715 bayt; v0.18.1 Release 2026-10-04T20:32:07Z | #29 |
 | M6e.7 | Haritada ülke adları başkentlerde (yama, v0.18.2) | `p1/map-country-labels` | [k] kod bitti; üretimde uydu üstünde görünüm denetimi bekliyor (ACTIVATION) | — |
 | M6h | 3. halka (≤ 2.000 km) — kullanıcı isteğiyle M7a'nın önüne alındı (2026-10-04); sivil uçuşa kapalı olabilecek havalimanı notu | `p1/m6h-ring3` | [k] kod bitti; üretimde doğrulandı (2026-10-04, v0.18.0): `scope=listed` 503 (61 + 75 + 89 + 278), Viyana 3. halka 1.149 km, beş Özbek istasyonunun METAR'ı UZxx koduyla, METAR'lı istasyon 463/503, toplu hava 1,34 MB, URKK ve UUOO notu iki dilde; admin Servisler ve worker günlüğü (429 yok) bekliyor (ACTIVATION) | #28 |
-| M7a | Canlı araçlar: `smoke:live`, `record` | `p1/m7a-live-tools` | [ ] | — |
+| M7a | Canlı araçlar: `smoke:live`, `record` | `p1/m7a-live-tools` | [k] kod bitti; canlı smoke ve kayıt kullanıcıda (ACTIVATION) | — |
 | M7b | Kapsama ölçümü ve raporu (`coverage:probe`, `coverage:report`) | `p1/m7b-coverage` | [ ] | — |
 | M6i | 4. halka (≤ 5.000 km); haritada görünür alana göre havalimanı yükleme, AWC toplu dosyası | `p1/m6i-ring4` | [ ] | — |
 | M6j | 5. halka (dünyanın geri kalanı, ABD dahil) | `p1/m6j-ring5` | [ ] | — |
@@ -171,7 +171,7 @@ Durumlar: `[ ]` başlamadı, `[~]` sürüyor, `[k]` kod bitti ve kullanıcı do�
 - `packages/providers/src/aircraft.ts` (`AircraftState`, `dbFlags`, gizlilik yardımcıları)
 - `packages/providers/src/live/`: `response.ts` (ayrıştırıcı ve temizlik), `adsblol.ts` (istemci, `providerUserAgent`, `chunkHexes`), `local-receiver.ts`
 - `packages/providers/src/schedule.ts` (`ScheduleProvider`, yalnızca tip)
-- `tools/fixtures/adsblol/`, `scripts/record-adsblol-fixtures.mts`
+- `tools/fixtures/adsblol/`, `scripts/record-adsblol-fixtures.mts` (v0.19.0'da kaldırıldı; yeni kayıt `pnpm record`, M7a)
 
 **Kabul komutları:**
 - `pnpm --filter @havayolu/providers test` → yanıt biçimi kuralları (yerde irtifa, eksik alanlar, `lastPosition`, `now` ms/sn, boş `flight`, `~` hex, `dbFlags` bitleri), hata türleri (403 yapılandırma, 429 HTML ve 420 kısıtlama, 5xx, ağ), stub HTTP sunucusuna karşı istemciler (gzip, User-Agent, API anahtarı başlığı, yerel alıcı token'ı ve sağlık metriği)
@@ -1210,5 +1210,205 @@ Hedef sürüm 0.18.0 (dal `p1/m6g-ring2`'nin v0.17.0 sürüm commit'i `5f34acb`'
 - İlk e2e denemesi kurulumda 228 havalimanı gördü: yerel geliştirme veritabanı 3. halkadan önceki içe aktarmayı tutuyordu (worker tablo boşken ya da son denetim 24 saatten eskiyken yeniden aktarır). `reference_sources`'taki iki OurAirports satırı yerelde migration 0005'teki gibi sıfırlandı. İkinci denemede kurulum 503'ü gördü; sayfalar web'in yerel geliştirme veri önbelleğinden (`apps/web/.next/dev/cache/fetch-cache`, 1 saat) eski 228'lik listeyi sundu ve 11 test düştü. Önbellek silindi ve yalnız `pnpm test:e2e` yeniden çalıştırıldı: 124 test geçti (3,3 dk). Bu iki durum yalnızca yereldir; CI her çalıştırmada boş veritabanı ve boş önbellekle başlar. Üretimde liste, içe aktarmadan sonra en geç 1 saat içinde tazelenir (önbellek penceresi, M6g'deki gibi).
 - `pnpm stats` → 559 dosya, 105.368 satır (kod 96.039, belge 6.115).
 
-## M7 — Canlı araçlar ve kapsama raporu
+## M7a — Canlı araçlar: smoke:live ve record (v0.19.0)
+Onay: 2026-09-25 Parça 1 planı (kullanıcı: "Proje + Parça 1'e başla"). Kapsam `docs/prompts/parca-1.md` M7'nin `pnpm record` ve `pnpm smoke:live` maddeleridir; kapsama ölçümü M7b'dedir. Tasarım seçimleri orkestratör varsayılanıdır (2026-10-04, D-094; kullanıcı "soru sorma" penceresindeyken, itiraz edebilir). İki araç da canlı istek atar (DUR-SOR 6): ajan onları canlı çalıştırmaz, yalnızca 127.0.0.1'deki sahte adsb.lol sunucusuna karşı test eder. Canlı kabul kullanıcıdadır; kilometre taşı `[k]` kapanır.
+
+Hedef sürüm 0.19.0. Dal `p1/m7a-live-tools`, `main`'in v0.18.1 birleştirmesinden (`aebadce`, PR #29) açıldı; PR tabanı `main`'dir. Migration yoktur ve üretim imajları değişmez. Değişiklikler şunlardadır:
+- `tools/`
+- kök script'ler
+- `apps/worker/package.json`'ın `exports` alanı (kaynak kodu değişmez)
+- belgeler
+
+Kararlar D-094'tedir. Plan sırası M6h → M7a → M7b'dir (D-082).
+
+**Kapsam:**
+- **`pnpm record --station LTFM --minutes 30 --confirm`:**
+  - **Sorgu:** Tek ve sabit bir sorgudur: `GET /v2/point/<enlem>/<boylam>/<yarıçap>`. Merkez istasyonun ARP'ıdır: OurAirports fixture'ından `parseAirports` ile okunur, ICAO düzeltmeleri geçerlidir (UZSS bulunur, UTSS reddedilir). Yarıçap varsayılan 40 NM'dir. LTFM'de yol `/v2/point/41.2749/28.7321/40`'tır, commit'li fixture'la aynıdır.
+  - **Süre ve yarıçap:** Süre duvar saatiyle ölçülür, 1–60 dk (varsayılan 30). Yarıçap 1–60 NM.
+  - **İstek tahmini:** Plan, worker'ın kovasını sahte saatle adımlayarak hesaplar (ağ yok; test aynı fonksiyonu kullanır). 30 dk ve `ADSBLOL_RPS=0.1` ile ≈199 istek gider (AIMD ile en çok 0,121 istek/sn).
+  - **Kayıt biçimi:** Her başarılı yanıtın ham gövdesi JSON Lines dosyasına bir satır olarak yazılır (LF). Dosya `pnpm dev:replay --recording <dosya>` ile döngüyle oynar; yeni replay kodu gerekmez.
+  - **Çıktı yeri:**
+    - varsayılan `tools/recordings/tmp/<ICAO>-<YYYYMMDD>T<HHmm>Z.jsonl` (mevcut `.gitignore` kuralı; commit'lenmez)
+    - `--fixture`: `tools/fixtures/replay/`, gizlilik süzgeciyle. Parça 2 `bench:engine` buradaki `LTFM-*.jsonl` dosyasını okur. 40 NM'lik karede ~20–40 uçak olur; bench 3.000 uçaklık yük için kaydı çoğaltır ya da döngüye alır (yöntemi Parça 2 seçer). M7a'da kayıt commit'lenmez.
+    - `--out <yol>`: kullanıcının verdiği yol (`.jsonl` ile biter). Yol `tools/fixtures` altını gösterirse ret: commit'lenecek kayıt yalnızca `--fixture` ile yazılır. Repo içinde `tools/recordings/tmp` dışındaki yol da ret alır (ham kayıt gitignore dışında commit'lenebilirdi); repo dışı yol serbesttir.
+  - **Meta dosyası:** Kaydın yanında `<ad>.meta.json` durur: kaynak, ODbL-1.0, atıf, yol, zamanlar ve sayılar. Marka `APP_NAME`'den gelir. User-Agent ve e-posta taşımaz.
+  - **Dosya güvenliği:**
+    - Son dosya, `.partial`'ı ya da meta dosyası zaten varsa ret; istek atılmaz.
+    - Dosya ilk kareyle (`wx` bayrağı) oluşur ve bitene kadar `.partial` adını taşır. Bitişte yeniden adlandırılır; Windows'ta EPERM, EBUSY ya da EACCES gelirse 100 ms arayla en çok 10 kez denenir.
+    - Araç hiçbir dosya silmez.
+  - **Bitiş:** Dosya `loadRecording` ile yeniden okunur, kare sayısı tutmalıdır. Araç oynatma komutunu yazar. Bitiş başarısızsa (çıkış 4) ileti kalınan adımı ve öz denetimde ayrıştırıcının satır ya da kare numaralı nedenini yazar.
+- **`pnpm smoke:live --confirm`:**
+  - **Ne çalışır:** Gerçek ingest (`startIngest`, worker'ın kendi kodu) süreç içinde 5 dk çalışır. Pencere `startIngest`'in döndüğü andan başlar; rapor hazırlık, ingest ve kapanış süresini ayrı yazar ("hazırlık X sn · ingest 5 dk 0 sn · kapanış Y sn").
+  - **Yalıtım (yerel altyapıda):**
+    - `app_smoke_live` veritabanı her çalıştırmada yeniden kurulur: migration'lar, tohum istasyonları, OurAirports ve VRS fixture'ından içe aktarım. Ağa çıkılmaz.
+    - redis-live'ın 7 numaralı veritabanı başta ve sonda temizlenir.
+  - **Ölçütler:** Kapanıştan (`close()`, son `provider_health` yazımı) sonra üç ölçüt denetlenir:
+    - **Uçak sayısı:** Türkiye bbox'ında (enlem 35–43, boylam 25–45, sınırlar dahil) görülen farklı uçak ≥ 50. Sayım `hy:ac:updates` stream'inden yapılır, gizlilik süzgecinden öncedir. Askerî hariç sayı ve ICAO dışı sayı bilgi için yazılır.
+    - **Tazelik:** LTFM veri yaşı p95 ≤ 20 sn. Değer `provider_health.freshness_p95_s`'tir ve worker'ın tanımını kullanır: saniyede bir örnek, 5 dk pencere, en yakın sıra. Sütun `real` olduğu için 1e-4 pay bırakılır.
+    - **Sağlık satırı:** `provider_health`'te `adsbLol` satırı var; `updated_at` çalıştırma başındaki veritabanı saatinden yeni, `last_success_at` dolu, devre `config` değil.
+    - GEÇTİ için üçü birden geçmeli ve çalışma tamamlanmış olmalıdır (Ctrl+C ile kesilen çalışma GEÇTİ olamaz).
+  - **Rapor:** Türkçedir ve yalnızca sayı taşır; hex, tescil ve çağrı kodu yoktur. Başlıkta `APP_NAME` ve sürüm yazar. İçeriği:
+    - istek sayıları (200, 429/420, 5xx, ağ/diğer) ve yol başına istek
+    - en kısa aralık, son hız ve devre
+    - LTFM'yi kapsayan iki yanıt arasındaki en uzun süre
+    - üç ölçütün `[GEÇTİ]`/`[KALDI]` satırı ve `SONUÇ`
+  - **Sonrası:** Veritabanı inceleme için çalıştırmadan sonra kalır.
+- **Ortak kapılar** (ret çıkış kodu 2'dir ve istek atılmaz):
+  - **`--confirm` yoksa** araç yalnızca planı yazar ve çıkar: yol, istek tahmini, çıktı ya da veritabanı, `--confirm` ile de reddedecek kapılar (ajan oturumu dahil). Değer yazılmaz.
+  - **Ajan oturumu:** `--confirm` verilmiş ve kabukta `CLAUDECODE` ya da `AI_AGENT` doluysa ret: "Canlı araç bir yapay zekâ ajanı oturumunda çalışmaz; kendi terminalinde çalıştır (DUR-SOR 6)". Plan ve `--help` ajan oturumunda da çalışır.
+  - **Kabuk:** Kabukta `CI` ya da `EXTERNAL_PROVIDERS_DISABLED=true` varsa ret. Bu iki kapı yalnızca taban adres canlı adsb.lol iken uygulanır; 127.0.0.1'deki sahte sunucuya karşı testler CI'da da çalışır. Dosyalardaki değer okunmaz: `.env.example`'daki `true` elle çalıştırmayı engellemez. Araç `false` değerini yalnızca kendi yapılandırmasına verir.
+  - **Ortam:** `APP_ENV` development ya da test olmalıdır.
+  - **İletişim adresi:** `CONTACT_EMAIL` zorunlu ve geçerli olmalıdır (worker'ın `parseEnv`'i denetler). Değer hiçbir çıktıya, dosyaya ya da günlüğe yazılmaz; bütün çıktı maskelenir (`ADSBLOL_API_KEY` de).
+  - **Adresler:** `DATABASE_URL`, `REDIS_LIVE_URL` ve tanımlıysa `REDIS_QUEUE_URL` yalnızca `localhost`, `127.0.0.1` ya da `::1` olabilir. Adres ve parola yazılmaz.
+  - **Eşzamanlı çalışma:**
+    - adsb.lol'den çeken başka bir ingest varsa (env'in redis-live indeksinde `hy:provider:adsbLol`) ya da başka bir canlı araç çalışıyorsa (`hy:tools:live` kilidi) ret.
+    - Kilit 30 sn'de bir yenilenir ve başka ingest yeniden denetlenir. Kilit kaybolursa ya da başka ingest belirirse smoke durur (çıkış 2); `record` eldeki karelerle dosyayı kapatır (çıkış 2).
+    - Kilit bırakılırken son isteğin başlangıcı 60 sn tutulur (`hy:tools:live:last`). Sonraki çalışma ilk isteğini `son + 1000 / ADSBLOL_RPS`'ten önce atmaz.
+    - İkinci Ctrl+C kilidi bırakmadan çıkar; kilit en çok 2 dk kalır ve ret iletisi bunu söyler.
+    - `record`'da Redis yoksa (PING 2 sn içinde yanıt vermezse) uyarı verilir ve kilitsiz devam edilir. PING'den sonra EXISTS, SET ya da GET yanıt vermez ya da hata verirse ret (çıkış 2, istek atılmaz).
+  - **Smoke hedefleri:** Veritabanı adı yalnızca `app_smoke_live` olabilir (testte `app_test_*`) ve `DATABASE_URL`'in kendi veritabanı olamaz. Redis indeksi env'inkinden farklıdır.
+- **Hız ve hata kuralları** (data-sources.md §1):
+  - **Hız kovası:** `record`, worker'ın `AdaptiveRateController`'ını (başlangıç `ADSBLOL_RPS`, 0,05–0,2, AIMD) ve `createAdsbLolClient`'ı kullanır. Smoke'ta ingest'in kendi kovası çalışır.
+  - **User-Agent:** `<APP_NAME>/<sürüm> (+mailto:<CONTACT_EMAIL>)`. `WEB_HOST` genel bir host ise duyurulan `(+https://<WEB_HOST>; <CONTACT_EMAIL>)` biçimini alır.
+  - **Hata yanıtları:**
+    - 429/420 (Retry-After yok): hız yarıya iner, tam jitter'lı 15 → 300 sn beklenir.
+    - 5xx ve ağ hatası: bekleme merdiveni ve devre kesici.
+    - **401/403: araç hemen durur, yeniden denemez, çıkış kodu 3.** Bu bir DUR-SOR 3 durumudur; RUNBOOK'taki "adsb.lol API anahtarı istemeye başladı (401/403)" adımlarına bakılır.
+    - 3xx/404: yönlendirme izlenmez, `record` durur (çıkış 4).
+  - **Ek bekçi** (`fetch` sarmalayıcısı):
+    - yalnızca `https://api.adsb.lol` (testte 127.0.0.1)
+    - yalnızca `GET /v2/point/...`, sorgu dizesiz
+    - yönlendirme `manual`, UA zorunlu
+    - iki istek arası en az 5 sn (üst sınır 0,2 istek/sn); saat payı 250 ms, yani 4.750 ms'den kısa aralık ihlaldir
+
+    İhlal aracı durdurur (çıkış 4) ve bekçiyi kilitler: sonraki her istek alttaki `fetch`'e gitmeden kesilir. `routeset`/`route` hiçbir yolda çağrılmaz.
+- **Gizlilik:**
+  - **Yerel kayıt hamdır:** oynatmada API ve WS süzgeçleri böylece sınanır.
+  - **`--fixture` kaydı** genel API'nin göstereceğinden fazlasını taşımaz:
+    - askerî (bit 1) kayıtlar atılır, `dbFlags` değeri bozuk olanlar da atılır
+    - PIA/LADD (4/8) kayıtlarından `r` ve `ownOp` silinir; tescille aynı çağrı kodu da silinir (`withPrivacy` ile aynı kural)
+  - **Engel listesi:** Admin engel listesi kayda uygulanmaz, çünkü araç veritabanı okumaz; oynatmada API uygular.
+  - **Konsol ve rapor:** sayılar; hex, tescil ve çağrı kodu yazılmaz. `record` konsola UA'yı bir kez, e-postası `<CONTACT_EMAIL>` ile maskeli yazar; kayıt ve meta dosyası UA taşımaz.
+- **Hata çıktısı ve Redis düzeni:** CLI beklenmeyen hatada yalnızca maskeli iletiyi yazar ve çıkış 4 verir; yığın yalnızca `LOG_LEVEL=debug` iken, maskeli yazılır. `unhandledRejection` aynı yoldan geçer. Redis istemcisine `error` dinleyicisi hemen eklenir; ping hatasında `disconnect()`, sonda `quit()`, olmazsa `disconnect()` çağrılır.
+- **Eski kaydedici:** `scripts/record-adsblol-fixtures.mts` kaldırılır: yönlendirme izliyor, gövde sınırı yok ve kendi UA'sını kullanıyor. M3'ün dört fixture'ı dondurulmuştur; betiğin geçmişi git'tedir.
+- **Çıkış kodları:**
+
+  | Kod | Anlamı |
+  |---|---|
+  | 0 | tamam / GEÇTİ |
+  | 1 | KALDI ya da hiç kare yok |
+  | 2 | ret ya da ön koşul eksik |
+  | 3 | adsb.lol 401/403 |
+  | 4 | bekçi ihlali, beklenmeyen yanıt, dosya hatası ya da iç hata |
+  | 130 | Ctrl+C (`record` eldeki karelerle dosyayı kapatır; smoke yarım rapor verir) |
+
+**Dizinler ve dosyalar:**
+- `tools/src/live/`:
+  - `args.ts`: `parseRecordArgs`, `parseSmokeArgs`, `RECORD_LIMITS`, `RECORD_DEFAULTS`, kullanım metinleri, `isPathInside`
+  - `env.ts`: `devEnvSource`, `workspaceVersion`, `isLocalHostname`, `userAgentWebHost`, `createRedactor`
+  - `gates.ts`: `checkLiveGates`, `isLiveBaseUrl`, `refusalText`
+  - `guard.ts`: `createLiveFetch`, `pointPath`, `assertAllowedBaseUrl`, `LIVE_MIN_GAP_MS`, `LIVE_GAP_TOLERANCE_MS`, `LiveGuardError`
+  - `lock.ts`: `hy:tools:live` kilidi, `hy:tools:live:last`, `otherIngestActive`, `checkLiveLock`, `connectLiveRedis`, `closeLiveRedis`
+  - `station.ts`: `findStationPoint`
+  - `logger.ts`: pino'dan kısa satır, maskeli
+  - `record.ts`: `runRecord`, `recordingBaseName`, `recordOutputPaths`, `estimateRecordRequests` (istek tahmini), `recordPlanText`, `sanitizeFrameForFixture`
+  - `smoke.ts`: `runSmoke`, `smokePlanLines`, `estimateSmokeRequests`, `evaluateSmoke`, `formatSmokeReport`, `countBboxAircraft`, `smokeEnvSource`, `assertSmokeTargets`, `TURKEY_BBOX`
+  - `record-cli.ts`, `smoke-cli.ts`
+- Testler (`tools/src/live/`):
+  - birim: `args.test.ts`, `env.test.ts`, `gates.test.ts`, `guard.test.ts`, `lock.test.ts`, `station.test.ts`, `logger.test.ts`, `record.test.ts`, `smoke.test.ts`, `replay-fixtures.test.ts`
+  - entegrasyon: `lock.int.test.ts`, `smoke.int.test.ts`
+  - yardımcı `test/adsblol-stub.ts` (sahte sunucu, sahte saat, `localOnlyFetch`, bellek içi sahte Redis) ve testi `test/adsblol-stub.test.ts`
+- `tools/src/replay-receiver/recording.test.ts`: çok kareli adsb.lol JSONL döngüsü
+- `tools/` yapılandırması:
+  - `tools/package.json`: `test:integration` script'i; geliştirme bağımlılıkları `@havayolu/db`, `@havayolu/worker` ve `pino` 10.3.1 (lockfile'da zaten var; yeni dış paket yok)
+  - `tools/tsconfig.json`, `tools/vitest.config.ts` (`*.int.test.ts` hariç), `tools/vitest.integration.config.ts`, `tools/vitest.setup.ts` (yerel olmayan adrese `fetch` ağa çıkmadan hata verir)
+- `apps/worker/package.json`: `exports` alanı `./env`, `./ingest`, `./ingest/rate`, `./ingest/status`, `./jobs/reference`; kaynak kodu değişmez
+- Kök ve script'ler:
+  - kök `package.json`: `record` ve `smoke:live` script'leri, sürüm 0.19.0
+  - `pnpm-lock.yaml`: yalnızca tools bağlantıları
+  - `scripts/stats.mts`: `tools/fixtures/**/*.jsonl` sayılmaz
+  - `.gitignore`: `tools/fixtures/replay/*.partial`
+  - `scripts/record-adsblol-fixtures.mts`: kaldırıldı
+- Sürüm ve changelog: `packages/shared/src/changelog/entries.ts` (v0.19.0 TR/EN; v0.18.1'in `releasedAt`'ı, D-091), `CHANGELOG.md`, `README.md`
+- Belgeler:
+  - `CLAUDE.md`: Komutlar tablosuna `smoke:live` ve `record` satırları; "Sonraki kilometre taşları" notunda yalnızca `coverage:*` kalır
+  - `tools/README.md`: "Canlı araçlar" bölümü, entegrasyon testleri
+  - `tools/fixtures/README.md`: `replay/*.jsonl` satırı, `--fixture` süzgeci ve bench notu, eski kaydedicinin kaldırılması
+  - `docs/spec/data-sources.md` §1: "Canlı araçlar" (ikinci IP notuyla)
+  - `docs/DECISIONS.md`: D-094
+  - `docs/ACTIVATION.md`: "M7a canlı araçlar" satırı; 1. adımın e-posta taslağına ikinci IP notu
+  - bu plan: tablo satırı M7a `[k]`, M6e.6 `[x]`; yer tutucu M7 başlığı "M7b — Kapsama ölçümü ve raporu" olur
+
+**Kabul komutları:**
+- **`pnpm --filter @havayolu/tools test`** → yeşil. Ağa çıkılmaz: sahte adsb.lol 127.0.0.1'dedir, `record` testleri sahte saatle çalışır (uzun testler 30 sn zaman aşımıyla, 18 uçaklık fixture karesiyle). Testler şunları doğrular:
+  - **Argümanlar:** `--station ltfm` LTFM olur; varsayılanlar 30 dk / 40 NM. `--minutes 0|61|abc`, `--radius 61` ve `--out` ile `--fixture` birlikte hata verir. Baştaki `--` atlanır.
+  - **Kapılar:**
+    - kabukta `CI` ya da `EXTERNAL_PROVIDERS_DISABLED=true` → canlı taban adreste ret, sahte sunucu adresinde ret yok; aynı değer yalnızca `.env.example`'daysa ret yok
+    - `--confirm` ile kabukta `CLAUDECODE` ya da `AI_AGENT` → ret; `--confirm`'süz plan çalışır ve iki araçta da bu reddi listeler
+    - `APP_ENV=production` → ret
+    - `CONTACT_EMAIL` yoksa ya da geçersizse → ret, ileti değeri içermez
+    - yerel olmayan `DATABASE_URL`/`REDIS_LIVE_URL`/`REDIS_QUEUE_URL` → ret, ileti adresi ve parolayı içermez; `localhost`, `127.0.0.1` ve `[::1]` kabul edilir
+  - **Bekçi:** Yalnızca `GET /v2/point` geçer. Başka host, `/v2/hex`, `/v2/all`, `/api/0/routeset`, `/api/0/route`, `POST`, `redirect` değeri `manual` dışında ya da UA'sız istek engellenir. Aralık 4.999 ms geçer, 4.700 ms ihlaldir (sahte saat). İhlalden sonra geçerli bir istek de alttaki `fetch`'e gitmez. Yakalanan gövde ham ve gzip'i açılmış metindir. `pointPath(41.274874, 28.732136, 40)` = `/v2/point/41.2749/28.7321/40`.
+  - **Kilit** (bellek içi sahte Redis): başka ingest ya da tutulan kilit → ret; 30 sn'lik yenilemede kilit kaybı ya da başka ingest → durur; `hy:tools:live:last` varsa ilk istek `son + 1000 / ADSBLOL_RPS`'ten önce gitmez (sahte saat); ping hiç yanıt vermezse `runRecord` biter ve açık Redis istemcisi kalmaz.
+  - **`record`, 30 dk sahte saatle:**
+    - yalnızca `/v2/point/41.2749/28.7321/40` çağrılır
+    - aralıklar AIMD'nin beklediği değerlerdir: önce tam 10.000 ms, temiz 10 dk'dan sonra ≈ 9.091 ms, 20 dk'dan sonra ≈ 8.264 ms; hiçbiri 5.000 ms'den kısa değildir
+    - istek sayısı kovanın sahte saatle hesaplanan tahminiyle (≈199) aynıdır ve satır sayısı da öyle; süre dolduktan sonra yeni istek başlamaz
+    - dosya `loadRecording` ile döngüye girer; kareler `parseLiveResponse` ile 0 ret verir
+    - UA `havayolu/0.0.0-test (+mailto:ops@example.org)` olur (yerel `WEB_HOST` düşer); `WEB_HOST=havayolu.example` ile `(+https://havayolu.example; ops@example.org)`
+    - kayıt ve meta e-posta, UA ve adres içermez; meta yalnızca ilkel değer taşır ve markası `APP_NAME`'dendir (`testbrand`); satır sonu LF'dir ve `.partial` kalmaz
+  - **Hata durumları:**
+    - nginx 429 (Retry-After yok) ve gövdesiz 420 → hız yarıya iner, sonraki istek jitter'lı beklemeden sonra gelir
+    - 5 kez 5xx → devre 60 sn açık kalır
+    - 401 ve 403 → araç hemen durur; toplam istek 2, çıkış 3, alınan kare korunur
+    - 302 → izlenmez, çıkış 4
+    - saat kayması → kare yazılmaz, dosya oluşmaz, çıkış 1
+    - iptal → eldeki karelerle dosya, çıkış 130
+    - `--confirm` yokken `fetch` hiç çağrılmaz, çıkış 2
+    - son dosya, `.partial` ya da meta dosyası varsa ya da `--out` `tools/fixtures` altında ya da repo içinde `tools/recordings/tmp` dışındaysa → istek atılmaz, çıkış 2
+    - öz denetim başarısız (hex alanı olmayan uçak) → neden ve kare numarası yazılır, çıkış 4
+    - Redis yoksa → uyarı, kayıt sürer; PING'den sonra EXISTS, SET ya da GET yanıtsız ya da hatalı → ret, istek yok, çıkış 2
+  - **`--fixture` süzgeci:**
+    - `dbFlags` 1 ve 3 olan kayıtlar ve bozuk `dbFlags` atılır
+    - 4, 8 ve 12'de `r` ve `ownOp` silinir; TC-OIL'in "TCOIL" çağrı kodu silinir, havayolu çağrı kodu kalır
+    - süzülmüş kare `parseLiveResponse(…, 'adsbLol')` ile ayrıştırılır (eksik `dbFlags` → 0) ve `withPrivacy` başka bir şey değiştirmez; karşı denetim: `'localReceiver'` ile eksik `dbFlags` null kalır
+    - `replay-fixtures.test.ts`: commit'li her `tools/fixtures/replay/*.jsonl` için `sanitized: true` meta ve süzgeçte değişmeyen satırlar (bugün kayıt yok, test boş geçer)
+  - **Smoke değerlendirmesi:**
+    - bbox sınırları dahildir; 49 uçak → KALDI, 50 → GEÇTİ
+    - p95 20,0 ve 20,00005 → GEÇTİ, 20,01 → KALDI, null → KALDI
+    - satır yok, `updated_at` eski, `last_success_at` null ya da devre `config` → KALDI; Ctrl+C ile kesilen çalışma GEÇTİ değildir
+    - rapor Türkçedir, e-posta ve adres içermez
+    - hedefler: veritabanı adı `app_dev` ya da env'in kendi veritabanıysa, redis indeksi env'inkine eşitse → ret
+  - **`recording.test.ts`:** 3 kareli adsb.lol JSONL döngüye girer; `durationMs` = son ofset + medyan adım.
+- **`pnpm --filter @havayolu/tools test:integration`** (önce `pnpm dev:infra`) → yeşil. Gerçek PostgreSQL ve redis-live kullanılır, adsb.lol sahte sunucudur. Veritabanı `app_test_tools_smoke`; redis-live indeksleri 4 (smoke hedefi) ve 8 (env: kilit ve başka ingest), her testten önce ve sonra temizlenir. `lock.int.test.ts` kilit betiklerini indeks 9'da sınar.
+  - **GEÇTİ yolu:** 8 sn, `ADSBLOL_RPS=0.19`, sentetik 60 uçak. En az 2 istek gider ve bekçinin kaydındaki her aralık ≥ 4.750 ms'dir; yollar batı / LTFM 40 / doğu çemberlerindendir. bbox ≥ 50, p95 ≤ 20, `adsbLol` satırı var, çıkış 0. UA deseni doğrudur; günlükte e-posta ve 127.0.0.1 yoktur.
+  - **403:** Araç ilk istekten sonra durur; satırda devre `config`, durum `down`, çıkış 3.
+  - **429 (Retry-After yok):** 1 istek; bbox 0, p95 yok → KALDI, çıkış 1.
+  - **Başka ingest ya da kilit:** `app_test_tools_smoke` önce silinir. Hiç istek atılmaz, veritabanı kurulmaz (sonra da yoktur), çıkış 2.
+- **Kuru çalıştırma ve yardım (birim testleriyle):** Ajan `pnpm record` ve `pnpm smoke:live`'ı hiçbir biçimde çağırmaz, `--confirm`'süz plan ve `--help` dahil: ikisi de `.claude/settings.json`'da `ask` listesindedir ve etkileşimsiz bir oturumda onay beklerken takılır. Gerekçe DUR-SOR 6'dır; izin kapısı `tsx tools/src/live/*-cli.ts` ile de aşılmaz. Davranışı şu testler doğrular; kabul çıktısı olarak bu testlerin vitest çıktısı eklenir:
+  - `record.test.ts` "--confirm yok: yalnızca plan…" ve "plan eksik kapıları…": istek, Redis ve dosya yok, çıkış 2; plan yol `/v2/point/41.2749/28.7321/40`'ı, "≈199 istek (başlangıç 0,100 istek/sn, AIMD ile en çok 0,121)" bilgisini, çıktı yolunu, `CONTACT_EMAIL: var/yok` satırını (değer yazılmaz), `--confirm` ile de reddedecek kapıları (ajan oturumu dahil) ve "Canlı istek için --confirm ekle" satırını yazar
+  - `smoke.test.ts` "runSmoke: plan (--confirm yok)": istek ve bağlantı yok, çıkış 2; ~30 istek, `app_smoke_live`, redis-live 7, kapılar
+  - `args.test.ts`: `-h`/`--help` yardım döndürür (CLI kullanım metnini yazar, çıkış 0); kullanım metinleri çıkış kodlarını README tablosuyla aynı yazar
+
+  Kullanıcı planı ve yardımı kendi terminalinde görür (ACTIVATION "M7a canlı araçlar" (1)).
+- **Statik denetimler:** `pnpm typecheck` (9/9), `pnpm lint` (9/9), `pnpm typecheck:scripts`, `pnpm check:eol`, `prettier --check .`, `pnpm changelog:check` (0.19.0) → yeşil.
+- **`pnpm stats`** → toplam ve dağılım; `tools/fixtures/**/*.jsonl` sayılmaz.
+- **`pnpm ci:full`** yeşil; PR'da CI yeşil (tools entegrasyon testleri `test-integration` işinde koşar).
+- **Kullanıcıya bağlı (`[k]`)** (ACTIVATION → "M7a canlı araçlar"):
+  1. **Ön koşullar:** ACTIVATION 1. adımı (info@adsb.lol e-postası, ikinci IP notuyla) yapılmış olmalıdır. `CONTACT_EMAIL`, 2. adımdaki adresle kökteki `.env`'e yazılır; ajan `.env`'i okumaz. `pnpm dev:infra` açık olmalıdır. `pnpm dev` ya kapalıdır ya da `EXTERNAL_PROVIDERS_DISABLED=true` ile çalışır. Araçlar kullanıcının kendi terminalinde çalışır (ajan oturumunda değil).
+  2. **Smoke:** `pnpm smoke:live --confirm` ~6 dk sürer (hazırlık + 5 dk ingest + kapanış), ~30 istek atar. Beklenen sonuç `SONUÇ: GEÇTİ`: bbox ≥ 50, LTFM p95 ≤ 20 sn, `provider_health` satırı. Çıktı bu plana eklenir.
+  3. **Kayıt:** `pnpm record --station LTFM --minutes 30 --confirm` ≈199 istek atar ve `tools/recordings/tmp/LTFM-<UTC>.jsonl` ile `.meta.json` yazar; 401/403 görülmemelidir. Kayıt `pnpm dev:replay --recording <dosya>` ile haritada gerçek trafik olarak oynar.
+  4. **İsteğe bağlı:** Parça 2 bench'i için `--fixture` ile commit'lenecek bir kayıt alınır. Ajan sonraki oturumda dosyayı `tools/fixtures/README.md` künyesiyle commit'ler.
+  5. **Sorun çıkarsa:** Çıkış 3 (401/403) ya da tekrarlayan 429 görülürse dur ve bildir (DUR-SOR 3). p95 20 sn'yi aşarsa raporun "en uzun süre" ve 429 satırlarını bildir; zamanlayıcı ayarı ayrı bir kararla ele alınır.
+
+**Çıktı kaydı (2026-10-05, yayın adımı):**
+- Uygulama orkestratör iş akışıyla yazıldı (temel modüller → kayıt, smoke ve belgeler paralel → entegrasyon → üç açıdan inceleme → itiraz eden doğrulama → düzeltme). İncelemede 16 bulgu, doğrulamada 12'si gerçek çıktı ve düzeltildi. En önemlisi: PING'den sonra Redis komutu yanıtsız kalırsa kayıt artık kilitsiz devam etmez, istek atmadan çıkış 2 ile durur (`redis_unanswered`).
+- İki inceleme ajanı `pnpm record` ve `pnpm smoke:live` kuru çalıştırmasında `ask` onayı beklerken takıldı (~3,5 sa). İş akışı bu komutları çağırmama kuralıyla sürdürüldü.
+- Dal `7c3ddf5` (M7a) sonra `origin/main` v0.18.2 ile birleştirildi (`76c809a`; çakışma yalnızca DECISIONS ve plan tablosunda). v0.18.2 `releasedAt` 2026-10-05T01:08:09Z (GitHub Release).
+- `pnpm ci:full` → yeşil: birim web 792, shared 673, api 259, tools 244, worker 200, providers 127, i18n 98, db 50, geo 36; entegrasyon db 84, api 26, worker 12, tools 9; `test:migration-upgrade` 6 → 6; e2e 125/125.
+- Kuru çalıştırma ve yardım testleri (`vitest run src/live/{record,smoke,args}.test.ts -t "plan|yardım|help"`) → 25 test geçti: plan istek, Redis ve dosya olmadan çıkış 2 verir; eksik kapıları değer yazmadan listeler; ajan oturumunda `--confirm` reddedilir; `--out` repo içinde yalnızca `tools/recordings/tmp` altına yazar.
+- Entegrasyonda (önceki adım) `pnpm record --station LTFM` ve `pnpm smoke:live` kuru çalıştırması çıkış 2 ile yalnızca planı yazdı: ≈199 istek (30 dk) ve ≈30 istek (5 dk); `CONTACT_EMAIL: yok`.
+- `pnpm stats` → 599 dosya, 115.736 satır (kod 105.564, belge 6.705).
+
+## M7b — Kapsama ölçümü ve raporu
 Ayrıntılar `docs/prompts/parca-1.md`'dedir. Başlarken bu dosyaya dizinler ve kabul komutları eklenir.

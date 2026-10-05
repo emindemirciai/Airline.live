@@ -8,7 +8,21 @@
 
 ---
 
-## v0.18.2 — 2026-10-05
+## v0.19.0 — 2026-10-05
+
+### Türkçe
+**Canlı veri için ölçüm ve kayıt araçları**
+
+- Canlı uçuş verisinin kalitesini ölçmek için iki geliştirici aracı eklendi: biri canlı veri akışını 5 dakika çalıştırıp Türkiye üzerindeki uçak sayısını, İstanbul Havalimanı verisinin tazeliğini ve sağlayıcı durumunu denetler; öbürü bir havalimanının çevresindeki gerçek uçuşları sonradan yeniden oynatılabilecek biçimde kaydeder. Araçlar istek hızı kurallarına uyar ve yalnızca elle çalıştırılır. Sitede görünen bir değişiklik yok; bu ölçümler sonraki iniş bildirimi kurallarının girdisi olacak.
+
+### English
+**Measurement and recording tools for live data**
+
+- Two developer tools for measuring live flight data: one runs the live data feed for 5 minutes and checks the number of aircraft over Türkiye, the freshness of Istanbul Airport data and the provider status; the other records real flights around an airport so they can be replayed later. Both respect the request-rate rules and run only by hand. Nothing changes on the site; these measurements will feed the upcoming landing alert rules.
+
+---
+
+## v0.18.2 — 2026-10-05 04:08 (UTC+3)
 
 ### Türkçe
 **Haritada ülke adları**
