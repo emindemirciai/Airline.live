@@ -786,7 +786,12 @@ export const en: Messages = {
         hidden: 'Hide',
         code: 'Code',
       },
-      hint: 'Short: flight number only. Full: flight number, speed and altitude.',
+      countries: 'Country names',
+      countryModes: {
+        hidden: 'Hide',
+        shown: 'Show',
+      },
+      hint: 'Short: flight number only. Full: flight number, speed and altitude. Country names appear when you zoom out.',
     },
     airportList: {
       button: 'Airports',

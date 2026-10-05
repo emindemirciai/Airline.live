@@ -18,7 +18,8 @@ const PREFIX: Readonly<Record<Locale, string>> = { tr: '', en: '/en' }
 /**
  * `/en` altında ikizi olmayan ilk yol bölümleri: yönetim (yalnızca Türkçe), API, eski dil uç noktası,
  * Next varlıkları, kök dosyalar (robots, site haritası, llms.txt, manifest, ikonlar, paylaşım görseli,
- * yerel harita stili) ve iç içe dil önekleri. Bunların `/en` biçimi 404 döner.
+ * yerel harita stili, haritanın yazı tipleri) ve iç içe dil önekleri. Bunların `/en` biçimi 404
+ * döner.
  */
 const UNLOCALIZED_SEGMENTS: ReadonlySet<string> = new Set([
   'admin',
@@ -36,6 +37,7 @@ const UNLOCALIZED_SEGMENTS: ReadonlySet<string> = new Set([
   'apple-icon',
   'og',
   'test-style.json',
+  'fonts',
 ])
 
 /** Yolu, sorgu metni ve `#` kısmından (varsa) ayırır: `/a?b#c` → [`/a`, `?b#c`]. */

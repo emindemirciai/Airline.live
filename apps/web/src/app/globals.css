@@ -1348,9 +1348,9 @@ body:has(.map-page) .site-footer {
   gap: 10px;
   width: min(300px, calc(100vw - 2 * var(--map-gutter)));
   /*
-   * Üç grup (D-084): panel denetimlerin (Etiketler düğmesi 40 px + 8 px ara) üstünden açılır, üst
-   * kenarı `--map-panel-top`'un altında kalır; sığmazsa kayar. İlk satır `cqh` tanımayan tarayıcının
-   * yedeğidir.
+   * Dört grup (D-084, D-095; ~434 px): panel denetimlerin (Etiketler düğmesi 40 px + 8 px ara)
+   * üstünden açılır, üst kenarı `--map-panel-top`'un altında kalır; sığmazsa kayar. İlk satır `cqh`
+   * tanımayan tarayıcının yedeğidir.
    */
   max-height: min(480px, calc(100dvh - 220px));
   max-height: min(480px, calc(100cqh - var(--map-panel-top) - var(--map-controls-bottom) - 48px));
@@ -1383,7 +1383,10 @@ body:has(.map-page) .site-footer {
   font-weight: 600;
 }
 
-/* Seçenekler eşit genişlikte satırı doldurur: uçaklarda üç, havalimanlarında iki (D-084). */
+/*
+ * Seçenekler eşit genişlikte satırı doldurur: uçaklarda üç, havalimanlarında ve ülke adlarında iki
+ * (D-084, D-095).
+ */
 .map-seg {
   display: grid;
   grid-auto-columns: minmax(0, 1fr);

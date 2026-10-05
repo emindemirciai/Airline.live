@@ -74,6 +74,18 @@ describe('i18n', () => {
     expect(map.status.basemapFailed).toBe('Harita altlığı yüklenemedi.')
     expect(map.labels.button).toBe('Etiketler')
     expect([map.labels.hidden, map.labels.short, map.labels.full]).toEqual(['Gizle', 'Kısa', 'Tam'])
+    // Ülke adları (D-095): Gizle / Göster; ipucu adların uzaklaşınca göründüğünü söyler.
+    expect(map.labels.countries).toBe('Ülke adları')
+    expect(map.labels.countryModes).toEqual({ hidden: 'Gizle', shown: 'Göster' })
+    expect(map.labels.hint).toBe(
+      'Kısa: yalnızca sefer no. Tam: sefer no, hız ve yükseklik. Ülke adları haritayı uzaklaştırınca görünür.',
+    )
+    const en = getMessages('en').map.labels
+    expect(en.countries).toBe('Country names')
+    expect(en.countryModes).toEqual({ hidden: 'Hide', shown: 'Show' })
+    expect(en.hint).toBe(
+      'Short: flight number only. Full: flight number, speed and altitude. Country names appear when you zoom out.',
+    )
     expect(format(map.status.freshness, { s: 4 })).toBe('Veri yaşı 4 sn')
     expect(format(map.card.secondsAgo, { s: 12 })).toBe('12 sn önce')
   })

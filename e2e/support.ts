@@ -227,6 +227,33 @@ export async function openMap(page: Page, path = '/'): Promise<void> {
   await waitForMap(page)
 }
 
+/**
+ * Haritada MapLibre'nin yerleştirdiği ülke adları (D-095): harita kapsayıcısının
+ * `data-country-labels` niteliği (`|` ile, koda göre sıralı; en fazla 500 ms gecikmeyle yenilenir).
+ * Gizle'de ve z8 ve üstünde boştur.
+ */
+export async function countryLabels(page: Page): Promise<string[]> {
+  const value = await page
+    .locator('.live-map .live-map__canvas')
+    .getAttribute('data-country-labels')
+  return (value ?? '').split('|').filter(Boolean)
+}
+
+/**
+ * Klavyeyle `steps` kademe uzaklaştırır ("-" tuşu; merkez yerinde kalır). Hareket azaltılmışsa
+ * (`reducedMotion: 'reduce'`) her basış anında ve tam bir kademedir.
+ */
+export async function zoomOut(page: Page, steps: number): Promise<void> {
+  await page.locator('.live-map .maplibregl-canvas').focus()
+  for (let i = 0; i < steps; i++) await page.keyboard.press('Minus')
+}
+
+/** Klavyeyle `steps` kademe yakınlaştırır ("=" tuşu). */
+export async function zoomIn(page: Page, steps: number): Promise<void> {
+  await page.locator('.live-map .maplibregl-canvas').focus()
+  for (let i = 0; i < steps; i++) await page.keyboard.press('Equal')
+}
+
 export function aircraftTable(page: Page): Locator {
   return page.locator('.live-map__table table')
 }

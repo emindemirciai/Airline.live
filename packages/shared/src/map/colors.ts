@@ -1,10 +1,15 @@
 /**
  * Canlı haritanın renkleri. Web ve mobil aynı değerleri kullanır; harita üstündeki her şey opaktır
- * (etiket, panel, iz çizgisi), saydamlık kullanılmaz. Tek istisna ülke sınırının koyu kenarıdır
- * (borders.ts, D-092): içerik değil, beyaz kesikli çizginin her altlıkta okunmasını sağlayan bir
- * haledir; çizginin kendisi opaktır. Altlık uydu görüntüsüdür; uçak, iz ve pin
- * renkleri kullanıcının tasarım tuvalindendir (v2). Panel, etiket ve kod kutusu renkleri sitenin
- * "Açık turkuaz" temasındandır (D-081): opak beyaz kutu, ince açık turkuaz kenar, koyu yazı.
+ * (etiket, panel, iz çizgisi), saydamlık kullanılmaz. İki istisna vardır:
+ * - ülke sınırının koyu kenarı (borders.ts, D-092): içerik değil, beyaz kesikli çizginin her
+ *   altlıkta okunmasını sağlayan bir haledir; çizginin kendisi opaktır.
+ * - ülke adları (country-labels.ts, D-095): yarı saydam beyaz yazı, yarı saydam koyu hale, zeminsiz
+ *   (kullanıcı kararı "Saydam olsun"). Altlık adların içinden görünür; pin, kod ve uçaklar adların
+ *   üstünde çizilir. Buradaki renkler opaktır; saydamlık katmanda `withAlpha` ile verilir.
+ *
+ * Altlık uydu görüntüsüdür; uçak, iz ve pin renkleri kullanıcının tasarım tuvalindendir (v2). Panel,
+ * etiket ve kod kutusu renkleri sitenin "Açık turkuaz" temasındandır (D-081): opak beyaz kutu, ince
+ * açık turkuaz kenar, koyu yazı.
  */
 export const MAP_COLORS = {
   /** Harita zemini: uydu karoları gelmeden ve düz altlıkta görünen koyu zemin (test stiliyle aynı). */
@@ -57,6 +62,24 @@ export const MAP_COLORS = {
   border: '#FFFFFF',
   /** Ülke sınırının altındaki koyu kenar (yarı saydam hale; açık toprakta da çizgi okunur). */
   borderCasing: '#0B2A33',
+  /** Ülke adının yazısı (D-095); haritada `COUNTRY_LABEL_TEXT_ALPHA` saydamlıkla çizilir. */
+  countryLabel: '#FFFFFF',
+  /** Ülke adının yumuşak koyu halesi (D-095); haritada `COUNTRY_LABEL_HALO_ALPHA` saydamlıkla. */
+  countryLabelHalo: '#000000',
 } as const
 
 export type MapColorName = keyof typeof MAP_COLORS
+
+/**
+ * Opak `#RRGGBB` rengini verilen saydamlıkla CSS `rgba()` yazar: `withAlpha('#FFFFFF', 0.6)` →
+ * `'rgba(255, 255, 255, 0.6)'`. Saydamlık 0–1 aralığında olmalı; biçimsiz renk ya da aralık dışı
+ * saydamlık `RangeError` fırlatır.
+ */
+export function withAlpha(hex: string, alpha: number): string {
+  if (!/^#[0-9A-Fa-f]{6}$/.test(hex)) throw new RangeError(`expected #RRGGBB colour: ${hex}`)
+  if (!Number.isFinite(alpha) || alpha < 0 || alpha > 1) {
+    throw new RangeError(`alpha must be between 0 and 1: ${alpha}`)
+  }
+  const value = Number.parseInt(hex.slice(1), 16)
+  return `rgba(${(value >> 16) & 255}, ${(value >> 8) & 255}, ${value & 255}, ${alpha})`
+}

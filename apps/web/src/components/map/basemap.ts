@@ -10,12 +10,17 @@
  * Ülke sınırları (D-092) uydu ve vektör adımlarında kesikli çizilir: uydu stiline OpenFreeMap'ten
  * ayrı bir vektör kaynak eklenir, indirilen OpenMapTiles stilinde `boundary` katmanları aynı
  * katmanlarla değiştirilir. Yerel stilde ve düz arka planda sınır yoktur (dış istek gitmez).
+ *
+ * Ülke adları (D-095) kendi katmanlarımızdır (başkentlerde, map-controller.ts); indirilen vektör
+ * stillerin kendi ülke adı katmanları çıkarılır (`withoutBasemapCountryLabels`), adlar iki kez
+ * yazılmaz.
  */
 import type { Map as MaplibreMap } from 'maplibre-gl'
 import {
   AIRCRAFT_SOURCE_ID,
   AIRPORT_SOURCE_ID,
   COUNTRY_BORDER_SOURCE_ID,
+  COUNTRY_LABEL_SOURCE_ID,
   COUNTRY_BORDER_SOURCE_LAYER,
   MAP_COLORS,
   TRAIL_SOURCE_ID,
@@ -51,16 +56,17 @@ export interface BasemapStep {
 export const SATELLITE_SOURCE_ID = 'satellite'
 
 /**
- * Altlık zincirinin hata sayımına girmeyen kaynaklar: kendi GeoJSON kaynaklarımız ve uydunun
- * üstündeki sınır kaynağı (D-092). OpenFreeMap'in TileJSON'u ya da karoları yüklenemezse uydu
- * yerinde kalır, yalnızca sınırlar çizilmez. OpenFreeMap stilinde sınırlar altlığın kendi
- * kaynağındandır; onun hataları yine altlığındır.
+ * Altlık zincirinin hata sayımına girmeyen kaynaklar: kendi GeoJSON kaynaklarımız (ülke adları
+ * dahil, D-095) ve uydunun üstündeki sınır kaynağı (D-092). OpenFreeMap'in TileJSON'u ya da karoları
+ * yüklenemezse uydu yerinde kalır, yalnızca sınırlar çizilmez. OpenFreeMap stilinde sınırlar
+ * altlığın kendi kaynağındandır; onun hataları yine altlığındır.
  */
 export const NON_BASEMAP_SOURCES: ReadonlySet<string> = new Set([
   AIRCRAFT_SOURCE_ID,
   AIRPORT_SOURCE_ID,
   TRAIL_SOURCE_ID,
   COUNTRY_BORDER_SOURCE_ID,
+  COUNTRY_LABEL_SOURCE_ID,
 ])
 
 /** Yolları taşıyan OpenMapTiles katmanları; `aeroway` (pist, apron) görünür kalır. */
@@ -141,6 +147,98 @@ export function withCountryBorders(style: MapStyle): MapStyle {
   const layers = style.layers.filter((layer) => !isBoundaryLine(layer))
   layers.splice(index, 0, ...borderLayers(first.source))
   return { ...style, layers }
+}
+
+/** Vektör stillerin ülke adı katmanlarının kimlikleri (OpenMapTiles, Liberty, Protomaps). */
+const BASEMAP_COUNTRY_LABEL_ID = /^(place|places|label)[_-]?country/i
+/** Yer adlarını taşıyan katmanlar (OpenMapTiles `place`, Protomaps `places`). */
+const PLACE_SOURCE_LAYERS: ReadonlySet<string> = new Set(['place', 'places'])
+/** Yer türünün alanı (OpenMapTiles `class`, Protomaps `kind`). */
+const PLACE_CLASS_KEYS: ReadonlySet<string> = new Set(['class', 'kind'])
+
+/** `'class'` (eski süzgeç) ya da `['get', 'class']` (ifade); `kind` de olur. */
+function isPlaceClass(value: unknown): boolean {
+  if (typeof value === 'string') return PLACE_CLASS_KEYS.has(value)
+  return (
+    Array.isArray(value) &&
+    value.length === 2 &&
+    value[0] === 'get' &&
+    typeof value[1] === 'string' &&
+    PLACE_CLASS_KEYS.has(value[1])
+  )
+}
+
+/**
+ * Süzgeç yalnızca ülkeleri mi seçiyor: `==`, `in` ve `match` ile türü `country` olanlar (eski ve
+ * ifade sözdizimi), `all`'ın herhangi bir koşulunda. `any`, `!`, `!=` ve `none`'a bakılmaz: onlar
+ * ülke dışındaki yerleri de seçebilir.
+ */
+function selectsCountries(filter: unknown): boolean {
+  if (!Array.isArray(filter)) return false
+  const [operator, ...args] = filter as unknown[]
+  switch (operator) {
+    case 'all':
+      return args.some(selectsCountries)
+    case '==':
+      return (
+        (isPlaceClass(args[0]) && args[1] === 'country') ||
+        (isPlaceClass(args[1]) && args[0] === 'country')
+      )
+    case 'in': {
+      // Eski: ['in', 'class', 'country', …]; ifade: ['in', ['get', 'class'], ['literal', […]]].
+      const [key, ...values] = args
+      if (typeof key === 'string') return PLACE_CLASS_KEYS.has(key) && values.includes('country')
+      const haystack = values[0]
+      return (
+        isPlaceClass(key) &&
+        Array.isArray(haystack) &&
+        haystack[0] === 'literal' &&
+        Array.isArray(haystack[1]) &&
+        (haystack[1] as unknown[]).includes('country')
+      )
+    }
+    case 'match': {
+      // ['match', ['get', 'class'], etiket, çıktı, …, varsayılan]: `country` dalı true verir.
+      if (!isPlaceClass(args[0])) return false
+      for (let i = 1; i + 1 < args.length; i += 2) {
+        const label = args[i]
+        const labels = Array.isArray(label) ? (label as unknown[]) : [label]
+        if (labels.includes('country') && args[i + 1] === true) return true
+      }
+      return false
+    }
+    default:
+      return false
+  }
+}
+
+/** Vektör stilin kendi ülke adı katmanı mı (kimliğinden ya da yer katmanındaki süzgecinden)? */
+function isBasemapCountryLabel(layer: object): boolean {
+  const {
+    id,
+    type,
+    filter,
+    'source-layer': sourceLayer,
+  } = layer as { id?: unknown; type?: unknown; filter?: unknown; 'source-layer'?: unknown }
+  if (type !== 'symbol') return false
+  if (typeof id === 'string' && BASEMAP_COUNTRY_LABEL_ID.test(id)) return true
+  return (
+    typeof sourceLayer === 'string' &&
+    PLACE_SOURCE_LAYERS.has(sourceLayer) &&
+    selectsCountries(filter)
+  )
+}
+
+/**
+ * İndirilen vektör stilin ülke adı katmanlarını çıkarır (D-095): adlar haritada kendi
+ * katmanlarımızla başkentlerde yazılır, stilinkilerle iki kez görünmez. Şehir ve diğer yer adları
+ * kalır. Çıkacak katman yoksa (uydu, yerel test stili) stil olduğu gibi döner. Canlı OpenFreeMap
+ * stilleri çevrimdışı doğrulanamaz; kimlik ve süzgeç kuralı Dark, Liberty ve Protomaps biçimlerini
+ * kapsar.
+ */
+export function withoutBasemapCountryLabels(style: MapStyle): MapStyle {
+  const layers = style.layers.filter((layer) => !isBasemapCountryLabel(layer))
+  return layers.length === style.layers.length ? style : { ...style, layers }
 }
 
 /** Zincirin son adımı: tek bir koyu arka plan katmanı (dış istek yok). */
@@ -229,11 +327,13 @@ export function basemapSteps(basemap: Basemap, resolveUrl: (url: string) => stri
 
 /**
  * İndirilen adım stilini haritaya hazırlar: sınırlar kesikli çizgiye çevrilir (adımda açıksa),
- * sonra karo kaynaklarının atfı adımın atfıyla değiştirilir (varsa).
+ * stilin ülke adı katmanları çıkar (her adımda, D-095), sonra karo kaynaklarının atfı adımın
+ * atfıyla değiştirilir (varsa).
  */
 export function prepareFetchedStyle(style: MapStyle, step: BasemapStep): MapStyle {
   const bordered = step.countryBorders ? withCountryBorders(style) : style
-  return step.attribution === null ? bordered : withAttribution(bordered, step.attribution)
+  const unlabelled = withoutBasemapCountryLabels(bordered)
+  return step.attribution === null ? unlabelled : withAttribution(unlabelled, step.attribution)
 }
 
 /** Yol katmanlarının kimlikleri (`source-layer` transportation ya da transportation_name). */

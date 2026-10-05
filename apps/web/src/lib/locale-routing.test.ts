@@ -118,6 +118,12 @@ describe('localeRouting', () => {
     expect(localeRouting('/english')).toEqual({ kind: 'next', locale: 'tr', path: '/english' })
     expect(localeRouting('/enx/durum')).toEqual({ kind: 'next', locale: 'tr', path: '/enx/durum' })
     expect(localeRouting('/admin')).toEqual({ kind: 'next', locale: 'tr', path: '/admin' })
+    // Haritanın yazı tipi dosyaları (D-095) kökte sunulur.
+    expect(localeRouting('/fonts/overpass-latin-600-normal.woff2')).toEqual({
+      kind: 'next',
+      locale: 'tr',
+      path: '/fonts/overpass-latin-600-normal.woff2',
+    })
     expect(localeRouting('/api/version')).toEqual({
       kind: 'next',
       locale: 'tr',
@@ -163,6 +169,8 @@ describe('localeRouting', () => {
       '/en/apple-icon',
       '/en/og/site',
       '/en/test-style.json',
+      '/en/fonts/overpass-latin-600-normal.woff2',
+      '/en/fonts/x',
       '/en/_next/static/x.js',
       '/en/en',
       '/en/en/durum',
