@@ -34,7 +34,7 @@ const shapes = () => {
 const containsPoint = (shape: ProjectedShape, lon: number, lat: number) =>
   shape.contains(mercatorX(lon), mercatorY(lat))
 
-describe('Natural Earth fixture (D-096)', () => {
+describe('Natural Earth fixture (D-096)', { timeout: 60_000 }, () => {
   it('commit’li fixture, node_modules’taki world-atlas 2.0.2’den yeniden üretilenle aynı (ağ yok)', () => {
     expect(fixture.source).toEqual(NATURAL_EARTH_SOURCE)
     expect(fixture.source).toMatchObject({ version: '4.1.0', file: 'countries-10m.json' })

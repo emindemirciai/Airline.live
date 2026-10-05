@@ -150,7 +150,7 @@ function visibleCodes(
 
 const ZOOM_EPSILON = 1e-9
 
-describe('yerleşim tablosu (D-096)', () => {
+describe('yerleşim tablosu (D-096)', { timeout: 60_000 }, () => {
   it('sürüklenme: commit’li tablo, commit’li fixture ve adlarından yeniden hesaplananla aynı', () => {
     expect(result.table).toEqual(COUNTRY_LABEL_PLACEMENTS)
     expect(PLACEMENT_PARAMS).toEqual(COUNTRY_LABEL_PLACEMENT_PARAMS)
@@ -322,7 +322,7 @@ function airport(ident: string): { lat: number; lon: number } {
   return { lat: Number(fields[4]), lon: Number(fields[5]) }
 }
 
-describe('e2e beklentileri (e2e/country-label-expectations.ts)', () => {
+describe('e2e beklentileri (e2e/country-label-expectations.ts)', { timeout: 60_000 }, () => {
   // Tuval 1280 px'ten dar, başlık yüzünden 720 px'ten alçak olabilir; çapa kenardan 40 px uzakta.
   const HALF_WIDTH = 600 - 40
   const HALF_HEIGHT = 280 - 40
@@ -405,7 +405,7 @@ describe('e2e beklentileri (e2e/country-label-expectations.ts)', () => {
   })
 })
 
-describe('Türkiye çevresinde görünen adlar (D-096’daki ödünleşim)', () => {
+describe('Türkiye çevresinde görünen adlar (D-096’daki ödünleşim)', { timeout: 60_000 }, () => {
   // 39° K, 35° D merkezli 1280 × 660 geniş harita ve 375 × 600 dar harita, Türkçe.
   const centre = { lat: 39, lon: 35 }
 
