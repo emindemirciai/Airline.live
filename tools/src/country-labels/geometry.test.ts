@@ -203,9 +203,13 @@ describe('ProjectedShape.containsRect', () => {
     expect(shape.containsRect(x1, y1, x2, y2, 0, 0, false)).toBe(false)
   })
 
-  it('kenara uzaklık: kare kenarından km', () => {
+  it('kenara uzaklık: kare kenarından km ve izdüşüm birimi (görsel merkez, D-099)', () => {
     const shape = new ProjectedShape([[box(0, 0, 1, 1)]])
-    // Enlem 0,5'te batı kenarına 0,25° (≈ 27,8 km).
+    // Enlem 0,5'te batı kenarına 0,25° (≈ 27,8 km); izdüşümde 0,25 / 360 × 512 birim.
     expect(shape.distanceToBoundaryKm(0.25, 0.5)).toBeCloseTo((0.25 * 40075.016686) / 360, 0)
+    expect(shape.distanceToBoundary(0.25, 0.5)).toBeCloseTo((0.25 / 360) * 512, 6)
+    // 60° enleminde aynı km haritada iki kat uzundur: uzaklık izdüşümde ölçülür.
+    const north = new ProjectedShape([[box(0, 59.5, 1, 60.5)]])
+    expect(north.distanceToBoundary(0.25, 60)).toBeCloseTo((0.25 / 360) * 512, 3)
   })
 })
