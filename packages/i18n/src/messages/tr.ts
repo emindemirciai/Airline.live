@@ -945,7 +945,13 @@ export const tr = {
         hidden: 'Gizle',
         code: 'Kod',
       },
-      hint: 'Kısa: yalnızca sefer no. Tam: sefer no, hız ve yükseklik.',
+      /** Ülke adları (D-095): Gizle / Göster; varsayılan Göster. */
+      countries: 'Ülke adları',
+      countryModes: {
+        hidden: 'Gizle',
+        shown: 'Göster',
+      },
+      hint: 'Kısa: yalnızca sefer no. Tam: sefer no, hız ve yükseklik. Ülke adları haritayı uzaklaştırınca görünür.',
     },
     /** Havalimanı penceresinin klavye yolu: görünümdeki havalimanları listesi (D-078). */
     airportList: {

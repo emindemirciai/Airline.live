@@ -1,4 +1,9 @@
-import { AIRCRAFT_LAYER } from '@havayolu/shared'
+import {
+  AIRCRAFT_LAYER,
+  AIRPORT_LAYER_ID,
+  COUNTRY_LABEL_LAYER_IDS,
+  LIVE_MAP_LAYERS,
+} from '@havayolu/shared'
 import { describe, expect, it } from 'vitest'
 import { clampViewport } from '../../lib/live/connection'
 import { INITIAL_BOUNDS, INITIAL_MAX_ZOOM, initialZoom, PRIMARY_AIRPORT_VIEW } from './camera'
@@ -8,6 +13,7 @@ import {
   mapPadding,
   NO_INSETS,
   NO_PANELS,
+  overlayLayers,
   resolveHit,
   sameViewState,
   type HitCandidates,
@@ -125,11 +131,33 @@ describe('sameViewState (D-084)', () => {
       { selected: 'short' },
       { others: 'hidden' },
       { airports: 'hidden' },
+      { countries: 'hidden' },
     ] as const) {
       const next = { ...base, labelSettings: { ...DEFAULT_LABEL_SETTINGS, ...change } }
       expect(sameViewState(base, next), JSON.stringify(change)).toBe(false)
     }
     expect(sameViewState(base, { ...base, locale: 'en' })).toBe(false)
+  })
+})
+
+describe('kendi katmanlarımızın sırası (D-095)', () => {
+  it('ülke adları (kademe 3, 2, 1) havalimanı pinlerinin altında; sonra canlı katmanlar', () => {
+    for (const compact of [false, true]) {
+      const ids = overlayLayers({ compact }).map((layer) => layer.id)
+      expect(ids).toEqual([...COUNTRY_LABEL_LAYER_IDS, ...LIVE_MAP_LAYERS.map((layer) => layer.id)])
+      expect(ids.indexOf('hy-country-labels-1')).toBeLessThan(ids.indexOf(AIRPORT_LAYER_ID))
+    }
+    const hidden = overlayLayers({ compact: false, visible: false })
+    const visibility = (layer: object) =>
+      (layer as { layout?: { visibility?: string } }).layout?.visibility
+    expect(hidden.map(visibility)).toEqual([
+      'none',
+      'none',
+      'none',
+      undefined,
+      undefined,
+      undefined,
+    ])
   })
 })
 

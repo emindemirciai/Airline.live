@@ -2,18 +2,22 @@
 // replay uçağı tabloda görünür ve yüksekliği değişir → liste sağ üsttedir; sütunlar, tahmini
 // durumlar ve daraltmanın saklanması (D-085) → satıra tıklayınca bilgi kartı solda açılır, tablette
 // seçili uçağın etiketi ve simgesi listenin altında kalmaz → arama (her yerdeki) uçağı bulur →
-// /?hex= ile doğrudan açılış aynı uçağı seçer → etiket ayarı (uçaklar ve havalimanları, D-084)
-// cihazda saklanır. Tablo, haritanın erişilebilir karşılığıdır; testler uçakları WebGL tuvalinden
+// /?hex= ile doğrudan açılış aynı uçağı seçer → etiket ayarı (uçaklar, havalimanları ve ülke adları,
+// D-084, D-095) cihazda saklanır → ülke adları uzaklaşınca başkentlerde yazılır, pinlerin altında
+// kalır, yakınlaşınca silinir. Tablo, haritanın erişilebilir karşılığıdır; testler uçakları WebGL tuvalinden
 // değil tablodan okur. Havalimanı kutuları ve seçili etiket etiket tuvalinin piksellerinden okunur
-// (`e2e/label-canvas.ts`).
+// (`e2e/label-canvas.ts`); ülke adları haritanın `data-country-labels` niteliğinden ve WebGL
+// tuvalinin ekran görüntüsünden (`e2e/map-pixels.ts`).
 import { expect, test, type Locator, type Page } from '@playwright/test'
 import { canvasChips, mapCenter, paintedPixels, selectedLabelPixels } from '../label-canvas'
+import { pinPixels } from '../map-pixels'
 import {
   AIRCRAFT_LIST_KEY,
   aircraftRow,
   aircraftTable,
   airportListCodes,
   APPROACH_AIRCRAFT,
+  countryLabels,
   declineAnalytics,
   FAR_AIRCRAFT,
   hexParam,
@@ -27,6 +31,9 @@ import {
   REPLAY_AIRCRAFT,
   TAXI_AIRCRAFT,
   waitForMap,
+  WEB_URL,
+  zoomIn,
+  zoomOut,
 } from '../support'
 
 const { hex, callsign } = REPLAY_AIRCRAFT
@@ -53,6 +60,12 @@ test('harita IST/LTFM merkezli açılır, atıflar görünür, replay uçağı t
   expect((await airportListCodes(page))[0]).toBe(PRIMARY_AIRPORT.iata)
   await expect(aircraftRow(page, TAXI_AIRCRAFT.hex)).toBeVisible({ timeout: 30_000 })
   await expect(aircraftRow(page, FAR_AIRCRAFT.hex)).toHaveCount(0)
+  // Açılış görünümünde (z8,5) ülke adı yoktur (D-095): adlar z8'de biter; yazı tipi indirilmez.
+  await expect(page.locator('.live-map .live-map__canvas')).toHaveAttribute(
+    'data-country-labels',
+    '',
+  )
+  expect(requested.filter((url) => new URL(url).pathname.startsWith('/fonts/'))).toEqual([])
 
   const attribution = page.locator('.maplibregl-ctrl-attrib')
   await expect(attribution.getByRole('link', { name: 'ADSB.lol' })).toHaveAttribute(
@@ -361,8 +374,12 @@ test('etiket ayarı cihazda saklanır ve yeniden açılışta geri gelir; harita
 
   const others = page.getByRole('group', { name: 'Diğer uçaklar' })
   const selected = page.getByRole('group', { name: 'Seçili uçak' })
+  const countries = page.getByRole('group', { name: 'Ülke adları' })
   await expect(others.getByRole('radio', { name: 'Tam' })).toBeChecked()
   await others.getByRole('radio', { name: 'Gizle' }).check()
+  // Ülke adları (D-095): varsayılan Göster; Gizle de aynı kayıtta saklanır.
+  await expect(countries.getByRole('radio', { name: 'Göster' })).toBeChecked()
+  await countries.getByRole('radio', { name: 'Gizle' }).check()
   await expect
     .poll(() =>
       page.evaluate((key) => {
@@ -370,7 +387,7 @@ test('etiket ayarı cihazda saklanır ve yeniden açılışta geri gelir; harita
         return raw === null ? null : (JSON.parse(raw) as unknown)
       }, LABEL_SETTINGS_KEY),
     )
-    .toMatchObject({ selected: 'full', others: 'hidden' })
+    .toMatchObject({ selected: 'full', others: 'hidden', countries: 'hidden' })
 
   await page.keyboard.press('Escape')
   await expect(button).toHaveAttribute('aria-expanded', 'false')
@@ -382,6 +399,7 @@ test('etiket ayarı cihazda saklanır ve yeniden açılışta geri gelir; harita
   await button.click()
   await expect(others.getByRole('radio', { name: 'Gizle' })).toBeChecked()
   await expect(selected.getByRole('radio', { name: 'Tam' })).toBeChecked()
+  await expect(countries.getByRole('radio', { name: 'Gizle' })).toBeChecked()
 })
 
 test('havalimanı etiketi Kod ya da Gizle; cihazda saklanır; Kod’da kutu, Gizle’de pin tıklanır (D-084)', async ({
@@ -424,7 +442,9 @@ test('havalimanı etiketi Kod ya da Gizle; cihazda saklanır; Kod’da kutu, Giz
   await page.keyboard.press('ArrowLeft')
   await expect(mode('Gizle')).toBeChecked()
   await expect(others.getByRole('radio', { name: 'Tam' })).toBeChecked()
-  await expect.poll(stored).toEqual({ selected: 'full', others: 'full', airports: 'hidden' })
+  await expect
+    .poll(stored)
+    .toEqual({ selected: 'full', others: 'full', airports: 'hidden', countries: 'shown' })
   await page.keyboard.press('Escape')
   await expect(button).toHaveAttribute('aria-expanded', 'false')
 
@@ -442,7 +462,9 @@ test('havalimanı etiketi Kod ya da Gizle; cihazda saklanır; Kod’da kutu, Giz
   // 8.448 piksel, v0.17.0 PR'ı).
   await others.getByRole('radio', { name: 'Gizle' }).check()
   await selected.getByRole('radio', { name: 'Gizle' }).check()
-  await expect.poll(stored).toEqual({ selected: 'hidden', others: 'hidden', airports: 'hidden' })
+  await expect
+    .poll(stored)
+    .toEqual({ selected: 'hidden', others: 'hidden', airports: 'hidden', countries: 'shown' })
   await page.keyboard.press('Escape')
   await expect.poll(() => paintedPixels(page), { timeout: 10_000 }).toBe(0)
   // Pinin başı: ucu havalimanı merkezinde (harita ortası), baş ~13 px yukarıda.
@@ -475,6 +497,109 @@ async function clickPrimaryChip(page: Page, popup: Locator): Promise<void> {
     await expect(popup).toBeVisible({ timeout: 2_000 })
   }).toPass({ timeout: 20_000 })
 }
+
+test.describe('ülke adları (D-095)', () => {
+  // MapLibre `prefers-reduced-motion`'da kamera geçişlerini anında yapar: `?havalimani=` uçuşu ve
+  // klavyeyle uzaklaştırma beklemesiz ve kesindir (her basış tam bir kademe).
+  test.use({ reducedMotion: 'reduce' })
+
+  test.beforeEach(async ({ context }) => {
+    // v0.18.1 kaydı (ülke alanı yok): ülke adları Göster okunur. Havalimanı kodları gizlenir: pin
+    // ucundaki kesiti ve pin tıklamasını kod kutusu etkilemez.
+    await context.addInitScript((key) => {
+      window.localStorage.setItem(
+        key,
+        JSON.stringify({ selected: 'full', others: 'hidden', airports: 'hidden' }),
+      )
+    }, LABEL_SETTINGS_KEY)
+  })
+
+  test('Tahran’da uzaklaşınca İRAN ve komşuları yazılır; ad pinin yanında çizilir, pin görünür kalır; Gizle saklanır; yakınlaşınca silinir', async ({
+    page,
+  }) => {
+    // Tek sayfa yüklemesi (`WS_RATE_LIMIT`). Tahran Mehrabad'ın (OIII) çevresinde replay uçağı yoktur.
+    const requested: string[] = []
+    page.on('request', (sent) => requested.push(sent.url()))
+    await page.goto('/?havalimani=OIII')
+    await waitForMap(page)
+    // Kamera havalimanına gitti (z10): görünümün ortasındaki havalimanı THR.
+    await expect
+      .poll(async () => (await airportListCodes(page))[0], { timeout: 30_000 })
+      .toBe('THR')
+    expect(await countryLabels(page)).toEqual([])
+
+    // Beş kademe uzaklaşınca (z5) tasarımın görünümü: İRAN Tahran'da, komşular başkentlerinde.
+    await zoomOut(page, 5)
+    await expect.poll(() => countryLabels(page), { timeout: 20_000 }).toContain('İRAN')
+    const names = await countryLabels(page)
+    expect(names.length).toBeGreaterThan(3)
+    for (const name of names) expect(name).toBe(name.toLocaleUpperCase('tr-TR'))
+    expect(names).not.toContain('İSRAİL')
+    // Yazı tipi sitenin kendi dosyasıdır (İ latin-ext'tedir); glif (.pbf) ve OpenFreeMap isteği yok.
+    const sameOrigin = requested.map((url) => new URL(url)).filter((url) => url.origin === WEB_URL)
+    expect(sameOrigin.map((url) => url.pathname)).toContain(
+      '/fonts/overpass-latin-ext-600-normal.woff2',
+    )
+    expect(
+      requested.filter((url) => {
+        const { hostname, pathname } = new URL(url)
+        return hostname.endsWith('openfreemap.org') || pathname.endsWith('.pbf')
+      }),
+    ).toEqual([])
+
+    // Pin ucundaki kesit, adlar Göster ve Gizle iken: kırmızı olmayan pikseller değişir (İRAN'ın
+    // harfi ya da halesi kesitin içinde çizilir) ve pinin kırmızı pikselleri ad açıkken de görünür.
+    // Bu kesit çizim sırasını ayırt etmez: z5'te Tahran OIII pininin 3,5 px doğusundadır ve pinin
+    // kırmızısı İRAN'ın R ile A harfleri arasındaki boşluğa düşer (en yakın mürekkep ~6 px, hale
+    // en çok ~4 px); ad pinin üstünde çizilse de sonuç aynıdır. Adların pinlerin altında
+    // çizildiğini birim testleri denetler: `overlayLayers` sırası (map-controller.test.ts) ve pin ile
+    // uçak katmanlarının yerleşime katılmaması (layers.test.ts).
+    const tip = await mapCenter(page)
+    const shown = await pinPixels(page, tip)
+    expect(shown.red).toBeGreaterThanOrEqual(15)
+    const button = page.getByRole('button', { name: 'Etiketler' })
+    const countries = page.getByRole('group', { name: 'Ülke adları' })
+    await button.click()
+    await expect(countries.getByRole('radio', { name: 'Göster' })).toBeChecked()
+    await countries.getByRole('radio', { name: 'Gizle' }).check()
+    await page.keyboard.press('Escape')
+    await expect(button).toHaveAttribute('aria-expanded', 'false')
+    await expect.poll(() => countryLabels(page)).toEqual([])
+    await expect
+      .poll(() =>
+        page.evaluate(
+          (key) => JSON.parse(window.localStorage.getItem(key) ?? 'null'),
+          LABEL_SETTINGS_KEY,
+        ),
+      )
+      .toMatchObject({ airports: 'hidden', countries: 'hidden' })
+    await expect(async () => {
+      const hidden = await pinPixels(page, tip)
+      expect(hidden.other).not.toBe(shown.other)
+      expect(shown.red).toBeGreaterThanOrEqual(0.9 * hidden.red)
+    }).toPass({ timeout: 10_000 })
+
+    // Göster: adlar geri gelir.
+    await button.click()
+    await countries.getByRole('radio', { name: 'Göster' }).check()
+    await page.keyboard.press('Escape')
+    await expect.poll(() => countryLabels(page), { timeout: 10_000 }).toContain('İRAN')
+
+    // Ada değil pine tıklanır: pencere OIII'nindir (adlar tıklamayı yakalamaz).
+    const popup = page.locator('.live-map [role="dialog"].map-popup')
+    await expect(async () => {
+      await page.mouse.click(tip.x, tip.y - 9)
+      await expect(popup).toBeVisible({ timeout: 2_000 })
+    }).toPass({ timeout: 15_000 })
+    await expect(popup).toHaveAttribute('data-icao', 'OIII')
+    await page.keyboard.press('Escape')
+    await expect(popup).toBeHidden()
+
+    // Dört kademe yakınlaşınca (z9) adlar silinmiştir.
+    await zoomIn(page, 4)
+    await expect.poll(() => countryLabels(page), { timeout: 10_000 }).toEqual([])
+  })
+})
 
 test.describe('arama kutusunun ipucu kesilmez', () => {
   // İpucu (placeholder) kısa, erişilebilir ad tam metindir (packages/i18n → map.search).
@@ -571,6 +696,25 @@ test.describe('telefon genişliği', () => {
         ratio: 1,
       })
     }
+
+    // Ülke adları İngilizcede (D-095): aynı sayfa yüklemesinde, IST'den dört kademe uzaklaşınca
+    // (~z4) TÜRKIYE Ankara'da; Türkçe büyük harf (İ) yok. Hareket azaltılır: her basış tam kademe.
+    await page.emulateMedia({ reducedMotion: 'reduce' })
+    await zoomOut(page, 4)
+    await expect.poll(() => countryLabels(page), { timeout: 20_000 }).toContain('TÜRKIYE')
+    const names = await countryLabels(page)
+    expect(names).not.toContain('TÜRKİYE')
+    for (const name of names) {
+      expect(name).toBe(name.toLocaleUpperCase('en-GB'))
+      expect(name).not.toContain('İ')
+    }
+    const labels = page.getByRole('button', { name: 'Labels', exact: true })
+    await labels.click()
+    const countries = page.getByRole('group', { name: 'Country names' })
+    await expect(countries.getByRole('radio')).toHaveCount(2)
+    await expect(countries.getByRole('radio', { name: 'Hide' })).not.toBeChecked()
+    await expect(countries.getByRole('radio', { name: 'Show' })).toBeChecked()
+    await page.keyboard.press('Escape')
   })
 })
 

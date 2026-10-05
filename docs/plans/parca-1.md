@@ -32,6 +32,7 @@ Durumlar: `[ ]` başlamadı, `[~]` sürüyor, `[k]` kod bitti ve kullanıcı do�
 | M6e.4 | Yeniliklerde yayın tarihi ve saati (yama, v0.17.1) | `p1/changelog-time` | [x] tamam; üretimde doğrulandı (2026-10-04, v0.17.1): /yenilikler v0.17.1 "4 Ekim 2026, 21:36 (Türkiye saati)" (sunucunun açılışı), v0.17.0 20:27 | #26 |
 | M6e.5 | Haritada kesikli ülke sınırları (yama, v0.17.2) | `p1/map-borders` | [x] tamam; üretimde doğrulandı (2026-10-04, v0.17.2): Balkanlarda kesikli sınırlar, şeritte OpenFreeMap atfı | #27 |
 | M6e.6 | API yanıtlarının sıkıştırılması (yama, v0.18.1) | `p1/api-gzip` | [~] | — |
+| M6e.7 | Haritada ülke adları başkentlerde (yama, v0.18.2) | `p1/map-country-labels` | [k] kod bitti; üretimde uydu üstünde görünüm denetimi bekliyor (ACTIVATION) | — |
 | M6h | 3. halka (≤ 2.000 km) — kullanıcı isteğiyle M7a'nın önüne alındı (2026-10-04); sivil uçuşa kapalı olabilecek havalimanı notu | `p1/m6h-ring3` | [k] kod bitti; üretimde doğrulandı (2026-10-04, v0.18.0): `scope=listed` 503 (61 + 75 + 89 + 278), Viyana 3. halka 1.149 km, beş Özbek istasyonunun METAR'ı UZxx koduyla, METAR'lı istasyon 463/503, toplu hava 1,34 MB, URKK ve UUOO notu iki dilde; admin Servisler ve worker günlüğü (429 yok) bekliyor (ACTIVATION) | #28 |
 | M7a | Canlı araçlar: `smoke:live`, `record` | `p1/m7a-live-tools` | [ ] | — |
 | M7b | Kapsama ölçümü ve raporu (`coverage:probe`, `coverage:report`) | `p1/m7b-coverage` | [ ] | — |
@@ -1094,6 +1095,57 @@ Hedef sürüm 0.18.1 (`main` `1b745cd` = v0.18.0'dan). Karar D-093'tedir.
 **Çıktı kaydı (2026-10-04):**
 - `pnpm ci:full` → yeşil: birim web 769, shared 640, api 259 (+3), worker 200, i18n 98, geo 36 (öbürleri önbellekten aynı); entegrasyon db 84, api 26, worker 12; `test:migration-upgrade` 6 → 6; e2e 124/124.
 - v0.18.0 `releasedAt` 2026-10-04T19:45:30Z (GitHub Release). `pnpm stats` → 559 dosya, 105.499 satır (kod 96.118, belge 6.166).
+
+## M6e.7 — Ülke adları (v0.18.2)
+Onay: 2026-10-05 kullanıcı: tasarım tuvalinde A seçeneği, "Saydam olsun" (tam ifade: "Saydam olsun. Önerin iyi A olan"; tuval https://claude.ai/artifact/2Hu2UcsPVQw32MbWkAU83v, A · Sessiz büyük harf; istek: "Ülke isimlerini başkentlerinin oraya büyük bir şekilde ama kötü gözükmeyecek şekilde ayarla."; yama sürümü, D-082)
+
+Hedef sürüm 0.18.2 (`main` `aebadce` = v0.18.1'den). Karar D-095'tedir.
+
+**Kapsam:**
+- **Adlar:** her ülkenin adı başkentinin üstünde, ortalı (tek istisna Slovakya: Viyana'yla çakışmasın diye Bratislava'nın 2,5 em kuzeyinde, `labelOffsetEm`), sayfanın dilinde büyük harf (`toLocaleUpperCase`; TÜRKİYE / TÜRKIYE), Overpass 600, harf aralığı 0,32 em, satır yüksekliği 1; beyaz 0,6 saydamlıkta, koyu hale 0,85 saydamlıkta, zeminsiz. Tek GeoJSON kaynağı (`hy-country-labels`) ve üç GL symbol katmanı (kademe 3, 2, 1), havalimanı pinlerinin altında.
+- **Yazı tipi:** `@fontsource/overpass` 5.3.0'ın latin ve latin-ext 600 WOFF2 dosyaları değiştirilmeden `apps/web/public/fonts/`'ta (`OFL.txt` ile); her stile `font-faces` olarak eklenir (`withMapFonts`), `glyphs` ve dış istek yok.
+- **Kademe:** yüzölçümü ≥ 700.000 km² kademe 1 (Irak istisna), ≥ 85.000 km² kademe 2, altı kademe 3: 10 / 20 / 29 ülke. Boy z5'te 34 / 22 / 14 px (dar haritada 27 / 18 / 14); z3–z7 arası eğri, düşük yakınlaştırmada dik.
+- **Yakınlaştırma:** kademe 1 z3'ten, 2 z3,5'ten, 3 z4,5'ten (yarım kademede belirir); z7–8 arasında silinir, z8 ve üstünde çizilmez. Açılış görünümünde ad yoktur.
+- **Satır:** geniş haritada tek satır (24 em); dar haritada (≤ 767 px) kademe 1–2'nin 10 em'i aşan çok sözcüklü adları iki satır (SUUDİ / ARABİSTAN, SAUDI / ARABIA). Brifin "kırma yok" kuralından tek ayrılık budur (D-095).
+- **Hale:** boyla orantılı; glif SDF payını (boy/8) aşmaz. Tasarımın geniş gölgeleri SDF'le çizilemez; yedek yol `addImage` bitmapleridir (D-095).
+- **Çakışma ve sıra:** adlar yalnızca birbiriyle çakışır (6 px pay); üst kademe ve kademede Türkiye, sonra büyük ülke önce. Yerleşim modeli testi: her başkentin adı, kendi başkentinde ortalı görünümde silinmeden önce tam saydam yerleşir. Pin, kod, uçak ve uçak etiketi her zaman üstte; ada tıklama boş harita tıklamasıdır.
+- **Ülkeler:** listelenen havalimanı olan ülkeler (Türkiye + 1.–3. halka) ve boşluk ülkesi Ukrayna, İsrail ve Filistin yok; KIBRIS / CYPRUS Lefkoşa'da, KOSOVA / KOSOVO Priştine'de: 59 ülke.
+- **Anahtar:** "Etiketler" panelinde dördüncü grup "Ülke adları" (Gizle / Göster, varsayılan Göster), aynı `hy:map:labels` kaydında `countries`; v0.18.1 kaydı Göster okunur. Panel ipucu: "Ülke adları haritayı uzaklaştırınca görünür."
+- **Vektör yedek:** OpenFreeMap stilinin kendi ülke adı katmanları çıkarılır (kimlik ya da süzgeç kuralı).
+- **Test niteliği:** `.live-map__canvas` → `data-country-labels` (yerleşen adlar, en fazla 500 ms'de bir).
+- Mobil değişmez (`LIVE_MAP_LAYERS` aynı).
+
+**Dosyalar:**
+- `packages/shared/src/reference/capitals.ts` (yeni: 59 başkent, yüzölçümü, Slovakya'nın ad kayması `labelOffsetEm`, `UNLABELLED_COUNTRIES`, `HOLE_COUNTRIES`, kademe kuralı), `countries.ts` (`countryLabelText`), `index.ts`; `capitals.test.ts`, `foreign.test.ts` (kapsam, boşluk ülkesi, başkent–havalimanı uzaklığı)
+- `packages/shared/src/map/country-labels.ts` (yeni: kimlikler, boylar, saydamlık durakları, hale, `countryLabelPoints`, `countryLabelLayers`, `countryLabelTextOffset`), `layers.ts` (`TextSymbolLayerStyle`, `text-offset`, `match`/`literal` ifadeleri), `colors.ts` (`countryLabel`, `countryLabelHalo`, `withAlpha`, ikinci saydamlık istisnası), `index.ts`; `country-labels.test.ts`, `country-label-placement.test.ts` (yeni: MapLibre yerleşim modeli), `layers.test.ts`
+- `packages/i18n/src/messages/{tr,en}.ts` (`map.labels.countries`, `countryModes`, ipucu); `i18n.test.ts`
+- `apps/web/public/fonts/` (iki WOFF2 ve `OFL.txt`)
+- `apps/web/src/components/map/map-fonts.ts` (yeni), `country-labels.ts` (yeni: kaynak verisi, `CountryLabelOverlay`), `map-controller.ts` (`overlayLayers`, kurulum, ayar, boy, test niteliği), `basemap.ts` (`withoutBasemapCountryLabels`, `NON_BASEMAP_SOURCES`); `map-fonts.test.ts`, `country-labels.test.ts`, `map-controller.test.ts`, `basemap.test.ts`
+- `apps/web/src/lib/map/label-settings.ts` (`countries`), `components/map/panels/label-settings-control.tsx` (dördüncü grup), `use-label-settings.ts`, `app/globals.css` (açıklamalar); `label-settings.test.ts`, `panels.test.ts`
+- `apps/web/src/lib/locale-routing.ts` (`fonts`); `locale-routing.test.ts`
+- `e2e/support.ts` (`countryLabels`, `zoomOut`, `zoomIn`), `e2e/map-pixels.ts` (yeni: pin ucundaki kesit), `e2e/tests/live-map.spec.ts`
+- Belgeler: D-095, `docs/spec/domain.md` (Harita etiketleri), `docs/spec/data-sources.md` §5b, `ATTRIBUTION.md`, `docs/ACTIVATION.md` ("M6e.7 yayın doğrulaması")
+
+**Kabul komutları:**
+- `pnpm --filter @havayolu/shared test` → 59 başkent, kapsam = listelenen ülkeler + TR − IL + UA; kademeler 10 / 20 / 29 ve brifin örnekleri; katman kimlikleri, sırası, süzgeçleri, yakınlaştırmaları; boylar (z5'te 34 / 22 / 14, dar 27 / 18 / 14); hale her durakta glif payının içinde; saydamlık durakları; adlar TR/EN büyük harf (TÜRKİYE, KIBRIS, KOSOVA / TÜRKIYE, CYPRUS, ALGERIA); yerleşim modelinde her başkent (1400 × 900 ve 390 × 844, TR/EN) z7'den önce tam saydam yerleşir, kaymasız SLOVAKYA hiç yerleşmez, kayma başka adı silmez
+- `pnpm --filter @havayolu/i18n test` → "Ülke adları", Gizle / Göster, ipucu; İngilizce Country names, Hide / Show
+- `pnpm --filter @havayolu/web test` → `withMapFonts` (mutlak adres, glif yok), yazı tipi dosyaları ve lisans paketle bayt bayt aynı, aralıklar `600.css`'tekiyle aynı, her ad yazı tipinde ve 24 em'in altında, dar haritada en geniş satır ≤ %70; ayar (`countries`, v0.18.1 kaydı, geçersiz değer); panel dört grup; katman sırası; katmanlar yokken harita çağrısı yok; vektör stilin ülke adları çıkar (Dark, Liberty, Protomaps biçimleri); `/en/fonts/*` 404
+- `pnpm typecheck`, `pnpm lint`, `pnpm typecheck:e2e`, `pnpm lint:e2e`, `pnpm format`, `pnpm check:eol`
+- `pnpm exec playwright test -c e2e/playwright.config.ts e2e/tests/live-map.spec.ts` → açılışta `data-country-labels` boş ve yazı tipi isteği yok; Tahran'da z5'te İRAN (İSRAİL yok), aynı kökenden latin-ext WOFF2, `.pbf`/OpenFreeMap isteği yok; pin ucundaki kesitte ad çizilir ve pinin kırmızı pikselleri ad açıkken de görünür (bu kesit çizim sırasını ayırt etmez; adların pinlerin altında olduğu birim testindedir: `overlayLayers` sırası); Gizle saklanır ve yenilemede kalır; pine tıklama OIII penceresi; z9'da ad yok; İngilizce haritada TÜRKIYE, Country names Hide / Show
+- `pnpm ci:full` yeşil; PR'da CI (`e2e` dahil) yeşil
+- **Kullanıcıya bağlı (`[k]`):** yayından sonra uyduda görünüm (hale gücü, açık çölde okunurluk, 375 px), kod kutularının adların üstünde görünümü, koyu yedekte adların tekliği (ACTIVATION → "M6e.7 yayın doğrulaması")
+
+**Çıktı kaydı (2026-10-05, uygulama; sürüm, changelog ve README yayın adımındadır):**
+- Birim testleri: `@havayolu/shared` 666 (+26: `capitals.test.ts`, `country-labels.test.ts`, `foreign.test.ts` +3, `layers.test.ts` +2), `@havayolu/web` 792 (+23: `country-labels.test.ts` 10, `map-fonts.test.ts` 7, `basemap.test.ts` +4, `label-settings.test.ts` +1, `map-controller.test.ts` +1), `@havayolu/i18n` 98 (sabitlenen metinler genişledi).
+- `pnpm typecheck` (9/9), `pnpm lint` (9/9), `pnpm typecheck:e2e`, `pnpm lint:e2e`, `pnpm format` (`format:check` temiz), `pnpm check:eol` → yeşil.
+- E2E (yerel, `pnpm dev:replay`, yerel test stili): `live-map.spec.ts` 23/23 (4 kurulum + 19); aynı dalda `live-map`, `foreign-airports` ve `weather` birlikte 73/73. `pnpm ci:full` bu adımda çalıştırılmadı.
+- Görsel denetim (geçici Playwright betiği, depoya girmedi): Tahran z5'te ERMENİSTAN, AZERBAYCAN, IRAK, İRAN, ÜRDÜN, KUVEYT, SURİYE, TÜRKMENİSTAN yerleşti; Belgrad z5'te 14 ad, Karadağ ve Kosova yer bulamayınca çıkmadı (üst üste binme yok); 375 px'te Riyad z5 SUUDİ / ARABİSTAN iki satır ortalı. Açık zeminde (çöl tonu ve yeşil) hale kutusuz, temiz bir kenar; harfin içi zeminle karışır (D-095), pin harfin üstünde.
+- **İnceleme düzeltmeleri (2026-10-05):** (1) SLOVAKYA, AVUSTURYA yüzünden silinmeden önce hiç yerleşmiyordu (Bratislava Viyana'ya ~55 km, 0,06° güneyinde): başkentler tablosuna belgeli kayma (`labelOffsetEm`, yalnız SK [0, −2,5] em), katmana koda göre `text-offset`; yeni yerleşim modeli testi (`country-label-placement.test.ts`, MapLibre 6.11.2 kuralı) her başkentin z7'den önce tam saydam yerleştiğini, kaymasız SLOVAKYA'nın hiç yerleşmediğini ve kaymanın başka adı silmediğini denetler. Kayma geçici olarak kaldırılınca test SK 1400×900 tr'de kırıldı. Stil belirtimi (`@maplibre/maplibre-gl-style-spec` 26.4.4) ifadeyi geçerli sayar ve SK için [0, −2,5], öbürleri için [0, 0] verir. (2) Tahran e2e'sindeki pin kesiti çizim sırasını ayırt edemiyordu (pinin kırmızısı İRAN'ın R ile A harfleri arasındaki boşlukta): test adı, açıklaması, `e2e/map-pixels.ts`, D-095 ve bu plandaki kabul satırı yalnızca denetleneni söyler; sıra `overlayLayers` birim testindedir. Sonuç: `@havayolu/shared` 673 (+7: yerleşim modeli 5, `country-labels.test.ts` +1, `capitals.test.ts` +1), `@havayolu/web` 792, `@havayolu/i18n` 98; `pnpm format`, `pnpm lint`, `pnpm typecheck`, `pnpm typecheck:e2e`, `pnpm lint:e2e`, `pnpm check:eol` yeşil. E2E bu adımda yeniden çalıştırılmadı: e2e dosyalarında yalnız test adı ve açıklamalar değişti; yeni `text-offset` yalnız kademe 3'te SK'yı kaydırır, e2e ise Tahran ve IST görünümlerini denetler (yayından önce `ci:full` gerekir).
+
+**Çıktı kaydı (2026-10-05, yayın adımı):**
+- v0.18.1 `releasedAt` 2026-10-04T20:32:07Z (GitHub Release). Sürüm 0.18.2; changelog, README (TR/EN) güncellendi.
+- `pnpm ci:full` → yeşil: birim web 792, shared 673, api 259, worker 200, providers 127, i18n 98, tools 74, db 50; entegrasyon db 84, api 26, worker 12; `test:migration-upgrade` 6 → 6; e2e 125/125.
+- `pnpm stats` → 572 dosya, 108.897 satır (kod 99.129, belge 6.316).
 
 ## M6h — 3. halka (v0.18.0)
 Onay: 2026-10-04 kullanıcı isteği "sonraki işlerden birine bir halka daha ekle" ve kapalı havalimanı kararı (2022'den beri sivil uçuşa kapalı olduğu hâlde OurAirports'ta tarifeli görünen havalimanları listede kalır, sayfada ve pencerede "Sivil uçuşlara kapalı olabilir (2022’den beri)" notu); diğer seçimler M6h araştırmasının önerileri (orkestratör varsayılanı 2026-10-04)

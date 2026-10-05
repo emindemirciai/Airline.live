@@ -9,6 +9,7 @@ import {
   COUNTRY_BORDER_FILTER,
   COUNTRY_BORDER_LAYER_ID,
   COUNTRY_BORDER_SOURCE_ID,
+  COUNTRY_LABEL_SOURCE_ID,
   DISPUTED_BORDER_DASH,
   LIVE_MAP_LAYERS,
   TRAIL_LAYER_ID,
@@ -37,6 +38,7 @@ import {
   satelliteStyle,
   withAttribution,
   withCountryBorders,
+  withoutBasemapCountryLabels,
   type BasemapStep,
   type MapStyle,
 } from './basemap'
@@ -441,6 +443,104 @@ describe('ülke sınırları (D-092)', () => {
     // Sınırlar kapalı adımda yalnızca atıf yazılır.
     const plainPrepared = prepareFetchedStyle(darkStyle(), { ...fallback, countryBorders: false })
     expect(plainPrepared.layers.map((layer) => layer.id)).toContain('boundary_country_z5-')
+  })
+})
+
+/**
+ * Vektör stillerin yer adı katmanları: OpenFreeMap koyu stili (`place_country_major`, süzgeçsiz),
+ * Liberty (`label_country_1`, eski `all` süzgeci), Protomaps (`places_country`, `kind`), ifade
+ * süzgeçleri ve ülke dışındaki yerler.
+ */
+function labelledStyle(): MapStyle {
+  const place = { type: 'symbol', source: 'openmaptiles', 'source-layer': 'place' } as const
+  return {
+    version: 8,
+    sources: {
+      openmaptiles: { type: 'vector', url: 'https://tiles.openfreemap.org/planet' },
+      protomaps: { type: 'vector', url: 'https://maps.example/tiles.json' },
+    },
+    layers: [
+      { id: 'background', type: 'background', paint: { 'background-color': '#000000' } },
+      { ...place, id: 'place_city', filter: ['==', ['get', 'class'], 'city'] },
+      { ...place, id: 'place_country_major', layout: { 'text-field': '{name}' } },
+      {
+        ...place,
+        id: 'label_country_1',
+        filter: ['all', ['==', '$type', 'Point'], ['==', 'class', 'country'], ['==', 'rank', 1]],
+      },
+      {
+        type: 'symbol',
+        source: 'protomaps',
+        'source-layer': 'places',
+        id: 'places_country',
+        filter: ['==', 'kind', 'country'],
+      },
+      {
+        ...place,
+        id: 'countries_by_match',
+        filter: ['match', ['get', 'class'], 'country', true, false],
+      },
+      {
+        ...place,
+        id: 'countries_by_in',
+        filter: ['in', ['get', 'class'], ['literal', ['country']]],
+      },
+      { ...place, id: 'place_state', filter: ['==', 'class', 'state'] },
+      { ...place, id: 'place_not_country', filter: ['!=', 'class', 'country'] },
+      {
+        ...place,
+        id: 'place_any',
+        filter: ['any', ['==', 'class', 'country'], ['==', 'class', 'state']],
+      },
+      {
+        type: 'symbol',
+        source: 'openmaptiles',
+        'source-layer': 'water_name',
+        id: 'water_name',
+        filter: ['==', 'class', 'country'],
+      },
+      { type: 'fill', source: 'openmaptiles', 'source-layer': 'place', id: 'place_country_fill' },
+    ],
+  }
+}
+
+describe('vektör stillerin ülke adları (D-095)', () => {
+  it('ülke adı katmanları kimlikten ya da yer katmanındaki süzgeçten çıkar; şehir ve diğerleri kalır', () => {
+    const original = labelledStyle()
+    const result = withoutBasemapCountryLabels(original)
+    expect(result.layers.map((layer) => layer.id)).toEqual([
+      'background',
+      'place_city',
+      'place_state',
+      'place_not_country',
+      'place_any',
+      'water_name',
+      'place_country_fill',
+    ])
+    expect(result.sources).toBe(original.sources)
+    expect(original).toEqual(labelledStyle())
+  })
+
+  it('çıkacak katman yoksa stil olduğu gibi döner (uydu, yerel test stili)', () => {
+    const local = testStyle()
+    expect(withoutBasemapCountryLabels(local)).toBe(local)
+    const satellite = satelliteStyle('https://tiles.example/{z}/{y}/{x}', ESRI_ATTRIBUTION, borders)
+    expect(withoutBasemapCountryLabels(satellite)).toBe(satellite)
+  })
+
+  it('prepareFetchedStyle: koyu stilin ülke adları her adımda çıkar (sınırlar kapalıyken de)', () => {
+    const [, fallback] = basemapSteps(satellite, resolveUrl)
+    if (!fallback) throw new Error('fallback step missing')
+    for (const countryBorders of [true, false]) {
+      const prepared = prepareFetchedStyle(darkStyle(), { ...fallback, countryBorders })
+      expect(prepared.layers.map((layer) => layer.id)).not.toContain('place_country_major')
+      expect(prepared.layers.map((layer) => layer.id)).toContain('water')
+    }
+  })
+
+  it('ülke adı kaynağı altlık zincirinin hata sayımına girmez', () => {
+    expect(NON_BASEMAP_SOURCES.has(COUNTRY_LABEL_SOURCE_ID)).toBe(true)
+    expect(COUNTRY_LABEL_SOURCE_ID).toBe('hy-country-labels')
   })
 })
 

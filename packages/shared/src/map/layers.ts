@@ -3,6 +3,8 @@
  * `packages/shared` MapLibre'ye bağımlı değildir; aşağıdaki yerel tipler MapLibre stil
  * belirtiminin (style-spec) katman JSON'unun alt kümesidir, web `map.addLayer()`'a olduğu gibi
  * verir, mobil de aynı nesneleri kullanır. Katman sırası alttan üste: havalimanları, iz, uçaklar.
+ * Ülke adları (country-labels.ts, D-095) bu listede değildir: web onları havalimanlarının altına
+ * ekler; mobil şimdilik eklemez.
  */
 import { AIRPORT_PIN_ICON_ID, AIRPORT_PIN_MARGIN } from './airport-pin'
 import { MAP_COLORS } from './colors'
@@ -10,8 +12,8 @@ import { MAP_COLORS } from './colors'
 type StyleLiteral = string | number | boolean
 
 /**
- * Haritanın kendi katmanlarında (bu dosya ve borders.ts) kullanılan stil ifadeleri (style-spec
- * `ExpressionSpecification` alt kümesi).
+ * Haritanın kendi katmanlarında (bu dosya, borders.ts ve country-labels.ts) kullanılan stil
+ * ifadeleri (style-spec `ExpressionSpecification` alt kümesi).
  */
 export type StyleExpression =
   | ['get', string]
@@ -22,6 +24,8 @@ export type StyleExpression =
   | ['all', ...StyleExpression[]]
   | ['case', StyleExpression, StyleLiteral | StyleExpression, StyleLiteral | StyleExpression]
   | ['interpolate', ['linear'], StyleExpression, ...number[]]
+  | ['literal', number[]]
+  | ['match', StyleExpression, ...(StyleLiteral | StyleExpression)[]]
 
 /** Sabit değer ya da ifade. */
 export type StyleValue<T extends StyleLiteral> = T | StyleExpression
@@ -56,6 +60,47 @@ export interface SymbolLayerStyle extends LayerStyleBase {
   }
 }
 
+/**
+ * Yazı taşıyan symbol katmanı (ülke adları, country-labels.ts). Yazı tipi stilin `font-faces`
+ * alanında tanımlanır (web: map-fonts.ts); stile `glyphs` adresi eklenmez.
+ */
+export interface TextSymbolLayerStyle extends LayerStyleBase {
+  type: 'symbol'
+  layout: {
+    'text-field': StyleValue<string>
+    /** `font-faces`'te tanımlı yazı tipi adları. */
+    'text-font': string[]
+    'text-size': StyleValue<number>
+    /** Harf aralığı, em. */
+    'text-letter-spacing'?: number
+    /** Satır yüksekliği, em. */
+    'text-line-height'?: number
+    /** Satır kırma genişliği, em (bu genişliği aşan metin boşluklardan kırılır). */
+    'text-max-width'?: number
+    'text-anchor'?: 'center' | 'top' | 'bottom' | 'left' | 'right'
+    /** Yazının çapadan kayması, em: [sağa, aşağı]. */
+    'text-offset'?: [number, number] | StyleExpression
+    'text-justify'?: 'center' | 'left' | 'right' | 'auto'
+    /** Çakışma kutusunun her yanına eklenen pay, px. */
+    'text-padding'?: number
+    'text-allow-overlap'?: boolean
+    'text-ignore-placement'?: boolean
+    'text-rotation-alignment'?: 'map' | 'viewport' | 'auto'
+    'text-pitch-alignment'?: 'map' | 'viewport' | 'auto'
+    'symbol-sort-key'?: StyleValue<number>
+    visibility?: 'visible' | 'none'
+  }
+  paint: {
+    'text-color': StyleValue<string>
+    'text-halo-color'?: StyleValue<string>
+    /** Halenin genişliği, px. */
+    'text-halo-width'?: StyleValue<number>
+    /** Halenin yumuşaklığı, px. */
+    'text-halo-blur'?: StyleValue<number>
+    'text-opacity'?: StyleValue<number>
+  }
+}
+
 export interface CircleLayerStyle extends LayerStyleBase {
   type: 'circle'
   paint: {
@@ -83,7 +128,8 @@ export interface LineLayerStyle extends LayerStyleBase {
   }
 }
 
-export type MapLayerStyle = SymbolLayerStyle | CircleLayerStyle | LineLayerStyle
+export type MapLayerStyle =
+  SymbolLayerStyle | TextSymbolLayerStyle | CircleLayerStyle | LineLayerStyle
 
 export const AIRCRAFT_SOURCE_ID = 'hy-aircraft'
 export const AIRCRAFT_LAYER_ID = 'hy-aircraft'

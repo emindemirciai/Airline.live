@@ -8,7 +8,27 @@
 
 ---
 
-## v0.18.1 — 2026-10-04
+## v0.18.2 — 2026-10-05
+
+### Türkçe
+**Haritada ülke adları**
+
+- Haritayı uzaklaştırınca ülke adları başkentlerinin üstünde büyük, aralıklı ve yarı saydam harflerle görünür; büyük ülkelerin adı daha iri yazılır. Uçaklar, havalimanı işaretleri ve kodları her zaman adların üstünde kalır. Havalimanı çevresine yaklaşınca ülke adları silinir.
+- Haritadaki “Etiketler” düğmesinde yeni “Ülke adları” seçeneği: Göster ya da Gizle; seçim tarayıcıda hatırlanır.
+
+Dene: [Canlı harita](/)
+
+### English
+**Country names on the map**
+
+- Zoom out and country names appear over their capitals in large, spaced, semi-transparent letters; larger countries get larger names. Aircraft, airport pins and codes always stay on top. Zoom in to an airport and the country names fade away.
+- A new “Country names” option in the map’s “Labels” button: Show or Hide; the choice is remembered in your browser.
+
+Try it: [Live map](/)
+
+---
+
+## v0.18.1 — 2026-10-04 23:32 (UTC+3)
 
 ### Türkçe
 **Daha az veri, daha hızlı harita**
