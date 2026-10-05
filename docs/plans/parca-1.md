@@ -1401,5 +1401,14 @@ Kararlar D-094'tedir. Plan sırası M6h → M7a → M7b'dir (D-082).
   4. **İsteğe bağlı:** Parça 2 bench'i için `--fixture` ile commit'lenecek bir kayıt alınır. Ajan sonraki oturumda dosyayı `tools/fixtures/README.md` künyesiyle commit'ler.
   5. **Sorun çıkarsa:** Çıkış 3 (401/403) ya da tekrarlayan 429 görülürse dur ve bildir (DUR-SOR 3). p95 20 sn'yi aşarsa raporun "en uzun süre" ve 429 satırlarını bildir; zamanlayıcı ayarı ayrı bir kararla ele alınır.
 
+**Çıktı kaydı (2026-10-05, yayın adımı):**
+- Uygulama orkestratör iş akışıyla yazıldı (temel modüller → kayıt, smoke ve belgeler paralel → entegrasyon → üç açıdan inceleme → itiraz eden doğrulama → düzeltme). İncelemede 16 bulgu, doğrulamada 12'si gerçek çıktı ve düzeltildi. En önemlisi: PING'den sonra Redis komutu yanıtsız kalırsa kayıt artık kilitsiz devam etmez, istek atmadan çıkış 2 ile durur (`redis_unanswered`).
+- İki inceleme ajanı `pnpm record` ve `pnpm smoke:live` kuru çalıştırmasında `ask` onayı beklerken takıldı (~3,5 sa). İş akışı bu komutları çağırmama kuralıyla sürdürüldü.
+- Dal `7c3ddf5` (M7a) sonra `origin/main` v0.18.2 ile birleştirildi (`76c809a`; çakışma yalnızca DECISIONS ve plan tablosunda). v0.18.2 `releasedAt` 2026-10-05T01:08:09Z (GitHub Release).
+- `pnpm ci:full` → yeşil: birim web 792, shared 673, api 259, tools 244, worker 200, providers 127, i18n 98, db 50, geo 36; entegrasyon db 84, api 26, worker 12, tools 9; `test:migration-upgrade` 6 → 6; e2e 125/125.
+- Kuru çalıştırma ve yardım testleri (`vitest run src/live/{record,smoke,args}.test.ts -t "plan|yardım|help"`) → 25 test geçti: plan istek, Redis ve dosya olmadan çıkış 2 verir; eksik kapıları değer yazmadan listeler; ajan oturumunda `--confirm` reddedilir; `--out` repo içinde yalnızca `tools/recordings/tmp` altına yazar.
+- Entegrasyonda (önceki adım) `pnpm record --station LTFM` ve `pnpm smoke:live` kuru çalıştırması çıkış 2 ile yalnızca planı yazdı: ≈199 istek (30 dk) ve ≈30 istek (5 dk); `CONTACT_EMAIL: yok`.
+- `pnpm stats` → 599 dosya, 115.736 satır (kod 105.564, belge 6.705).
+
 ## M7b — Kapsama ölçümü ve raporu
 Ayrıntılar `docs/prompts/parca-1.md`'dedir. Başlarken bu dosyaya dizinler ve kabul komutları eklenir.

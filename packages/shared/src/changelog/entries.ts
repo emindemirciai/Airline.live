@@ -12,8 +12,23 @@ import type { ChangelogEntry } from './types'
  */
 export const CHANGELOG: readonly ChangelogEntry[] = [
   {
+    version: '0.19.0',
+    date: '2026-10-05',
+    title: {
+      tr: 'Canlı veri için ölçüm ve kayıt araçları',
+      en: 'Measurement and recording tools for live data',
+    },
+    items: [
+      {
+        tr: 'Canlı uçuş verisinin kalitesini ölçmek için iki geliştirici aracı eklendi: biri canlı veri akışını 5 dakika çalıştırıp Türkiye üzerindeki uçak sayısını, İstanbul Havalimanı verisinin tazeliğini ve sağlayıcı durumunu denetler; öbürü bir havalimanının çevresindeki gerçek uçuşları sonradan yeniden oynatılabilecek biçimde kaydeder. Araçlar istek hızı kurallarına uyar ve yalnızca elle çalıştırılır. Sitede görünen bir değişiklik yok; bu ölçümler sonraki iniş bildirimi kurallarının girdisi olacak.',
+        en: 'Two developer tools for measuring live flight data: one runs the live data feed for 5 minutes and checks the number of aircraft over Türkiye, the freshness of Istanbul Airport data and the provider status; the other records real flights around an airport so they can be replayed later. Both respect the request-rate rules and run only by hand. Nothing changes on the site; these measurements will feed the upcoming landing alert rules.',
+      },
+    ],
+  },
+  {
     version: '0.18.2',
     date: '2026-10-05',
+    releasedAt: '2026-10-05T01:08:09Z',
     title: {
       tr: 'Haritada ülke adları',
       en: 'Country names on the map',
