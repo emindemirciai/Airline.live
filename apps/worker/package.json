@@ -9,6 +9,11 @@
     "./ingest": "./src/ingest/index.ts",
     "./ingest/rate": "./src/ingest/rate.ts",
     "./ingest/status": "./src/ingest/status.ts",
+    "./jobs/arrival-coverage/aggregate": "./src/jobs/arrival-coverage/aggregate.ts",
+    "./jobs/arrival-coverage/classify": "./src/jobs/arrival-coverage/classify.ts",
+    "./jobs/arrival-coverage/render": "./src/jobs/arrival-coverage/render.ts",
+    "./jobs/arrival-coverage/run": "./src/jobs/arrival-coverage/run.ts",
+    "./jobs/arrival-coverage/synthetic": "./src/jobs/arrival-coverage/test/synthetic.ts",
     "./jobs/reference": "./src/jobs/reference.ts"
   },
   "scripts": {

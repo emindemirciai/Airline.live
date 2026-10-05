@@ -60,7 +60,7 @@ Doğrulama tarihi: **2026-09-25**. Canlı istekler ve kaynak kodu/doküman okuma
   - **Aynı kurallar:** istemci worker'ınkidir (`createAdsbLolClient`). Hız kovası `AdaptiveRateController`'dır (başlangıç `ADSBLOL_RPS`, en çok 0,2 istek/sn); smoke'ta ingest'in kendi kovası çalışır. 429/420, 5xx ve 401/403 kuralları yukarıdaki gibidir; 401/403'te araç hemen durur.
   - **Ek bekçi:** yalnızca `GET /v2/point/...`, yönlendirme izlenmez, User-Agent zorunludur. İki isteğin başlangıcı arası en az 5 sn'dir (250 ms saat payıyla). İhlal aracı durdurur.
   - **User-Agent:** ürün adı ve iletişim adresi üretimdekiyle aynıdır. Kullanıcının `.env`'indeki `WEB_HOST` genel bir host ise duyurulan biçim kullanılır (`(+https://<host>; <CONTACT_EMAIL>)`); yerelse `(+mailto:<CONTACT_EMAIL>)` gider.
-  - **İkinci IP:** bu denetimler kullanıcının ev bağlantısından, yani VPS'ten farklı ikinci bir IP'den gelebilir (≤ 0,2 istek/sn, smoke 5 dk, `record` ≤ 60 dk). Bu, 1. ACTIVATION adımındaki e-postada belirtilir.
+  - **İkinci IP:** bu denetimler kullanıcının ev bağlantısından, yani VPS'ten farklı ikinci bir IP'den gelebilir (≤ 0,2 istek/sn, smoke 5 dk, `record` ≤ 60 dk). Bu, 1. ACTIVATION adımındaki e-postada belirtilir. M7c'nin kapsama ölçümü (`coverage:probe`, henüz yok; D-098) de aynı IP'den gelebilir: bir kez, ≈24,5 saat, sabit 0,1 istek/sn, aynı UA ve yalnızca üretim ingest'i kapalıyken (iki IP aynı anda çekmez); e-posta taslağı bunu da söyler.
 
 **Sağlayıcı durumu** (WS mesajları, durum şeridi ve kesinti bastırma bu tanımı kullanır)
 - `ok`: son 60 sn'de en az bir başarılı yanıt var ve birincil istasyon tazeliği ≤ hedef × 2.

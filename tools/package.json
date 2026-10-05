@@ -13,7 +13,8 @@
     "typecheck": "tsc -p tsconfig.json",
     "test": "vitest run",
     "test:integration": "vitest run --config vitest.integration.config.ts",
-    "replay": "tsx src/replay-receiver/cli.ts"
+    "replay": "tsx src/replay-receiver/cli.ts",
+    "arrival-fixture": "tsx src/arrival-report/fixture-cli.ts"
   },
   "dependencies": {
     "@havayolu/geo": "workspace:*"

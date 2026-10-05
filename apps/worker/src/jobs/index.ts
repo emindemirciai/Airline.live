@@ -11,9 +11,28 @@ import {
   PROVIDER_LICENSES,
   providerUserAgent,
 } from '@havayolu/providers'
-import { Queue, Worker, type Job, type JobSchedulerTemplateOptions } from 'bullmq'
+import {
+  Queue,
+  UnrecoverableError,
+  Worker,
+  type Job,
+  type JobSchedulerTemplateOptions,
+} from 'bullmq'
 import type { Logger } from 'pino'
 import type { Env } from '../env'
+import {
+  ARRIVAL_COVERAGE_POLL_INTERVAL_MS,
+  createExclusiveRunner,
+  createStartupGate,
+  startArrivalCoveragePoller,
+  type ExclusiveRunner,
+} from './arrival-coverage/poll'
+import {
+  arrivalCoverageFailure,
+  arrivalCoverageRatioRetryable,
+  runArrivalCoverageRatio7d,
+  runNextArrivalCoverageReport,
+} from './arrival-coverage/run'
 import {
   findFixturesDir,
   fixtureFetcher,
@@ -88,6 +107,38 @@ export const JOB_SCHEDULES: Record<
     opts: { attempts: 3, backoff: { type: 'exponential', delay: 60_000 } },
   },
 }
+
+/**
+ * Kapsama raporu (M7b.2, D-098): rapor istekleri BullMQ'ya girmez, tablodan yoklanır
+ * (`arrival-coverage/poll.ts`). Günlük 7 günlük oran işi ayrı, tek eşzamanlı bir kuyruktadır;
+ * uzun okuma bakım kuyruğundaki METAR işini geciktirmez. Rapor, oran işi ve iz partition bakımı
+ * aynı süreçte sıraya girer (`createExclusiveRunner`): partition DDL'i (`CREATE TABLE … PARTITION
+ * OF`, `DETACH PARTITION`) üst tabloda ACCESS EXCLUSIVE kilidi ister ve kapsama okuması 60 sn'ye
+ * kadar ACCESS SHARE tutar; ikisi çakışsaydı bekleyen DDL ingest'in iz yazmalarını da bekletirdi.
+ * Kapsama işleri ayrıca açılıştaki iz partition işi bitince başlar.
+ */
+export const ARRIVAL_COVERAGE_QUEUE = 'arrival-coverage'
+
+export const ARRIVAL_COVERAGE_JOB_NAMES = {
+  ratio7d: 'arrival-coverage-ratio-7d',
+} as const
+export type ArrivalCoverageJobName =
+  (typeof ARRIVAL_COVERAGE_JOB_NAMES)[keyof typeof ARRIVAL_COVERAGE_JOB_NAMES]
+
+export const ARRIVAL_COVERAGE_SCHEDULES: Record<
+  ArrivalCoverageJobName,
+  { pattern: string; tz: 'UTC'; opts: JobSchedulerTemplateOptions }
+> = {
+  // 03:45 TSİ: iz partition bakımından (00:15) ve hava durumu temizliğinden (00:25) sonra.
+  'arrival-coverage-ratio-7d': {
+    pattern: '45 0 * * *',
+    tz: 'UTC',
+    opts: { attempts: 3, backoff: { type: 'exponential', delay: 5 * 60_000 } },
+  },
+}
+
+/** Açılış partition işi bu sürede bitmezse (ya da başka süreçte işlendiyse) yoklama yine başlar. */
+export const ARRIVAL_COVERAGE_STARTUP_GATE_MAX_MS = 10 * 60_000
 
 /**
  * Zamanlayıcı tanımının sürümü. Tanım (zaman, deneme ayarları) değişince artırılır; aynı sürümdeki
@@ -218,6 +269,13 @@ export interface JobsDeps {
   now?: () => Date
   /** Redis anahtar öneki; testler kendi önekini verir. */
   prefix?: string
+  /** Kapsama raporu yoklama aralığı (varsayılan 10 sn); testler kısaltır. */
+  arrivalCoveragePollMs?: number
+  /**
+   * Kapsama okumalarını ve iz partition bakımını sıraya koyan çalıştırıcı (varsayılan yeni bir
+   * `createExclusiveRunner`); testler sırayı gözlemlemek için kendi çalıştırıcısını verir.
+   */
+  coverageExclusive?: ExclusiveRunner
 }
 
 export interface JobsHandle {
@@ -232,6 +290,8 @@ export async function startJobs({
   version,
   now = () => new Date(),
   prefix = QUEUE_PREFIX,
+  arrivalCoveragePollMs = ARRIVAL_COVERAGE_POLL_INTERVAL_MS,
+  coverageExclusive,
 }: JobsDeps): Promise<JobsHandle> {
   const mode = referenceMode(env, version)
   if (mode.kind === 'disabled') log.warn({ reason: mode.reason }, 'referans içe aktarımı kapalı')
@@ -259,10 +319,26 @@ export async function startJobs({
     track_points_fine: env.TRACK_FINE_RETENTION_DAYS,
   }
 
+  // Kapsama raporu ve günlük oran işi açılış partition işinden sonra başlar. Rapor, oran işi ve
+  // iz partition bakımı aynı çalıştırıcıda sıraya girer: DDL kapsama okumasıyla çakışmaz. Kapsama
+  // işleri kapıyı çalıştırıcının dışında bekler, bu yüzden açılıştaki partition işi kilitlenmez.
+  const coverageGate = createStartupGate({
+    maxWaitMs: ARRIVAL_COVERAGE_STARTUP_GATE_MAX_MS,
+    onOpen: (reason) => log.info({ reason }, 'arrival coverage jobs enabled'),
+  })
+  const exclusive = coverageExclusive ?? createExclusiveRunner()
+  const shutdown = new AbortController()
+
   const processor = async (job: Job) => {
     try {
       if (job.name === JOB_NAMES.trackPartitions) {
-        const result = await maintainTrackPartitions(database.sql, now(), { retentionDays })
+        // Kapsama raporu sürüyorsa bakım onun bitmesini (en çok ~11 dk) bekler; bu sırada bakım
+        // kuyruğundaki METAR işi de bekler. Partition'lar 7 gün önceden açıldığı için gecikme
+        // ingest'i etkilemez.
+        const result = await exclusive(() =>
+          maintainTrackPartitions(database.sql, now(), { retentionDays }),
+        )
+        coverageGate.open('track-partitions')
         const defaultRows = Object.values(result.defaultRows).reduce((a, b) => a + b, 0)
         if (defaultRows > 0) {
           log.warn(
@@ -340,9 +416,54 @@ export async function startJobs({
   })
   worker.on('failed', (job, error) => {
     log.error({ job: job?.name, attempt: job?.attemptsMade, err: error }, 'bakım işi başarısız')
+    // Partition işi son denemesinde de başarısız olduysa kapsama işleri beklemeden başlar.
+    if (job?.name === JOB_NAMES.trackPartitions && job.attemptsMade >= (job.opts.attempts ?? 1)) {
+      coverageGate.open('track-partitions-failed')
+    }
   })
   worker.on('error', (error) => log.error({ err: error }, 'bakım kuyruğu hatası'))
   queue.on('error', (error) => log.error({ err: error }, 'bakım kuyruğu hatası'))
+
+  const coverageProcessor = async (job: Job) => {
+    if (job.name !== ARRIVAL_COVERAGE_JOB_NAMES.ratio7d) {
+      throw new Error(`unknown arrival coverage job: ${job.name}`)
+    }
+    await coverageGate.ready
+    try {
+      const summary = await exclusive(() =>
+        runArrivalCoverageRatio7d({ sql: database.sql, now, log, signal: shutdown.signal }),
+      )
+      log.info({ ...summary }, 'arrival coverage 7-day ratio written')
+      return summary
+    } catch (error) {
+      // Bütçe aşımı ve üç denemede de zaman aşımına uğrayan okuma yeniden denemeyle düzelmez; her
+      // BullMQ denemesi 7 günlük taramayı baştan yapıp veritabanına 10 dk yük bindirirdi.
+      if (!arrivalCoverageRatioRetryable(error)) {
+        const failure = arrivalCoverageFailure(error)
+        throw new UnrecoverableError(`${failure.code}: ${failure.message}`)
+      }
+      throw explain(error)
+    }
+  }
+  const coverageWorkerConnection = createRedis(redisUrl, {
+    name: `${env.WORKER_SERVICE_NAME}:coverage-worker`,
+    maxRetriesPerRequest: null,
+  })
+  const coverageQueue = new Queue(ARRIVAL_COVERAGE_QUEUE, { connection: queueConnection, prefix })
+  const coverageWorker = new Worker(ARRIVAL_COVERAGE_QUEUE, coverageProcessor, {
+    connection: coverageWorkerConnection,
+    prefix,
+    concurrency: 1,
+    ...KEEP_JOBS,
+  })
+  coverageWorker.on('failed', (job, error) => {
+    log.error(
+      { job: job?.name, attempt: job?.attemptsMade, err: error },
+      'arrival coverage job failed',
+    )
+  })
+  coverageWorker.on('error', (error) => log.error({ err: error }, 'arrival coverage queue error'))
+  coverageQueue.on('error', (error) => log.error({ err: error }, 'arrival coverage queue error'))
 
   for (const [name, schedule] of Object.entries(JOB_SCHEDULES)) {
     const existing = await queue.getJobScheduler(name)
@@ -352,6 +473,19 @@ export async function startJobs({
       (existing.template?.data as { revision?: number } | undefined)?.revision === SCHEDULE_REVISION
     if (unchanged) continue
     await queue.upsertJobScheduler(
+      name,
+      { pattern: schedule.pattern, tz: schedule.tz },
+      { name, data: { revision: SCHEDULE_REVISION }, opts: { ...schedule.opts, ...KEEP_JOBS } },
+    )
+  }
+  for (const [name, schedule] of Object.entries(ARRIVAL_COVERAGE_SCHEDULES)) {
+    const existing = await coverageQueue.getJobScheduler(name)
+    const unchanged =
+      existing?.pattern === schedule.pattern &&
+      existing.tz === schedule.tz &&
+      (existing.template?.data as { revision?: number } | undefined)?.revision === SCHEDULE_REVISION
+    if (unchanged) continue
+    await coverageQueue.upsertJobScheduler(
       name,
       { pattern: schedule.pattern, tz: schedule.tz },
       { name, data: { revision: SCHEDULE_REVISION }, opts: { ...schedule.opts, ...KEEP_JOBS } },
@@ -406,19 +540,52 @@ export async function startJobs({
     }
   }
 
-  log.info({ schedules: Object.keys(JOB_SCHEDULES) }, 'bakım işleri başladı')
+  // Kapsama raporu istekleri tablodan yoklanır (API BullMQ kullanmaz); tek eşzamanlı.
+  const poller = startArrivalCoveragePoller({
+    ready: coverageGate.ready,
+    intervalMs: arrivalCoveragePollMs,
+    log,
+    runOnce: (signal) =>
+      exclusive(async () => {
+        const outcome = await runNextArrivalCoverageReport({
+          sql: database.sql,
+          now,
+          log,
+          signal,
+          appVersion: version,
+          fineRetentionDays: env.TRACK_FINE_RETENTION_DAYS,
+        })
+        return outcome.kind !== 'idle'
+      }),
+  })
 
+  log.info(
+    {
+      schedules: [...Object.keys(JOB_SCHEDULES), ...Object.keys(ARRIVAL_COVERAGE_SCHEDULES)],
+      arrivalCoveragePollMs,
+    },
+    'bakım işleri başladı',
+  )
+
+  const connections = [queueConnection, workerConnection, coverageWorkerConnection]
   const disconnect = () => {
-    for (const connection of [queueConnection, workerConnection]) connection.disconnect()
+    for (const connection of connections) connection.disconnect()
   }
   return {
     // Redis erişilemezken BullMQ'nun kapanışı sonsuza dek bekleyebilir (komutlar çevrimdışı
-    // kuyrukta); süre dolunca bağlantılar kesilir, kapanış takılmaz.
+    // kuyrukta); süre dolunca bağlantılar kesilir, kapanış takılmaz. Çalışan kapsama raporu ve
+    // oran işi iptal sinyaliyle bir sonraki ifade denemesinden önce durur.
     close: async () => {
+      shutdown.abort()
+      // Kapıyı bekleyen oran işi iptal sinyalini görüp hemen biter (yoklayıcı kapalıdır).
+      coverageGate.open('shutdown')
       const graceful = (async () => {
+        await poller.close()
+        await coverageWorker.close()
         await worker.close()
+        await coverageQueue.close()
         await queue.close()
-        for (const connection of [queueConnection, workerConnection]) await connection.quit()
+        for (const connection of connections) await connection.quit()
         return 'closed' as const
       })().catch(() => 'failed' as const)
       const timeout = new Promise<'timeout'>((resolve) => {

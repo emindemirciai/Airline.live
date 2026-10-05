@@ -67,6 +67,7 @@ describe('gerçek bağımlılıklarla', () => {
       rateLimitRedis: redisQueue,
       live: { source: null, codes: () => EMPTY_AIRLINE_CODES },
       blocklistRedis: null,
+      arrivalCoverage: null,
       airports: { list: null },
       weather: { stations: null, latest: null },
     })

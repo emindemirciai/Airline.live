@@ -8,7 +8,23 @@
 
 ---
 
-## v0.20.0 — 2026-10-05
+## v0.21.0 — 2026-10-05
+
+### Türkçe
+**Kapsama raporu**
+
+- Yönetim panelinde yeni “Kapsama” sayfası: son 6 saatten 7 güne kadar seçilen pencerede her istasyon için kaç varış görüldüğünü, bunların ne kadarının yerde de görüldüğünü (güven aralığıyla), son havadaki örneğin yüksekliğini ve piste uzaklığını, veri gecikmesini ve sağlayıcı kesintilerini rapor eder. Rapor indirilebilir; iniş bildirimi kuralları bu ölçümlere göre ayarlanacak.
+- Her istasyonun son 7 gündeki yerde görülen varış oranı her gece kendiliğinden hesaplanır.
+
+### English
+**Coverage report**
+
+- A new “Coverage” page in the admin panel: for a window from 6 hours to 7 days it reports, per station, how many arrivals were seen, how many of them were also seen on the ground (with a confidence interval), the height and runway distance of the last airborne sample, data age and provider outages. The report can be downloaded; the landing alert rules will be tuned on these measurements.
+- Each station’s share of arrivals seen on the ground over the last 7 days is now computed every night.
+
+---
+
+## v0.20.0 — 2026-10-05 10:45 (UTC+3)
 
 ### Türkçe
 **Kapsama ölçümüne hazırlık**
