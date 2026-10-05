@@ -12,14 +12,18 @@
     "lint": "eslint . --max-warnings 0",
     "typecheck": "tsc -p tsconfig.json",
     "test": "vitest run",
+    "test:integration": "vitest run --config vitest.integration.config.ts",
     "replay": "tsx src/replay-receiver/cli.ts"
   },
   "dependencies": {
     "@havayolu/geo": "workspace:*"
   },
   "devDependencies": {
+    "@havayolu/db": "workspace:*",
     "@havayolu/providers": "workspace:*",
+    "@havayolu/worker": "workspace:*",
     "@types/node": "24.x",
+    "pino": "10.3.1",
     "tsx": "4.23.15",
     "typescript": "6.0.3",
     "vitest": "5.0.1"

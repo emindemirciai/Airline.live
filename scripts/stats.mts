@@ -1,6 +1,6 @@
 // Satır sayısı: git'te izlenen dosyalar üzerinden. Hariç: lockfile, docs/research/ ve elle yazılmayan
-// veri: commit'li fixture'lar (tools/fixtures CSV ve JSON, üçüncü taraf verisi) ve drizzle-kit'in
-// ürettiği şema snapshot'ları (packages/db/drizzle/meta).
+// veri: commit'li fixture'lar (tools/fixtures CSV, JSON ve JSON Lines kayıtları, üçüncü taraf
+// verisi) ve drizzle-kit'in ürettiği şema snapshot'ları (packages/db/drizzle/meta).
 // Toplamı, alan (apps/*, packages/*, docs, …) ve dil bazında dağılımı yazar.
 // --json: makine okunur çıktı; --markdown: README'ye yapıştırılabilir tablo.
 import { execFileSync } from 'node:child_process'
@@ -12,7 +12,7 @@ const root = fileURLToPath(new URL('..', import.meta.url))
 const EXCLUDED = [
   /^pnpm-lock\.yaml$/,
   /^docs\/research\//,
-  /^tools\/fixtures\/.*\.(csv|json)$/,
+  /^tools\/fixtures\/.*\.(csv|json|jsonl)$/,
   /^packages\/db\/drizzle\/meta\//,
 ]
 const LANGUAGES: Record<string, string> = {
