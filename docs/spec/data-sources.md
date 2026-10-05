@@ -214,6 +214,16 @@ Doğrulama: 2026-10-03 (tzdb 2026c `zone.tab`, `zone1970.tab`, `iso3166.tab`; No
 - `mixingWithOtherRealtimeAllowed`: `true`.
 - `maxRawStorageDays`: `null` (ham veri saklanmaz; kodda yalnızca ülke ve bölge → dilim tablosu vardır).
 
+## 5b. Başkentler ve ülke adları — haritadaki ülke adı
+Doğrulama: 2026-10-05 (Node 24 `Intl`, ICU 78; canlı istek atılmadı). Parça 1 M6e.7'den beri kullanılır (D-095).
+
+- **Ne için:** canlı haritada her ülkenin adı başkentinde, kademeli boyla. OurAirports, VRS ve aviationweather.gov başkent ya da ülke yüzölçümü vermez.
+- **Nasıl:** çalışma zamanında hiçbir yerden veri çekilmez. Kodda küçük bir tablo vardır (`packages/shared/src/reference/capitals.ts`): 59 ülkenin ISO 3166-1 kodu, başkentin Türkçe ve İngilizce adı (yalnızca okuyan için; haritada yazılmaz), şehir merkezinin konumu (0,01°) ve iç sular dahil yüzölçümü (100 km²'ye yuvarlı; Fransa, Danimarka ve Hollanda yalnızca Avrupa'daki toprağıyla, Sırbistan Kosova'sız, Kıbrıs adanın tamamıyla). Bunlar genel coğrafi bilgidir; bir veri setinden toplu indirilmemiştir.
+- **Adlar:** ülke adı tarayıcının ve Node'un CLDR verisinden gelir (`Intl.DisplayNames`, D-080) ve sayfanın dilinin büyük harf kuralıyla yazılır (`toLocaleUpperCase`; Türkçede "i" → "İ"). Havalimanı sayfalarındaki ülke adıyla aynıdır. Havalimanına bağlı KKTC görünümü ülke adında kullanılmaz: Kıbrıs Lefkoşa'da "KIBRIS" / "CYPRUS" yazılır.
+- **Kapsam:** listelenen havalimanı olan ülkeler (`ENABLED_AIRPORT_RING`), İsrail ve Filistin hariç, artı boşluk kuralıyla Ukrayna. Birim testi kapsamı fixture'daki halka analiziyle karşılaştırır; yeni halka açılınca kırılır ve tablo o zaman genişletilir.
+- Bir sağlayıcı (`packages/providers`) değildir: hiçbir şey indirilmez, `DATA_USAGE_MODE` kapısı yoktur.
+- **Yazı tipi:** adlar sitenin Overpass 600'üyle çizilir; dosyalar `apps/web/public/fonts/`'tadır (SIL OFL 1.1, ATTRIBUTION.md). Harita glif sunucusundan (`.pbf`) yazı tipi istenmez.
+
 ## 6. Harita — OpenFreeMap
 - **Şartlar:** Anahtar yok, ticari kullanım serbest, sayı limiti yok, **SLA yok**.
 - **Stiller:** açık `https://tiles.openfreemap.org/styles/liberty`, koyu `.../styles/dark` (alternatif `fiord`). Env: `MAP_STYLE_URL`, `MAP_STYLE_URL_DARK`, `MAP_STYLE_FALLBACK_URL`. Testte yerel `test-style.json` kullanılır.

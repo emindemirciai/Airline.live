@@ -12,8 +12,28 @@ import type { ChangelogEntry } from './types'
  */
 export const CHANGELOG: readonly ChangelogEntry[] = [
   {
+    version: '0.18.2',
+    date: '2026-10-05',
+    title: {
+      tr: 'Haritada ülke adları',
+      en: 'Country names on the map',
+    },
+    items: [
+      {
+        tr: 'Haritayı uzaklaştırınca ülke adları başkentlerinin üstünde büyük, aralıklı ve yarı saydam harflerle görünür; büyük ülkelerin adı daha iri yazılır. Uçaklar, havalimanı işaretleri ve kodları her zaman adların üstünde kalır. Havalimanı çevresine yaklaşınca ülke adları silinir.',
+        en: 'Zoom out and country names appear over their capitals in large, spaced, semi-transparent letters; larger countries get larger names. Aircraft, airport pins and codes always stay on top. Zoom in to an airport and the country names fade away.',
+      },
+      {
+        tr: 'Haritadaki “Etiketler” düğmesinde yeni “Ülke adları” seçeneği: Göster ya da Gizle; seçim tarayıcıda hatırlanır.',
+        en: 'A new “Country names” option in the map’s “Labels” button: Show or Hide; the choice is remembered in your browser.',
+      },
+    ],
+    tryLinks: [{ path: '/', label: { tr: 'Canlı harita', en: 'Live map' } }],
+  },
+  {
     version: '0.18.1',
     date: '2026-10-04',
+    releasedAt: '2026-10-04T20:32:07Z',
     title: {
       tr: 'Daha az veri, daha hızlı harita',
       en: 'Less data, a faster map',

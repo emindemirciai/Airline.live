@@ -4,6 +4,7 @@ import type { Messages } from '@havayolu/i18n'
 import { useEffect, useId, useRef, useState } from 'react'
 import {
   AIRPORT_LABEL_MODES,
+  COUNTRY_LABEL_MODES,
   LABEL_MODES,
   type LabelSettings,
 } from '../../../lib/map/label-settings'
@@ -18,9 +19,9 @@ export interface LabelSettingsControlProps {
 
 /**
  * "Etiketler" düğmesi ve açılır ayar paneli: seçili uçak ve diğer uçaklar için ayrı ayrı Gizle,
- * Kısa ya da Tam; havalimanları için Gizle ya da Kod (D-084). Denetimli bileşendir; saklama
- * (`hy:map:labels`) üst bileşenin işidir. Panel Escape'le ve dışına tıklanınca kapanır;
- * Escape odağı düğmeye geri verir ve tüketilir.
+ * Kısa ya da Tam; havalimanları için Gizle ya da Kod (D-084); ülke adları için Gizle ya da Göster
+ * (D-095). Denetimli bileşendir; saklama (`hy:map:labels`) üst bileşenin işidir. Panel Escape'le ve
+ * dışına tıklanınca kapanır; Escape odağı düğmeye geri verir ve tüketilir.
  */
 export function LabelSettingsControl({ value, onChange, messages }: LabelSettingsControlProps) {
   const [open, setOpen] = useState(false)
@@ -78,7 +79,7 @@ export interface LabelSettingsPanelProps extends LabelSettingsControlProps {
   id?: string
 }
 
-/** Açık panelin içeriği: başlık, üç seçenek grubu ve ipucu. */
+/** Açık panelin içeriği: başlık, dört seçenek grubu ve ipucu. */
 export function LabelSettingsPanel({ id, value, onChange, messages }: LabelSettingsPanelProps) {
   const titleId = useId()
   const groupName = useId()
@@ -105,6 +106,14 @@ export function LabelSettingsPanel({ id, value, onChange, messages }: LabelSetti
         label={(mode) => messages.airportModes[mode]}
         checked={value.airports}
         onSelect={(mode) => onChange({ ...value, airports: mode })}
+      />
+      <ModeGroup
+        legend={messages.countries}
+        name={`${groupName}-countries`}
+        modes={COUNTRY_LABEL_MODES}
+        label={(mode) => messages.countryModes[mode]}
+        checked={value.countries}
+        onSelect={(mode) => onChange({ ...value, countries: mode })}
       />
       <p className="map-labels__hint">{messages.hint}</p>
     </div>

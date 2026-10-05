@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   AIRPORT_LABEL_MODES,
+  COUNTRY_LABEL_MODES,
   copyLabelSettings,
   DEFAULT_LABEL_SETTINGS,
   LABEL_SETTINGS_KEY,
@@ -31,25 +32,43 @@ const throwing = {
 }
 
 describe('etiket ayarı', () => {
-  it('varsayılan: uçaklar için Tam, havalimanları için Kod (kullanıcı kararı 2026-10-03)', () => {
-    expect(DEFAULT_LABEL_SETTINGS).toEqual({ selected: 'full', others: 'full', airports: 'code' })
+  it('varsayılan: uçaklar için Tam, havalimanları için Kod, ülke adları Göster (D-084, D-095)', () => {
+    expect(DEFAULT_LABEL_SETTINGS).toEqual({
+      selected: 'full',
+      others: 'full',
+      airports: 'code',
+      countries: 'shown',
+    })
     expect(LABEL_SETTINGS_KEY).toBe('hy:map:labels')
     expect(AIRPORT_LABEL_MODES).toEqual(['hidden', 'code'])
+    expect(COUNTRY_LABEL_MODES).toEqual(['hidden', 'shown'])
   })
 
-  it('kaydeder ve geri okur (havalimanı alanı dahil)', () => {
+  it('kaydeder ve geri okur (havalimanı ve ülke alanı dahil)', () => {
     const storage = memoryStorage()
-    saveLabelSettings(storage, { selected: 'short', others: 'hidden', airports: 'hidden' })
+    saveLabelSettings(storage, {
+      selected: 'short',
+      others: 'hidden',
+      airports: 'hidden',
+      countries: 'hidden',
+    })
     expect(storage.data.get(LABEL_SETTINGS_KEY)).toBe(
-      '{"selected":"short","others":"hidden","airports":"hidden"}',
+      '{"selected":"short","others":"hidden","airports":"hidden","countries":"hidden"}',
     )
     expect(loadLabelSettings(storage)).toEqual({
       selected: 'short',
       others: 'hidden',
       airports: 'hidden',
+      countries: 'hidden',
     })
-    saveLabelSettings(storage, { selected: 'full', others: 'full', airports: 'code' })
+    saveLabelSettings(storage, {
+      selected: 'full',
+      others: 'full',
+      airports: 'code',
+      countries: 'shown',
+    })
     expect(loadLabelSettings(storage).airports).toBe('code')
+    expect(loadLabelSettings(storage).countries).toBe('shown')
   })
 
   it('yalnızca bilinen alanlar yazılır', () => {
@@ -67,6 +86,23 @@ describe('etiket ayarı', () => {
       selected: 'short',
       others: 'hidden',
       airports: 'code',
+      countries: 'shown',
+    })
+  })
+
+  it('ülke alanı olmayan v0.18.1 kaydı geçerlidir: ülke adları Göster, diğerleri korunur (D-095)', () => {
+    const old = memoryStorage({
+      [LABEL_SETTINGS_KEY]: JSON.stringify({
+        selected: 'full',
+        others: 'hidden',
+        airports: 'hidden',
+      }),
+    })
+    expect(loadLabelSettings(old)).toEqual({
+      selected: 'full',
+      others: 'hidden',
+      airports: 'hidden',
+      countries: 'shown',
     })
   })
 
@@ -82,6 +118,7 @@ describe('etiket ayarı', () => {
       selected: 'short',
       others: 'hidden',
       airports: 'code',
+      countries: 'shown',
     })
   })
 
@@ -106,10 +143,22 @@ describe('etiket ayarı', () => {
       selected: 'full',
       others: 'short',
       airports: 'code',
+      countries: 'shown',
     })
     for (const airports of ['short', 'name', 'names', '', null, 1, ['code']]) {
       const storage = memoryStorage({ [LABEL_SETTINGS_KEY]: JSON.stringify({ airports }) })
       expect(loadLabelSettings(storage).airports, JSON.stringify(airports)).toBe('code')
+    }
+    for (const countries of ['show', 'visible', '', null, 1, true, ['shown'], { shown: true }]) {
+      const storage = memoryStorage({
+        [LABEL_SETTINGS_KEY]: JSON.stringify({ selected: 'short', countries }),
+      })
+      expect(loadLabelSettings(storage), JSON.stringify(countries)).toEqual({
+        selected: 'short',
+        others: 'full',
+        airports: 'code',
+        countries: 'shown',
+      })
     }
   })
 
@@ -117,12 +166,19 @@ describe('etiket ayarı', () => {
     const loaded = loadLabelSettings(null)
     loaded.others = 'hidden'
     loaded.airports = 'hidden'
+    loaded.countries = 'hidden'
     expect(DEFAULT_LABEL_SETTINGS.others).toBe('full')
     expect(DEFAULT_LABEL_SETTINGS.airports).toBe('code')
+    expect(DEFAULT_LABEL_SETTINGS.countries).toBe('shown')
   })
 
   it('copyLabelSettings ve sameLabelSettings bütün alanları kapsar', () => {
-    const base: LabelSettings = { selected: 'full', others: 'short', airports: 'code' }
+    const base: LabelSettings = {
+      selected: 'full',
+      others: 'short',
+      airports: 'code',
+      countries: 'shown',
+    }
     const copy = copyLabelSettings(base)
     expect(copy).toEqual(base)
     expect(copy).not.toBe(base)
@@ -130,5 +186,7 @@ describe('etiket ayarı', () => {
     expect(sameLabelSettings(base, { ...base, selected: 'hidden' })).toBe(false)
     expect(sameLabelSettings(base, { ...base, others: 'full' })).toBe(false)
     expect(sameLabelSettings(base, { ...base, airports: 'hidden' })).toBe(false)
+    expect(sameLabelSettings(base, { ...base, countries: 'hidden' })).toBe(false)
+    expect(copyLabelSettings({ ...base, countries: 'hidden' }).countries).toBe('hidden')
   })
 })

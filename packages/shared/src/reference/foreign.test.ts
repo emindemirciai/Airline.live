@@ -13,12 +13,14 @@ import {
   airportNameSource,
   airportRing,
   airportRingLimitKm,
+  COUNTRY_CAPITALS,
   countryName,
   ENABLED_AIRPORT_RING,
   FOREIGN_AIRPORT_CITIES,
   FOREIGN_AIRPORT_NAMES,
   foreignAirportCity,
   foreignAirportName,
+  HOLE_COUNTRIES,
   isEnabledAirportRing,
   isForeignCandidate,
   OURAIRPORTS_ICAO_CORRECTIONS,
@@ -27,6 +29,7 @@ import {
   referenceAirfieldName,
   translatedAirportName,
   TURKEY_COUNTRY,
+  UNLABELLED_COUNTRIES,
 } from './index'
 
 // Commit'li OurAirports alt kümesi (tools/fixtures/README.md): Türkiye'nin bütün kayıtları, birkaç
@@ -100,6 +103,7 @@ const candidates = rows
       icao: icaoOf(r),
       name: cleanName(r.get('name') ?? ''),
       country: r.get('iso_country') ?? '',
+      ...here,
       distance,
       ring: airportRing(distance),
     }
@@ -585,5 +589,44 @@ describe('ülke adları', () => {
     expect(airportCountryCode({ icao: 'LCLK', country: ' cy ' })).toBe('CY')
     expect(airportCountryCode({ icao: 'LTFM', country: 'TR' })).toBe('TR')
     expect(airportCountryCode({ icao: 'XXXX', country: '' })).toBeNull()
+  })
+})
+
+describe('ülke adlarının başkentleri (D-095)', () => {
+  /** Ülkesi listelenen havalimanları: Türkiye'nin IATA kodluları ve açık halkalardakiler. */
+  const listedAirports = [
+    ...turkishRows.map((r) => ({ icao: icaoOf(r), country: TURKEY_COUNTRY, ...position(r) })),
+    ...listed.map(({ icao, country, lat, lon }) => ({ icao, country, lat, lon })),
+  ]
+  const listedCountries = new Set(listedAirports.map((a) => a.country))
+  /** Başkenti kendi ülkesinin listelenen havalimanına 60 km'den uzak ülkeler (o havalimanı halkada değil). */
+  const FAR_CAPITALS = ['AF', 'BE', 'DZ', 'EE', 'ES', 'FR', 'KZ', 'NL', 'OM', 'SD', 'SE', 'UZ']
+
+  it('kapsam: listelenen havalimanı olan ülkeler ve Türkiye, İsrail ve Filistin hariç, artı Ukrayna', () => {
+    const expected = new Set([...listedCountries, TURKEY_COUNTRY, ...HOLE_COUNTRIES])
+    for (const code of UNLABELLED_COUNTRIES) expected.delete(code)
+    expect(COUNTRY_CAPITALS.map((c) => c.code)).toEqual([...expected].sort())
+    // İsrail'in listelenen havalimanı vardır (Ben Gurion); adı yazılmaz.
+    expect(listedCountries.has('IL')).toBe(true)
+  })
+
+  it('boşluk ülkesinin listelenen havalimanı yoktur', () => {
+    for (const code of HOLE_COUNTRIES) expect(listedCountries.has(code), code).toBe(false)
+  })
+
+  it('başkent kendi ülkesinin listelenen bir havalimanına 60 km içinde; uzak olanlar açıkça listeli', () => {
+    const nearest = new Map<string, number>()
+    for (const capital of COUNTRY_CAPITALS) {
+      if (HOLE_COUNTRIES.includes(capital.code)) continue
+      const own = listedAirports.filter((a) => a.country === capital.code)
+      expect(own.length, capital.code).toBeGreaterThan(0)
+      nearest.set(capital.code, Math.min(...own.map((a) => km(capital, a))))
+    }
+    const far = [...nearest].filter(([, distance]) => distance > 60).map(([code]) => code)
+    expect(far.sort()).toEqual(FAR_CAPITALS)
+    for (const code of FAR_CAPITALS) expect(nearest.get(code), code).toBeLessThanOrEqual(900)
+    // Tahran Mehrabad'a ve Ankara Etimesgut'a yakındır (e2e ülke adı testi OIII'de açılır).
+    expect(nearest.get('IR')).toBeLessThan(10)
+    expect(nearest.get('TR')).toBeLessThan(20)
   })
 })
