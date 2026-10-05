@@ -10,6 +10,7 @@ import {
   doublePrecision,
   index,
   integer,
+  jsonb,
   pgTable,
   primaryKey,
   real,
@@ -137,8 +138,15 @@ export const stations = pgTable(
     defaultAlertDistanceKm: real('default_alert_distance_km').notNull().default(10),
     /** EGM96 geoid ondülasyonu (m); bilinmiyorsa null (AGL yöntemi sıradakine düşer). */
     geoidUndulationM: real('geoid_undulation_m'),
-    /** Son 7 günde yerde örneği görülen varışların oranı (jobs rolü yazar). */
+    /**
+     * Son 7 günde yerde örneği görülen varışların oranı; varış yoksa null (günlük
+     * `arrival-coverage-ratio-7d` işi yazar, D-098).
+     */
     coverageGroundRatio7d: real('coverage_ground_ratio_7d'),
+    /** Oranın paydası: son 7 günde sayılan varışlar (aynı iş). */
+    coverageArrivals7d: integer('coverage_arrivals_7d'),
+    /** Oranın ve varış sayısının son yazıldığı an; iş hiç çalışmadıysa null. */
+    coverageUpdatedAt: timestamp('coverage_updated_at', { withTimezone: true }),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },
@@ -410,3 +418,46 @@ export const weatherSources = pgTable('weather_sources', {
   blockedKind: text('blocked_kind'),
   updatedAt: updatedAt(),
 })
+
+/**
+ * Kapsama raporları (Parça 1 M7b.2, D-098). Admin "Raporu başlat" satırı `queued` yazar; worker'ın
+ * `jobs` rolü satırı üstlenir (`running`), hesaplar ve `done` ya da `failed` yazar. Aynı anda tek
+ * etkin rapor olur (danışma kilidi ve tekil kısmi dizin). Yalnızca toplamlar saklanır: hex, çağrı
+ * kodu, tescil ve raporu isteyen yönetici yazılmaz. En yeni 50 satır tutulur.
+ */
+export const arrivalCoverageReports = pgTable(
+  'arrival_coverage_reports',
+  {
+    id: bigint('id', { mode: 'number' }).primaryKey().generatedAlwaysAsIdentity(),
+    /** 'queued' | 'running' | 'done' | 'failed' */
+    status: text('status').notNull().default('queued'),
+    /** Pencere uzunluğu (saat). */
+    hours: integer('hours').notNull(),
+    requestedAt: timestamp('requested_at', { withTimezone: true }).notNull(),
+    startedAt: timestamp('started_at', { withTimezone: true }),
+    finishedAt: timestamp('finished_at', { withTimezone: true }),
+    /** Pencere [başlangıç, bitiş); worker üstlenirken yazar. */
+    windowStart: timestamp('window_start', { withTimezone: true }),
+    windowEnd: timestamp('window_end', { withTimezone: true }),
+    /** Hata kodu ya da kısa ileti (en çok 500 karakter). */
+    error: text('error'),
+    /** `@havayolu/shared` `ArrivalCoverageResult`. */
+    result: jsonb('result'),
+    /** Türkçe rapor metni (docs/reports/kapsama.md içeriği). */
+    markdown: text('markdown'),
+    /** `ARRIVAL_COVERAGE_DEFINITION_VERSION`; worker üstlenirken yazar. */
+    definitionVersion: smallint('definition_version'),
+  },
+  (t) => [
+    index('arrival_coverage_reports_requested_at_idx').on(t.requestedAt),
+    // Aynı anda en çok bir etkin (kuyrukta ya da çalışan) rapor.
+    uniqueIndex('arrival_coverage_reports_single_active_idx')
+      .on(sql`(true)`)
+      .where(sql`${t.status} in ('queued', 'running')`),
+    check(
+      'arrival_coverage_reports_status_check',
+      sql`${t.status} in ('queued', 'running', 'done', 'failed')`,
+    ),
+    check('arrival_coverage_reports_hours_check', sql`${t.hours} between 1 and 168`),
+  ],
+)

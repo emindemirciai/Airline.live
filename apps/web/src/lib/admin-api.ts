@@ -1,5 +1,14 @@
 import 'server-only'
-import type { ServicesReport } from '@havayolu/shared'
+import type { ArrivalCoverageHours, ServicesReport } from '@havayolu/shared'
+import {
+  COVERAGE_API_PATH,
+  CoverageDetailSchema,
+  CoverageListSchema,
+  coverageApiPath,
+  coverageAttachmentName,
+  type CoverageDetail,
+  type CoverageList,
+} from './arrival-coverage'
 import { getServerEnv } from './env'
 
 /** Yönetici oturum token'ının tutulduğu çerez (httpOnly; yalnızca /admin altında gönderilir). */
@@ -74,5 +83,124 @@ export async function logoutFromApi(token: string, forwarded: ForwardHeaders): P
     })
   } catch {
     // API'ye ulaşılamasa da yerel çerez silinir; token 7 gün sonra kendiliğinden düşer.
+  }
+}
+
+// ---------------------------------------------------------------------------------------------
+// Kapsama raporu (Parça 1 M7b.2, D-098): `/v1/admin/arrival-coverage/reports`
+
+type CoverageFailure = 'unauthorized' | 'unavailable'
+
+async function coverageGet(
+  path: string,
+  token: string,
+  forwarded: ForwardHeaders,
+): Promise<Response | null> {
+  try {
+    return await fetch(apiUrl(path), {
+      headers: { ...forwarded, authorization: `Bearer ${token}` },
+      cache: 'no-store',
+      signal: AbortSignal.timeout(TIMEOUT_MS),
+    })
+  } catch {
+    return null
+  }
+}
+
+/** Raporlar (Markdown olmadan), etkin raporun kimliği ve istasyonların 7 günlük kapsaması. */
+export async function fetchCoverageReports(
+  token: string,
+  forwarded: ForwardHeaders,
+): Promise<{ ok: true; list: CoverageList } | { ok: false; reason: CoverageFailure }> {
+  const response = await coverageGet(COVERAGE_API_PATH, token, forwarded)
+  if (response?.status === 401) return { ok: false, reason: 'unauthorized' }
+  if (!response?.ok) return { ok: false, reason: 'unavailable' }
+  const parsed = CoverageListSchema.safeParse(await response.json().catch(() => null))
+  return parsed.success ? { ok: true, list: parsed.data } : { ok: false, reason: 'unavailable' }
+}
+
+/** Tek rapor, sonucu ve Markdown metniyle. `id` denetlenmiş kimliktir (`parseCoverageReportId`). */
+export async function fetchCoverageReport(
+  token: string,
+  id: string,
+  forwarded: ForwardHeaders,
+): Promise<
+  { ok: true; report: CoverageDetail } | { ok: false; reason: CoverageFailure | 'not_found' }
+> {
+  const response = await coverageGet(coverageApiPath(id), token, forwarded)
+  if (response?.status === 401) return { ok: false, reason: 'unauthorized' }
+  if (response?.status === 404 || response?.status === 400) {
+    return { ok: false, reason: 'not_found' }
+  }
+  if (!response?.ok) return { ok: false, reason: 'unavailable' }
+  const parsed = CoverageDetailSchema.safeParse(await response.json().catch(() => null))
+  return parsed.success ? { ok: true, report: parsed.data } : { ok: false, reason: 'unavailable' }
+}
+
+export type CoverageRequestFailure =
+  'unauthorized' | 'invalid_hours' | 'active' | 'rate_limited' | 'unavailable'
+
+/** Yeni rapor ister (API 202 → kimlik; etkin rapor varsa 409 → `active`). */
+export async function requestCoverageReport(
+  token: string,
+  hours: ArrivalCoverageHours,
+  forwarded: ForwardHeaders,
+): Promise<{ ok: true; id: number } | { ok: false; reason: CoverageRequestFailure }> {
+  let response: Response
+  try {
+    response = await fetch(apiUrl(COVERAGE_API_PATH), {
+      method: 'POST',
+      headers: {
+        ...forwarded,
+        authorization: `Bearer ${token}`,
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify({ hours }),
+      cache: 'no-store',
+      signal: AbortSignal.timeout(TIMEOUT_MS),
+    })
+  } catch {
+    return { ok: false, reason: 'unavailable' }
+  }
+  if (response.status === 401) return { ok: false, reason: 'unauthorized' }
+  if (response.status === 400) return { ok: false, reason: 'invalid_hours' }
+  if (response.status === 409) return { ok: false, reason: 'active' }
+  if (response.status === 429) return { ok: false, reason: 'rate_limited' }
+  if (response.status !== 202) return { ok: false, reason: 'unavailable' }
+  const body = (await response.json().catch(() => null)) as { id?: unknown } | null
+  return typeof body?.id === 'number' && Number.isSafeInteger(body.id) && body.id > 0
+    ? { ok: true, id: body.id }
+    : { ok: false, reason: 'unavailable' }
+}
+
+export type CoverageMarkdownFailure = CoverageFailure | 'not_found' | 'not_ready'
+
+/**
+ * Raporun Markdown metni ve dosya adı (API'nin `Content-Disposition` başlığından; ad
+ * `kapsama-<YYYYMMDD>T<HHmm>Z.md` biçiminde değilse `unavailable`).
+ */
+export async function fetchCoverageMarkdown(
+  token: string,
+  id: string,
+  forwarded: ForwardHeaders,
+): Promise<
+  { ok: true; markdown: string; fileName: string } | { ok: false; reason: CoverageMarkdownFailure }
+> {
+  const response = await coverageGet(coverageApiPath(id, 'markdown'), token, forwarded)
+  if (response?.status === 401) return { ok: false, reason: 'unauthorized' }
+  if (response?.status === 404 || response?.status === 400) {
+    return { ok: false, reason: 'not_found' }
+  }
+  if (response?.status === 409) return { ok: false, reason: 'not_ready' }
+  if (!response?.ok) return { ok: false, reason: 'unavailable' }
+  const fileName = coverageAttachmentName(response.headers.get('content-disposition'))
+  const type = response.headers.get('content-type') ?? ''
+  if (fileName === null || !type.toLowerCase().startsWith('text/markdown')) {
+    return { ok: false, reason: 'unavailable' }
+  }
+  try {
+    return { ok: true, markdown: await response.text(), fileName }
+  } catch {
+    return { ok: false, reason: 'unavailable' }
   }
 }

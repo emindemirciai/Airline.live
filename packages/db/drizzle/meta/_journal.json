@@ -50,6 +50,13 @@
       "when": 1791182636032,
       "tag": "0006_track_seen_pos_baro_rate",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1791186390596,
+      "tag": "0007_arrival_coverage_reports",
+      "breakpoints": true
     }
   ]
 }

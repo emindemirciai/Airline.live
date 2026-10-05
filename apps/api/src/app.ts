@@ -7,6 +7,7 @@ import type { AirlineCodes } from '@havayolu/db'
 import { currentVersion } from '@havayolu/shared'
 import Fastify, { type FastifyInstance } from 'fastify'
 import type { Redis } from 'ioredis'
+import { registerArrivalCoverageRoutes, type ArrivalCoverageStore } from './admin/arrival-coverage'
 import { redisBlocklistStore, registerBlocklistRoutes } from './admin/blocklist'
 import { collectServices, type ServiceProbes } from './admin/services'
 import { registerAuthRoutes, requireAdmin } from './auth/routes'
@@ -43,6 +44,11 @@ export interface AppDeps {
   live: { source: LiveSource | null; codes: () => AirlineCodes; ready?: () => boolean }
   /** Hex engel listesinin deposu (redis-queue); yoksa admin engel listesi uçları 503. */
   blocklistRedis: Redis | null
+  /**
+   * Kapsama raporu deposu (PostgreSQL, M7b.2); null ise (veritabanı yok) admin kapsama raporu uçları
+   * 503.
+   */
+  arrivalCoverage: ArrivalCoverageStore | null
   /**
    * Havalimanı uçları (`/v1/airports`, `/v1/airports/:code`); okuyucu null ise (veritabanı yok)
    * 503.
@@ -208,6 +214,8 @@ export async function buildApp(env: Env, deps: AppDeps): Promise<FastifyInstance
     sessions: store,
     blocklist: deps.blocklistRedis ? redisBlocklistStore(deps.blocklistRedis) : null,
   })
+  // Kapsama raporu: API satırı kuyruğa yazar, worker'ın jobs rolü çalıştırır (D-098).
+  registerArrivalCoverageRoutes(app, { sessions: store, store: deps.arrivalCoverage })
 
   // Canlı veri: REST, arama ve WebSocket aynı önbellekten okur (D-074).
   registerLiveRoutes(app, deps.live)

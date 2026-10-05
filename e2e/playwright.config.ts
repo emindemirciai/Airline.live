@@ -11,7 +11,14 @@
 // servislere istek atılmaz (EXTERNAL_PROVIDERS_DISABLED=true). WebGL2 CI'da GPU olmadan SwiftShader'la
 // sağlanır. Rapor: e2e/.report (git'e girmez).
 import { defineConfig, devices } from '@playwright/test'
-import { API_HOST, E2E_ANALYZE_SITE_ID, E2E_ANALYZE_URL, WEB_HOST, WEB_URL } from './support'
+import {
+  API_HOST,
+  E2E_ADMIN,
+  E2E_ANALYZE_SITE_ID,
+  E2E_ANALYZE_URL,
+  WEB_HOST,
+  WEB_URL,
+} from './support'
 
 const ci = Boolean(process.env.CI)
 
@@ -75,6 +82,11 @@ export default defineConfig({
       // Onay bandı testi: analiz adresi yerel ve sahtedir; script isteği test içinde yanıtlanır.
       ANALYZE_URL: E2E_ANALYZE_URL,
       ANALYZE_SITE_ID: E2E_ANALYZE_SITE_ID,
+      // Kapsama raporu testi: test yöneticisi (sır değildir; e2e/support.ts). Bu iki değer
+      // kullanıcının .env'indeki aynı anahtarları ezer; .env'in diğer değerleri (ör. geliştirme
+      // sunucularının ve fixture aracının DATABASE_URL'i) yine okunur. .env'e yazılmaz (D-098).
+      ADMIN_EMAIL: E2E_ADMIN.email,
+      ADMIN_SETUP_TOKEN: E2E_ADMIN.setupToken,
       // Next.js ve Turborepo telemetrisi dış istektir.
       NEXT_TELEMETRY_DISABLED: '1',
       TURBO_TELEMETRY_DISABLED: '1',

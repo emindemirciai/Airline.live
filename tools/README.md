@@ -82,6 +82,30 @@ pnpm dev:replay --recording tools/recordings/tmp/LTFM-20261004T1200Z.jsonl
   | 4 | bekçi ihlali, beklenmeyen yanıt, dosya hatası ya da iç hata |
   | 130 | Ctrl+C (`record` eldeki karelerle dosyayı kapatır). İkinci Ctrl+C hemen çıkar ve kilidi bırakmaz: kilit en çok 2 dk kalır, bu sürede yeni çalışma "Başka bir canlı araç" reddi alır |
 
+## Kapsama raporu (`src/arrival-report`, D-098)
+Kapsama raporunu (Parça 1 M7b.2) yerel veritabanında hesaplar ve örnek veriyi yazar. İkisi de ağa çıkmaz; ajan ve CI çalıştırabilir. Üretim raporu yalnızca admin panelindeki iştir (`/admin/kapsama`); bu araçlar üretim veritabanına bağlanmaz.
+
+```bash
+# Kökte. Önce pnpm dev:infra ve pnpm db:migrate; referans verisi bir kez içe aktarılmış olmalı (pnpm dev)
+pnpm --filter @havayolu/tools arrival-fixture            # LTAI: 3 varış, 1'i yerde örneğiyle
+pnpm coverage:report --hours 24                          # → tools/recordings/tmp/kapsama-<UTC>.md
+pnpm --filter @havayolu/tools arrival-fixture --clean    # yalnızca fixture uçuşlarını siler
+```
+
+- **`coverage:report`:**
+  - **Hesap:** worker'ın rapor işiyle aynı kod (`computeArrivalCoverage`, `renderArrivalCoverageMarkdown`; kaynak "yerel veritabanı"). Tanımlar `packages/shared/src/arrival-coverage.ts`'tedir.
+  - **Pencere:** `[şimdi − 45 dk − saat, şimdi − 45 dk)`; yalnızca kaydı kapanmış uçuşlar (`last_seen_at ≤ şimdi − 30 dk`) sayılır.
+  - **Argümanlar:** `--hours` 6, 12, 24, 48, 72 ya da 168 (varsayılan 24; admin sayfasıyla aynı liste), `-h`/`--help`. Saklama sınırı da işinkiyle aynıdır: `saat ≤ (TRACK_FINE_RETENTION_DAYS − 1) × 24`.
+  - **Çıktı:** `tools/recordings/tmp/kapsama-<YYYYMMDD>T<HHmm>Z.md` (pencere sonu, UTC; gitignore'da). `wx` ile yazılır: var olan dosya ezilmez, dosya yalnızca rapor tamamlanınca oluşur. Konsola istasyon başına özet yazılır (varış, yerde örneği payı, medyanlar, iki kural).
+  - **Kapı:** `DATABASE_URL` yalnızca `localhost`, `127.0.0.1` ya da `::1`; `APP_ENV` development ya da test. Ortam sırası canlı araçlarla aynıdır: süreç ortamı > kökteki `.env` > `.env.example`. Ret iletisi adres ya da parola yazmaz. Okumalar salt okunur işlemdedir; veritabanına yazılmaz.
+  - **Çıkış:** 0 rapor yazıldı · 1 rapor hesaplanamadı (ör. penceredeki örneklerde `baro_rate` yok, saklama sınırı) · 2 ret, argüman, veritabanı ya da dosya hatası (şema eskiyse `pnpm db:migrate` önerilir) · 4 iç hata.
+- **`arrival-fixture`:**
+  - LTAI'ye (Antalya) üç kapanmış (`ended`) sentetik varış yazar: `e2e0a1` 3 sa önce 3° süzülüşle 18C'ye iner, pistte 8 yerde örneği vardır; `e2e0a2` (2 sa 40 dk önce) ve `e2e0a3` (2 sa 20 dk önce) eşiğe 1,5 ve 3 km kala alçakta kaybolur (`lost_low`).
+  - Örnekler 5 sn arayla, ≈140 kt, −740 fpm; `alt_geom` geoid yedek tablosuyla (27,36 m), `seen_pos` dolu; çağrı kodu ve tescil yazılmaz. İstasyon, eşikler ve alan yüksekliği veritabanından okunur (raporun kendi okuyucusu).
+  - Beklenen rapor: 3 varış, yerde örneği %33,3 (1/3) → kural 1 uygulanır (Wilson aralığı %70'i içerir: "sınırda"; 3 < 20: "az örnek"); medyan AGL ≈308 ft, eşiğe medyan ≈1,5 km → kural 2 uygulanmaz.
+  - LTFM kullanılmaz: replay'in `cruise` senaryosu LTFM 35L'ye sonsuz son yaklaşma uçurur, bunlar yerde örneği olmayan varış sayılır.
+  - Önce aynı hex'lerin uçuşları ve iki iz tablosundaki örnekleri silinir (idempotent); günlük iz partition'ları açılır. `--clean` yalnızca siler. e2e (`e2e/tests/admin-coverage.spec.ts`) başta yazar, sonda siler.
+
 ## Ülke adlarının sınır içi yerleşimi (`src/country-labels`, D-096)
 Haritadaki her ülke adının görünür kutusunun ülkenin kara poligonunun içinde kaldığı yeri ve ilk yakınlaştırmayı çevrimdışı hesaplar. İkisi de ağa çıkmaz:
 
@@ -108,4 +132,4 @@ pnpm --filter @havayolu/tools lint
 Testler ağa çıkmaz. Alıcı rastgele boş bir portta (`port: 0`) açılır ve yalnızca `127.0.0.1` üzerinden okunur.
 
 - **Canlı araç testleri:** `vitest.setup.ts` her test dosyasından önce `fetch`'i yerel adreslerle sınırlar; başka bir host'a giden istek ağa çıkmadan hata verir. Sahte adsb.lol sunucusu (`src/live/test/adsblol-stub.ts`) 127.0.0.1'dedir. `record` testleri sahte saatle çalışır.
-- **Entegrasyon** (`*.int.test.ts`, `vitest.integration.config.ts`): gerçek PostgreSQL ve redis-live kullanır. Smoke testi `app_test_tools_smoke` veritabanını ve redis-live'ın 4 ve 8 numaralı veritabanlarını, kilit testi 9 numarayı kullanır. Bağlantılar `TEST_DATABASE_ADMIN_URL` ve `TEST_REDIS_LIVE_URL`'den gelir. CI'da `test-integration` işi çalıştırır.
+- **Entegrasyon** (`*.int.test.ts`, `vitest.integration.config.ts`): gerçek PostgreSQL ve redis-live kullanır. Smoke testi `app_test_tools_smoke` veritabanını ve redis-live'ın 4 ve 8 numaralı veritabanlarını, kilit testi 9 numarayı kullanır. Kapsama raporu testi `app_test_tools_arrival` veritabanını her koşuda yeniden kurar (migration'lar, tohum istasyonları, OurAirports fixture'ı), fixture'ı yazar ve raporu worker'ın koduyla hesaplar. Bağlantılar `TEST_DATABASE_ADMIN_URL` ve `TEST_REDIS_LIVE_URL`'den gelir. CI'da `test-integration` işi çalıştırır.
