@@ -33,7 +33,7 @@ Durumlar: `[ ]` başlamadı, `[~]` sürüyor, `[k]` kod bitti ve kullanıcı do�
 | M6e.5 | Haritada kesikli ülke sınırları (yama, v0.17.2) | `p1/map-borders` | [x] tamam; üretimde doğrulandı (2026-10-04, v0.17.2): Balkanlarda kesikli sınırlar, şeritte OpenFreeMap atfı | #27 |
 | M6e.6 | API yanıtlarının sıkıştırılması (yama, v0.18.1) | `p1/api-gzip` | [x] tamam; üretimde doğrulandı (2026-10-04, v0.18.1): content-encoding br; haritanın havalimanı ve pist listesi 439.090 → 75.715 bayt; v0.18.1 Release 2026-10-04T20:32:07Z | #29 |
 | M6e.7 | Haritada ülke adları başkentlerde (yama, v0.18.2) | `p1/map-country-labels` | [x] tamam; üretimde doğrulandı (2026-10-05, v0.18.2): uydu üstünde z5'te TÜRKİYE, ROMANYA, BULGARİSTAN, YUNANİSTAN okunur, iğneler ve kesikli sınırlar üstte; Balkanlarda küçük adlar soluk; v0.18.2 Release 2026-10-05T01:08:09Z | #30 |
-| M6e.8 | Ülke adları sınır içinde (yama) | `p1/map-country-fit` | [~] | — |
+| M6e.8 | Ülke adları sınır içinde, kelime başına satır (yama, v0.19.1) | `p1/map-country-fit` | [k] kod bitti; üretimde uydu üstünde görünüm denetimi bekliyor (ACTIVATION) | — |
 | M6h | 3. halka (≤ 2.000 km) — kullanıcı isteğiyle M7a'nın önüne alındı (2026-10-04); sivil uçuşa kapalı olabilecek havalimanı notu | `p1/m6h-ring3` | [k] kod bitti; üretimde doğrulandı (2026-10-04, v0.18.0): `scope=listed` 503 (61 + 75 + 89 + 278), Viyana 3. halka 1.149 km, beş Özbek istasyonunun METAR'ı UZxx koduyla, METAR'lı istasyon 463/503, toplu hava 1,34 MB, URKK ve UUOO notu iki dilde; admin Servisler ve worker günlüğü (429 yok) bekliyor (ACTIVATION) | #28 |
 | M7a | Canlı araçlar: `smoke:live`, `record` | `p1/m7a-live-tools` | [k] kod bitti; canlı smoke ve kayıt kullanıcıda (ACTIVATION) | — |
 | M7b | Kapsama ölçümü ve raporu (`coverage:probe`, `coverage:report`) | `p1/m7b-coverage` | [ ] | — |
@@ -1181,7 +1181,7 @@ Hedef sürüm yayın adımında belirlenir (dal `p1/map-country-fit`, `main` `78
 - `pnpm ci:full` yeşil; PR'da CI (`e2e` dahil) yeşil
 - **Kullanıcıya bağlı (`[k]`):** yayından sonra uydu üstünde adların sınırların içinde görünümü (ACTIVATION → "M6e.8 yayın doğrulaması")
 - **Açık iş (ajan, ağ gerekir):** Natural Earth kullanım şartları sayfasını ve world-atlas deposunu açıp REFERENCES.md'deki "doğrulanmadı" notunu kaldırmak.
-- **Açık iş (kullanıcı onayı):** CLAUDE.md'ye iki komut satırı (`pnpm country-labels:fixture`, `pnpm country-labels`) ve "İzinli → referans" listesine Natural Earth ("yalnızca çevrimdışı araç, D-096"); ajan CLAUDE.md'yi kendi kararıyla değiştirmez, önerilen metin ACTIVATION'dadır ("CLAUDE.md eki").
+- **Açık iş (kullanıcı onayı):** iki komut (`pnpm country-labels:fixture`, `pnpm country-labels`) yayın adımında CLAUDE.md Komutlar tablosuna eklendi. CLAUDE.md'deki "İzinli → referans" listesine Natural Earth eklemek bir kural değişikliğidir; kullanıcının onayı beklenir (ACTIVATION "Natural Earth izinli kaynaklar listesine").
 
 **Çıktı kaydı (2026-10-05, uygulama; sürüm, changelog ve README yayın adımındadır):**
 - `pnpm country-labels:fixture` → 59 ülke, 39.984 nokta; `pnpm country-labels` → 0,85 sn (Node 24.16.0, ICU 78.3); dört bileşimde 56 ad, hiç sığmayan BH LU MT; 17 ülke başkentte, 42 ülke ortak noktada (ortanca 99 km, en çok 654 km, CEZAYİR).
@@ -1203,6 +1203,12 @@ Hedef sürüm yayın adımında belirlenir (dal `p1/map-country-fit`, `main` `78
 - Birim testleri: `@havayolu/tools` 126 (+5), `@havayolu/shared` 669, `@havayolu/web` 792; öbürleri değişmedi (api 259, worker 200, providers 127, i18n 98, db 50, geo 36).
 - `pnpm format`, `pnpm lint` (9/9), `pnpm typecheck` (9/9), `pnpm typecheck:scripts`, `pnpm test` (9/9), `pnpm typecheck:e2e`, `pnpm lint:e2e`, `pnpm check:eol` → yeşil.
 - E2E (yerel, `pnpm dev:replay`, yerel test stili): `live-map.spec.ts` 23/23 (4 kurulum + 19), 36 sn. Yerel ölçüm (geçici günlük satırıyla, depoya girmedi): İRAN'ın değişen pikselleri kesitte x 14–126, y 14–48; modelin kutusu x 11,8–129,8, y 11,6–51,3 (boşluk 2,2 / 2,8 / 2,4 / 2,3 px; eski model 2,9 / 2,1 / 3,1 / 1,6 px verirdi); IKA pininin kırmızı pikselleri ad açıkken ve kapalıyken 75. `pnpm ci:full` bu adımda çalıştırılmadı.
+
+**Çıktı kaydı (2026-10-05, yayın adımı):**
+- Dal `17d40e3` sonra `origin/main` v0.19.0 ile birleştirildi (`dd82588`). Çakışmalar: plan tablosu, `tools/package.json` (iki tarafın geliştirme bağımlılıkları birlikte), lockfile (`main`'inki + `pnpm install`), iki README (iki bölüm birlikte). v0.19.0 `releasedAt` 2026-10-05T02:25:50Z (GitHub Release). Sürüm 0.19.1.
+- CLAUDE.md Komutlar tablosuna `pnpm country-labels:fixture` · `pnpm country-labels` satırı eklendi. "İzinli → referans" listesi kullanıcının onayına bırakıldı (ACTIVATION).
+- `pnpm ci:full` → yeşil: birim tools 296, web 792, shared 669, api 259, worker 200, providers 127, i18n 98, db 50; entegrasyon db 84, api 26, worker 12, tools 9; `test:migration-upgrade` 6 → 6; e2e 125/125.
+- `pnpm stats` → 610 dosya, 119.046 satır (kod 108.692, belge 6.871).
 
 ## M6h — 3. halka (v0.18.0)
 Onay: 2026-10-04 kullanıcı isteği "sonraki işlerden birine bir halka daha ekle" ve kapalı havalimanı kararı (2022'den beri sivil uçuşa kapalı olduğu hâlde OurAirports'ta tarifeli görünen havalimanları listede kalır, sayfada ve pencerede "Sivil uçuşlara kapalı olabilir (2022’den beri)" notu); diğer seçimler M6h araştırmasının önerileri (orkestratör varsayılanı 2026-10-04)
