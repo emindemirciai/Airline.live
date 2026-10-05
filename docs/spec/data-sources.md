@@ -55,6 +55,12 @@ Doğrulama tarihi: **2026-09-25**. Canlı istekler ve kaynak kodu/doküman okuma
   - 5xx'te jitter'lı geri çekilme ve devre kesici devreye girer.
   - **401/403 kısıtlama değildir; politika ya da yapılandırma hatasıdır.** Devre açılır, döngüde yeniden denenmez, ADMIN_EMAIL'e uyarı gider → RUNBOOK "adsb.lol API anahtarı istemeye başladı (401/403)".
 - **Yanıt işleme:** Hata gövdesi HTML ya da düz metin olabilir. JSON ayrıştırmadan önce durum kodu kontrol edilir.
+- **Canlı araçlar (M7a, D-094):** `pnpm smoke:live` (gerçek ingest, 5 dk) ve `pnpm record` (tek istasyonun `/v2/point` kareleri, en çok 60 dk) geliştirici denetimleridir.
+  - **Kim çalıştırır:** yalnızca kullanıcı, kendi terminalinde, `--confirm` ile ve ara sıra. Ajan oturumunda, CI'da ve kabukta `EXTERNAL_PROVIDERS_DISABLED=true` iken canlı istek atmazlar. Önce 1. ACTIVATION adımı (info@adsb.lol) yapılır.
+  - **Aynı kurallar:** istemci worker'ınkidir (`createAdsbLolClient`). Hız kovası `AdaptiveRateController`'dır (başlangıç `ADSBLOL_RPS`, en çok 0,2 istek/sn); smoke'ta ingest'in kendi kovası çalışır. 429/420, 5xx ve 401/403 kuralları yukarıdaki gibidir; 401/403'te araç hemen durur.
+  - **Ek bekçi:** yalnızca `GET /v2/point/...`, yönlendirme izlenmez, User-Agent zorunludur. İki isteğin başlangıcı arası en az 5 sn'dir (250 ms saat payıyla). İhlal aracı durdurur.
+  - **User-Agent:** ürün adı ve iletişim adresi üretimdekiyle aynıdır. Kullanıcının `.env`'indeki `WEB_HOST` genel bir host ise duyurulan biçim kullanılır (`(+https://<host>; <CONTACT_EMAIL>)`); yerelse `(+mailto:<CONTACT_EMAIL>)` gider.
+  - **İkinci IP:** bu denetimler kullanıcının ev bağlantısından, yani VPS'ten farklı ikinci bir IP'den gelebilir (≤ 0,2 istek/sn, smoke 5 dk, `record` ≤ 60 dk). Bu, 1. ACTIVATION adımındaki e-postada belirtilir.
 
 **Sağlayıcı durumu** (WS mesajları, durum şeridi ve kesinti bastırma bu tanımı kullanır)
 - `ok`: son 60 sn'de en az bir başarılı yanıt var ve birincil istasyon tazeliği ≤ hedef × 2.

@@ -4,6 +4,13 @@
   "private": true,
   "license": "MIT",
   "type": "module",
+  "exports": {
+    "./env": "./src/env.ts",
+    "./ingest": "./src/ingest/index.ts",
+    "./ingest/rate": "./src/ingest/rate.ts",
+    "./ingest/status": "./src/ingest/status.ts",
+    "./jobs/reference": "./src/jobs/reference.ts"
+  },
   "scripts": {
     "dev": "tsx watch src/index.ts",
     "build": "node build.mjs",

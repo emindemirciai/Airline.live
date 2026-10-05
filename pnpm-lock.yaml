@@ -490,15 +490,24 @@ importers:
         specifier: workspace:*
         version: link:../packages/geo
     devDependencies:
+      '@havayolu/db':
+        specifier: workspace:*
+        version: link:../packages/db
       '@havayolu/providers':
         specifier: workspace:*
         version: link:../packages/providers
       '@havayolu/shared':
         specifier: workspace:*
         version: link:../packages/shared
+      '@havayolu/worker':
+        specifier: workspace:*
+        version: link:../apps/worker
       '@types/node':
         specifier: 24.x
         version: 24.13.6
+      pino:
+        specifier: 10.3.1
+        version: 10.3.1
       topojson-client:
         specifier: 3.1.0
         version: 3.1.0

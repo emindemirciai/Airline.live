@@ -1,6 +1,6 @@
 # @havayolu/tools
 
-Yalnızca geliştirme ve test araçları. Uygulamalar bu pakete bağımlı olmadığından üretim imajına girmez. Replay ve senaryolar yalnızca `APP_ENV=development|test` iken çalışır; `production` ya da başka bir değerde başlamaz (D-073). Commit'li referans verisi için bkz. [`fixtures/README.md`](fixtures/README.md).
+Yalnızca geliştirme ve test araçları. Uygulamalar bu pakete bağımlı olmadığından üretim imajına girmez. Replay, senaryolar ve canlı araçlar yalnızca `APP_ENV=development|test` iken çalışır; `production` ya da başka bir değerde başlamaz (D-073, D-094). Commit'li referans verisi için bkz. [`fixtures/README.md`](fixtures/README.md).
 
 ## Senaryolar (`src/scenarios`)
 Zamanın saf fonksiyonudur: aynı an her zaman aynı readsb `aircraft.json` karesini verir; rastgelelik ve saat okuması yoktur.
@@ -36,6 +36,52 @@ pnpm --filter @havayolu/tools replay -- --scenario cruise --count 12
   - **Tek kare** (ör. `tools/fixtures/adsblol/point-ltfm-40nm.json`) ya da hepsi aynı anlı kareler döngüye alınmaz. Kare donmuş bir alıcı gibi sunulur: uçaklar yerinde durur ve 60 sn içinde bayatlar, sonra ayrıştırıcı onları reddeder. Ayrıştırıcıyı ve alıcı bağlantısını denemek için yeterlidir; hareket için senaryo ya da çok kareli kayıt kullanılır.
 - **dbFlags:** adsb.lol karesinde eksik `dbFlags` 0 yazılır, çünkü orada yokluk 0 demektir. readsb karesinde eksik bırakılır; yerel alıcıda bu "bilinmiyor" demektir ve uçak gizli sayılır (D-071).
 
+## Canlı araçlar (`src/live`)
+`pnpm smoke:live` ve `pnpm record` canlı adsb.lol'e istek atar (D-094). Bu bir DUR-SOR 6 durumudur: araçları yalnızca kullanıcı kendi terminalinde çalıştırır. Ajan bu komutları hiçbir biçimde (plan ve `--help` dahil) çalıştırmaz: ikisi de `.claude/settings.json`'da `ask` listesindedir ve etkileşimsiz oturumda onay beklerken takılır. Plan ve yardım davranışı birim testleriyle doğrulanır. Ajan oturumunda (`CLAUDECODE` ya da `AI_AGENT` dolu) `--confirm` ayrıca reddedilir; plan bu reddi listeler. Önce ACTIVATION 1. adımı (info@adsb.lol) yapılır; `CONTACT_EMAIL` kökteki `.env`'de olmalıdır.
+
+```bash
+# Kökte. --confirm yoksa yalnızca plan yazılır, istek atılmaz (çıkış 2)
+pnpm smoke:live
+pnpm smoke:live --confirm                              # 5 dk gerçek ingest; önce pnpm dev:infra
+pnpm record --station LTFM --minutes 30 --confirm      # ≈199 istek → tools/recordings/tmp/
+pnpm record --station LTFM --minutes 30 --fixture --confirm   # commit'lenecek kayıt
+pnpm dev:replay --recording tools/recordings/tmp/LTFM-20261004T1200Z.jsonl
+```
+
+- **`record`:**
+  - **Sorgu:** tek ve sabit: `GET /v2/point/<enlem>/<boylam>/<yarıçap>`. Merkez istasyonun OurAirports fixture'ındaki ARP'ıdır (ICAO düzeltmeleriyle: UZSS bulunur, UTSS reddedilir). LTFM 40 NM → `/v2/point/41.2749/28.7321/40`.
+  - **Argümanlar:** `--station <ICAO>` zorunlu; `--minutes` 1–60 (varsayılan 30); `--radius` 1–60 NM (varsayılan 40); `--out <dosya.jsonl>` ya da `--fixture`; `--confirm`; `-h`/`--help`.
+  - **Hız:** worker'ın `AdaptiveRateController`'ı ve `createAdsbLolClient`'ı (başlangıç `ADSBLOL_RPS`, en çok 0,2 istek/sn, AIMD). Plandaki istek tahmini kovayı sahte saatle adımlayarak hesaplanır: 30 dk ve 0,1 istek/sn ile ≈199.
+  - **Biçim:** JSON Lines; her başarılı yanıtın ham adsb.lol v2 gövdesi bir satırdır (LF). Replay alıcısı dosyayı olduğu gibi okur ve döngüyle oynatır.
+  - **Çıktı:** varsayılan `tools/recordings/tmp/<ICAO>-<YYYYMMDD>T<HHmm>Z.jsonl` (gitignore'da). `--fixture` `tools/fixtures/replay/`'e yazar. `--out` verilen yola yazar; yol `.jsonl` ile biter, `tools/fixtures` altını gösteremez. Repo içinde yalnızca `tools/recordings/tmp` altı kabul edilir (ham kayıt commit'lenmesin diye); repo dışı yol serbesttir. Yanında `<ad>.meta.json` durur: kaynak, ODbL-1.0, atıf, yol, zamanlar ve sayılar; UA, e-posta ve host yoktur.
+  - **Dosya güvenliği:** dosya, `.partial`'ı ya da meta'sı zaten varsa ret. Dosya ilk kareyle oluşur ve bitene kadar `.partial` adını taşır. Araç hiçbir dosya silmez. Bitişte dosya `loadRecording` ile yeniden okunur ve oynatma komutu yazılır. Bitiş başarısızsa (çıkış 4) ileti kalınan adımı ve öz denetimin satır ya da kare numaralı nedenini yazar.
+- **`smoke:live`:**
+  - **Ne çalışır:** worker'ın gerçek ingest'i (`startIngest`) süreç içinde 5 dk çalışır. Süre ingest başladıktan sonra sayılır; toplam ~6 dk, ~30 istek.
+  - **Yalıtım:** `app_smoke_live` veritabanı her çalıştırmada yeniden kurulur (migration'lar, tohum istasyonları, fixture'dan içe aktarım; ağa çıkılmaz) ve inceleme için kalır. redis-live'ın 7 numaralı veritabanı başta ve sonda temizlenir.
+  - **Ölçütler:** Türkiye bbox'ında (35–43 K, 25–45 D) ≥ 50 farklı uçak; LTFM veri yaşı p95 ≤ 20 sn (`provider_health.freshness_p95_s`); `provider_health`'te taze bir `adsbLol` satırı. Rapor Türkçedir ve yalnızca sayı taşır.
+- **Kapılar** (ret çıkış 2'dir, istek atılmaz):
+  - `--confirm` ile ajan oturumu (`CLAUDECODE` ya da `AI_AGENT` dolu) → ret
+  - kabukta `CI` ya da `EXTERNAL_PROVIDERS_DISABLED=true` varsa ret (canlı adreste; testlerin 127.0.0.1 sunucusunda değil). Dosyalardaki değer okunmaz: `.env.example`'daki `true` engellemez
+  - `APP_ENV` development ya da test; `CONTACT_EMAIL` dolu ve geçerli
+  - `DATABASE_URL`, `REDIS_LIVE_URL` ve tanımlıysa `REDIS_QUEUE_URL` yalnızca `localhost`, `127.0.0.1` ya da `::1`
+  - adsb.lol'den çeken başka bir ingest (`hy:provider:adsbLol`) ya da çalışan başka bir canlı araç (`hy:tools:live` kilidi) varsa ret. Kilit 30 sn'de bir yenilenir ve başka ingest yeniden denetlenir; kilit kaybolursa ya da başka ingest belirirse araç durur (çıkış 2). Önceki çalışmanın son isteğinden (`hy:tools:live:last`) en az `1000 / ADSBLOL_RPS` ms sonra ilk istek atılır. `record`'da Redis yoksa (PING 2 sn içinde yanıt vermezse) uyarı verilir ve kilitsiz devam edilir; PING'den sonra bir Redis komutu yanıt vermez ya da hata verirse ret (çıkış 2).
+  - ortam okuma sırası: süreç ortamı > kökteki `.env` > `.env.example`
+- **Bekçi:** yalnızca `https://api.adsb.lol` (testte `http://127.0.0.1:<port>`), yalnızca `GET /v2/point/...`, yönlendirme izlenmez, User-Agent zorunlu, iki istek başlangıcı arası en az 5 sn (250 ms payla). İhlal aracı durdurur (çıkış 4) ve sonraki her isteği keser.
+- **Gizlilik:**
+  - Yerel kayıt hamdır; oynatmada API ve WS süzgeçleri böylece sınanır.
+  - `--fixture` kaydında askerî (bit 1) ve `dbFlags`'i bozuk kayıtlar atılır. PIA/LADD (4/8) kayıtlarından `r` ve `ownOp` silinir; tescille aynı çağrı kodu da silinir (`withPrivacy` ile aynı kural).
+  - `CONTACT_EMAIL` ve `ADSBLOL_API_KEY` bütün çıktıda maskelenir. Konsolda hex, tescil ve çağrı kodu yazılmaz.
+- **Çıkış kodları:**
+
+  | Kod | Anlamı |
+  |---|---|
+  | 0 | tamam / GEÇTİ |
+  | 1 | hiç kare yok / KALDI |
+  | 2 | ret ya da ön koşul eksik (`--confirm` yok dahil) |
+  | 3 | adsb.lol 401/403: dur ve bildir (DUR-SOR 3, RUNBOOK) |
+  | 4 | bekçi ihlali, beklenmeyen yanıt, dosya hatası ya da iç hata |
+  | 130 | Ctrl+C (`record` eldeki karelerle dosyayı kapatır). İkinci Ctrl+C hemen çıkar ve kilidi bırakmaz: kilit en çok 2 dk kalır, bu sürede yeni çalışma "Başka bir canlı araç" reddi alır |
+
 ## Ülke adlarının sınır içi yerleşimi (`src/country-labels`, D-096)
 Haritadaki her ülke adının görünür kutusunun ülkenin kara poligonunun içinde kaldığı yeri ve ilk yakınlaştırmayı çevrimdışı hesaplar. İkisi de ağa çıkmaz:
 
@@ -54,8 +100,12 @@ pnpm country-labels
 
 ```bash
 pnpm --filter @havayolu/tools test
+pnpm --filter @havayolu/tools test:integration   # önce pnpm dev:infra
 pnpm --filter @havayolu/tools typecheck
 pnpm --filter @havayolu/tools lint
 ```
 
 Testler ağa çıkmaz. Alıcı rastgele boş bir portta (`port: 0`) açılır ve yalnızca `127.0.0.1` üzerinden okunur.
+
+- **Canlı araç testleri:** `vitest.setup.ts` her test dosyasından önce `fetch`'i yerel adreslerle sınırlar; başka bir host'a giden istek ağa çıkmadan hata verir. Sahte adsb.lol sunucusu (`src/live/test/adsblol-stub.ts`) 127.0.0.1'dedir. `record` testleri sahte saatle çalışır.
+- **Entegrasyon** (`*.int.test.ts`, `vitest.integration.config.ts`): gerçek PostgreSQL ve redis-live kullanır. Smoke testi `app_test_tools_smoke` veritabanını ve redis-live'ın 4 ve 8 numaralı veritabanlarını, kilit testi 9 numarayı kullanır. Bağlantılar `TEST_DATABASE_ADMIN_URL` ve `TEST_REDIS_LIVE_URL`'den gelir. CI'da `test-integration` işi çalıştırır.
