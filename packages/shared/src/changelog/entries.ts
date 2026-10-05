@@ -12,8 +12,28 @@ import type { ChangelogEntry } from './types'
  */
 export const CHANGELOG: readonly ChangelogEntry[] = [
   {
+    version: '0.21.1',
+    date: '2026-10-05',
+    title: {
+      tr: 'Ülke adları daha belirgin, boş yerlerde',
+      en: 'Clearer country names in empty spots',
+    },
+    items: [
+      {
+        tr: 'Ülke adları aynı boyutta ama daha belirgin: yazı daha az saydam, koyu kenarı daha güçlü; açık renkli uydu zemininde de okunur.',
+        en: 'Country names keep their size but are more prominent: less transparent letters with a stronger dark edge, readable on bright satellite ground too.',
+      },
+      {
+        tr: 'Adlar artık havalimanı işaretlerinin ve kodlarının arasına değil, ülkenin içinde boş bir yere yazılır; örneğin İTALYA ve RUSYA işaret kümelerinden uzaklaştı. Türkiye’de 61 havalimanı olduğu için TÜRKİYE adı uzaktan bakınca birkaç işaretle örtüşebilir.',
+        en: 'Names now sit in an empty spot inside the country instead of among airport pins and codes; for example ITALY and RUSSIA moved away from pin clusters. With 61 airports, the TÜRKIYE name can still touch a few pins when zoomed far out.',
+      },
+    ],
+    tryLinks: [{ path: '/', label: { tr: 'Canlı harita', en: 'Live map' } }],
+  },
+  {
     version: '0.21.0',
     date: '2026-10-05',
+    releasedAt: '2026-10-05T18:53:30Z',
     title: {
       tr: 'Kapsama raporu',
       en: 'Coverage report',
