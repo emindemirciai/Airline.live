@@ -1,21 +1,31 @@
 /**
- * Haritada ülke adları (D-095, D-096). Kullanıcı kararı 2026-10-05: tasarım tuvalinde A · "Sessiz
- * büyük harf", "Saydam olsun"; sonra "Ülke isimlerini ülke sınırları dışına taşırma. 2 kelime ise
- * alt alta yaz." Ad sayfanın dilinde büyük harfle yazılır; işaret noktası yoktur. Ad boyu ülkenin
- * yüzölçümü kademesindendir (capitals.ts).
+ * Haritada ülke adları (D-095, D-096, D-099). Kullanıcı kararı 2026-10-05: tasarım tuvalinde A ·
+ * "Sessiz büyük harf", "Saydam olsun"; sonra "Ülke isimlerini ülke sınırları dışına taşırma. 2 kelime
+ * ise alt alta yaz."; sonra "boyut iyi fakat az biraz daha belirgin olsun ülke isimleri. boşlukta bir
+ * yerde yazsa da olur." Ad sayfanın dilinde büyük harfle yazılır; işaret noktası yoktur. Ad boyu
+ * ülkenin yüzölçümü kademesindendir (capitals.ts).
  *
  * - **Sınırın içinde (D-096):** adın görünür kutusu (bütün satırlar, harf aralığı, hale ve güvenlik
  *   payı) ülkenin kara poligonunun içinde kalmadıkça ad çizilmez. Yer ve ilk yakınlaştırma
- *   çevrimdışı hesaplanır (`COUNTRY_LABEL_PLACEMENTS`, `pnpm country-labels`): ad sığıyorsa
- *   başkentte ortalıdır, sığmıyorsa ülkenin içinde başkente en yakın uygun noktada. Ad, ilk sığdığı
+ *   çevrimdışı hesaplanır (`COUNTRY_LABEL_PLACEMENTS`, `pnpm country-labels`). Ad, ilk sığdığı
  *   yakınlaştırmanın (`fitZoom`) altında çizilmez; o yakınlaştırmada belirmeye başlar. Hiçbir
  *   yakınlaştırmada sığmayan küçük ülkenin (Bahreyn, Lüksemburg, Malta) adı yazılmaz.
+ * - **Boş yerde (D-099):** ad, havalimanı pinlerinin ve kodlarının olmadığı bir yerdedir: üreticinin
+ *   modeline göre kutusuna yazıldığı hiçbir yakınlaştırmada pin ya da kod girmez (boş yer için en
+ *   çok 1,5 kademe geç belirir); boş yer yoksa (yalnızca Türkiye) en az çakışan yerdedir ve geç
+ *   gelmez. Eşitlikte en erken sığan, sonra ülkenin görsel merkezine en yakın yer seçilir; başkent
+ *   rol oynamaz. İstisna KIBRIS'tır: kullanıcı kararıyla Lefkoşa'da yazılır (D-095), Ercan pini adın
+ *   üstündedir. Model, pini ve kodun pin başının sağındaki ve solundaki kutusunu commit'li
+ *   OurAirports fixture'ının (2026-10-01) listelenen havalimanları için sayar. Haritada kod
+ *   pinin üstüne ya da altına geçerse ya da OurAirports'un gece yenilenmesiyle yeni bir havalimanı
+ *   listelenirse kod ya da pin adın üstüne düşebilir (D-099 "Bilinen sınırlar").
  * - **Satır:** her sözcük ayrı satırda, ortalı ("SUUDİ / ARABİSTAN"); bağlaç önceki sözcükle kalır
  *   ("BOSNIA AND / HERZEGOVINA"); kısa çizgide kırılır, çizgi yazılmaz ("BOSNA / HERSEK").
  * - **Yazı:** sitenin yazı tipi Overpass, 600 ağırlık (`COUNTRY_LABEL_FONT`; web stilin
  *   `font-faces` alanında tanımlar), harf aralığı 0,32 em, satır yüksekliği 1.
- * - **Renk:** beyaz 0,6 saydamlıkta, koyu yumuşak hale 0,85 saydamlıkta, zeminsiz. Hale genişliği
- *   yazı boyuyla orantılıdır ve glif SDF'inin taşıyabildiği payın içinde kalır (`countryLabelHalo`).
+ * - **Renk (D-099):** beyaz 0,85 saydamlıkta, koyu hale 0,9 saydamlıkta, zeminsiz. Hale genişliği
+ *   yazı boyuyla orantılıdır, glif SDF'inin taşıyabildiği payın neredeyse tamamını kullanır (az
+ *   yumuşaklık) ve payın içinde kalır (`countryLabelHalo`).
  * - **Yakınlaştırma:** kademe 1 en erken z3'te, 2 z3,5'te, 3 z4,5'te belirir (ad sığıyorsa); yarım
  *   kademede tam görünür; z7'de silinmeye başlar, z8 ve üstünde hiç çizilmez.
  * - **Katmanlar:** her (kademe, ilk yakınlaştırma) çifti için bir symbol katmanı (40 katman). Katmanın
@@ -24,8 +34,8 @@
  *   eğrilerdir; MapLibre bunları çizilen yakınlaştırmada hesaplar, eldeki büyük karodan çizerken de
  *   modelin boyunu aşmaz.
  * - **Çakışma:** adlar birbirini silmez (`text-allow-overlap`): her ad kendi ülkesinin içinde
- *   olduğundan iki ad örtüşemez. Pin, kod ve uçaklar her zaman adların üstünde çizilir ve
- *   yerleşime katılmaz.
+ *   olduğundan iki ad örtüşemez. Pin, kod ve uçaklar her zaman adların üstünde çizilir ve MapLibre
+ *   yerleşimine katılmaz; adın yeri çevrimdışı seçilirken pin ve kodlardan kaçınılır (D-099).
  *
  * Düz nesnelerdir (layers.ts gibi). Katmanlar `LIVE_MAP_LAYERS`'ta değildir: web onları
  * havalimanı pinlerinin altına ekler; mobilde (MapLibre Native) `font-faces` desteği
@@ -166,10 +176,13 @@ export const COUNTRY_LABEL_MAX_WIDTH_EM = 24
 /** Çakışma kutusuna eklenen pay, px (adlar birbirini silmez; vektör yedekte yer adlarını iter). */
 export const COUNTRY_LABEL_PADDING_PX = 6
 
-/** Yazının saydamlığı (beyaz 0,6; kullanıcı: "Saydam olsun"). */
-export const COUNTRY_LABEL_TEXT_ALPHA = 0.6
-/** Halenin saydamlığı. */
-export const COUNTRY_LABEL_HALO_ALPHA = 0.85
+/**
+ * Yazının saydamlığı: beyaz 0,85 (D-099; kullanıcı: "az biraz daha belirgin olsun"). D-095'te
+ * 0,6'ydı ("Saydam olsun"); altlık yazının içinden hâlâ biraz görünür.
+ */
+export const COUNTRY_LABEL_TEXT_ALPHA = 0.85
+/** Halenin saydamlığı (D-099; D-095'te 0,85). */
+export const COUNTRY_LABEL_HALO_ALPHA = 0.9
 
 /**
  * Glif SDF'inin mürekkebin dışına taşıdığı pay, em: MapLibre `font-faces` gliflerini 48 px'te
@@ -181,9 +194,12 @@ export const GLYPH_SDF_REACH_EM = 1 / 8
 export const SDF_EDGE_GAMMA_PX = 0.84
 /** MapLibre'nin hale yumuşaklığı çarpanı (`halo_blur * 1.19`). */
 export const HALO_BLUR_FACTOR = 1.19
-/** Payın hale genişliğine ve yumuşaklığına ayrılan bölümleri (toplam 0,95; kenarda boşluk). */
-export const COUNTRY_LABEL_HALO_WIDTH_SHARE = 0.65
-export const COUNTRY_LABEL_HALO_BLUR_SHARE = 0.3
+/**
+ * Payın hale genişliğine ve yumuşaklığına ayrılan bölümleri (toplam 0,95; kenarda boşluk). D-099:
+ * genişlik 0,85, yumuşaklık 0,1 (az yumuşak, en koyu hale); D-095'te 0,65 ve 0,3'tü.
+ */
+export const COUNTRY_LABEL_HALO_WIDTH_SHARE = 0.85
+export const COUNTRY_LABEL_HALO_BLUR_SHARE = 0.1
 /**
  * Hale genişliği ve yumuşaklığının geçişi: yok. Dar haritaya geçerken boy (yerleşim özelliği)
  * karolar yenilenince küçülür; hale MapLibre'nin varsayılan 300 ms'lik geçişiyle küçülseydi o arada

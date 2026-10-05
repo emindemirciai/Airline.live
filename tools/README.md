@@ -82,19 +82,19 @@ pnpm dev:replay --recording tools/recordings/tmp/LTFM-20261004T1200Z.jsonl
   | 4 | bekçi ihlali, beklenmeyen yanıt, dosya hatası ya da iç hata |
   | 130 | Ctrl+C (`record` eldeki karelerle dosyayı kapatır). İkinci Ctrl+C hemen çıkar ve kilidi bırakmaz: kilit en çok 2 dk kalır, bu sürede yeni çalışma "Başka bir canlı araç" reddi alır |
 
-## Ülke adlarının sınır içi yerleşimi (`src/country-labels`, D-096)
-Haritadaki her ülke adının görünür kutusunun ülkenin kara poligonunun içinde kaldığı yeri ve ilk yakınlaştırmayı çevrimdışı hesaplar. İkisi de ağa çıkmaz:
+## Ülke adlarının sınır içi yerleşimi (`src/country-labels`, D-096, D-099)
+Haritadaki her ülke adının görünür kutusunun ülkenin kara poligonunun içinde kaldığı ve havalimanı pinlerinden ve kodlarından uzak (boş) yeri ve ilk yakınlaştırmayı çevrimdışı hesaplar. İkisi de ağa çıkmaz:
 
 ```bash
 # Kökte: node_modules/world-atlas'tan sadeleşmiş poligonlar → tools/fixtures/naturalearth/countries.json
 pnpm country-labels:fixture
-# Kökte: fixture'dan yerleşim tablosu → packages/shared/src/map/country-label-placements.ts
+# Kökte: fixture'lardan (Natural Earth, OurAirports) yerleşim tablosu → packages/shared/src/map/country-label-placements.ts
 pnpm country-labels
 ```
 
-- **Dosyalar:** `geometry.ts` (Web Mercator, Douglas–Peucker, 180. meridyende sürekli kılma, kırpma, "dikdörtgen çokgenin içinde mi"), `natural-earth.ts` (Natural Earth birimleri, fixture), `label-model.ts` (MapLibre 6.11.2'nin yazıyı çizdiği kutunun modeli, güvenlik payı), `placement.ts` (çapa kuralı, tablo), `cli.ts`.
+- **Dosyalar:** `geometry.ts` (Web Mercator, Douglas–Peucker, 180. meridyende sürekli kılma, kırpma, "dikdörtgen çokgenin içinde mi"), `natural-earth.ts` (Natural Earth birimleri, fixture), `label-model.ts` (MapLibre 6.11.2'nin yazıyı çizdiği kutunun modeli, güvenlik payı), `airport-pins.ts` (listelenen 503 havalimanı `tools/fixtures/ourairports/airports.csv`'nin 2026-10-01 kopyasından üretimin liste kuralıyla; pin ve kodun pin başının sağındaki ve solundaki kutusu), `placement.ts` (boş yer çapa kuralı, başkentte sabit KIBRIS, tablo), `cli.ts` (`airports` alt komutu listenin ICAO kodlarını yazar: kullanıcı onu üretimin `scope=listed` listesiyle karşılaştırır, ACTIVATION "Ülke adlarının engelleri").
 - **Adlar** üreticinin çalıştığı Node'un CLDR'ından gelir ve tabloya yazılır; harita bu adı çizer. Node güncellemesi bir adı değiştirirse shared testi kırılır, `pnpm country-labels` yeniden çalıştırılır.
-- **Testler** commit'li tabloyu fixture'dan yeniden hesaplar (sürüklenme), her adın kutusunun ilk yakınlaştırmasından z8'e kadar ülkesinin içinde kaldığını, adların örtüşmediğini, fixture'ın world-atlas'tan yeniden üretilebildiğini ve model değerlerinin yazı tipi dosyalarıyla aynı olduğunu denetler. e2e beklentileri (`e2e/country-label-expectations.ts`) de burada tablodan doğrulanır.
+- **Testler** commit'li tabloyu fixture'lardan yeniden hesaplar (sürüklenme), her adın kutusunun ilk yakınlaştırmasından z8'e kadar ülkesinin içinde kaldığını ve (TÜRKİYE ile Lefkoşa'daki KIBRIS dışında) kutusuna pin ya da kod girmediğini, adların örtüşmediğini, fixture'ın world-atlas'tan yeniden üretilebildiğini ve model değerlerinin yazı tipi dosyalarıyla aynı olduğunu denetler. e2e beklentileri (`e2e/country-label-expectations.ts`) de burada tablodan doğrulanır.
 
 ## Testler
 

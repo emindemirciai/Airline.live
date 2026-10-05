@@ -3,9 +3,10 @@
  * (etiket, panel, iz çizgisi), saydamlık kullanılmaz. İki istisna vardır:
  * - ülke sınırının koyu kenarı (borders.ts, D-092): içerik değil, beyaz kesikli çizginin her
  *   altlıkta okunmasını sağlayan bir haledir; çizginin kendisi opaktır.
- * - ülke adları (country-labels.ts, D-095): yarı saydam beyaz yazı, yarı saydam koyu hale, zeminsiz
- *   (kullanıcı kararı "Saydam olsun"). Altlık adların içinden görünür; pin, kod ve uçaklar adların
- *   üstünde çizilir. Buradaki renkler opaktır; saydamlık katmanda `withAlpha` ile verilir.
+ * - ülke adları (country-labels.ts, D-095, D-099): az saydam beyaz yazı (0,85), az saydam koyu hale
+ *   (0,9), zeminsiz (kullanıcı kararları "Saydam olsun", sonra "az biraz daha belirgin olsun").
+ *   Altlık adların içinden biraz görünür; pin, kod ve uçaklar adların üstünde çizilir. Buradaki
+ *   renkler opaktır; saydamlık katmanda `withAlpha` ile verilir.
  *
  * Altlık uydu görüntüsüdür; uçak, iz ve pin renkleri kullanıcının tasarım tuvalindendir (v2). Panel,
  * etiket ve kod kutusu renkleri sitenin "Açık turkuaz" temasındandır (D-081): opak beyaz kutu, ince
@@ -64,7 +65,7 @@ export const MAP_COLORS = {
   borderCasing: '#0B2A33',
   /** Ülke adının yazısı (D-095); haritada `COUNTRY_LABEL_TEXT_ALPHA` saydamlıkla çizilir. */
   countryLabel: '#FFFFFF',
-  /** Ülke adının yumuşak koyu halesi (D-095); haritada `COUNTRY_LABEL_HALO_ALPHA` saydamlıkla. */
+  /** Ülke adının koyu halesi (D-095, D-099); haritada `COUNTRY_LABEL_HALO_ALPHA` saydamlıkla. */
   countryLabelHalo: '#000000',
 } as const
 

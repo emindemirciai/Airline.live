@@ -3,11 +3,11 @@
 // durumlar ve daraltmanın saklanması (D-085) → satıra tıklayınca bilgi kartı solda açılır, tablette
 // seçili uçağın etiketi ve simgesi listenin altında kalmaz → arama (her yerdeki) uçağı bulur →
 // /?hex= ile doğrudan açılış aynı uçağı seçer → etiket ayarı (uçaklar, havalimanları ve ülke adları,
-// D-084, D-095) cihazda saklanır → ülke adları uzaklaşınca sınırlarının içinde yazılır (D-096),
-// pinlerin altında kalır, yakınlaşınca silinir. Tablo, haritanın erişilebilir karşılığıdır; testler uçakları WebGL tuvalinden
-// değil tablodan okur. Havalimanı kutuları ve seçili etiket etiket tuvalinin piksellerinden okunur
-// (`e2e/label-canvas.ts`); ülke adları haritanın `data-country-labels` niteliğinden ve WebGL
-// tuvalinin ekran görüntüsünden (`e2e/map-pixels.ts`).
+// D-084, D-095) cihazda saklanır → ülke adları uzaklaşınca sınırlarının içinde, pinlerden uzak boş
+// yerde yazılır (D-096, D-099), yakınlaşınca silinir. Tablo, haritanın erişilebilir karşılığıdır;
+// testler uçakları WebGL tuvalinden değil tablodan okur. Havalimanı kutuları ve seçili etiket
+// etiket tuvalinin piksellerinden okunur (`e2e/label-canvas.ts`); ülke adları haritanın
+// `data-country-labels` niteliğinden ve WebGL tuvalinin ekran görüntüsünden (`e2e/map-pixels.ts`).
 import { expect, test, type Locator, type Page } from '@playwright/test'
 import { IKA_PIN_Z5, IRAN_Z5_BOX, TEHRAN_COUNTRY_LABELS } from '../country-label-expectations'
 import { canvasChips, mapCenter, paintedPixels, selectedLabelPixels } from '../label-canvas'
@@ -499,7 +499,7 @@ async function clickPrimaryChip(page: Page, popup: Locator): Promise<void> {
   }).toPass({ timeout: 20_000 })
 }
 
-test.describe('ülke adları (D-095, D-096)', () => {
+test.describe('ülke adları (D-095, D-096, D-099)', () => {
   // MapLibre `prefers-reduced-motion`'da kamera geçişlerini anında yapar: `?havalimani=` uçuşu ve
   // klavyeyle uzaklaştırma beklemesiz ve kesindir (her basış tam bir kademe).
   test.use({ reducedMotion: 'reduce' })
@@ -515,7 +515,7 @@ test.describe('ülke adları (D-095, D-096)', () => {
     }, LABEL_SETTINGS_KEY)
   })
 
-  test('Tahran’da uzaklaşınca İRAN ve sığan komşuları yazılır; İRAN modelin kutusunda çizilir, pin görünür kalır; Gizle saklanır; sığmayan ad uzaklaşınca kaybolur, yakınlaşınca hepsi silinir', async ({
+  test('Tahran’da uzaklaşınca İRAN ve sığan komşuları boş yerde yazılır; İRAN modelin kutusunda çizilir, IKA pinine değmez; Gizle saklanır; kesirli ilk yakınlaştırmalı adlar uzaklaşınca kaybolur, yakınlaşınca hepsi silinir', async ({
     page,
   }) => {
     // Tek sayfa yüklemesi (`WS_RATE_LIMIT`). Tahran Mehrabad'ın (OIII) çevresinde replay uçağı yoktur.
@@ -529,11 +529,11 @@ test.describe('ülke adları (D-095, D-096)', () => {
       .toBe('THR')
     expect(await countryLabels(page)).toEqual([])
 
-    // Beş kademe uzaklaşınca (z5): İRAN Tahran'ın 32 km güneyinde, İmam Humeyni Havalimanı'nın (IKA)
-    // hemen doğusunda; sınırının içine sığan komşular yazılır, z5'te henüz sığmayanlar (ilk
+    // Beş kademe uzaklaşınca (z5): İRAN boş yerde, Dest-i Kevir'de (Tahran'ın 428 km
+    // doğu-güneydoğusu, D-099); sınırının içine sığan komşular yazılır, z5'te henüz sığmayanlar (ilk
     // yakınlaştırmaları > 5) yazılmaz (D-096; liste tools testinde tablodan denetlenir:
     // e2e/country-label-expectations.ts). z10'da ülke kaynağının karosu yoktur; z5 karoları
-    // (İRAN, IRAK ve TÜRKMENİSTAN üç ayrı karoda) birer birer gelir ve nitelik arada yazılabilir:
+    // (İRAN, IRAK ve TÜRKMENİSTAN ayrı karolarda) birer birer gelir ve nitelik arada yazılabilir:
     // beklenen adların hepsi gelene kadar beklenir.
     await zoomOut(page, 5)
     await expect
@@ -556,10 +556,8 @@ test.describe('ülke adları (D-095, D-096)', () => {
       }),
     ).toEqual([])
 
-    // IKA pininin ucundaki kesit, adlar Göster ve Gizle iken: kırmızı olmayan pikseller değişir
-    // (İRAN'ın R harfi ve halesi kesitin içinde çizilir) ve pinin kırmızı pikselleri ad açıkken de
-    // görünür. z5'te IKA'nın pini İRAN'ın kutusunun içindedir: R'nin sağ kenarı pinin sol yanına
-    // değer, R ile A arasındaki boşluk pinin altına düşer (modelin konumları tools testinde). Adların
+    // IKA pininin ucundaki kesit adlar Göster ve Gizle iken aynıdır: İRAN boş yerdedir, kesitte ad ya
+    // da hale çizilmez (D-099; hiçbir pin ve kodun İRAN'ın kutusuna girmediği tools testinde). Adların
     // pinlerin altında çizildiğini birim testleri denetler: `overlayLayers` sırası
     // (map-controller.test.ts) ve pin ile uçak katmanlarının yerleşime katılmaması (layers.test.ts).
     const tip = await mapCenter(page)
@@ -600,9 +598,7 @@ test.describe('ülke adları (D-095, D-096)', () => {
       )
       .toMatchObject({ airports: 'hidden', countries: 'hidden' })
     await expect(async () => {
-      const hidden = await pinPixels(page, ika)
-      expect(hidden.other).not.toBe(shown.other)
-      expect(shown.red).toBeGreaterThanOrEqual(0.9 * hidden.red)
+      expect(await pinPixels(page, ika)).toEqual(shown)
       const changed = await changedPixels(page, withName, await clipImage(page, clip))
       expect(changed.count).toBeGreaterThan(200)
       expect(changed.minX).toBeGreaterThanOrEqual(Math.floor(box.left - 1))
@@ -617,8 +613,7 @@ test.describe('ülke adları (D-095, D-096)', () => {
     await page.keyboard.press('Escape')
     await expect.poll(() => countryLabels(page), { timeout: 10_000 }).toContain('İRAN')
 
-    // İRAN'ın kutusunun içindeki IKA pinine tıklanır: pencere İmam Humeyni'nindir (adlar tıklamayı
-    // yakalamaz).
+    // Adlar açıkken IKA pinine tıklanır: pencere İmam Humeyni'nindir.
     const popup = page.locator('.live-map [role="dialog"].map-popup')
     await expect(async () => {
       await page.mouse.click(ika.x, ika.y - 9)
@@ -628,27 +623,32 @@ test.describe('ülke adları (D-095, D-096)', () => {
     await page.keyboard.press('Escape')
     await expect(popup).toBeHidden()
 
-    // Bir kademe daha uzaklaşınca (z4) ilk yakınlaştırması 4'ten büyük olan ad (TÜRKMENİSTAN, 4,25)
-    // kaybolur, İRAN ve IRAK kalır: katmanın kesirli `minzoom`'u tarayıcıda.
-    await zoomOut(page, 1)
-    await expect
-      .poll(
-        async () => {
-          const current = await countryLabels(page)
-          return (
-            !current.includes('TÜRKMENİSTAN') &&
-            TEHRAN_COUNTRY_LABELS.z4.shown.every((name) => current.includes(name))
-          )
-        },
-        { timeout: 10_000 },
-      )
-      .toBe(true)
-    const far = await countryLabels(page)
-    for (const name of TEHRAN_COUNTRY_LABELS.z4.shown) expect(far).toContain(name)
-    for (const name of TEHRAN_COUNTRY_LABELS.z4.hidden) expect(far).not.toContain(name)
+    // Bir kademe daha uzaklaşınca (z4) AFGANİSTAN, SURİYE (3,75) ve TÜRKİYE (3,25) görünüme girer;
+    // ÖZBEKİSTAN'ın (4,5) çapası tuvalin içindedir ama yazılmaz. Bir kademe daha (z3): ilk
+    // yakınlaştırması 3'ten büyük kesirli adlar (AFGANİSTAN, SURİYE, TÜRKİYE) kaybolur, İRAN kalır.
+    // Kovaları z3 ve z4 karosunda hazırdır: katmanın kesirli `minzoom`'u tarayıcıda.
+    for (const key of ['z4', 'z3'] as const) {
+      await zoomOut(page, 1)
+      const { shown: expected, hidden: absent } = TEHRAN_COUNTRY_LABELS[key]
+      await expect
+        .poll(
+          async () => {
+            const current = await countryLabels(page)
+            return (
+              expected.every((name) => current.includes(name)) &&
+              absent.every((name) => !current.includes(name))
+            )
+          },
+          { timeout: 10_000 },
+        )
+        .toBe(true)
+      const far = await countryLabels(page)
+      for (const name of expected) expect(far, key).toContain(name)
+      for (const name of absent) expect(far, key).not.toContain(name)
+    }
 
-    // Beş kademe yakınlaşınca (z9) adlar silinmiştir.
-    await zoomIn(page, 5)
+    // Altı kademe yakınlaşınca (z9) adlar silinmiştir.
+    await zoomIn(page, 6)
     await expect.poll(() => countryLabels(page), { timeout: 10_000 }).toEqual([])
   })
 })
@@ -750,8 +750,9 @@ test.describe('telefon genişliği', () => {
     }
 
     // Ülke adları İngilizcede (D-095): aynı sayfa yüklemesinde, IST'den dört kademe uzaklaşınca
-    // (z4–5) TÜRKIYE yazılır (D-096: Türkiye'nin içinde, Ankara'nın ~66 km güneyinde); Türkçe
-    // büyük harf (İ) yok. Hareket azaltılır: her basış tam kademe.
+    // (375 px'te açılış z7,8, yani z3,8) TÜRKIYE yazılır (D-099: Türkiye'nin ortasında, 34,8° D,
+    // 39,4° K; çapası IST'nin ~120 px doğusunda, görünümün içinde); Türkçe büyük harf (İ) yok.
+    // Hareket azaltılır: her basış tam kademe.
     await page.emulateMedia({ reducedMotion: 'reduce' })
     await zoomOut(page, 4)
     await expect.poll(() => countryLabels(page), { timeout: 20_000 }).toContain('TÜRKIYE')

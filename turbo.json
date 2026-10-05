@@ -31,8 +31,10 @@
         "$TURBO_ROOT$/packages/shared/src/**",
         "$TURBO_ROOT$/packages/geo/src/**",
         "$TURBO_ROOT$/packages/providers/src/**",
+        "$TURBO_ROOT$/packages/db/src/**",
         "$TURBO_ROOT$/e2e/country-label-expectations.ts",
-        "$TURBO_ROOT$/apps/web/package.json"
+        "$TURBO_ROOT$/apps/web/package.json",
+        "$TURBO_ROOT$/apps/web/src/components/map/labels.ts"
       ]
     },
     "dev": {

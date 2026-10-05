@@ -283,6 +283,11 @@ export class LabelFitter {
     this.scales = this.zooms.map((zoom) => 2 ** zoom)
   }
 
+  /** Adın z'deki görünür kutusu, px, çapaya göre (güvenlik payı yok; havalimanı çakışması). */
+  visibleBoxAt(zoom: number): GlyphBox {
+    return visibleBoxPx(this.ink, interpolateStops(sizeCurve(this.tier, this.layout), zoom))
+  }
+
   /** Ad z'de (herhangi bir yakınlaştırma) çapası (lon, lat) iken ülkenin içinde mi. */
   fitsAtZoom(lon: number, lat: number, zoom: number, centreInside?: boolean): boolean {
     const box = fitBoxPx(this.ink, interpolateStops(sizeCurve(this.tier, this.layout), zoom))
