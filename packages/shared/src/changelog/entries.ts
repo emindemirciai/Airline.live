@@ -12,8 +12,32 @@ import type { ChangelogEntry } from './types'
  */
 export const CHANGELOG: readonly ChangelogEntry[] = [
   {
+    version: '0.19.1',
+    date: '2026-10-05',
+    title: {
+      tr: 'Ülke adları sınırların içinde',
+      en: 'Country names stay inside their borders',
+    },
+    items: [
+      {
+        tr: 'Ülke adları artık ülkenin sınırlarından ya da kıyısından dışarı taşmaz: ad, ülkenin içine sığdığı yakınlaştırmada görünür. Ad başkentte sığıyorsa orada, sığmıyorsa başkente en yakın uygun yerde durur ve yakınlaştırırken yerinden oynamaz.',
+        en: 'Country names no longer spill over their borders or coastline: a name appears at the zoom level where it fits inside the country. It stays at the capital when it fits there, otherwise at the nearest suitable spot, and it does not move while you zoom.',
+      },
+      {
+        tr: 'Birden çok kelimeli adlar alt alta yazılır: SUUDİ / ARABİSTAN, KUZEY / MAKEDONYA, BOSNA / HERSEK.',
+        en: 'Multi-word names are written one word per line: SAUDI / ARABIA, NORTH / MACEDONIA, BOSNIA AND / HERZEGOVINA.',
+      },
+      {
+        tr: 'Uzaktan bakınca artık daha az ülke adı görünür; küçük ülkelerin adları yakınlaştırınca çıkar. Bahreyn, Lüksemburg ve Malta, adlar silinmeden önce hiçbir yakınlaştırmada sığmadığı için gösterilmez.',
+        en: 'Fewer country names show when zoomed out; smaller countries get their names as you zoom in. Bahrain, Luxembourg and Malta never fit before the names fade out, so they are not labelled.',
+      },
+    ],
+    tryLinks: [{ path: '/', label: { tr: 'Canlı harita', en: 'Live map' } }],
+  },
+  {
     version: '0.19.0',
     date: '2026-10-05',
+    releasedAt: '2026-10-05T02:25:50Z',
     title: {
       tr: 'Canlı veri için ölçüm ve kayıt araçları',
       en: 'Measurement and recording tools for live data',

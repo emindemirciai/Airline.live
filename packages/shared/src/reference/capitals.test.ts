@@ -50,11 +50,16 @@ describe('başkentler (D-095)', () => {
     expect(byCode.get('TR')).toMatchObject({ lat: 39.93, lon: 32.86 })
   })
 
-  it('ad kayması yalnızca Slovakya’da: 2,5 em yukarıda (Viyana’yla çakışma, D-095)', () => {
-    const offsets = COUNTRY_CAPITALS.filter((c) => c.labelOffsetEm !== undefined)
-    expect(offsets.map((c) => [c.code, c.labelOffsetEm])).toEqual([['SK', [0, -2.5]]])
-    const others = COUNTRY_CAPITALS.filter((c) => c.code !== 'SK')
-    for (const capital of others) expect(capital, capital.code).not.toHaveProperty('labelOffsetEm')
+  it('ad kayması yok: yer kuralı yerleşim tablosundadır (D-096; Slovakya istisnası kalktı)', () => {
+    for (const capital of COUNTRY_CAPITALS) {
+      expect(Object.keys(capital).sort(), capital.code).toEqual([
+        'areaKm2',
+        'capital',
+        'code',
+        'lat',
+        'lon',
+      ])
+    }
   })
 
   it('İsrail ve Filistin yok; Ukrayna, Kosova ve Kıbrıs var', () => {

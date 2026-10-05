@@ -217,12 +217,31 @@ Doğrulama: 2026-10-03 (tzdb 2026c `zone.tab`, `zone1970.tab`, `iso3166.tab`; No
 ## 5b. Başkentler ve ülke adları — haritadaki ülke adı
 Doğrulama: 2026-10-05 (Node 24 `Intl`, ICU 78; canlı istek atılmadı). Parça 1 M6e.7'den beri kullanılır (D-095).
 
-- **Ne için:** canlı haritada her ülkenin adı başkentinde, kademeli boyla. OurAirports, VRS ve aviationweather.gov başkent ya da ülke yüzölçümü vermez.
+- **Ne için:** canlı haritada her ülkenin adı, kademeli boyla; ad başkentte ortalıdır, ancak orada sınırın içine sığıyorsa (D-096; sığmıyorsa çapa ülkenin içinde başkente en yakın uygun noktadır, §5c). OurAirports, VRS ve aviationweather.gov başkent ya da ülke yüzölçümü vermez.
 - **Nasıl:** çalışma zamanında hiçbir yerden veri çekilmez. Kodda küçük bir tablo vardır (`packages/shared/src/reference/capitals.ts`): 59 ülkenin ISO 3166-1 kodu, başkentin Türkçe ve İngilizce adı (yalnızca okuyan için; haritada yazılmaz), şehir merkezinin konumu (0,01°) ve iç sular dahil yüzölçümü (100 km²'ye yuvarlı; Fransa, Danimarka ve Hollanda yalnızca Avrupa'daki toprağıyla, Sırbistan Kosova'sız, Kıbrıs adanın tamamıyla). Bunlar genel coğrafi bilgidir; bir veri setinden toplu indirilmemiştir.
 - **Adlar:** ülke adı tarayıcının ve Node'un CLDR verisinden gelir (`Intl.DisplayNames`, D-080) ve sayfanın dilinin büyük harf kuralıyla yazılır (`toLocaleUpperCase`; Türkçede "i" → "İ"). Havalimanı sayfalarındaki ülke adıyla aynıdır. Havalimanına bağlı KKTC görünümü ülke adında kullanılmaz: Kıbrıs Lefkoşa'da "KIBRIS" / "CYPRUS" yazılır.
 - **Kapsam:** listelenen havalimanı olan ülkeler (`ENABLED_AIRPORT_RING`), İsrail ve Filistin hariç, artı boşluk kuralıyla Ukrayna. Birim testi kapsamı fixture'daki halka analiziyle karşılaştırır; yeni halka açılınca kırılır ve tablo o zaman genişletilir.
 - Bir sağlayıcı (`packages/providers`) değildir: hiçbir şey indirilmez, `DATA_USAGE_MODE` kapısı yoktur.
 - **Yazı tipi:** adlar sitenin Overpass 600'üyle çizilir; dosyalar `apps/web/public/fonts/`'tadır (SIL OFL 1.1, ATTRIBUTION.md). Harita glif sunucusundan (`.pbf`) yazı tipi istenmez.
+
+## 5c. Natural Earth — ülke poligonları (yalnızca çevrimdışı araç; haritada çizilmez)
+Doğrulama: 2026-10-05 (yalnızca yerel `node_modules`'taki world-atlas ve topojson-client paketlerinin README ve LICENSE dosyaları; canlı istek atılmadı, naturalearthdata.com şartları açılmadı: REFERENCES.md'de "doğrulanmadı" olarak durur). Parça 1 M6e.8'den beri kullanılır (D-096).
+
+- **Ne için:** haritadaki ülke adının görünür kutusunun ülkenin kara poligonunun içinde kalıp kalmadığını hesaplamak. Üretici her ülke, dil ve harita genişliği için adın yerini ve ilk sığdığı yakınlaştırmayı bulur; sonuç `packages/shared/src/map/country-label-placements.ts`'teki küçük tablodur (~10 KB). Geometri haritada çizilmez: çizilen sınırlar OpenFreeMap/OSM'dir (D-092), kıyı uydu görüntüsüdür.
+- **Nasıl:** Natural Earth 4.1.0 Admin 0 – Countries 1:10m, `world-atlas@2.0.2` paketinin `countries-10m.json` TopoJSON'undan (ISC; Natural Earth'ün nicelenmiş kopyası, boylamda ~0,0036°, enlemde ~0,0017°) `topojson-client@3.1.0` ile (ISC; bağımlılığı `commander@2.20.3`, MIT, yalnızca paketin komut satırı araçları için) okunur. İkisi de yalnızca `tools`'un geliştirme bağımlılığıdır; üretim imajına girmez, çalışma zamanında hiçbir şey indirilmez. `pnpm country-labels:fixture` sadeleşmiş alt kümeyi (`tools/fixtures/naturalearth/countries.json`, yalnızca test) üretir, `pnpm country-labels` tabloyu fixture'dan hesaplar; ikisi de çevrimdışıdır.
+- **Birimler:** 56 ülke sayısal ISO koduyla; Kıbrıs adanın tamamıdır (Kıbrıs, K. Kıbrıs, BM ara bölgesi, Ağrotur ve Dikelya: KIBRIS / CYPRUS tek ad), Kazakistan Baykonur'la birlikte, Kosova ayrı birim, Sırbistan Kosova'sız. İsrail ve Filistin alınmaz.
+- **Tartışmalı bölgeler:** Natural Earth 4.1.0 fiilî durumu çizer. **Kırım Rusya'nın poligonundadır** (Türkiye'nin tutumu Kırım'ın Ukrayna'ya ait olduğudur); bu geometri yalnızca testte kullanılır, çizilmez ve hiçbir ad orada yazılmaz (RUSYA Moskova'da, UKRAYNA Kiev'de; placement.test.ts Rusya ve Ukrayna adlarının kutusunun Kırım'a hiçbir yakınlaştırmada girmediğini denetler). Abhazya ve Güney Osetya Gürcistan'ın, Transdinyester Moldova'nın, Karabağ Azerbaycan'ın poligonundadır.
+- **Sadeleştirme:** Douglas–Peucker 0,5 km (ortak sınır iki komşuda aynı sadeleşir), halkalar 180. meridyende sürekli kılınır ve 20° B–90° D, 8–72° K kutusuna kırpılır (Rusya'nın 90° D'nun doğusu, Arktik adaları ve kutunun dışındaki her şey düşer), 100 km²'den küçük adalar (başkenti içermiyorsa) düşer, koordinatlar 0,001°'ye yuvarlanır: ~40.000 nokta, ~400 KB. Testler ham 1:10m sınırın her noktasının fixture sınırına en çok 0,6 km uzak olduğunu ve ülkelerin örtüşmediğini (hiçbir sınır noktası başka bir ülkenin içinde değil) denetler.
+- Bir sağlayıcı (`packages/providers`) değildir: çalışma zamanında istek yoktur, `DATA_USAGE_MODE` kapısı gerekmez.
+
+**Lisans kaydı** (§ "Lisans kaydı"ndaki 7 alan)
+- `commercialUse`: `true`. Natural Earth verisi kamu malı olarak yayımlanır (naturalearthdata.com "Terms of Use"; bu oturumda ağ olmadığı için açılmadı, doğrulaması plan M6e.8'de açık iş). world-atlas README'si yalnızca Natural Earth 4.1.0'ın TopoJSON olarak yeniden dağıtımı olduğunu söyler; paketin kendi lisansı ISC'dir (`LICENSE`, Michael Bostock).
+- `attribution`: zorunlu değil; ATTRIBUTION.md'de nezaketen "Made with Natural Earth".
+- `shareAlike`: `none`.
+- `rateLimit`: yok (çalışma zamanında istek yoktur).
+- `b2cDisplayAllowed`: `true` (yalnızca türetilmiş tablo, yani ad konumları ve yakınlaştırmalar yayımlanır).
+- `mixingWithOtherRealtimeAllowed`: `true`.
+- `maxRawStorageDays`: `null` (sadeleşmiş alt küme yalnızca `tools/fixtures`'ta, testler için).
 
 ## 6. Harita — OpenFreeMap
 - **Şartlar:** Anahtar yok, ticari kullanım serbest, sayı limiti yok, **SLA yok**.

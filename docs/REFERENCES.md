@@ -55,6 +55,10 @@ Bir şeyi doğrulaman gerekiyorsa önce buradaki kaynakları kullan. Yeni bir ka
 - OpenFreeMap stilleri (vektör kaynak `https://tiles.openfreemap.org/planet`; koyu stilin `boundary` katmanları): https://github.com/hyperknot/openfreemap-styles
 - OpenMapTiles şeması, `boundary` katmanı (`admin_level`, `maritime`, `disputed`, `claimed_by`; z0–z4 Natural Earth, z5–z14 OSM): https://openmaptiles.org/schema/ · genelleme toleransları: https://github.com/openmaptiles/openmaptiles/blob/master/layers/boundary/boundary.sql
 
+## Ülke poligonları (Natural Earth, 2026-10-05; D-096)
+- Yerelde okunan (ağ yok): `tools/node_modules/world-atlas/README.md` ve `LICENSE` (Natural Earth 4.1.0'ın TopoJSON yeniden dağıtımı; ISC), `tools/node_modules/topojson-client/README.md` ve `LICENSE` (ISC); paket sürümleri `pnpm-lock.yaml`'da.
+- **Doğrulanmadı (2026-10-05, ağ yok):** Natural Earth kullanım şartları https://www.naturalearthdata.com/about/terms-of-use/ · world-atlas deposu https://github.com/topojson/world-atlas (plan M6e.8'de açık iş).
+
 ## Resmî havalimanı adları (erişim 2026-09-30; D-076)
 - DHMİ "Havalimanları Web Siteleri" listesi (resmî Türkçe adlar; `airport-names.ts` → `source: 'dhmi'`): https://www.dhmi.gov.tr/Sayfalar/HavalimaniListesi.aspx · bağlandığı sayfa: https://www.dhmi.gov.tr/Sayfalar/Havalimanlari.aspx · havalimanı sayfaları `https://www.dhmi.gov.tr/Sayfalar/Havalimani/<Ad>/AnaSayfa.aspx` biçimindedir
 - DHMİ İngilizce sitesi: https://www.dhmi.gov.tr/Sayfalar/EN/DefaultEN.aspx · havalimanı listesi https://www.dhmi.gov.tr/Sayfalar/EN/Airports.aspx (erişim 2026-10-01). İngilizce görünen adların kaynağı **değildir**: liste tutarsızdır ("DALAMAN AIRPORT", "MUS AIRPORT", "CUKUROVA AİRPORT", "MUĞLA-MİLAS BODRUM AIRPORT"). `airport-names.ts`'teki İngilizce adlar resmî Türkçe adın çevirisidir; İngilizce sayfalar resmî Türkçe adı ve kaynağını ayrıca yazar (D-076).
