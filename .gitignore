@@ -30,6 +30,8 @@ playwright-report/
 test-results/
 .lighthouseci/
 tools/**/recordings/tmp/
+# pnpm record --fixture: yarım kalan kayıt (bitince .jsonl adını alır)
+tools/fixtures/replay/*.partial
 
 # editör ve işletim sistemi
 .DS_Store

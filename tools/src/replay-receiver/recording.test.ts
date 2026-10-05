@@ -53,6 +53,39 @@ describe('parseRecording: biçimler', () => {
     expect(only!.aircraft.some((a) => a.dbFlags === 8)).toBe(true)
   })
 
+  it('çok kareli adsb.lol JSON Lines (pnpm record): ms → sn, eksik dbFlags 0, döngü', () => {
+    const offsets = [0, 10_000, 19_091]
+    const text = offsets
+      .map((dt, i) =>
+        JSON.stringify({
+          ac: [
+            { hex: `4b000${i}`, lat: 41, lon: 29, seen_pos: 0.5 },
+            { hex: 'abc123', lat: 41.1, lon: 29.1, dbFlags: 8 },
+          ],
+          msg: 'No error',
+          now: T0 + dt,
+          total: 2,
+          ctime: T0 + dt,
+          ptime: 3,
+        }),
+      )
+      .join('\n')
+    const recording = parseRecording(`${text}\n`)
+    expect(recording.frames.map((f) => f.now)).toEqual(offsets.map((dt) => (T0 + dt) / 1000))
+    for (const f of recording.frames) {
+      expect(f.aircraft[0]!.dbFlags).toBe(0)
+      expect(f.aircraft[1]!.dbFlags).toBe(8)
+    }
+    const player = recordingPlayer(recording, T0)
+    // Adımlar 10.000 ve 9.091 ms; medyan (sıralı dizinin ortası) 10.000 → son ofset + 10.000.
+    expect(player.durationMs).toBe(19_091 + 10_000)
+    const hexAt = (t: number) => player.frameAt(t).aircraft[0]!.hex
+    expect(hexAt(T0)).toBe('4b0000')
+    expect(hexAt(T0 + 10_000)).toBe('4b0001')
+    expect(hexAt(T0 + 19_091)).toBe('4b0002')
+    expect(hexAt(T0 + 29_091)).toBe('4b0000')
+  })
+
   it('readsb karesinde eksik dbFlags eklenmez (yerel alıcıda bilinmiyor demektir)', () => {
     const text = JSON.stringify({ now: 1001, aircraft: [{ hex: 'abc123', lat: 41, lon: 29 }] })
     expect(parseRecording(text).frames[0]!.aircraft[0]).not.toHaveProperty('dbFlags')
