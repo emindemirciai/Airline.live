@@ -23,6 +23,7 @@ import {
 } from '@havayolu/db'
 import { AIRPORT_RING_CONFIG } from '@havayolu/shared'
 import type { Redis } from 'ioredis'
+import { pgArrivalCoverageStore } from './admin/arrival-coverage'
 import { buildApp } from './app'
 import { RedisSessionStore } from './auth/session-store'
 import { EnvError, loadDotEnvForDevelopment, parseEnv, type Env } from './env'
@@ -141,6 +142,8 @@ const app = await buildApp(env, {
   // Engel listesi yüklenip önbellek başlayana kadar /v1/live ve arama 503, WS 1013 döner.
   live: { source: liveCache, codes: () => airlineCodes, ready: () => liveRunning },
   blocklistRedis: redisQueue,
+  // Kapsama raporu satırları (D-098): API yalnızca `queued` satır yazar ve okur.
+  arrivalCoverage: database ? pgArrivalCoverageStore(database.sql) : null,
   // Halka ayarı (D-080) tek kaynaktan: `@havayolu/shared` `AIRPORT_RING_CONFIG`.
   airports: {
     list: database

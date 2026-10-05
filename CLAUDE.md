@@ -195,6 +195,7 @@ Sıra: 1–4 commit'ten önce yapılır ve aynı commit'e girer. 5 commit'ten so
 | `pnpm dev:replay` | Replay alıcısı (4300, sentetik senaryo) + `pnpm dev`; worker ingest veriyi yerel alıcı yolundan alır, canlı istek atılmaz |
 | `pnpm smoke:live --confirm` | Canlı istek (DUR-SOR 6): yalnızca kullanıcı kendi terminalinde çalıştırır. Ajan bu komutu hiçbir biçimde çalıştırmaz (izin listesinde `ask`; plan ve `--help` birim testleriyle doğrulanır); ajan oturumunda `--confirm` zaten reddedilir. Gerçek ingest 5 dk; yerel `app_smoke_live` veritabanı ve redis-live 7. Ölçüt: Türkiye bbox'ında ≥ 50 uçak, LTFM p95 ≤ 20 sn, `provider_health` satırı. Önce `dev:infra`; `CONTACT_EMAIL` kullanıcının `.env`'inde |
 | `pnpm record --station LTFM --minutes 30 --confirm` | Canlı istek (DUR-SOR 6), uzun komut; yalnızca kullanıcı (smoke gibi). `/v2/point` karelerini AIMD hızıyla `tools/recordings/tmp/<ICAO>-<UTC>.jsonl`'e yazar; `--fixture` `tools/fixtures/replay/`'e gizlilik süzgeciyle. `pnpm dev:replay --recording <dosya>` ile oynar |
+| `pnpm coverage:report --hours 24` | Kapsama raporu (D-098) yerel veritabanında: admin işiyle aynı kod; `DATABASE_URL` yalnızca localhost, ağa çıkmaz, veritabanına yazmaz. Saat 6/12/24/48/72/168; çıktı `tools/recordings/tmp/kapsama-<UTC>.md` (ezmez). Örnek veri: `pnpm --filter @havayolu/tools arrival-fixture` (LTAI, 3 varış). Üretim raporu yalnızca admin panelinden (`/admin/kapsama`) |
 | `pnpm country-labels:fixture` · `pnpm country-labels` | Ülke adı yerleşimi (D-096), ikisi de çevrimdışı: `node_modules`'taki world-atlas 2.0.2'den Natural Earth fixture'ını üretir · fixture'dan yerleşim tablosunu (`packages/shared/src/map/country-label-placements.ts`) üretir; tablo elle düzenlenmez |
 | `pnpm deploy:dokploy` | Yalnızca CI (`release`/`rollback` işleri) çalıştırır; yerelde çalıştırılmaz (canlı çağrı) |
 
@@ -202,4 +203,4 @@ Yerel üretim denemesi: `docker compose -p hy-localprod -f docker-compose.yml -f
 
 Yayın ve geri alma: `docs/DEPLOY_DOKPLOY.md` (kurulum bir kez), `gh workflow run rollback.yml -f sha=<7>` (geri alma).
 
-Sonraki kilometre taşları bu tabloya kendi komutlarını ekler: `coverage:report`, `coverage:probe`. Ayrı bir `db:seed` yoktur; tohum verisi `db:migrate`'in parçasıdır.
+Sonraki kilometre taşları bu tabloya kendi komutlarını ekler: `coverage:probe`. Ayrı bir `db:seed` yoktur; tohum verisi `db:migrate`'in parçasıdır.

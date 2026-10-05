@@ -1,5 +1,7 @@
 export * from './airlines'
 export * from './airports'
+export * from './arrival-coverage'
+export * from './arrival-coverage-reports'
 export * from './blocklist'
 export * from './client'
 export * from './ingest'

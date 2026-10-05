@@ -1131,6 +1131,129 @@ export const tr = {
       },
     },
     fetchFailed: 'Servis raporu alınamadı. API’ye ulaşılamıyor olabilir.',
+    /** Yönetim sayfaları arasındaki gezinme (Servisler, Kapsama raporu). */
+    navLabel: 'Yönetim bölümleri',
+    /**
+     * Kapsama raporu sayfası (`/admin/kapsama`, Parça 1 M7b.2, D-098). Rapor metninin kendisi
+     * (Markdown) worker'da Türkçe üretilir; bir belgedir, arayüz metni değildir.
+     */
+    coverage: {
+      title: 'Kapsama raporu',
+      intro:
+        'Üretim ingest’inin iz kayıtlarından istasyon başına varışları, yerde örneği görülen varışların payını ve son havadaki örneğin dağılımını hesaplar. Rapor worker’da çalışır; bitince Markdown olarak indirilir.',
+      last7: {
+        heading: 'Son 7 gün',
+        intro:
+          'Günlük iş her gece 03.45’te (Türkiye saati) son 7 günü hesaplar. Oran, yerde örneği görülen varışların payıdır; varış yoksa ya da iş henüz çalışmadıysa “—” yazar.',
+        station: 'Havalimanı',
+        ratio: 'Yerde örneği payı',
+        arrivals: 'Varış',
+        updated: 'Güncellendi (UTC)',
+        never: 'henüz çalışmadı',
+        empty: 'Etkin istasyon yok.',
+      },
+      start: {
+        heading: 'Raporu başlat',
+        hours: 'Pencere',
+        hoursOption: '{n} saat',
+        submit: 'Raporu başlat',
+        pending: 'Başlatılıyor…',
+        note: 'Pencere, işin başlangıcından 45 dakika önce biter; yalnızca kaydı kapanmış uçuşlar sayılır. Aynı anda tek rapor çalışır.',
+        errors: {
+          invalid_hours: 'Pencere 6, 12, 24, 48, 72 ya da 168 saat olabilir.',
+          active: 'Çalışan bir rapor var. Bitmesini bekle.',
+          rate_limited: 'Çok fazla istek. Bir dakika sonra yeniden dene.',
+          unavailable: 'Rapor başlatılamadı: API ya da veritabanı yanıt vermiyor.',
+        },
+      },
+      reports: {
+        heading: 'Raporlar',
+        caption: 'En yeni 50 rapor',
+        empty: 'Henüz rapor yok.',
+        columns: {
+          id: 'No',
+          requested: 'İstenme (UTC)',
+          window: 'Pencere (UTC)',
+          status: 'Durum',
+          duration: 'Süre',
+          actions: 'İşlemler',
+        },
+        windowValue: '{start} → {end}',
+        windowPending: '{hours} saat; iş başlayınca belirlenir',
+        view: 'Görüntüle',
+        viewLabel: '{id} numaralı raporu görüntüle',
+        download: 'İndir (.md)',
+        downloadLabel: '{id} numaralı raporu indir (.md)',
+        seconds: '{n} sn',
+        minutes: '{m} dk {s} sn',
+      },
+      statuses: {
+        queued: 'Kuyrukta',
+        running: 'Çalışıyor',
+        done: 'Hazır',
+        failed: 'Hata',
+      },
+      /** Hata sütunundaki kodlar; tanınmayan ileti `other` ile olduğu gibi gösterilir. */
+      failures: {
+        timeout_queued:
+          'Zaman aşımı: rapor 15 dakika kuyrukta bekledi. Worker’ın jobs rolü çalışıyor mu?',
+        timeout_running: 'Zaman aşımı: rapor 20 dakikada bitmedi.',
+        other: 'Hata: {message}',
+      },
+      refresh: {
+        active: 'Rapor sürüyor; sayfa 5 saniyede bir kendini yeniler.',
+        stopped: 'Otomatik yenileme 25 dakika sonra durdu. Durumu görmek için yenile.',
+        restart: 'Yenile',
+      },
+      detail: {
+        heading: 'Rapor {id}',
+        notFound: 'Rapor bulunamadı. Yalnızca en yeni 50 rapor tutulur.',
+        pending: 'Rapor hazır olunca sonuçlar burada görünür.',
+        window: 'Pencere (UTC)',
+        effectiveStart: 'Etkin pencere başlangıcı (UTC)',
+        none: 'yok',
+        definitionVersion: 'Tanım sürümü',
+        totals:
+          'Toplam {arrivals} varış; {ground} tanesinde yerde örneği var. Kaydı henüz kapanmadığı için sayılmayan varış: {open}.',
+        dataGapWarning:
+          'Uyarı: bazı istasyonlarda havadaki örneklerin %5’inden fazlasında baro_rate ya da seen_pos boş. Ayrıntı Markdown metnindedir.',
+        resultUnreadable: 'Sonuç özeti okunamadı; Markdown metni aşağıdadır.',
+        stations: {
+          caption: 'İstasyon özeti',
+          station: 'Havalimanı',
+          arrivals: 'Varış',
+          groundShare: 'Yerde örneği',
+          groundShareValue: '{share} ({ground}/{arrivals})',
+          interval: '%95 aralığı',
+          intervalValue: '{low}…{high}',
+          medianAgl: 'Son havadaki örneğin medyan yerden yüksekliği',
+          medianThreshold: 'Pist eşiğine medyan mesafe',
+          rule1: 'Kural 1',
+          rule2: 'Kural 2',
+        },
+        verdicts: {
+          applies: 'Uygulanır',
+          does_not_apply: 'Uygulanmaz',
+          no_arrivals: 'Varış yok',
+        },
+        flags: {
+          borderline: 'sınırda',
+          lowSample: 'az örnek',
+        },
+        rules:
+          'Kural 1: yerde örneği payı %70’in altındaysa o istasyonda inişler varsayılan olarak “muhtemel” gösterilir. Kural 2: son havadaki örneğin medyan yerden yüksekliği 1.000 ft’in ya da pist eşiğine medyan mesafe 8 km’nin üstündeyse DUR-SOR; eşik önerileri Markdown metnindedir.',
+        feet: '{n} ft',
+        kilometres: '{n} km',
+        markdown: 'Markdown metni',
+      },
+      download: {
+        badId: 'Geçersiz rapor numarası.',
+        notFound: 'Rapor bulunamadı.',
+        notReady: 'Rapor henüz hazır değil.',
+        unavailable: 'Rapor indirilemedi: API yanıt vermiyor.',
+      },
+      fetchFailed: 'Kapsama raporları alınamadı. API ya da veritabanı yanıt vermiyor olabilir.',
+    },
   },
   consent: {
     title: 'Analiz için onay',

@@ -12,7 +12,8 @@ import { Queue } from 'bullmq'
 import { pino } from 'pino'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { parseEnv } from '../env'
-import { JOB_NAMES, MAINTENANCE_QUEUE, startJobs } from './index'
+import { createExclusiveRunner } from './arrival-coverage/poll'
+import { ARRIVAL_COVERAGE_QUEUE, JOB_NAMES, MAINTENANCE_QUEUE, startJobs } from './index'
 import {
   findFixturesDir,
   fixtureFetcher,
@@ -67,6 +68,7 @@ describe('bakım işleri (gerçek PostgreSQL + Redis, BullMQ)', () => {
     const jobs = await startJobs({ env, redisUrl, database, log, version: '0.0.0-test', prefix })
     const connection = createRedis(redisUrl, { name: 'jobs-test', maxRetriesPerRequest: null })
     const queue = new Queue(MAINTENANCE_QUEUE, { connection, prefix })
+    const coverageQueue = new Queue(ARRIVAL_COVERAGE_QUEUE, { connection, prefix })
     try {
       const schedulers = await queue.getJobSchedulers()
       expect(schedulers.map((s) => [s.key, s.pattern, s.tz]).sort()).toEqual([
@@ -76,6 +78,10 @@ describe('bakım işleri (gerçek PostgreSQL + Redis, BullMQ)', () => {
         ['weather-prune', '25 0 * * *', 'UTC'],
         ['weather-taf', '3-59/15 * * * *', 'UTC'],
       ])
+      // Kapsama oranı ayrı kuyrukta (rapor istekleri tablodan yoklanır, BullMQ'ya girmez).
+      expect((await coverageQueue.getJobSchedulers()).map((s) => [s.key, s.pattern, s.tz])).toEqual(
+        [['arrival-coverage-ratio-7d', '45 0 * * *', 'UTC']],
+      )
 
       // Açılış telafisi: tablolar boş olduğu için içe aktarım, partition işi de her açılışta
       // kendiliğinden kuyruğa girer. İşin tamamen bittiği durum beklenir (ara durum değil).
@@ -156,7 +162,66 @@ describe('bakım işleri (gerçek PostgreSQL + Redis, BullMQ)', () => {
     } finally {
       await jobs.close()
       await queue.obliterate({ force: true })
+      await coverageQueue.obliterate({ force: true })
       await queue.close()
+      await coverageQueue.close()
+      await connection.quit()
+    }
+  })
+
+  it('iz partition işi sürmekte olan kapsama okumasını bekler (DDL ile okuma çakışmaz)', async () => {
+    const prefix = `hy:test:${process.pid}:${Date.now()}:serial`
+    const env = parseEnv({
+      APP_ENV: 'test',
+      EXTERNAL_PROVIDERS_DISABLED: 'true',
+      WORKER_SERVICE_NAME: 'worker-test',
+    })
+    // Çalışan bir kapsama raporunun yerine: çalıştırıcı, açılış partition işinden önce tutulur.
+    const exclusive = createExclusiveRunner()
+    let release: () => void = () => undefined
+    const held = exclusive(
+      () =>
+        new Promise<void>((resolve) => {
+          release = resolve
+        }),
+    )
+    const jobs = await startJobs({
+      env,
+      redisUrl,
+      database,
+      log,
+      version: '0.0.0-test',
+      prefix,
+      coverageExclusive: exclusive,
+    })
+    const connection = createRedis(redisUrl, {
+      name: 'jobs-serial-test',
+      maxRetriesPerRequest: null,
+    })
+    const queue = new Queue(MAINTENANCE_QUEUE, { connection, prefix })
+    const coverageQueue = new Queue(ARRIVAL_COVERAGE_QUEUE, { connection, prefix })
+    const partitionJobs = async (state: 'active' | 'completed') =>
+      (state === 'active' ? await queue.getActive() : await queue.getCompleted()).filter(
+        (job) => job.name === JOB_NAMES.trackPartitions,
+      ).length
+    try {
+      // Bakım işçisi açılış partition işini aldı, ama çalıştırıcı boşalana dek DDL çalışmaz.
+      await waitFor(async () => (await partitionJobs('active')) === 1)
+      await new Promise((resolve) => setTimeout(resolve, 1_500))
+      expect(await partitionJobs('active')).toBe(1)
+      expect(await partitionJobs('completed')).toBe(0)
+
+      release()
+      await held
+      await waitFor(async () => (await partitionJobs('completed')) === 1)
+      expect(await partitionJobs('active')).toBe(0)
+    } finally {
+      release()
+      await jobs.close()
+      await queue.obliterate({ force: true })
+      await coverageQueue.obliterate({ force: true })
+      await queue.close()
+      await coverageQueue.close()
       await connection.quit()
     }
   })

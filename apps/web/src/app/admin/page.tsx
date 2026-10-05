@@ -10,6 +10,7 @@ import { getServerEnv } from '@/lib/env'
 import { clientForwardHeaders } from '@/lib/forwarded'
 import { getLocale } from '@/lib/locale'
 import { logoutAction } from './actions'
+import { AdminNav } from './admin-nav'
 
 export async function generateMetadata(): Promise<Metadata> {
   return { title: getMessages(await getLocale()).admin.servicesTitle }
@@ -202,6 +203,10 @@ export default async function AdminServicesPage() {
 
   return (
     <article className="page page-wide">
+      <AdminNav
+        current="services"
+        labels={{ label: t.navLabel, services: t.servicesTitle, coverage: t.coverage.title }}
+      />
       <header className="page-header">
         <div>
           <h1>{t.servicesTitle}</h1>

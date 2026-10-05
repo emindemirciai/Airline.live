@@ -1,6 +1,6 @@
 {
   "name": "havayolu",
-  "version": "0.20.0",
+  "version": "0.21.0",
   "private": true,
   "license": "MIT",
   "type": "module",
@@ -13,6 +13,7 @@
     "dev:replay": "tsx scripts/dev-replay.mts",
     "record": "tsx tools/src/live/record-cli.ts",
     "smoke:live": "tsx tools/src/live/smoke-cli.ts",
+    "coverage:report": "tsx tools/src/arrival-report/report-cli.ts",
     "build": "turbo run build",
     "lint": "turbo run lint",
     "typecheck": "turbo run typecheck",

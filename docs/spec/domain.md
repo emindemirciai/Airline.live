@@ -146,7 +146,7 @@ adsb.lol kitle kaynaklıdır. 2026-09-25 anlık ölçümünde IST çevresindeki 
   - (c) worker açılalı henüz 120 sn olmamış
 
   Kaynak dönünce uçak yerde görülürse `touchdown` yazılır. Push yalnızca ilk yerde örneği ile kaynağın dönüşü arasındaki süre ≤ 5 dk ise gider; değilse bildirim merkezine "Kesinti sonrası doğrulandı" etiketiyle yazılır. Uçak görülmezse `landing_unverified` yazılır ve etiketi "Veri kesintisi: iniş doğrulanamadı" olur.
-- **Kapsama kalitesi:** Son 7 günde en az bir yerde örneği görülen varışların oranıdır. `jobs` rolündeki günlük iş bunu `stations.coverage_ground_ratio_7d` alanına yazar. Oran %70'in altındaysa istasyon sayfasında, takip kurulurken ve istasyon akışı filtresinde şu uyarı gösterilir: "Bu istasyonda inişlerin çoğu muhtemel iniş olarak bildirilir." Gözlenen `touchdown` yine kesin olarak bildirilir.
+- **Kapsama kalitesi:** Son 7 günde en az bir yerde örneği görülen varışların oranıdır. `jobs` rolündeki günlük iş bunu `stations.coverage_ground_ratio_7d` alanına yazar. Oran %70'in altındaysa istasyon sayfasında, takip kurulurken ve istasyon akışı filtresinde şu uyarı gösterilir: "Bu istasyonda inişlerin çoğu muhtemel iniş olarak bildirilir." Gözlenen `touchdown` yine kesin olarak bildirilir. Varış, yerde örneği ve AGL'nin rapordaki tanımı ile günlük işin ayrıntıları: `packages/shared/src/arrival-coverage.ts` ve D-098 (kapsama raporu, Parça 1 M7b.2; tanım burada değişmez).
 
 ## Takip türleri ve eşleşme
 - **Uçak:** tescil ya da hex ile. Süreklidir.
