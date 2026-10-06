@@ -35,7 +35,7 @@ import { AIRPORT_ERRORS, AIRPORTS_CACHE_CONTROL } from './airports'
 
 // Gerçek PostgreSQL (yerelde `pnpm dev:infra`, CI'da dev compose); bu teste ait veritabanı. Veri,
 // worker'ın içe aktarımıyla aynı ayrıştırıcıdan geçen commit'li OurAirports alt kümesidir
-// (tools/fixtures/README.md: Türkiye'nin bütün kayıtları, birkaç uzak havalimanı, 1., 2. ve 3. halka).
+// (tools/fixtures/README.md: Türkiye'nin bütün kayıtları, birkaç uzak havalimanı, 1.–4. halka).
 const adminUrl =
   process.env.TEST_DATABASE_ADMIN_URL ??
   'postgres://havayolu:havayolu_dev_only@localhost:45432/postgres'
@@ -96,7 +96,8 @@ const runwayRows = parseRunways(fixture('ourairports/runways.csv'), arps).rows
 
 /**
  * Açık halkaların (1.–3., ≤ 2.000 km; D-090) beklenen ICAO'ları, içe aktarılan satırlardan
- * (veritabanından bağımsız hesap). ICAO kaynak düzeltmeleriyle (İskenderiye HEAX → HEBA).
+ * (veritabanından bağımsız hesap). ICAO kaynak düzeltmeleriyle (İskenderiye HEAX → HEBA); aday
+ * kuralı dört karakterli kanonik ICAO'yu da ister (D-101).
  */
 function expectedListedForeign(): string[] {
   const iata = (row: (typeof airportRows)[number]) => row.iataCode?.trim().toUpperCase() ?? ''
@@ -106,7 +107,9 @@ function expectedListedForeign(): string[] {
     .map((r) => ({ lat: r.latitudeDeg, lon: r.longitudeDeg }))
   return airportRows
     .filter(
-      (r) => r.isoCountry !== 'TR' && isForeignCandidate(r.type, r.scheduledService, r.iataCode),
+      (r) =>
+        r.isoCountry !== 'TR' &&
+        isForeignCandidate(r.type, r.scheduledService, r.iataCode, ourAirportsIcao(r)),
     )
     .filter((r) =>
       turkey.some((tr) => distanceKm({ lat: r.latitudeDeg, lon: r.longitudeDeg }, tr) <= 2000),
@@ -284,6 +287,10 @@ describe('havalimanı ayrıntıları (gerçek PostgreSQL, OurAirports fixture)',
       expect(foreign.map((a) => a.icao).sort()).toEqual(expectedListedForeign())
       expect([434, 442]).toContain(foreign.length)
       expect(body.airports).toHaveLength(61 + foreign.length)
+      // Değişmez kural (D-101): listelenen her havalimanının dört karakterli ICAO'su vardır (sayfa
+      // yolu, hava durumu istasyonu). Fixture'ın 4. halkasındaki Kihihi (UG-0002, KHX) bu yüzden
+      // halka açılınca da listeye girmez.
+      for (const airport of body.airports) expect(airport.icao).toMatch(/^[A-Z0-9]{4}$/)
 
       const plain = (
         await instance.inject({ method: 'GET', url: '/v1/airports?scope=listed' })

@@ -221,13 +221,21 @@ describe('runwaySurfaceKey', () => {
   it("fixture'daki her dolu kaplama kodu bilinen bir türe çevrilir (OurAirports'un UNK kodu hariç)", () => {
     const surfaces = new Set(runwayRows.map((r) => r.get('surface') ?? ''))
     for (const surface of surfaces) {
-      // UNK sözlükte "bilinmiyor"dur; fixture'da yalnız gösterilmeyen iki yinelenen boş pist
-      // satırında geçer (Taba 04/22, Cluj 08/26; D-088).
+      // UNK sözlükte "bilinmiyor"dur (aşağıda).
       if (surface.trim() === '' || surface === 'UNK') continue
       expect(runwaySurfaceKey(surface), surface).not.toBe('unknown')
     }
-    const unk = runwayRows.filter((r) => r.get('surface') === 'UNK').map((r) => r.get('id'))
-    expect(unk.sort()).toEqual(['260339', '260408'])
+    const unk = runwayRows
+      .filter((r) => r.get('surface') === 'UNK')
+      .map((r) => `${r.get('id')} ${r.get('airport_ident')}`)
+    // Gösterilmeyen yinelenen boş satırlar: Taba 04/22, Cluj 08/26 (D-088); Hassi Messaoud 01/19,
+    // Bujumbura 02/20, Beauvais 13R/31L ve 2 ft'lik Pamplona 03/21 (D-101). Gösterilen ama kaplaması
+    // bilinmeyen 4. halka pistleri: Kulusuk, Malindi'nin ikisi, Moğolistan'ın dördü, Nyingchi.
+    expect(unk.sort()).toEqual([
+      ...['259670 ZUNZ', '260075 BGKK', '260115 HKML', '260116 HKML', '260134 ZMAT'],
+      ...['260135 ZMAH', '260137 ZMBN', '260141 ZMUL', '260310 HBBA', '260338 DAUH'],
+      ...['260339 HETB', '260341 LEPP', '260344 LFOB', '260408 LRCL'],
+    ])
   })
 
   it('yazım farkları aynı türe düşer; boş ve tanınmayan kod unknown', () => {
@@ -250,13 +258,24 @@ describe('runwaySurfaceKey', () => {
     expect(runwaySurfaceKey('Ground')).toBe('dirt')
     expect(runwaySurfaceKey('GRE')).toBe('gravel')
     expect(runwaySurfaceKey('WATER')).toBe('water')
+    // 4. halkanın kodları (D-101).
+    for (const code of ['BIT', 'BITUM', 'Macadam', 'MAC']) {
+      expect(runwaySurfaceKey(code), code).toBe('asphalt')
+    }
+    for (const code of ['Hard', 'hard', 'paved']) expect(runwaySurfaceKey(code), code).toBe('paved')
+    for (const code of ['COM', 'Composite']) expect(runwaySurfaceKey(code), code).toBe('mixed')
+    for (const code of ['Graded Hardcore', 'LAT']) {
+      expect(runwaySurfaceKey(code), code).toBe('gravel')
+    }
+    expect(runwaySurfaceKey('Unpaved')).toBe('dirt')
+    for (const code of ['SAN', 'Sand', 'sand']) expect(runwaySurfaceKey(code), code).toBe('sand')
     for (const code of ['', '  ', 'UNK', 'MOON', 'constructor', null, undefined]) {
       expect(runwaySurfaceKey(code), String(code)).toBe('unknown')
     }
   })
 
   it('her anahtar RUNWAY_SURFACE_KEYS içindedir', () => {
-    const inputs = ['ASP', 'CON', 'PEM', 'PER', 'GRS', 'DIRT', 'GVL', 'WATER', 'x']
+    const inputs = ['ASP', 'CON', 'PEM', 'PER', 'GRS', 'DIRT', 'GVL', 'SAND', 'WATER', 'x']
     for (const input of inputs) {
       expect(RUNWAY_SURFACE_KEYS).toContain(runwaySurfaceKey(input))
     }

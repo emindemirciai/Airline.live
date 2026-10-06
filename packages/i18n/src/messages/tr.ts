@@ -246,6 +246,7 @@ export const tr = {
     grass: 'Çim',
     dirt: 'Toprak',
     gravel: 'Çakıl',
+    sand: 'Kum',
     water: 'Su',
     unknown: 'Bilinmiyor',
   },
@@ -959,6 +960,13 @@ export const tr = {
       title: 'Görünümdeki havalimanları',
       empty: 'Görünümde havalimanı yok; haritayı kaydır ya da uzaklaştır.',
       hint: 'Seçtiğin havalimanının bilgi ve hava durumu penceresi açılır.',
+      /**
+       * Listenin parçası yüklenemedi (D-101): yayından sonra açık kalmış sekme ya da kesik bağlantı.
+       * Sayfa yenilenince yeni sürümün dosyaları gelir.
+       */
+      loadFailed:
+        'Havalimanı listesi yüklenemedi. Site güncellenmiş ya da bağlantı kesilmiş olabilir; sayfayı yenile.',
+      reload: 'Sayfayı yenile',
     },
     status: {
       freshness: 'Veri yaşı {s} sn',
@@ -998,6 +1006,10 @@ export const tr = {
       civilClosure: 'Sivil uçuşlara kapalı olabilir ({since} beri)',
       openAirportPage: 'Havalimanı sayfası →',
       close: 'Kapat',
+      /** Pencerenin parçası yüklenemedi (D-101; listedekiyle aynı neden). */
+      loadFailed:
+        'Havalimanı bilgileri yüklenemedi. Site güncellenmiş ya da bağlantı kesilmiş olabilir; sayfayı yenile.',
+      reload: 'Sayfayı yenile',
     },
   },
   status: {

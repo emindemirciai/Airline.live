@@ -17,9 +17,12 @@ import { parseAirports } from '@havayolu/providers'
 import {
   AIRPORT_RING_CONFIG,
   AirportWeatherSchema,
+  toAirportWeather,
+  WeatherBulkRawResponseSchema,
   WeatherBulkResponseSchema,
   WeatherHistoryResponseSchema,
   type AirportWeather,
+  type WeatherBulkRawResponse,
   type WeatherBulkResponse,
   type WeatherHistoryResponse,
 } from '@havayolu/shared'
@@ -223,6 +226,26 @@ describe('hava durumu uçları (gerçek PostgreSQL)', () => {
     expect(ecn.icao).toBe('LCEN')
     expect(ecn.entries.map((e) => e.raw)).toEqual([metars[8]?.raw])
     expect((await get('/v1/weather?scope=listed&country=TR')).statusCode).toBe(400)
+  })
+
+  it('GET /v1/weather?scope=listed&format=raw (D-101): ham kayıtların çözümü tam biçimle aynı', async () => {
+    const res = await get('/v1/weather?scope=listed&format=raw')
+    expect(res.statusCode).toBe(200)
+    expect(res.headers['cache-control']).toBe(WEATHER_CACHE_CONTROL)
+    const raw = res.json() as WeatherBulkRawResponse
+    expect(WeatherBulkRawResponseSchema.parse(raw)).toEqual(raw)
+    const full = (await get('/v1/weather?scope=listed')).json() as WeatherBulkResponse
+    expect(raw.stations.map((s) => s.icao)).toEqual(full.stations.map((s) => s.icao))
+    // Ham biçim süresi dolmamış bütün TAF'ları taşır (LTFM'de yerini yenisine bırakmış olan da).
+    expect(raw.stations.find((s) => s.icao === 'LTFM')?.tafs.length).toBeGreaterThan(1)
+    for (const [i, station] of raw.stations.entries()) {
+      const expected = full.stations[i]
+      expect(
+        { ...toAirportWeather(station, raw.generatedAt), generatedAt: expected?.generatedAt },
+        station.icao,
+      ).toEqual(expected)
+    }
+    expect(Buffer.byteLength(res.body)).toBeLessThan(Buffer.byteLength(JSON.stringify(full)))
   })
 
   it('GET /v1/airports/:code/weather: ICAO ya da IATA; raporsuz havalimanı 200; bilinmeyen 404', async () => {

@@ -22,7 +22,9 @@ import {
   foreignAirportName,
   HOLE_COUNTRIES,
   isEnabledAirportRing,
+  isCanonicalIcao,
   isForeignCandidate,
+  isScheduledIataAirport,
   OURAIRPORTS_ICAO_CORRECTIONS,
   ourAirportsIcao,
   REFERENCE_AIRFIELD_NAMES,
@@ -33,7 +35,7 @@ import {
 } from './index'
 
 // Commit'li OurAirports alt kümesi (tools/fixtures/README.md): Türkiye'nin bütün kayıtları, birkaç
-// uzak havalimanı, 1., 2. ve 3. halkanın havalimanları (D-080, D-088, D-090). Alanlar tırnaklı; `""`
+// uzak havalimanı, 1.–4. halkanın havalimanları (D-080, D-088, D-090, D-101). Alanlar tırnaklı; `""`
 // kaçışlı tırnaktır.
 const csv = (path: string) => {
   const text = readFileSync(new URL(`../../../../tools/fixtures/${path}`, import.meta.url), 'utf8')
@@ -87,10 +89,15 @@ const turkishRows = rows
   .filter((r) => LISTABLE.includes(r.get('type') ?? ''))
   .filter((r) => IATA.test((r.get('iata_code') ?? '').trim().toUpperCase()))
 const turkish = turkishRows.map(position)
+/**
+ * Halka analizinin adayları: D-080 kuralı, ICAO koşulu olmadan (`isScheduledIataAirport`; fixture
+ * üreticisiyle aynı). `listable`: listeye giren aday, kanonik ICAO'su dört karakter
+ * (`isForeignCandidate`, D-101).
+ */
 const candidates = rows
   .filter((r) => r.get('iso_country') !== 'TR')
   .filter((r) =>
-    isForeignCandidate(
+    isScheduledIataAirport(
       r.get('type') ?? '',
       r.get('scheduled_service') === 'yes',
       r.get('iata_code'),
@@ -106,13 +113,20 @@ const candidates = rows
       ...here,
       distance,
       ring: airportRing(distance),
+      listable: isForeignCandidate(
+        r.get('type') ?? '',
+        r.get('scheduled_service') === 'yes',
+        r.get('iata_code'),
+        icaoOf(r),
+      ),
     }
   })
 const ringOne = candidates.filter((c) => c.ring === 1)
 const ringTwo = candidates.filter((c) => c.ring === 2)
 const ringThree = candidates.filter((c) => c.ring === 3)
+const ringFour = candidates.filter((c) => c.ring === 4)
 /** Açık halkalardaki yabancı havalimanları (M6h'den beri 1., 2. ve 3. halka, D-090). */
-const listed = candidates.filter((c) => c.ring <= ENABLED_AIRPORT_RING)
+const listed = candidates.filter((c) => c.listable && c.ring <= ENABLED_AIRPORT_RING)
 /** Türkçe adında şehir geçmeyen havalimanları: Ercan (Lefkoşa), Malta (Valletta), Bahreyn (Manama). */
 const CITY_NOT_IN_NAME = ['LCEN', 'LMML', 'OBBI']
 
@@ -154,27 +168,41 @@ describe('halkalar', () => {
     expect(isEnabledAirportRing(0.5)).toBe(false)
   })
 
-  it('isForeignCandidate: büyük ya da orta, tarifeli, üç harfli IATA', () => {
-    expect(isForeignCandidate('large_airport', true, 'ATH')).toBe(true)
-    expect(isForeignCandidate('medium_airport', true, ' jkh ')).toBe(true)
-    expect(isForeignCandidate('small_airport', true, 'ABC')).toBe(false)
-    expect(isForeignCandidate('heliport', true, 'ABC')).toBe(false)
-    expect(isForeignCandidate('large_airport', false, 'ATH')).toBe(false)
+  it('isForeignCandidate: büyük ya da orta, tarifeli, üç harfli IATA, dört karakterli ICAO', () => {
+    expect(isForeignCandidate('large_airport', true, 'ATH', 'LGAV')).toBe(true)
+    expect(isForeignCandidate('medium_airport', true, ' jkh ', 'LGHI')).toBe(true)
+    expect(isForeignCandidate('small_airport', true, 'ABC', 'LGXA')).toBe(false)
+    expect(isForeignCandidate('heliport', true, 'ABC', 'LGXA')).toBe(false)
+    expect(isForeignCandidate('large_airport', false, 'ATH', 'LGAV')).toBe(false)
     for (const iata of ['', 'AB', 'ABCD', 'A1B', null, undefined]) {
-      expect(isForeignCandidate('large_airport', true, iata), String(iata)).toBe(false)
+      expect(isForeignCandidate('large_airport', true, iata, 'LGAV'), String(iata)).toBe(false)
+      expect(isScheduledIataAirport('large_airport', true, iata), String(iata)).toBe(false)
     }
+    // ICAO ekseni (D-101): kanonik ICAO kırpılıp büyük harfe çevrilir; rakam olabilir (VA1G).
+    for (const icao of ['EGLL', 'egll', ' EGLL ', 'VA1G', 'UZSS']) {
+      expect(isForeignCandidate('medium_airport', true, 'LHR', icao), icao).toBe(true)
+      expect(isCanonicalIcao(icao), icao).toBe(true)
+    }
+    for (const icao of ['UG-0002', 'KHX', 'EGLLX', 'EG L', 'EG-L', '', null, undefined]) {
+      expect(isForeignCandidate('medium_airport', true, 'KHX', icao), String(icao)).toBe(false)
+      expect(isCanonicalIcao(icao), String(icao)).toBe(false)
+    }
+    // ICAO koşulu olmayan D-080 kuralı aynı satırları seçer, ICAO'ya bakmaz.
+    expect(isScheduledIataAirport('medium_airport', true, 'KHX')).toBe(true)
+    expect(isScheduledIataAirport('small_airport', true, 'KHX')).toBe(false)
   })
 
   it("fixture: halka analiziyle aynı kural 75 havalimanı verir (Türkiye'ye en yakın 48 km)", () => {
     expect(ringOne).toHaveLength(75)
-    // Sekiz uzak fixture havalimanından beşi (EGLL, LFPG, EHAM, LEMD, KJFK) açık halkalarda
-    // değildir; EDDF, OMDB ve OTHH 3. halkadadır (D-090).
+    // Sekiz uzak fixture havalimanından yalnız KJFK 4. halkanın ötesindedir; EDDF, OMDB ve OTHH 3.
+    // halkada (D-090), EGLL, LFPG, EHAM ve LEMD 4. halkadadır (D-101).
+    expect(candidates.filter((c) => c.ring > 4).map((c) => c.icao)).toEqual(['KJFK'])
     expect(
-      candidates
-        .filter((c) => c.ring > 3)
+      ringFour
         .map((c) => c.icao)
+        .filter((icao) => ['EGLL', 'LFPG', 'EHAM', 'LEMD'].includes(icao))
         .sort(),
-    ).toEqual(['EGLL', 'EHAM', 'KJFK', 'LEMD', 'LFPG'])
+    ).toEqual(['EGLL', 'EHAM', 'LEMD', 'LFPG'])
     expect(ringOne.map((c) => c.icao)).toEqual(
       expect.arrayContaining(['LGAV', 'LCEN', 'UGTB', 'BKPR', 'ORSJ', 'URSS']),
     )
@@ -229,8 +257,41 @@ describe('halkalar', () => {
       expect.arrayContaining(['EDDF', 'OMDB', 'OTHH', 'LOWW', 'UUEE', 'OERK', 'LIRF', 'UZSS']),
     )
     expect(ringThree.map((c) => c.icao)).not.toContain('UTSS')
-    // Barselona (2.003 km) 4. halkadadır; fixture'da yoktur.
-    expect(candidates.map((c) => c.icao)).not.toContain('LEBL')
+    // Barselona (2.002,6 km) 4. halkadadır.
+    expect(ringThree.map((c) => c.icao)).not.toContain('LEBL')
+    expect(ringFour.map((c) => c.icao)).toContain('LEBL')
+  })
+
+  it('fixture: 4. halka 720 aday, 719 listelenebilir (UG-0002 dört karakterli ICAO kuralıyla dışarıda); halka henüz kapalı (D-101)', () => {
+    expect(ringFour).toHaveLength(720)
+    expect(ringFour.filter((c) => c.listable)).toHaveLength(719)
+    // Kihihi Savannah pisti (IATA KHX): icao_code ve gps_code yok, kanonik kimliği ident'tir.
+    // Bütün fixture'da dört karakterli ICAO kuralına takılan tek aday odur.
+    expect(candidates.filter((c) => !c.listable).map((c) => c.icao)).toEqual(['UG-0002'])
+    const khx = rows.find((r) => r.get('ident') === 'UG-0002')
+    expect(khx?.get('iata_code')).toBe('KHX')
+    expect([khx?.get('icao_code'), khx?.get('gps_code')]).toEqual(['', ''])
+    const byDistance = ringFour.toSorted((a, b) => a.distance - b.distance)
+    expect(byDistance[0]?.icao).toBe('LEBL')
+    expect(byDistance[0]?.distance).toBeCloseTo(2002.6, 1)
+    expect(byDistance.at(-1)?.icao).toBe('ZMCK')
+    expect(byDistance.at(-1)?.distance).toBeCloseTo(4981.0, 1)
+    const earlier = new Set([...ringOne, ...ringTwo, ...ringThree].map((c) => c.country))
+    const newCountries = [...new Set(ringFour.filter((c) => c.listable).map((c) => c.country))]
+      .filter((code) => !earlier.has(code))
+      .sort()
+    expect(newCountries).toEqual(
+      [
+        ...['AO', 'BD', 'BF', 'BI', 'BJ', 'BT', 'CD', 'CF', 'CG', 'CI', 'CM', 'CN', 'DJ', 'EH'],
+        ...['ER', 'ET', 'FI', 'FO', 'GA', 'GB', 'GG', 'GH', 'GI', 'GL', 'GQ', 'IE', 'IM', 'IN'],
+        ...['IS', 'JE', 'KE', 'KG', 'LK', 'MA', 'ML', 'MN', 'MR', 'MV', 'NE', 'NG', 'NO', 'NP'],
+        ...['PK', 'PT', 'RW', 'SC', 'SO', 'SS', 'ST', 'TD', 'TG', 'TJ', 'TZ', 'UG', 'YE'],
+      ].sort(),
+    )
+    // Uganda KHX'siz de dört havalimanıyla yeni ülkedir.
+    expect(ringFour.filter((c) => c.listable && c.country === 'UG')).toHaveLength(4)
+    // Halka açılana kadar (M6i.2) liste 3. halkada kalır.
+    expect(listed.map((c) => c.icao)).not.toContain('EGLL')
   })
 })
 
@@ -274,12 +335,14 @@ describe('FOREIGN_AIRPORT_NAMES', () => {
     expect(FOREIGN_AIRPORT_NAMES.LFKB?.en).toBe('Bastia-Poretta International Airport')
     expect(raw('LFLW')).toBe('Aurillac airport')
     expect(FOREIGN_AIRPORT_NAMES.LFLW?.en).toBe('Aurillac Airport')
+    // Bütün fixture'da (4. halkanın yedi Fransız havalimanı dahil, D-101) küçük harfli "airport".
     const lowercase = rows
       .filter((r) => /\bairport\b/.test(r.get('name') ?? ''))
       .map(icaoOf)
       .sort()
     expect(lowercase).toEqual([
-      ...['LFKB', 'LFKJ', 'LFLB', 'LFLC', 'LFLP', 'LFLW', 'LFMU', 'LFMV', 'LFOK'],
+      ...['LFBE', 'LFBZ', 'LFKB', 'LFKJ', 'LFLB', 'LFLC', 'LFLP', 'LFLW'],
+      ...['LFMU', 'LFMV', 'LFOB', 'LFOK', 'LFRB', 'LFRG', 'LFRK', 'LFSL'],
     ])
   })
 

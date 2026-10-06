@@ -17,12 +17,12 @@ import {
   bearingDifference,
   crossTrackKm,
   distanceKm,
-  EARTH_RADIUS_KM,
   initialBearing,
   kmToNm,
   type LatLon,
 } from '@havayolu/geo'
 import type { PublicAircraft } from '@havayolu/shared'
+import { PointGrid } from './flight-phase-grid'
 
 // Eşikler: kaynakları domain.md'dir (Tespit eşikleri, AGL yöntemi, İniş tespiti); çıkış eşikleri ve
 // onay süresi listenin kararlılığı içindir (D-085).
@@ -85,7 +85,6 @@ export const CONFIRM_MS = 5_000
 
 /** Yakın havalimanı ön elemesi: enlem ve (cos ile) boylam farkı, derece (~39 km ≥ 35 km). */
 const NEARBY_DEG = 0.35
-const KM_PER_DEG = (Math.PI * EARTH_RADIUS_KM) / 180
 
 /** Listede gösterilen durum. `lowAltLost` gösterim anında, son örneğin yaşından çıkar. */
 export type FlightPhase = 'onGround' | 'landing' | 'approaching' | 'lowAltLost' | 'enRoute'
@@ -204,41 +203,23 @@ function prepareAirport(input: PhaseAirportInput): PreparedAirport {
   }
 }
 
-/** Boylam farkı [−180, 180]: 180. boylamı geçen çiftte de küçük fark. */
-function lonDelta(a: number, b: number): number {
-  return ((((a - b) % 360) + 540) % 360) - 180
+/**
+ * Havalimanları 1°'lik ızgarada (`flight-phase-grid.ts`, D-101): en yakın havalimanı ve ön eleme
+ * her uçak örneğinde bütün listeyi taramaz; sonuç ve eşitlikte seçilen (listede önce gelen)
+ * doğrusal taramayla aynıdır.
+ */
+type AirportGrid = PointGrid<PreparedAirport>
+
+/** Eşdikdörtgen yaklaşık uzaklıkta en yakın havalimanı; yoksa null. */
+function nearestAirport(airports: AirportGrid, p: LatLon): PreparedAirport | null {
+  return airports.nearest(p)
 }
 
-/** Eşdikdörtgen yaklaşık uzaklık, km (en yakını bulmak için; gösterilen uzaklık haversine'dir). */
-function approxKm(p: LatLon, airport: PreparedAirport): number {
-  return (
-    Math.hypot(p.lat - airport.arp.lat, lonDelta(p.lon, airport.arp.lon) * airport.cosLat) *
-    KM_PER_DEG
-  )
-}
-
-function nearestAirport(airports: readonly PreparedAirport[], p: LatLon): PreparedAirport | null {
-  let best: PreparedAirport | null = null
-  let bestKm = Infinity
-  for (const airport of airports) {
-    const km = approxKm(p, airport)
-    if (km < bestKm) {
-      best = airport
-      bestKm = km
-    }
-  }
-  return best
-}
-
-/** Ön elemeden geçen (~39 km) havalimanları, gerçek uzaklıklarıyla. */
-function nearbyAirports(airports: readonly PreparedAirport[], p: LatLon): Nearby[] {
-  const nearby: Nearby[] = []
-  for (const airport of airports) {
-    if (Math.abs(p.lat - airport.arp.lat) > NEARBY_DEG) continue
-    if (Math.abs(lonDelta(p.lon, airport.arp.lon)) * airport.cosLat > NEARBY_DEG) continue
-    nearby.push({ airport, distanceKm: distanceKm(p, airport.arp) })
-  }
-  return nearby
+/** Ön elemeden geçen (~39 km) havalimanları, liste sırasıyla ve gerçek uzaklıklarıyla. */
+function nearbyAirports(airports: AirportGrid, p: LatLon): Nearby[] {
+  return airports
+    .within(p, NEARBY_DEG)
+    .map((airport) => ({ airport, distanceKm: distanceKm(p, airport.arp) }))
 }
 
 /**
@@ -315,7 +296,7 @@ function infoFor(
  * göre inişte, merkeze göre yaklaşmada (ikisi de yalnızca tarifeli havalimanları), yolda.
  */
 function classify(
-  airports: readonly PreparedAirport[],
+  airports: AirportGrid,
   sample: PhaseSample,
   kin: Kinematics,
   shown: Shown | null,
@@ -444,7 +425,7 @@ interface Entry {
  * uçağın ilk durumu beklemeden gösterilir.
  */
 export class FlightPhaseTracker {
-  private airports: PreparedAirport[] = []
+  private airports: AirportGrid = new PointGrid<PreparedAirport>([])
   private byIcao = new Map<string, PreparedAirport>()
   private source: readonly PhaseAirportInput[] | null = null
   private readonly entries = new Map<string, Entry>()
@@ -458,8 +439,10 @@ export class FlightPhaseTracker {
   setAirports(list: readonly PhaseAirportInput[]): void {
     if (list === this.source) return
     this.source = list
-    this.airports = list.map(prepareAirport)
-    this.byIcao = new Map(this.airports.map((airport) => [airport.ref.icao, airport]))
+    const prepared = list.map(prepareAirport)
+    // Izgara liste başına bir kez kurulur (4. halkada ~1.222 havalimanı, ~0,2 ms).
+    this.airports = new PointGrid(prepared)
+    this.byIcao = new Map(prepared.map((airport) => [airport.ref.icao, airport]))
     this.entries.clear()
     this.revision += 1
     for (const listener of [...this.listeners]) listener()

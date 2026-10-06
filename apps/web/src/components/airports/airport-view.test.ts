@@ -3,8 +3,12 @@ import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it, vi } from 'vitest'
 import { airportFixture, runwayFixture } from '../../lib/test/airport-fixture'
-import { fixtureListedAirports, fixtureTurkishAirports } from '../../lib/test/ourairports-fixture'
-import { airportCountry } from './airport-text'
+import {
+  fixtureForeignAirport,
+  fixtureListedAirports,
+  fixtureTurkishAirports,
+} from '../../lib/test/ourairports-fixture'
+import { airportCountry, airportDescription } from './airport-text'
 import { AirportView } from './airport-view'
 import { civilClosureNote } from './civil-closure'
 import { AirportsView } from './airports-view'
@@ -502,6 +506,37 @@ describe('AirportView: Türkiye dışındaki havalimanı (D-080)', () => {
       )
       expect(fact.slice(0, fact.indexOf('</dd>')), icao).not.toContain('<a ')
     }
+  })
+
+  it('4. halka (halka henüz kapalı, D-101): görünür pisti olmayan beş havalimanı pistsiz çizilir', () => {
+    for (const icao of ['GMAZ', 'VIMB', 'ULDD', 'VOVI', 'ZWTK']) {
+      const airport = fixtureForeignAirport(icao)
+      expect(airport.ring, icao).toBe(4)
+      expect(airport.runways, icao).toEqual([])
+      for (const locale of ['tr', 'en'] as const) {
+        const html = renderToStaticMarkup(
+          createElement(AirportView, { locale, app: 'havayolu', airport, airports: LISTED }),
+        )
+        expect(html, `${icao} ${locale}`).not.toContain('<table')
+        expect(text(html), `${icao} ${locale}`).not.toMatch(/\{\w+\}/)
+        const description = airportDescription(airport, locale, false)
+        expect(description, `${icao} ${locale}`).not.toMatch(/\{\w+\}/)
+        expect(description, `${icao} ${locale}`).not.toMatch(/\b0 (pist|runway)/)
+      }
+    }
+  })
+
+  it('4. halka: uçları kayıtlı uzunluğa göre çok uzak pistte yön heading alanından, eşik havalimanı merkezinde (Amravati, D-101)', () => {
+    const vaam = fixtureForeignAirport('VAAM')
+    const [runway] = vaam.runways
+    expect(vaam.runways).toHaveLength(1)
+    expect(runway?.ends.map((end) => end.trueBearingDeg)).toEqual([75, 255])
+    for (const end of runway?.ends ?? []) {
+      expect([end.thresholdLat, end.thresholdLon]).toEqual([vaam.lat, vaam.lon])
+    }
+    // Pamplona'nın 2 ft'lik "03/21" satırı pist sayılmaz; Beauvais'nin boş "13R/31L" satırı gizli.
+    expect(fixtureForeignAirport('LEPP').runways.map((r) => r.ends[0].ident)).toEqual(['15'])
+    expect(fixtureForeignAirport('LFOB').runways.map((r) => r.ends[0].ident)).toEqual(['04', '12'])
   })
 
   it('Ercan (LCEN) KKTC olarak gösterilir', () => {

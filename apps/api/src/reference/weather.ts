@@ -1,19 +1,26 @@
 import { PROVIDER_LICENSES } from '@havayolu/providers'
 import {
-  AirportMetarSchema,
-  AirportTafSchema,
   AirportWeatherSchema,
-  decodeMetar,
-  decodeTaf,
-  FLIGHT_CATEGORIES,
   IcaoSchema,
   inForceTafs,
+  toAirportMetar,
+  toAirportTaf,
+  toRawMetar,
+  toRawTaf,
+  WEATHER_BULK_FORMATS,
+  WeatherBulkRawResponseSchema,
   WeatherBulkResponseSchema,
   WeatherHistoryResponseSchema,
   type AirportMetar,
   type AirportTaf,
   type AirportWeather,
-  type FlightCategory,
+  type MetarRecordInput,
+  type RawAirportWeather,
+  type RawMetar,
+  type RawTaf,
+  type TafRecordInput,
+  type WeatherBulkFormat,
+  type WeatherBulkRawResponse,
   type WeatherBulkResponse,
   type WeatherHistoryResponse,
 } from '@havayolu/shared'
@@ -141,7 +148,19 @@ export const WEATHER_ERRORS = {
     error: 'weather_unavailable',
     message: 'Hava durumu şu an kullanılamıyor.',
   },
+  badFormat: {
+    error: 'bad_format',
+    message: `format ${WEATHER_BULK_FORMATS.join(' ya da ')} olmalı (varsayılan full).`,
+  },
 } as const
+
+/** Toplu yanıtın biçimi; verilmezse `full`, geçersizse null (400 bad_format). */
+export function weatherBulkFormat(value: unknown): WeatherBulkFormat | null {
+  if (value === undefined) return 'full'
+  return typeof value === 'string' && (WEATHER_BULK_FORMATS as readonly string[]).includes(value)
+    ? (value as WeatherBulkFormat)
+    : null
+}
 
 /** Atıf (NOAA Aviation Weather Center); lisans kaydındaki metin ve bağlantı. */
 const ATTRIBUTION = PROVIDER_LICENSES.aviationWeather.attribution
@@ -190,12 +209,6 @@ const isObjectRecord = (value: unknown): value is Record<string, unknown> =>
 /** Hava raporları ICAO konum göstergesiyle tutulur; ICAO'su olmayan havalimanında rapor olmaz. */
 const isIcao = (code: string) => IcaoSchema.safeParse(code).success
 
-/** AWC `fltCat` bilinen dört değerden biri değilse gösterilmez. */
-const flightCategory = (value: string | null): FlightCategory | null =>
-  (FLIGHT_CATEGORIES as readonly (string | null)[]).includes(value)
-    ? (value as FlightCategory)
-    : null
-
 /** Aynı istasyonda en yeni gözlem; eşitse SPECI (önemli değişiklik raporu) önce. */
 const newestMetarFirst = (a: MetarRecord, b: MetarRecord) =>
   b.observedAt.getTime() - a.observedAt.getTime() ||
@@ -203,51 +216,163 @@ const newestMetarFirst = (a: MetarRecord, b: MetarRecord) =>
 
 const newestTafFirst = (a: TafRecord, b: TafRecord) => b.issuedAt.getTime() - a.issuedAt.getTime()
 
+const metarInput = (row: MetarRecord): MetarRecordInput => ({
+  raw: row.rawText,
+  type: row.reportType,
+  observedAt: row.observedAt,
+  flightCategory: row.flightCategory,
+})
+
+const tafInput = (row: TafRecord): TafRecordInput => ({
+  raw: row.rawText,
+  issuedAt: row.issuedAt,
+  validFrom: row.validFrom,
+  validTo: row.validTo,
+})
+
+/** Kayıttaki raporun çözümlenmiş görünümleri (`@havayolu/shared` `toAirportMetar`/`toAirportTaf`). */
+export interface WeatherViews {
+  metarView(row: MetarRecord): AirportMetar | null
+  tafView(row: TafRecord): AirportTaf | null
+}
+
 /**
- * Raporları okurken çözümler (ham metin esastır; D-078). Çözümleyici atmaz; atarsa rapor
- * loglanır ve yok sayılır: tek bozuk rapor bütün havalimanlarının yanıtını düşürmez.
+ * Raporları okurken çözümler (ham metin esastır; D-078). Görünümler paylaşılandır (D-101): web ham
+ * toplu yanıttan aynı fonksiyonlarla çözer. Çözümleyici atmaz; atarsa rapor loglanır ve yok sayılır:
+ * tek bozuk rapor bütün havalimanlarının yanıtını düşürmez.
  */
-function makeDecoders(log: FastifyBaseLogger) {
-  const metarView = (row: MetarRecord): AirportMetar | null => {
-    try {
-      const observedAt = row.observedAt.toISOString()
-      return AirportMetarSchema.parse({
-        ...decodeMetar(row.rawText, { observedAt: row.observedAt }),
-        type: row.reportType,
-        observedAt,
-        raw: row.rawText,
-        flightCategory: flightCategory(row.flightCategory),
-      })
-    } catch (error) {
-      log.error(
-        { err: error, station: row.stationIcao, raw: row.rawText },
-        'metar could not be decoded',
-      )
-      return null
-    }
+export function weatherViews(log: FastifyBaseLogger): WeatherViews {
+  return {
+    metarView: (row) =>
+      toAirportMetar(metarInput(row), (error) =>
+        log.error(
+          { err: error, station: row.stationIcao, raw: row.rawText },
+          'metar could not be decoded',
+        ),
+      ),
+    tafView: (row) =>
+      toAirportTaf(tafInput(row), (error) =>
+        log.error(
+          { err: error, station: row.stationIcao, raw: row.rawText },
+          'taf could not be decoded',
+        ),
+      ),
   }
-  const tafView = (row: TafRecord): AirportTaf | null => {
-    try {
-      return AirportTafSchema.parse({
-        ...decodeTaf(row.rawText, {
-          issuedAt: row.issuedAt,
-          validFrom: row.validFrom,
-          validTo: row.validTo,
-        }),
-        issuedAt: row.issuedAt.toISOString(),
-        validFrom: row.validFrom.toISOString(),
-        validTo: row.validTo.toISOString(),
-        raw: row.rawText,
-      })
-    } catch (error) {
-      log.error(
-        { err: error, station: row.stationIcao, raw: row.rawText },
-        'taf could not be decoded',
-      )
-      return null
+}
+
+/** Bir istasyonun okunan raporları. */
+export interface StationRecords {
+  metars: MetarRecord[]
+  tafs: TafRecord[]
+}
+
+/**
+ * Raporlar istasyona göre bir kez gruplanır: toplu yanıt her istasyon için bütün diziyi taramaz
+ * (istasyon × rapor yerine istasyon + rapor; 1.222 istasyonda ~62 ms yerine ~0,6 ms, D-101).
+ */
+export function groupByStation(records: WeatherRecords): Map<string, StationRecords> {
+  const groups = new Map<string, StationRecords>()
+  const group = (icao: string) => {
+    let found = groups.get(icao)
+    if (found === undefined) {
+      found = { metars: [], tafs: [] }
+      groups.set(icao, found)
     }
+    return found
   }
-  return { metarView, tafView }
+  for (const row of records.metars) group(row.stationIcao).metars.push(row)
+  for (const row of records.tafs) group(row.stationIcao).tafs.push(row)
+  return groups
+}
+
+const NO_RECORDS: StationRecords = { metars: [], tafs: [] }
+
+/** Süresi dolmamış TAF'lar, en yeni yayımlanan önce. */
+const liveTafs = (records: StationRecords, at: Date) =>
+  records.tafs.filter((t) => t.validTo.getTime() > at.getTime()).sort(newestTafFirst)
+
+/**
+ * Tam biçimde bir havalimanı: en yeni çözülebilen METAR/SPECI ve yürürlükteki TAF'lar (D-088):
+ * kalan geçerliliğinin tamamı daha yeni TAF'larca kapsanan TAF özete bir şey katmaz, METAR/TAF
+ * kaydında kalır. Toplu yanıtın büyük kısmı bu eski TAF'lardı (1. halkada istasyon başına ortalama
+ * 3,4 TAF).
+ */
+export function fullStationWeather(
+  icao: string,
+  records: StationRecords | undefined,
+  at: Date,
+  generatedAt: string,
+  views: WeatherViews,
+): AirportWeather {
+  const own = records ?? NO_RECORDS
+  let metar: AirportMetar | null = null
+  for (const row of [...own.metars].sort(newestMetarFirst)) {
+    metar = views.metarView(row)
+    if (metar !== null) break
+  }
+  const tafs = inForceTafs(
+    liveTafs(own, at)
+      .map((row) => views.tafView(row))
+      .filter((t): t is AirportTaf => t !== null),
+    at,
+  )
+  return { icao, generatedAt, metar, tafs }
+}
+
+/**
+ * Ham biçimde bir havalimanı (`format=raw`, D-101): hiçbir rapor çözümlenmez. En yeni METAR/SPECI
+ * (zamanı geçersiz satır atlanır) ve süresi dolmamış bütün TAF'lar, en yeni yayımlanan önce;
+ * yürürlükteki TAF seçimini okuyan çözümlemeden sonra yapar (`toAirportWeather`). Veritabanı
+ * istasyon başına tek METAR verir; o çözülebildiği sürece sonuç tam biçimle aynıdır.
+ */
+export function rawStationWeather(
+  icao: string,
+  records: StationRecords | undefined,
+  at: Date,
+): RawAirportWeather {
+  const own = records ?? NO_RECORDS
+  let metar: RawMetar | null = null
+  for (const row of [...own.metars].sort(newestMetarFirst)) {
+    metar = toRawMetar(metarInput(row))
+    if (metar !== null) break
+  }
+  const tafs = liveTafs(own, at)
+    .map((row) => toRawTaf(tafInput(row)))
+    .filter((t): t is RawTaf => t !== null)
+  return { icao, metar, tafs }
+}
+
+/**
+ * Toplu yanıtın metni (`format` tam ya da ham; D-101). Kayıtlar istasyona göre bir kez gruplanır;
+ * ham biçimde hiçbir rapor çözümlenmez. Gövde paylaşılan zod sözleşmesiyle doğrulanır (şemada
+ * olmayan alan gönderilmez).
+ */
+export function weatherBulkBody(
+  format: WeatherBulkFormat,
+  icaos: readonly string[],
+  records: WeatherRecords,
+  at: Date,
+  views: WeatherViews,
+): string {
+  const generatedAt = at.toISOString()
+  const attribution = { text: ATTRIBUTION.text, url: ATTRIBUTION.url }
+  const groups = groupByStation(records)
+  if (format === 'raw') {
+    const response: WeatherBulkRawResponse = {
+      generatedAt,
+      attribution,
+      stations: icaos.map((icao) => rawStationWeather(icao, groups.get(icao), at)),
+    }
+    return JSON.stringify(WeatherBulkRawResponseSchema.parse(response))
+  }
+  const response: WeatherBulkResponse = {
+    generatedAt,
+    attribution,
+    stations: icaos.map((icao) =>
+      fullStationWeather(icao, groups.get(icao), at, generatedAt, views),
+    ),
+  }
+  return JSON.stringify(WeatherBulkResponseSchema.parse(response))
 }
 
 /** Önbellekte tutulan, bir kez metne çevrilmiş yanıt. */
@@ -271,7 +396,8 @@ interface CachedHistory {
 /**
  * Hava durumu uçları (aviationweather.gov METAR/TAF; worker yazar, API okurken çözümler):
  * - `GET /v1/weather?country=TR` ya da `?scope=listed` (D-080): listedeki her havalimanı için güncel
- *   hava (web sayfaları, harita `scope=listed` ister).
+ *   hava. `format=raw` (D-101) raporları çözümlemeden verir; web sunucusu bunu ister ve yalnız
+ *   çizdiği havalimanını çözümler (`toAirportWeather`).
  * - `GET /v1/airports/:code/weather`: tek havalimanı (tarayıcı yenilemesi, API ve mobil).
  * - `GET /v1/airports/:code/weather/history?hours=24`: METAR/SPECI/TAF kaydı, en yeni önce.
  * Yanıtlar 60 sn süreç içinde tutulur; veritabanı okunamazsa eldeki kopya, o da yoksa 503.
@@ -289,63 +415,39 @@ export function registerWeatherRoutes(
     historyCacheMaxBytes = WEATHER_HISTORY_CACHE_MAX_BYTES,
   }: WeatherRouteOptions,
 ): void {
-  const { metarView, tafView } = makeDecoders(app.log)
-
-  const airportWeather = (
-    icao: string,
-    records: WeatherRecords,
-    at: Date,
-    generatedAt: string,
-  ): AirportWeather => {
-    const metars = records.metars.filter((m) => m.stationIcao === icao).sort(newestMetarFirst)
-    let metar: AirportMetar | null = null
-    for (const row of metars) {
-      metar = metarView(row)
-      if (metar !== null) break
-    }
-    // Süresi dolmamış TAF'lardan yalnız yürürlüktekiler (D-088): kalan geçerliliğinin tamamı daha
-    // yeni TAF'larca kapsanan TAF özete bir şey katmaz, METAR/TAF kaydında kalır. Toplu yanıtın
-    // büyük kısmı bu eski TAF'lardı (1. halkada istasyon başına ortalama 3,4 TAF).
-    const tafs = inForceTafs(
-      records.tafs
-        .filter((t) => t.stationIcao === icao && t.validTo.getTime() > at.getTime())
-        .sort(newestTafFirst)
-        .map(tafView)
-        .filter((t): t is AirportTaf => t !== null),
-      at,
-    )
-    return { icao, generatedAt, metar, tafs }
-  }
+  const views = weatherViews(app.log)
+  const { metarView, tafView } = views
 
   /** Toplu yanıtın istasyon okuyucusu: ülke kodu ya da `LISTED_KEY`; okuyucu yoksa null. */
   const bulkStations = (key: string) =>
     key === LISTED_KEY ? listedStations : stations === null ? null : () => stations(key)
 
-  const loadBulk = cachedReader<CachedBody>({
-    read:
-      latest === null
-        ? null
-        : async (key) => {
-            const read = bulkStations(key)
-            if (read === null) throw new Error(`no station reader for ${key}`)
-            // ICAO'su olmayan (GPS kodu ya da OurAirports kimliğiyle listelenen) havalimanı atlanır.
-            const icaos = (await read()).map((s) => s.icao).filter(isIcao)
-            const at = new Date(now())
-            const generatedAt = at.toISOString()
-            const records = icaos.length === 0 ? { metars: [], tafs: [] } : await latest(icaos, at)
-            const response: WeatherBulkResponse = {
-              generatedAt,
-              attribution: { text: ATTRIBUTION.text, url: ATTRIBUTION.url },
-              stations: icaos.map((icao) => airportWeather(icao, records, at, generatedAt)),
-            }
-            return { body: JSON.stringify(WeatherBulkResponseSchema.parse(response)) }
-          },
-    ttl: () => WEATHER_CACHE_MS,
-    now,
-    log: app.log,
-    what: 'weather',
-    maxEntries,
-  })
+  /** Toplu yanıtın okuyucusu; biçim başına ayrı önbellek (anahtar: ülke kodu ya da `LISTED_KEY`). */
+  const bulkReader = (format: WeatherBulkFormat) =>
+    cachedReader<CachedBody>({
+      read:
+        latest === null
+          ? null
+          : async (key) => {
+              const read = bulkStations(key)
+              if (read === null) throw new Error(`no station reader for ${key}`)
+              // ICAO'su olmayan (GPS kodu ya da OurAirports kimliğiyle listelenen) havalimanı atlanır.
+              const icaos = (await read()).map((s) => s.icao).filter(isIcao)
+              const at = new Date(now())
+              const records =
+                icaos.length === 0 ? { metars: [], tafs: [] } : await latest(icaos, at)
+              return { body: weatherBulkBody(format, icaos, records, at, views) }
+            },
+      ttl: () => WEATHER_CACHE_MS,
+      now,
+      log: app.log,
+      what: format === 'raw' ? 'weather (raw)' : 'weather',
+      maxEntries,
+    })
+  const loadBulk: Record<WeatherBulkFormat, ReturnType<typeof bulkReader>> = {
+    full: bulkReader('full'),
+    raw: bulkReader('raw'),
+  }
 
   const loadOne = cachedReader<CachedBody>({
     read:
@@ -354,7 +456,13 @@ export function registerWeatherRoutes(
         : async (icao) => {
             const at = new Date(now())
             const records = await latest([icao], at)
-            const response = airportWeather(icao, records, at, at.toISOString())
+            const response = fullStationWeather(
+              icao,
+              groupByStation(records).get(icao),
+              at,
+              at.toISOString(),
+              views,
+            )
             return { body: JSON.stringify(AirportWeatherSchema.parse(response)) }
           },
     ttl: () => WEATHER_CACHE_MS,
@@ -528,21 +636,43 @@ export function registerWeatherRoutes(
       attachValidation: true,
       schema: {
         tags: ['weather'],
-        summary: 'Ülkenin ya da listelenen havalimanlarının güncel havası (METAR/TAF, çözümlenmiş)',
+        summary: 'Ülkenin ya da listelenen havalimanlarının güncel havası (METAR/TAF)',
         description:
-          "Listedeki her havalimanı için bir kayıt, liste sırasıyla; raporu olmayan havalimanında metar null. tafs yalnız yürürlükteki TAF'lardır: kalan geçerliliği daha yeni TAF'larca kapsanan eski TAF'lar METAR/TAF kaydındadır. Kaynak: aviationweather.gov (NOAA Aviation Weather Center); resmî brifing yerine geçmez.",
-        querystring: { type: 'object', properties: selectionQueryProperties },
+          "Listedeki her havalimanı için bir kayıt, liste sırasıyla; raporu olmayan havalimanında metar null. Varsayılan biçim (full) çözümlenmiştir ve tafs yalnız yürürlükteki TAF'lardır: kalan geçerliliği daha yeni TAF'larca kapsanan eski TAF'lar METAR/TAF kaydındadır. format=raw hiçbir raporu çözümlemez: en yeni METAR/SPECI ve süresi dolmamış bütün TAF'lar ham metin ve zamanlarıyla gelir (yürürlük seçimi okuyandadır). Kaynak: aviationweather.gov (NOAA Aviation Weather Center); resmî brifing yerine geçmez.",
+        querystring: {
+          type: 'object',
+          properties: {
+            ...selectionQueryProperties,
+            format: {
+              type: 'string',
+              enum: [...WEATHER_BULK_FORMATS],
+              description:
+                'full (varsayılan): çözümlenmiş raporlar. raw: yalnız ham metin ve kayıt zamanları (istasyon başına ~0,9 KB)',
+            },
+          },
+        },
         response: {
-          200: openApiSchema(WeatherBulkResponseSchema),
+          200: {
+            anyOf: [
+              openApiSchema(WeatherBulkResponseSchema),
+              openApiSchema(WeatherBulkRawResponseSchema),
+            ],
+          },
           400: errorSchema,
           503: errorSchema,
         },
       },
     },
     async (request, reply) => {
-      const { country, scope } = (request.query ?? {}) as { country?: unknown; scope?: unknown }
+      const { country, scope, format } = (request.query ?? {}) as {
+        country?: unknown
+        scope?: unknown
+        format?: unknown
+      }
       const selection = airportSelection(country, scope)
       if ('error' in selection) return fail(reply, 400, selection.error)
+      const bulkFormat = weatherBulkFormat(format)
+      if (bulkFormat === null) return fail(reply, 400, WEATHER_ERRORS.badFormat)
       if (request.validationError !== undefined) {
         return fail(
           reply,
@@ -552,7 +682,7 @@ export function registerWeatherRoutes(
       }
       const key = 'scope' in selection ? LISTED_KEY : selection.country
       if (bulkStations(key) === null) return fail(reply, 503, WEATHER_ERRORS.unavailable)
-      const loaded = await loadBulk(key)
+      const loaded = await loadBulk[bulkFormat](key)
       if (loaded === null) return fail(reply, 503, WEATHER_ERRORS.unavailable)
       return sendBody(reply, loaded.value)
     },

@@ -1,9 +1,28 @@
 'use client'
 
 import type { Messages } from '@havayolu/i18n'
-import { airportDisplayName, type Locale } from '@havayolu/shared'
+import type { Locale } from '@havayolu/shared'
+import dynamic from 'next/dynamic'
 import { useEffect, useId, useRef, useState } from 'react'
 import type { MapAirport } from '../airport-data'
+import { AirportListPanelUnavailable, withChunkFallback } from '../chunk-fallback'
+
+/**
+ * Panelin modülü (ad tablolarıyla); harita hazır olunca boşta, düğmenin üstüne gelince, odakta ya
+ * da ilk açılışta yüklenir. Yüklenemezse yedek panel (`chunk-fallback.tsx`): not ve "Sayfayı
+ * yenile"; ret yakalandığı için önceden isteme işlenmemiş ret bırakmaz.
+ */
+const loadPanel = withChunkFallback(
+  () => import('./airport-list-panel').then((module) => module.AirportListPanel),
+  AirportListPanelUnavailable,
+  'Airport list panel',
+)
+const AirportListPanel = dynamic(() => loadPanel(), { loading: () => null })
+
+/** Panelin parçasını önceden ister (canlı harita hazır olunca boşta; D-101). */
+export function preloadAirportListPanel(): void {
+  void loadPanel()
+}
 
 export interface AirportListControlProps {
   /** Görünümdeki havalimanları, ortaya yakın önce (`airportsInView`). */
@@ -19,6 +38,10 @@ export interface AirportListControlProps {
  * Haritadaki pin ve kodlar tuvalde çizildiği için odak alamaz; bu liste pencerenin klavye ve ekran
  * okuyucu yoludur (WCAG 2.1.1, D-078). Liste Escape'le ve dışına tıklanınca kapanır; Escape'i
  * kendisi tüketir (açık havalimanı penceresi kapanmaz).
+ *
+ * Düğme sunucuda çizilir; panel (havalimanı adlarıyla) ayrı parçadadır (D-101): 4. halkanın ad
+ * tabloları haritanın ilk paketine girmez. Parça harita hazır olunca boşta önceden istenir
+ * (`preloadAirportListPanel`, live-map.tsx); düğmenin üstüne gelmek ya da odaklanmak da ister.
  */
 export function AirportListControl({
   airports,
@@ -63,6 +86,8 @@ export function AirportListControl({
         aria-expanded={open}
         aria-controls={open ? panelId : undefined}
         onClick={() => setOpen((value) => !value)}
+        onPointerEnter={preloadAirportListPanel}
+        onFocus={preloadAirportListPanel}
       >
         <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" focusable="false">
           <path d="M12 21.5s-6.5-6.4-6.5-11.5a6.5 6.5 0 0 1 13 0c0 5.1-6.5 11.5-6.5 11.5z" />
@@ -71,41 +96,20 @@ export function AirportListControl({
         {messages.button}
       </button>
       {open ? (
-        <div
+        <AirportListPanel
           id={panelId}
-          className="map-panel map-labels__panel map-airports__panel"
-          role="group"
-          aria-labelledby={titleId}
-        >
-          <p id={titleId} className="map-labels__title">
-            {messages.title}
-          </p>
-          {airports.length === 0 ? (
-            <p className="map-labels__hint">{messages.empty}</p>
-          ) : (
-            <ul className="map-airports__list">
-              {airports.map((airport) => (
-                <li key={airport.icao}>
-                  <button
-                    type="button"
-                    className="map-airports__item"
-                    onClick={() => {
-                      // Öğe liste kapanınca DOM'dan kalkar; odak önce açan düğmeye alınır. Pencere
-                      // onu açan denetim olarak saklar ve kapanınca odağı ona verir (body'ye değil).
-                      buttonRef.current?.focus({ preventScroll: true })
-                      setOpen(false)
-                      onSelect(airport.icao)
-                    }}
-                  >
-                    <span className="map-airports__code">{airport.iata}</span>{' '}
-                    <span>{airportDisplayName(airport, locale)}</span>
-                  </button>
-                </li>
-              ))}
-            </ul>
-          )}
-          <p className="map-labels__hint">{messages.hint}</p>
-        </div>
+          titleId={titleId}
+          airports={airports}
+          locale={locale}
+          messages={messages}
+          onPick={(icao) => {
+            // Öğe liste kapanınca DOM'dan kalkar; odak önce açan düğmeye alınır. Pencere onu açan
+            // denetim olarak saklar ve kapanınca odağı ona verir (body'ye değil).
+            buttonRef.current?.focus({ preventScroll: true })
+            setOpen(false)
+            onSelect(icao)
+          }}
+        />
       ) : null}
     </div>
   )

@@ -417,6 +417,10 @@ describe('GET /v1/weather?scope=listed (D-080)', () => {
    * ~2,9 KB'tı: 503 istasyonda ~1,44 MB, TAF yayım saatlerinde (yürürlükte iki TAF) ~2,35 MB.
    * Buradaki rapor ağırdır (RVR, rüzgâr kesmesi, eğilim; çok dönemli TAF): gerçek veriden büyük.
    */
+  /** Tam biçimde ağır raporlarla istasyon başına bütçeler (D-101). */
+  const HEAVY_FULL_BYTES_PER_STATION = 7_000
+  const HEAVY_ONE_TAF_BYTES_PER_STATION = 4_600
+
   const heavyListed = (count: number, tafs: readonly TafRecord[]) => {
     const icaos = Array.from(
       { length: count },
@@ -443,7 +447,7 @@ describe('GET /v1/weather?scope=listed (D-080)', () => {
     return weather
   }
 
-  it('503 havalimanı (1.–3. halka), METAR ve üç geçerli TAF: eski TAF düşer, gövde 4 MB altında', async () => {
+  it('503 havalimanı (1.–3. halka), METAR ve üç geçerli TAF: eski TAF düşer, istasyon başına ≤ 7 KB', async () => {
     // Her istasyonda TAF yayım saatlerindeki durum: yürürlükteki TAF, henüz başlamamış yenisi ve
     // yerini ikisine bırakmış eskisi. Eskisi yanıta girmez.
     const weather = heavyListed(503, [ltfmTaf, ltfmNextTaf, ltfmOldTaf])
@@ -459,20 +463,21 @@ describe('GET /v1/weather?scope=listed (D-080)', () => {
           '2026-01-15T12:40:00.000Z,2026-01-15T10:40:00.000Z',
       ),
     ).toBe(true)
-    // En kötü durum (her istasyonda ağır METAR ve yürürlükte iki ağır TAF) ~3,4 MB; eski TAF da
-    // girseydi ~4,1 MB olurdu (bütçeyi aşardı).
-    expect(Buffer.byteLength(res.body)).toBeLessThan(4_000_000)
+    // En kötü durum (her istasyonda ağır METAR ve yürürlükte iki ağır TAF) istasyon başına ~6,8 KB
+    // (503 istasyonda ~3,4 MB); eski TAF da girseydi ~8,2 KB olurdu. Bütçe istasyon başınadır
+    // (D-101): 4. halkada (1.222 istasyon) web ham biçimi ister (weather-raw.test.ts).
+    expect(Buffer.byteLength(res.body) / 503).toBeLessThanOrEqual(HEAVY_FULL_BYTES_PER_STATION)
     expect(weather.latest).toHaveBeenCalledTimes(1)
   })
 
-  it('503 havalimanı, METAR ve yürürlükte tek TAF (olağan durum): gövde 2,6 MB altında', async () => {
+  it('503 havalimanı, METAR ve yürürlükte tek TAF (olağan durum): istasyon başına ≤ 4,6 KB', async () => {
     const { get } = await setup(heavyListed(503, [ltfmTaf, ltfmOldTaf]))
     const res = await get('/v1/weather?scope=listed')
     const body = res.json() as WeatherBulkResponse
     expect(body.stations).toHaveLength(503)
     expect(body.stations.every((s) => s.tafs.length === 1)).toBe(true)
-    // ~2,2 MB (ağır METAR ve TAF ile; üretim verisiyle ~1,44 MB).
-    expect(Buffer.byteLength(res.body)).toBeLessThan(2_600_000)
+    // İstasyon başına ~4,4 KB (ağır METAR ve TAF ile; üretim verisiyle ~2,9 KB).
+    expect(Buffer.byteLength(res.body) / 503).toBeLessThanOrEqual(HEAVY_ONE_TAF_BYTES_PER_STATION)
   })
 
   it("yürürlükteki TAF: toplu yanıt ve tek havalimanı aynı TAF'ları verir; kayıtta hepsi kalır", async () => {
@@ -886,7 +891,12 @@ describe('OpenAPI', () => {
             parameters?: { name: string; in: string }[]
             responses?: Record<
               string,
-              { content?: Record<string, { schema?: { properties?: object } }> }
+              {
+                content?: Record<
+                  string,
+                  { schema?: { properties?: object; anyOf?: { properties?: object }[] } }
+                >
+              }
             >
           }
         >
@@ -907,15 +917,21 @@ describe('OpenAPI', () => {
       const get = spec.paths[path]?.get
       expect(get?.tags, path).toEqual(['weather'])
       const schema = get?.responses?.['200']?.content?.['application/json']?.schema
-      expect(Object.keys(schema?.properties ?? {}).sort(), path).toEqual(
-        expect.arrayContaining((expectedKeys[i] ?? []).sort()),
-      )
+      // Toplu yanıt iki biçimden biridir (full ya da raw, D-101): ikisi de aynı zarfı taşır.
+      const variants = schema?.anyOf ?? [schema]
+      expect(variants, path).toHaveLength(path === '/v1/weather' ? 2 : 1)
+      for (const variant of variants) {
+        expect(Object.keys(variant?.properties ?? {}).sort(), path).toEqual(
+          expect.arrayContaining((expectedKeys[i] ?? []).sort()),
+        )
+      }
     }
     expect(
       spec.paths['/v1/airports/{code}/weather/history']?.get?.parameters?.map((p) => p.name).sort(),
     ).toEqual(['code', 'hours'])
     expect(spec.paths['/v1/weather']?.get?.parameters?.map((p) => p.name).sort()).toEqual([
       'country',
+      'format',
       'scope',
     ])
   })
@@ -991,7 +1007,7 @@ describe('OpenAPI gidiş-dönüş', () => {
     })
   })
 
-  it('üç ucun fixture yanıtları (168 saatlik kayıt dahil) /openapi.json şemalarıyla doğrulanır', async () => {
+  it('üç ucun fixture yanıtları (ham toplu biçim ve 168 saatlik kayıt dahil) /openapi.json şemalarıyla doğrulanır', async () => {
     const records = fixtureRecords()
     const week = weekOfRecordsForSpec()
     const icaos = [...new Set(records.metars.map((m) => m.stationIcao))]
@@ -1021,6 +1037,8 @@ describe('OpenAPI gidiş-dönüş', () => {
     const cases: [string, string][] = [
       ['/v1/weather', '/v1/weather?country=TR'],
       ['/v1/weather', '/v1/weather?scope=listed'],
+      ['/v1/weather', '/v1/weather?scope=listed&format=raw'],
+      ['/v1/weather', '/v1/weather?country=TR&format=raw'],
       ...icaos.map((icao): [string, string] => [
         '/v1/airports/{code}/weather',
         `/v1/airports/${icao}/weather`,
