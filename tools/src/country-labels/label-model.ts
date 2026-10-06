@@ -79,11 +79,14 @@ export const BASELINE_FROM_LINE_TOP =
  * Adlarda geçen harflerin ölçüleri, yazı tipi birimi: [ilerleme, xMin, yMin, xMax, yMax]
  * (@fontsource/overpass 5.3.0, Overpass 600; latin dosyası, Ğ İ Ş latin-ext dosyası; MapLibre de
  * harfi ilk kapsayan dosyadan alır). label-model.test.ts değerleri WOFF dosyalarından yeniden okur.
+ * Í'nin vurgusu ilerlemesinin 117 birim dışına taşar; mürekkep kutusu her harfi kendi yerinde sayar.
  */
 export const OVERPASS_600_GLYPHS: Readonly<
   Record<string, readonly [advance: number, xMin: number, yMin: number, xMax: number, yMax: number]>
 > = {
   ' ': [490, 0, 0, 0, 0],
+  '(': [725, 150, -260, 636, 1424],
+  ')': [725, 90, -260, 576, 1424],
   '-': [819, 160, 486, 660, 701],
   A: [1408, 74, 0, 1334, 1400],
   B: [1358, 176, 0, 1240, 1400],
@@ -111,12 +114,18 @@ export const OVERPASS_600_GLYPHS: Readonly<
   X: [1306, 82, 0, 1224, 1400],
   Y: [1339, 55, 0, 1284, 1400],
   Z: [1286, 106, 0, 1166, 1400],
+  Ã: [1408, 74, 0, 1334, 1823],
+  Å: [1408, 74, 0, 1334, 1740],
   Ç: [1283, 120, -483, 1191, 1424],
+  É: [1232, 176, 0, 1126, 1842],
+  Í: [583, 126, 0, 700, 1842],
+  Ô: [1450, 120, -24, 1330, 1842],
   Ö: [1450, 120, -24, 1330, 1816],
   Ü: [1408, 166, -24, 1242, 1816],
   Ğ: [1367, 120, -24, 1233, 1862],
   İ: [583, 163, 0, 433, 1817],
   Ş: [1217, 96, -483, 1103, 1424],
+  '’': [482, 91, 863, 407, 1424],
 }
 
 function glyph(char: string) {
@@ -207,9 +216,12 @@ export function visibleBoxPx(ink: GlyphBox, sizePx: number): GlyphBox {
  *   (`COUNTRY_BORDER_CASING_WIDTH`), üstüne 1 px boşluk.
  * - `SAFETY_KM` (km, yakınlaştırmayla büyür): Douglas–Peucker toleransı + fixture yuvarlaması +
  *   world-atlas nicelemesi + Natural Earth ile OSM arasındaki fark için en az 1 km.
+ * - `FAR_SAFETY_KM`: Türkiye'den uzak ülkelerin km payı (D-100): toleransları 1 km'dir
+ *   (`farSimplifyKm`), bileşenler aynı (toplam 2,3).
  */
 export const SAFETY_PX = 3
 export const SAFETY_KM = 2
+export const FAR_SAFETY_KM = 2.5
 /** Payın bileşenleri (testte toplamın payı aşmadığı denetlenir). */
 export const SAFETY_BUDGET = {
   /** Sınırın koyu kenarından sonra kalan boşluk, px. */
@@ -222,10 +234,10 @@ export const SAFETY_BUDGET = {
   naturalEarthVsOsmKm: 1,
 } as const
 
-/** Payın km bileşenlerinin toplamı (≤ `SAFETY_KM`). */
-export function safetyBudgetKm(): number {
+/** Payın km bileşenlerinin toplamı (≤ `SAFETY_KM`; uzak ülkelerde `farSimplifyKm` ile ≤ `FAR_SAFETY_KM`). */
+export function safetyBudgetKm(simplifyKm: number = NATURAL_EARTH_PARAMS.simplifyKm): number {
   return (
-    NATURAL_EARTH_PARAMS.simplifyKm +
+    simplifyKm +
     SAFETY_BUDGET.fixtureQuantumKm +
     SAFETY_BUDGET.sourceQuantumKm +
     SAFETY_BUDGET.naturalEarthVsOsmKm
@@ -269,12 +281,14 @@ export class LabelFitter {
    * @param lines adın satırları
    * @param tier ad boyu kademesi (eğri ve ilk yakınlaştırma)
    * @param layout geniş ya da dar harita
+   * @param safetyKm km payı (`SAFETY_KM`; Türkiye'den uzak ülkede `FAR_SAFETY_KM`)
    */
   constructor(
     readonly shape: ProjectedShape,
     readonly lines: readonly string[],
     readonly tier: CountryLabelTier,
     readonly layout: LabelLayout,
+    readonly safetyKm: number = SAFETY_KM,
   ) {
     this.zooms = countryLabelFitZooms(tier)
     this.ink = labelInkBox(lines)
@@ -314,7 +328,7 @@ export class LabelFitter {
   ): boolean {
     const x = mercatorX(lon)
     const y = mercatorY(lat)
-    const km = SAFETY_KM * unitsPerKm(lat)
+    const km = this.safetyKm * unitsPerKm(lat)
     return this.shape.containsRect(
       x + box.left / scale - km,
       y + box.top / scale - km,
@@ -393,8 +407,9 @@ interface LineBreak {
 }
 
 /**
- * MapLibre'nin satır kırması (`tagged_string.ts` `determineLineBreaks`): boşluk, kısa çizgi ve satır
- * sonundan; satır sonu −10.000 cezayla her zaman kırar. Satırlar kırpılır (`shapeLines`).
+ * MapLibre'nin satır kırması (`tagged_string.ts` `determineLineBreaks`): boşluk, kısa çizgi, sağ
+ * parantez, & ve satır sonundan (MapLibre'nin kırılabilir harflerinden adlarda geçebilenler); satır
+ * sonu −10.000 cezayla her zaman kırar. Satırlar kırpılır (`shapeLines`).
  */
 export function maplibreLineBreaks(text: string, maxWidthEm: number): string[] {
   const chars = [...text]
@@ -420,7 +435,7 @@ export function maplibreLineBreaks(text: string, maxWidthEm: number): string[] {
     }
     return best
   }
-  const breakable = new Set(['\n', ' ', '-'])
+  const breakable = new Set(['\n', ' ', '-', ')', '&'])
   const candidates: LineBreak[] = []
   let x = 0
   for (const [i, char] of chars.entries()) {

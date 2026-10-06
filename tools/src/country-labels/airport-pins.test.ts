@@ -34,9 +34,10 @@ import {
   readOurAirportsFixture,
   worldBoxAt,
   worldBoxesOverlap,
+  type AirportPin,
   type WorldBox,
 } from './airport-pins'
-import { mercatorX, mercatorY } from './geometry'
+import { mercatorX, mercatorY, WORLD_SIZE } from './geometry'
 
 const PINS = listedAirportPins(readOurAirportsFixture())
 const MAP_PINS = mapAirportPins(readOurAirportsFixture())
@@ -242,4 +243,35 @@ describe('dizinli arama (D-099)', () => {
     const touching: WorldBox = [pin[2], pin[1], pin[2] + 0.01, pin[3]]
     expect(obstacles.hitIcaos(touching, 4)).not.toContain('LTFM')
   })
+
+  it('180. meridyen (D-100): kutu dünyanın komşu kopyasındaki havalimanını da görür', () => {
+    const pins: AirportPin[] = [
+      { icao: 'EAST', iata: 'EST', ring: 4, lat: 65, lon: 179.9 },
+      { icao: 'WEST', iata: 'WST', ring: 4, lat: 65, lon: -179.9 },
+    ]
+    const obstacles = new AirportObstacles(pins)
+    const zoom = 5
+    // 180°'nin doğusunda (sürekli kılınmış ülke, ör. Çukotka 181° D) bir kutu batıdaki −179,9'u,
+    // batısında (ör. ABD'nin Aleutları 181° B) bir kutu 179,9'u görür.
+    const east = worldBoxAt(180.05, 65, { left: -20, top: -20, right: 20, bottom: 20 }, zoom)
+    const west = worldBoxAt(-180.05, 65, { left: -20, top: -20, right: 20, bottom: 20 }, zoom)
+    expect(east[2]).toBeGreaterThan(WORLD_SIZE)
+    expect(obstacles.hitIcaos(east, zoom)).toEqual(['EAST', 'WEST'])
+    expect(obstacles.hitIcaos(west, zoom)).toEqual(['EAST', 'WEST'])
+    expect(obstacles.hits(east, zoom)).toBe(bruteCount(pins, east, zoom))
+  })
 })
+
+/** Komşu kopyalar dahil kaba sayım (yalnız 180. meridyen testi için). */
+function bruteCount(pins: readonly AirportPin[], box: WorldBox, zoom: number): number {
+  let count = 0
+  for (const shift of [0, -WORLD_SIZE, WORLD_SIZE]) {
+    const copy: WorldBox = [box[0] + shift, box[1], box[2] + shift, box[3]]
+    for (const pin of pins) {
+      for (const part of obstacleBoxesPx(zoom)) {
+        if (worldBoxesOverlap(copy, worldBoxAt(pin.lon, pin.lat, part, zoom))) count++
+      }
+    }
+  }
+  return count
+}

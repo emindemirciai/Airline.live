@@ -13,14 +13,12 @@ import {
   airportNameSource,
   airportRing,
   airportRingLimitKm,
-  COUNTRY_CAPITALS,
   countryName,
   ENABLED_AIRPORT_RING,
   FOREIGN_AIRPORT_CITIES,
   FOREIGN_AIRPORT_NAMES,
   foreignAirportCity,
   foreignAirportName,
-  HOLE_COUNTRIES,
   isEnabledAirportRing,
   isCanonicalIcao,
   isForeignCandidate,
@@ -33,6 +31,7 @@ import {
   TURKEY_COUNTRY,
   UNLABELLED_COUNTRIES,
 } from './index'
+import { COUNTRY_LABEL_PLACEMENTS } from '../map/country-label-placements'
 
 // Commit'li OurAirports alt kümesi (tools/fixtures/README.md): Türkiye'nin bütün kayıtları, birkaç
 // uzak havalimanı, 1.–4. halkanın havalimanları (D-080, D-088, D-090, D-101). Alanlar tırnaklı; `""`
@@ -655,41 +654,34 @@ describe('ülke adları', () => {
   })
 })
 
-describe('ülke adlarının başkentleri (D-095)', () => {
-  /** Ülkesi listelenen havalimanları: Türkiye'nin IATA kodluları ve açık halkalardakiler. */
-  const listedAirports = [
-    ...turkishRows.map((r) => ({ icao: icaoOf(r), country: TURKEY_COUNTRY, ...position(r) })),
-    ...listed.map(({ icao, country, lat, lon }) => ({ icao, country, lat, lon })),
-  ]
-  const listedCountries = new Set(listedAirports.map((a) => a.country))
-  /** Başkenti kendi ülkesinin listelenen havalimanına 60 km'den uzak ülkeler (o havalimanı halkada değil). */
-  const FAR_CAPITALS = ['AF', 'BE', 'DZ', 'EE', 'ES', 'FR', 'KZ', 'NL', 'OM', 'SD', 'SE', 'UZ']
+describe('ülke adlarının kapsamı (D-095, D-100)', () => {
+  /** Adı haritada yazılan ülkeler (üretilen tablo). */
+  const labelled = new Set(Object.keys(COUNTRY_LABEL_PLACEMENTS.tr))
+  /** Listelenen havalimanlarının ülkeleri: Türkiye ve açık halkalar. */
+  const listedCountries = new Set([TURKEY_COUNTRY, ...listed.map((c) => c.country)])
 
-  it('kapsam: listelenen havalimanı olan ülkeler ve Türkiye, İsrail ve Filistin hariç, artı Ukrayna', () => {
-    const expected = new Set([...listedCountries, TURKEY_COUNTRY, ...HOLE_COUNTRIES])
-    for (const code of UNLABELLED_COUNTRIES) expected.delete(code)
-    expect(COUNTRY_CAPITALS.map((c) => c.code)).toEqual([...expected].sort())
+  it('listelenen havalimanı olan her ülkenin adı tabloda; İsrail ve Filistin hariç', () => {
     // İsrail'in listelenen havalimanı vardır (Ben Gurion); adı yazılmaz.
     expect(listedCountries.has('IL')).toBe(true)
-  })
-
-  it('boşluk ülkesinin listelenen havalimanı yoktur', () => {
-    for (const code of HOLE_COUNTRIES) expect(listedCountries.has(code), code).toBe(false)
-  })
-
-  it('başkent kendi ülkesinin listelenen bir havalimanına 60 km içinde; uzak olanlar açıkça listeli', () => {
-    const nearest = new Map<string, number>()
-    for (const capital of COUNTRY_CAPITALS) {
-      if (HOLE_COUNTRIES.includes(capital.code)) continue
-      const own = listedAirports.filter((a) => a.country === capital.code)
-      expect(own.length, capital.code).toBeGreaterThan(0)
-      nearest.set(capital.code, Math.min(...own.map((a) => km(capital, a))))
+    for (const code of listedCountries) {
+      expect(labelled.has(code), code).toBe(!UNLABELLED_COUNTRIES.includes(code))
     }
-    const far = [...nearest].filter(([, distance]) => distance > 60).map(([code]) => code)
-    expect(far.sort()).toEqual(FAR_CAPITALS)
-    for (const code of FAR_CAPITALS) expect(nearest.get(code), code).toBeLessThanOrEqual(900)
-    // Tahran Mehrabad'a ve Ankara Etimesgut'a yakındır (e2e ülke adı testi OIII'de açılır).
-    expect(nearest.get('IR')).toBeLessThan(10)
-    expect(nearest.get('TR')).toBeLessThan(20)
+  })
+
+  it('4. halkaya kadar listelenebilecek her havalimanının ülkesi de tabloda (M6i.2 tabloyu değiştirmez)', () => {
+    const countries = new Set(candidates.filter((c) => c.listable).map((c) => c.country))
+    expect(candidates.filter((c) => c.listable && c.ring === 4).length).toBeGreaterThan(500)
+    for (const code of countries) {
+      if (UNLABELLED_COUNTRIES.includes(code)) continue
+      expect(labelled.has(code), code).toBe(true)
+    }
+  })
+
+  it('havalimanı olmayan ülkeler de yazılır (D-100): Ukrayna, Hindistan, Grönland, ABD', () => {
+    for (const code of ['UA', 'IN', 'GL', 'US']) {
+      expect(listedCountries.has(code), code).toBe(false)
+      expect(labelled.has(code), code).toBe(true)
+    }
+    expect(labelled.size).toBe(244)
   })
 })

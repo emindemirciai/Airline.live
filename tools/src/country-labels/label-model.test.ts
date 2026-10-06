@@ -3,8 +3,9 @@ import { dirname, join } from 'node:path'
 import { createRequire } from 'node:module'
 import { inflateSync } from 'node:zlib'
 import {
-  COUNTRY_CAPITALS,
+  COUNTRY_AREA_OVERRIDES_KM2,
   COUNTRY_LABEL_MAX_WIDTH_EM,
+  COUNTRY_LABEL_PLACEMENTS,
   COUNTRY_LABEL_SIZES,
   COUNTRY_LABEL_TIERS,
   countryLabelHalo,
@@ -20,6 +21,7 @@ import { describe, expect, it } from 'vitest'
 import { ProjectedShape, type LonLat } from './geometry'
 import {
   BASELINE_FROM_LINE_TOP,
+  FAR_SAFETY_KM,
   GLYPH_BITMAP_INK_INSET,
   GLYPH_QUAD_RECT_BUFFER,
   INK_LEFT_SHIFT,
@@ -39,6 +41,7 @@ import {
   TINY_SDF_TOP_ADJUSTMENT,
   visibleBoxPx,
 } from './label-model'
+import { NATURAL_EARTH_PARAMS } from './natural-earth'
 
 /** Web'in paketleri (@fontsource/overpass ve maplibre-gl, apps/web'in bağımlılıkları; ağ yok). */
 const webRequire = createRequire(new URL('../../../apps/web/package.json', import.meta.url))
@@ -118,9 +121,16 @@ function readFont(file: string): (char: string) => FontGlyph | undefined {
   }
 }
 
+/** Tablodaki bütün ülkelerin adları (D-100: 244 kod), iki dilde. */
+const CODES = Object.keys(COUNTRY_LABEL_PLACEMENTS.tr)
 const NAMES = (['tr', 'en'] as const).flatMap((locale) =>
-  COUNTRY_CAPITALS.map((capital) => ({ locale, name: countryLabelText(capital.code, locale) })),
+  CODES.map((code) => ({ locale, code, name: countryLabelText(code, locale) })),
 )
+/** Yazılan (en az bir düzende sığan) adlar. */
+const SHOWN = NAMES.filter(({ locale, code }) => {
+  const row = COUNTRY_LABEL_PLACEMENTS[locale][code]
+  return row?.regular !== null || row.compact !== null
+})
 
 describe('Overpass 600 ölçüleri (D-096)', () => {
   it('tablo yazı tipi dosyalarıyla aynı: latin, yoksa latin-ext (MapLibre gibi ilk kapsayan dosya)', () => {
@@ -138,11 +148,15 @@ describe('Overpass 600 ölçüleri (D-096)', () => {
     }
   })
 
-  it('her adın her harfi tabloda; bütün mürekkep ilerlemenin içinde', () => {
+  it('her adın her harfi tabloda; mürekkep ilerlemenin içinde (Í’nin vurgusu dışında)', () => {
     for (const { name } of NAMES) expect(() => lineWidth(name), name).not.toThrow()
+    const used = new Set(NAMES.flatMap(({ name }) => [...name]))
+    expect(Object.keys(OVERPASS_600_GLYPHS).toSorted()).toEqual([...used].toSorted())
     for (const [char, [advance, xMin, , xMax]] of Object.entries(OVERPASS_600_GLYPHS)) {
       expect(xMin, char).toBeGreaterThanOrEqual(0)
-      expect(xMax, char).toBeLessThanOrEqual(advance)
+      // Í (SÃO TOMÉ AND PRÍNCIPE) vurgusu ilerlemenin 117 birim dışına taşar: mürekkep kutusu her
+      // harfi kendi yerinde ölçtüğü için model bunu sayar (son harf olsa bile).
+      expect(xMax, char).toBeLessThanOrEqual(char === 'Í' ? advance + 117 : advance)
     }
   })
 
@@ -281,10 +295,13 @@ describe('yazı boyu ve hale', () => {
 
 describe('güvenlik payı (D-096)', () => {
   it('km payı bütçeyi karşılar: sadeleştirme + yuvarlama + niceleme + en az 1 km Natural Earth/OSM farkı', () => {
-    expect([SAFETY_PX, SAFETY_KM]).toEqual([3, 2])
+    expect([SAFETY_PX, SAFETY_KM, FAR_SAFETY_KM]).toEqual([3, 2, 2.5])
     expect(SAFETY_BUDGET.naturalEarthVsOsmKm).toBeGreaterThanOrEqual(1)
     expect(safetyBudgetKm()).toBeCloseTo(1.8, 9)
     expect(SAFETY_KM).toBeGreaterThanOrEqual(safetyBudgetKm())
+    // Türkiye'den uzak ülkeler 1 km toleransla sadeleşir (D-100): bütçe 2,3, pay 2,5.
+    expect(safetyBudgetKm(NATURAL_EARTH_PARAMS.farSimplifyKm)).toBeCloseTo(2.3, 9)
+    expect(FAR_SAFETY_KM).toBeGreaterThanOrEqual(safetyBudgetKm(NATURAL_EARTH_PARAMS.farSimplifyKm))
   })
 
   it('px payı sınırın koyu kenarının içe taşan yarısını ve 1 px boşluğu karşılar (z3–7)', () => {
@@ -296,12 +313,18 @@ describe('güvenlik payı (D-096)', () => {
 describe('satır kırma', () => {
   it('MapLibre’nin satır kırması (satır sonu cezası, 24 em) her adda tam countryLabelLines’ı verir', () => {
     const multi: string[] = []
-    for (const { locale, name } of NAMES) {
+    const curatedMulti: string[] = []
+    for (const { locale, code, name } of NAMES) {
       const lines = countryLabelLines(name, locale)
       expect(maplibreLineBreaks(lines.join('\n'), COUNTRY_LABEL_MAX_WIDTH_EM), name).toEqual(lines)
       if (lines.length > 1) multi.push(lines.join(' / '))
+      if (lines.length > 1 && Object.hasOwn(COUNTRY_AREA_OVERRIDES_KM2, code)) {
+        curatedMulti.push(lines.join(' / '))
+      }
     }
-    expect(multi.toSorted()).toEqual([
+    // Bütün dünyada 488 addan 141'i çok satırlı (D-100); D-095'in 59 ülkesinde yine sekiz ad.
+    expect(multi).toHaveLength(141)
+    expect(curatedMulti.toSorted()).toEqual([
       'BOSNA / HERSEK',
       'BOSNIA AND / HERZEGOVINA',
       'BİRLEŞİK / ARAP / EMİRLİKLERİ',
@@ -313,11 +336,32 @@ describe('satır kırma', () => {
     ])
   })
 
-  it('her adın toplam genişliği 24 em’in altında: MapLibre ad satırlarına kendi kırmasını eklemez', () => {
-    for (const { locale, name } of NAMES) {
+  it('yazılan her adın toplam genişliği 24 em’in altında (en uzunu AMERİKA BİRLEŞİK DEVLETLERİ, 23,6 em)', () => {
+    let widest = 0
+    for (const { locale, name } of SHOWN) {
       const text = countryLabelLines(name, locale).join(' ')
+      widest = Math.max(widest, lineWidth(text) / ONE_EM)
       expect(lineWidth(text) / ONE_EM, name).toBeLessThan(COUNTRY_LABEL_MAX_WIDTH_EM)
     }
+    expect(widest).toBeCloseTo(lineWidth('AMERİKA BİRLEŞİK DEVLETLERİ') / ONE_EM, 9)
+    // 24 em'i aşan adlar yalnız hiçbir yerde sığmayan küçük topraklarındır (Güney Georgia, Heard,
+    // Britanya Hint Okyanusu Toprakları…); MapLibre onları da yalnız satır sonlarından kırar (üstte).
+    const long = NAMES.filter(
+      ({ locale, name }) =>
+        lineWidth(countryLabelLines(name, locale).join(' ')) / ONE_EM >= COUNTRY_LABEL_MAX_WIDTH_EM,
+    )
+    expect(long.map(({ code }) => code).toSorted()).toEqual([
+      'GS',
+      'GS',
+      'HM',
+      'HM',
+      'IO',
+      'IO',
+      'TF',
+      'VC',
+      'VC',
+    ])
+    for (const label of long) expect(SHOWN, label.name).not.toContain(label)
     // Satır sonu olmasa MapLibre uzun adı dengeli iki satıra bölerdi (eski dar harita davranışı).
     expect(maplibreLineBreaks('SUUDİ ARABİSTAN', 10)).toEqual(['SUUDİ', 'ARABİSTAN'])
     expect(maplibreLineBreaks('SUUDİ ARABİSTAN', 24)).toEqual(['SUUDİ ARABİSTAN'])

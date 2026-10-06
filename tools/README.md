@@ -106,8 +106,8 @@ pnpm --filter @havayolu/tools arrival-fixture --clean    # yalnızca fixture uç
   - LTFM kullanılmaz: replay'in `cruise` senaryosu LTFM 35L'ye sonsuz son yaklaşma uçurur, bunlar yerde örneği olmayan varış sayılır.
   - Önce aynı hex'lerin uçuşları ve iki iz tablosundaki örnekleri silinir (idempotent); günlük iz partition'ları açılır. `--clean` yalnızca siler. e2e (`e2e/tests/admin-coverage.spec.ts`) başta yazar, sonda siler.
 
-## Ülke adlarının sınır içi yerleşimi (`src/country-labels`, D-096, D-099)
-Haritadaki her ülke adının görünür kutusunun ülkenin kara poligonunun içinde kaldığı ve havalimanı pinlerinden ve kodlarından uzak (boş) yeri ve ilk yakınlaştırmayı çevrimdışı hesaplar. İkisi de ağa çıkmaz:
+## Ülke adlarının sınır içi yerleşimi (`src/country-labels`, D-096, D-099, D-100)
+Haritadaki her ülke adının (bütün dünya: Natural Earth'ün ISO 3166-1 kodlu 244 birimi, havalimanı olsun olmasın; İsrail, Filistin ve Antarktika hariç) görünür kutusunun ülkenin kara poligonunun içinde kaldığı ve havalimanı pinlerinden ve kodlarından uzak (boş) yeri, ilk yakınlaştırmayı ve ad boyunun yüzölçümünü çevrimdışı hesaplar. İkisi de ağa çıkmaz:
 
 ```bash
 # Kökte: node_modules/world-atlas'tan sadeleşmiş poligonlar → tools/fixtures/naturalearth/countries.json
@@ -116,9 +116,9 @@ pnpm country-labels:fixture
 pnpm country-labels
 ```
 
-- **Dosyalar:** `geometry.ts` (Web Mercator, Douglas–Peucker, 180. meridyende sürekli kılma, kırpma, "dikdörtgen çokgenin içinde mi"), `natural-earth.ts` (Natural Earth birimleri, fixture), `label-model.ts` (MapLibre 6.11.2'nin yazıyı çizdiği kutunun modeli, güvenlik payı), `airport-pins.ts` (listelenen 503 havalimanı `tools/fixtures/ourairports/airports.csv`'nin 2026-10-01 kopyasından üretimin liste kuralıyla; engeller haritada pini çizilen 498'idir: askerî hava üsleri haritada gösterilmez, D-103; pin ve kodun pin başının sağındaki ve solundaki kutusu), `placement.ts` (boş yer çapa kuralı, başkentte sabit KIBRIS, tablo), `cli.ts` (`airports` alt komutu listenin, askerî üsler dahil, ICAO kodlarını yazar: kullanıcı onu üretimin `scope=listed` listesiyle karşılaştırır, ACTIVATION "Ülke adlarının engelleri").
+- **Dosyalar:** `geometry.ts` (Web Mercator, Douglas–Peucker, 180. meridyende sürekli kılma ve ülkeyi tek dünya kopyasına koyma, küre üzerinde alan, kırpma, "dikdörtgen çokgenin içinde mi"), `natural-earth.ts` (Natural Earth birimleri ve ISO kodları, deniz aşırı parçaların ayrılması, Türkiye'den uzak ülkelerin 1 km sadeleşmesi, yüzölçümleri, fixture; ~1,98 MB), `label-model.ts` (MapLibre 6.11.2'nin yazıyı çizdiği kutunun modeli, güvenlik payı), `airport-pins.ts` (listelenen 503 havalimanı `tools/fixtures/ourairports/airports.csv`'nin 2026-10-01 kopyasından üretimin liste kuralıyla; engeller haritada pini çizilen 498'idir: askerî hava üsleri haritada gösterilmez, D-103; pin ve kodun pin başının sağındaki ve solundaki kutusu), `placement.ts` (kademe: D-095'in 59 ülkesinde `COUNTRY_AREA_OVERRIDES_KM2`, öbürlerinde Natural Earth alanı; boş yer çapa kuralı, başkentte sabit KIBRIS, tablo; ~7 sn), `cli.ts` (`airports` alt komutu listenin, askerî üsler dahil, ICAO kodlarını yazar: kullanıcı onu üretimin `scope=listed` listesiyle karşılaştırır, ACTIVATION "Ülke adlarının engelleri").
 - **Adlar** üreticinin çalıştığı Node'un CLDR'ından gelir ve tabloya yazılır; harita bu adı çizer. Node güncellemesi bir adı değiştirirse shared testi kırılır, `pnpm country-labels` yeniden çalıştırılır.
-- **Testler** commit'li tabloyu fixture'lardan yeniden hesaplar (sürüklenme), her adın kutusunun ilk yakınlaştırmasından z8'e kadar ülkesinin içinde kaldığını ve (TÜRKİYE ile Lefkoşa'daki KIBRIS dışında) kutusuna pin ya da kod girmediğini, adların örtüşmediğini, fixture'ın world-atlas'tan yeniden üretilebildiğini ve model değerlerinin yazı tipi dosyalarıyla aynı olduğunu denetler. e2e beklentileri (`e2e/country-label-expectations.ts`) de burada tablodan doğrulanır.
+- **Testler** commit'li tabloyu fixture'lardan yeniden hesaplar (sürüklenme), her adın kutusunun ilk yakınlaştırmasından z8'e kadar ülkesinin içinde kaldığını ve (TÜRKİYE ile Lefkoşa'daki KIBRIS dışında) kutusuna pin ya da kod girmediğini, adların örtüşmediğini, fixture'ın world-atlas'tan yeniden üretilebildiğini, ülkelerin örtüşmediğini ve 180. meridyende sürekli olduğunu, model değerlerinin yazı tipi dosyalarıyla aynı olduğunu denetler (~20 sn). e2e beklentileri (`e2e/country-label-expectations.ts`) de burada tablodan doğrulanır.
 
 ## Testler
 

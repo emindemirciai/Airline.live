@@ -171,13 +171,14 @@ function lineWidth(text: string): number {
 }
 
 /**
- * Haritada yazılabilecek bütün adlar (yerleşim tablosundaki 59 ülke, iki dil; hiç sığmayanlar da),
- * satırlarıyla.
+ * Yerleşim tablosundaki bütün adlar (244 ülke, iki dil; hiç sığmayanlar da), satırlarıyla; `shown`:
+ * en az bir düzende yazılır.
  */
 const LABELS = (['tr', 'en'] as const).flatMap((locale) =>
   Object.values(COUNTRY_LABEL_PLACEMENTS[locale]).map((row) => ({
     name: row.name,
     lines: countryLabelLines(row.name, locale),
+    shown: row.regular !== null || row.compact !== null,
   })),
 )
 
@@ -197,13 +198,16 @@ describe('ülke adlarının yazı tipi kapsamı ve genişliği (D-095, D-096)', 
     }
   })
 
-  it('MapLibre ad satırlarına kendi kırmasını eklemez: her adın toplam genişliği 24 em’in altında', () => {
-    expect(LABELS).toHaveLength(118)
-    const widths = LABELS.map((label) => [label.name, lineWidth(label.lines.join(' '))] as const)
+  it('MapLibre ad satırlarına kendi kırmasını eklemez: yazılan her adın toplam genişliği 24 em’in altında', () => {
+    expect(LABELS).toHaveLength(488)
+    const shown = LABELS.filter((label) => label.shown)
+    expect(shown).toHaveLength(328)
+    const widths = shown.map((label) => [label.name, lineWidth(label.lines.join(' '))] as const)
     for (const [name, width] of widths) expect(width, name).toBeLessThan(COUNTRY_LABEL_MAX_WIDTH_EM)
     const widest = widths.toSorted((a, b) => b[1] - a[1])[0]
-    expect(widest?.[0]).toBe('BİRLEŞİK ARAP EMİRLİKLERİ')
-    expect(widest?.[1]).toBeCloseTo(21.42, 1)
+    expect(widest?.[0]).toBe('AMERİKA BİRLEŞİK DEVLETLERİ')
+    expect(widest?.[1]).toBeCloseTo(23.65, 1)
+    expect(lineWidth('BİRLEŞİK ARAP EMİRLİKLERİ')).toBeCloseTo(21.42, 1)
     // tools/src/country-labels/label-model.test.ts aynı genişlikleri kendi tablosundan hesaplar.
     expect(lineWidth('TÜRKİYE')).toBeCloseTo(6.17, 1)
     expect(lineWidth('SUUDİ ARABİSTAN')).toBeCloseTo(13.42, 1)

@@ -190,6 +190,99 @@ export function shiftRingWest(ring: Ring, west: number): LonLat[] {
   return ring.map(([lon, lat]) => [lon - turns * 360, lat] as const)
 }
 
+/** Halkanın boylam aralığı: [en batı, en doğu]. */
+function lonSpan(ring: Ring): [west: number, east: number] {
+  let west = Infinity
+  let east = -Infinity
+  for (const [lon] of ring) {
+    west = Math.min(west, lon)
+    east = Math.max(east, lon)
+  }
+  return [west, east]
+}
+
+const shiftPolygon = (polygon: Polygon, degrees: number): LonLat[][] =>
+  polygon.map((ring) => ring.map(([lon, lat]) => [lon + degrees, lat] as const))
+
+/**
+ * Bir ülkenin çokgenlerini dünyanın tek ve sürekli bir kopyasına koyar (D-100). Halkalar önceden
+ * sürekli kılınmıştır (`unwrapLongitudes`); burada her çokgen 360°'nin katı kadar kaydırılır:
+ * 1. Dış halkanın en batısı [−180, 180) aralığına, delikler dış halkanın batı ucundan başlayan
+ *    360°'ye düşer.
+ * 2. Çokgenlerin boylam aralıkları çember üzerinde birleştirilir; aralarındaki en geniş boşluğun
+ *    doğu ucu ülkenin başlangıcıdır ve her çokgen oradan başlayan 360°'ye kaydırılır: ülke 180.
+ *    meridyende bölünmez (ABD'nin 172–180° D'daki Aleut adaları Alaska'nın batısına, 188° B'ya;
+ *    Rusya'nın Big Diomede'si Çukotka'nın doğusuna, 191° D'ya gelir).
+ * 3. Ülkenin boylam aralığının ortası 180°'nin doğusundaysa hepsi 360° batıya kayar: ABD 188–66° B,
+ *    Kiribati 191–150° B; Rusya 19–191° D, Fiji 177–182° D, Yeni Zelanda 166–184° D kalır.
+ * 180. meridyeni geçmeyen bir ülkede hiçbir şey kaymaz.
+ */
+export function placeOnOneWorldCopy(polygons: readonly Polygon[]): Polygon[] {
+  const normalised: Polygon[] = []
+  for (const [outer, ...holes] of polygons) {
+    if (!outer || outer.length === 0) continue
+    const shifted = shiftRingWest(outer, -180)
+    const [west] = lonSpan(shifted)
+    normalised.push([shifted, ...holes.map((hole) => shiftRingWest(hole, west))])
+  }
+  if (normalised.length === 0) return []
+  const spans = normalised
+    .map((polygon) => lonSpan(polygon[0] as Ring))
+    .sort((a, b) => a[0] - b[0] || a[1] - b[1])
+  const first = spans[0] as [number, number]
+  let start = first[0]
+  let coveredEast = first[1]
+  let widestGap = -Infinity
+  for (const [west, east] of spans.slice(1)) {
+    if (west > coveredEast && west - coveredEast > widestGap) {
+      widestGap = west - coveredEast
+      start = west
+    }
+    coveredEast = Math.max(coveredEast, east)
+  }
+  const wrapGap = first[0] + 360 - coveredEast
+  if (wrapGap >= widestGap) {
+    widestGap = wrapGap
+    start = first[0]
+  }
+  const placed = normalised.map((polygon) => {
+    const [west] = lonSpan(polygon[0] as Ring)
+    const turns = Math.floor((west - start) / 360)
+    return turns === 0 ? polygon : shiftPolygon(polygon, -turns * 360)
+  })
+  const middle = start + (360 - Math.max(0, widestGap)) / 2
+  return middle >= 180 ? placed.map((polygon) => shiftPolygon(polygon, -360)) : placed
+}
+
+/** WGS84 eşalan (authalic) küresinin yarıçapı, km. */
+export const AUTHALIC_RADIUS_KM = 6371.0072
+
+/**
+ * Halkanın küre üzerindeki alanı, km², işaretsiz (Chamberlain ve Duquette 2007: yarıçap² / 2 ×
+ * Σ Δboylam × (2 + sin enlem₁ + sin enlem₂)). Boylamlar sürekli olmalıdır (180. meridyende
+ * sıçramasız).
+ */
+export function ringGeodesicAreaKm2(ring: Ring): number {
+  let sum = 0
+  for (let i = 0; i < ring.length; i++) {
+    const [lon1, lat1] = ring[i] as LonLat
+    const [lon2, lat2] = ring[(i + 1) % ring.length] as LonLat
+    sum += toRad(lon2 - lon1) * (2 + Math.sin(toRad(lat1)) + Math.sin(toRad(lat2)))
+  }
+  return (Math.abs(sum) * AUTHALIC_RADIUS_KM * AUTHALIC_RADIUS_KM) / 2
+}
+
+/** Çokgenlerin küre üzerindeki alanı, km²: dış halkalar eksi delikler. */
+export function geodesicAreaKm2(polygons: readonly Polygon[]): number {
+  let total = 0
+  for (const [outer, ...holes] of polygons) {
+    if (!outer) continue
+    total += ringGeodesicAreaKm2(outer)
+    for (const hole of holes) total -= ringGeodesicAreaKm2(hole)
+  }
+  return total
+}
+
 /** Boylam/enlem dikdörtgeni: [batı, güney, doğu, kuzey]. */
 export type LonLatBox = readonly [west: number, south: number, east: number, north: number]
 

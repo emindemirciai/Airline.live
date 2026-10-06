@@ -1,13 +1,32 @@
-import { COUNTRY_CAPITALS, UNLABELLED_COUNTRIES } from '@havayolu/shared'
+import { distanceKm } from '@havayolu/geo'
+import {
+  COUNTRY_LABEL_CAPITAL_ANCHORS,
+  UNLABELLED_COUNTRIES,
+  countryName,
+  type Locale,
+} from '@havayolu/shared'
 import { beforeAll, describe, expect, it } from 'vitest'
-import { mercatorX, mercatorY, ProjectedShape, ringAreaKm2, ringContains } from './geometry'
+import {
+  geodesicAreaKm2,
+  mercatorX,
+  mercatorY,
+  ProjectedShape,
+  ringAreaKm2,
+  type Polygon,
+} from './geometry'
 import { SAFETY_BUDGET } from './label-model'
 import {
   buildFixture,
+  countryParts,
   countryPolygons,
   decodeFixture,
+  FAR_REFERENCE,
+  fixtureTolerance,
+  NATURAL_EARTH_CODES,
   NATURAL_EARTH_PARAMS,
+  NATURAL_EARTH_PART_SPLITS,
   NATURAL_EARTH_SOURCE,
+  NATURAL_EARTH_UNASSIGNED,
   NATURAL_EARTH_UNITS,
   readFixture,
   readWorldAtlas,
@@ -18,11 +37,13 @@ import {
 
 let topology: WorldAtlasTopology
 let fixture: NaturalEarthFixture
+let raw: Record<string, Polygon[]>
 
 beforeAll(() => {
   topology = readWorldAtlas()
   fixture = readFixture()
-})
+  raw = countryParts(topology, 0)
+}, 60_000)
 
 const shapes = () => {
   const decoded = decodeFixture(fixture)
@@ -34,37 +55,54 @@ const shapes = () => {
 const containsPoint = (shape: ProjectedShape, lon: number, lat: number) =>
   shape.contains(mercatorX(lon), mercatorY(lat))
 
-describe('Natural Earth fixture (D-096)', { timeout: 60_000 }, () => {
+describe('Natural Earth fixture (D-096, D-100)', { timeout: 120_000 }, () => {
   it('commit’li fixture, node_modules’taki world-atlas 2.0.2’den yeniden üretilenle aynı (ağ yok)', () => {
     expect(fixture.source).toEqual(NATURAL_EARTH_SOURCE)
     expect(fixture.source).toMatchObject({ version: '4.1.0', file: 'countries-10m.json' })
     expect(fixture.params).toEqual({
       simplifyKm: 0.5,
+      farSimplifyKm: 1,
+      farFromKm: 5000,
       quantumDeg: 0.001,
-      roi: [-20, 8, 90, 72],
+      roi: [-200, -60, 200, 84],
       minPartKm2: 100,
     })
     expect(buildFixture(topology)).toEqual(fixture)
-  }, 60_000)
-
-  it('59 ülke, başkentlerin kodları; İsrail ve Filistin yok', () => {
-    const codes = Object.keys(fixture.countries)
-    expect(codes).toEqual(COUNTRY_CAPITALS.map((capital) => capital.code))
-    expect(Object.keys(NATURAL_EARTH_UNITS)).toEqual(codes)
-    for (const code of UNLABELLED_COUNTRIES) expect(codes).not.toContain(code)
   })
 
-  it('birim tablosu: her birim tam bir Natural Earth geometrisi; hiçbir geometri iki kez kullanılmaz', () => {
-    const used = new Map<object, string>()
-    for (const [code, units] of Object.entries(NATURAL_EARTH_UNITS)) {
-      for (const unit of units) {
-        const matches = topology.objects.countries.geometries.filter((g) => unitMatches(unit, g))
-        expect(matches, `${code} ${unit}`).toHaveLength(1)
-        const geometry = matches[0] as object
-        expect(used.get(geometry), `${code} ${unit}`).toBeUndefined()
-        used.set(geometry, code)
+  it('244 kod: ISO 3166-1 kodlu her birim ve bölünen deniz aşırı parçalar; İsrail, Filistin ve Antarktika yok', () => {
+    const codes = Object.keys(fixture.countries)
+    expect(codes).toHaveLength(244)
+    expect(codes).toEqual(NATURAL_EARTH_CODES)
+    expect(Object.keys(fixture.areasKm2)).toEqual(codes)
+    for (const code of [...UNLABELLED_COUNTRIES, 'AQ']) expect(codes).not.toContain(code)
+    for (const code of ['XK', 'EH', 'TW', 'GL', 'PR', 'NC', 'FO', 'GF', 'SJ', 'BQ', 'SS']) {
+      expect(codes, code).toContain(code)
+    }
+  })
+
+  it('her kodun adı Intl’de iki dilde var (kodun kendisi değil)', () => {
+    for (const code of NATURAL_EARTH_CODES) {
+      for (const locale of ['tr', 'en'] as Locale[]) {
+        expect(countryName(code, locale), `${code} ${locale}`).not.toBe(code)
       }
     }
+  })
+
+  it('birim tablosu: her birim tam bir geometri; her geometri bir koda ya da gerekçeli olarak hiçbir koda', () => {
+    const used = new Map<object, string>()
+    const assign = (code: string, unit: string) => {
+      const matches = topology.objects.countries.geometries.filter((g) => unitMatches(unit, g))
+      expect(matches, `${code} ${unit}`).toHaveLength(1)
+      const geometry = matches[0] as object
+      expect(used.get(geometry), `${code} ${unit}`).toBeUndefined()
+      used.set(geometry, code)
+    }
+    for (const [code, units] of Object.entries(NATURAL_EARTH_UNITS)) {
+      for (const unit of units) assign(code, unit)
+    }
+    for (const unit of Object.keys(NATURAL_EARTH_UNASSIGNED)) assign('-', unit)
+    expect(used.size).toBe(topology.objects.countries.geometries.length)
     expect(NATURAL_EARTH_UNITS.CY).toEqual([
       '196',
       'N. Cyprus',
@@ -73,17 +111,53 @@ describe('Natural Earth fixture (D-096)', { timeout: 60_000 }, () => {
       'Dhekelia',
     ])
     expect(NATURAL_EARTH_UNITS.KZ).toEqual(['398', 'Baikonur'])
+    expect(NATURAL_EARTH_UNITS.CU).toEqual(['192', 'USNB Guantanamo Bay'])
+    expect(NATURAL_EARTH_UNITS.SO).toEqual(['706', 'Somaliland'])
     expect(NATURAL_EARTH_UNITS.XK).toEqual(['Kosovo'])
     expect(NATURAL_EARTH_UNITS.RS).toEqual(['688'])
+    expect(NATURAL_EARTH_UNITS.AU).toEqual(['Australia', 'Ashmore and Cartier Is.'])
+    expect(Object.keys(NATURAL_EARTH_UNASSIGNED)).toEqual(
+      expect.arrayContaining(['010', '275', '376']),
+    )
   })
 
-  it('her başkent kendi ülkesinin poligonunda; Kıbrıs tek ada; Sırbistan Kosova’sız', () => {
-    const byCode = shapes()
-    for (const capital of COUNTRY_CAPITALS) {
-      const shape = byCode.get(capital.code)
-      if (!shape) throw new Error(capital.code)
-      expect(containsPoint(shape, capital.lon, capital.lat), capital.code).toBe(true)
+  it('kod, sayısal ISO kodunun CLDR’daki alpha-2 karşılığı (kimliksiz birimler adıyla)', () => {
+    for (const [code, units] of Object.entries(NATURAL_EARTH_UNITS)) {
+      const numeric = units.filter((unit) => /^\d{3}$/.test(unit))
+      for (const unit of numeric) {
+        expect(new Intl.Locale(`und-${unit}`).region, `${code} ${unit}`).toBe(code)
+      }
+      if (numeric.length === 0) expect(['AU', 'XK'], code).toContain(code)
     }
+  })
+
+  it('bölünen parçalar: Fransa, Norveç ve Hollanda Avrupa’da; deniz aşırı bölgeler kendi kodlarında', () => {
+    const byCode = shapes()
+    const inside = (code: string, lon: number, lat: number) =>
+      containsPoint(byCode.get(code) as ProjectedShape, lon, lat)
+    const box = (code: string) => (byCode.get(code) as ProjectedShape).bbox
+    for (const [parent, children] of Object.entries(NATURAL_EARTH_PART_SPLITS)) {
+      for (const child of Object.keys(children)) {
+        expect(fixture.countries[child]?.length, `${parent} ${child}`).toBeGreaterThan(0)
+      }
+    }
+    // Avrupa'daki topraklar: FR 5° B–10° D, NL 3–8° D, NO Svalbard'sız (en kuzeyi 71,2° K).
+    const [frWest, , frEast] = box('FR')
+    expect([frWest > mercatorX(-6), frEast < mercatorX(10)]).toEqual([true, true])
+    expect(box('NO')[1]).toBeGreaterThan(mercatorY(71.5))
+    expect(box('NL')[0]).toBeGreaterThan(mercatorX(3))
+    expect(inside('GF', -52.5, 4.5)).toBe(true)
+    expect(inside('SJ', 15.63, 78.22)).toBe(true)
+    expect(inside('NO', 15.63, 78.22)).toBe(false)
+    expect(inside('RE', 55.5, -21.1)).toBe(true)
+    expect(inside('FR', 2.35, 48.86)).toBe(true)
+  })
+
+  it('Lefkoşa KIBRIS’ta; Kıbrıs tek ada; Sırbistan Kosova’sız; Kırım Natural Earth’teki gibi Rusya’da', () => {
+    const byCode = shapes()
+    const lefkosa = COUNTRY_LABEL_CAPITAL_ANCHORS.CY
+    if (!lefkosa) throw new Error('CY')
+    expect(containsPoint(byCode.get('CY') as ProjectedShape, lefkosa.lon, lefkosa.lat)).toBe(true)
     expect(fixture.countries.CY).toHaveLength(1)
     const pristina = { lon: 21.17, lat: 42.66 }
     expect(containsPoint(byCode.get('RS') as ProjectedShape, pristina.lon, pristina.lat)).toBe(
@@ -100,46 +174,67 @@ describe('Natural Earth fixture (D-096)', { timeout: 60_000 }, () => {
     )
   })
 
-  it('180. meridyen: hiçbir kenar 20° boylamdan uzun değil; Rusya İskandinavya’yı ve denizi içermez', () => {
-    // world-atlas'ın küresel halkaları 180. meridyende −180'den 180'e sıçrar; sürekli kılınmasa
-    // Rusya'nın halkası 90° D'da kırpılınca 20° B'ya uzanan bir şerit (65–69° K) ve Wrangel'den bir
-    // dilim (71° K) bırakırdı. En uzun kenarlar Mısır–Sudan sınırı (22° K, 6,3°) ve Rusya'nın 72° K
-    // kırpması (7,5°) kadardır.
-    let longest = 0
+  it('180. meridyen: ülkeler tek dünya kopyasında sürekli; en uzun kenar ABD–Kanada sınırı (49° K)', () => {
+    // world-atlas yayları 180. meridyende −180'den 180'e sıçrar; sürekli kılınmasa Rusya'nın halkası
+    // bütün haritayı kesen kenarlar bırakırdı. Yaylar dikilmeden önce world-atlas'ın aralığına dönmese
+    // Uzak Doğu Çukotka'dan Kore sınırına uzanan tek bir kenarla kapanırdı (49° boylam).
+    const edges: [number, string][] = []
+    const spans = new Map<string, [number, number]>()
     for (const [code, geometry] of Object.entries(decodeFixture(fixture))) {
+      let west = Infinity
+      let east = -Infinity
       for (const polygon of geometry) {
         for (const ring of polygon) {
-          for (const [i, [lon]] of ring.entries()) {
+          for (const [i, [lon, lat]] of ring.entries()) {
+            west = Math.min(west, lon)
+            east = Math.max(east, lon)
             const [next] = ring[(i + 1) % ring.length] as readonly [number, number]
-            const span = Math.abs(next - lon)
-            longest = Math.max(longest, span)
-            expect(span, `${code} ${lon}`).toBeLessThan(20)
+            if (Math.abs(next - lon) > 6) edges.push([Math.abs(next - lon), `${code} ${lat}`])
           }
         }
       }
+      spans.set(code, [west, east])
     }
-    expect(longest).toBeGreaterThan(5)
+    edges.sort((a, b) => b[0] - a[0])
+    expect(edges.map(([span, where]) => [Math.round(span * 10) / 10, where])).toEqual([
+      [27.6, 'CA 48.993'],
+      [27.6, 'US 48.993'],
+      [6.3, 'EG 21.994'],
+      [6.3, 'SD 21.996'],
+    ])
+    expect(spans.get('RU')).toEqual([19.611, 190.357])
+    expect(spans.get('US')).toEqual([-187.524, -66.977])
+    expect(spans.get('FJ')).toEqual([177.253, 180.184])
+    expect(spans.get('NZ')).toEqual([165.888, 183.83])
     const byCode = shapes()
     const ru = byCode.get('RU') as ProjectedShape
-    const se = byCode.get('SE') as ProjectedShape
-    const outside = {
+    const us = byCode.get('US') as ProjectedShape
+    // Rusya: Çukotka, 180. meridyenin doğusu da (172° B = 188° D), Rusya'da; İskandinavya ve deniz
+    // değil.
+    for (const [name, [lon, lat]] of Object.entries({
+      chukotka: [172, 66.5],
+      bilibino: [166.4, 68.06],
+      chukotkaEast: [188, 66],
+      murmansk: [33.08, 68.97],
+      pechora: [57.2, 65.12],
+      khabarovsk: [135.07, 48.48],
+      primorye: [133, 45],
+      yakutsk: [129.7, 62.0],
+    } as const)) {
+      expect(containsPoint(ru, lon, lat), name).toBe(true)
+    }
+    for (const [name, [lon, lat]] of Object.entries({
       kiruna: [20.22, 67.85],
       rovaniemi: [25.73, 66.5],
       norwegianSea: [5, 67],
-      barentsSea: [40, 71.2],
-    } as const
-    for (const [name, [lon, lat]] of Object.entries(outside)) {
+      seaOfJapan: [135, 40],
+      beringSea: [185, 58],
+    } as const)) {
       expect(containsPoint(ru, lon, lat), name).toBe(false)
     }
-    expect(containsPoint(se, ...outside.kiruna)).toBe(true)
-    const inside = {
-      murmansk: [33.08, 68.97],
-      pechora: [57.2, 65.12],
-      vorkuta: [64, 67.5],
-    } as const
-    for (const [name, [lon, lat]] of Object.entries(inside)) {
-      expect(containsPoint(ru, lon, lat), name).toBe(true)
-    }
+    // ABD: Attu (173,2° D) Alaska'nın batısında, 186,8° B'da.
+    expect(containsPoint(us, -186.8, 52.88)).toBe(true)
+    expect(containsPoint(us, -98, 40)).toBe(true)
   })
 
   it('ülkeler örtüşmez: hiçbir ülkenin sınır noktası başka bir ülkenin 10 m’den derin içinde değil', () => {
@@ -171,10 +266,10 @@ describe('Natural Earth fixture (D-096)', { timeout: 60_000 }, () => {
       }
     }
     // Ortak sınırın noktaları komşunun sınırının üstündedir (çift-tek kuralı yarısını içeride sayar).
-    expect(checked).toBeGreaterThan(100)
-  }, 60_000)
+    expect(checked).toBeGreaterThan(1_000)
+  })
 
-  it('halkalar binde bir derece tamsayı, en az üç nokta; kırpma kutusunun içinde', () => {
+  it('halkalar binde bir derece tamsayı, en az üç nokta; kırpma kutusu hiçbir şeyi kesmez', () => {
     const [west, south, east, north] = NATURAL_EARTH_PARAMS.roi
     for (const [code, geometry] of Object.entries(decodeFixture(fixture))) {
       for (const polygon of geometry) {
@@ -182,7 +277,8 @@ describe('Natural Earth fixture (D-096)', { timeout: 60_000 }, () => {
           expect(ring.length, code).toBeGreaterThanOrEqual(3)
           for (const [lon, lat] of ring) {
             expect(Math.round(lon * 1000) / 1000).toBe(lon)
-            expect(lon >= west && lon <= east && lat >= south && lat <= north, code).toBe(true)
+            // Kutunun kenarında nokta yok: kırpma yapay kenar eklemedi.
+            expect(lon > west && lon < east && lat > south && lat < north, code).toBe(true)
           }
         }
       }
@@ -195,35 +291,74 @@ describe('Natural Earth fixture (D-096)', { timeout: 60_000 }, () => {
     }
   })
 
-  it('sapma bütçesi: ham 1:10m sınırın her noktası fixture sınırına en çok sadeleştirme + yuvarlama kadar uzak', () => {
-    const raw = countryPolygons(topology, 0)
+  it('uzak ülkeler (D-100): her noktası Ankara’ya ≥ 5.000 km ve kara komşuları da öyle; ABD, Brezilya, Japonya uzak; Rusya, Çin, Grönland ve Çin’in komşusu Hong Kong yakın', () => {
+    expect(fixture.farCodes).toHaveLength(106)
+    expect(fixture.farCodes).toEqual(fixture.farCodes.toSorted())
+    for (const code of ['US', 'AU', 'JP', 'ZA', 'CA', 'NZ', 'KR', 'AR']) {
+      expect(fixture.farCodes, code).toContain(code)
+    }
+    // Fransız Guyanası Fransa biriminin parçasıdır: Fransa yakın, o da yakın (aynı yaylar); onunla
+    // sınırı olan Brezilya da yakın sayılır.
+    for (const code of ['RU', 'CN', 'IN', 'GL', 'NO', 'SJ', 'TR', 'ET', 'GF', 'BR', 'HK', 'KP']) {
+      expect(fixture.farCodes, code).not.toContain(code)
+    }
+    const nearestKm = (code: string) => {
+      let nearest = Infinity
+      for (const polygon of raw[code] ?? []) {
+        for (const [lon, lat] of polygon[0] ?? []) {
+          nearest = Math.min(nearest, distanceKm(FAR_REFERENCE, { lat, lon }))
+        }
+      }
+      return nearest
+    }
+    for (const code of fixture.farCodes) expect(nearestKm(code), code).toBeGreaterThanOrEqual(5000)
+    // Uzak olduğu hâlde yakın sayılanlar: yakın bir birimle kara sınırı var (Hong Kong ve Kuzey Kore
+    // Çin'le, Brezilya Fransa'nın Guyana'sıyla). Ülkelerin örtüşmediğini yukarıdaki test denetler.
+    for (const code of ['HK', 'KP', 'BR'])
+      expect(nearestKm(code), code).toBeGreaterThanOrEqual(5000)
+  })
+
+  it('yüzölçümü: bütün parçaların küre üzerindeki alanı; Türkiye D-095 tablosundan %1 içinde', () => {
+    for (const code of NATURAL_EARTH_CODES) {
+      expect(fixture.areasKm2[code], code).toBe(Math.round(geodesicAreaKm2(raw[code] ?? [])))
+    }
+    expect(Math.abs((fixture.areasKm2.TR as number) / 783_600 - 1)).toBeLessThan(0.01)
+    expect(Math.abs((fixture.areasKm2.BR as number) / 8_515_800 - 1)).toBeLessThan(0.01)
+    expect(Math.abs((fixture.areasKm2.AU as number) / 7_692_000 - 1)).toBeLessThan(0.01)
+  })
+
+  it('sapma bütçesi: ham 1:10m sınırın her noktası fixture sınırına en çok kendi toleransı + yuvarlama kadar uzak', () => {
+    const rawClipped = countryPolygons(topology, 0)
+    const tolerance = fixtureTolerance(fixture.farCodes)
     const byCode = shapes()
-    const limit = NATURAL_EARTH_PARAMS.simplifyKm + SAFETY_BUDGET.fixtureQuantumKm
     let checked = 0
-    let worst = 0
-    for (const capital of COUNTRY_CAPITALS) {
-      const shape = byCode.get(capital.code) as ProjectedShape
-      for (const polygon of raw[capital.code] ?? []) {
+    let worstNear = 0
+    let worstFar = 0
+    for (const code of NATURAL_EARTH_CODES) {
+      const shape = byCode.get(code) as ProjectedShape
+      const limit = tolerance(code) + SAFETY_BUDGET.fixtureQuantumKm
+      const single = (raw[code] ?? []).length === 1
+      for (const polygon of rawClipped[code] ?? []) {
         const outer = polygon[0]
         if (!outer) continue
-        // Eşiğe yakın küçük adalar (ham ve sade alanı farklı düşebilir) sayılmaz.
-        const kept =
-          ringAreaKm2(outer) >= 1.5 * NATURAL_EARTH_PARAMS.minPartKm2 ||
-          ringContains(outer, capital.lon, capital.lat)
-        if (!kept) continue
+        // Eşiğe yakın küçük adalar sayılmaz: ham ve sade alanı farklı düşebilir, küçük adalardan
+        // oluşan ülkede en büyüğü sadeleşince başka ada olabilir (Marshall Adaları).
+        if (!single && ringAreaKm2(outer) < 1.5 * NATURAL_EARTH_PARAMS.minPartKm2) continue
         for (const ring of polygon) {
           // world-atlas'ın nicelemesinde alanı sıfıra inen halka (Vatikan deliği) fixture'da yoktur.
           if (ringAreaKm2(ring) < 0.01) continue
           for (const [lon, lat] of ring) {
             const distance = shape.distanceToBoundaryKm(lon, lat)
-            worst = Math.max(worst, distance)
+            if (fixture.farCodes.includes(code)) worstFar = Math.max(worstFar, distance)
+            else worstNear = Math.max(worstNear, distance)
             checked++
-            expect(distance, `${capital.code} ${lon},${lat}`).toBeLessThanOrEqual(limit)
+            expect(distance, `${code} ${lon},${lat}`).toBeLessThanOrEqual(limit)
           }
         }
       }
     }
-    expect(checked).toBeGreaterThan(50_000)
-    expect(worst).toBeGreaterThan(NATURAL_EARTH_PARAMS.simplifyKm * 0.8)
-  }, 120_000)
+    expect(checked).toBeGreaterThan(400_000)
+    expect(worstNear).toBeGreaterThan(NATURAL_EARTH_PARAMS.simplifyKm * 0.8)
+    expect(worstFar).toBeGreaterThan(NATURAL_EARTH_PARAMS.farSimplifyKm * 0.8)
+  }, 300_000)
 })

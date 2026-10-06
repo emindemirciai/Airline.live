@@ -1,13 +1,17 @@
 import { describe, expect, it } from 'vitest'
 import {
+  AUTHALIC_RADIUS_KM,
   clipRing,
+  geodesicAreaKm2,
   latitudeOf,
   mercatorX,
   mercatorY,
+  placeOnOneWorldCopy,
   ProjectedShape,
   pxPerKm,
   ringAreaKm2,
   ringContains,
+  ringGeodesicAreaKm2,
   segmentTouchesRect,
   shiftRingWest,
   simplifyArc,
@@ -140,6 +144,62 @@ describe('clipRing, ringAreaKm2, ringContains', () => {
     // Sürekli kılınmamış halka 180 ile −170 arasında bütün haritayı kesen kenarlar bırakırdı.
     const raw = clipRing(spherical, [-20, 8, 180, 72]) ?? []
     expect(Math.min(...raw.map(([lon]) => lon))).toBe(-20)
+  })
+
+  it('küre üzerindeki alan: ekvatorda 1° × 1° = R² × π/180 × sin 1°; 60°’de yarısına yakın; delik düşülür; yön önemsiz', () => {
+    const exact = AUTHALIC_RADIUS_KM ** 2 * (Math.PI / 180) * Math.sin(Math.PI / 180)
+    expect(ringGeodesicAreaKm2(box(0, 0, 1, 1))).toBeCloseTo(exact, 6)
+    expect(exact).toBeCloseTo(12363.7, 1)
+    expect(ringGeodesicAreaKm2(box(0, 0, 1, 1).toReversed())).toBeCloseTo(exact, 6)
+    const at60 =
+      ringGeodesicAreaKm2(box(0, 59.5, 1, 60.5)) / ringGeodesicAreaKm2(box(0, -0.5, 1, 0.5))
+    expect(at60).toBeCloseTo(0.5, 3)
+    // 180. meridyende sürekli halka (179–181° D) aynı alanı verir.
+    expect(ringGeodesicAreaKm2(box(179, 0, 181, 1))).toBeCloseTo(2 * exact, 6)
+    expect(geodesicAreaKm2([[box(0, 0, 2, 2), box(0.5, 0.5, 1.5, 1.5)]])).toBeCloseTo(
+      ringGeodesicAreaKm2(box(0, 0, 2, 2)) - ringGeodesicAreaKm2(box(0.5, 0.5, 1.5, 1.5)),
+      6,
+    )
+  })
+
+  it('tek dünya kopyası (D-100): 180. meridyeni geçmeyen ülke değişmez; ABD, Rusya ve Kiribati gibi ülkeler sürekli', () => {
+    const lons = (polygons: readonly (readonly (readonly LonLat[])[])[]) =>
+      polygons.map((polygon) => polygon.map((ring) => ring.map(([lon]) => lon)))
+    // Türkiye gibi: değişmez.
+    const turkey = [[box(26, 36, 45, 42)], [box(25.7, 40.1, 26, 40.3)]]
+    expect(placeOnOneWorldCopy(turkey)).toEqual(turkey)
+    // ABD gibi: anakara ve Alaska 180°'nin batısında, Attu 173° D'da. En geniş boşluk 67° B ile 173° D
+    // arası; ülke 173° D'dan başlar, ortası 180°'nin doğusunda kalınca 360° batıya kayar: Attu 187° B.
+    const usa = [[box(-125, 25, -67, 49)], [box(-168, 55, -130, 71)], [box(173, 52.8, 173.5, 53)]]
+    expect(lons(placeOnOneWorldCopy(usa))).toEqual([
+      [[-125, -67, -67, -125]],
+      [[-168, -130, -130, -168]],
+      [[-187, -186.5, -186.5, -187]],
+    ])
+    // Rusya gibi: anakara 27–180° D, Çukotka'nın doğusu 180–190° D, Big Diomede 169° B: en geniş
+    // boşluk Diomede ile Kaliningrad arası; Diomede 191° D'ya gelir.
+    const russia = [
+      [box(19.6, 54.3, 22.9, 55.3)],
+      [box(27, 41, 180, 77)],
+      [box(-180, 64, -169.7, 67)],
+      [box(-169.1, 65.7, -168.9, 65.8)],
+    ]
+    expect(lons(placeOnOneWorldCopy(russia))).toEqual([
+      [[19.6, 22.9, 22.9, 19.6]],
+      [[27, 180, 180, 27]],
+      [[180, 190.3, 190.3, 180]],
+      [[190.9, 191.1, 191.1, 190.9]],
+    ])
+    // Kiribati gibi: Gilbert 173° D, Line 157° B; boşluğun doğusundan başlayan ülkenin ortası 180°'nin
+    // doğusunda: hepsi 360° batıya, 187° B–157° B.
+    const kiribati = [[box(173, 1, 173.2, 1.2)], [box(-157.6, 1.7, -157.2, 2)]]
+    expect(lons(placeOnOneWorldCopy(kiribati))).toEqual([
+      [[-187, -186.8, -186.8, -187]],
+      [[-157.6, -157.2, -157.2, -157.6]],
+    ])
+    // Delik dış halkayla birlikte kayar.
+    const holed = placeOnOneWorldCopy([[box(-170, 0, -160, 10), box(-165, 2, -163, 4)], usa[2]!])
+    expect(lons(holed)[0]?.[1]).toEqual([-165, -163, -163, -165])
   })
 
   it('Liang–Barsky: içeriden geçen, kenara değen ve dışarıda kalan parça', () => {

@@ -36,6 +36,7 @@ Durumlar: `[ ]` başlamadı, `[~]` sürüyor, `[k]` kod bitti ve kullanıcı do�
 | M6e.8 | Ülke adları sınır içinde, kelime başına satır (yama, v0.19.1) | `p1/map-country-fit` | [x] tamam; üretimde doğrulandı (2026-10-05, v0.19.1): uydu üstünde z5,3'te TÜRKİYE sınır içinde (Ankara'nın güneyinde), BOSNA / HERSEK alt alta, adlar kıyıdan taşmıyor; v0.19.1 Release 2026-10-05T05:51:51Z | #32 |
 | M6e.9 | Ülke adları daha belirgin, boş yerde (yama, v0.21.1; D-099) | `p1/map-country-clear` | [k] kod bitti; üretimde uydu üstünde görünüm denetimi bekliyor (ACTIVATION M6e.9) | — |
 | M6e.10 | Askerî üsler haritada gösterilmez; açılış yakınlaştırması masaüstünde 8 (yama; D-103, D-104) | `p1/map-no-military` | [~] kod ve testler bitti; sürüm, changelog ve yayın adımı bekliyor | — |
+| M6e.11 | Bütün ülkelerin adları (yama; D-100) | `p1/map-all-countries` | [~] kod ve testler bitti; sürüm, changelog ve yayın adımı bekliyor; üretimde görünüm denetimi ACTIVATION M6e.11 | — |
 | M6h | 3. halka (≤ 2.000 km) — kullanıcı isteğiyle M7a'nın önüne alındı (2026-10-04); sivil uçuşa kapalı olabilecek havalimanı notu | `p1/m6h-ring3` | [k] kod bitti; üretimde doğrulandı (2026-10-04, v0.18.0): `scope=listed` 503 (61 + 75 + 89 + 278), Viyana 3. halka 1.149 km, beş Özbek istasyonunun METAR'ı UZxx koduyla, METAR'lı istasyon 463/503, toplu hava 1,34 MB, URKK ve UUOO notu iki dilde; admin Servisler ve worker günlüğü (429 yok) bekliyor (ACTIVATION) | #28 |
 | M7a | Canlı araçlar: `smoke:live`, `record` | `p1/m7a-live-tools` | [k] kod bitti; canlı smoke ve kayıt kullanıcıda (ACTIVATION) | #31 |
 | M7b.1 | İz tablolarına ham `seen_pos` ve `baro_rate` (migration 0006, v0.20.0; D-097) | `p1/m7b1-track-columns` | [x] tamam; üretimde doğrulandı (2026-10-05, v0.20.0): `hy-migrate` 0006'yı uyguladıktan sonra servisler açıldı, `/version` 0.20.0, `/ready` 200; v0.20.0 Release 2026-10-05T07:45:13Z. Ingest yazımı üretimde adsb.lol açılınca görülür (ACTIVATION 2. adım) | #33 |
@@ -1298,6 +1299,44 @@ Hedef sürüm yayın adımında belirlenir (dal `p1/map-no-military`, `main` `8a
 - Birim testleri: `@havayolu/tools` 369 (+1), `@havayolu/shared` 688 (+2; `mapShownAirports` tek kural olarak shared'e taşındıktan sonra), `@havayolu/web` 830 (+3); öbürleri değişmedi (worker 292, api 278, providers 132, i18n 98, db 64, geo 36).
 - `pnpm format`, `pnpm lint` (9/9), `pnpm typecheck` (9/9), `pnpm test` (9/9), `pnpm typecheck:e2e`, `pnpm lint:e2e`, `pnpm check:eol` → yeşil.
 - E2E (yerel, `pnpm dev:replay`, yerel test stili): `live-map.spec.ts`, `airports.spec.ts`, `weather.spec.ts` 68/68 (4 kurulum + 20 + 12 + 32; 2,2 dk). `pnpm ci:full` çalıştırılmadı (yerel Docker altyapısı başka bir iş akışıyla paylaşılıyor). İnceleme düzeltmelerinden sonra (kural shared'e taşındı, belgeler) birim testleri, `format`, `lint`, `typecheck`, `typecheck:e2e`, `lint:e2e` ve `check:eol` yeniden yeşil; e2e yeniden çalıştırılmadı (3100/4100/4200/4300 başka bir iş akışında; e2e dosyaları değişmedi, haritanın davranışı aynı).
+
+## M6e.11 — Bütün ülkelerin adları (yama)
+Onay: 2026-10-05 kullanıcı: "havalimanı olmayan ülke isimlerini eklemiyorsun." (kümenin kuralı, tartışmalı bölgelerin yazımı, Natural Earth'ten hesaplanan yüzölçümü, fixture'ın uzak ülkelerde 1 km sadeleşmesi, deniz aşırı bölgelerin ayrılması ve RUSYA'nın yeni yeri orkestratör varsayılanıdır, itiraz edilebilir; yama sürümü, D-082)
+
+Hedef sürüm yayın adımında belirlenir (dal `p1/map-all-countries`, `d807f15`'ten: `p1/m6i1-ring4-prep` + `p1/map-no-military`). Karar D-100'dedir.
+
+**Kapsam:**
+- **Küme:** Natural Earth 4.1.0 Admin 0'ın ISO 3166-1 kodlu her birimi, havalimanı olsun olmasın; İsrail ve Filistin (D-095) ve Antarktika hariç: 244 kod (236 birim + Fransa, Norveç ve Hollanda'dan ayrılan 8 deniz aşırı parça). Kosova XK, Tayvan TW, Batı Sahra EH Intl adlarıyla; Somaliland Somali'de, Guantánamo Küba'da, Baykonur Kazakistan'da; Kıbrıs adanın tamamı, KIBRIS Lefkoşa'da. Sığmayan 80 küçük ülke ve ada yazılmaz; dört bileşimde 164 ad.
+- **Kurallar aynı:** sınırın ve kıyının içinde, sözcük başına satır, pinlerden ve kodlardan uzak boş yer (D-099), kademe boyları, z7–8'de silinme, stil, "Ülke adları" anahtarı. Kademe: D-095'in 59 ülkesi tablodaki yüzölçümüyle, öbürleri Natural Earth poligonlarının küre üzerindeki alanıyla; eşikler ve Irak istisnası aynı.
+- **Fixture bütün dünya:** 180. meridyende her ülke tek dünya kopyasında (Rusya 19,6–190,4° D, ABD 187,5° B–67° B); world-atlas yaylarının dikilmesi düzeltildi (Rusya'nın Uzak Doğu'su); Türkiye'den uzak ülkeler 1 km'de sadeleşir, km payları 2,5; 1,98 MB.
+- **`capitals.ts` kalktı:** yerine `country-label-set.ts` (59 yüzölçümü, kademe kuralı, Irak, İsrail ve Filistin, KIBRIS'ın Lefkoşa çapası). Üretilen modül yüzölçümlerini de taşır (`COUNTRY_LABEL_AREAS_KM2`).
+- **Değişenler (59 ülke):** yalnız RUSYA, 57,51° D, 61,77° K (Komi) → 107,73° D, 63,27° K (Orta Sibirya; bütün Rusya'nın görsel merkezi, z3'ten).
+- **e2e beklentileri:** Tahran z3'te HİNDİSTAN ve ÇAD yazılır, z4'te PAKİSTAN (4,5) kesirli `minzoom`'la yazılmaz; İRAN'ın kutusu, IKA ve 375 px TÜRKIYE değişmedi.
+- Sürüm, `entries.ts`, `CHANGELOG.md` ve README yayın adımındadır.
+
+**Dosyalar:**
+- `tools/src/country-labels/natural-earth.ts` (244 kodun birimleri, `NATURAL_EARTH_PART_SPLITS`, `NATURAL_EARTH_UNASSIGNED`, `countryParts`, `farCodes`, `countryAreasKm2`, yay sadeleşmesinde uçlar world-atlas'taki değerinde, en büyük parça korunur), `geometry.ts` (`placeOnOneWorldCopy`, `ringGeodesicAreaKm2`, `geodesicAreaKm2`), `label-model.ts` (`FAR_SAFETY_KM`, `LabelFitter`'ın km payı, yeni harfler, kırılabilir harfler), `airport-pins.ts` (engeller dünyanın komşu kopyalarında), `placement.ts` (kademe ve payı fixture'dan, ızgara ±180°, boş ızgara gizli, `COUNTRY_LABEL_AREAS_KM2`), `cli.ts`; testler `natural-earth.test.ts`, `geometry.test.ts`, `label-model.test.ts`, `airport-pins.test.ts`, `placement.test.ts`
+- `tools/fixtures/naturalearth/countries.json` (yeniden üretildi, bütün dünya)
+- `packages/shared/src/reference/country-label-set.ts` (yeni; `capitals.ts` silindi), `index.ts`; testler `country-label-set.test.ts` (yeni; `capitals.test.ts` silindi), `foreign.test.ts` (kapsam: listelenen ve 4. halkada listelenebilecek her havalimanının ülkesi tabloda)
+- `packages/shared/src/map/country-label-placements.ts` (yeniden üretildi; `COUNTRY_LABEL_AREAS_KM2`), `country-labels.ts` (kademe ve sıra üretilen alanlardan, açıklamalar); test `country-labels.test.ts`
+- `apps/web/src/components/map/country-labels.test.ts` (164 nokta), `map-fonts.test.ts` (bütün adların harfleri yazı tipinde; genişlik yazılan adlarda)
+- `e2e/country-label-expectations.ts` (HİNDİSTAN, ÇAD, PAKİSTAN), `e2e/tests/live-map.spec.ts` (açıklamalar)
+- Belgeler: D-100 (D-095, D-096 ve D-099'a işaret satırları), `docs/spec/domain.md` (Ülke adları), `docs/spec/data-sources.md` §5b ve §5c, `tools/README.md`, `tools/fixtures/README.md`, `docs/ACTIVATION.md` ("M6e.11 yayın doğrulaması"; M6e.9 satırında RUSYA), bu plan
+
+**Kabul komutları:**
+- `pnpm country-labels:fixture` (çevrimdışı) → fixture commit'lenenle aynı: 244 kod (106 uzak), 194.963 nokta
+- `pnpm country-labels` (çevrimdışı) → tablo commit'lenenle aynı; 498 havalimanı pini; dört bileşimde 164 ad; 162 ülke boş yerde, 1 kalabalık (TR), 1 başkentte (CY), 80 gizli
+- `pnpm test` → tools (fixture, birimler, 180. meridyen, örtüşme, sapma bütçesi, uzak ülkeler, yerleşim, e2e beklentileri), shared (küme, kademe, adlar, kapsam), web (164 nokta, yazı tipi kapsamı)
+- `pnpm format`, `pnpm lint`, `pnpm typecheck`, `pnpm typecheck:e2e`, `pnpm lint:e2e`, `pnpm check:eol`
+- `pnpm exec playwright test -c e2e/playwright.config.ts e2e/tests/live-map.spec.ts` → Tahran z3'te HİNDİSTAN ve ÇAD, z4'te PAKİSTAN yok; öbür beklentiler aynı
+- `pnpm ci:full` yeşil; PR'da CI (`e2e` dahil) yeşil
+
+**Çıktı kaydı (2026-10-06; sürüm, changelog ve README yayın adımındadır):**
+- `pnpm country-labels:fixture` → `244 countries (106 far), 194963 points`; dosya 1.981.336 B (önce 396.118 B: 59 ülke, 39.975 nokta). Her yerde 0,5 km olsa 231.574 nokta, 2.315.462 B olurdu. D-095'in 59 ülkesinden geometrisi değişenler yalnız RU (bütün Rusya) ve AE (64 km²'lik Abu Dabi adası düştü).
+- `pnpm country-labels` → 7.341 ms (Node 24.16.0, ICU 78.3), 498 havalimanı pini; dört bileşimde 164 ad; clear 162, crowded 1 (TR), capital 1 (CY), per-combination 0, hidden 80. 59 ülkeden değişen tek kayıt RUSYA / RUSSIA: [57,51, 61,77, 3] → [107,73, 63,27, 3]. Üretilen modül 12.231 → 45.605 B (gzip 9.893 B); GeoJSON dil ve genişlik başına 164 nokta, ~28 KB.
+- Birim testleri: `@havayolu/tools` 379 (+10), `@havayolu/shared` 704 (+1; `capitals.test.ts` 10 test silindi, `country-label-set.test.ts` 10 eklendi), `@havayolu/web` 852 (sayı aynı, beklentiler güncellendi); öbürleri değişmedi (worker 294, api 284, providers 135, i18n 99, db 71, geo 36). tools'un ülke adı testleri ~20 sn.
+- `pnpm format`, `pnpm lint` (9/9), `pnpm typecheck` (9/9), `pnpm test` (9/9), `pnpm typecheck:e2e`, `pnpm lint:e2e`, `pnpm check:eol` → yeşil.
+- E2E bu oturumda çalıştırılmadı (3100/4100/4200/4300 başka bir iş akışında); beklentiler tools testinde tablodan doğrulandı. Yayın adımının `ci:full`'unda çalışır.
 
 ## M6h — 3. halka (v0.18.0)
 Onay: 2026-10-04 kullanıcı isteği "sonraki işlerden birine bir halka daha ekle" ve kapalı havalimanı kararı (2022'den beri sivil uçuşa kapalı olduğu hâlde OurAirports'ta tarifeli görünen havalimanları listede kalır, sayfada ve pencerede "Sivil uçuşlara kapalı olabilir (2022’den beri)" notu); diğer seçimler M6h araştırmasının önerileri (orkestratör varsayılanı 2026-10-04)

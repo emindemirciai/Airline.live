@@ -5,11 +5,11 @@
 // /?hex= ile doğrudan açılış aynı uçağı seçer → etiket ayarı (uçaklar, havalimanları ve ülke adları,
 // D-084, D-095) cihazda saklanır → askerî hava üslerinin pini, kodu ve liste satırı yoktur,
 // `?havalimani=` yine oraya gider (D-103) → ülke adları uzaklaşınca sınırlarının içinde, pinlerden
-// uzak boş yerde yazılır (D-096, D-099), yakınlaşınca silinir. Tablo, haritanın erişilebilir
-// karşılığıdır; testler uçakları WebGL tuvalinden değil tablodan okur. Havalimanı kutuları ve
-// seçili etiket etiket tuvalinin piksellerinden okunur (`e2e/label-canvas.ts`); ülke adları
-// haritanın `data-country-labels` niteliğinden ve WebGL tuvalinin ekran görüntüsünden
-// (`e2e/map-pixels.ts`).
+// uzak boş yerde yazılır (D-096, D-099), havalimanı olmayan ülkeler de (D-100), yakınlaşınca
+// silinir. Tablo, haritanın erişilebilir karşılığıdır; testler uçakları WebGL tuvalinden değil
+// tablodan okur. Havalimanı kutuları ve seçili etiket etiket tuvalinin piksellerinden okunur
+// (`e2e/label-canvas.ts`); ülke adları haritanın `data-country-labels` niteliğinden ve WebGL
+// tuvalinin ekran görüntüsünden (`e2e/map-pixels.ts`).
 import { expect, test, type Locator, type Page } from '@playwright/test'
 import { IKA_PIN_Z5, IRAN_Z5_BOX, TEHRAN_COUNTRY_LABELS } from '../country-label-expectations'
 import {
@@ -581,7 +581,7 @@ test.describe('askerî hava üsleri haritada yok (D-103)', () => {
   })
 })
 
-test.describe('ülke adları (D-095, D-096, D-099)', () => {
+test.describe('ülke adları (D-095, D-096, D-099, D-100)', () => {
   // MapLibre `prefers-reduced-motion`'da kamera geçişlerini anında yapar: `?havalimani=` uçuşu ve
   // klavyeyle uzaklaştırma beklemesiz ve kesindir (her basış tam bir kademe).
   test.use({ reducedMotion: 'reduce' })
@@ -706,9 +706,10 @@ test.describe('ülke adları (D-095, D-096, D-099)', () => {
     await expect(popup).toBeHidden()
 
     // Bir kademe daha uzaklaşınca (z4) AFGANİSTAN, SURİYE (3,75) ve TÜRKİYE (3,25) görünüme girer;
-    // ÖZBEKİSTAN'ın (4,5) çapası tuvalin içindedir ama yazılmaz. Bir kademe daha (z3): ilk
-    // yakınlaştırması 3'ten büyük kesirli adlar (AFGANİSTAN, SURİYE, TÜRKİYE) kaybolur, İRAN kalır.
-    // Kovaları z3 ve z4 karosunda hazırdır: katmanın kesirli `minzoom`'u tarayıcıda.
+    // ÖZBEKİSTAN'ın ve PAKİSTAN'ın (4,5) çapası tuvalin içindedir ama yazılmaz. Bir kademe daha (z3):
+    // ilk yakınlaştırması 3'ten büyük kesirli adlar (AFGANİSTAN, SURİYE, TÜRKİYE) kaybolur, İRAN kalır;
+    // listelenen havalimanı olmayan HİNDİSTAN ve ÇAD yazılır (D-100: bütün ülkelerin adı). Kovaları
+    // z3 ve z4 karosunda hazırdır: katmanın kesirli `minzoom`'u tarayıcıda.
     for (const key of ['z4', 'z3'] as const) {
       await zoomOut(page, 1)
       const { shown: expected, hidden: absent } = TEHRAN_COUNTRY_LABELS[key]

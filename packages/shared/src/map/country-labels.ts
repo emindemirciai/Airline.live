@@ -1,15 +1,19 @@
 /**
- * Haritada ülke adları (D-095, D-096, D-099, D-103). Kullanıcı kararı 2026-10-05: tasarım tuvalinde A ·
- * "Sessiz büyük harf", "Saydam olsun"; sonra "Ülke isimlerini ülke sınırları dışına taşırma. 2 kelime
- * ise alt alta yaz."; sonra "boyut iyi fakat az biraz daha belirgin olsun ülke isimleri. boşlukta bir
- * yerde yazsa da olur." Ad sayfanın dilinde büyük harfle yazılır; işaret noktası yoktur. Ad boyu
- * ülkenin yüzölçümü kademesindendir (capitals.ts).
+ * Haritada ülke adları (D-095, D-096, D-099, D-100, D-103). Kullanıcı kararı 2026-10-05: tasarım
+ * tuvalinde A · "Sessiz büyük harf", "Saydam olsun"; sonra "Ülke isimlerini ülke sınırları dışına
+ * taşırma. 2 kelime ise alt alta yaz."; sonra "boyut iyi fakat az biraz daha belirgin olsun ülke
+ * isimleri. boşlukta bir yerde yazsa da olur."; sonra "havalimanı olmayan ülke isimlerini
+ * eklemiyorsun." Ad sayfanın dilinde büyük harfle yazılır; işaret noktası yoktur. Ad boyu ülkenin
+ * yüzölçümü kademesindendir (`COUNTRY_LABEL_AREAS_KM2`, `countryLabelTier`).
  *
+ * - **Bütün ülkeler (D-100):** Natural Earth 4.1.0'ın ISO 3166-1 kodlu bütün birimleri (deniz aşırı
+ *   bölgeler kendi kodlarıyla), havalimanı olsun olmasın; İsrail, Filistin (D-095) ve Antarktika
+ *   hariç. Sınırının içine hiçbir yakınlaştırmada sığmayan küçük ülke ve adaların adı yazılmaz.
  * - **Sınırın içinde (D-096):** adın görünür kutusu (bütün satırlar, harf aralığı, hale ve güvenlik
  *   payı) ülkenin kara poligonunun içinde kalmadıkça ad çizilmez. Yer ve ilk yakınlaştırma
  *   çevrimdışı hesaplanır (`COUNTRY_LABEL_PLACEMENTS`, `pnpm country-labels`). Ad, ilk sığdığı
  *   yakınlaştırmanın (`fitZoom`) altında çizilmez; o yakınlaştırmada belirmeye başlar. Hiçbir
- *   yakınlaştırmada sığmayan küçük ülkenin (Bahreyn, Lüksemburg, Malta) adı yazılmaz.
+ *   yakınlaştırmada sığmayan küçük ülkenin (Bahreyn, Lüksemburg, Malta gibi) adı yazılmaz.
  * - **Boş yerde (D-099):** ad, havalimanı pinlerinin ve kodlarının olmadığı bir yerdedir: üreticinin
  *   modeline göre kutusuna yazıldığı hiçbir yakınlaştırmada pin ya da kod girmez (boş yer için en
  *   çok 1,5 kademe geç belirir); boş yer yoksa (yalnızca Türkiye) en az çakışan yerdedir ve geç
@@ -43,14 +47,9 @@
  * doğrulanmadığından yoktur.
  */
 import type { Locale } from '../locale'
-import {
-  COUNTRY_CAPITALS,
-  countryLabelTier,
-  type CountryCapital,
-  type CountryLabelTier,
-} from '../reference/capitals'
+import { countryLabelTier, type CountryLabelTier } from '../reference/country-label-set'
 import { MAP_COLORS, withAlpha } from './colors'
-import { COUNTRY_LABEL_PLACEMENTS } from './country-label-placements'
+import { COUNTRY_LABEL_AREAS_KM2, COUNTRY_LABEL_PLACEMENTS } from './country-label-placements'
 import type { StyleExpression, StyleTransition, TextSymbolLayerStyle } from './layers'
 
 export const COUNTRY_LABEL_SOURCE_ID = 'hy-country-labels'
@@ -170,8 +169,9 @@ export const COUNTRY_LABEL_COMPACT_MAX_WIDTH_PX = 767
 export const COUNTRY_LABEL_LETTER_SPACING = 0.32
 export const COUNTRY_LABEL_LINE_HEIGHT = 1
 /**
- * Satır kırma genişliği, em: her adın toplam genişliğinden büyük (en uzunu BİRLEŞİK ARAP
- * EMİRLİKLERİ, 21,4 em). MapLibre yalnızca adın kendi satır sonlarından kırar.
+ * Satır kırma genişliği, em: yazılan her adın toplam genişliğinden büyük (en uzunu AMERİKA BİRLEŞİK
+ * DEVLETLERİ, 23,6 em; D-100). MapLibre yalnızca adın kendi satır sonlarından kırar; 24 em'i aşan
+ * adlar (Güney Georgia ve Güney Sandwich Adaları gibi) hiçbir yerde sığmaz, yazılmaz.
  */
 export const COUNTRY_LABEL_MAX_WIDTH_EM = 24
 /** Çakışma kutusuna eklenen pay, px (adlar birbirini silmez; vektör yedekte yer adlarını iter). */
@@ -316,11 +316,15 @@ export interface CountryLabelPoint {
   properties: CountryLabelFeatureProperties
 }
 
-/** Ülkelerin sırası: Türkiye, sonra büyükten küçüğe (eşitlikte kod). */
-const RANKED_CAPITALS: readonly CountryCapital[] = [...COUNTRY_CAPITALS].sort((a, b) => {
-  if (a.code === 'TR' || b.code === 'TR') return a.code === 'TR' ? -1 : 1
-  return b.areaKm2 - a.areaKm2 || (a.code < b.code ? -1 : 1)
-})
+/** Ülkeler sırayla: Türkiye, sonra büyükten küçüğe (eşitlikte kod). */
+const RANKED_COUNTRIES: readonly { code: string; areaKm2: number }[] = Object.entries(
+  COUNTRY_LABEL_AREAS_KM2,
+)
+  .map(([code, areaKm2]) => ({ code, areaKm2 }))
+  .sort((a, b) => {
+    if (a.code === 'TR' || b.code === 'TR') return a.code === 'TR' ? -1 : 1
+    return b.areaKm2 - a.areaKm2 || (a.code < b.code ? -1 : 1)
+  })
 
 /**
  * Ülke adı noktaları, sırayla (rank 0'dan): yer ve ilk yakınlaştırma `COUNTRY_LABEL_PLACEMENTS`'tan,
@@ -329,8 +333,8 @@ const RANKED_CAPITALS: readonly CountryCapital[] = [...COUNTRY_CAPITALS].sort((a
 export function countryLabelPoints(locale: Locale, compact: boolean): CountryLabelPoint[] {
   const placements = COUNTRY_LABEL_PLACEMENTS[locale]
   const points: CountryLabelPoint[] = []
-  for (const [rank, capital] of RANKED_CAPITALS.entries()) {
-    const row = Object.hasOwn(placements, capital.code) ? placements[capital.code] : undefined
+  for (const [rank, country] of RANKED_COUNTRIES.entries()) {
+    const row = Object.hasOwn(placements, country.code) ? placements[country.code] : undefined
     const placement = row?.[compact ? 'compact' : 'regular']
     if (!row || !placement) continue
     const [lon, lat, fitZoom] = placement
@@ -338,10 +342,10 @@ export function countryLabelPoints(locale: Locale, compact: boolean): CountryLab
       lat,
       lon,
       properties: {
-        code: capital.code,
+        code: country.code,
         name: row.name,
         label: countryLabelLines(row.name, locale).join('\n'),
-        tier: countryLabelTier(capital),
+        tier: countryLabelTier(country),
         fitZoom,
         rank,
       },
