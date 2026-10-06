@@ -283,11 +283,9 @@ test.describe('tarayıcıda', () => {
     }
   })
 
-  test('askerî üsler ve Ankara (Etimesgut) iki dilde adlanır; Atina’nın en yakını Çiğli Hava Üssü (D-084)', async ({
-    page,
-  }) => {
+  test('askerî üsler ve Ankara (Etimesgut) iki dilde adlanır (D-084)', async ({ page }) => {
     // Önceden altısı da iki dilde OurAirports adıyla yazılıyordu ("Etimesgut Air Base", "Çiğli
-    // Airbase"); Atina, Sakız ve Kalamata'nın "Türkiye’deki en yakın havalimanı" satırı da.
+    // Airbase"). Yurt dışı sayfalarındaki "Türkiye’deki en yakın havalimanı" satırı D-106 ile kalktı.
     for (const { icao: code, iata: codeIata, tr, en } of RENAMED_AIRPORTS) {
       for (const [locale, name] of [
         ['tr', tr],
@@ -313,25 +311,13 @@ test.describe('tarayıcıda', () => {
         )
       }
     }
-    for (const [path, label, link, name] of [
-      [
-        `/istasyon/${RING1_AIRPORT.icao}`,
-        'Türkiye’deki en yakın havalimanı',
-        '/istasyon/LTBL',
-        'Çiğli Hava Üssü (IGL)',
-      ],
-      [
-        enPath(`/istasyon/${RING1_AIRPORT.icao}`),
-        'Nearest airport in Türkiye',
-        '/en/istasyon/LTBL',
-        'Çiğli Air Base (IGL)',
-      ],
+    // Atina (LGAV) sayfasında Türkiye'ye göre satır yoktur (D-106).
+    for (const [path, label] of [
+      [`/istasyon/${RING1_AIRPORT.icao}`, 'Türkiye’deki en yakın havalimanı'],
+      [enPath(`/istasyon/${RING1_AIRPORT.icao}`), 'Nearest airport in Türkiye'],
     ] as const) {
       await page.goto(path)
-      const fact = page
-        .locator('main dt', { hasText: label })
-        .locator('xpath=following-sibling::dd[1]')
-      await expect(fact.locator(`a[href="${link}"]`), path).toHaveText(name)
+      await expect(page.locator('main dt', { hasText: label }), path).toHaveCount(0)
     }
   })
 

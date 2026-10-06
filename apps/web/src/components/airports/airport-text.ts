@@ -104,6 +104,11 @@ export function airportLocation(airport: AirportDetail, locale: Locale): string 
   return city === null ? country : format(t.locationAbroad, { city, country })
 }
 
+/** Sayı, binlik ayraçlı (D-106): 1222 → "1.222" (TR) / "1,222" (EN); 503 → "503". */
+export function formatCount(value: number, locale: Locale): string {
+  return new Intl.NumberFormat(INTL_LOCALE[locale]).format(value)
+}
+
 /** Uzunluk (ft girdi), metrik önce: "3.750 m (12.303 ft)". Bilinmiyorsa "—". */
 export function formatLength(ft: number | null, locale: Locale): string {
   if (ft === null || !Number.isFinite(ft)) return NO_VALUE

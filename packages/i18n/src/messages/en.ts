@@ -3,8 +3,7 @@ import type { Messages } from './tr'
 
 export const en: Messages = {
   meta: {
-    description:
-      'Public live flight tracking focused on Türkiye: aircraft positions, airports and runways.',
+    description: 'Public live flight tracking: aircraft positions, airports, runways and weather.',
   },
   nav: {
     map: 'Map',
@@ -18,16 +17,14 @@ export const en: Messages = {
   },
   seo: {
     home: {
-      title: 'Live flight tracker and aircraft map for Türkiye',
+      title: 'Live flight tracker and aircraft map',
       description:
-        'Live position, altitude and speed of aircraft over Türkiye, from ADS-B. No schedules, delays or gate data. Live flight data: ADSB.lol (ODbL).',
+        'Live flight tracking: position, altitude and speed of aircraft in our coverage area, from ADS-B. No schedules or delays. Live flight data: ADSB.lol (ODbL).',
     },
     airports: {
-      title: 'Airports in Türkiye: IATA and ICAO codes',
+      title: 'Airports: IATA and ICAO codes, runways',
       description:
-        'IATA and ICAO codes, provinces and longest runways for {count} airports in Türkiye, each with a link to the live map. Source: OurAirports.',
-      descriptionWithForeign:
-        'IATA and ICAO codes and longest runways for {count} airports in Türkiye and {foreign} airports outside Türkiye, each with a link to the live map. Source: OurAirports.',
+        'IATA and ICAO codes, location and longest runway for {count} airports, each with a page showing the weather and a link to the live map. Source: OurAirports.',
     },
     airport: {
       title: '{name} ({iata}/{icao}) live air traffic and runways',
@@ -61,8 +58,6 @@ export const en: Messages = {
     title: 'Airports',
     summary:
       'The list has {count} airports; each airport’s page shows its runways, the weather and a link to the live map.',
-    summaryWithForeign:
-      'The list has {count} airports in Türkiye and {foreign} airports outside Türkiye; each airport’s page shows its runways, the weather and a link to the live map.',
     turkeyHeading: 'Airports in Türkiye',
     scope: 'The list includes airports with an IATA code; some small airports are not listed.',
     names:
@@ -74,20 +69,16 @@ export const en: Messages = {
       country: 'Country',
       iata: 'IATA',
       icao: 'ICAO',
-      distanceToTr: 'Distance to Türkiye',
       longestRunway: 'Longest runway',
     },
     foreign: {
-      heading: 'Airports outside Türkiye',
+      heading: 'Airports in other countries',
       scope:
-        'Large and medium airports with an IATA code, at most {km} from the nearest airport in Türkiye; some airports are not listed.',
+        'For now, the list has large and medium airports with an IATA code at most {km} from the nearest airport in Türkiye; some airports are not listed.',
       scopeAll: 'Large and medium airports with an IATA code; some airports are not listed.',
       coverage:
-        'Live aircraft data is focused on Türkiye: most of these airports are outside the live data fetch area, so aircraft around them may not appear on the live map. Each airport’s page says so as well.',
-      caption: 'Airports outside Türkiye, sorted by country name',
-      distanceNote:
-        'Distance to Türkiye is the straight-line distance to the nearest airport in Türkiye with an IATA code; that airport may be a small airfield that is not listed (such as Gökçeada).',
-      distance: 'distance to Türkiye {distance}',
+        'Live aircraft data is currently fetched only over Türkiye and the surrounding area: most of these airports are outside that area, so aircraft around them may not appear on the live map. Each airport’s page says so as well.',
+      caption: 'Airports in other countries, sorted by country name',
       names:
         'English names are the airports’ names in OurAirports; the Turkish names use the established Turkish place names in current use (Atina, Selanik, Kahire) and keep the local name where there is none (Iași, Timișoara). Country names come from the airport’s OurAirports record; Ercan Airport is shown in the TRNC.',
     },
@@ -115,10 +106,6 @@ export const en: Messages = {
       province: 'Province',
       country: 'Country',
       municipality: 'Municipality served',
-      nearestTr: 'Nearest airport in Türkiye',
-      nearestTrValue: '{airport}, {distance}',
-      /** The nearest airport is an unlisted small airfield, such as Gökçeada (D-080). */
-      nearestTrUnlisted: '{name} (small airfield, not listed)',
       sourceName: 'Name in OurAirports',
       reference: 'Airport reference point',
       elevation: 'Elevation',
@@ -624,14 +611,13 @@ export const en: Messages = {
   about: {
     title: 'About',
     intro:
-      '{app} is a public, free live flight tracking site focused on Türkiye. It is built and run by {owner}.',
+      '{app} is a public, free live flight tracking site with Istanbul Airport as its top priority. It is built and run by {owner}.',
     shows: {
       heading: 'What it shows',
       map: 'Live map: aircraft position, altitude, ground speed, vertical rate and identity (flight number, callsign, registration, aircraft type).',
       search:
         'Search: find an airborne aircraft by flight number, callsign, registration or hex code.',
-      airports:
-        'Airports: codes, runways and nearest airports for the airports in Türkiye and outside Türkiye.',
+      airports: 'Airports: codes, runways and nearest airports for every listed airport.',
       weather:
         'Weather: on every airport page, the latest aviation weather report (METAR), the aerodrome forecast (TAF) and a log of the last 24 hours of reports; a short summary when you click an airport on the map.',
     },
@@ -648,18 +634,18 @@ export const en: Messages = {
       heading: 'Method',
       adsb: 'Aircraft positions come from the ADS-B signals that aircraft broadcast and, for some aircraft, from multilateration (MLAT), which computes the position from several receivers’ measurements. The {source} network, which collects these signals from receivers on the ground, is the only live data source.',
       coverage:
-        'Coverage depends on receivers: aircraft at low altitude or on the ground may be missing in some areas.',
+        'Live aircraft data is currently fetched only over Türkiye and the surrounding area; outside it, no aircraft appear on the map. Within it, coverage depends on receivers: aircraft at low altitude or on the ground may be missing in some areas.',
       freshness:
         'Target data age: about 20 s within {radius} of the primary station, about 30 s around the other monitored airports and about 90 s in the data fetch area over eastern Türkiye. The status line on the map shows the actual data age around the primary station (or, if that is unavailable, the age of the newest data); the area you are viewing may differ.',
       stations: 'Monitored airports:',
       outside:
         'Airports in Türkiye outside the live data fetch area; aircraft around them may not appear on the map:',
       abroad:
-        'Airports outside Türkiye are listed too: large and medium airports with an IATA code, at most {km} from the nearest airport in Türkiye.',
+        'For now, the airport list has Türkiye’s airports and the large and medium airports with an IATA code at most {km} from the nearest airport in Türkiye.',
       abroadAll:
-        'Airports outside Türkiye are listed too: large and medium airports with an IATA code.',
+        'The airport list has Türkiye’s airports and the large and medium airports with an IATA code in other countries.',
       abroadCoverage:
-        'Live aircraft data is focused on Türkiye: most airports outside Türkiye are outside the live data fetch area, so aircraft around them may not appear on the map.',
+        'Most airports in other countries are outside the live data fetch area, so aircraft around them may not appear on the map.',
       primary: 'primary station',
       reference:
         'Airport and runway data is updated daily from OurAirports. Runway bearings are true bearings, computed from the runway end coordinates where available.',
@@ -1106,7 +1092,7 @@ export const en: Messages = {
     service: {
       heading: 'The service',
       about:
-        '{app} is a public, free flight tracking service focused on Türkiye. Aircraft positions come from the ADS-B signals that aircraft broadcast, for some aircraft from multilateration (MLAT), and are for information only.',
+        '{app} is a public, free flight tracking service. Aircraft positions come from the ADS-B signals that aircraft broadcast, for some aircraft from multilateration (MLAT), and are for information only.',
       notOperational:
         'Do not use the service for operational, navigation or flight safety decisions.',
       noWarranty:

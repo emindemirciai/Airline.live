@@ -36,14 +36,15 @@ Durumlar: `[ ]` başlamadı, `[~]` sürüyor, `[k]` kod bitti ve kullanıcı do�
 | M6e.8 | Ülke adları sınır içinde, kelime başına satır (yama, v0.19.1) | `p1/map-country-fit` | [x] tamam; üretimde doğrulandı (2026-10-05, v0.19.1): uydu üstünde z5,3'te TÜRKİYE sınır içinde (Ankara'nın güneyinde), BOSNA / HERSEK alt alta, adlar kıyıdan taşmıyor; v0.19.1 Release 2026-10-05T05:51:51Z | #32 |
 | M6e.9 | Ülke adları daha belirgin, boş yerde (yama, v0.21.1; D-099) | `p1/map-country-clear` | [k] kod bitti; üretimde uydu üstünde görünüm denetimi bekliyor (ACTIVATION M6e.9) | — |
 | M6e.10 | Askerî üsler haritada gösterilmez; açılış yakınlaştırması masaüstünde 8 (yama; D-103, D-104) | `p1/map-no-military` | [k] kod bitti (v0.22.1); üretimde görünüm denetimi bekliyor (ACTIVATION v0.22.1) | — |
+| M6e.12 | Global konumlandırma (yama; D-106) | `p1/map-global-copy` | [~] kod sürüyor (2026-10-06); 4. halkadan (M6i.2) önce birleşir | — |
 | M6h | 3. halka (≤ 2.000 km) — kullanıcı isteğiyle M7a'nın önüne alındı (2026-10-04); sivil uçuşa kapalı olabilecek havalimanı notu | `p1/m6h-ring3` | [k] kod bitti; üretimde doğrulandı (2026-10-04, v0.18.0): `scope=listed` 503 (61 + 75 + 89 + 278), Viyana 3. halka 1.149 km, beş Özbek istasyonunun METAR'ı UZxx koduyla, METAR'lı istasyon 463/503, toplu hava 1,34 MB, URKK ve UUOO notu iki dilde; admin Servisler ve worker günlüğü (429 yok) bekliyor (ACTIVATION) | #28 |
 | M7a | Canlı araçlar: `smoke:live`, `record` | `p1/m7a-live-tools` | [k] kod bitti; canlı smoke ve kayıt kullanıcıda (ACTIVATION) | #31 |
 | M7b.1 | İz tablolarına ham `seen_pos` ve `baro_rate` (migration 0006, v0.20.0; D-097) | `p1/m7b1-track-columns` | [x] tamam; üretimde doğrulandı (2026-10-05, v0.20.0): `hy-migrate` 0006'yı uyguladıktan sonra servisler açıldı, `/version` 0.20.0, `/ready` 200; v0.20.0 Release 2026-10-05T07:45:13Z. Ingest yazımı üretimde adsb.lol açılınca görülür (ACTIVATION 2. adım) | #33 |
 | M7b.2 | Kapsama raporu: worker işi, admin sayfası, CLI (`coverage:report`, v0.21.0; D-098) | `p1/m7b-coverage` | [k] kod bitti; gerçek 24 saatlik rapor üretim ingest'i açıldıktan sonra (ACTIVATION) | — |
 | M6i.1 | 4. halkanın ön koşulları ve veri altyapısı (halka 3'te kalır, 503 listelenen): fixture'a 4. halka, 4 karakterli ICAO kuralı, pist kuralları, kaplama kodları, saat dilimleri; toplu havanın ham biçimi, AWC istek sayısı günlükte, uçuş evresi ızgarası, harita penceresinin tembel yüklenmesi — kullanıcı isteğiyle M7c'nin önüne alındı (2026-10-05; D-101) | `p1/m6i1-ring4-prep` | [k] kod bitti; üretimde doğrulandı (2026-10-06, v0.22.0): `/version` 0.22.0, ham toplu hava (`format=raw`) 502 KB, br ile 60 KB (çözülmüş biçim 1,36 MB, br ile 70 KB); v0.22.0 Release 2026-10-06T00:41:12Z; worker günlüğünde AWC `requests` denetimi bekliyor (ACTIVATION) | #36 |
 | M6i.2 | 4. halka (≤ 5.000 km, 719 havalimanı, 1.222 listelenen): adlar, halkanın açılması, ülke adı yerleşiminin yeniden üretimi, metinler, e2e (D-102) | `p1/m6i2-ring4` | [ ] | — |
-| M7c | Kapsama ölçümü yedek yolu (`coverage:probe`) | `p1/m7c-coverage-probe` | [ ] | — |
 | M6j | 5. halka (dünyanın geri kalanı, ABD dahil); haritada görünür alana göre havalimanı yükleme, AWC toplu dosyası (DUR-SOR) ve adların tembel yüklenmesi burada değerlendirilir (D-101) | `p1/m6j-ring5` | [ ] | — |
+| M7c | Kapsama ölçümü yedek yolu (`coverage:probe`) | `p1/m7c-coverage-probe` | [ ] | — |
 
 ## M0 — Repo iskeleti ve yerel test ortamı
 **Dizinler:**
@@ -1302,6 +1303,43 @@ Sürüm v0.22.1 (dal `p1/map-no-military`, `main` `8a7a5ea` = v0.21.1'den; v0.22
 - **Yayın (v0.22.1, 2026-10-06):** dal v0.22.0'ın dalıyla ve `main` (`7cad4dc`) ile birleştirildi (çakışmalar `live-map.tsx` içe aktarımları, D-101 ile D-103'ün sırası ve data-sources.md "Listelenen havalimanları" maddesi; birleşik hâlde tablo yeniden üretildi, değişmedi). Açılış yakınlaştırması 8 (D-104). Birim testleri: web 852, shared 703, tools 369, worker 294, api 284, providers 135, i18n 99, db 71, geo 36. Entegrasyon: db 107, api 31, worker 17, tools 14; migration yükseltmesi 8 → 8; `compose:guard` tamam. E2E 128/128: ilk koşuda 127 (tek hata, v0.22.0'ın `releasedAt`'ı henüz yazılmadığı için changelog testi), değer yazılınca `changelog.spec.ts` 7/7. `pnpm ci:local` yeşil. Yerel önizleme 1915×910: sürüm 0.22.1; görünümdeki havalimanları IST, ISL, SAW, TEQ, KCO (kullanıcının ekran görüntüsündeki alan). `pnpm stats`: 678 dosya, 140.980 satır (kod 129.889).
 - **Paket boyutu (D-103):** `mapShownAirports` ad tablosunun modülündeyken tablolar haritanın ilk paketine dönmüştü (4. halka dalının ölçümü); kural `military-airfields.ts`'e taşındı. `/` ilk paketi 1.166.525 → 1.129.643 B (v0.22.0: 1.129.270 B); `/havalimanlari` ve istasyon sayfası v0.22.0 ile aynı. Test `lazy-chunks.test.ts`.
 - **PR #37 CI (D-105):** ilk koşuda `checks` kırıldı: `apps/api` hava durumu testi 5 sn sınırını aştı (CI'da 5.754 ms, yerelde 52 ms); kök neden tek turbo çağrısında testlerin tsc, ESLint ve Next derlemesiyle aynı çekirdekleri paylaşmasıydı. CI'da testler ayrı adımda, aynı anda en çok iki paket koşar; yerelde bu adım 20,5 sn, 9/9 paket yeşil.
+
+## M6e.12 — Global konumlandırma (yama)
+Onay: 2026-10-06 kullanıcı: "Türkiye semalarındaki uçakların canlı konumu olmasın. Türkiye canlı uçak harita vs olmasın başlık. uluslararası bir site gibi yap. önceliğimiz istanbul havalimanı ok ama site global olmalı. Türkiye ile sınırlama." Seçimler: metinler şimdi yama sürümüyle, dünya geneli canlı veri ayrı kilometre taşı; Türkçe kökte, `/en` ikizleri ve adresler değişmez (D-076). Sıra: "glabal metinleri halkaların önüne al. halkalar peşpeşe gelsin." (M6e.12 → M6i.2 → M6j → M7c). Yapı seçimleri orkestratör varsayılanıdır (D-106; itiraz edilebilir).
+
+Sürüm v0.22.3 (geçici; dal `p1/map-global-copy`, `main` `7a9309e` = v0.22.1'den; `p1/no-military-site` ve `p1/map-all-countries` v0.22.2'yi tutuyor, birleştirmede `origin/main`'deki ilk boş PATCH alınır). Karar D-106.
+
+**Kapsam:**
+- **Konumlandırma metinleri:** ana sayfanın başlığı ve açıklaması (manifest, JSON-LD WebSite ve Organization, llms.txt özeti aynı anahtardan), varsayılan açıklama, paylaşım görselinin alt başlığı, Hakkında girişi (İstanbul Havalimanı öncelikli), kullanım koşullarının "Hizmet" maddesi (yürürlük 2026-10-06). Hiçbiri ülke adı taşımaz, dünya geneli vaat etmez.
+- **Kapsama dürüstlüğü:** "Türkiye odaklıdır" yerine "Canlı uçak verisi şimdilik yalnızca Türkiye ve çevresinden çekilir"; Hakkında → Yöntem'in kapsama cümlesi, `/havalimanlari` kapsama notu, llms.txt'te ayrı satır. Liste kuralı "Şimdilik …" ile başlar.
+- **`/havalimanlari`:** ikinci bölüm "Diğer ülkelerdeki havalimanları"; "Türkiye’ye uzaklık" sütunu ve dipnotu yok; SEO başlığı "Havalimanları: IATA ve ICAO kodları, pistler"; özet ve açıklamada tek toplam sayı, binlik ayraçlı.
+- **Yurt dışı havalimanı sayfası:** "Türkiye’deki en yakın havalimanı" satırı yok; "En yakın havalimanları" listesi kalır.
+- **Saat:** yayın saati Türkçede de "(UTC+3)"; `/durum` kontrol zamanı UTC, etiketli.
+- **Yol haritası:** "Diğer ülkelerdeki havalimanları, 2. halka / 3. halka".
+- **Değişmeyenler:** adresler, API (`ring`, `distanceToTrKm`, `nearestTr`), halka kuralı, IST açılışı, hava durumunun saat yedeği ("Türkiye saati", M6j'ye kaldı).
+- Sürüm, `entries.ts`, `CHANGELOG.md`, README sürüm rozeti ve satır sayısı yayın adımındadır.
+
+**Dosyalar:**
+- `packages/i18n/src/messages/{tr,en}.ts` (metinler; silinen anahtarlar `seo.airports.descriptionWithForeign`, `airports.summaryWithForeign`, `airports.columns.distanceToTr`, `airports.foreign.distanceNote`, `airports.foreign.distance`, `airport.facts.nearestTr*`), `packages/i18n/src/index.ts` (`formatReleaseTime` iki dilde UTC farkı); test `i18n.test.ts` (UTC+3; konumlandırma metinleri ülke adı ve dünya geneli taşımaz, açıklama 70–170)
+- `apps/web/src/components/airports/airport-text.ts` (`formatCount`), `airports-view.tsx` (toplam sayı, uzaklık sütunu yok), `airport-view.tsx` (Türkiye'ye göre satır yok), `apps/web/src/lib/airports.ts` (`nearestTurkishAirport` silindi), `apps/web/src/app/havalimanlari/page.tsx` (açıklama), `apps/web/src/lib/seo/llms.ts` (kapsama satırı, Türkiye başlığı, uzaklık yok), `apps/web/src/lib/terms.ts` (2026-10-06), `apps/web/src/app/durum/page.tsx` (UTC), `apps/web/src/components/changelog/release-time.ts`, `about/about-content.tsx`, `globals.css` (açıklamalar)
+- Testler: `airport-view.test.ts`, `airport-text.test.ts`, `airports.test.ts`, `about-content.test.ts`, `changelog-content.test.ts`, `terms-content.test.ts`, `llms.txt/route.test.ts`
+- `packages/shared/src/roadmap.ts` (M6g, M6h adları)
+- e2e (CI'da): `seo.spec.ts`, `foreign-airports.spec.ts`, `airports.spec.ts`, `changelog.spec.ts`
+- Belgeler: D-106 (ve D-101, D-091, D-088, D-080'e işaret satırları), `docs/spec/domain.md` ("v1 sınırları"), `docs/ACTIVATION.md` (yayın doğrulaması, CLAUDE.md onayı), `README.md` (giriş cümleleri, durum satırı), `ATTRIBUTION.md` (METAR cümlesi), bu plan
+
+**Kabul komutları:**
+- `pnpm format`, `pnpm lint`, `pnpm typecheck`, `pnpm test`, `pnpm typecheck:e2e`, `pnpm lint:e2e`, `pnpm check:eol`
+- `pnpm ci:local` (derleme dahil), `pnpm stats`
+- Metin taraması: `packages/i18n/src/messages/*.ts`'te "odaklı", "focused on Türkiye", "Türkiye dışındaki", "outside Türkiye", "Türkiye’ye uzaklık", "Distance to Türkiye", "semalarındaki" geçmez (açıklamalar hariç); `nearestTurkishAirport` hiçbir yerde geçmez
+- e2e, `test:integration` ve `ci:full` CI'da; PR'da CI (`e2e` dahil) yeşil
+
+**Çıktı kaydı (2026-10-06; sürüm, changelog, README rozeti ve satır sayısı yayın adımındadır):**
+- `pnpm ci:local` → yeşil (format:check, check:eol, changelog:check, typecheck:scripts, typecheck:e2e, lint:e2e, db:check, test:scripts 39; turbo lint, typecheck, test, build 31/31).
+- Birim testleri: `@havayolu/web` 849 (−5 +2: kalkan "Türkiye’deki en yakın havalimanı" satırının testleri silindi; `formatCount` ve "yurt dışı sayfasında Türkiye’ye göre satır yok" eklendi), `@havayolu/i18n` 100 (+1: konumlandırma metinleri); öbürleri değişmedi (shared 703, tools 369, worker 294, api 284, providers 135, db 71, geo 36).
+- Açıklama uzunlukları: ana sayfa TR 160, EN 155; `/havalimanlari` 503 havalimanıyla TR 148, EN 152 (1.222 ile 150 / 154).
+- Metin taraması: `packages/i18n/src/messages/*.ts`’te yasak ifadeler yalnız açıklamalarda (4 satır, "Türkiye dışındaki"); `nearestTurkishAirport` hiçbir yerde yok.
+- `pnpm stats` → 679 dosya, 140.897 satır, 129.722 kod satırı.
+- e2e (`seo`, `foreign-airports`, `airports`, `changelog`) yerelde çalıştırılmadı; CI'nin `e2e` işinde doğrulanır.
 
 ## M6h — 3. halka (v0.18.0)
 Onay: 2026-10-04 kullanıcı isteği "sonraki işlerden birine bir halka daha ekle" ve kapalı havalimanı kararı (2022'den beri sivil uçuşa kapalı olduğu hâlde OurAirports'ta tarifeli görünen havalimanları listede kalır, sayfada ve pencerede "Sivil uçuşlara kapalı olabilir (2022’den beri)" notu); diğer seçimler M6h araştırmasının önerileri (orkestratör varsayılanı 2026-10-04)

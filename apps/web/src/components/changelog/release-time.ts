@@ -12,7 +12,7 @@ export type ReleaseTimeSource = 'released' | 'serverStart' | 'date'
 export interface ReleaseTime {
   /** `<time dateTime>`: ISO 8601 an ("2026-10-04T17:27:12Z") ya da yalnızca gün ("2026-10-04"). */
   dateTime: string
-  /** Görünen metin: "4 Ekim 2026, 20:27 (Türkiye saati)" ya da yalnızca gün "4 Ekim 2026". */
+  /** Görünen metin: "4 Ekim 2026, 20:27 (UTC+3)" ya da yalnızca gün "4 Ekim 2026". */
   text: string
   source: ReleaseTimeSource
 }

@@ -180,6 +180,8 @@ ADS-B yalnızca konum, irtifa, hız ve kimlik verir. Tarife verisi olmadığınd
 - kalkış öncesi kalkış panosu
 - harfli numaralı çağrı kodlu seferlerde kalkıştan önce sefer no ile arama
 
+Canlı uçak verisi şimdilik yalnızca Türkiye ve çevresinden çekilir (kapsama planı: data-sources.md §1, D-073); bu alanın dışında haritada uçak görünmez. Site metinleri ürünü Türkiye ile sınırlamaz, birincil istasyon İstanbul Havalimanı'dır; sınır kapsama metinlerinde (/hakkinda, /havalimanlari, havalimanı sayfaları, haritanın durum satırı) söylenir (D-106).
+
 Tahmini varış yalnızca havadaki uçak için konumdan hesaplanır ve "tahmini" etiketi taşır. Rota tahmini (VRS standing-data) de her yerde "tahmini" olarak gösterilir. Kendi alıcı olmadığı için inişlerin çoğu "muhtemelen indi" olarak ve son sinyalden 1–1,5 dk sonra bildirilir.
 
 ## Saklama

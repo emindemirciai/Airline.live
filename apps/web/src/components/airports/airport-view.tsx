@@ -17,7 +17,6 @@ import {
   isInLiveCoverage,
   liveCoveragePlan,
   nearestAirports,
-  nearestTurkishAirport,
   sameProvinceAirports,
 } from '../../lib/airports'
 import { localePath } from '../../lib/locale-routing'
@@ -112,9 +111,9 @@ const displacedFt = (end: RunwayDetail['ends'][number]) =>
  * atfedilir: "evet" değilse "kayıtlı değil" yazılır, "yok" denmez (D-076). Sunucuda çizilir, kanca
  * yoktur; hava durumu bölümü `weather` yuvasından gelir.
  *
- * Yakın ülkelerdeki havalimanı (M6d, D-080): yer satırı yerleşim ve ülkedir, il satırı yerine ülke ve
- * Türkiye'deki en yakın havalimanı yazılır; "… ilindeki diğer havalimanları" cümlesi yalnızca
- * Türkiye'dedir. En yakın havalimanları Türkiye ve yakın ülkeleri karışık içerebilir.
+ * Diğer ülkelerdeki havalimanı (M6d, D-080): yer satırı yerleşim ve ülkedir, il satırı yerine ülke
+ * yazılır; Türkiye'ye göre bir satır yoktur (D-106). "… ilindeki diğer havalimanları" cümlesi yalnızca
+ * Türkiye'dedir. "En yakın havalimanları" listesi Türkiye'yi ve diğer ülkeleri karışık içerebilir.
  *
  * Sivil uçuşlara kapalı olabilecek havalimanı (kullanıcı kararı 2026-10-04, D-090; Krasnodar,
  * Gelencik, Elista, Voronej): başlığın altında kehribar not (`role="note"`), harita penceresiyle aynı
@@ -132,7 +131,6 @@ export function AirportView({ locale, app, airport, airports, weather }: Airport
   const longest = longestRunway(airport)
   const others = sameProvinceAirports(airport, airports)
   const nearby = nearestAirports(airport, airports, NEARBY_COUNT)
-  const nearestTr = nearestTurkishAirport(airport, airports)
   const hasDisplaced = airport.runways.some((runway) => runway.ends.some((end) => displacedFt(end)))
   const nameSource = airportNameSource(airport.icao)
   const covered = isInLiveCoverage(airport, liveCoveragePlan(airports))
@@ -252,26 +250,6 @@ export function AirportView({ locale, app, airport, airports, weather }: Airport
             <div>
               <dt>{t.facts.municipality}</dt>
               <dd>{district}</dd>
-            </div>
-          ) : null}
-          {nearestTr ? (
-            <div className="facts-wide">
-              <dt>{t.facts.nearestTr}</dt>
-              <dd>
-                {richText(t.facts.nearestTrValue, {
-                  // Listelenmeyen küçük alan (Gökçeada gibi) sayfasız, adıyla yazılır (D-080).
-                  airport: nearestTr.listed ? (
-                    <Link href={link(nearestTr.listed)}>
-                      {airportName(nearestTr.listed, locale)} ({nearestTr.listed.iata})
-                    </Link>
-                  ) : (
-                    format(t.facts.nearestTrUnlisted, {
-                      name: airportDisplayName(nearestTr.reference, locale),
-                    })
-                  ),
-                  distance: formatDistance(nearestTr.distanceKm, { locale }),
-                })}
-              </dd>
             </div>
           ) : null}
           {airport.name !== name ? (

@@ -8,7 +8,7 @@
 
 ## Türkçe
 
-Türkiye odaklı sivil havacılık uçuş takip platformu. Canlı harita, uçuş, uçak ve istasyon takibi sunar. Uçak istasyona yaklaşınca (varsayılan 10 km) ve indiğinde bildirim gönderir. Önce web (PWA) gelir, ardından iOS ve Android uygulaması (Expo).
+Herkese açık, uluslararası sivil havacılık uçuş takip platformu; birincil istasyonu İstanbul Havalimanı (IST). Canlı harita, uçuş, uçak ve istasyon takibi sunar. Uçak istasyona yaklaşınca (varsayılan 10 km) ve indiğinde bildirim gönderir. Canlı uçak verisi şimdilik Türkiye ve çevresinden çekilir; dünya geneli canlı veri sonraki bir kilometre taşıdır. Önce web (PWA) gelir, ardından iOS ve Android uygulaması (Expo).
 
 > **havayolu** · [havayolu.live](https://havayolu.live) — yönetim: `admin.havayolu.live`, API: `api.havayolu.live`, analiz: `analiz.havayolu.live` (yayında, 2026-09-27).
 
@@ -47,6 +47,7 @@ Türkiye odaklı sivil havacılık uçuş takip platformu. Canlı harita, uçuş
 | Ülke adları daha belirgin, havalimanı işaretlerinden uzak boş yerlerde | ✅ v0.21.1 |
 | 4. halkaya hazırlık: 720 havalimanının pist ve saat dilimi verisi, ölçek iyileştirmeleri, daha hafif harita sayfası | ✅ Parça 1 · M6i.1 |
 | Askerî hava üsleri haritada gösterilmez; harita bilgisayarda biraz daha uzaktan (z8) açılır | ✅ v0.22.1 |
+| Global konumlandırma: başlık ve tanıtım metinleri Türkiye ile sınırlı değil; canlı uçak verisi şimdilik Türkiye ve çevresinde (D-106) | ✅ v0.22.3 |
 | Canlı araçlar: `pnpm smoke:live` (5 dk gerçek ingest ölçümü) ve `pnpm record` (oynatılabilir kayıt) | ✅ Parça 1 · M7a (kod hazır; canlı çalıştırma [ACTIVATION](docs/ACTIVATION.md) adımlarından sonra, kendi terminalinde) |
 | Kapsama ölçümü: iz tablolarında konum gecikmesi (`seen_pos`) ve barometrik alçalma hızı | ✅ Parça 1 · M7b.1 (rapor M7b.2 ile gelir) |
 | Kapsama raporu: admin → Kapsama (istasyon başına varış, yerde görülme oranı, güven aralığı, karar kuralları, indirilebilir rapor); gece 7 günlük oran; `pnpm coverage:report` (yerel) | ✅ Parça 1 · M7b.2 (gerçek rapor üretim ingest'inden sonra) |
@@ -111,7 +112,7 @@ Git'te 678 dosya, **140.980 satır**. Bunun 129.889 satırı kod (TypeScript, TS
 
 ## English
 
-A Türkiye-focused civil aviation flight tracker. It offers a live map and lets you follow flights, aircraft and stations. You get an alert when an aircraft approaches a station (10 km by default) and when it lands. The web app (PWA) comes first, then iOS and Android apps (Expo).
+A public, international civil aviation flight tracker with Istanbul Airport (IST) as its primary station. It offers a live map and lets you follow flights, aircraft and stations. You get an alert when an aircraft approaches a station (10 km by default) and when it lands. Live aircraft data is currently fetched over Türkiye and the surrounding area only; worldwide live data is a later milestone. The web app (PWA) comes first, then iOS and Android apps (Expo).
 
 > **havayolu** · [havayolu.live](https://havayolu.live) — admin: `admin.havayolu.live`, API: `api.havayolu.live`, analytics: `analiz.havayolu.live` (live since 2026-09-27).
 
@@ -150,6 +151,7 @@ A Türkiye-focused civil aviation flight tracker. It offers a live map and lets 
 | Clearer country names, placed in empty spots away from airport pins | ✅ v0.21.1 |
 | Ring-4 groundwork: runway and time-zone data for 720 airports, scale work, a lighter map page | ✅ Part 1 · M6i.1 |
 | Air force bases hidden on the map; the map opens a little further out on computers (z8) | ✅ v0.22.1 |
+| Global positioning: titles and site descriptions no longer limited to Türkiye; live aircraft data still over Türkiye and the surrounding area (D-106) | ✅ v0.22.3 |
 | Live tools: `pnpm smoke:live` (5-minute real ingest check) and `pnpm record` (replayable recording) | ✅ Part 1 · M7a (code ready; live runs after the [ACTIVATION](docs/ACTIVATION.md) steps, from your own terminal) |
 | Coverage measurement: position age (`seen_pos`) and barometric descent rate stored with tracks | ✅ Part 1 · M7b.1 (the report comes with M7b.2) |
 | Coverage report: admin → Kapsama (per-station arrivals, ground-seen share with confidence interval, decision rules, downloadable report); nightly 7-day ratio; `pnpm coverage:report` (local) | ✅ Part 1 · M7b.2 (the real report after production ingest) |

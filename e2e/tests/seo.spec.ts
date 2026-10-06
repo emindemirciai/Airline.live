@@ -79,16 +79,16 @@ const PUBLIC_PAGES: PublicPage[] = [
   {
     path: '/',
     title: {
-      tr: exactTitle(`Türkiye canlı uçak haritası ve uçuş takibi${SUFFIX}`),
-      en: exactTitle(`Live flight tracker and aircraft map for Türkiye${SUFFIX}`),
+      tr: exactTitle(`Canlı uçuş takibi ve uçak haritası${SUFFIX}`),
+      en: exactTitle(`Live flight tracker and aircraft map${SUFFIX}`),
     },
     jsonLd: ['WebSite', 'Organization'],
   },
   {
     path: '/havalimanlari',
     title: {
-      tr: /^Türkiye['’]deki havalimanları: IATA ve ICAO kodları · havayolu$/,
-      en: exactTitle(`Airports in Türkiye: IATA and ICAO codes${SUFFIX}`),
+      tr: exactTitle(`Havalimanları: IATA ve ICAO kodları, pistler${SUFFIX}`),
+      en: exactTitle(`Airports: IATA and ICAO codes, runways${SUFFIX}`),
     },
     jsonLd: ['CollectionPage', 'ItemList', 'BreadcrumbList'],
   },
@@ -438,7 +438,7 @@ test.describe('kök dosyalar', () => {
     expect(again.body, 'iki istek arasında değişmez').toBe(body)
   })
 
-  test('llms.txt: mutlak bağlantılar, indekslenen her havalimanı için bir satır; Türkiye dışındakiler ayrı', async ({
+  test('llms.txt: mutlak bağlantılar, indekslenen her havalimanı için bir satır; diğer ülkelerdekiler ayrı', async ({
     request,
   }) => {
     const { response, body } = await fetchRaw(request, '/llms.txt')
@@ -471,15 +471,15 @@ test.describe('kök dosyalar', () => {
     expect(icaos.has(PRIMARY_AIRPORT.icao)).toBe(true)
     expect(icaos.has(NON_INDEXABLE_AIRPORT.icao)).toBe(false)
     expect(icaos.has(UNLISTED_FOREIGN_AIRPORT.icao)).toBe(false)
-    // Türkiye dışındakiler ayrı bir bölümdedir (D-080): başlık Türkiye listesinden sonra gelir; Atina
-    // (1. halka), Kahire (2. halka) ve Viyana (3. halka) satırları o bölümdedir. Başlık 2. halkadan
-    // beri "Türkiye dışındaki havalimanları"dır (kullanıcı kararı 2026-10-03, D-088); kapsam 3.
-    // halkadan beri 2.000 km'dir (D-090).
+    // Diğer ülkelerdekiler ayrı bir bölümdedir (D-080): başlık Türkiye listesinden sonra gelir; Atina
+    // (1. halka), Kahire (2. halka) ve Viyana (3. halka) satırları o bölümdedir. Başlık D-106'dan
+    // beri "Diğer ülkelerdeki havalimanları"dır (D-088'de "Türkiye dışındaki"); kapsam 3. halkadan
+    // beri 2.000 km'dir (D-090).
     const lines = body.split('\n')
     const foreignHeading = lines.indexOf(
-      '## Türkiye dışındaki havalimanları / Airports outside Türkiye',
+      '## Diğer ülkelerdeki havalimanları / Airports in other countries',
     )
-    expect(foreignHeading, 'Türkiye dışındakiler başlığı').toBeGreaterThan(0)
+    expect(foreignHeading, 'diğer ülkelerdekiler başlığı').toBeGreaterThan(0)
     expect(body).not.toMatch(/[Yy]akın ülke|neighbouring/)
     expect(body).toContain('uzaklığı en fazla 2.000 km olan')
     expect(body).toContain('at most 2,000 km from the nearest airport in Türkiye')

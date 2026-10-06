@@ -20,6 +20,7 @@ import {
   formatBearing,
   formatCoordinatesDecimal,
   formatCoordinatesDms,
+  formatCount,
   formatDataDate,
   formatLength,
   formatMeters,
@@ -105,6 +106,13 @@ describe('biçimleyiciler (metrik önce, D-072)', () => {
     expect(formatLength(13451, 'en')).toBe('4,100 m (13,451 ft)')
     expect(formatLength(null, 'tr')).toBe('—')
     expect(formatMeters(148, 'tr')).toBe('45 m')
+  })
+
+  it('sayı binlik ayraçlı, dile göre (D-106)', () => {
+    expect(formatCount(1222, 'tr')).toBe('1.222')
+    expect(formatCount(1222, 'en')).toBe('1,222')
+    expect(formatCount(503, 'tr')).toBe('503')
+    expect(formatCount(503, 'en')).toBe('503')
   })
 
   it('yarıçap km (NM)', () => {

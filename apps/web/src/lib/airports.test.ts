@@ -10,7 +10,6 @@ import {
   liveCoveragePlan,
   latestDataUpdate,
   nearestAirports,
-  nearestTurkishAirport,
   parseAirportsBody,
   resolveAirportCode,
   sameProvinceAirports,
@@ -305,39 +304,11 @@ describe('sameProvinceAirports', () => {
   })
 })
 
-describe('splitByCountry ve nearestTurkishAirport', () => {
-  it('liste Türkiye ve yakın ülkeler olarak ayrılır, sıra korunur', () => {
+describe('splitByCountry', () => {
+  it('liste Türkiye ve diğer ülkeler olarak ayrılır, sıra korunur', () => {
     const { turkey, foreign } = splitByCountry([LGTS, LTFM, LTFJ])
     expect(turkey.map((a) => a.icao)).toEqual(['LTFM', 'LTFJ'])
     expect(foreign.map((a) => a.icao)).toEqual(['LGTS'])
-  })
-
-  it('yabancı havalimanına Türkiye’deki en yakın havalimanı (API’nin nearestTr’si); Türkiye’de null', () => {
-    const listed = fixtureListedAirports()
-    const byIcao = (icao: string) => {
-      const airport = listed.find((a) => a.icao === icao)
-      if (!airport) throw new Error(`fixture has no ${icao}`)
-      return airport
-    }
-    // Atina: Çiğli (listelenen, sayfası var); uzaklık listedeki tabloyla aynı sayı.
-    const athens = nearestTurkishAirport(byIcao('LGAV'), listed)
-    expect(athens?.reference).toMatchObject({ icao: 'LTBL', iata: 'IGL' })
-    expect(athens?.listed?.icao).toBe('LTBL')
-    expect(athens?.distanceKm).toBe(byIcao('LGAV').distanceToTrKm)
-    // Selanik ve Priştine: en yakın IATA kodlu Türkiye havalimanı Gökçeada, listelenmez (D-080).
-    for (const icao of ['LGTS', 'BKPR']) {
-      const nearest = nearestTurkishAirport(byIcao(icao), listed)
-      expect(nearest?.reference, icao).toEqual({
-        icao: 'LTFK',
-        iata: 'GKD',
-        name: 'Gökçeada Airport',
-      })
-      expect(nearest?.listed, icao).toBeNull()
-      expect(nearest?.distanceKm, icao).toBeLessThanOrEqual(500)
-    }
-    expect(nearestTurkishAirport(LTFM, listed)).toBeNull()
-    // API alanları yoksa (eski yanıt) satır yazılmaz.
-    expect(nearestTurkishAirport(LGTS, [LGTS])).toBeNull()
   })
 })
 

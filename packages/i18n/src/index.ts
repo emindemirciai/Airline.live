@@ -70,19 +70,10 @@ export function formatDate(isoDate: string, locale: Locale): string {
 }
 
 /**
- * Yayın saatinin dilim etiketi (D-091): Türkçede açık yazılır: "Türkiye saati" (kısaltma kullanılmaz, web-ui kuralı; dilim
- * Türkiye'nin kendisi olduğundan ofset yazılmaz), İngilizcede o anki UTC farkı ("UTC+3"; `Intl`'den,
- * koda gömülmez).
- */
-const RELEASE_ZONE: Record<Locale, (ms: number) => string> = {
-  tr: () => 'Türkiye saati',
-  en: (ms) => formatUtcOffset(ms),
-}
-
-/**
  * Bir sürümün yayın anı, seçili dilde ve Europe/Istanbul'da, 24 saat (D-091): "4 Ekim 2026, 20:27
- * (Türkiye saati)" / "4 October 2026, 20:27 (UTC+3)". Gün ve saat aynı dilimdedir (UTC 23:17 → "2 Ekim 2026,
- * 02:17"). Geçersiz anda "—".
+ * (UTC+3)" / "4 October 2026, 20:27 (UTC+3)". Dilim etiketi iki dilde de o anki UTC farkıdır (D-106;
+ * `Intl`'den, koda gömülmez). Gün ve saat aynı dilimdedir (UTC 23:17 → "2 Ekim 2026, 02:17").
+ * Geçersiz anda "—".
  */
 export function formatReleaseTime(at: DateLike, locale: Locale): string {
   const ms = at instanceof Date ? at.getTime() : typeof at === 'number' ? at : Date.parse(at)
@@ -90,6 +81,6 @@ export function formatReleaseTime(at: DateLike, locale: Locale): string {
   return format(catalogs[locale].changelog.releasedAtValue, {
     date: longDate(locale).format(ms),
     time: formatClock(ms),
-    zone: RELEASE_ZONE[locale](ms),
+    zone: formatUtcOffset(ms),
   })
 }

@@ -1,4 +1,4 @@
-// Türkiye dışındaki havalimanları, 1.–3. halka (Parça 1 M6d, D-080; M6g, D-088; M6h, D-090).
+// Diğer ülkelerdeki havalimanları, 1.–3. halka (Parça 1 M6d, D-080; M6g, D-088; M6h, D-090; D-106).
 // Listelenen havalimanları IATA kodlu Türkiye havalimanları ve IATA kodlu en yakın Türkiye
 // havalimanına en çok 2.000 km olan, OurAirports'ta tarifeli seferi kayıtlı büyük ve orta boy yabancı
 // havalimanlarıdır. Veri tools/fixtures/ourairports'taki commit'li alt kümeden (2026-10-01 indirmesi),
@@ -6,8 +6,8 @@
 // - API: `scope=listed` (61 + 75 + 89 + 278), halka ve uzaklık alanları (1. halka ≤ 500 km, 2. halka
 //   500–1.000 km, sınırdaki Ben Gurion 500; 3. halka 1.000–2.000 km), `country` ile birlikte 400; tek
 //   havalimanı ve hava durumu yabancı havalimanını da çözer
-// - /havalimanlari: Türkiye tablosundan sonra "Türkiye dışındaki havalimanları" tablosu (442 satır,
-//   ülkeye göre Türkçe sıralı, ülke ve Türkiye'ye uzaklık sütunları); Kahire ve Viyana satırları
+// - /havalimanlari: Türkiye tablosundan sonra "Diğer ülkelerdeki havalimanları" tablosu (442 satır,
+//   ülkeye göre Türkçe sıralı, ülke sütunu; Türkiye'ye uzaklık sütunu yok, D-106); Kahire ve Viyana satırları
 // - /istasyon/HECA (2. halka) ve /istasyon/LOWW (3. halka), iki dilde: ad, ülke, dizine eklenir, yerel
 //   saat havalimanınınki; `?havalimani=HECA` ve `?havalimani=LOWW` haritada o havalimanında açar,
 //   pencere ülkeyi ve yerel saati gösterir
@@ -63,8 +63,8 @@ const ATHENS_TIME_ZONE = 'Europe/Athens'
 const COPY = {
   tr: {
     listPath: '/havalimanlari',
-    foreignHeading: 'Türkiye dışındaki havalimanları',
-    foreignHeaders: ['Havalimanı', 'Ülke', 'IATA', 'ICAO', 'Türkiye’ye uzaklık', 'En uzun pist'],
+    foreignHeading: 'Diğer ülkelerdeki havalimanları',
+    foreignHeaders: ['Havalimanı', 'Ülke', 'IATA', 'ICAO', 'En uzun pist'],
     country: RING1_AIRPORT.countryTr,
     ring2Country: RING2_AIRPORT.countryTr,
     ring2Name: RING2_AIRPORT.nameTr,
@@ -87,8 +87,8 @@ const COPY = {
   },
   en: {
     listPath: enPath('/havalimanlari'),
-    foreignHeading: 'Airports outside Türkiye',
-    foreignHeaders: ['Airport', 'Country', 'IATA', 'ICAO', 'Distance to Türkiye', 'Longest runway'],
+    foreignHeading: 'Airports in other countries',
+    foreignHeaders: ['Airport', 'Country', 'IATA', 'ICAO', 'Longest runway'],
     country: RING1_AIRPORT.countryEn,
     ring2Country: RING2_AIRPORT.countryEn,
     ring2Name: RING2_AIRPORT.nameEn,
@@ -254,7 +254,7 @@ test.describe('havalimanı listesi', () => {
   for (const locale of ['tr', 'en'] as const) {
     const copy = COPY[locale]
 
-    test(`${copy.listPath}: Türkiye dışındaki havalimanları tablosu 442 satır, ülkeye göre sıralı; satır sayfayı açar`, async ({
+    test(`${copy.listPath}: Diğer ülkelerdeki havalimanları tablosu 442 satır, ülkeye göre sıralı; satır sayfayı açar`, async ({
       page,
     }) => {
       await page.goto(copy.listPath)
@@ -277,29 +277,17 @@ test.describe('havalimanı listesi', () => {
       await expect(athens).toHaveCount(1)
       await expect(athens).toContainText(copy.country)
       await expect(athens).toContainText(iata)
-      // Türkiye'ye uzaklık km ile yazılır (Atina ~275 km).
-      await expect(athens.locator('td').nth(3)).toHaveText(/^\s*\d+\s*km\s*$/)
       await expect(rows.filter({ hasText: KKTC_AIRPORT.icao })).toContainText(copy.kktc)
-      // 2. halkadan Kahire (D-088): ad, ülke ve uzaklık (~693 km, 500 km'nin üstünde).
+      // 2. halkadan Kahire (D-088): ad ve ülke. Halka uzaklıkları API testinde denetlenir (D-106).
       const cairo = rows.filter({ hasText: RING2_AIRPORT.icao })
       await expect(cairo).toHaveCount(1)
       await expect(cairo).toContainText(copy.ring2Name)
       await expect(cairo).toContainText(copy.ring2Country)
-      const cairoKm = Number(
-        ((await cairo.locator('td').nth(3).textContent()) ?? '').replace(/[^0-9]/g, ''),
-      )
-      expect(cairoKm).toBeGreaterThan(RING_LIMITS_KM[1])
-      expect(cairoKm).toBeLessThanOrEqual(RING_LIMITS_KM[2])
-      // 3. halkadan Viyana (D-090): ad, ülke ve uzaklık (1.149 km; binlik ayraçla yazılır).
+      // 3. halkadan Viyana (D-090): ad ve ülke.
       const vienna = rows.filter({ hasText: RING3_AIRPORT.icao })
       await expect(vienna).toHaveCount(1)
       await expect(vienna).toContainText(copy.ring3Name)
       await expect(vienna).toContainText(copy.ring3Country)
-      const viennaKm = Number(
-        ((await vienna.locator('td').nth(3).textContent()) ?? '').replace(/[^0-9]/g, ''),
-      )
-      expect(viennaKm).toBeGreaterThan(RING_LIMITS_KM[2])
-      expect(viennaKm).toBeLessThanOrEqual(RING_LIMITS_KM[3])
 
       const href = locale === 'tr' ? STATION_PATH : enPath(STATION_PATH)
       await athens.locator(`a[href="${href}"]`).click()

@@ -1876,8 +1876,9 @@ body:has(.map-page) .site-footer {
 }
 
 /*
- * Havalimanı listesinin bölümleri (Parça 1 M6d, D-080): önce Türkiye, sonra yakın ülkeler. Kapsama
- * notu (canlı uçak verisi Türkiye odaklıdır) sefer bölümüyle aynı işaret çizgisini taşır.
+ * Havalimanı listesinin bölümleri (Parça 1 M6d, D-080): önce Türkiye, sonra diğer ülkeler; kapsama
+ * notu canlı verinin şimdilik Türkiye ve çevresinden çekildiğini söyler (D-106) ve sefer bölümüyle aynı
+ * işaret çizgisini taşır.
  */
 .airports-section + .airports-section {
   margin-top: 2.5rem;
