@@ -66,6 +66,7 @@ import {
   type AirportPinImage,
 } from './icons'
 import {
+  airportChipsEnabled,
   LabelPainter,
   NORMAL_THEME,
   pinGeometry,
@@ -180,6 +181,28 @@ export interface MapInsets {
 }
 
 export const NO_INSETS: Readonly<MapInsets> = Object.freeze({ bottom: 0, left: 0 })
+
+/**
+ * Havalimanı kodlarının çizim girdisi: görünümdeki havalimanları ekran konumlarıyla. Kod yazılmayacaksa
+ * (yakınlaştırma `AIRPORT_LABEL_MIN_ZOOM`'un altında ya da ayar Gizle) hiçbir havalimanı izdüşürülmez:
+ * her karede bütün liste (4. halkada ~1.222 havalimanı) boşuna izdüşürülürdü (D-101). Uçak
+ * etiketleri bundan etkilenmez.
+ */
+export function screenAirports(
+  project: (lngLat: [number, number]) => { x: number; y: number },
+  airports: readonly Airport[],
+  zoom: number,
+  settings: Pick<LabelSettings, 'airports'>,
+  inView: (x: number, y: number) => boolean,
+): ScreenAirport[] {
+  if (!airportChipsEnabled(zoom, settings)) return []
+  const screen: ScreenAirport[] = []
+  for (const airport of airports) {
+    const { x, y } = project([airport.lon, airport.lat])
+    if (inView(x, y)) screen.push({ airport, x, y })
+  }
+  return screen
+}
 
 /** Panel yokken (ya da henüz ölçülmemişken) `MapViewState.panels`. */
 export const NO_PANELS: readonly ScreenRect[] = Object.freeze([])
@@ -907,13 +930,15 @@ export class MapController {
       const { x, y } = map.project([position.lon, position.lat])
       if (inView(x, y)) aircraft.push({ ac, x, y })
     }
-    const airports: ScreenAirport[] = []
-    for (const airport of this.state.airports) {
-      const { x, y } = map.project([airport.lon, airport.lat])
-      if (inView(x, y)) airports.push({ airport, x, y })
-    }
     const selectedHex = this.state.selectedHex
     const settings = this.state.labelSettings
+    const airports = screenAirports(
+      (lngLat) => map.project(lngLat),
+      this.state.airports,
+      zoom,
+      settings,
+      inView,
+    )
     // İz yalnızca kodların engelidir: kod yazılmayacaksa (Gizle, uzak görünüm) hesaplanmaz.
     const trail =
       selectedHex !== null && showsAirportChips({ zoom, airports, settings })

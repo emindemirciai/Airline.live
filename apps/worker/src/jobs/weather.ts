@@ -180,6 +180,12 @@ export type WeatherRunResult =
       stationsWithReport: number
       skipped: number
       truncated: boolean
+      /**
+       * Kaynağa atılan istek sayısı (AWC istemcisi grupları ve 400 kayıt sınırındaki bölünmeleri
+       * sayar; fixture 0). Çalışma günlüğünde görünür: 3. halkada olağan METAR 7, TAF 3 istektir
+       * (D-090); 4. halkanın ilk METAR çalışması ~133 (D-101).
+       */
+      requests: number
       written: WeatherUpsertCounts
       /** Fixture modunda silinen eski (kaydırılmış) kopyalar; uzak kaynakta 0. */
       removed: number
@@ -284,7 +290,10 @@ async function runWeather<T extends { station: string }, W>(
     )
   }
   if (result.truncated) {
-    deps.log.warn({ kind }, 'hava durumu: yanıt 400 kayıt sınırında; bazı raporlar eksik olabilir')
+    deps.log.warn(
+      { kind, requests: result.requests ?? 0 },
+      'hava durumu: yanıt 400 kayıt sınırında; bazı raporlar eksik olabilir',
+    )
   }
   return {
     status: result.status,
@@ -293,6 +302,7 @@ async function runWeather<T extends { station: string }, W>(
     stationsWithReport: new Set(result.items.map((item) => item.station)).size,
     skipped: result.skipped.length,
     truncated: result.truncated ?? false,
+    requests: result.requests ?? 0,
     written,
     removed,
   }

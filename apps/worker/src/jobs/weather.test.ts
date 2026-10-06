@@ -400,6 +400,8 @@ describe('runWeatherMetar', () => {
       reports: 3,
       stationsWithReport: 2,
       skipped: 1,
+      // Sahte kaynak istek saymaz.
+      requests: 0,
       written: { inserted: 2 },
       removed: 0,
     })
@@ -508,13 +510,15 @@ describe('runWeatherMetar', () => {
       reports: 503 * 4,
       stationsWithReport: 503,
       truncated: false,
+      // Çalışma sonucu (ve günlüğü) istek sayısını taşır (D-101): olağan 3 + doldurma 47.
+      requests: 50,
     })
     expect(calls.metars[0]).toHaveLength(503 * 4)
     expect(calls.metars[0]?.[0]?.rawText).toBe('XAAA 151250Z 00000KT 9999 Q1010')
 
     // Sonraki çalışmada bütün istasyonlar olağan geriye bakışla: yedi istek (80 × 6 + 23).
     requests.length = 0
-    await run()
+    expect(await run()).toMatchObject({ status: 200, stations: 503, requests: 7 })
     expect(requests.map((u) => u.searchParams.get('hours'))).toEqual(
       Array.from({ length: 7 }, () => '2'),
     )
@@ -606,6 +610,7 @@ describe('runWeatherMetar', () => {
       stationsWithReport: 2,
       skipped: 1,
       truncated: true,
+      requests: 5,
     })
     expect(calls.metars[0]?.map((m) => m.stationIcao)).toEqual(['LTFM', 'LGAV', 'LGAV'])
 
@@ -757,7 +762,14 @@ describe('runWeatherTaf ve runWeatherPrune', () => {
       log,
       now: () => FIXTURE_NOW,
     })
-    expect(result).toMatchObject({ status: 200, reports: 14, stationsWithReport: 2, removed: 3 })
+    expect(result).toMatchObject({
+      status: 200,
+      reports: 14,
+      stationsWithReport: 2,
+      removed: 3,
+      // Fixture kaynağı ağa çıkmaz.
+      requests: 0,
+    })
     // Fixture modu tabloyu fixture'a eşitler: istenen bütün istasyonlar, yazılan satırlarla.
     expect(calls.retained).toEqual([['taf', ['LTFM', 'LTBJ', 'LTBQ'], 14]])
     const ltfm = calls.tafs[0]?.find((t) => t.issuedAt.toISOString() === '2026-01-15T10:40:00.000Z')
@@ -772,6 +784,62 @@ describe('runWeatherTaf ve runWeatherPrune', () => {
     expect(calls.checks[0]).toEqual([
       'taf',
       { origin: 'fixture', now: FIXTURE_NOW, stationCount: 3, reportCount: 14, skippedCount: 0 },
+    ])
+  })
+
+  it('TAF: 503 istasyon üç istek (200 + 200 + 103); sonuç istek sayısını taşır (D-101)', async () => {
+    const stations = Array.from({ length: 503 }, (_, i) => {
+      const letter = (n: number) => String.fromCharCode(65 + (Math.floor(i / 26 ** n) % 26))
+      return `X${letter(1)}${letter(0)}A`
+    })
+    const { store } = fakeStore({ stations })
+    const sizes: number[] = []
+    const fetch = (async (input: string | URL | Request) => {
+      sizes.push(new URL(String(input)).searchParams.get('ids')?.split(',').length ?? 0)
+      return new Response('[]', { status: 200, headers: { 'content-type': 'application/json' } })
+    }) as typeof globalThis.fetch
+    const client = createAviationWeatherClient({
+      userAgent: 'havayolu/0.21.0 (+https://havayolu.live)',
+      fetch,
+      now: () => FIXTURE_NOW.getTime(),
+      minIntervalMs: 0,
+    })
+    const result = await runWeatherTaf({
+      store,
+      source: awcWeatherSource(client),
+      origin: 'remote',
+      log,
+      now: () => FIXTURE_NOW,
+    })
+    expect(sizes).toEqual([200, 200, 103])
+    expect(result).toMatchObject({ status: 200, stations: 503, reports: 0, requests: 3 })
+  })
+
+  it('400 kayıt sınırı uyarısı istek sayısıyla yazılır', async () => {
+    const { store } = fakeStore()
+    const warnings: unknown[] = []
+    const spy = pino(
+      { level: 'warn' },
+      { write: (line: string) => void warnings.push(JSON.parse(line)) },
+    )
+    const source: WeatherSource = {
+      metars: async () => ({ status: 200, items: [], skipped: [], truncated: true, requests: 3 }),
+      tafs: async () => ({ status: 204, items: [], skipped: [] }),
+    }
+    const result = await runWeatherMetar({
+      store,
+      source,
+      origin: 'remote',
+      log: spy,
+      now: () => FIXTURE_NOW,
+    })
+    expect(result).toMatchObject({ truncated: true, requests: 3 })
+    expect(warnings).toEqual([
+      expect.objectContaining({
+        kind: 'metar',
+        requests: 3,
+        msg: 'hava durumu: yanıt 400 kayıt sınırında; bazı raporlar eksik olabilir',
+      }),
     ])
   })
 

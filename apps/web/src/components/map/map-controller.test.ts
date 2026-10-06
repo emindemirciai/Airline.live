@@ -3,11 +3,13 @@ import {
   AIRPORT_LAYER_ID,
   COUNTRY_LABEL_LAYER_IDS,
   LIVE_MAP_LAYERS,
+  type Airport,
 } from '@havayolu/shared'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { clampViewport } from '../../lib/live/connection'
 import { INITIAL_BOUNDS, INITIAL_MAX_ZOOM, initialZoom, PRIMARY_AIRPORT_VIEW } from './camera'
 import { DEFAULT_LABEL_SETTINGS } from '../../lib/map/label-settings'
+import { AIRPORT_LABEL_MIN_ZOOM } from './labels'
 import {
   iconScaleAt,
   mapPadding,
@@ -16,6 +18,7 @@ import {
   overlayLayers,
   resolveHit,
   sameViewState,
+  screenAirports,
   type HitCandidates,
   type MapViewState,
 } from './map-controller'
@@ -206,5 +209,37 @@ describe('panel payı (D-085)', () => {
     expect(mapPadding({ bottom: 320, left: 0 })).toEqual({ top: 0, right: 0, bottom: 320, left: 0 })
     expect(mapPadding({ bottom: 0, left: 400 })).toEqual({ top: 0, right: 0, bottom: 0, left: 400 })
     expect(mapPadding({ bottom: -5, left: -1 })).toEqual({ top: 0, right: 0, bottom: 0, left: 0 })
+  })
+})
+
+describe('screenAirports: havalimanı izdüşümü yalnız kod yazılacaksa (D-101)', () => {
+  const airports = [
+    { icao: 'LTFM', lat: 41.26, lon: 28.73 },
+    { icao: 'LTBA', lat: 40.98, lon: 28.81 },
+    { icao: 'EGLL', lat: 51.47, lon: -0.45 },
+  ] as Airport[]
+  // Sahte izdüşüm: boylam × 10 → x, enlem × 10 → y; ekran 0–500 px.
+  const setup = () => {
+    const project = vi.fn(([lon, lat]: [number, number]) => ({ x: lon * 10, y: lat * 10 }))
+    const inView = (x: number, y: number) => x >= 0 && x <= 500 && y >= 0 && y <= 500
+    return { project, inView }
+  }
+
+  it('z4 ya da ayar Gizle: hiçbir havalimanı izdüşürülmez', () => {
+    expect(AIRPORT_LABEL_MIN_ZOOM).toBe(5)
+    const { project, inView } = setup()
+    expect(screenAirports(project, airports, 4, DEFAULT_LABEL_SETTINGS, inView)).toEqual([])
+    expect(screenAirports(project, airports, 4.99, { airports: 'code' }, inView)).toEqual([])
+    expect(screenAirports(project, airports, 9, { airports: 'hidden' }, inView)).toEqual([])
+    expect(project).not.toHaveBeenCalled()
+  })
+
+  it('z5 ve ayar Kod: her havalimanı bir kez izdüşürülür, görünümdekiler döner', () => {
+    const { project, inView } = setup()
+    const screen = screenAirports(project, airports, 5, { airports: 'code' }, inView)
+    expect(project).toHaveBeenCalledTimes(3)
+    expect(screen.map((item) => item.airport.icao)).toEqual(['LTFM', 'LTBA'])
+    expect(screen[0]?.x).toBeCloseTo(287.3, 6)
+    expect(screen[0]?.y).toBeCloseTo(412.6, 6)
   })
 })

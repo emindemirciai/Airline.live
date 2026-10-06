@@ -59,11 +59,28 @@ export function isEnabledAirportRing(ring: number): boolean {
 const IATA_CODE = /^[A-Z]{3}$/
 
 /**
- * Türkiye dışındaki bir havalimanı listeye aday mı (D-080, halka analiziyle aynı kural):
- * OurAirports `large_airport` ya da `medium_airport`, tarifeli seferi var ve üç harfli IATA kodu
- * taşıyor. IATA kodu kırpılıp büyük harfe çevrilir. Halka sınırı ayrıca uygulanır (`airportRing`).
+ * Kanonik ICAO kodu dört harf ya da rakamdır (sayfa yolu, API kodu ve hava durumu istasyonu aynı
+ * biçimi ister; hava durumu şeması `IcaoSchema` ve veritabanı kısıtı `^[A-Z0-9]{4}$`).
  */
-export function isForeignCandidate(
+const CANONICAL_ICAO = /^[A-Z0-9]{4}$/
+
+/**
+ * Kanonik ICAO (`ourAirportsIcao`) dört karakterli mi (D-101). OurAirports'ta `icao_code` ve
+ * `gps_code` taşımayan satırın kimliği ident'tir ("UG-0002", Kihihi'nin Savannah pisti, IATA KHX):
+ * böyle bir havalimanının sayfası, hava durumu istasyonu ve METAR'ı olamaz. Kod kırpılıp büyük
+ * harfe çevrilir.
+ */
+export function isCanonicalIcao(icao: string | null | undefined): boolean {
+  return CANONICAL_ICAO.test(icao?.trim().toUpperCase() ?? '')
+}
+
+/**
+ * D-080'in aday kuralı, ICAO koşulu olmadan: OurAirports `large_airport` ya da `medium_airport`,
+ * tarifeli seferi var ve üç harfli IATA kodu taşıyor. IATA kodu kırpılıp büyük harfe çevrilir.
+ * Halka analizi ve fixture üreticisi bu kuralı sayar (4. halkada 720 aday); listeye giren aday
+ * ayrıca kanonik ICAO koşulunu taşır (`isForeignCandidate`, 719).
+ */
+export function isScheduledIataAirport(
   type: string,
   scheduled: boolean,
   iata: string | null | undefined,
@@ -73,4 +90,20 @@ export function isForeignCandidate(
     scheduled &&
     IATA_CODE.test(iata?.trim().toUpperCase() ?? '')
   )
+}
+
+/**
+ * Türkiye dışındaki bir havalimanı listeye aday mı (D-080, D-101): D-080 kuralı
+ * (`isScheduledIataAirport`) ve kanonik ICAO'su (`ourAirportsIcao`) dört karakter
+ * (`isCanonicalIcao`). Değişmez kural: `scope=listed`'deki her havalimanının dört karakterli
+ * ICAO'su vardır. Halka sınırı ayrıca uygulanır (`airportRing`). `@havayolu/db` aynı kuralı kendi
+ * yazımıyla uygular; `apps/api/src/reference/rings.test.ts` ikisini denetler.
+ */
+export function isForeignCandidate(
+  type: string,
+  scheduled: boolean,
+  iata: string | null | undefined,
+  icao: string | null | undefined,
+): boolean {
+  return isScheduledIataAirport(type, scheduled, iata) && isCanonicalIcao(icao)
 }

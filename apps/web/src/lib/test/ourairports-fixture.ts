@@ -12,8 +12,8 @@ import {
 } from '@havayolu/shared'
 
 /**
- * Commit'li OurAirports fixture'ından (üretim dökümünün Türkiye kesiti ile 1.–3. halkanın yabancı
- * havalimanları, D-080, D-088, D-090) API'nin döndüreceği `AirportDetail` listesine yakın bir liste kurar:
+ * Commit'li OurAirports fixture'ından (üretim dökümünün Türkiye kesiti ile 1.–4. halkanın yabancı
+ * havalimanları, D-080, D-088, D-090, D-101) API'nin döndüreceği `AirportDetail` listesine yakın bir liste kurar:
  * IATA kodlu Türkiye havalimanları, içe aktarım filtresi (büyük/orta ya da tarifeli; data-sources.md §3),
  * açık pistler ve tohum istasyonları; `fixtureListedAirports` bunlara açık halkalardaki yabancı
  * adayları ekler. Sayfa metinlerinin her gerçek havalimanı için sınırlar içinde kaldığını denetlemek
@@ -72,21 +72,54 @@ function read(file: string): Row[] {
 const num = (value: string | undefined): number | null =>
   value === undefined || value.trim() === '' ? null : Number(value)
 
-function end(row: Row, prefix: 'le' | 'he', other: 'le' | 'he'): RunwayEnd {
+/**
+ * İçe aktarımın uç uzaklığı kuralı (D-101; `@havayolu/providers` `endsAreTooFarApart`,
+ * `MAX_RUNWAY_END_SEPARATION_RATIO` ve `MAX_RUNWAY_END_SEPARATION_M`; web o pakete bağımlı değildir,
+ * `packages/providers/src/reference/reference.test.ts` değerleri karşılaştırır): uçlar kayıtlı
+ * uzunluğun iki katından ve 1 km'den uzaksa uç koordinatları kullanılmaz.
+ */
+const MAX_RUNWAY_END_SEPARATION_RATIO = 2
+const MAX_RUNWAY_END_SEPARATION_M = 1000
+const M_PER_FT = 0.3048
+
+function endsAreTooFarApart(row: Row): boolean {
+  const lengthFt = num(row.length_ft)
+  const le = { lat: num(row.le_latitude_deg), lon: num(row.le_longitude_deg) }
+  const he = { lat: num(row.he_latitude_deg), lon: num(row.he_longitude_deg) }
+  if (lengthFt === null || lengthFt <= 0) return false
+  if (le.lat === null || le.lon === null || he.lat === null || he.lon === null) return false
+  const separationM = distanceKm({ lat: le.lat, lon: le.lon }, { lat: he.lat, lon: he.lon }) * 1000
+  return (
+    separationM > lengthFt * M_PER_FT * MAX_RUNWAY_END_SEPARATION_RATIO &&
+    separationM > MAX_RUNWAY_END_SEPARATION_M
+  )
+}
+
+/**
+ * Pistin bir ucu. Uçları kayıtlı uzunluğa göre çok uzak pistte (VAAM, D-101) API gibi: yön heading
+ * alanından, eşik havalimanı merkezinde (`arp`).
+ */
+function end(
+  row: Row,
+  prefix: 'le' | 'he',
+  other: 'le' | 'he',
+  arp: { lat: number; lon: number },
+): RunwayEnd {
+  const usable = !endsAreTooFarApart(row)
   const lat = num(row[`${prefix}_latitude_deg`])
   const lon = num(row[`${prefix}_longitude_deg`])
   const otherLat = num(row[`${other}_latitude_deg`])
   const otherLon = num(row[`${other}_longitude_deg`])
   const bearing =
-    lat !== null && lon !== null && otherLat !== null && otherLon !== null
+    usable && lat !== null && lon !== null && otherLat !== null && otherLon !== null
       ? initialBearing({ lat, lon }, { lat: otherLat, lon: otherLon })
       : num(row[`${prefix}_heading_degT`])
   return {
     ident: row[`${prefix}_ident`] ?? '',
     trueBearingDeg: bearing,
     displacedThresholdFt: num(row[`${prefix}_displaced_threshold_ft`]),
-    thresholdLat: lat,
-    thresholdLon: lon,
+    thresholdLat: usable ? lat : arp.lat,
+    thresholdLon: usable ? lon : arp.lon,
   }
 }
 
@@ -95,23 +128,39 @@ let cachedListed: AirportDetail[] | undefined
 let cachedRunways: Row[] | undefined
 
 /**
- * API'nin gizlediği yinelenen boş pist satırları (D-088, D-090; `@havayolu/db` → `HIDDEN_RUNWAY_IDS`,
- * web o pakete bağımlı değildir): Taba "04/22", Cluj-Napoca "08/26", Linz "07H/25H" ve Voronej
- * "18/36"; yalnız uzunluk ve genişlik boşken.
+ * API'nin gizlediği yinelenen boş pist satırları (D-088, D-090, D-101; `@havayolu/db` →
+ * `HIDDEN_RUNWAY_IDS`, web o pakete bağımlı değildir, `packages/db/src/airports.test.ts` iki listeyi
+ * karşılaştırır): Bujumbura "02/20", Hassi Messaoud "01/19", Taba "04/22", Beauvais "13R/31L",
+ * Cluj-Napoca "08/26", Linz "07H/25H" ve Voronej "18/36"; yalnız uzunluk ve genişlik boşken.
  */
-const HIDDEN_RUNWAY_IDS = new Set(['260339', '260408', '504922', '608245'])
+const HIDDEN_RUNWAY_IDS = new Set([
+  '260310',
+  '260338',
+  '260339',
+  '260344',
+  '260408',
+  '504922',
+  '608245',
+])
+
+/** Bundan kısa kayıtlı uzunluk pist değildir, ft (`@havayolu/db` `MIN_RUNWAY_LENGTH_FT`, D-101). */
+const MIN_RUNWAY_LENGTH_FT = 100
 
 /**
- * API'nin gösterdiği pist satırları (`isHiddenRunway`): açık, tabloda boş satır olarak yok ve karşı
- * ucu var (D-090: tek uçlu satır pist değildir; Stuttgart'ın H-NORTH ve H-SOUTH helikopter alanları).
+ * API'nin gösterdiği pist satırları (`isHiddenRunway`): açık, tabloda boş satır olarak yok, karşı
+ * ucu var (D-090: tek uçlu satır pist değildir; Stuttgart'ın H-NORTH ve H-SOUTH helikopter alanları)
+ * ve kayıtlı uzunluğu 100 ft'ten kısa değil (D-101: Pamplona'nın 2 ft'lik "03/21" satırı).
  */
 function openRunways(): Row[] {
-  cachedRunways ??= read('runways.csv').filter(
-    (row) =>
+  cachedRunways ??= read('runways.csv').filter((row) => {
+    const lengthFt = num(row.length_ft)
+    return (
       row.closed !== '1' &&
       (row.he_ident ?? '').trim() !== '' &&
-      !(HIDDEN_RUNWAY_IDS.has(row.id ?? '') && !row.length_ft && !row.width_ft),
-  )
+      !(lengthFt !== null && lengthFt < MIN_RUNWAY_LENGTH_FT) &&
+      !(HIDDEN_RUNWAY_IDS.has(row.id ?? '') && !row.length_ft && !row.width_ft)
+    )
+  })
   return cachedRunways
 }
 
@@ -133,6 +182,7 @@ function toDetail(
 ): AirportDetail {
   const icao = icaoOf(row)
   const station = STATIONS[icao]
+  const arp = { lat: Number(row.latitude_deg), lon: Number(row.longitude_deg) }
   return {
     icao,
     iata: row.iata_code ?? '',
@@ -164,7 +214,7 @@ function toDetail(
         widthFt: num(r.width_ft),
         surface: r.surface || null,
         lighted: r.lighted === '1',
-        ends: [end(r, 'le', 'he'), end(r, 'he', 'le')],
+        ends: [end(r, 'le', 'he', arp), end(r, 'he', 'le', arp)],
       }))
       .sort((a, b) => (a.ends[0].ident < b.ends[0].ident ? -1 : 1)),
   }
@@ -193,23 +243,57 @@ function turkishReferences(): Row[] {
 
 /**
  * Listelenen havalimanları (D-080): Türkiye havalimanları ve halkası `ENABLED_AIRPORT_RING`'i aşmayan
- * yabancı adaylar (`isForeignCandidate`). Uzaklık, Türkiye'deki en yakın IATA kodlu havalimanına
- * büyük daire mesafesidir (API'nin `distanceToTrKm`'i ve `nearestTr`'si gibi, tam km); fixture'daki
- * uzak halkalar listeye girmez.
+ * yabancı adaylar (`isForeignCandidate`; kanonik ICAO'su dört karakter, D-101). Uzaklık, Türkiye'deki
+ * en yakın IATA kodlu havalimanına büyük daire mesafesidir (API'nin `distanceToTrKm`'i ve
+ * `nearestTr`'si gibi, tam km); fixture'daki uzak halkalar listeye girmez.
  */
 export function fixtureListedAirports(): AirportDetail[] {
-  if (cachedListed) return cachedListed
-  const turkey = fixtureTurkishAirports()
+  cachedListed ??= [
+    ...fixtureTurkishAirports(),
+    ...foreignCandidates()
+      .filter((candidate) => candidate.ring <= ENABLED_AIRPORT_RING)
+      .map(candidateDetail),
+  ]
+  return cachedListed
+}
+
+/**
+ * Halkası açık olsun olmasın, fixture'daki bir yabancı adayın (`isForeignCandidate`) API'deki
+ * kaydı: halka henüz kapalıyken 4. halkanın sayfalarını denetlemek için (D-101). Aday değilse hata.
+ */
+export function fixtureForeignAirport(icao: string): AirportDetail {
+  const candidate = foreignCandidates().find((c) => icaoOf(c.row) === icao)
+  if (!candidate) throw new Error(`fixture has no foreign candidate ${icao}`)
+  return candidateDetail(candidate)
+}
+
+interface ForeignCandidate {
+  row: Row
+  ring: number
+  km: number
+  nearest: AirportDetail['nearestTr']
+}
+
+let cachedCandidates: ForeignCandidate[] | undefined
+
+/** Bütün halkaların yabancı adayları, kaynak sırasıyla; Türkiye'deki en yakın havalimanıyla. */
+function foreignCandidates(): ForeignCandidate[] {
+  if (cachedCandidates) return cachedCandidates
   const references = turkishReferences().map((row) => ({
     lat: Number(row.latitude_deg),
     lon: Number(row.longitude_deg),
     nearest: { icao: icaoOf(row), iata: row.iata_code ?? '', name: row.name ?? '' },
   }))
-  const foreign = read('airports.csv')
+  cachedCandidates = read('airports.csv')
     .filter(
       (row) =>
         row.iso_country !== 'TR' &&
-        isForeignCandidate(row.type ?? '', row.scheduled_service === 'yes', row.iata_code ?? ''),
+        isForeignCandidate(
+          row.type ?? '',
+          row.scheduled_service === 'yes',
+          row.iata_code ?? '',
+          icaoOf(row),
+        ),
     )
     .flatMap((row) => {
       const point = { lat: Number(row.latitude_deg), lon: Number(row.longitude_deg) }
@@ -218,13 +302,11 @@ export function fixtureListedAirports(): AirportDetail[] {
         const km = distanceKm(point, reference)
         if (best === null || km < best.km) best = { km, nearest: reference.nearest }
       }
-      if (best === null) return []
-      const ring = airportRing(best.km)
-      // API gibi: halka tam uzaklıktan, `distanceToTrKm` tam sayıya yuvarlı.
-      return ring <= ENABLED_AIRPORT_RING
-        ? [toDetail(row, ring, Math.round(best.km), best.nearest)]
-        : []
+      return best === null ? [] : [{ row, ring: airportRing(best.km), ...best }]
     })
-  cachedListed = [...turkey, ...foreign]
-  return cachedListed
+  return cachedCandidates
 }
+
+/** API gibi: halka tam uzaklıktan, `distanceToTrKm` tam sayıya yuvarlı. */
+const candidateDetail = (candidate: ForeignCandidate): AirportDetail =>
+  toDetail(candidate.row, candidate.ring, Math.round(candidate.km), candidate.nearest)

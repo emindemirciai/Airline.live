@@ -51,7 +51,7 @@ const references = rows
   .filter((r) => ['large_airport', 'medium_airport', 'small_airport'].includes(r.get('type') ?? ''))
   .filter((r) => /^[A-Z]{3}$/.test((r.get('iata_code') ?? '').trim().toUpperCase()))
   .map(position)
-/** Açık halkalardaki yabancı havalimanları (liste kuralı, D-080). */
+/** Açık halkalardaki yabancı havalimanları (liste kuralı, D-080, D-101). */
 const listedForeign = rows
   .filter((r) => r.get('iso_country') !== 'TR')
   .filter((r) =>
@@ -59,6 +59,7 @@ const listedForeign = rows
       r.get('type') ?? '',
       r.get('scheduled_service') === 'yes',
       r.get('iata_code'),
+      icaoOf(r),
     ),
   )
   .filter((r) => {

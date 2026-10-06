@@ -61,6 +61,17 @@ export {
   type LocalTime,
 } from './time'
 export {
+  toAirportMetar,
+  toAirportTaf,
+  toAirportWeather,
+  toRawMetar,
+  toRawTaf,
+  weatherFlightCategory,
+  type MetarRecordInput,
+  type TafRecordInput,
+  type WeatherDecodeErrorHandler,
+} from './views'
+export {
   compareWeatherSeverity,
   mostSevereGroup,
   parseWeatherGroup,

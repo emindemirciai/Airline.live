@@ -198,6 +198,7 @@ export const en: Messages = {
     grass: 'Grass',
     dirt: 'Dirt',
     gravel: 'Gravel',
+    sand: 'Sand',
     water: 'Water',
     unknown: 'Unknown',
   },
@@ -798,6 +799,9 @@ export const en: Messages = {
       title: 'Airports in view',
       empty: 'No airports in view; pan or zoom out the map.',
       hint: 'Opens the information and weather window of the airport you choose.',
+      loadFailed:
+        'The airport list could not be loaded. The site may have been updated or the connection lost; reload the page.',
+      reload: 'Reload page',
     },
     status: {
       freshness: 'Data age {s} s',
@@ -830,6 +834,9 @@ export const en: Messages = {
       civilClosure: 'May be closed to civil flights (since {since})',
       openAirportPage: 'Airport page →',
       close: 'Close',
+      loadFailed:
+        'Airport details could not be loaded. The site may have been updated or the connection lost; reload the page.',
+      reload: 'Reload page',
     },
   },
   status: {

@@ -2,9 +2,11 @@
 //   pnpm exec tsx scripts/make-reference-fixtures.mts <ham-dosya-klasörü> [çıktı-klasörü]
 // Klasörde OurAirports airports.csv + runways.csv ve VRS airlines.csv bulunur (indirme bir kez,
 // kullanıcı onayıyla yapılır; CLAUDE.md DUR-SOR 6). Çıktı varsayılan olarak tools/fixtures'tır.
+// 2026-10-01 indirmesinin kalıcı kopyası depo dışındadır: C:/PROJELER/havayolu-data/ourairports-2026-10-01
+// (SHA256SUMS ile; tools/fixtures/README.md). Bugünkü fixture o klasörden bayt bayt aynı üretilir.
 // Alt küme: Türkiye'deki bütün kayıtlar ve FIXTURE_EXTRA_AIRPORTS (pistlerinin hepsiyle), ardından
-// Türkiye dışı adaylar halka halka: önce 1., sonra 2., sonra 3. halka (açık pistleriyle; D-080,
-// D-088, D-090);
+// Türkiye dışı adaylar halka halka: önce 1., sonra 2., 3. ve 4. halka (açık pistleriyle; D-080,
+// D-088, D-090, D-101);
 // havayollarının tamamı.
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
@@ -15,17 +17,21 @@ import { parseCsv } from '../packages/providers/src/reference/csv.ts'
 /** Türkiye dışından testlerde kullanılabilecek birkaç büyük havalimanı. */
 const FIXTURE_EXTRA_AIRPORTS = ['EGLL', 'LFPG', 'EDDF', 'EHAM', 'OMDB', 'OTHH', 'KJFK', 'LEMD']
 /**
- * Fixture'a alınan halkaların üst sınırları, km (`@havayolu/shared` `AIRPORT_RINGS_KM`'in ilk
- * üçü; 1. halka ≤ 500, 2. halka 500 < uzaklık ≤ 1.000, 3. halka 1.000 < uzaklık ≤ 2.000; D-080,
- * D-088, D-090). Aday: Türkiye dışında,
- * tarifeli seferi olan, üç harfli IATA kodlu büyük ya da orta havalimanı. Uzaklık Türkiye'deki IATA
+ * Fixture'a alınan halkaların üst sınırları, km (`@havayolu/shared` `AIRPORT_RINGS_KM`; 1. halka
+ * ≤ 500, 2. halka 500 < uzaklık ≤ 1.000, 3. halka 1.000 < uzaklık ≤ 2.000, 4. halka 2.000 <
+ * uzaklık ≤ 5.000; D-080, D-088, D-090, D-101). Aday: Türkiye dışında,
+ * tarifeli seferi olan, üç harfli IATA kodlu büyük ya da orta havalimanı (D-080 kuralı; uygulamanın
+ * dört karakterli ICAO koşulu burada yoktur: Kihihi UG-0002 fixture'da dışlamanın örneğidir).
+ * Uzaklık Türkiye'deki IATA
  * kodlu bütün satırlara bakılarak ölçülür (listeye girmeyen küçük alanlar dahil; uygulama da aynı
  * kümeyle ölçer). Halkalar sırayla yazılır, her halka kaynak sırasıyla: yeni halka dosyanın sonuna
  * eklenir, önceki satırlar ve sıraları değişmez (tek eşikle yazılsa sonraki halkanın satırları
  * öncekilerin arasına karışırdı; kaynak alfabetik sıradadır). Uzak örneklerden (FIXTURE_EXTRA_AIRPORTS)
- * 3. halkaya düşen Frankfurt, Dubai ve Doha Hamad tabanda kalır, halka satırı olarak yinelenmez.
+ * 3. halkaya düşen Frankfurt, Dubai ve Doha Hamad ile 4. halkaya düşen Paris Charles de Gaulle,
+ * Amsterdam, Londra Heathrow ve Madrid tabanda kalır, halka satırı olarak yinelenmez; yalnız KJFK
+ * hiçbir fixture halkasında değildir.
  */
-const FIXTURE_RINGS_KM = [500, 1000, 2000] as const
+const FIXTURE_RINGS_KM = [500, 1000, 2000, 5000] as const
 const IATA_CODE = /^[A-Z]{3}$/
 
 const root = fileURLToPath(new URL('..', import.meta.url))
@@ -75,7 +81,7 @@ const candidates = airports.filter(
     IATA_CODE.test(row[iataCol] ?? ''),
 )
 const distances = new Map(candidates.map((row) => [row, nearestTurkishKm(row)]))
-/** Halka halka adaylar: [1. halka, 2. halka, 3. halka], her biri kaynak sırasıyla. */
+/** Halka halka adaylar: [1. halka, 2. halka, 3. halka, 4. halka], her biri kaynak sırasıyla. */
 const rings = FIXTURE_RINGS_KM.map((limit, index) => {
   const lower = index === 0 ? -1 : (FIXTURE_RINGS_KM[index - 1] ?? -1)
   return candidates.filter((row) => {
@@ -89,7 +95,7 @@ const [runwayHeader = [], ...runways] = read('runways.csv')
 const runwayAirportCol = col(runwayHeader, 'airport_ident')
 const closedCol = col(runwayHeader, 'closed')
 const baseRunways = runways.filter((row) => baseIdents.has(row[runwayAirportCol]))
-// Pistler de halka halka: önce 1. halkanın açık pistleri, sonra 2. ve 3. halkanınkiler.
+// Pistler de halka halka: önce 1. halkanın açık pistleri, sonra 2., 3. ve 4. halkanınkiler.
 const ringRunways = rings.flatMap((ring) => {
   const idents = new Set(ring.map((row) => row[identCol]))
   return runways.filter((row) => idents.has(row[runwayAirportCol]) && row[closedCol] !== '1')

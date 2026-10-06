@@ -1,10 +1,19 @@
 import { readFileSync } from 'node:fs'
 import { bearingDifference, distanceKm, initialBearing, type LatLon } from '@havayolu/geo'
 import { describe, expect, it } from 'vitest'
-import { isImportedAirport, parseAirports, parseRunways, type RunwayRow } from './ourairports'
+import {
+  endsAreTooFarApart,
+  isImportedAirport,
+  MAX_RUNWAY_END_SEPARATION_M,
+  MAX_RUNWAY_END_SEPARATION_RATIO,
+  parseAirports,
+  parseRunways,
+  type RunwayRow,
+} from './ourairports'
 import { parseAirlines } from './vrs'
 
-// Commit'li alt küme: OurAirports ve VRS'ten 2026-09-27'de alındı (tools/fixtures/README.md).
+// Commit'li alt küme: OurAirports ve VRS'ten 2026-09-27'de alındı; halka satırları 2026-10-01
+// indirmesinden (tools/fixtures/README.md).
 const fixture = (path: string) =>
   readFileSync(new URL(`../../../../tools/fixtures/${path}`, import.meta.url), 'utf8')
 
@@ -23,15 +32,19 @@ const RUNWAYS_HEADER =
 describe('OurAirports airports', () => {
   it('fixture eksiksiz ayrışır; tohum istasyonları ve ARP bilgileri vardır', () => {
     expect(airports.skipped).toEqual([])
-    // Fixture bütün TR alanlarını (429), sekiz uzak havalimanını, 1. halkanın 75, 2. halkanın 89 ve
-    // 3. halkanın 275 yeni havalimanını (D-080, D-088, D-090) içerir; filtre büyük/orta ve tarifeli
-    // olanları ve Türkiye'nin IATA kodlu 5 küçük alanını (yurt dışı havalimanlarının uzaklık
-    // referansı, D-080) tutar.
+    // Fixture bütün TR alanlarını (429), sekiz uzak havalimanını, 1. halkanın 75, 2. halkanın 89,
+    // 3. halkanın 275 ve 4. halkanın 716 yeni havalimanını (D-080, D-088, D-090, D-101) içerir;
+    // filtre büyük/orta ve tarifeli olanları ve Türkiye'nin IATA kodlu 5 küçük alanını (yurt dışı
+    // havalimanlarının uzaklık referansı, D-080) tutar.
     const all = parseAirports(fixture('ourairports/airports.csv'), () => true)
     expect(all.skipped).toEqual([])
-    expect(all.rows.length).toBe(876)
+    expect(all.rows.length).toBe(1592)
     expect(all.rows.filter((a) => a.isoCountry === 'TR')).toHaveLength(429)
-    expect(airports.rows.length + airports.ignored).toBe(876)
+    expect(airports.rows.length + airports.ignored).toBe(1592)
+    // 4. halkanın satırları önceki satırların ardından, kaynak sırasıyla gelir: 3. halkanın sonuncusu
+    // Samara (UWWW), 4. halkanın ilki Neerlerit Inaat (Grönland), sonuncusu Yining (ZWYN).
+    expect(all.rows.slice(875, 877).map((a) => a.ident)).toEqual(['UWWW', 'BGCO'])
+    expect(all.rows.at(-1)?.ident).toBe('ZWYN')
     expect(airports.rows.find((a) => a.ident === 'LGAV')).toMatchObject({
       iataCode: 'ATH',
       isoCountry: 'GR',
@@ -148,6 +161,84 @@ describe('OurAirports runways ve pist eşikleri (M2 kabulü)', () => {
     expect(initialBearing(end, shifted)).toBeCloseTo(142, 1)
   })
 
+  it('uçları kayıtlı uzunluğa göre çok uzak pist: yön heading alanından, eşikler ARP (VAAM 08/26, D-101)', () => {
+    // Fixture satırı 610195: 6.070 ft (1.850 m) kayıtlı, uçlar 74,5 km arayla (77,01° D ve 77,73° D).
+    const vaam = runways.rows.find((r) => r.id === 610195)
+    const arp = arps.get(vaam?.airportId ?? -1)
+    expect(vaam?.airportIdent).toBe('IN-0065')
+    expect(arp).toBeDefined()
+    expect(vaam?.endsAreThresholds).toBe(false)
+    for (const [end, heading] of [
+      [vaam?.le, 75],
+      [vaam?.he, 255],
+    ] as const) {
+      expect(end).toMatchObject({
+        trueBearingDeg: heading,
+        bearingSource: 'heading_field',
+        headingMismatch: false,
+        thresholdLat: arp?.lat,
+        thresholdLon: arp?.lon,
+        thresholdSource: 'arp_fallback',
+      })
+    }
+    // Ham uç koordinatları kayıtta olduğu gibi kalır.
+    expect(vaam?.le.longitudeDeg).toBe(77.01274)
+    expect(vaam?.he.longitudeDeg).toBe(77.72992)
+    // Kural fixture'ın açık pistlerinde yalnız bu satırı etkiler: geri kalan her iki uçlu pistte
+    // uçlar uzunluğun iki katını ya da 1 km'yi aşmaz.
+    const affected = runways.rows
+      .filter((r) => {
+        const le = r.le.latitudeDeg !== null && r.le.longitudeDeg !== null
+        const he = r.he.latitudeDeg !== null && r.he.longitudeDeg !== null
+        return le && he && endsAreTooFarApart(rawEnd(r.le), rawEnd(r.he), r.lengthFt)
+      })
+      .map((r) => r.id)
+    expect(affected).toEqual([610195])
+  })
+
+  it('uç uzaklığı kuralının sınırları web test yardımcısındakiyle aynı (D-101)', () => {
+    // Web @havayolu/providers'a bağımlı değildir; yardımcı kuralı kendi yazar.
+    const source = readFileSync(
+      new URL('../../../../apps/web/src/lib/test/ourairports-fixture.ts', import.meta.url),
+      'utf8',
+    )
+    expect(/const MAX_RUNWAY_END_SEPARATION_RATIO = (\d+)/.exec(source)?.[1]).toBe(
+      String(MAX_RUNWAY_END_SEPARATION_RATIO),
+    )
+    expect(/const MAX_RUNWAY_END_SEPARATION_M = (\d+)/.exec(source)?.[1]).toBe(
+      String(MAX_RUNWAY_END_SEPARATION_M),
+    )
+  })
+
+  it('endsAreTooFarApart: uzunluğun iki katından ve 1 km’den uzak uçlar; uzunluk yoksa kural yok', () => {
+    const west = { lat: 20, lon: 77 }
+    const at = (metres: number) => ({ lat: 20, lon: 77 + metres / 1000 / 104.6 })
+    // 1.850 m pist: 3.000 m arayla uçlar sınırın altında, 4.000 m arayla üstünde.
+    expect(endsAreTooFarApart(west, at(3000), 6070)).toBe(false)
+    expect(endsAreTooFarApart(west, at(4000), 6070)).toBe(true)
+    // Kısa pistte 1 km alt sınırı: 300 ft (91 m) pistin uçları 900 m arayla kural dışı.
+    expect(endsAreTooFarApart(west, at(900), 300)).toBe(false)
+    expect(endsAreTooFarApart(west, at(1100), 300)).toBe(true)
+    // Uzunluğu bilinmeyen pistte karşılaştıracak değer yok.
+    expect(endsAreTooFarApart(west, at(50_000), null)).toBe(false)
+    expect(endsAreTooFarApart(west, at(50_000), 0)).toBe(false)
+    expect(MAX_RUNWAY_END_SEPARATION_RATIO).toBe(2)
+    expect(MAX_RUNWAY_END_SEPARATION_M).toBe(1000)
+    // Uzunluk yazılı, uçlar çok uzak: satır yine pisttir, yön heading alanından.
+    const { rows } = parseRunways(
+      [
+        RUNWAYS_HEADER,
+        '1,30488,ZZZZ,1000,30,ASP,1,0,09,20,77,,90,,27,20,77.2,,270,',
+        '2,30488,ZZZZ,1000,30,ASP,1,0,09,20,77,,90,,27,20,77.002,,270,',
+      ].join('\n'),
+      new Map([[30488, { lat: 20.1, lon: 77.1 }]]),
+    )
+    expect(rows.map((r) => [r.id, r.le.bearingSource, r.le.thresholdSource])).toEqual([
+      [1, 'heading_field', 'arp_fallback'],
+      [2, 'coordinates', 'runway_end'],
+    ])
+  })
+
   const stationRunways = runways.rows.filter(
     (r) =>
       STATIONS.includes(r.airportIdent) && r.le.latitudeDeg !== null && r.he.latitudeDeg !== null,
@@ -202,8 +293,12 @@ describe('OurAirports runways ve pist eşikleri (M2 kabulü)', () => {
   })
 
   it('kaydırılmış eşik ham uçtan displaced × 0,3048 m uzaktadır (±1 m); uç zaten eşikse kaydırılmaz', () => {
+    // Uçları kayıtlı uzunluğa göre çok uzak pistin (VAAM, D-101) eşikleri ARP'tır; ayrı test.
     const withBothEnds = runways.rows.filter(
-      (r) => r.le.latitudeDeg !== null && r.he.latitudeDeg !== null,
+      (r) =>
+        r.le.latitudeDeg !== null &&
+        r.he.latitudeDeg !== null &&
+        !endsAreTooFarApart(rawEnd(r.le), rawEnd(r.he), r.lengthFt),
     )
     const displaced = withBothEnds.flatMap((r) =>
       [r.le, r.he]

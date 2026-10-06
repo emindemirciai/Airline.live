@@ -1,23 +1,9 @@
 import { getMessages } from '@havayolu/i18n'
-import {
-  airportTimeZone,
-  type AirportDetail,
-  type AirportWeather,
-  type Locale,
-} from '@havayolu/shared'
+import { airportTimeZone, type AirportDetail, type Locale } from '@havayolu/shared'
 // Göreli yollar: vitest `@/` takma adını çözmez.
-import { getAirportWeatherPage, type WeatherBulk } from '../../lib/weather'
+import { getAirportWeatherPage, stationWeather } from '../../lib/weather'
 import { AirportWeatherLive } from './airport-weather-live'
 import { airportName } from './airport-text'
-
-/**
- * Toplu yanıttan havalimanının güncel havası. Yanıt yoksa (API'ye ulaşılamadı) null; istasyon
- * listede yoksa raporsuz bir kayıt (sayfa "güncel rapor yok" der, "alınamıyor" demez).
- */
-export function stationWeather(bulk: WeatherBulk | null, icao: string): AirportWeather | null {
-  if (bulk === null) return null
-  return bulk.stations.get(icao) ?? { icao, generatedAt: bulk.generatedAt, metar: null, tafs: [] }
-}
 
 export interface AirportWeatherSectionProps {
   locale: Locale
@@ -28,8 +14,8 @@ export interface AirportWeatherSectionProps {
 
 /**
  * Havalimanı sayfasının hava durumu ve METAR/TAF kaydı bölümleri (M6c). Sunucuda toplu hava durumu
- * (web belleğinde 60 sn, D-090) ve havalimanının 24 saatlik kaydı (15 dk önbellek) okunur; hata
- * sayfaya taşınmaz.
+ * (ham biçim, web belleğinde 60 sn, D-090, D-101; yalnız bu havalimanı çözülür) ve havalimanının 24
+ * saatlik kaydı (15 dk önbellek) okunur; hata sayfaya taşınmaz.
  * Bölümler istemci adasında çizilir ve açık sekmede tazelenir. Sayfa bunu Suspense içinde verir.
  * Saatler havalimanının yerel saatidir (`airportTimeZone`, D-084); dilimi bilinmeyen yabancı
  * havalimanında Türkiye saatiyle ve öyle etiketlenerek yazılır (D-080).

@@ -1,8 +1,10 @@
 import 'server-only'
 import {
-  AirportWeatherSchema,
+  RawAirportWeatherSchema,
+  toAirportWeather,
   WeatherHistoryResponseSchema,
   type AirportWeather,
+  type RawAirportWeather,
   type WeatherHistoryResponse,
 } from '@havayolu/shared'
 import { cache } from 'react'
@@ -16,18 +18,18 @@ import { getServerEnv } from './env'
  * Havalimanı sayfalarının hava durumu verisi (Parça 1 M6c, D-078; M6h ölçek düzeltmesi, D-090). Sayfa
  * sunucuda iki kaynak okur:
  *
- * - Toplu güncel hava durumu: `GET /v1/weather?scope=listed` (listelenen havalimanları: Türkiye ve
- *   Türkiye dışındakiler, D-080). **Next veri önbelleğinde değil, web sunucusunun belleğinde** 60 sn
- *   tutulur (`createMemoryCache`, tek kayıt). 3. halkada 503 istasyonun gövdesi olağan ~1,4 MB, TAF
- *   yayım saatlerinde ~2,4 MB, test en kötü durumunda ~3,4 MB'tır; Next veri önbelleği gövdeyi
- *   base64 saklar ve kaydı 2 MiB'ta keser (önbelleğe girebilen ham gövde ~1,57 MB, D-088). Sınırı
- *   aşan yanıt önbelleğe alınmaz ve her sayfa çizimi API'ye giderdi (web konteynerinin API kovası
- *   60/dk, D-060). Bellek önbelleğinde boyut sınırı yoktur; API'ye dakikada en çok bir istek gider
- *   (aynı anda gelen çizimler süren tek isteği paylaşır), gövde dakikada bir kez ayrıştırılır (önceden
- *   her sayfa çizimi bütün gövdeyi ayrıştırıyordu; 503 istasyonda ~10–25 ms). Bellek: tek
- *   ayrıştırılmış yanıt, JSON'un ~1,5 katı (503 istasyonda ~2–5 MB; yenilenirken kısa süre iki
- *   kopya), web yığını 224 MB. Web tek süreçtir; birden çok kopya çalışırsa her biri dakikada bir
- *   istek atar.
+ * - Toplu güncel hava durumu, **ham biçimde**: `GET /v1/weather?scope=listed&format=raw`
+ *   (listelenen havalimanları: Türkiye ve Türkiye dışındakiler, D-080; ham biçim D-101). API hiçbir
+ *   raporu çözümlemez; sayfa yalnız çizdiği havalimanını paylaşılan görünümlerle çözer
+ *   (`toAirportWeather`: METAR, süresi dolmamış TAF'lar ve yürürlükteki TAF seçimi; API'nin tam
+ *   biçimiyle aynı kayıt). 4. halkada (1.222 istasyon) ham gövde istasyon başına ~0,9 KB, toplam
+ *   ~1,1 MB'tır; tam biçim ~4 MB olurdu. **Next veri önbelleğinde değil, web sunucusunun
+ *   belleğinde** 60 sn tutulur (`createMemoryCache`, tek kayıt): Next veri önbelleği gövdeyi base64
+ *   saklar ve kaydı 2 MiB'ta keser (D-088); sınırı aşan yanıt önbelleğe alınmaz ve her sayfa çizimi
+ *   API'ye giderdi (web konteynerinin API kovası 60/dk, D-060). API'ye dakikada en çok bir istek
+ *   gider (aynı anda gelen çizimler süren tek isteği paylaşır), gövde dakikada bir kez ayrıştırılır;
+ *   çözülen istasyonlar o yanıtla birlikte bellekte kalır (aynı dakikadaki ikinci çizim yeniden
+ *   çözmez). Web tek süreçtir; birden çok kopya çalışırsa her biri dakikada bir istek atar.
  * - METAR/TAF kaydı: `GET /v1/airports/<ICAO>/weather/history?hours=24`, Next veri önbelleği 15 dk
  *   (havalimanı başına ~70 KB). 503 sayfanın hepsi gezilse bile en kötü durumda dakikada ~34 istek
  *   eder (toplu istek ve liste ile ~36; 5 dk'lık önbellekle ~100/dk olurdu, D-090). Açık sekmedeki
@@ -55,11 +57,11 @@ export const WEATHER_CACHE_TAG = 'weather'
 /** Hava durumu ikincil bilgidir: sayfa onu en fazla bu kadar bekler. */
 export const WEATHER_TIMEOUT_MS = 4000
 
-/** Toplu yanıt: istasyonlar ICAO'ya göre. */
+/** Toplu yanıt (ham biçim): istasyonlar ICAO'ya göre, çözümlenmemiş. */
 export interface WeatherBulk {
   generatedAt: string
   attribution: { text: string; url: string } | null
-  stations: ReadonlyMap<string, AirportWeather>
+  stations: ReadonlyMap<string, RawAirportWeather>
 }
 
 const ICAO = /^[A-Z0-9]{4}$/
@@ -73,6 +75,7 @@ const envelopeSchema = z.object({
 export function weatherBulkUrl(apiInternalUrl: string): string {
   const url = new URL('/v1/weather', apiInternalUrl)
   url.searchParams.set('scope', AIRPORTS_SCOPE)
+  url.searchParams.set('format', 'raw')
   return url.toString()
 }
 
@@ -87,15 +90,15 @@ export function weatherHistoryUrl(
 }
 
 /**
- * Toplu yanıtı denetler. Zarf bozuksa null; tek bir bozuk istasyon kaydı (sürüm geçişi) yanıtı
+ * Ham toplu yanıtı denetler. Zarf bozuksa null; tek bir bozuk istasyon kaydı (sürüm geçişi) yanıtı
  * düşürmez, atlanır.
  */
 export function parseWeatherBulk(body: unknown): WeatherBulk | null {
   const envelope = envelopeSchema.safeParse(body)
   if (!envelope.success) return null
-  const stations = new Map<string, AirportWeather>()
+  const stations = new Map<string, RawAirportWeather>()
   for (const item of envelope.data.stations) {
-    const parsed = AirportWeatherSchema.safeParse(item)
+    const parsed = RawAirportWeatherSchema.safeParse(item)
     if (parsed.success && ICAO.test(parsed.data.icao)) stations.set(parsed.data.icao, parsed.data)
   }
   return {
@@ -103,6 +106,32 @@ export function parseWeatherBulk(body: unknown): WeatherBulk | null {
     attribution: envelope.data.attribution ?? null,
     stations,
   }
+}
+
+/** Çözülmüş istasyonlar, toplu yanıt başına (yanıt yenilenince eskisiyle birlikte çöpe gider). */
+const decodedStations = new WeakMap<WeatherBulk, Map<string, AirportWeather>>()
+
+/**
+ * Toplu yanıttan havalimanının güncel havası (API'nin tam biçimiyle aynı kayıt). Yanıt yoksa
+ * (API'ye ulaşılamadı) null; istasyon listede yoksa raporsuz bir kayıt (sayfa "güncel rapor yok"
+ * der, "alınamıyor" demez). Yalnız istenen istasyon çözülür; sonuç yanıtla birlikte tutulur.
+ */
+export function stationWeather(bulk: WeatherBulk | null, icao: string): AirportWeather | null {
+  if (bulk === null) return null
+  let decoded = decodedStations.get(bulk)
+  if (decoded === undefined) {
+    decoded = new Map()
+    decodedStations.set(bulk, decoded)
+  }
+  const cached = decoded.get(icao)
+  if (cached !== undefined) return cached
+  const station = bulk.stations.get(icao)
+  const weather: AirportWeather =
+    station === undefined
+      ? { icao, generatedAt: bulk.generatedAt, metar: null, tafs: [] }
+      : toAirportWeather(station, bulk.generatedAt)
+  decoded.set(icao, weather)
+  return weather
 }
 
 /** Kayıt yanıtını denetler; bozuksa null. */
@@ -175,7 +204,7 @@ export function createMemoryCache<T>({
 
 async function loadWeatherBulk(): Promise<WeatherBulk> {
   const bulk = parseWeatherBulk(
-    // Next veri önbelleğine konmaz (gövde 2 MiB öğe sınırını aşabilir); bellek önbelleği tutar.
+    // Next veri önbelleğine konmaz (gövde her dakika değişir ve büyüktür); bellek önbelleği tutar.
     await fetchJson(weatherBulkUrl(getServerEnv().API_INTERNAL_URL), { cache: 'no-store' }),
   )
   if (bulk === null) throw new Error('weather response has an unexpected shape')
