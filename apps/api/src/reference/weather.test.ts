@@ -16,6 +16,7 @@ import {
   WEATHER_CACHE_CONTROL,
   WEATHER_CACHE_MS,
   WEATHER_ERRORS,
+  WEATHER_HISTORY_CACHE_MAX_BYTES,
   WEATHER_HISTORY_CACHE_MAX_ENTRIES,
   WEATHER_HISTORY_MAX_HOURS,
   historyCacheWindow,
@@ -857,10 +858,13 @@ describe('GET /v1/airports/:code/weather/history', () => {
     expect(historyCacheWindow(24)).toBe(24)
     expect(historyCacheWindow(25)).toBe(168)
     expect(historyCacheWindow(168)).toBe(168)
-    // Listelenen havalimanları × 2 pencere (3. halkada 503 × 2 = 1.006, D-090); asıl sınır bayt
-    // bütçesidir.
-    expect(WEATHER_HISTORY_CACHE_MAX_ENTRIES).toBeGreaterThanOrEqual(503 * 2)
-    expect(WEATHER_HISTORY_CACHE_MAX_ENTRIES).toBeLessThanOrEqual(1024)
+    // 3. halkada listelenen havalimanları × 2 pencereyi karşılıyordu (503 × 2 = 1.006, D-090). 4.
+    // halkada (1.222 × 2 = 2.444) değişmedi (D-101, D-102): asıl sınır bayt bütçesidir, en küçük
+    // 24 saatlik pencerelerle (~50 KB) bile bütçe anahtar sınırından önce dolar.
+    expect(WEATHER_HISTORY_CACHE_MAX_ENTRIES).toBe(1024)
+    expect(WEATHER_HISTORY_CACHE_MAX_BYTES / (50 * 1024)).toBeLessThan(
+      WEATHER_HISTORY_CACHE_MAX_ENTRIES,
+    )
   })
 
   it('168 saatlik kayıt (yarım saatte bir METAR, SPECI, TAF): gövde 1 MB altında', async () => {

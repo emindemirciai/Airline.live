@@ -33,6 +33,7 @@ import {
   TURKEY_COUNTRY,
   UNLABELLED_COUNTRIES,
 } from './index'
+import { RING4_AIRPORT_CITIES, RING4_AIRPORT_NAMES } from './foreign-airport-names-r4'
 
 // Commit'li OurAirports alt kümesi (tools/fixtures/README.md): Türkiye'nin bütün kayıtları, birkaç
 // uzak havalimanı, 1.–4. halkanın havalimanları (D-080, D-088, D-090, D-101). Alanlar tırnaklı; `""`
@@ -125,17 +126,26 @@ const ringOne = candidates.filter((c) => c.ring === 1)
 const ringTwo = candidates.filter((c) => c.ring === 2)
 const ringThree = candidates.filter((c) => c.ring === 3)
 const ringFour = candidates.filter((c) => c.ring === 4)
-/** Açık halkalardaki yabancı havalimanları (M6h'den beri 1., 2. ve 3. halka, D-090). */
+/** Açık halkalardaki yabancı havalimanları (M6i.2'den beri 1.–4. halka, D-102). */
 const listed = candidates.filter((c) => c.listable && c.ring <= ENABLED_AIRPORT_RING)
-/** Türkçe adında şehir geçmeyen havalimanları: Ercan (Lefkoşa), Malta (Valletta), Bahreyn (Manama). */
-const CITY_NOT_IN_NAME = ['LCEN', 'LMML', 'OBBI']
+/**
+ * Türkçe adında şehir geçmeyen havalimanları: Ercan (Lefkoşa), Malta (Valletta), Bahreyn (Manama);
+ * 4. halkada ülke ya da özerk ada adını taşıyanlar (D-102): Guernsey (Saint Peter Port), Jersey
+ * (Saint Helier), Man Adası (Douglas), Seyşeller (Victoria).
+ */
+const CITY_NOT_IN_NAME = ['EGJB', 'EGJJ', 'EGNS', 'FSIA', 'LCEN', 'LMML', 'OBBI']
+/**
+ * İngilizce adında "Airport" sözcüğü olmayan iki havalimanı (4. halka, D-102): OurAirports adı
+ * olduğu gibi kalır.
+ */
+const EN_WITHOUT_AIRPORT = ['HKMS', 'VIBY']
 
 describe('halkalar', () => {
-  it('sınırlar, halka sayısı ve açık halka (M6h: 3. halka, D-090)', () => {
+  it('sınırlar, halka sayısı ve açık halka (M6i.2: 4. halka, D-102)', () => {
     expect(AIRPORT_RINGS_KM).toEqual([500, 1000, 2000, 5000])
     expect(AIRPORT_RING_COUNT).toBe(5)
-    expect(ENABLED_AIRPORT_RING).toBe(3)
-    expect(AIRPORT_RING_CONFIG).toEqual({ ringsKm: [500, 1000, 2000, 5000], enabledRing: 3 })
+    expect(ENABLED_AIRPORT_RING).toBe(4)
+    expect(AIRPORT_RING_CONFIG).toEqual({ ringsKm: [500, 1000, 2000, 5000], enabledRing: 4 })
     expect(TURKEY_COUNTRY).toBe('TR')
   })
 
@@ -163,7 +173,8 @@ describe('halkalar', () => {
     expect(isEnabledAirportRing(1)).toBe(true)
     expect(isEnabledAirportRing(2)).toBe(true)
     expect(isEnabledAirportRing(3)).toBe(true)
-    expect(isEnabledAirportRing(4)).toBe(false)
+    expect(isEnabledAirportRing(4)).toBe(true)
+    expect(isEnabledAirportRing(5)).toBe(false)
     expect(isEnabledAirportRing(-1)).toBe(false)
     expect(isEnabledAirportRing(0.5)).toBe(false)
   })
@@ -233,8 +244,9 @@ describe('halkalar', () => {
 
   it('fixture: 3. halka 278 havalimanı, 27 yeni ülke; en yakını Gachsaran, en uzağı Växjö (D-090)', () => {
     expect(ringThree).toHaveLength(278)
-    expect(listed).toHaveLength(442)
-    expect(listed).toHaveLength(ringOne.length + ringTwo.length + ringThree.length)
+    expect(ringOne.length + ringTwo.length + ringThree.length).toBe(442)
+    // 1.–3. halkanın her adayı dört karakterli ICAO taşır ve listededir.
+    expect([...ringOne, ...ringTwo, ...ringThree].every((c) => c.listable)).toBe(true)
     const byDistance = ringThree.toSorted((a, b) => a.distance - b.distance)
     // 1.000 km sınırında yuvarlama vakası yok: en yakını 1.006 km (Hakkari Yüksekova'ya).
     expect(byDistance[0]?.icao).toBe('OIAH')
@@ -262,7 +274,7 @@ describe('halkalar', () => {
     expect(ringFour.map((c) => c.icao)).toContain('LEBL')
   })
 
-  it('fixture: 4. halka 720 aday, 719 listelenebilir (UG-0002 dört karakterli ICAO kuralıyla dışarıda); halka henüz kapalı (D-101)', () => {
+  it('fixture: 4. halka 720 aday, 719 listelenir (UG-0002 dört karakterli ICAO kuralıyla dışarıda); halka açık (D-101, D-102)', () => {
     expect(ringFour).toHaveLength(720)
     expect(ringFour.filter((c) => c.listable)).toHaveLength(719)
     // Kihihi Savannah pisti (IATA KHX): icao_code ve gps_code yok, kanonik kimliği ident'tir.
@@ -290,15 +302,36 @@ describe('halkalar', () => {
     )
     // Uganda KHX'siz de dört havalimanıyla yeni ülkedir.
     expect(ringFour.filter((c) => c.listable && c.country === 'UG')).toHaveLength(4)
-    // Halka açılana kadar (M6i.2) liste 3. halkada kalır.
-    expect(listed.map((c) => c.icao)).not.toContain('EGLL')
+    // M6i.2'den beri liste 4. halkayı da taşır (D-102): 75 + 89 + 278 + 719 = 1.161 yurt dışı.
+    expect(listed).toHaveLength(1161)
+    expect(listed).toHaveLength(
+      ringOne.length +
+        ringTwo.length +
+        ringThree.length +
+        ringFour.filter((c) => c.listable).length,
+    )
+    expect(listed.map((c) => c.icao)).toEqual(
+      expect.arrayContaining(['EGLL', 'LFPG', 'EHAM', 'LEMD', 'LEBL', 'VIDP', 'ZMCK']),
+    )
+    expect(listed.map((c) => c.icao)).not.toContain('UG-0002')
+    expect(listed.map((c) => c.icao)).not.toContain('KJFK')
   })
 })
 
 describe('FOREIGN_AIRPORT_NAMES', () => {
-  it("fixture'daki açık halkaların (1., 2. ve 3.) her havalimanı için tam bir kayıt vardır, fazlası yoktur", () => {
-    expect(Object.keys(FOREIGN_AIRPORT_NAMES)).toHaveLength(442)
+  it("fixture'daki açık halkaların (1.–4.) her havalimanı için tam bir kayıt vardır, fazlası yoktur", () => {
+    expect(Object.keys(FOREIGN_AIRPORT_NAMES)).toHaveLength(1161)
     expect(Object.keys(FOREIGN_AIRPORT_NAMES).sort()).toEqual(listed.map((c) => c.icao).sort())
+    // 4. halkanın ayrı tablosu (D-102): tam olarak 4. halkanın 719 listelenen havalimanı.
+    expect(Object.keys(RING4_AIRPORT_NAMES).sort()).toEqual(
+      ringFour
+        .filter((c) => c.listable)
+        .map((c) => c.icao)
+        .sort(),
+    )
+    expect(Object.keys(RING4_AIRPORT_CITIES).sort()).toEqual(
+      Object.keys(RING4_AIRPORT_NAMES).sort(),
+    )
     // Türkiye tablosuyla çakışma yok.
     for (const icao of Object.keys(FOREIGN_AIRPORT_NAMES)) {
       expect(Object.hasOwn(AIRPORT_NAMES, icao), icao).toBe(false)
@@ -310,22 +343,88 @@ describe('FOREIGN_AIRPORT_NAMES', () => {
       expect(name.tr, icao).toMatch(/^\S.* Havalimanı$/)
       expect(name.tr, icao).toBe(name.tr.trim())
       expect(name.tr, icao).not.toMatch(/Airport|International|National|Uluslararası|Ulusal/)
-      // "Airport" sözcüğün parçası da olabilir: EuroAirport Basel-Mulhouse-Freiburg (D-090).
-      expect(name.en, icao).toMatch(/Airport/)
+      // "Airport" sözcüğün parçası da olabilir: EuroAirport Basel-Mulhouse-Freiburg (D-090). İki
+      // 4. halka adında hiç yoktur (Air Force Station, Lodge Airstrip; D-102).
+      if (EN_WITHOUT_AIRPORT.includes(icao)) expect(name.en, icao).not.toMatch(/Airport/)
+      else expect(name.en, icao).toMatch(/Airport/)
       expect(name.en, icao).not.toMatch(/Havalimanı|\bairport\b/)
     }
-    const tr = Object.values(FOREIGN_AIRPORT_NAMES).map((n) => n.tr)
-    expect(new Set(tr).size).toBe(tr.length)
+    // Adlar tekildir: Türkçe ve İngilizce, büyük-küçük harf ve aksan katlanınca da (1.161 ad).
+    const fold = (text: string) =>
+      text.normalize('NFKD').replace(/\p{M}/gu, '').toLocaleLowerCase('en')
+    for (const locale of ['tr', 'en'] as const) {
+      const names = Object.values(FOREIGN_AIRPORT_NAMES).map((n) => n[locale])
+      expect(new Set(names).size, locale).toBe(names.length)
+      expect(new Set(names.map(fold)).size, locale).toBe(names.length)
+    }
+    expect(EN_WITHOUT_AIRPORT.map((icao) => FOREIGN_AIRPORT_NAMES[icao]?.en)).toEqual([
+      'Mara Serena Lodge Airstrip',
+      'Bareilly Air Force Station',
+    ])
   })
 
-  it('İngilizce ad OurAirports adıdır; yalnızca Bağdat, Podgorica, Cuxhaven ve Guemar kısaltılmıştır', () => {
+  it('Türkçe adda İngilizce sözcük yok; City, Port ve Saint yalnız yer ya da kişi adının parçasıysa (D-102)', () => {
+    const english = new Set(
+      [
+        ...['Air', 'Airport', 'Airstrip', 'Base', 'Bay', 'Cargo', 'Central', 'City', 'Civil'],
+        ...['Domestic', 'East', 'Force', 'International', 'Island', 'Lake', 'Lodge', 'National'],
+        ...['New', 'North', 'Old', 'Port', 'Regional', 'Saint', 'South', 'St.', 'State'],
+        ...['Station', 'West'],
+      ].map((word) => word.toLowerCase()),
+    )
+    const found = Object.entries(FOREIGN_AIRPORT_NAMES)
+      .map(
+        ([icao, name]) =>
+          [
+            icao,
+            name.tr.split(/[\s-]+/).filter((word) => english.has(word.toLowerCase())),
+          ] as const,
+      )
+      .filter(([, words]) => words.length > 0)
+    // Port Said, Port Sudan, Port Harcourt ve Port-Gentil şehrin; Saint-Exupéry kişinin,
+    // Saint-Jacques ve St. Gallen yerin adıdır; City aynı şehrin havalimanlarını ayıran tek addır
+    // (London City; Port Harcourt City, öbür havalimanı DNPO).
+    expect(Object.fromEntries(found)).toEqual({
+      DNPM: ['Port', 'City'],
+      DNPO: ['Port'],
+      EGLC: ['City'],
+      FOOG: ['Port'],
+      HEPS: ['Port'],
+      HSPN: ['Port'],
+      LFLL: ['Saint'],
+      LFRN: ['Saint'],
+      LSZR: ['St.'],
+    })
+  })
+
+  it('İngilizce ad OurAirports adıdır; yalnızca belgeli sınıflarda kısaltılmıştır (D-080, D-088, D-090, D-102)', () => {
     // Karşılaştırma API'nin ad temizliğinden geçmiş adla: Bacău'nun kaynaktaki adında çift boşluk,
     // dokuz Fransız havalimanının adında küçük harfli "airport" var (D-088, D-090).
     const differs = listed
       .filter((c) => FOREIGN_AIRPORT_NAMES[c.icao]?.en !== c.name)
       .map((c) => c.icao)
       .sort()
-    expect(differs).toEqual(['DAUO', 'ETMN', 'LYPG', 'ORBI'])
+    expect(differs).toEqual(
+      [
+        // 1.–3. halka: askerî üs eki (Bağdat, Podgorica, Cuxhaven) ve sondaki Arapça yazım (Guemar).
+        ...['DAUO', 'ETMN', 'LYPG', 'ORBI'],
+        // 4. halka (D-102): askerî üs ikinci adı (EKKA, VIAG, DNPM, ZURK), ikinci havalimanı adı
+        // (OEGN), yerel ad yerine parantezdeki İngilizce ad (LPVZ), parantezli ya da virgüllü semt ve
+        // ikinci ad (EBAW, DAOO, VOVI, VERW), kaynakta yinelenen cins sözcük (LEGR).
+        ...['DAOO', 'DNPM', 'EBAW', 'EKKA', 'LEGR', 'LPVZ', 'OEGN', 'VERW', 'VIAG', 'VOVI', 'ZURK'],
+      ].sort(),
+    )
+    // Kısaltılan ad, kaynağın sözcüklerinden oluşur (yeni sözcük eklenmez).
+    const words = (text: string) => text.split(/[\s/,()–-]+/).filter(Boolean)
+    for (const icao of differs) {
+      const source = new Set(words(listed.find((c) => c.icao === icao)?.name ?? ''))
+      for (const word of words(FOREIGN_AIRPORT_NAMES[icao]?.en ?? '')) {
+        expect(source.has(word), `${icao} ${word}`).toBe(true)
+      }
+    }
+    expect(FOREIGN_AIRPORT_NAMES.LPVZ?.en).toBe('Viseu Airport')
+    expect(FOREIGN_AIRPORT_NAMES.LEGR?.en).toBe('F.G.L. Granada-Jaén Airport')
+    expect(FOREIGN_AIRPORT_NAMES.VERW?.en).toBe('Rewa Airport')
     expect(FOREIGN_AIRPORT_NAMES.LYPG?.en).toBe('Podgorica Airport')
     expect(FOREIGN_AIRPORT_NAMES.ETMN?.en).toBe('Sea-Airport Cuxhaven/Nordholz')
     expect(FOREIGN_AIRPORT_NAMES.DAUO?.en).toBe('Guemar Airport')
@@ -431,6 +530,31 @@ describe('FOREIGN_AIRPORT_NAMES', () => {
     expect(tr('OIBA')).toBe('Ebu Musa Havalimanı')
   })
 
+  it('4. halka: dondurulmuş yazım tablosundan exonym, kişi adı, unvan ve harf çevirisi (D-102)', () => {
+    const tr = (icao: string) => FOREIGN_AIRPORT_NAMES[icao]?.tr
+    const en = (icao: string) => FOREIGN_AIRPORT_NAMES[icao]?.en
+    // Aynı şehrin havalimanları ayırt edici adla.
+    expect(tr('EGLL')).toBe('Londra Heathrow Havalimanı')
+    expect(en('EGLL')).toBe('London Heathrow Airport')
+    expect(tr('EGLC')).toBe('Londra City Havalimanı')
+    expect(tr('LFPG')).toBe('Paris Charles de Gaulle Havalimanı')
+    expect(tr('LFPO')).toBe('Paris-Orly Havalimanı')
+    expect(tr('LEMD')).toBe('Madrid-Barajas Adolfo Suárez Havalimanı')
+    expect(tr('LEBL')).toBe('Barselona El Prat Josep Tarradellas Havalimanı')
+    // Exonym, kişi adı ve unvan (dondurulmuş tablo).
+    expect(tr('VIDP')).toBe('Yeni Delhi Indira Gandhi Havalimanı')
+    expect(tr('OPLA')).toBe('Lahor Allame İkbal Havalimanı')
+    expect(tr('ZMCK')).toBe('Ulan Batur Cengiz Han Havalimanı')
+    expect(tr('GMMN')).toBe('Kazablanka V. Muhammed Havalimanı')
+    expect(tr('DAAG')).toBe('Cezayir Houari Boumediene Havalimanı')
+    // Kiril harf çevirisi ve Rusça bileşik adın tiresi.
+    expect(tr('ULLI')).toBe('Sankt-Peterburg Pulkovo Havalimanı')
+    expect(tr('UNNT')).toBe('Novosibirsk Tolmaçevo Havalimanı')
+    // Ülke ya da özerk ada adını taşıyan havalimanında şehir adda geçmez.
+    expect(foreignAirportCity('EGJJ')).toEqual({ tr: 'Saint Helier', en: 'Saint Helier' })
+    expect(foreignAirportCity('FSIA')?.en).toBe('Victoria')
+  })
+
   it('kaynak düzeltmesi: İskenderiye OurAirports HEAX → HEBA; yalnız yanlış değer durdukça', () => {
     expect(OURAIRPORTS_ICAO_CORRECTIONS).toEqual({ HEBA: { icaoCode: 'HEAX', icao: 'HEBA' } })
     const alexandria = rows.find((r) => r.get('ident') === 'HEBA')
@@ -525,11 +649,18 @@ describe('FOREIGN_AIRPORT_NAMES', () => {
     expect(airportLocality(at('LOWW', 'Vienna', 'AT', 'AT-3'), 'tr')).toBe('Viyana')
     expect(foreignAirportCity(' lgav ')?.en).toBe('Athens')
     expect(foreignAirportCity('toString')).toBeUndefined()
-    // Tabloda olmayan yabancı havalimanı: İngilizce sayfada temiz OurAirports yerleşimi.
+    // 4. halka (D-102): yerleşim semt ya da köy; ülke adını taşıyan ada havalimanı.
     const egll = at('EGLL', 'London', 'GB', 'GB-ENG')
-    expect(airportLocality(egll, 'tr')).toBeNull()
-    expect(airportLocality(egll, 'en')).toBe('London')
-    expect(airportLocality({ ...egll, municipality: 'London (Hounslow)' }, 'en')).toBeNull()
+    expect(airportLocality(egll, 'tr')).toBe('Londra')
+    expect(airportLocality({ ...egll, municipality: 'London (Hounslow)' }, 'en')).toBe('London')
+    expect(airportLocality(at('EGJB', 'Saint Peter Port', 'GG', 'GG-U-A'), 'tr')).toBe(
+      'Saint Peter Port',
+    )
+    // Tabloda olmayan yabancı havalimanı (5. halka): İngilizce sayfada temiz OurAirports yerleşimi.
+    const kjfk = at('KJFK', 'New York', 'US', 'US-NY')
+    expect(airportLocality(kjfk, 'tr')).toBeNull()
+    expect(airportLocality(kjfk, 'en')).toBe('New York')
+    expect(airportLocality({ ...kjfk, municipality: 'New York (Queens)' }, 'en')).toBeNull()
     // Türkiye: temiz ve ilden farklı OurAirports yerleşimi, iki dilde aynı.
     const ltbj = at('LTBJ', 'Gaziemir', 'TR', 'TR-35')
     expect(airportLocality(ltbj, 'tr')).toBe('Gaziemir')
@@ -623,9 +754,10 @@ describe('ülke adları', () => {
     expect(countryName('UZ', 'tr')).toBe('Özbekistan')
   })
 
-  it("fixture'daki açık halkaların ülkelerinin hepsi Intl'de adlandırılır (3. halkayla 58)", () => {
+  it("fixture'daki açık halkaların ülkelerinin hepsi Intl'de adlandırılır (4. halkayla 113)", () => {
     const countries = new Set(listed.map((c) => c.country))
-    expect(countries.size).toBe(58)
+    // 3. halkaya kadar 58, 4. halkanın 55 yeni ülkesiyle 113 (D-102).
+    expect(countries.size).toBe(113)
     for (const code of countries) {
       for (const locale of ['tr', 'en'] as const) {
         expect(countryName(code, locale), `${code} ${locale}`).not.toBe(code)
@@ -662,11 +794,26 @@ describe('ülke adlarının başkentleri (D-095)', () => {
     ...listed.map(({ icao, country, lat, lon }) => ({ icao, country, lat, lon })),
   ]
   const listedCountries = new Set(listedAirports.map((a) => a.country))
-  /** Başkenti kendi ülkesinin listelenen havalimanına 60 km'den uzak ülkeler (o havalimanı halkada değil). */
-  const FAR_CAPITALS = ['AF', 'BE', 'DZ', 'EE', 'ES', 'FR', 'KZ', 'NL', 'OM', 'SD', 'SE', 'UZ']
+  /**
+   * Adı yazılan ülkeler 3. halkaya kadarki ülkelerdir (D-095, D-099): 4. halkanın 55 yeni ülkesinin
+   * adı bu tabloya eklenmedi, bütün ülkelerin adı ayrı işte gelir (D-100, D-102).
+   */
+  const LABELLED_RING = 3
+  const labelledCountries = new Set([
+    TURKEY_COUNTRY,
+    ...listed.filter((c) => c.ring <= LABELLED_RING).map((c) => c.country),
+  ])
+  /**
+   * Başkenti kendi ülkesinin listelenen havalimanına 60 km'den uzak ülkeler: 4. halkayla (D-102) yok.
+   * 3. halkada 12 ülkeydi (AF, BE, DZ, EE, ES, FR, KZ, NL, OM, SD, SE, UZ); başkentlerinin
+   * havalimanları (Kabil, Brüksel, Cezayir, Tallinn, Madrid, Paris, Astana, Amsterdam, Maskat,
+   * Hartum, Stockholm, Taşkent) 4. halkadadır.
+   */
+  const FAR_CAPITALS: readonly string[] = []
 
-  it('kapsam: listelenen havalimanı olan ülkeler ve Türkiye, İsrail ve Filistin hariç, artı Ukrayna', () => {
-    const expected = new Set([...listedCountries, TURKEY_COUNTRY, ...HOLE_COUNTRIES])
+  it('kapsam: 3. halkaya kadar listelenen havalimanı olan ülkeler ve Türkiye, İsrail ve Filistin hariç, artı Ukrayna', () => {
+    expect(listedCountries.size - labelledCountries.size).toBe(55)
+    const expected = new Set([...labelledCountries, ...HOLE_COUNTRIES])
     for (const code of UNLABELLED_COUNTRIES) expected.delete(code)
     expect(COUNTRY_CAPITALS.map((c) => c.code)).toEqual([...expected].sort())
     // İsrail'in listelenen havalimanı vardır (Ben Gurion); adı yazılmaz.
@@ -687,7 +834,7 @@ describe('ülke adlarının başkentleri (D-095)', () => {
     }
     const far = [...nearest].filter(([, distance]) => distance > 60).map(([code]) => code)
     expect(far.sort()).toEqual(FAR_CAPITALS)
-    for (const code of FAR_CAPITALS) expect(nearest.get(code), code).toBeLessThanOrEqual(900)
+    expect(Math.max(...nearest.values())).toBeLessThanOrEqual(60)
     // Tahran Mehrabad'a ve Ankara Etimesgut'a yakındır (e2e ülke adı testi OIII'de açılır).
     expect(nearest.get('IR')).toBeLessThan(10)
     expect(nearest.get('TR')).toBeLessThan(20)

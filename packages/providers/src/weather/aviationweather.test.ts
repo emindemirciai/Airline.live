@@ -320,11 +320,11 @@ describe('400 kayıt sınırı', () => {
     expect(usual.calls).toHaveLength(1)
   })
 
-  it('olağan 2 saatlik istek: Türkiye + 1.–3. halka (503 istasyon) 80 istasyonluk yedi isteğe bölünür', async () => {
-    // 503 istasyon × 2 saatte ~4 METAR/SPECI = 2.012 kayıt: tek istek 400 sınırını aşardı (D-080,
-    // D-088, D-090). 1. halkada 136 istasyon iki (80 + 56), 2. halkada 225 istasyon üç istekti
-    // (80 + 80 + 65).
-    const ids = stationIds(503)
+  it('olağan 2 saatlik istek: Türkiye + 1.–4. halka (1.222 istasyon) 80 istasyonluk 16 isteğe bölünür', async () => {
+    // 1.222 istasyon × 2 saatte ~4 METAR/SPECI = 4.888 kayıt: tek istek 400 sınırını aşardı (D-080,
+    // D-102). 1. halkada 136 istasyon iki (80 + 56), 2. halkada 225 istasyon üç (80 + 80 + 65), 3.
+    // halkada 503 istasyon yedi istekti (80 × 6 + 23).
+    const ids = stationIds(1222)
     const { fetch, calls } = stubFetch((url) => {
       const asked = url.searchParams.get('ids')?.split(',') ?? []
       return json(entries(asked, asked.length * 4))
@@ -333,34 +333,44 @@ describe('400 kayıt sınırı', () => {
     const perRequest = Math.floor(AWC_MAX_ENTRIES / (2 * AWC_METAR_PER_STATION_HOUR))
     expect(perRequest).toBe(80)
     const sent = calls.map((c) => new URL(c.url).searchParams)
-    expect(sent.map((q) => q.get('ids')?.split(',').length)).toEqual([80, 80, 80, 80, 80, 80, 23])
+    expect(sent.map((q) => q.get('ids')?.split(',').length)).toEqual([
+      ...Array.from({ length: 15 }, () => 80),
+      22,
+    ])
     expect(sent.every((q) => q.get('hours') === '2')).toBe(true)
     expect(sent.flatMap((q) => q.get('ids')?.split(',') ?? [])).toEqual(ids)
-    expect(result).toMatchObject({ requests: 7, truncated: false, entryCount: 503 * 4 })
-    expect(new Set(result.items.map((m) => m.station)).size).toBe(503)
+    expect(result).toMatchObject({ requests: 16, truncated: false, entryCount: 1222 * 4 })
+    expect(new Set(result.items.map((m) => m.station)).size).toBe(1222)
+    // 3. halkada (503 istasyon) yedi istek.
+    const ringThree = stubFetch(() => json('[]'))
+    expect(await client(ringThree.fetch).metars(stationIds(503))).toMatchObject({ requests: 7 })
   })
 
-  it('TAF: 503 istasyon üç istek (200 + 200 + 103); 24 saatlik doldurmada 278 yeni istasyon 47 istek (D-090)', async () => {
-    const ids = stationIds(503)
+  it('TAF: 1.222 istasyon yedi istek (200 × 6 + 22); 24 saatlik doldurmada 719 yeni istasyon 120, bütün liste 204 istek (D-102)', async () => {
+    const ids = stationIds(1222)
     const tafs = stubFetch(() => json('[]'))
     const result = await client(tafs.fetch).tafs(ids)
     expect(
       tafs.calls.map((c) => new URL(c.url).searchParams.get('ids')?.split(',').length),
-    ).toEqual([200, 200, 103])
-    expect(result).toMatchObject({ status: 200, requests: 3 })
-    // Yayından sonraki ilk çalışmada 3. halkanın 278 istasyonu 24 saatle istenir: 6'şarlı 47 istek
-    // (46 × 6 + 2). Bütün istasyonların 24 saatlik doldurması (ilk açılış) 84 istektir.
+    ).toEqual([200, 200, 200, 200, 200, 200, 22])
+    expect(result).toMatchObject({ status: 200, requests: 7 })
+    // 3. halkada (503 istasyon) üç istekti (200 + 200 + 103).
+    const ringThree = stubFetch(() => json('[]'))
+    expect(await client(ringThree.fetch).tafs(stationIds(503))).toMatchObject({ requests: 3 })
+    // Yayından sonraki ilk çalışmada 4. halkanın 719 istasyonu 24 saatle istenir: 6'şarlı 120 istek
+    // (119 × 6 + 5; 3. halkada 278 istasyon 47 istekti). Bütün istasyonların 24 saatlik doldurması
+    // (ilk açılış ya da uzun kesinti) 204 istektir (3. halkada 84).
     const backfill = stubFetch(() => json('[]'))
-    await client(backfill.fetch).metars(ids.slice(225), { hours: AWC_METAR_MAX_HOURS })
+    await client(backfill.fetch).metars(ids.slice(503), { hours: AWC_METAR_MAX_HOURS })
     const sizes = backfill.calls.map(
       (c) => new URL(c.url).searchParams.get('ids')?.split(',').length,
     )
-    expect(sizes).toHaveLength(47)
-    expect(sizes.slice(0, 46).every((size) => size === 6)).toBe(true)
-    expect(sizes.at(-1)).toBe(2)
+    expect(sizes).toHaveLength(120)
+    expect(sizes.slice(0, 119).every((size) => size === 6)).toBe(true)
+    expect(sizes.at(-1)).toBe(5)
     const full = stubFetch(() => json('[]'))
     await client(full.fetch).metars(ids, { hours: AWC_METAR_MAX_HOURS })
-    expect(full.calls).toHaveLength(84)
+    expect(full.calls).toHaveLength(204)
   })
 
   it('TAF ve uzun liste: istek başına en çok AWC_MAX_IDS istasyon (sonraki halkalar)', async () => {
@@ -476,21 +486,25 @@ describe('istekler arası en kısa aralık (D-090)', () => {
     expect(starts).toEqual([0, 700, 1400])
   })
 
-  it('ilk açılışta bütün istasyonların 24 saatlik doldurması (84 istek) dakikada 100 sınırının altında kalır', async () => {
+  it('ilk açılışta bütün istasyonların 24 saatlik doldurması (204 istek) dakikada 100 sınırının altında kalır', async () => {
     const drive = fakeClock()
-    const { fetch, starts } = timedFetch()
-    await drive(timedClient(fetch).metars(stationIds(503), { hours: AWC_METAR_MAX_HOURS }))
-    expect(starts).toHaveLength(84)
     const perMinute = (list: number[]) =>
       Math.max(...list.map((start) => list.filter((t) => t >= start && t < start + 60_000).length))
-    // 84 istek 58,1 sn'ye yayılır.
-    expect(starts.at(-1)).toBe(83 * AWC_MIN_REQUEST_INTERVAL_MS)
-    expect(perMinute(starts)).toBe(84)
-    // Daha uzun bir dizide de (720 istasyon, 120 istek) bir dakikada en çok 86 istek başlar.
-    const long = timedFetch()
-    await drive(timedClient(long.fetch).metars(stationIds(720), { hours: AWC_METAR_MAX_HOURS }))
-    expect(long.starts).toHaveLength(120)
-    expect(perMinute(long.starts)).toBe(86)
+    // 3. halkada (503 istasyon) 84 istek 58,1 sn'ye yayılırdı.
+    const ringThree = timedFetch()
+    await drive(
+      timedClient(ringThree.fetch).metars(stationIds(503), { hours: AWC_METAR_MAX_HOURS }),
+    )
+    expect(ringThree.starts).toHaveLength(84)
+    expect(ringThree.starts.at(-1)).toBe(83 * AWC_MIN_REQUEST_INTERVAL_MS)
+    expect(perMinute(ringThree.starts)).toBe(84)
+    // 4. halkada (1.222 istasyon, D-102) 204 istek 142,1 sn'ye yayılır; bir dakikada en çok 86 istek
+    // başlar.
+    const { fetch, starts } = timedFetch()
+    await drive(timedClient(fetch).metars(stationIds(1222), { hours: AWC_METAR_MAX_HOURS }))
+    expect(starts).toHaveLength(204)
+    expect((starts.at(-1) ?? NaN) - (starts[0] ?? NaN)).toBe(203 * AWC_MIN_REQUEST_INTERVAL_MS)
+    expect(perMinute(starts)).toBe(86)
   })
 
   it('minIntervalMs 0 beklemez; negatif değer 0 sayılır', async () => {

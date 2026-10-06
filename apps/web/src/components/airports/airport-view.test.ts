@@ -1,4 +1,4 @@
-import { getMessages } from '@havayolu/i18n'
+import { format, getMessages } from '@havayolu/i18n'
 import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it, vi } from 'vitest'
@@ -11,13 +11,13 @@ import {
 import { airportCountry, airportDescription } from './airport-text'
 import { AirportView } from './airport-view'
 import { civilClosureNote } from './civil-closure'
-import { AirportsView } from './airports-view'
+import { airportCounts, AirportsView } from './airports-view'
 
 // `lib/airports` sunucu modülüdür; testte sunucu modülü olarak yüklenir.
 vi.mock('server-only', () => ({}))
 
 const AIRPORTS = fixtureTurkishAirports()
-/** Listelenen havalimanları: Türkiye ile 1. ve 2. halkanın yabancı havalimanları (D-080, D-088). */
+/** Listelenen havalimanları: Türkiye ile 1.–4. halkanın yabancı havalimanları (D-080, D-088, D-102). */
 const LISTED = fixtureListedAirports()
 const FOREIGN = LISTED.filter((a) => a.country !== 'TR')
 const byIcao = (icao: string) => {
@@ -596,6 +596,17 @@ describe('AirportsView', () => {
     return renderToStaticMarkup(createElement(AirportsView, { locale, app: 'havayolu', airports }))
   }
 
+  it('liste sayfasının açıklaması 4. halkayla da 70–170 karakter (61 + 1.161; D-102)', () => {
+    const counts = airportCounts(LISTED)
+    expect(counts).toEqual({ count: 61, foreign: 1161 })
+    for (const locale of ['tr', 'en'] as const) {
+      const description = format(getMessages(locale).seo.airports.descriptionWithForeign, counts)
+      expect(description, locale).toContain('1161')
+      expect(description.length, `${locale}: ${description}`).toBeGreaterThanOrEqual(70)
+      expect(description.length, `${locale}: ${description}`).toBeLessThanOrEqual(170)
+    }
+  })
+
   it('bütün havalimanları gerçek bir tabloda, il adına göre sıralı', () => {
     const html = renderList('tr')
     expect(html).toContain('<h1>Havalimanları</h1>')
@@ -672,7 +683,7 @@ describe('AirportsView', () => {
       `Listede Türkiye’deki 61 havalimanı ve Türkiye dışındaki ${FOREIGN.length} havalimanı var;`,
     )
     expect(body).toContain(
-      'Türkiye’deki en yakın havalimanına uzaklığı en fazla 2.000 km olan, IATA kodlu büyük ve orta boy havalimanları yer alır; bazı havalimanları listelenmez.',
+      'Türkiye’deki en yakın havalimanına uzaklığı en fazla 5.000 km olan, IATA kodlu büyük ve orta boy havalimanları yer alır; bazı havalimanları listelenmez.',
     )
     // OurAirports'un tarifeli sefer bilgisi gösterilmez (D-078, kullanıcı kararı).
     expect(body).not.toMatch(/tarifeli sefer|tarifesiz/i)
@@ -706,7 +717,7 @@ describe('AirportsView', () => {
     expect(countries[0]).toBe(airportCountry(byIcao('OAHR'), 'en'))
     expect(countries[0]).toBe('Afghanistan')
     expect(text(html)).toContain(`and ${FOREIGN.length} airports outside Türkiye;`)
-    expect(text(html)).toContain('at most 2,000 km from the nearest airport in Türkiye')
+    expect(text(html)).toContain('at most 5,000 km from the nearest airport in Türkiye')
     expect(text(html)).not.toMatch(/neighbouring/)
   })
 

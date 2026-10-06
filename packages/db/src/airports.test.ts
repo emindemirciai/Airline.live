@@ -792,7 +792,7 @@ const text = (value: string | undefined): string | null =>
 const number = (value: string | undefined): number | null =>
   text(value) === null ? null : Number(value)
 
-describe('fixture: 4. halka açıkken liste ve pistler (D-101; uygulamada halka henüz 3)', () => {
+describe('fixture: 4. halka açıkken liste ve pistler (D-101; uygulamada M6i.2’den beri açık, D-102)', () => {
   const fixtureAirports: AirportDetailSourceRow[] = readFixtureCsv('airports.csv')
     .filter(
       (r) =>
@@ -856,7 +856,7 @@ describe('fixture: 4. halka açıkken liste ve pistler (D-101; uygulamada halka 
     )
     expect(uganda.find((a) => a.iata === 'KHX')).toMatchObject({ icao: 'UG-0002', ring: 4 })
     expect(listedRing4.filter((a) => a.country === 'UG')).toHaveLength(4)
-    // Açık halka 3'te liste bugünkü 503'tür.
+    // Açık halka 3'te liste 503'tü (M6h–M6i.1, D-090).
     expect(selectListedAirports(fixtureAirports, { ...context, enabledRing: 3 })).toHaveLength(503)
   })
 

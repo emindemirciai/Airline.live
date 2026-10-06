@@ -1,16 +1,18 @@
-// Türkiye dışındaki havalimanları, 1.–3. halka (Parça 1 M6d, D-080; M6g, D-088; M6h, D-090).
-// Listelenen havalimanları IATA kodlu Türkiye havalimanları ve IATA kodlu en yakın Türkiye
-// havalimanına en çok 2.000 km olan, OurAirports'ta tarifeli seferi kayıtlı büyük ve orta boy yabancı
-// havalimanlarıdır. Veri tools/fixtures/ourairports'taki commit'li alt kümeden (2026-10-01 indirmesi),
-// hava durumu elle yazılmış fixture'dan gelir. Denetlenenler:
-// - API: `scope=listed` (61 + 75 + 89 + 278), halka ve uzaklık alanları (1. halka ≤ 500 km, 2. halka
-//   500–1.000 km, sınırdaki Ben Gurion 500; 3. halka 1.000–2.000 km), `country` ile birlikte 400; tek
-//   havalimanı ve hava durumu yabancı havalimanını da çözer
-// - /havalimanlari: Türkiye tablosundan sonra "Türkiye dışındaki havalimanları" tablosu (442 satır,
-//   ülkeye göre Türkçe sıralı, ülke ve Türkiye'ye uzaklık sütunları); Kahire ve Viyana satırları
-// - /istasyon/HECA (2. halka) ve /istasyon/LOWW (3. halka), iki dilde: ad, ülke, dizine eklenir, yerel
-//   saat havalimanınınki; `?havalimani=HECA` ve `?havalimani=LOWW` haritada o havalimanında açar,
-//   pencere ülkeyi ve yerel saati gösterir
+// Türkiye dışındaki havalimanları, 1.–4. halka (Parça 1 M6d, D-080; M6g, D-088; M6h, D-090; M6i.2,
+// D-102). Listelenen havalimanları IATA kodlu Türkiye havalimanları ve IATA kodlu en yakın Türkiye
+// havalimanına en çok 5.000 km olan, OurAirports'ta tarifeli seferi kayıtlı, dört karakterli ICAO'su
+// olan büyük ve orta boy yabancı havalimanlarıdır. Veri tools/fixtures/ourairports'taki commit'li alt
+// kümeden (2026-10-01 indirmesi), hava durumu elle yazılmış fixture'dan gelir. Denetlenenler:
+// - API: `scope=listed` (61 + 75 + 89 + 278 + 719), halka ve uzaklık alanları (1. halka ≤ 500 km, 2.
+//   halka 500–1.000 km, sınırdaki Ben Gurion 500; 3. halka 1.000–2.000 km; 4. halka 2.000–5.000 km),
+//   Kihihi (UG-0002, KHX) ve New York JFK yok, `country` ile birlikte 400; tek havalimanı ve hava
+//   durumu yabancı havalimanını da çözer
+// - /havalimanlari: Türkiye tablosundan sonra "Türkiye dışındaki havalimanları" tablosu (1.161 satır,
+//   ülkeye göre Türkçe sıralı, ülke ve Türkiye'ye uzaklık sütunları); Kahire, Viyana ve Londra satırları
+// - /istasyon/HECA (2. halka), /istasyon/LOWW (3. halka) ve /istasyon/EGLL (4. halka), iki dilde: ad,
+//   ülke, dizine eklenir, yerel saat havalimanınınki; `?havalimani=HECA`, `?havalimani=LOWW` ve
+//   `?havalimani=EGLL` haritada o havalimanında açar, pencere ülkeyi ve yerel saati gösterir
+// - /istasyon/lhr → 308 /istasyon/EGLL; /istasyon/KHX yönlendirmeden 404 (D-101)
 // - /istasyon/UUOO (Voronej): "Sivil uçuşlara kapalı olabilir (2022’den beri)" notu, iki dilde (D-090)
 // - /istasyon/LGAV ve /en/istasyon/LGAV: ülke, hava durumu, harita bağlantısı, dizine eklenir,
 //   JSON-LD `addressCountry` GR; /istasyon/LCEN KKTC'yi gösterir ve JSON-LD'de ülke kodu yazmaz;
@@ -44,7 +46,10 @@ import {
   RING2_BOUNDARY_AIRPORT,
   RING3_AIRPORT,
   RING3_AIRPORT_COUNT,
+  RING4_AIRPORT,
+  RING4_AIRPORT_COUNT,
   RING_LIMITS_KM,
+  NON_ICAO_AIRPORT,
   UNLISTED_FOREIGN_AIRPORT,
   waitForMap,
   WEB_URL,
@@ -55,6 +60,7 @@ const STATION_PATH = `/istasyon/${icao}`
 const KKTC_PATH = `/istasyon/${KKTC_AIRPORT.icao}`
 const RING2_PATH = `/istasyon/${RING2_AIRPORT.icao}`
 const RING3_PATH = `/istasyon/${RING3_AIRPORT.icao}`
+const RING4_PATH = `/istasyon/${RING4_AIRPORT.icao}`
 const CLOSURE_PATH = `/istasyon/${CIVIL_CLOSURE_AIRPORT.icao}`
 /** Atina'nın saat dilimi (`airportTimeZone`, tzdb; D-084). */
 const ATHENS_TIME_ZONE = 'Europe/Athens'
@@ -70,6 +76,8 @@ const COPY = {
     ring2Name: RING2_AIRPORT.nameTr,
     ring3Country: RING3_AIRPORT.countryTr,
     ring3Name: RING3_AIRPORT.nameTr,
+    ring4Country: RING4_AIRPORT.countryTr,
+    ring4Name: RING4_AIRPORT.nameTr,
     closure: CIVIL_CLOSURE_AIRPORT.noteTr,
     kktc: new RegExp(KKTC_AIRPORT.shortTr),
     collator: 'tr-TR',
@@ -94,6 +102,8 @@ const COPY = {
     ring2Name: RING2_AIRPORT.nameEn,
     ring3Country: RING3_AIRPORT.countryEn,
     ring3Name: RING3_AIRPORT.nameEn,
+    ring4Country: RING4_AIRPORT.countryEn,
+    ring4Name: RING4_AIRPORT.nameEn,
     closure: CIVIL_CLOSURE_AIRPORT.noteEn,
     kktc: new RegExp(`${KKTC_AIRPORT.shortEn}|Turkish Republic of Northern Cyprus`),
     collator: 'en-GB',
@@ -134,7 +144,7 @@ function row(scope: Locator, label: string): Locator {
 }
 
 test.describe('API', () => {
-  test('scope=listed: 61 Türkiye + 442 Türkiye dışı havalimanı (75 + 89 + 278); halka ve uzaklık; uzak havalimanı yok', async ({
+  test('scope=listed: 61 Türkiye + 1.161 Türkiye dışı havalimanı (75 + 89 + 278 + 719); halka ve uzaklık; 5. halka ve ICAO’suz havalimanı yok', async ({
     request,
   }) => {
     for (const path of ['/v1/airports?scope=listed', '/v1/airports?scope=listed&include=runways']) {
@@ -149,13 +159,14 @@ test.describe('API', () => {
       expect(foreign.filter((airport) => airport.ring === 1)).toHaveLength(RING1_AIRPORT_COUNT)
       expect(foreign.filter((airport) => airport.ring === 2)).toHaveLength(RING2_AIRPORT_COUNT)
       expect(foreign.filter((airport) => airport.ring === 3)).toHaveLength(RING3_AIRPORT_COUNT)
+      expect(foreign.filter((airport) => airport.ring === 4)).toHaveLength(RING4_AIRPORT_COUNT)
       for (const airport of turkey) {
         expect(airport.ring, `${String(airport.icao)}: halka`).toBe(0)
         expect(airport.distanceToTrKm, `${String(airport.icao)}: uzaklık`).toBeNull()
       }
       for (const airport of foreign) {
         const label = String(airport.icao)
-        expect([1, 2, 3], `${label}: halka`).toContain(airport.ring)
+        expect([1, 2, 3, 4], `${label}: halka`).toContain(airport.ring)
         expect(typeof airport.distanceToTrKm, `${label}: uzaklık`).toBe('number')
         const km = airport.distanceToTrKm as number
         if (airport.ring === 1) {
@@ -165,12 +176,18 @@ test.describe('API', () => {
           // Halka tam uzaklıktandır, `distanceToTrKm` tam km'ye yuvarlıdır: 500,44 km → 500 (LLBG).
           expect(km, label).toBeGreaterThanOrEqual(RING_LIMITS_KM[1])
           expect(km, label).toBeLessThanOrEqual(RING_LIMITS_KM[2])
-        } else {
+        } else if (airport.ring === 3) {
           // 3. halkanın en yakını Gachsaran, 1.006 km: 1.000 km sınırında yuvarlama vakası yoktur.
           expect(km, label).toBeGreaterThan(RING_LIMITS_KM[2])
           expect(km, label).toBeLessThanOrEqual(RING_LIMITS_KM[3])
+        } else {
+          // 4. halkanın en yakını Barselona, 2.003 km; en uzağı Ulan Batur, 4.981 km (D-102).
+          expect(km, label).toBeGreaterThan(RING_LIMITS_KM[3])
+          expect(km, label).toBeLessThanOrEqual(RING_LIMITS_KM[4])
         }
         expect(airport.country, `${label}: ülke kodu`).toMatch(/^[A-Z]{2}$/)
+        // Değişmez kural (D-101): listelenen her havalimanının dört karakterli ICAO'su vardır.
+        expect(airport.icao, `${label}: ICAO`).toMatch(/^[A-Z0-9]{4}$/)
       }
       const athens = airports.find((airport) => airport.icao === icao)
       expect(athens?.iata).toBe(iata)
@@ -191,6 +208,14 @@ test.describe('API', () => {
         country: RING3_AIRPORT.country,
         ring: 3,
       })
+      expect(airports.find((airport) => airport.icao === RING4_AIRPORT.icao)).toMatchObject({
+        iata: RING4_AIRPORT.iata,
+        country: RING4_AIRPORT.country,
+        ring: 4,
+      })
+      // Kihihi (UG-0002, KHX) dört karakterli ICAO'su olmadığı için listede yoktur (D-101).
+      expect(airports.some((airport) => airport.icao === NON_ICAO_AIRPORT.ident)).toBe(false)
+      expect(airports.some((airport) => airport.iata === NON_ICAO_AIRPORT.iata)).toBe(false)
       // Sivil uçuşlara kapalı olabilecek havalimanı listede kalır (D-090).
       expect(airports.some((airport) => airport.icao === CIVIL_CLOSURE_AIRPORT.icao)).toBe(true)
       expect(airports.some((airport) => airport.icao === UNLISTED_FOREIGN_AIRPORT.icao)).toBe(false)
@@ -223,7 +248,7 @@ test.describe('API', () => {
     expect(String(body.metar?.raw)).toContain(icao)
   })
 
-  test('toplu hava: scope=listed bütün listelenen havalimanları; 1. halka fixture istasyonlarında METAR', async ({
+  test('toplu hava: scope=listed bütün listelenen havalimanları (1.222); 1. halka fixture istasyonlarında METAR; ICAO’suz havalimanı yok', async ({
     request,
   }) => {
     const response = await request.get(`${API_URL}/v1/weather?scope=listed`)
@@ -235,6 +260,8 @@ test.describe('API', () => {
         }
       ).stations ?? []
     expect(stations).toHaveLength(LISTED_AIRPORT_COUNT)
+    expect(stations.some((station) => station.icao === NON_ICAO_AIRPORT.ident)).toBe(false)
+    expect(stations.every((station) => /^[A-Z0-9]{4}$/.test(String(station.icao)))).toBe(true)
     for (const station of RING1_WEATHER_AIRPORTS) {
       const entry = stations.find((item) => item.icao === station)
       expect(String(entry?.metar?.raw), `${station}: METAR`).toContain(station)
@@ -254,7 +281,7 @@ test.describe('havalimanı listesi', () => {
   for (const locale of ['tr', 'en'] as const) {
     const copy = COPY[locale]
 
-    test(`${copy.listPath}: Türkiye dışındaki havalimanları tablosu 442 satır, ülkeye göre sıralı; satır sayfayı açar`, async ({
+    test(`${copy.listPath}: Türkiye dışındaki havalimanları tablosu 1.161 satır, ülkeye göre sıralı; satır sayfayı açar`, async ({
       page,
     }) => {
       await page.goto(copy.listPath)
@@ -300,6 +327,18 @@ test.describe('havalimanı listesi', () => {
       )
       expect(viennaKm).toBeGreaterThan(RING_LIMITS_KM[2])
       expect(viennaKm).toBeLessThanOrEqual(RING_LIMITS_KM[3])
+      // 4. halkadan Londra (D-102): ad, ülke ve uzaklık (~2.375 km).
+      const london = rows.filter({ hasText: RING4_AIRPORT.icao })
+      await expect(london).toHaveCount(1)
+      await expect(london).toContainText(copy.ring4Name)
+      await expect(london).toContainText(copy.ring4Country)
+      const londonKm = Number(
+        ((await london.locator('td').nth(3).textContent()) ?? '').replace(/[^0-9]/g, ''),
+      )
+      expect(londonKm).toBeGreaterThan(RING_LIMITS_KM[3])
+      expect(londonKm).toBeLessThanOrEqual(RING_LIMITS_KM[4])
+      // Dört karakterli ICAO'su olmayan Kihihi (KHX) tabloda yoktur (D-101).
+      await expect(rows.filter({ hasText: NON_ICAO_AIRPORT.iata })).toHaveCount(0)
 
       const href = locale === 'tr' ? STATION_PATH : enPath(STATION_PATH)
       await athens.locator(`a[href="${href}"]`).click()
@@ -453,6 +492,44 @@ test.describe('havalimanı sayfası', () => {
     })
   }
 
+  for (const locale of ['tr', 'en'] as const) {
+    const copy = COPY[locale]
+    const ring4Path = locale === 'tr' ? RING4_PATH : enPath(RING4_PATH)
+
+    test(`${ring4Path} (4. halka): ad, ülke, yerel saat Londra’nın; dizine eklenir, JSON-LD ülkesi GB`, async ({
+      page,
+      request,
+    }) => {
+      const loadedFrom = Date.now()
+      const { response, body } = await fetchRaw(request, ring4Path)
+      expect(response.status(), ring4Path).toBe(200)
+      expect(metaContents(body, 'robots').join(', '), `${ring4Path}: robots`).not.toMatch(/noindex/)
+      const airport = nodesOfType(jsonLdNodes(body), 'Airport')[0]
+      expect(airport?.icaoCode).toBe(RING4_AIRPORT.icao)
+      const address = isRecord(airport?.address) ? airport.address : {}
+      expect(address.addressCountry).toBe(RING4_AIRPORT.country)
+
+      await page.goto(ring4Path)
+      const main = page.locator('main')
+      await expect(main.getByRole('heading', { level: 1 })).toContainText(
+        `${copy.ring4Name} (${RING4_AIRPORT.iata}/${RING4_AIRPORT.icao})`,
+      )
+      await expect(main.locator('.airport-location')).toContainText(copy.ring4Country)
+      await expect(main.locator('.civil-closure')).toHaveCount(0)
+      // Saat dilimi Europe/London (D-101 ülke tablosu): yerel saat ve gün doğumu yazılır.
+      const sun = main
+        .getByRole('region', { name: copy.weather, exact: true })
+        .locator('.weather-sun')
+      await expect(sun).toContainText(copy.sunrise)
+      await expectLocalClock(
+        sun.locator('li').first(),
+        `${copy.localTime} `,
+        loadedFrom,
+        RING4_AIRPORT.timeZone,
+      )
+    })
+  }
+
   test('/istasyon/UUOO ve /en/istasyon/UUOO: "Sivil uçuşlara kapalı olabilir (2022’den beri)" notu; dizine eklenir (D-090)', async ({
     page,
     request,
@@ -476,12 +553,19 @@ test.describe('havalimanı sayfası', () => {
     }
   })
 
-  test('IATA kodu ve küçük harf yönlendirir; listelenmeyen uzak havalimanı gerçek 404', async ({
+  test('IATA kodu ve küçük harf yönlendirir; listelenmeyen uzak havalimanı ve ICAO’suz KHX gerçek 404', async ({
     request,
   }) => {
-    // 2. ve 3. halka havalimanları da IATA koduyla bulunur (D-088, D-090).
+    // 2., 3. ve 4. halka havalimanları da IATA koduyla bulunur (D-088, D-090, D-102).
     await expectRedirect(request, `/istasyon/${RING2_AIRPORT.iata.toLowerCase()}`, RING2_PATH)
     await expectRedirect(request, `/istasyon/${RING3_AIRPORT.iata.toLowerCase()}`, RING3_PATH)
+    await expectRedirect(request, `/istasyon/${RING4_AIRPORT.iata.toLowerCase()}`, RING4_PATH)
+    await expectRedirect(request, `/istasyon/${RING4_AIRPORT.icao.toLowerCase()}`, RING4_PATH)
+    await expectRedirect(
+      request,
+      `/en/istasyon/${RING4_AIRPORT.iata.toLowerCase()}`,
+      enPath(RING4_PATH),
+    )
     await expectRedirect(
       request,
       `/en/istasyon/${RING3_AIRPORT.iata.toLowerCase()}`,
@@ -495,9 +579,16 @@ test.describe('havalimanı sayfası', () => {
       `/istasyon/${UNLISTED_FOREIGN_AIRPORT.icao}`,
       `/istasyon/${UNLISTED_FOREIGN_AIRPORT.iata}`,
       enPath(`/istasyon/${UNLISTED_FOREIGN_AIRPORT.icao}`),
+      // Kihihi (D-101): IATA kodu KHX, kanonik kimliği UG-0002; 308 olmadan doğrudan 404
+      // (`fetchRaw` yönlendirme izlemez). OurAirports kimliğiyle de sayfa yoktur.
+      `/istasyon/${NON_ICAO_AIRPORT.iata}`,
+      `/istasyon/${NON_ICAO_AIRPORT.iata.toLowerCase()}`,
+      enPath(`/istasyon/${NON_ICAO_AIRPORT.iata}`),
+      `/istasyon/${NON_ICAO_AIRPORT.ident}`,
     ]) {
       const { response } = await fetchRaw(request, path)
       expect(response.status(), path).toBe(404)
+      expect(response.headers()['location'], path).toBeUndefined()
     }
   })
 })
@@ -644,6 +735,36 @@ test.describe('harita: Türkiye dışındaki havalimanı', () => {
     await page.keyboard.press('Escape')
     await expect(popup).toBeHidden()
   })
+
+  test('4. halka: ?havalimani=EGLL Londra’da açar; listeden açılan pencere Birleşik Krallık’ı ve Londra’nın saatini gösterir (D-102)', async ({
+    page,
+  }) => {
+    const loadedFrom = Date.now()
+    await page.goto(`/?havalimani=${RING4_AIRPORT.icao}`)
+    await waitForMap(page)
+    // Harita Londra'dadır: görünümün ortasına en yakın havalimanı LHR (London City ~22 km, Gatwick
+    // ~40 km uzakta).
+    await expect
+      .poll(async () => (await airportListCodes(page))[0], { timeout: 30_000 })
+      .toBe(RING4_AIRPORT.iata)
+    const toggle = page.getByRole('button', { name: COPY.tr.listButton, exact: true })
+    await toggle.click()
+    await page.getByRole('button', { name: new RegExp(`^${RING4_AIRPORT.iata}\\b`) }).click()
+    const popup = mapPopup(page)
+    await expect(popup).toBeVisible()
+    await expect(popup).toHaveAttribute('data-icao', RING4_AIRPORT.icao)
+    await expect(popup).toContainText(`${RING4_AIRPORT.iata} · ${RING4_AIRPORT.icao}`)
+    await expect(popup.getByRole('heading', { name: RING4_AIRPORT.nameTr })).toBeVisible()
+    await expect(popup.locator('.map-popup__place')).toHaveText(COPY.tr.ring4Country)
+    await expect(popup.getByRole('note')).toHaveCount(0)
+    await expectLocalClock(row(popup, COPY.tr.localTime), '', loadedFrom, RING4_AIRPORT.timeZone)
+    await expect(popup.getByRole('link', { name: /Havalimanı sayfası/ })).toHaveAttribute(
+      'href',
+      RING4_PATH,
+    )
+    await page.keyboard.press('Escape')
+    await expect(popup).toBeHidden()
+  })
 })
 
 /**
@@ -673,7 +794,8 @@ function zoneClocks(timeZone: string, from: number, to: number): string[] {
  * Öğe `prefix` + havalimanının yerel saatini UTC farkıyla yazar ("Yerel saat 23:05 (UTC+2)"; dilim
  * verilmezse Atina). Sayfa saati çizim anından (sunucu) ya da 30 sn adımlı ada saatinden gelir:
  * beklenen değerler sayfanın istendiği andan (`from`, 30 sn pay) okuma anına kadarki dakikalardır.
- * Atina ve Kahire yazın UTC+3, kışın UTC+2'dir; Viyana yazın UTC+2, kışın UTC+1 (D-090).
+ * Atina ve Kahire yazın UTC+3, kışın UTC+2'dir; Viyana yazın UTC+2, kışın UTC+1 (D-090); Londra
+ * yazın UTC+1, kışın UTC (fark yazılmaz: "09:05 (UTC)"; D-102).
  */
 async function expectLocalClock(
   locator: Locator,
@@ -681,7 +803,9 @@ async function expectLocalClock(
   from: number,
   timeZone: string = ATHENS_TIME_ZONE,
 ): Promise<void> {
-  await expect(locator).toHaveText(new RegExp(`^\\s*${prefix}\\d{2}:\\d{2} \\(UTC\\+[1-3]\\)\\s*$`))
+  await expect(locator).toHaveText(
+    new RegExp(`^\\s*${prefix}\\d{2}:\\d{2} \\(UTC(?:\\+[1-3])?\\)\\s*$`),
+  )
   const shown = ((await locator.textContent()) ?? '').trim()
   const expected = zoneClocks(timeZone, from - 31_000, Date.now() + 2_000).map(
     (value) => prefix + value,

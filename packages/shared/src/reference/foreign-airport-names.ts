@@ -1,9 +1,13 @@
 import type { Locale, LocalizedText } from '../locale'
+import { RING4_AIRPORT_CITIES, RING4_AIRPORT_NAMES } from './foreign-airport-names-r4'
+
+/** İki dilde ad ya da yer adı tablosu (ICAO kodu → ad). */
+type LocalizedTable = Readonly<Record<string, LocalizedText>>
 
 /**
- * Türkiye dışındaki listelenen havalimanlarının (D-080) Türkçe ve İngilizce görünen adları: 1.
- * halkanın (≤ 500 km) 75, 2. halkanın (≤ 1.000 km, D-088) 89 ve 3. halkanın (≤ 2.000 km, D-090) 278
- * havalimanı, toplam 442, ICAO koduna göre sıralı (anahtar listedeki kanonik ICAO'dur: Süleymaniye'nin
+ * 1.–3. halkanın Türkçe ve İngilizce görünen adları (D-080): 1. halkanın (≤ 500 km) 75, 2.
+ * halkanın (≤ 1.000 km, D-088) 89 ve 3. halkanın (≤ 2.000 km, D-090) 278 havalimanı, toplam 442,
+ * ICAO koduna göre sıralı (anahtar listedeki kanonik ICAO'dur: Süleymaniye'nin
  * OurAirports kimliği ORSU, ICAO'su ORSJ; İskenderiye'nin OurAirports `icao_code`'u HEAX, uygulamadaki
  * kodu HEBA, `OURAIRPORTS_ICAO_CORRECTIONS`; Özbekistan'ın beş havalimanında OurAirports kimliği
  * UTxx, ICAO'su UZxx; Kızıldeniz'in kimliği "RSI", ICAO'su OERS).
@@ -56,10 +60,10 @@ import type { Locale, LocalizedText } from '../locale'
  * - "International", "National", "Domestic", "Island" gibi nitelemeler Türkçe adda yazılmaz; ad
  *   "Havalimanı" ile biter. Tartışmalı bölgelerde (Sohum) yalnızca şehir adı kullanılır.
  *
- * Tabloda olmayan yurt dışı havalimanı (sonraki halkalar) `translatedAirportName` kuralıyla
- * Türkçeleştirilir ("International Airport" → "Uluslararası Havalimanı", "Airport" → "Havalimanı").
+ * 4. halkanın 719 adı ayrı dosyadadır (`foreign-airport-names-r4.ts`, D-102); oradaki başlık bu
+ * kurallara 4. halkanın eklediklerini yazar.
  */
-export const FOREIGN_AIRPORT_NAMES: Readonly<Record<string, LocalizedText>> = {
+const RING1_3_AIRPORT_NAMES: LocalizedTable = {
   BKPR: {
     tr: 'Priştine Adem Jashari Havalimanı',
     en: 'Priština Adem Jashari International Airport',
@@ -625,6 +629,24 @@ export const FOREIGN_AIRPORT_NAMES: Readonly<Record<string, LocalizedText>> = {
   UZSS: { tr: 'Semerkant Havalimanı', en: 'Samarkand International Airport' },
 }
 
+/**
+ * Türkiye dışındaki listelenen havalimanlarının (D-080) Türkçe ve İngilizce görünen adları: 1.–3.
+ * halkanın 442'si (yukarıda) ve 4. halkanın (≤ 5.000 km, D-102) 719'u (`RING4_AIRPORT_NAMES`),
+ * toplam 1.161; anahtar kanonik ICAO'dur. Dört karakterli ICAO'su olmayan Kihihi (UG-0002, IATA
+ * KHX) listede olmadığı için tabloda da yoktur (D-101).
+ *
+ * Tabloda olmayan yurt dışı havalimanı (sonraki halkalar) `translatedAirportName` kuralıyla
+ * Türkçeleştirilir ("International Airport" → "Uluslararası Havalimanı", "Airport" → "Havalimanı").
+ *
+ * Birleşik tablo `#__PURE__` işaretli bir fonksiyon içinde kurulur: yayma (`...`) paketleyiciye yan
+ * etkili görünebilir ve tablo, kullanılmadığı istemci parçalarında (haritanın ilk paketi) kalırdı
+ * (D-101).
+ */
+export const FOREIGN_AIRPORT_NAMES: LocalizedTable = /*#__PURE__*/ (() => ({
+  ...RING1_3_AIRPORT_NAMES,
+  ...RING4_AIRPORT_NAMES,
+}))()
+
 /** Tablodaki kayıt; kod tabloda yoksa undefined. ICAO kırpılıp büyük harfe çevrilir. */
 export function foreignAirportName(icao: string): LocalizedText | undefined {
   const code = icao.trim().toUpperCase()
@@ -632,9 +654,6 @@ export function foreignAirportName(icao: string): LocalizedText | undefined {
 }
 
 const city = (tr: string, en: string): LocalizedText => ({ tr, en })
-
-/** İki dilde yer adı tablosu (ICAO kodu → ad). */
-type LocalizedTable = Readonly<Record<string, LocalizedText>>
 
 /**
  * `FOREIGN_AIRPORT_NAMES`'teki havalimanlarının hizmet verdiği şehir, iki dilde (M6d düzeltme turu,
@@ -657,12 +676,13 @@ type LocalizedTable = Readonly<Record<string, LocalizedText>>
  * havalimanında şehir Türkçe adda geçmez: Bahreyn Havalimanı → Manama, Malta Havalimanı → Valletta
  * (Ercan gibi istisna). EuroAirport Basel-Mulhouse-Freiburg Fransa'dadır, şehri Mulhouse'tur
  * ("Basel, Fransa" yanlış olurdu). Kızıldeniz Havalimanı bir turizm bölgesine hizmet verir
- * (OurAirports "Hanak"); şehir yerine bölge yazılır: Kızıldeniz / Red Sea (Neom örneği).
+ * (OurAirports "Hanak"); şehir yerine bölge yazılır: Kızıldeniz / Red Sea (Neom örneği). 4.
+ * halkanın şehirleri ve orada genelleşen kararlar `RING4_AIRPORT_CITIES`'tedir (D-102).
  *
  * Tablo `#__PURE__` işaretli bir fonksiyon içinde kurulur: yardımcı çağrıları paketleyiciye yan
  * etkili görünür ve tablo, kullanılmadığı istemci parçalarında (haritanın ilk paketi) kalırdı (D-101).
  */
-export const FOREIGN_AIRPORT_CITIES: LocalizedTable = /*#__PURE__*/ (() => ({
+const RING1_3_AIRPORT_CITIES: LocalizedTable = /*#__PURE__*/ (() => ({
   BKPR: city('Priştine', 'Pristina'),
   DAAE: city('Béjaïa', 'Béjaïa'),
   DAAS: city('Setif', 'Sétif'),
@@ -1105,6 +1125,16 @@ export const FOREIGN_AIRPORT_CITIES: LocalizedTable = /*#__PURE__*/ (() => ({
   UZSA: city('Navoi', 'Navoiy'),
   UZSB: city('Buhara', 'Bukhara'),
   UZSS: city('Semerkant', 'Samarkand'),
+}))()
+
+/**
+ * `FOREIGN_AIRPORT_NAMES`'teki 1.161 havalimanının hizmet verdiği şehir, iki dilde: 1.–3. halka
+ * (yukarıda) ve 4. halka (`RING4_AIRPORT_CITIES`, D-102). Birleşik tablo da `#__PURE__` işaretli
+ * kurulur (D-101).
+ */
+export const FOREIGN_AIRPORT_CITIES: LocalizedTable = /*#__PURE__*/ (() => ({
+  ...RING1_3_AIRPORT_CITIES,
+  ...RING4_AIRPORT_CITIES,
 }))()
 
 /** Şehir tablosundaki kayıt; kod tabloda yoksa undefined. ICAO kırpılıp büyük harfe çevrilir. */

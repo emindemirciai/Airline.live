@@ -48,16 +48,19 @@ describe('fixture', () => {
     expect(AIRPORTS.every((a) => a.runways.length > 0)).toBe(true)
   })
 
-  it('1.–3. halka: Türkiye dışındaki 442 havalimanı 2.000 km içinde, tarifeli ve Türkçe adlı (D-080, D-088, D-090)', () => {
+  it('1.–4. halka: Türkiye dışındaki 1.161 havalimanı 5.000 km içinde, tarifeli ve Türkçe adlı (D-080, D-088, D-090, D-102)', () => {
     const ring1 = FOREIGN.filter((a) => a.ring === 1)
     const ring2 = FOREIGN.filter((a) => a.ring === 2)
     const ring3 = FOREIGN.filter((a) => a.ring === 3)
+    const ring4 = FOREIGN.filter((a) => a.ring === 4)
     expect(ring1).toHaveLength(75)
     expect(ring2).toHaveLength(89)
     expect(ring3).toHaveLength(278)
-    expect(FOREIGN).toHaveLength(ring1.length + ring2.length + ring3.length)
+    expect(ring4).toHaveLength(719)
+    expect(FOREIGN).toHaveLength(ring1.length + ring2.length + ring3.length + ring4.length)
+    expect(FOREIGN).toHaveLength(1161)
     expect(LISTED).toHaveLength(AIRPORTS.length + FOREIGN.length)
-    expect(LISTED).toHaveLength(503)
+    expect(LISTED).toHaveLength(1222)
     expect(FOREIGN.every((a) => a.scheduled)).toBe(true)
     expect(ring1.every((a) => (a.distanceToTrKm ?? Infinity) <= 500)).toBe(true)
     // Uzaklık tam km'ye yuvarlıdır, halka tam uzaklıktandır: Ben Gurion 500,44 km → 500, 2. halka.
@@ -69,14 +72,24 @@ describe('fixture', () => {
     expect(ring3.every((a) => (a.distanceToTrKm ?? Infinity) <= 2000)).toBe(true)
     expect(byIcao('OIAH')).toMatchObject({ ring: 3, distanceToTrKm: 1006 })
     expect(byIcao('LOWW')).toMatchObject({ ring: 3, country: 'AT' })
-    // Fixture'ın uzak örneklerinden Frankfurt, Dubai ve Doha Hamad 3. halkadadır ve listelenir.
+    // 4. halka 2.000 km'nin dışındadır (en yakını Barselona, 2.003 km; en uzağı Ulan Batur, 4.981 km).
+    expect(ring4.every((a) => (a.distanceToTrKm ?? -1) > 2000)).toBe(true)
+    expect(ring4.every((a) => (a.distanceToTrKm ?? Infinity) <= 5000)).toBe(true)
+    expect(byIcao('LEBL')).toMatchObject({ ring: 4, distanceToTrKm: 2003 })
+    expect(byIcao('ZMCK')).toMatchObject({ ring: 4, distanceToTrKm: 4981 })
+    // Fixture'ın uzak örneklerinden Frankfurt, Dubai ve Doha Hamad 3. halkada; Heathrow, Paris
+    // Charles de Gaulle, Amsterdam ve Madrid 4. halkadadır ve listelenir. New York JFK 5. halkadadır.
     for (const icao of ['EDDF', 'OMDB', 'OTHH']) expect(byIcao(icao).ring).toBe(3)
-    for (const icao of ['EGLL', 'LFPG', 'EHAM', 'LEMD', 'KJFK']) {
+    for (const icao of ['EGLL', 'LFPG', 'EHAM', 'LEMD']) expect(byIcao(icao).ring).toBe(4)
+    // Kihihi (UG-0002, IATA KHX) dört karakterli ICAO taşımaz ve listelenmez (D-101).
+    for (const icao of ['KJFK', 'UG-0002']) {
       expect(
         LISTED.some((a) => a.icao === icao),
         icao,
       ).toBe(false)
     }
+    expect(LISTED.some((a) => a.iata === 'KHX')).toBe(false)
+    expect(LISTED.every((a) => /^[A-Z0-9]{4}$/.test(a.icao))).toBe(true)
     expect(FOREIGN.filter((a) => foreignAirportName(a.icao) === undefined)).toEqual([])
     expect(FOREIGN.filter((a) => foreignAirportCity(a.icao) === undefined)).toEqual([])
     expect(AIRPORTS.every((a) => a.country === 'TR' && a.ring === 0)).toBe(true)
@@ -232,26 +245,32 @@ describe('yer: il ya da ülke (D-080)', () => {
       const city = foreignAirportCity(airport.icao)
       for (const locale of LOCALES) {
         const line = airportLocation(airport, locale)
-        expect(line, airport.icao).not.toMatch(/Türkiye|\{|\(|Island/)
+        expect(line, airport.icao).not.toMatch(/Türkiye|\{|\(/)
+        // Şehir adında "Island" yoktur; ülke adında olabilir (Faroe Islands, 4. halka).
+        expect(city?.[locale], airport.icao).not.toMatch(/Island/)
         expect(line, airport.icao).toBe(`${city?.[locale]}, ${airportCountry(airport, locale)}`)
       }
     }
+    // 4. halka (D-102): küratörlü şehir; ülke adının içinde "Islands" olabilir.
+    expect(airportLocation(byIcao('EGLL'), 'tr')).toBe('Londra, Birleşik Krallık')
+    expect(airportLocation(byIcao('EGLL'), 'en')).toBe('London, United Kingdom')
+    expect(airportLocation(byIcao('EKVG'), 'en')).toBe('Vágar, Faroe Islands')
     // Tabloda olmayan yabancı havalimanı (sonraki halkalar): Türkçe sayfada yalnızca ülke, İngilizce
     // sayfada temiz OurAirports yerleşimi.
-    const heathrow = airportFixture({
-      icao: 'EGLL',
-      country: 'GB',
-      isoRegion: 'GB-ENG',
-      municipality: 'London',
-      ring: 4,
+    const jfk = airportFixture({
+      icao: 'KJFK',
+      country: 'US',
+      isoRegion: 'US-NY',
+      municipality: 'New York',
+      ring: 5,
     })
-    expect(airportLocation(heathrow, 'tr')).toBe('Birleşik Krallık')
-    expect(airportLocation(heathrow, 'en')).toBe('London, United Kingdom')
+    expect(airportLocation(jfk, 'tr')).toBe('Amerika Birleşik Devletleri')
+    expect(airportLocation(jfk, 'en')).toBe('New York, United States')
   })
 
-  it('açık halkaların sınırı ortak yapılandırmadan gelir (3. halka 2.000 km, D-090)', () => {
+  it('açık halkaların sınırı ortak yapılandırmadan gelir (4. halka 5.000 km, D-102)', () => {
     expect(listedRadiusKm()).toBe(AIRPORT_RINGS_KM[ENABLED_AIRPORT_RING - 1])
-    expect(listedRadiusKm()).toBe(2000)
+    expect(listedRadiusKm()).toBe(5000)
   })
 })
 

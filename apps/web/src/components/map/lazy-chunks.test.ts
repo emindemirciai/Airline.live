@@ -42,12 +42,36 @@ describe('ilk paket: havalimanı adları dinamik parçalarda (D-101)', () => {
     const reference = '../../../../../packages/shared/src/reference/'
     const tr = source(`${reference}airport-names.ts`)
     const foreign = source(`${reference}foreign-airport-names.ts`)
+    const ringFour = source(`${reference}foreign-airport-names-r4.ts`)
     expect(tr).toMatch(/export const AIRPORT_NAMES: [^=]+= \/\*#__PURE__\*\/ \(\(\) => \(\{/)
-    expect(foreign).toMatch(
-      /export const FOREIGN_AIRPORT_CITIES: [^=]+= \/\*#__PURE__\*\/ \(\(\) => \(\{/,
+    expect(foreign).toMatch(/const RING1_3_AIRPORT_CITIES: [^=]+= \/\*#__PURE__\*\/ \(\(\) => \(\{/)
+    expect(ringFour).toMatch(
+      /export const RING4_AIRPORT_CITIES: [^=]+= \/\*#__PURE__\*\/ \(\(\) => \(\{/,
     )
+    // Halkaların birleşik tabloları (D-102) da PURE işaretli fonksiyonda yayılır.
+    for (const table of ['FOREIGN_AIRPORT_NAMES', 'FOREIGN_AIRPORT_CITIES']) {
+      expect(foreign, table).toMatch(
+        new RegExp(
+          `export const ${table}: [^=]+= /\\*#__PURE__\\*/ \\(\\(\\) => \\(\\{\\n {2}\\.\\.\\.`,
+        ),
+      )
+    }
     // Öbür tablolar düz nesnedir (çağrı yok): paketleyici kullanılmayınca atar.
-    expect(foreign).toMatch(/export const FOREIGN_AIRPORT_NAMES: [^=]+= \{\n {2}[A-Z0-9]{4}: \{/)
+    expect(foreign).toMatch(/const RING1_3_AIRPORT_NAMES: [^=]+= \{\n {2}[A-Z0-9]{4}: \{/)
+    expect(ringFour).toMatch(/export const RING4_AIRPORT_NAMES: [^=]+= \{\n {2}[A-Z0-9]{4}: \{/)
+  })
+
+  it('haritanın ilk paketindeki askerî üs kuralı ad tablolarını içe aktarmaz (D-102)', () => {
+    // `mapShownAirports` (D-103) ad tablolarının modülündeyken paketleyici tabloları (4. halkayla
+    // ~110 KB) `/`'nin ilk paketine taşıyordu: v0.22.1'de First Load JS 1.053.924 B, 4. halkayla
+    // 1.130.056 B; kural kendi modülüne taşınınca 1.017.108 B (D-102).
+    expect(source('./live-map.tsx')).toContain('mapShownAirports')
+    const military = source('../../../../../packages/shared/src/reference/military-airfields.ts')
+    expect(military).toContain('export function mapShownAirports')
+    expect(staticImports(military)).toEqual([])
+    const names = source('../../../../../packages/shared/src/reference/airport-names.ts')
+    expect(names).not.toContain('mapShownAirports')
+    expect(names).not.toContain('isMilitaryAirfield')
   })
 })
 

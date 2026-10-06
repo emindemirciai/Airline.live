@@ -142,12 +142,12 @@ describe('GET /llms.txt', () => {
       `- [Ercan Havalimanı (ECN/LCEN)](${HOST}/istasyon/LCEN): KKTC; Türkiye’ye uzaklık 168 km; 1 pist; English: [Ercan International Airport](${HOST}/en/istasyon/LCEN)`,
       `- [Atina Eleftherios Venizelos Havalimanı (ATH/LGAV)](${HOST}/istasyon/LGAV): Yunanistan; Türkiye’ye uzaklık 275 km; 2 pist; English: [Athens Eleftherios Venizelos International Airport](${HOST}/en/istasyon/LGAV)`,
     ])
-    // Kapsama dürüstlüğü: Türkiye dışındaki havalimanları 2.000 km'ye kadar listelenir (3. halka,
-    // D-090), canlı uçak verisi Türkiye odaklıdır.
+    // Kapsama dürüstlüğü: Türkiye dışındaki havalimanları 5.000 km'ye kadar listelenir (4. halka,
+    // D-102), canlı uçak verisi Türkiye odaklıdır.
     expect(text).toContain(
-      'Türkiye dışındaki havalimanları da listelenir: Türkiye’deki en yakın havalimanına uzaklığı en fazla 2.000 km olan',
+      'Türkiye dışındaki havalimanları da listelenir: Türkiye’deki en yakın havalimanına uzaklığı en fazla 5.000 km olan',
     )
-    expect(text).toContain('at most 2,000 km from the nearest airport in Türkiye')
+    expect(text).toContain('at most 5,000 km from the nearest airport in Türkiye')
     expect(text).not.toMatch(/[Yy]akın ülke|neighbouring/)
     expect(text).toContain('Live aircraft data is focused on Türkiye')
     // Yabancı havalimanı yoksa bölüm yazılmaz.

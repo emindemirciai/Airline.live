@@ -182,11 +182,15 @@ describe('AIRPORT_NAMES', () => {
     expect(airportDisplayName(incirlik, 'en')).toBe('Incirlik Air Base')
     // Tabloda olmayan havalimanı (ör. OurAirports'a sonradan eklenen ya da sonraki halkalardaki)
     // OurAirports adıyla görünür; Türkçede "Airport" kuralla "Havalimanı" olur (D-080).
+    // 4. halka açıldı (D-102): Heathrow tablodadır; tabloda olmayan örnek 5. halkadan.
     expect(airportDisplayName({ icao: 'EGLL', name: 'London Heathrow Airport' }, 'tr')).toBe(
-      'London Heathrow Havalimanı',
+      'Londra Heathrow Havalimanı',
     )
-    expect(airportDisplayName({ icao: 'EGLL', name: 'London Heathrow Airport' }, 'en')).toBe(
-      'London Heathrow Airport',
+    expect(airportDisplayName({ icao: 'KLAX', name: 'Los Angeles Airport' }, 'tr')).toBe(
+      'Los Angeles Havalimanı',
+    )
+    expect(airportDisplayName({ icao: 'KLAX', name: 'Los Angeles Airport' }, 'en')).toBe(
+      'Los Angeles Airport',
     )
     expect(airportDisplayName({ icao: 'LTZZ', name: 'Yozgat Airport' }, 'tr')).toBe(
       'Yozgat Havalimanı',

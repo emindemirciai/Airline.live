@@ -38,6 +38,8 @@ import {
   RING1_AIRPORT,
   RING2_AIRPORT,
   RING3_AIRPORT,
+  RING4_AIRPORT,
+  NON_ICAO_AIRPORT,
   UNLISTED_FOREIGN_AIRPORT,
   sitePath,
   STATIC_PUBLIC_PATHS,
@@ -358,10 +360,11 @@ test.describe('kök dosyalar', () => {
     expect(body).toContain('xmlns:xhtml="http://www.w3.org/1999/xhtml"')
     const entries = parseSitemap(body)
 
-    // Havalimanları: Türkiye'nin dizine eklenen 56'sı ve Türkiye dışındaki 442'si (1.–3. halka;
-    // D-080, D-084, D-088, D-090): (498 + 5) × 2 = 1.006 adres (50.000 sınırının çok altında).
+    // Havalimanları: Türkiye'nin dizine eklenen 56'sı ve Türkiye dışındaki 1.161'i (1.–4. halka;
+    // D-080, D-084, D-088, D-090, D-102): (1.217 + 5) × 2 = 2.444 adres (50.000 sınırının çok
+    // altında).
     expect(entries).toHaveLength((INDEXABLE_LISTED_AIRPORT_COUNT + STATIC_PUBLIC_PATHS.length) * 2)
-    expect(entries).toHaveLength(1006)
+    expect(entries).toHaveLength(2444)
     const byLoc = new Map(entries.map((entry) => [entry.loc, entry]))
     expect(byLoc.size, 'yinelenen adres yok').toBe(entries.length)
     const paths = entries.map((entry) => sitePath(entry.loc, 'loc'))
@@ -369,7 +372,15 @@ test.describe('kök dosyalar', () => {
     const ring1Path = `/istasyon/${RING1_AIRPORT.icao}`
     const ring2Path = `/istasyon/${RING2_AIRPORT.icao}`
     const kktcPath = `/istasyon/${KKTC_AIRPORT.icao}`
-    for (const path of [...STATIC_PUBLIC_PATHS, STATION_PATH, ring1Path, ring2Path, kktcPath]) {
+    const ring4Path = `/istasyon/${RING4_AIRPORT.icao}`
+    for (const path of [
+      ...STATIC_PUBLIC_PATHS,
+      STATION_PATH,
+      ring1Path,
+      ring2Path,
+      kktcPath,
+      ring4Path,
+    ]) {
       expect(paths).toContain(path)
       expect(paths).toContain(enPath(path))
     }
@@ -384,8 +395,11 @@ test.describe('kök dosyalar', () => {
       '/en/durum',
       `/istasyon/${NON_INDEXABLE_AIRPORT.icao}`,
       enPath(`/istasyon/${NON_INDEXABLE_AIRPORT.icao}`),
-      // Fixture'da olup listelenmeyen uzak havalimanı (D-080).
+      // Fixture'da olup listelenmeyen uzak havalimanı (D-080) ve dört karakterli ICAO'su olmayan
+      // Kihihi (D-101).
       `/istasyon/${UNLISTED_FOREIGN_AIRPORT.icao}`,
+      `/istasyon/${NON_ICAO_AIRPORT.ident}`,
+      `/istasyon/${NON_ICAO_AIRPORT.iata}`,
     ]) {
       expect(paths).not.toContain(excluded)
     }
@@ -471,21 +485,25 @@ test.describe('kök dosyalar', () => {
     expect(icaos.has(PRIMARY_AIRPORT.icao)).toBe(true)
     expect(icaos.has(NON_INDEXABLE_AIRPORT.icao)).toBe(false)
     expect(icaos.has(UNLISTED_FOREIGN_AIRPORT.icao)).toBe(false)
+    expect(icaos.has(RING4_AIRPORT.icao)).toBe(true)
+    expect(body).not.toContain(NON_ICAO_AIRPORT.ident)
+    expect(body).not.toContain(`(${NON_ICAO_AIRPORT.iata}/`)
     // Türkiye dışındakiler ayrı bir bölümdedir (D-080): başlık Türkiye listesinden sonra gelir; Atina
-    // (1. halka), Kahire (2. halka) ve Viyana (3. halka) satırları o bölümdedir. Başlık 2. halkadan
-    // beri "Türkiye dışındaki havalimanları"dır (kullanıcı kararı 2026-10-03, D-088); kapsam 3.
-    // halkadan beri 2.000 km'dir (D-090).
+    // (1. halka), Kahire (2. halka), Viyana (3. halka) ve Londra (4. halka) satırları o bölümdedir.
+    // Başlık 2. halkadan beri "Türkiye dışındaki havalimanları"dır (kullanıcı kararı 2026-10-03,
+    // D-088); kapsam 4. halkadan beri 5.000 km'dir (D-102).
     const lines = body.split('\n')
     const foreignHeading = lines.indexOf(
       '## Türkiye dışındaki havalimanları / Airports outside Türkiye',
     )
     expect(foreignHeading, 'Türkiye dışındakiler başlığı').toBeGreaterThan(0)
     expect(body).not.toMatch(/[Yy]akın ülke|neighbouring/)
-    expect(body).toContain('uzaklığı en fazla 2.000 km olan')
-    expect(body).toContain('at most 2,000 km from the nearest airport in Türkiye')
+    expect(body).toContain('uzaklığı en fazla 5.000 km olan')
+    expect(body).toContain('at most 5,000 km from the nearest airport in Türkiye')
     const ring1Line = lines.findIndex((line) => line.includes(`/istasyon/${RING1_AIRPORT.icao})`))
     const ring2Line = lines.findIndex((line) => line.includes(`/istasyon/${RING2_AIRPORT.icao})`))
     const ring3Line = lines.findIndex((line) => line.includes(`/istasyon/${RING3_AIRPORT.icao})`))
+    const ring4Line = lines.findIndex((line) => line.includes(`/istasyon/${RING4_AIRPORT.icao})`))
     const primaryLine = lines.findIndex((line) =>
       line.includes(`/istasyon/${PRIMARY_AIRPORT.icao})`),
     )
@@ -493,6 +511,7 @@ test.describe('kök dosyalar', () => {
     expect(ring1Line).toBeGreaterThan(foreignHeading)
     expect(ring2Line).toBeGreaterThan(foreignHeading)
     expect(ring3Line).toBeGreaterThan(foreignHeading)
+    expect(ring4Line).toBeGreaterThan(foreignHeading)
   })
 
   test('manifest ve ikonlar', async ({ request }) => {

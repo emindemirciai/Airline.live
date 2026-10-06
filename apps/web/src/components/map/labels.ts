@@ -287,7 +287,8 @@ export function layoutAirportChips(
   for (const { x, y } of airports) addPinObstacles(pins, x, y, scale)
   const placed: PlacedAirportChip[] = []
   // Yerleşmiş kodlar ızgaralı dizinde (D-090): z5'te 400–503 görünür havalimanıyla yerleşim
-  // doğrusal taramada 1,4–3,4 ms, dizinle 1,1–1,3 ms sürer (Node, medyan); sonuç aynıdır.
+  // doğrusal taramada 1,4–3,4 ms, dizinle 1,1–1,3 ms sürer (Node, medyan); sonuç aynıdır. 4.
+  // halkada 2560×1440 görünümde 914 havalimanı (labels.test.ts, D-102).
   const placedRects = new RectObstacles(view)
   const overlaps = (x: number, y: number, w: number, h: number) =>
     placedRects.hits(
