@@ -19,8 +19,8 @@ import {
  *   sınırının altında kalacak kadar istasyon (2 saatte 80). Yanıt yine de sınıra ulaşırsa grup ikiye
  *   bölünüp yeniden istenir (en fazla 2 düzey).
  * - İki isteğin başlangıcı arasında en az `AWC_MIN_REQUEST_INTERVAL_MS` geçer (D-090): AWC'nin
- *   sınırı dakikada 100 istektir, 3. halkayla 503 istasyonun ilk 24 saatlik doldurması tek çalışmada
- *   ~50 istektir ve beklemesiz atılsa bir dakikaya sığabilirdi (429 → 10 dk engel).
+ *   sınırı dakikada 100 istektir, 3. halkayla 498 istasyonun (D-107) ilk 24 saatlik doldurması tek
+ *   çalışmada ~50 istektir ve beklemesiz atılsa bir dakikaya sığabilirdi (429 → 10 dk engel).
  * - Durum kodu JSON ayrıştırmadan önce denetlenir: 204 veri yok (gövde yok), 400 bizim hatamız,
  *   403 erişim engeli, 429 hız sınırı (Retry-After varsa okunur), 5xx sunucu hatası.
  * - Yönlendirme izlenmez, yanıt boyutu sınırlıdır, içerik türü JSON olmalıdır.
@@ -42,13 +42,13 @@ export const AWC_METAR_MAX_HOURS = 24
 /**
  * Saat ve istasyon başına beklenen en çok METAR/SPECI (yarım saatte bir rapor + SPECI payı).
  * İstasyonlar, bir istek 400 kayıt sınırının altında kalacak küçüklükte gruplara bölünür: 2 saatlik
- * olağan istekte grup 80 istasyondur (Türkiye ve 1.–3. halka, 503 istasyon: yedi istek, 80 × 6 + 23;
- * D-090), 24 saatlik doldurmada 6 istasyon.
+ * olağan istekte grup 80 istasyondur (Türkiye ve 1.–3. halka, 498 istasyon: yedi istek,
+ * 80 × 6 + 18; D-090, D-107), 24 saatlik doldurmada 6 istasyon.
  */
 export const AWC_METAR_PER_STATION_HOUR = 2.5
 /**
  * Bir istekteki en fazla istasyon (URL ~1.000 karakter); daha uzun liste birkaç isteğe bölünür. TAF
- * bu gruplarla istenir: 503 istasyonda üç istek (200 + 200 + 103; D-090).
+ * bu gruplarla istenir: 498 istasyonda üç istek (200 + 200 + 98; D-090, D-107).
  */
 export const AWC_MAX_IDS = 200
 /**

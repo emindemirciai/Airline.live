@@ -4,8 +4,9 @@
 //   mutlak canonical, karşılıklı tr/en/x-default hreflang (x-default İngilizce), hepsi `<head>` içinde
 //   (GPTBot User-Agent'ıyla da; `htmlLimitedBots`); ayrıştırılabilir JSON-LD sayfa gövdesindedir
 //   (`<main>`; React satır içi JSON-LD betiğini `<head>`'e taşımaz)
-// - noindex kuralları: /durum, tarifesiz askerî hava üssü, admin; sorgulu
-//   adreslerin canonical'ı sorgusuzdur
+// - noindex kuralları: /durum, admin; askerî hava üsleri 404 (D-107; istasyon sayfasının noindex
+//   bağlantısı birim testindedir: airport-metadata.test.ts); sorgulu adreslerin canonical'ı
+//   sorgusuzdur
 // - kök dosyalar: robots.txt, sitemap.xml, llms.txt, manifest, ikonlar, OG görselleri
 // - X-Robots-Tag: web'in /api/* yolları ve API host'unun bütün yanıtları
 import { expect, test, type APIRequestContext } from '@playwright/test'
