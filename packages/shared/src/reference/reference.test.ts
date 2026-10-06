@@ -7,6 +7,9 @@ import {
   airportName,
   airportNameSource,
   airportOfficialName,
+  isMilitaryAirfield,
+  mapShownAirports,
+  MILITARY_AIRFIELD_ICAOS,
   provinceName,
   RUNWAY_SURFACE_KEYS,
   runwaySurfaceKey,
@@ -204,6 +207,45 @@ describe('AIRPORT_NAMES', () => {
       expect(shown, icao).toBe(entry?.tr)
       expect(shown.trim(), icao).not.toBe('')
     }
+  })
+
+  it('askerî hava üsleri (D-103): tam olarak tablonun `military` kaynaklı beş kaydı; Etimesgut ve yurt dışındaki ortak sivil-askerî havalimanları sivil', () => {
+    const military = Object.entries(AIRPORT_NAMES)
+      .filter(([, entry]) => entry.source === 'military')
+      .map(([icao]) => icao)
+      .sort()
+    expect(MILITARY_AIRFIELD_ICAOS).toEqual(['LTAG', 'LTAH', 'LTBG', 'LTBI', 'LTBL'])
+    expect(MILITARY_AIRFIELD_ICAOS).toEqual(military)
+    for (const icao of MILITARY_AIRFIELD_ICAOS) {
+      expect(isMilitaryAirfield(icao), icao).toBe(true)
+      expect(isMilitaryAirfield(` ${icao.toLowerCase()} `), icao).toBe(true)
+    }
+    // Sivil: tablonun öbür 56 kaydı (Ankara (Etimesgut) dahil, kullanıcı kararı 2026-10-03),
+    // tarifeli sivil seferi olan ortak sivil-askerî havalimanları (Bağdat ORBI, Podgorica LYPG,
+    // Cuxhaven/Nordholz ETMN; 4. halkanın EKKA, VIAG, DNPM ve ZURK'u) ve tabloda olmayan kodlar.
+    const civil = Object.keys(AIRPORT_NAMES).filter((icao) => !military.includes(icao))
+    expect(civil).toHaveLength(56)
+    for (const icao of [...civil, 'ORBI', 'LYPG', 'ETMN', 'EKKA', 'VIAG', 'DNPM', 'ZURK', 'ZZZZ'])
+      expect(isMilitaryAirfield(icao), icao).toBe(false)
+    expect(isMilitaryAirfield('LTAD')).toBe(false)
+    expect(isMilitaryAirfield('__proto__')).toBe(false)
+    expect(isMilitaryAirfield('')).toBe(false)
+  })
+
+  it('mapShownAirports (D-103): askerî üsleri çıkarır, öbürlerini sırasıyla ve aynı nesneyle tutar', () => {
+    const rows = ['LTFM', 'LTBL', 'LTAD', 'ltag', 'ORBI', 'LTBJ', ' LTBI '].map((icao, index) => ({
+      icao,
+      index,
+    }))
+    const shown = mapShownAirports(rows)
+    expect(shown.map((row) => row.icao)).toEqual(['LTFM', 'LTAD', 'ORBI', 'LTBJ'])
+    expect(shown[0]).toBe(rows[0])
+    expect(mapShownAirports(MILITARY_AIRFIELD_ICAOS.map((icao) => ({ icao })))).toEqual([])
+    expect(mapShownAirports([])).toEqual([])
+    const civil = Object.keys(AIRPORT_NAMES)
+      .filter((icao) => !MILITARY_AIRFIELD_ICAOS.includes(icao))
+      .map((icao) => ({ icao }))
+    expect(mapShownAirports(civil)).toEqual(civil)
   })
 
   it('airportName ve airportNameSource: bilinmeyen ve özel kodlar', () => {

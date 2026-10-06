@@ -8,7 +8,29 @@
 
 ---
 
-## v0.22.0 — 2026-10-06
+## v0.22.1 — 2026-10-06
+
+### Türkçe
+**Askerî üsler haritadan kalktı, harita biraz daha uzaktan açılır**
+
+- Beş askerî hava üssü (İncirlik, Afyon, Bandırma, Eskişehir, Çiğli) artık canlı haritada ve haritanın “Havalimanları” listesinde gösterilmez. Havalimanları sayfasında ve kendi sayfalarında yerinde durur.
+- Harita bilgisayarda biraz daha uzaktan açılır: İstanbul Havalimanı ortada, Çorlu’dan Kocaeli’ne kadar bölge ilk bakışta görünür. Telefonda açılış değişmedi.
+- Uzaktan bakınca TÜRKİYE adı ülkenin ortasına, Kırşehir yakınına kaydı.
+
+Dene: [Canlı harita](/)
+
+### English
+**Air bases off the map, and a slightly wider opening view**
+
+- The five air force bases (Incirlik, Afyon, Bandırma, Eskişehir, Çiğli) no longer appear on the live map or in its “Airports” list. They stay on the airports page and on their own pages.
+- On computers the map opens a little further out: Istanbul Airport in the middle, with the area from Çorlu to Kocaeli in view at first glance. The opening view on phones is unchanged.
+- Zoomed far out, the TÜRKIYE name moved to the middle of the country, near Kırşehir.
+
+Try it: [Live map](/)
+
+---
+
+## v0.22.0 — 2026-10-06 03:41 (UTC+3)
 
 ### Türkçe
 **4. halkaya hazırlık: daha hafif harita**

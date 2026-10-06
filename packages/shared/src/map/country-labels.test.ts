@@ -337,7 +337,7 @@ describe('yerleşim tablosu (D-096, D-099)', () => {
       safetyKm: 2,
       clearMaxDelayZooms: 1.5,
       crowdedMaxDelayZooms: 0.25,
-      airportPins: 503,
+      airportPins: 498,
       airportCodeMinZoom: 5,
     })
   })

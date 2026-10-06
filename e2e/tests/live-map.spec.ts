@@ -3,14 +3,22 @@
 // durumlar ve daraltmanın saklanması (D-085) → satıra tıklayınca bilgi kartı solda açılır, tablette
 // seçili uçağın etiketi ve simgesi listenin altında kalmaz → arama (her yerdeki) uçağı bulur →
 // /?hex= ile doğrudan açılış aynı uçağı seçer → etiket ayarı (uçaklar, havalimanları ve ülke adları,
-// D-084, D-095) cihazda saklanır → ülke adları uzaklaşınca sınırlarının içinde, pinlerden uzak boş
-// yerde yazılır (D-096, D-099), yakınlaşınca silinir. Tablo, haritanın erişilebilir karşılığıdır;
-// testler uçakları WebGL tuvalinden değil tablodan okur. Havalimanı kutuları ve seçili etiket
-// etiket tuvalinin piksellerinden okunur (`e2e/label-canvas.ts`); ülke adları haritanın
-// `data-country-labels` niteliğinden ve WebGL tuvalinin ekran görüntüsünden (`e2e/map-pixels.ts`).
+// D-084, D-095) cihazda saklanır → askerî hava üslerinin pini, kodu ve liste satırı yoktur,
+// `?havalimani=` yine oraya gider (D-103) → ülke adları uzaklaşınca sınırlarının içinde, pinlerden
+// uzak boş yerde yazılır (D-096, D-099), yakınlaşınca silinir. Tablo, haritanın erişilebilir
+// karşılığıdır; testler uçakları WebGL tuvalinden değil tablodan okur. Havalimanı kutuları ve
+// seçili etiket etiket tuvalinin piksellerinden okunur (`e2e/label-canvas.ts`); ülke adları
+// haritanın `data-country-labels` niteliğinden ve WebGL tuvalinin ekran görüntüsünden
+// (`e2e/map-pixels.ts`).
 import { expect, test, type Locator, type Page } from '@playwright/test'
 import { IKA_PIN_Z5, IRAN_Z5_BOX, TEHRAN_COUNTRY_LABELS } from '../country-label-expectations'
-import { canvasChips, mapCenter, paintedPixels, selectedLabelPixels } from '../label-canvas'
+import {
+  canvasChips,
+  mapCenter,
+  paintedPixels,
+  paintedPixelsIn,
+  selectedLabelPixels,
+} from '../label-canvas'
 import { changedPixels, clipImage, pinPixels } from '../map-pixels'
 import {
   AIRCRAFT_LIST_KEY,
@@ -24,6 +32,8 @@ import {
   hexParam,
   infoCard,
   LABEL_SETTINGS_KEY,
+  MILITARY_AIRFIELD,
+  MILITARY_AIRFIELD_NEIGHBOUR,
   MISSING_CALLSIGN,
   MISSING_HEX,
   NOT_FOUND_TEXT,
@@ -61,7 +71,8 @@ test('harita IST/LTFM merkezli açılır, atıflar görünür, replay uçağı t
   expect((await airportListCodes(page))[0]).toBe(PRIMARY_AIRPORT.iata)
   await expect(aircraftRow(page, TAXI_AIRCRAFT.hex)).toBeVisible({ timeout: 30_000 })
   await expect(aircraftRow(page, FAR_AIRCRAFT.hex)).toHaveCount(0)
-  // Açılış görünümünde (z8,5) ülke adı yoktur (D-095): adlar z8'de biter; yazı tipi indirilmez.
+  // Açılış görünümünde (masaüstünde z8, D-104) ülke adı yoktur (D-095): adlar z8'de biter (katmanın
+  // `maxzoom`'u 8); yazı tipi indirilmez.
   await expect(page.locator('.live-map .live-map__canvas')).toHaveAttribute(
     'data-country-labels',
     '',
@@ -499,6 +510,77 @@ async function clickPrimaryChip(page: Page, popup: Locator): Promise<void> {
   }).toPass({ timeout: 20_000 })
 }
 
+/** Web Mercator (512 px karo): `to`nun `from`a göre z'deki ekran farkı, px (y aşağı). */
+function mercatorOffset(
+  from: { lat: number; lon: number },
+  to: { lat: number; lon: number },
+  zoom: number,
+): { x: number; y: number } {
+  const world = 512 * 2 ** zoom
+  const y = (lat: number) =>
+    ((1 - Math.log(Math.tan(Math.PI / 4 + (lat * Math.PI) / 360)) / Math.PI) / 2) * world
+  return { x: ((to.lon - from.lon) / 360) * world, y: y(to.lat) - y(from.lat) }
+}
+
+test.describe('askerî hava üsleri haritada yok (D-103)', () => {
+  // MapLibre `prefers-reduced-motion`'da kamera geçişlerini anında yapar: `?havalimani=` uçuşu ve
+  // klavyeyle uzaklaştırma beklemesiz ve kesindir (her basış tam bir kademe). Harita yüksek: z10'da
+  // Çiğli ortadayken ADB (27 km güneydoğuda, ~410 px aşağıda) görünümün içindedir.
+  test.use({ reducedMotion: 'reduce', viewport: { width: 1280, height: 1100 } })
+
+  test('?havalimani=LTBL Çiğli’de açar, pencere açılmaz; Çiğli’nin pini, kodu ve liste satırı yok, ADB’ninki var', async ({
+    page,
+  }) => {
+    const base = MILITARY_AIRFIELD
+    const civil = MILITARY_AIRFIELD_NEIGHBOUR
+    const popup = page.locator('.live-map [role="dialog"].map-popup')
+    // Tek sayfa yüklemesi (`WS_RATE_LIMIT`).
+    await page.goto(`/?havalimani=${base.icao}`)
+    await waitForMap(page)
+    // Kamera üsse gitti (z10): görünümdeki tek havalimanı ADB; Çiğli (IGL) listede yok. `?havalimani=`
+    // hiçbir havalimanında pencere açmaz.
+    await expect.poll(() => airportListCodes(page), { timeout: 30_000 }).toEqual([civil.iata])
+    await expect(popup).toHaveCount(0)
+
+    // z9: ADB'nin pini ortanın ~107 px sağında, ~205 px altında.
+    await zoomOut(page, 1)
+    const tip = await mapCenter(page)
+    const offset = mercatorOffset(base, civil, 9)
+    const civilTip = { x: tip.x + offset.x, y: tip.y + offset.y }
+    const head = (point: { x: number; y: number }) => ({ x: point.x, y: point.y - 13 })
+    await expect(async () => {
+      // ADB'nin pini ve kod kutusu (pin başının yanında) çizili.
+      expect((await pinPixels(page, civilTip)).red).toBeGreaterThanOrEqual(15)
+      const [chip] = await canvasChips(page, head(civilTip))
+      expect(chip, 'ADB kutusu tuvalde çizili').toBeDefined()
+      if (!chip) return
+      expect(Math.hypot(chip.x - civilTip.x, chip.y - (civilTip.y - 13))).toBeLessThanOrEqual(
+        30 + chip.width / 2,
+      )
+    }).toPass({ timeout: 15_000 })
+    // Çiğli'nin yeri (haritanın ortası): pin kırmızısı yok; kodun dört adayının (pin başının sağı,
+    // solu, pinin üstü, noktanın altı) bulunduğu kesitte etiket tuvali boş.
+    await expect(async () => {
+      expect((await pinPixels(page, tip)).red).toBe(0)
+      expect(
+        await paintedPixelsIn(page, { x: tip.x - 50, y: tip.y - 45, width: 100, height: 70 }),
+      ).toBe(0)
+    }).toPass({ timeout: 10_000 })
+
+    // Çiğli'nin pin başının yeri tıklanmaz (imleç değişmez, pencere açılmaz); ADB'ninki tıklanır.
+    const canvas = page.locator('.live-map .maplibregl-canvas')
+    await page.mouse.move(head(tip).x, head(tip).y)
+    await expect(canvas).not.toHaveCSS('cursor', 'pointer')
+    await page.mouse.click(head(tip).x, head(tip).y)
+    await expect(popup).toHaveCount(0)
+    await expect(async () => {
+      await page.mouse.click(head(civilTip).x, head(civilTip).y)
+      await expect(popup).toBeVisible({ timeout: 2_000 })
+    }).toPass({ timeout: 15_000 })
+    await expect(popup).toHaveAttribute('data-icao', civil.icao)
+  })
+})
+
 test.describe('ülke adları (D-095, D-096, D-099)', () => {
   // MapLibre `prefers-reduced-motion`'da kamera geçişlerini anında yapar: `?havalimani=` uçuşu ve
   // klavyeyle uzaklaştırma beklemesiz ve kesindir (her basış tam bir kademe).
@@ -750,8 +832,9 @@ test.describe('telefon genişliği', () => {
     }
 
     // Ülke adları İngilizcede (D-095): aynı sayfa yüklemesinde, IST'den dört kademe uzaklaşınca
-    // (375 px'te açılış z7,8, yani z3,8) TÜRKIYE yazılır (D-099: Türkiye'nin ortasında, 34,8° D,
-    // 39,4° K; çapası IST'nin ~120 px doğusunda, görünümün içinde); Türkçe büyük harf (İ) yok.
+    // (375 px'te açılış z7,8, yani z3,8) TÜRKIYE yazılır (D-099, D-103: Türkiye'nin görsel
+    // merkezinde, 33,8° D, 39,4° K; çapası IST'nin ~100 px doğusunda, görünümün içinde); Türkçe büyük
+    // harf (İ) yok.
     // Hareket azaltılır: her basış tam kademe.
     await page.emulateMedia({ reducedMotion: 'reduce' })
     await zoomOut(page, 4)

@@ -1,8 +1,8 @@
 /**
  * Ülke adlarının yeri ve ilk sığma yakınlaştırması (D-096, D-099): `COUNTRY_LABEL_PLACEMENTS`'ı
- * Natural Earth fixture'ından ve listelenen havalimanlarının pinlerinden hesaplar. Çevrimdışıdır ve
- * belirlenimcidir; aynı fixture'lar ve adlar her zaman aynı tabloyu verir (placement.test.ts commit'li
- * tabloyla karşılaştırır).
+ * Natural Earth fixture'ından ve haritada pini çizilen havalimanlarından (listelenenler, askerî hava
+ * üsleri hariç; D-103) hesaplar. Çevrimdışıdır ve belirlenimcidir; aynı fixture'lar ve adlar her
+ * zaman aynı tabloyu verir (placement.test.ts commit'li tabloyla karşılaştırır).
  *
  * Çapa kuralı (D-099), ülke başına tek ortak nokta (dört bileşim: Türkçe/İngilizce × geniş/dar
  * harita; ad dil ya da genişlik değişince yer değiştirmez). Başkent rol oynamaz; tek istisna
@@ -402,9 +402,9 @@ export function renderPlacementsModule(
     '/**',
     ' * Ülke adlarının yeri ve ilk sığma yakınlaştırması (D-096, D-099). ÜRETİLMİŞ DOSYA: elle',
     " * düzenlenmez; `pnpm country-labels` `tools/fixtures/naturalearth/countries.json`'dan ve",
-    " * `tools/fixtures/ourairports/airports.csv`'nin listelenen havalimanlarından üretir",
-    " * (tools/src/country-labels). Tools testi tabloyu fixture'lardan yeniden hesaplar ve fark olursa",
-    ' * kırılır.',
+    " * `tools/fixtures/ourairports/airports.csv`'nin haritada pini çizilen havalimanlarından",
+    ' * (listelenenler, askerî hava üsleri hariç; D-103) üretir (tools/src/country-labels). Tools testi',
+    " * tabloyu fixture'lardan yeniden hesaplar ve fark olursa kırılır.",
     ' *',
     " * Satır: ülke kodu → ad (tek satır; `countryLabelText`, üretimdeki Node/ICU CLDR'ından; harita",
     ' * bu adı yazar) ve iki düzen: geniş ve dar (≤ 767 px) harita. Düzen değeri [boylam, enlem, ilk',

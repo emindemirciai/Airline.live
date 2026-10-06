@@ -1,5 +1,5 @@
 /**
- * Haritada ülke adları (D-095, D-096, D-099). Kullanıcı kararı 2026-10-05: tasarım tuvalinde A ·
+ * Haritada ülke adları (D-095, D-096, D-099, D-103). Kullanıcı kararı 2026-10-05: tasarım tuvalinde A ·
  * "Sessiz büyük harf", "Saydam olsun"; sonra "Ülke isimlerini ülke sınırları dışına taşırma. 2 kelime
  * ise alt alta yaz."; sonra "boyut iyi fakat az biraz daha belirgin olsun ülke isimleri. boşlukta bir
  * yerde yazsa da olur." Ad sayfanın dilinde büyük harfle yazılır; işaret noktası yoktur. Ad boyu
@@ -16,7 +16,8 @@
  *   gelmez. Eşitlikte en erken sığan, sonra ülkenin görsel merkezine en yakın yer seçilir; başkent
  *   rol oynamaz. İstisna KIBRIS'tır: kullanıcı kararıyla Lefkoşa'da yazılır (D-095), Ercan pini adın
  *   üstündedir. Model, pini ve kodun pin başının sağındaki ve solundaki kutusunu commit'li
- *   OurAirports fixture'ının (2026-10-01) listelenen havalimanları için sayar. Haritada kod
+ *   OurAirports fixture'ının (2026-10-01) haritada pini çizilen havalimanları (listelenenler,
+ *   askerî hava üsleri hariç: `mapShownAirports`, D-103) için sayar. Haritada kod
  *   pinin üstüne ya da altına geçerse ya da OurAirports'un gece yenilenmesiyle yeni bir havalimanı
  *   listelenirse kod ya da pin adın üstüne düşebilir (D-099 "Bilinen sınırlar").
  * - **Satır:** her sözcük ayrı satırda, ortalı ("SUUDİ / ARABİSTAN"); bağlaç önceki sözcükle kalır

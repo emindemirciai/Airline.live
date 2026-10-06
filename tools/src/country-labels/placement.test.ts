@@ -29,7 +29,7 @@ import {
 import {
   AirportObstacles,
   chipBoxPx,
-  listedAirportPins,
+  mapAirportPins,
   pinBoxPx,
   readOurAirportsFixture,
   worldBoxAt,
@@ -66,7 +66,7 @@ beforeAll(() => {
   shapes = new Map(
     Object.entries(geometries).map(([code, geometry]) => [code, new ProjectedShape(geometry)]),
   )
-  pins = listedAirportPins(readOurAirportsFixture())
+  pins = mapAirportPins(readOurAirportsFixture())
   obstacles = new AirportObstacles(pins)
   result = computePlacements(geometries, namesFromTable(COUNTRY_LABEL_PLACEMENTS), obstacles)
 }, 60_000)
@@ -235,7 +235,7 @@ describe('yerleşim tablosu (D-096, D-099)', { timeout: 60_000 }, () => {
       safetyKm: 2,
       clearMaxDelayZooms: CLEAR_MAX_DELAY_ZOOMS,
       crowdedMaxDelayZooms: CROWDED_MAX_DELAY_ZOOMS,
-      airportPins: 503,
+      airportPins: 498,
       airportCodeMinZoom: 5,
       airportCodeSides: ['right', 'left'],
       capitalAnchored: ['CY'],
@@ -368,7 +368,7 @@ describe('yerleşim tablosu (D-096, D-099)', { timeout: 60_000 }, () => {
     })
   })
 
-  it('boş yer: TÜRKİYE ve KIBRIS dışında hiçbir adın kutusuna, ilk yakınlaştırmasından z7,95’e (0,05 adım), listelenen bir havalimanının pini ya da kodu (sağda ya da solda) girmez', () => {
+  it('boş yer: TÜRKİYE ve KIBRIS dışında hiçbir adın kutusuna, ilk yakınlaştırmasından z7,95’e (0,05 adım), haritadaki bir havalimanının pini ya da kodu (sağda ya da solda) girmez', () => {
     let checks = 0
     for (const label of ALL_SHOWN) {
       if (detailOf(label.code).kind !== 'clear') continue
@@ -461,11 +461,17 @@ describe('yerleşim tablosu (D-096, D-099)', { timeout: 60_000 }, () => {
     }
   })
 
-  it('TÜRKİYE: 61 havalimanı arasında boş yer yok; en az çakışan nokta (z3,25’ten); z5,05’ten sonra kutuya pin ve kod girmez', () => {
+  it('TÜRKİYE: haritadaki 56 havalimanı (askerî üsler pinsiz, D-103) arasında boş yer yok; en az çakışan nokta, görsel merkezde (z3,25’ten); z5,05’ten sonra kutuya pin ve kod girmez', () => {
     const detail = detailOf('TR')
     expect(detail.kind).toBe('crowded')
-    expect(detail.overlaps).toEqual([57, 50, 57, 50])
+    expect(detail.overlaps).toEqual([50, 44, 50, 44])
     expect(detail.placements.map((placement) => placement?.[2])).toEqual([3.25, 3, 3.25, 3])
+    // Askerî üsler engel değil (D-103): çapa 1° batıya, görsel merkeze kaydı (D-099'da 34,8° D,
+    // 39,4° K; çakışma 57, 50, 57, 50). Bu noktanın kutusuna eskiden Afyon (LTAH) ve Eskişehir
+    // (LTBI) üslerinin pinleri de giriyordu.
+    expect(detail.placements[0]).toEqual([33.8, 39.4, 3.25])
+    expect(detail.pole).toEqual([33.8, 39.4])
+    expect(pins.filter((pin) => pin.ring === 0)).toHaveLength(56)
     for (const label of ALL_SHOWN.filter((candidate) => candidate.code === 'TR')) {
       const where = `${label.locale} ${label.layout}`
       // z5'te (kodlar yazılmaya başlar) Kayseri (LTAU) ve Nevşehir (LTAZ) geniş haritada kutuya değer.
@@ -478,7 +484,7 @@ describe('yerleşim tablosu (D-096, D-099)', { timeout: 60_000 }, () => {
     }
   })
 
-  it('görsel merkez: 9 ülkenin adı tam kutupta; çapanın kutba uzaklığı ortanca 27 km, en çok 478 km (UMMAN)', () => {
+  it('görsel merkez: 10 ülkenin adı tam kutupta (TÜRKİYE dahil, D-103); çapanın kutba uzaklığı ortanca 27 km, en çok 478 km (UMMAN)', () => {
     const distances = result.details
       .filter((detail) => detail.kind !== 'hidden')
       .map((detail) => {
@@ -501,6 +507,7 @@ describe('yerleşim tablosu (D-096, D-099)', { timeout: 60_000 }, () => {
       'RU',
       'SD',
       'SE',
+      'TR',
       'UA',
     ])
     expect(Math.round(distances[Math.floor(distances.length / 2)]?.[1] ?? NaN)).toBe(27)
@@ -653,7 +660,7 @@ describe('e2e beklentileri (e2e/country-label-expectations.ts)', { timeout: 60_0
     expect(placement[2]).toBeLessThanOrEqual(zoom)
     const ltfm = airport('LTFM')
     const offset = screenOffset(placement[0], placement[1], ltfm, zoom)
-    expect(Math.round(offset.x)).toBe(120)
+    expect(Math.round(offset.x)).toBe(100)
     expect(Math.abs(offset.x)).toBeLessThanOrEqual(375 / 2 - 40)
     expect(Math.abs(offset.y)).toBeLessThanOrEqual(HALF_HEIGHT)
   })
