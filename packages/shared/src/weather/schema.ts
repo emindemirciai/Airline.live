@@ -508,6 +508,52 @@ export const WeatherBulkResponseSchema = z.object({
 })
 export type WeatherBulkResponse = z.infer<typeof WeatherBulkResponseSchema>
 
+/**
+ * Toplu yanıtın biçimi (`GET /v1/weather?format=`): `full` (varsayılan) çözümlenmiş raporlar,
+ * `raw` yalnız ham metin ve kayıt zamanları (D-101; çözümlemeyi okuyan yapar).
+ */
+export const WEATHER_BULK_FORMATS = ['full', 'raw'] as const
+export type WeatherBulkFormat = (typeof WEATHER_BULK_FORMATS)[number]
+
+/** Ham METAR/SPECI: kayıttaki metin, tür, gözlem zamanı ve AWC uçuş kategorisi (çözümlenmemiş). */
+export const RawMetarSchema = z.object({
+  raw: z.string(),
+  type: z.enum(['METAR', 'SPECI']),
+  observedAt: isoDateTime,
+  /** AWC `fltCat`; bilinen dört değerden biri değilse null (tam biçimdeki gibi). */
+  flightCategory: z.enum(FLIGHT_CATEGORIES).nullable(),
+})
+export type RawMetar = z.infer<typeof RawMetarSchema>
+
+/** Ham TAF: kayıttaki metin ve zamanlar (AWC epoch'u). */
+export const RawTafSchema = z.object({
+  raw: z.string(),
+  issuedAt: isoDateTime,
+  validFrom: isoDateTime,
+  validTo: isoDateTime,
+})
+export type RawTaf = z.infer<typeof RawTafSchema>
+
+/**
+ * Ham biçimde bir havalimanı: en yeni METAR/SPECI ve süresi dolmamış bütün TAF'lar, en yeni
+ * yayımlanan önce. Yürürlükteki TAF seçimi (`inForceTafs`) çözümlemeden sonra okuyanda yapılır
+ * (`toAirportWeather`); tam biçim aynı sonucu sunucuda verir.
+ */
+export const RawAirportWeatherSchema = z.object({
+  icao: IcaoSchema,
+  metar: RawMetarSchema.nullable(),
+  tafs: z.array(RawTafSchema),
+})
+export type RawAirportWeather = z.infer<typeof RawAirportWeatherSchema>
+
+/** `GET /v1/weather?scope=listed&format=raw`: listedeki her havalimanı, liste sırasıyla. */
+export const WeatherBulkRawResponseSchema = z.object({
+  generatedAt: isoDateTime,
+  attribution: WeatherAttributionSchema,
+  stations: z.array(RawAirportWeatherSchema),
+})
+export type WeatherBulkRawResponse = z.infer<typeof WeatherBulkRawResponseSchema>
+
 /** METAR/TAF kaydının bir satırı. */
 export const WeatherHistoryEntrySchema = z.object({
   kind: z.enum(['METAR', 'SPECI', 'TAF']),

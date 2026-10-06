@@ -12,8 +12,28 @@ import type { ChangelogEntry } from './types'
  */
 export const CHANGELOG: readonly ChangelogEntry[] = [
   {
+    version: '0.22.0',
+    date: '2026-10-06',
+    title: {
+      tr: '4. halkaya hazırlık: daha hafif harita',
+      en: 'Getting ready for ring 4: a lighter map',
+    },
+    items: [
+      {
+        tr: 'Harita sayfası ilk açılışta yaklaşık 17 KB daha az veri indirir: havalimanı penceresi ve havalimanları listesi ancak açıldıklarında yüklenir. Bağlantı koparsa pencere boş kalmaz, sayfayı yenileme düğmesi gösterilir.',
+        en: 'The map page downloads about 17 KB less on first load: the airport window and the airport list load only when opened. If the connection drops, a reload button is shown instead of an empty window.',
+      },
+      {
+        tr: 'Bir sonraki sürümde eklenecek yaklaşık 720 havalimanı (Türkiye’ye 5.000 km’ye kadar) için pist, kaplama ve saat dilimi verileri hazırlandı; uçuş durumu hesabı ve hava durumu bu ölçeğe göre hızlandırıldı. Haritada şimdilik bir değişiklik yok.',
+        en: 'Runway, surface and time-zone data for the roughly 720 airports coming in the next release (up to 5,000 km from Türkiye) are ready; flight-status calculation and weather were sped up for that scale. Nothing changes on the map yet.',
+      },
+    ],
+    tryLinks: [{ path: '/', label: { tr: 'Canlı harita', en: 'Live map' } }],
+  },
+  {
     version: '0.21.1',
-    date: '2026-10-05',
+    date: '2026-10-06',
+    releasedAt: '2026-10-05T23:42:57Z',
     title: {
       tr: 'Ülke adları daha belirgin, boş yerlerde',
       en: 'Clearer country names in empty spots',

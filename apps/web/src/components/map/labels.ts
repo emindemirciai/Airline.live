@@ -328,15 +328,22 @@ export function layoutAirportChips(
   return placed
 }
 
+/**
+ * Bu yakınlaştırma ve ayarla havalimanı kodu yazılabilir mi: ayar Gizle değil ve yakınlaştırma
+ * yeterli. Değilse çizim havalimanlarını ekrana izdüşürmez (map-controller.ts `screenAirports`).
+ */
+export function airportChipsEnabled(
+  zoom: number,
+  settings: Pick<LabelSettings, 'airports'>,
+): boolean {
+  return settings.airports !== 'hidden' && zoom >= AIRPORT_LABEL_MIN_ZOOM
+}
+
 /** Kodlar yazılır mı: ayar Gizle değil, yakınlaştırma yeterli ve görünümde havalimanı var. */
 export function showsAirportChips(
   frame: Pick<LabelFrame, 'zoom' | 'airports' | 'settings'>,
 ): boolean {
-  return (
-    frame.settings.airports !== 'hidden' &&
-    frame.zoom >= AIRPORT_LABEL_MIN_ZOOM &&
-    frame.airports.length > 0
-  )
+  return airportChipsEnabled(frame.zoom, frame.settings) && frame.airports.length > 0
 }
 
 /**

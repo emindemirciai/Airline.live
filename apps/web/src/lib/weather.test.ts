@@ -1,10 +1,17 @@
+import { inForceTafs } from '@havayolu/shared'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { stationWeather } from '../components/airports/airport-weather'
-import { FIXTURE_NOW, fixtureHistory, fixtureWeather } from './test/weather-fixture'
+import {
+  FIXTURE_NOW,
+  fixtureHistory,
+  fixtureRawWeather,
+  fixtureStations,
+  fixtureWeather,
+} from './test/weather-fixture'
 import {
   createMemoryCache,
   parseWeatherBulk,
   parseWeatherHistory,
+  stationWeather,
   WEATHER_BULK_MAX_STALE_MS,
   WEATHER_BULK_RETRY_MS,
   WEATHER_BULK_TTL_MS,
@@ -25,7 +32,7 @@ const GENERATED = new Date(FIXTURE_NOW).toISOString()
 const BULK = {
   generatedAt: GENERATED,
   attribution: { text: 'NOAA Aviation Weather Center', url: 'https://aviationweather.gov/' },
-  stations: [fixtureWeather('LTFM'), fixtureWeather('LTBQ')],
+  stations: [fixtureRawWeather('LTFM'), fixtureRawWeather('LTBQ')],
 }
 
 function stubFetch(response: () => Response | Promise<Response>) {
@@ -43,9 +50,9 @@ const json =
     new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } })
 
 describe('adresler', () => {
-  it('toplu hava durumu ve 24 saatlik kayıt, API iç adresinden', () => {
+  it('toplu hava durumu (ham biçim, D-101) ve 24 saatlik kayıt, API iç adresinden', () => {
     expect(weatherBulkUrl('http://api.internal:4000')).toBe(
-      'http://api.internal:4000/v1/weather?scope=listed',
+      'http://api.internal:4000/v1/weather?scope=listed&format=raw',
     )
     expect(weatherHistoryUrl('http://api.internal:4000', 'LTFM')).toBe(
       'http://api.internal:4000/v1/airports/LTFM/weather/history?hours=24',
@@ -57,7 +64,11 @@ describe('yanıt denetimi', () => {
   it('toplu yanıt: istasyonlar ICAO ile; bozuk istasyon atlanır, bozuk zarf null', () => {
     const parsed = parseWeatherBulk({
       ...BULK,
-      stations: [...BULK.stations, { icao: 'LTXX', generatedAt: 'dün' }],
+      stations: [
+        ...BULK.stations,
+        { icao: 'LTXX', metar: { raw: 'LTXX' }, tafs: [] },
+        { icao: 'UG-0002', metar: null, tafs: [] },
+      ],
     })
     expect([...(parsed?.stations.keys() ?? [])]).toEqual(['LTFM', 'LTBQ'])
     expect(parsed?.attribution?.url).toBe('https://aviationweather.gov/')
@@ -191,7 +202,7 @@ describe('getWeather', () => {
     expect(bulk?.stations.size).toBe(2)
     expect(await getWeather()).toBe(bulk)
     expect(calls).toHaveLength(1)
-    expect(calls[0]?.url).toBe('http://api.internal:4000/v1/weather?scope=listed')
+    expect(calls[0]?.url).toBe('http://api.internal:4000/v1/weather?scope=listed&format=raw')
     expect(calls[0]?.init.cache).toBe('no-store')
     expect(calls[0]?.init.next).toBeUndefined()
     expect(calls[0]?.init.headers).toEqual({ accept: 'application/json' })
@@ -210,19 +221,19 @@ describe('getWeather', () => {
     }
   })
 
-  it('503 istasyonun gövdesi bellekte tek kez ayrıştırılır (2 MiB öğe sınırı yok)', async () => {
-    const station = fixtureWeather('LTFM')
-    const stations = Array.from({ length: 503 }, (_, i) => ({
+  it('1.222 istasyonun (4. halka) gövdesi bellekte tek kez ayrıştırılır (2 MiB öğe sınırı yok)', async () => {
+    const station = fixtureRawWeather('LTFM')
+    const stations = Array.from({ length: 1_222 }, (_, i) => ({
       ...station,
-      icao: `X${String(i).padStart(3, '0')}`,
+      icao: `X${i.toString(36).toUpperCase().padStart(3, '0')}`,
     }))
     const body = JSON.stringify({ ...BULK, stations })
     const calls = stubFetch(
       () => new Response(body, { status: 200, headers: { 'content-type': 'application/json' } }),
     )
     const { getWeather } = await freshWeatherModule()
-    expect((await getWeather())?.stations.size).toBe(503)
-    expect((await getWeather())?.stations.size).toBe(503)
+    expect((await getWeather())?.stations.size).toBe(1_222)
+    expect((await getWeather())?.stations.size).toBe(1_222)
     expect(calls).toHaveLength(1)
   })
 })
@@ -242,7 +253,7 @@ describe('getWeatherHistory', () => {
   })
 })
 
-describe('stationWeather', () => {
+describe('stationWeather: ham kayıttan çözüm (D-101)', () => {
   it('API yoksa null ("alınamıyor"); listede olmayan istasyon raporsuz kayıt ("rapor yok")', () => {
     const bulk = parseWeatherBulk(BULK)
     expect(stationWeather(null, 'LTFM')).toBeNull()
@@ -253,5 +264,45 @@ describe('stationWeather', () => {
       metar: null,
       tafs: [],
     })
+  })
+
+  it("her fixture istasyonu: API'nin tam biçimiyle aynı kayıt (METAR çözülür, yürürlükteki TAF'lar)", () => {
+    const stations = fixtureStations()
+    expect(stations.length).toBeGreaterThan(15)
+    const bulk = parseWeatherBulk({
+      ...BULK,
+      stations: stations.map((icao) => fixtureRawWeather(icao)),
+    })
+    let dropped = 0
+    for (const icao of stations) {
+      const full = fixtureWeather(icao)
+      const expected = { ...full, tafs: inForceTafs(full.tafs, FIXTURE_NOW) }
+      expect(stationWeather(bulk, icao), icao).toEqual(expected)
+      dropped += full.tafs.length - expected.tafs.length
+    }
+    // Ham biçim yerini yenisine bırakmış TAF'ları da taşır; sayfa yalnız yürürlüktekileri gösterir.
+    expect(dropped).toBeGreaterThan(0)
+  })
+
+  it('sürüm geçişi: format=raw bilmeyen API tam biçimi verirse de aynı kayıt çıkar', () => {
+    const full = { ...BULK, stations: fixtureStations().map((icao) => fixtureWeather(icao)) }
+    const raw = { ...BULK, stations: fixtureStations().map((icao) => fixtureRawWeather(icao)) }
+    const fromFull = parseWeatherBulk(full)
+    const fromRaw = parseWeatherBulk(raw)
+    expect(fromFull?.stations.size).toBe(fixtureStations().length)
+    for (const icao of fixtureStations()) {
+      expect(stationWeather(fromFull, icao), icao).toEqual(stationWeather(fromRaw, icao))
+    }
+  })
+
+  it('istasyon yanıt başına bir kez çözülür; yeni yanıt yeniden çözülür', () => {
+    const first = parseWeatherBulk(BULK)
+    const second = parseWeatherBulk(BULK)
+    const ltfm = stationWeather(first, 'LTFM')
+    expect(stationWeather(first, 'LTFM')).toBe(ltfm)
+    expect(stationWeather(first, 'LTCW')).toBe(stationWeather(first, 'LTCW'))
+    const again = stationWeather(second, 'LTFM')
+    expect(again).not.toBe(ltfm)
+    expect(again).toEqual(ltfm)
   })
 })

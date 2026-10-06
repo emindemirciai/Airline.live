@@ -813,6 +813,46 @@ body:has(.map-page) .site-footer {
 }
 
 /*
+ * Tembel parça yüklenemedi (D-101; components/map/chunk-fallback.tsx). Havalimanı penceresinin
+ * yerine haritanın ortasında küçük panel. Pencere katmanının stili (airport-popup.css) parçayla
+ * gelir ve yüklenmemiş olabilir; `.live-map` boyut kabı olduğu için (`container-type`, düzen
+ * sınırlaması) `fixed` haritaya göredir, pencere katmanının yüksekliğine (dar ekranda alttaki
+ * sayfa) bağlı değildir. Pencere katmanı tıklamaları haritaya geçirir; bu panel tıklanır.
+ */
+.live-map__chunk-error {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  z-index: 6;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: min(360px, calc(100% - 2 * var(--map-gutter)));
+  padding: 12px 14px;
+  transform: translate(-50%, -50%);
+  pointer-events: auto;
+}
+
+.map-chunk-error__codes {
+  margin: 0;
+  color: var(--map-muted);
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.map-chunk-error__text {
+  margin: 0;
+  font-size: 0.875rem;
+  line-height: 1.4;
+}
+
+.map-chunk-error__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+/*
  * 1180 px ve üstünde durum şeridi sütundan çıkar: üstte, sol sütun ile uçak listesi arasındaki
  * boşlukta ortalı (1180 px'te 320 px). Daha dar ekranda arama ile kartın arasındadır.
  */

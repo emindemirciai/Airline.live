@@ -28,7 +28,8 @@ const airportsFixture = fileURLToPath(
 
 /**
  * 1. halka açık (M6d'nin ayarı; bugünkü `@havayolu/shared` `AIRPORT_RING_CONFIG` 3. halkadır, D-090).
- * Testler 1. halkayı sabit tutar; 2. ve 3. halka ayrı durumlarda (`enabledRing: 2`, `3`) denetlenir.
+ * Testler 1. halkayı sabit tutar; 2., 3. ve 4. halka ayrı durumlarda (`enabledRing: 2`, `3`, `4`)
+ * denetlenir.
  */
 const RINGS: AirportRingConfig = { ringsKm: [500, 1000, 2000, 5000], enabledRing: 1 }
 
@@ -162,11 +163,13 @@ describe('listAirportsWithIata', () => {
     // IATA kodu olmayan askeri alanlar yoktur.
     expect(list.map((a) => a.icao)).not.toContain('LTAE')
 
-    // Başka ülke: kayıt halkasını ve Türkiye'ye uzaklığını taşır (halka süzgeci yok; Londra 4.
-    // halkada, 2.000–5.000 km).
+    // Başka ülke: kayıt halkasını ve Türkiye'ye uzaklığını taşır (halka süzgeci yok; Birleşik
+    // Krallık'ın fixture'daki 40 havalimanı 4. halkada, 2.000–5.000 km; D-101).
     const gb = await listAirportsWithIata(database.db, 'GB', RINGS)
-    expect(gb.map((a) => [a.iata, a.country, a.ring])).toEqual([['LHR', 'GB', 4]])
-    expect(gb[0]?.distanceToTrKm).toBeGreaterThan(1500)
+    expect(gb).toHaveLength(40)
+    expect(gb.every((a) => a.country === 'GB' && a.ring === 4)).toBe(true)
+    expect(gb.find((a) => a.iata === 'LHR')).toMatchObject({ icao: 'EGLL', ring: 4 })
+    expect(gb.find((a) => a.iata === 'LHR')?.distanceToTrKm).toBeGreaterThan(2000)
     expect((await listAirportsWithIata(database.db, 'US', RINGS)).map((a) => a.iata)).toEqual([
       'JFK',
     ])
@@ -392,6 +395,38 @@ describe('listListedAirports (D-080)', () => {
     )
     const vienna = await findAirportDetail(database.db, 'vie', RINGS)
     expect(vienna).toMatchObject({ icao: 'LOWW', ring: 3, nearestTr: { icao: 'LTFK' } })
+  })
+
+  it('4. halka açık (D-101, uygulamada henüz kapalı): 61 + 75 + 89 + 278 + 719 = 1.222; Kihihi (UG-0002) dört karakterli ICAO kuralıyla dışarıda', async () => {
+    await database.db.insert(airports).values(readFixture())
+    const list = await listListedAirports(database.db, { ...RINGS, enabledRing: 4 })
+    expect(list).toHaveLength(1222)
+    expect(new Set(list.map((a) => a.icao)).size).toBe(1222)
+    const foreign = list.filter((a) => a.country !== 'TR')
+    expect([1, 2, 3, 4].map((ring) => foreign.filter((a) => a.ring === ring).length)).toEqual([
+      75, 89, 278, 719,
+    ])
+    for (const airport of list) expect(airport.icao).toMatch(/^[A-Z0-9]{4}$/)
+    expect(list.map((a) => a.icao)).not.toContain('UG-0002')
+    expect(list.map((a) => a.iata)).not.toContain('KHX')
+    // En yakını Barselona, en uzağı Çinggis Haan (Ulan Batur); uzak örneklerden dördü 4. halkada.
+    const ringFour = foreign.filter((a) => a.ring === 4)
+    expect(Math.min(...ringFour.map((a) => a.distanceToTrKm ?? 0))).toBe(2003)
+    expect(list.find((a) => a.icao === 'LEBL')).toMatchObject({ ring: 4, distanceToTrKm: 2003 })
+    expect(list.find((a) => a.icao === 'ZMCK')).toMatchObject({ ring: 4, distanceToTrKm: 4981 })
+    for (const icao of ['EGLL', 'LFPG', 'EHAM', 'LEMD']) {
+      expect(list.find((a) => a.icao === icao)?.ring, icao).toBe(4)
+    }
+    expect(list.map((a) => a.icao)).not.toContain('KJFK')
+    // Ülke listesi ICAO koşulu uygulamaz; Kihihi orada ident'iyle görünür, sayfa adresi yoktur.
+    const uganda = await listAirportsWithIata(database.db, 'UG', RINGS)
+    expect(uganda.find((a) => a.iata === 'KHX')).toMatchObject({ icao: 'UG-0002', ring: 4 })
+    const details = await listListedAirportDetails(database.db, { ...RINGS, enabledRing: 4 })
+    expect(details.map((a) => a.icao)).toEqual(list.map((a) => a.icao))
+    // Bugünkü açık halka (3) değişmez.
+    const ringThree = await listListedAirports(database.db, { ...RINGS, enabledRing: 3 })
+    expect(ringThree).toHaveLength(503)
+    expect(list.filter((a) => a.ring <= 3).map((a) => a.icao)).toEqual(ringThree.map((a) => a.icao))
   })
 
   it('uzaklık referansı küçük alanlar olmadan (M6d öncesi süzgeç) 1. halka daralır: 61 + 72', async () => {

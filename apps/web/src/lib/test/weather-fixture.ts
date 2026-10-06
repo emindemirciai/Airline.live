@@ -7,6 +7,8 @@ import {
   type AirportTaf,
   type AirportWeather,
   type FlightCategory,
+  type RawAirportWeather,
+  type RawTaf,
   type WeatherHistoryEntry,
   type WeatherHistoryResponse,
 } from '@havayolu/shared'
@@ -100,6 +102,41 @@ export function fixtureWeather(icao: string, now = FIXTURE_NOW): AirportWeather 
     .map(toTaf)
     .toSorted((a, b) => Date.parse(b.issuedAt) - Date.parse(a.issuedAt))
   return { icao, generatedAt: iso(now), metar: latest ? toMetar(latest) : null, tafs }
+}
+
+/**
+ * `GET /v1/weather?scope=listed&format=raw` yanıtının bir istasyonu (D-101): en yeni METAR ve
+ * süresi dolmamış bütün TAF'lar, en yeni yayımlanan önce; hiçbiri çözümlenmemiş.
+ */
+export function fixtureRawWeather(icao: string, now = FIXTURE_NOW): RawAirportWeather {
+  const latest = METARS.filter((m) => m.icaoId === icao && m.obsTime * 1000 <= now).toSorted(
+    (a, b) => b.obsTime - a.obsTime,
+  )[0]
+  const tafs = TAFS.filter((t) => t.icaoId === icao && t.validTimeTo * 1000 > now)
+    .map((t): RawTaf => ({
+      raw: t.rawTAF,
+      issuedAt: awcTime(t.issueTime),
+      validFrom: iso(t.validTimeFrom * 1000),
+      validTo: iso(t.validTimeTo * 1000),
+    }))
+    .toSorted((a, b) => Date.parse(b.issuedAt) - Date.parse(a.issuedAt))
+  return {
+    icao,
+    metar: latest
+      ? {
+          raw: latest.rawOb,
+          type: latest.metarType === 'SPECI' ? 'SPECI' : 'METAR',
+          observedAt: iso(latest.obsTime * 1000),
+          flightCategory: flightCategory(latest.fltCat),
+        }
+      : null,
+    tafs,
+  }
+}
+
+/** Fixture istasyonları (METAR ya da TAF'ı olanlar), ICAO sırasıyla. */
+export function fixtureStations(): string[] {
+  return [...new Set([...METARS.map((m) => m.icaoId), ...TAFS.map((t) => t.icaoId)])].toSorted()
 }
 
 /** `GET /v1/airports/:code/weather/history?hours=24` yanıtı, en yeni önce. */

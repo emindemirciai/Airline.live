@@ -8,6 +8,7 @@ import {
   COUNTRY_TIME_ZONES,
   ENABLED_AIRPORT_RING,
   isForeignCandidate,
+  isScheduledIataAirport,
   isSupportedTimeZone,
   ourAirportsIcao,
   REGION_TIME_ZONES,
@@ -606,10 +607,12 @@ describe('airportTimeZone', () => {
   })
 
   it('kuralı olmayan çok dilimli ülke, bilinmeyen ülke ve boş kod null', () => {
-    // Rusya'nın kuralı yazılmamış bölgesi (Yekaterinburg, 4. halka), bölgesiz Almanya (Büsingen
-    // ikinci dilimdir), Özbekistan'ın Taşkent'i, ABD, Kıbrıs'ın havalimanı kuralı olmayan bir alanı,
-    // Ukrayna (iki dilim), bilinmeyen kod.
-    expect(airportTimeZone({ icao: 'USSS', country: 'RU', isoRegion: 'RU-SVE' })).toBeNull()
+    // Rusya'nın kuralı yazılmamış bölgesi (Habarovsk, 5. halka), bölgesiz Almanya (Büsingen
+    // ikinci dilimdir), Özbekistan'ın Taşkent şehri kodu (OurAirports Taşkent'i UZ-TO'ya yazar), ABD,
+    // Kıbrıs'ın havalimanı kuralı olmayan bir alanı, Ukrayna (iki dilim), Grönland'ın havalimanı
+    // kuralı olmayan alanı, bilinmeyen kod.
+    expect(airportTimeZone({ icao: 'UHHH', country: 'RU', isoRegion: 'RU-KHA' })).toBeNull()
+    expect(airportTimeZone({ icao: 'BGSF', country: 'GL', isoRegion: 'GL-QE' })).toBeNull()
     expect(airportTimeZone({ icao: 'EDDF', country: 'DE' })).toBeNull()
     expect(airportTimeZone({ icao: 'UTTT', country: 'UZ', isoRegion: 'UZ-TK' })).toBeNull()
     expect(airportTimeZone({ icao: 'KJFK', country: 'US', isoRegion: 'US-NY' })).toBeNull()
@@ -721,15 +724,16 @@ const position = (r: Map<string, string>) => ({
   lon: Number(r.get('longitude_deg')),
 })
 
-describe('fixture: listelenen her havalimanının dilimi var', () => {
-  const turkish = rows.filter((r) => r.get('iso_country') === 'TR')
-  const references = turkish
-    .filter((r) =>
-      ['large_airport', 'medium_airport', 'small_airport'].includes(r.get('type') ?? ''),
-    )
-    .filter((r) => /^[A-Z]{3}$/.test((r.get('iata_code') ?? '').trim().toUpperCase()))
-    .map(position)
+const turkish = rows.filter((r) => r.get('iso_country') === 'TR')
+/** Halka analizinin uzaklık referansları: Türkiye'deki IATA kodlu büyük, orta ve küçük alanlar. */
+const references = turkish
+  .filter((r) => ['large_airport', 'medium_airport', 'small_airport'].includes(r.get('type') ?? ''))
+  .filter((r) => /^[A-Z]{3}$/.test((r.get('iata_code') ?? '').trim().toUpperCase()))
+  .map(position)
+const distanceToTurkey = (r: Map<string, string>) =>
+  Math.min(...references.map((tr) => km(position(r), tr)))
 
+describe('fixture: listelenen her havalimanının dilimi var', () => {
   it('Türkiye havalimanları Europe/Istanbul', () => {
     expect(turkish.length).toBeGreaterThan(60)
     for (const r of turkish) {
@@ -745,13 +749,10 @@ describe('fixture: listelenen her havalimanının dilimi var', () => {
           r.get('type') ?? '',
           r.get('scheduled_service') === 'yes',
           r.get('iata_code'),
+          icaoOf(r),
         ),
       )
-      .filter((r) => {
-        const here = position(r)
-        const distance = Math.min(...references.map((tr) => km(here, tr)))
-        return airportRing(distance) <= ENABLED_AIRPORT_RING
-      })
+      .filter((r) => airportRing(distanceToTurkey(r)) <= ENABLED_AIRPORT_RING)
     // M6h'den beri 1., 2. ve 3. halka açık: 75 + 89 + 278 (D-088, D-090); her biri beklenen
     // tablodadır.
     expect(listed).toHaveLength(442)
@@ -761,5 +762,427 @@ describe('fixture: listelenen her havalimanının dilimi var', () => {
       expect(zone, airport.icao).not.toBeNull()
       expect(zone, airport.icao).toBe(expectedByIcao.get(airport.icao)?.zone)
     }
+  })
+})
+
+/**
+ * 4. halkanın 720 adayı (D-080 kuralı, ICAO koşulu olmadan; UG-0002 dahil, D-101), dilime göre:
+ * M6i araştırmasının önerisi (`Intl.Locale#getTimeZones()` ve tzdb ülke tablosu; Node 24.16, ICU
+ * 78.3, tzdata 2026b). Halka henüz kapalıdır; tablo halka açılmadan önce her adayın dilimini sabitler.
+ */
+const RING_FOUR_ZONES: Readonly<Record<string, readonly string[]>> = {
+  'Africa/Abidjan': ['DIAP DIBK DIKO'],
+  'Africa/Accra': ['DGAA DGLE DGSI DGSN DGTK'],
+  'Africa/Addis_Ababa': [
+    'HAAB HAAM HAAX HABC HABD HADR HAGM HAGN HAGO HAJJ HAJM HAKD HALA HAMK HASO',
+  ],
+  'Africa/Algiers': [
+    'DAAG DAAJ DAAP DAAT DAAY DAOF DAOI DAON DAOO DAOR DATM DAUA DAUE DAUG DAUH',
+    'DAUI DAUL DAUT DAUU',
+  ],
+  'Africa/Asmera': ['HHAS'],
+  'Africa/Bamako': ['GABS GAGO GAKD GAMB GATB'],
+  'Africa/Bangui': ['FEFF'],
+  'Africa/Brazzaville': ['FCBB FCPP'],
+  'Africa/Bujumbura': ['HBBA HBBE'],
+  'Africa/Casablanca': [
+    'GMAD GMAT GMAZ GMFB GMFF GMFK GMFO GMMD GMME GMMI GMMN GMMW GMMX GMMZ GMTA',
+    'GMTN GMTT',
+  ],
+  'Africa/Ceuta': ['GEML'],
+  'Africa/Dar_es_Salaam': ['HTAR HTDA HTDO HTKJ HTMW HTTG HTZA'],
+  'Africa/Djibouti': ['HDAM'],
+  'Africa/Douala': ['FKKD FKKL FKKN FKKR FKYS'],
+  'Africa/El_Aaiun': ['GMMA GMMH GMML'],
+  'Africa/Juba': ['HJJJ HSSM HSWW'],
+  'Africa/Kampala': ['HUAR HUEN HUGU HUSO UG-0002'],
+  'Africa/Khartoum': ['HSFS HSKA HSNN HSOB HSSK'],
+  'Africa/Kigali': ['HRYR HRZA'],
+  'Africa/Kinshasa': ['FZAA FZBO FZCA FZEA FZFD FZFK'],
+  'Africa/Lagos': [
+    'DNAA DNAI DNAK DNAS DNBC DNBE DNCA DNEN DNGO DNIB DNIL DNIM DNJO DNKA DNKN',
+    'DNKT DNMA DNMK DNMM DNPM DNPO DNSO DNSU DNYO',
+  ],
+  'Africa/Libreville': ['FOGO FOOG FOOK FOOL FOON'],
+  'Africa/Lome': ['DXXX'],
+  'Africa/Luanda': ['FNDU'],
+  'Africa/Lubumbashi': ['FZIC FZJH FZKA FZNA FZOA FZRF FZUA FZWA'],
+  'Africa/Malabo': ['FGBT FGCO FGMY FGSL'],
+  'Africa/Mogadishu': ['HCMF HCMH HCMI HCMM'],
+  'Africa/Nairobi': ['HKAM HKEL HKJK HKKI HKLU HKML HKMO HKMS HKNL HKNW HKWJ'],
+  'Africa/Ndjamena': ['FTTJ'],
+  'Africa/Niamey': ['DRRN DRZR'],
+  'Africa/Nouakchott': ['GQNO GQPP GQPZ'],
+  'Africa/Ouagadougou': ['DFFD DFOO'],
+  'Africa/Porto-Novo': ['DBBB'],
+  'Africa/Sao_Tome': ['FPPR FPST'],
+  'America/Godthab': ['BGKK'],
+  'America/Scoresbysund': ['BGCO'],
+  'Asia/Aden': ['OYAA OYGD OYRN OYSN OYSQ OYSY OYTZ'],
+  'Asia/Almaty': ['UAAA UAAH UAAT UACC UACK UACP UADD UAII UAIT UAKD UAKK UASK UASP UASS'],
+  'Asia/Barnaul': ['UNBB'],
+  'Asia/Bishkek': ['UCFK UCFL UCFM UCFO'],
+  'Asia/Calcutta': [
+    'VAAH VAAM VAAU VABB VABJ VABO VABP VABV VAGD VAHS VAID VAJB VAJM VAKE VAKP',
+    'VAKS VALT VAND VANM VANP VAOZ VAPO VAPR VASD VASU VAUD VEAB VEAP VEAT VEAY',
+    'VEBD VEBI VEBN VEBS VEBU VECC VECX VEDG VEDH VEGK VEGT VEGY VEHO VEIM VEJT',
+    'VEKO VEKU VELP VELR VEMN VEMR VEPT VERC VERP VERW VETZ VEUK VIAG VIAR VIBR',
+    'VIBY VICG VIDN VIDP VIGG VIGR VIHR VIHX VIJO VIJP VIJR VIJU VIKG VILH VILK',
+    'VIMB VIND VIPK VIPT VISR VOAT VOBL VOBM VOBZ VOCB VOCI VOCL VOCP VOGA VOGO',
+    'VOHB VOHS VOKN VOKU VOMD VOML VOMM VOMY VOPC VORY VOSR VOTP VOTR VOTV VOVI',
+  ],
+  'Asia/Colombo': ['VCBI VCCC VCCJ VCCT'],
+  'Asia/Dhaka': ['VGBR VGCB VGEG VGHS VGJR VGRJ VGSD VGSY'],
+  'Asia/Dushanbe': ['UTDD UTDK UTDL UTDT'],
+  'Asia/Hovd': ['ZMKD ZMUG ZMUL'],
+  'Asia/Irkutsk': ['UIBB UIII UITT UIUU'],
+  'Asia/Kabul': ['OAKB OAKN OAKS OAMS'],
+  'Asia/Karachi': [
+    'OPBW OPCH OPDG OPFA OPGT OPGW OPIS OPKC OPLA OPMT OPNH OPPS OPQT OPRK OPSD',
+    'OPSK OPST OPTU OPZB',
+  ],
+  'Asia/Katmandu': ['VNBW VNJP VNKT VNLK VNNG VNPK VNPR VNTJ VNVT'],
+  'Asia/Krasnoyarsk': ['UNAA UNII UNIS UNIW UNKL UNKM UNKY UOHH UOII UOOO'],
+  'Asia/Muscat': ['OODQ OOMS OOSA'],
+  'Asia/Novokuznetsk': ['UNEE UNWW'],
+  'Asia/Novosibirsk': ['UNNT'],
+  'Asia/Omsk': ['UNOO'],
+  'Asia/Qostanay': ['UAUU'],
+  'Asia/Riyadh': ['OEAB OEGN OENG OESH'],
+  'Asia/Samarkand': ['UZST'],
+  'Asia/Shanghai': [
+    'ZLDH ZLDL ZLGL ZLGM ZLHX ZLJC ZLJQ ZLYS ZLZY ZUAL ZUBD ZUDR ZULS ZUNZ ZURK',
+    'ZWAK ZWAT ZWBL ZWCM ZWFY ZWHM ZWKL ZWKN ZWNL ZWRQ ZWSC ZWSH ZWTK ZWTL ZWTN',
+    'ZWWW ZWYN',
+  ],
+  'Asia/Tashkent': ['UZFA UZFF UZFN UZTP UZTT UZTZ'],
+  'Asia/Tehran': ['OIZC'],
+  'Asia/Thimphu': ['VQPR'],
+  'Asia/Tomsk': ['UNTT'],
+  'Asia/Ulaanbaatar': ['ZMAH ZMAT ZMBH ZMBN ZMCK ZMDZ ZMMN'],
+  'Asia/Yekaterinburg': [
+    'USCC USDA USDB USDD USHH USHN USHQ USHS USHU USMM USMU USNN USPP USRK USRO',
+    'USRR USSS USTJ USTR USUU',
+  ],
+  'Atlantic/Azores': ['LPAZ LPFL LPGR LPHR LPLA LPPD LPPI LPSJ'],
+  'Atlantic/Canary': ['GCFV GCHI GCLA GCLP GCRR GCTS GCXO'],
+  'Atlantic/Faeroe': ['EKVG'],
+  'Atlantic/Madeira': ['LPMA LPPS'],
+  'Atlantic/Reykjavik': ['BIAR BIEG BIGR BIHN BIIS BIKF BIRK BIVO'],
+  'Europe/Amsterdam': ['EHAM EHEH EHGG EHRD'],
+  'Europe/Berlin': ['EDXW'],
+  'Europe/Brussels': ['EBAW EBBR EBCI EBOS'],
+  'Europe/Copenhagen': ['EKAH EKBI EKEB EKKA EKOD EKSB EKYT'],
+  'Europe/Dublin': ['EICK EIDL EIDW EIKN EIKY EINN'],
+  'Europe/Gibraltar': ['LXGB'],
+  'Europe/Guernsey': ['EGJA EGJB'],
+  'Europe/Helsinki': [
+    'EFET EFHK EFIV EFJO EFJY EFKE EFKI EFKK EFKS EFKT EFKU EFLP EFMA EFOU EFPO',
+    'EFRO EFSA EFTP EFTU EFVA',
+  ],
+  'Europe/Isle_of_Man': ['EGNS'],
+  'Europe/Jersey': ['EGJJ'],
+  'Europe/Kirov': ['USKK'],
+  'Europe/Lisbon': ['LPBG LPCS LPFR LPPM LPPR LPPT LPVR LPVZ'],
+  'Europe/London': [
+    'EGAA EGAC EGAE EGBB EGCC EGEC EGED EGFF EGGD EGGP EGGW EGHH EGHI EGHQ EGKK',
+    'EGLC EGLL EGMC EGNJ EGNM EGNT EGNV EGNX EGPA EGPB EGPC EGPD EGPE EGPF EGPH',
+    'EGPI EGPK EGPL EGPN EGPO EGPR EGPU EGSH EGSS EGTE',
+  ],
+  'Europe/Madrid': [
+    'LEAL LEAM LEAS LEBA LEBB LEBL LEBZ LECH LECO LEDA LEGR LEIB LEJR LELN LEMD',
+    'LEMG LEMI LEPP LERJ LERS LESA LESO LEST LESU LEVC LEVD LEVT LEVX LEXJ LEZG',
+    'LEZL',
+  ],
+  'Europe/Moscow': ['ULAA ULAM ULDD ULKK ULLI ULMM ULPB ULWU UUYH UUYP UUYS UUYW UUYY'],
+  'Europe/Oslo': [
+    'ENAL ENAN ENAT ENBN ENBO ENBR ENBS ENBV ENCN ENDU ENEV ENFL ENGM ENHD ENHF',
+    'ENHV ENKB ENKR ENLK ENMH ENML ENMS ENNA ENOL ENOV ENRA ENRM ENRO ENSB ENSH',
+    'ENSK ENSO ENSR ENSS ENST ENTC ENTO ENVA ENVD ENZV',
+  ],
+  'Europe/Paris': [
+    'LFBD LFBE LFBH LFBI LFBL LFBO LFBP LFBT LFBZ LFOB LFOT LFPG LFPO LFQQ LFRB',
+    'LFRG LFRK LFRN LFRS LFSL',
+  ],
+  'Europe/Stockholm': [
+    'ESGG ESGJ ESGT ESKM ESKN ESKS ESMT ESNG ESNK ESNL ESNN ESNO ESNQ ESNS ESNU',
+    'ESNV ESNX ESNZ ESOE ESOK ESOW ESPA ESSA ESSB ESSD ESSL ESSP ESST ESTA',
+  ],
+  'Europe/Tallinn': ['EEKA EETN'],
+  'Indian/Mahe': ['FSIA FSPP'],
+  'Indian/Maldives': ['VRDA VRMH VRMK VRMM VRMV'],
+}
+
+/**
+ * OurAirports'un kullandığı bölge kodu → ISO 3166-2'deki eşi; iki kod da tabloda aynı dilimdedir.
+ * Kazakistan'da ISO kodları 2020'den beri sayısaldır; Baykonur'un ISO kodu yoktur, Kızılorda
+ * bölgesindedir (KZ-43).
+ */
+const REGION_CODE_ALIASES: Readonly<Record<string, string>> = {
+  'CN-54': 'CN-XZ',
+  'CN-62': 'CN-GS',
+  'CN-63': 'CN-QH',
+  'CN-65': 'CN-XJ',
+  'DE-BR': 'DE-BB',
+  'KZ-ABA': 'KZ-10',
+  'KZ-AKM': 'KZ-11',
+  'KZ-AKT': 'KZ-15',
+  'KZ-ALA': 'KZ-75',
+  'KZ-AST': 'KZ-71',
+  'KZ-ATY': 'KZ-23',
+  'KZ-BAY': 'KZ-43',
+  'KZ-JET': 'KZ-33',
+  'KZ-KAR': 'KZ-35',
+  'KZ-KUS': 'KZ-39',
+  'KZ-KZY': 'KZ-43',
+  'KZ-MAN': 'KZ-47',
+  'KZ-PAV': 'KZ-55',
+  'KZ-SEV': 'KZ-59',
+  'KZ-ULY': 'KZ-62',
+  'KZ-VOS': 'KZ-63',
+  'KZ-YUZ': 'KZ-61',
+  'KZ-ZAP': 'KZ-27',
+  'KZ-ZHA': 'KZ-31',
+}
+
+/** ISO 3166-2:KZ: 17 bölge ve 3 şehir (Astana 71, Almatı 75, Şımkent 79); 2022 bölgeleri 10, 33, 62. */
+const KAZAKHSTAN_ISO_REGIONS = [
+  'KZ-10',
+  'KZ-11',
+  'KZ-15',
+  'KZ-19',
+  'KZ-23',
+  'KZ-27',
+  'KZ-31',
+  'KZ-33',
+  'KZ-35',
+  'KZ-39',
+  'KZ-43',
+  'KZ-47',
+  'KZ-55',
+  'KZ-59',
+  'KZ-61',
+  'KZ-62',
+  'KZ-63',
+  'KZ-71',
+  'KZ-75',
+  'KZ-79',
+] as const
+
+describe('4. halka saat dilimleri (D-101; halka henüz kapalı)', () => {
+  const ringFour = rows
+    .filter((r) => r.get('iso_country') !== 'TR')
+    .filter((r) =>
+      isScheduledIataAirport(
+        r.get('type') ?? '',
+        r.get('scheduled_service') === 'yes',
+        r.get('iata_code'),
+      ),
+    )
+    .filter((r) => airportRing(distanceToTurkey(r)) === 4)
+  const expectedZone = new Map(
+    Object.entries(RING_FOUR_ZONES).flatMap(([zone, chunks]) =>
+      chunks.flatMap((chunk) => chunk.split(' ')).map((icao) => [icao, zone] as const),
+    ),
+  )
+
+  it("fixture'daki 720 adayın her biri beklenen dilimde (90 dilim)", () => {
+    expect(ringFour).toHaveLength(720)
+    expect(expectedZone.size).toBe(720)
+    expect(Object.keys(RING_FOUR_ZONES)).toHaveLength(90)
+    for (const r of ringFour) {
+      const airport = fixtureAirport(r)
+      expect(airportTimeZone(airport), `${airport.icao} ${airport.isoRegion}`).toBe(
+        expectedZone.get(airport.icao),
+      )
+    }
+  })
+
+  it.runIf(hasRuntimeZones)(
+    'her adayın dilimini ICU tanır ve dilim o ülkenin Intl listesindedir (Sincan Asia/Shanghai)',
+    () => {
+      for (const r of ringFour) {
+        const airport = fixtureAirport(r)
+        const zone = airportTimeZone(airport) ?? ''
+        expect(isSupportedTimeZone(zone), airport.icao).toBe(true)
+        expect(runtimeZones(airport.country), airport.icao).toContain(zone)
+      }
+      // Asia/Urumqi (UTC+6) tzdb'de vardır ama seçilmez: Sincan'ın resmî saati Pekin saatidir.
+      expect(runtimeZones('CN')).toContain('Asia/Urumqi')
+      expect([...expectedZone.values()]).not.toContain('Asia/Urumqi')
+    },
+  )
+
+  it('4. halka 93 bölge ve 2 havalimanı kuralı ekledi; her çok dilimli bölgenin kuralı var', () => {
+    const regionRules = Object.keys(REGION_TIME_ZONES)
+    const byCountry = (codes: readonly string[]) =>
+      Object.fromEntries(
+        [...new Set(codes.map((code) => code.split('-')[0] ?? ''))]
+          .sort()
+          .map((country) => [
+            country,
+            codes.filter((code) => code.startsWith(`${country}-`)).length,
+          ]),
+      )
+    // 4. halka adaylarının çok dilimli ülkelerdeki bölgeleri (Grönland havalimanı kuralıyla).
+    const ringFourRegions = [
+      ...new Set(
+        ringFour
+          .map((r) => r.get('iso_region') ?? '')
+          .filter((region) => !Object.hasOwn(COUNTRY_TIME_ZONES, region.split('-')[0] ?? '')),
+      ),
+    ].filter((region) => region !== 'GL-SE')
+    expect(ringFourRegions.filter((region) => !regionRules.includes(region))).toEqual([])
+    // 3. halkanın kurallarından 4. halkada da kullanılanlar (Katalonya, Balear Adaları,
+    // Schleswig-Holstein, Vologda) çıkınca 93 yeni kural.
+    const reused = ['DE-SH', 'ES-CT', 'ES-IB', 'RU-VLG']
+    const added = ringFourRegions.filter((region) => !reused.includes(region))
+    expect(added).toHaveLength(93)
+    expect(byCountry(added)).toEqual({
+      CD: 13,
+      CN: 4,
+      ES: 15,
+      KZ: 13,
+      MN: 10,
+      PT: 8,
+      RU: 24,
+      UZ: 6,
+    })
+    expect(Object.keys(AIRPORT_TIME_ZONES).sort()).toEqual([
+      'BGCO',
+      'BGKK',
+      'LCEN',
+      'LCLK',
+      'LCPH',
+      'UGSS',
+    ])
+    // Grönland'ın iki havalimanı aynı bölgede (GL-SE), farklı dilimde: bölge kuralı yazılamaz.
+    expect(Object.hasOwn(REGION_TIME_ZONES, 'GL-SE')).toBe(false)
+    expect(
+      ringFour
+        .filter((r) => r.get('iso_region') === 'GL-SE')
+        .map(icaoOf)
+        .sort(),
+    ).toEqual(['BGCO', 'BGKK'])
+  })
+
+  it('bölge kodu eşleri: OurAirports kodu ve ISO 3166-2 kodu aynı dilimde (kod değişirse dilim kaybolmaz)', () => {
+    for (const [ourAirports, iso] of Object.entries(REGION_CODE_ALIASES)) {
+      expect(REGION_TIME_ZONES[ourAirports], ourAirports).toBeDefined()
+      expect(REGION_TIME_ZONES[iso], iso).toBe(REGION_TIME_ZONES[ourAirports])
+    }
+    // Fixture OurAirports'un kodlarını kullanır: Çin'de sayısal, Brandenburg'da DE-BR. OurAirports
+    // kodları değiştirir ve fixture yeniden üretilirse 720 adaylık test kırılır; eşi yazılı kodlar
+    // üretimde de dilimsiz kalmaz.
+    const fixtureRegions = new Set(rows.map((r) => r.get('iso_region') ?? ''))
+    for (const code of Object.keys(REGION_CODE_ALIASES)) {
+      expect(fixtureRegions.has(code), code).toBe(true)
+    }
+    for (const code of Object.values(REGION_CODE_ALIASES)) {
+      expect(fixtureRegions.has(code), code).toBe(false)
+    }
+    // Kazakistan'da OurAirports 2022 bölgeleri için ISO'da olmayan kendi kodlarını kullanır (ISO:
+    // KZ-10, KZ-33, KZ-62).
+    for (const code of ['KZ-ABA', 'KZ-JET', 'KZ-ULY']) {
+      expect(fixtureRegions.has(code), code).toBe(true)
+      expect(REGION_TIME_ZONES[code], code).toBe('Asia/Almaty')
+    }
+    expect(REGION_TIME_ZONES['KZ-KUS']).toBe('Asia/Qostanay')
+  })
+
+  it("Kazakistan'ın her bölgesi iki kodla da tabloda (OurAirports harf kodu ve ISO 3166-2 sayısal kodu)", () => {
+    // KZ ülke tablosunda değildir (çok dilimli): kuralsız bölge dilimsiz kalırdı.
+    expect(Object.hasOwn(COUNTRY_TIME_ZONES, 'KZ')).toBe(false)
+    const kazakh = Object.keys(REGION_TIME_ZONES).filter((code) => code.startsWith('KZ-'))
+    const ourAirports = kazakh.filter((code) => /^KZ-[A-Z]{3}$/.test(code))
+    expect(kazakh.filter((code) => /^KZ-\d{2}$/.test(code))).toEqual([...KAZAKHSTAN_ISO_REGIONS])
+    expect(ourAirports).toHaveLength(20)
+    expect(kazakh).toHaveLength(40)
+    // Her ISO kodunun dilimi, o bölgenin OurAirports kodununkiyle aynı. Eşler tablosunda olmayanlar:
+    // Almatı bölgesi (KZ-ALM; tarifeli havalimanı yok, fixture'da satırı yok) ve OurAirports'ta
+    // Türkistan'a (KZ-YUZ) yazılan Şımkent şehri.
+    const isoPairs: Readonly<Record<string, string>> = {
+      ...Object.fromEntries(
+        Object.entries(REGION_CODE_ALIASES).filter(([code]) => code.startsWith('KZ-')),
+      ),
+      'KZ-ALM': 'KZ-19',
+    }
+    expect(Object.keys(isoPairs).sort()).toEqual(ourAirports)
+    for (const [code, iso] of Object.entries(isoPairs)) {
+      expect(REGION_TIME_ZONES[iso], `${code} ${iso}`).toBe(REGION_TIME_ZONES[code])
+    }
+    expect(REGION_TIME_ZONES['KZ-79']).toBe(REGION_TIME_ZONES['KZ-YUZ'])
+    expect(new Set([...Object.values(isoPairs), 'KZ-79'])).toEqual(new Set(KAZAKHSTAN_ISO_REGIONS))
+    // OurAirports ISO koduna geçerse: bugünkü Kazak adaylarının (3. ve 4. halka) hepsi aynı dilimde.
+    const candidates = rows
+      .filter((r) => r.get('iso_country') === 'KZ')
+      .filter((r) =>
+        isScheduledIataAirport(
+          r.get('type') ?? '',
+          r.get('scheduled_service') === 'yes',
+          r.get('iata_code'),
+        ),
+      )
+      .map(fixtureAirport)
+    expect(candidates).toHaveLength(21)
+    for (const airport of candidates) {
+      const iso = isoPairs[airport.isoRegion ?? '']
+      expect(iso, airport.icao).toBeDefined()
+      expect(airportTimeZone({ ...airport, isoRegion: iso }), airport.icao).toBe(
+        airportTimeZone(airport),
+      )
+    }
+  })
+
+  it('çok dilimli ülkelerdeki fixture adaylarının (1.–4. halka) hepsinin dilimi var', () => {
+    // Bölgesi kuralsız kalan aday dilimsiz görünürdü ("Türkiye saati"); fixture yeniden üretilince
+    // OurAirports'un yeni bir bölge kodunu bu test yakalar.
+    const missing = rows
+      .filter((r) => r.get('iso_country') !== 'TR')
+      .filter((r) =>
+        isScheduledIataAirport(
+          r.get('type') ?? '',
+          r.get('scheduled_service') === 'yes',
+          r.get('iata_code'),
+        ),
+      )
+      .filter((r) => airportRing(distanceToTurkey(r)) <= 4)
+      .map(fixtureAirport)
+      .filter((airport) => airportTimeZone(airport) === null)
+      .map((airport) => `${airport.icao} ${airport.isoRegion}`)
+    expect(missing).toEqual([])
+  })
+
+  it('örnek UTC farkları (kış ve yaz 2026)', () => {
+    const zoneOf = (icao: string) => {
+      const row = ringFour.find((r) => icaoOf(r) === icao)
+      expect(row, icao).toBeDefined()
+      return row ? (airportTimeZone(fixtureAirport(row)) ?? '') : ''
+    }
+    const winter = '2026-01-15T12:00:00Z'
+    const summer = '2026-07-15T12:00:00Z'
+    const offsets = (icao: string) => [offset(winter, zoneOf(icao)), offset(summer, zoneOf(icao))]
+    // Yaz saati uygulamayanlar.
+    expect(offsets('UNNT'), 'Novosibirsk').toEqual([420, 420])
+    expect(offsets('UIII'), 'İrkutsk').toEqual([480, 480])
+    expect(offsets('UNOO'), 'Omsk').toEqual([360, 360])
+    expect(offsets('USKK'), 'Kirov').toEqual([180, 180])
+    expect(offsets('UAAA'), 'Almatı').toEqual([300, 300])
+    expect(offsets('UAUU'), 'Kostanay').toEqual([300, 300])
+    expect(offsets('ZMKD'), 'Hovd').toEqual([420, 420])
+    expect(offsets('ZMCK'), 'Ulan Batur').toEqual([480, 480])
+    expect(offsets('FZAA'), 'Kinşasa').toEqual([60, 60])
+    expect(offsets('FZNA'), 'Goma').toEqual([120, 120])
+    expect(offsets('ZWWW'), 'Urumçi').toEqual([480, 480])
+    expect(offsets('VNKT'), 'Katmandu').toEqual([345, 345])
+    expect(offsets('VIDP'), 'Delhi').toEqual([330, 330])
+    // Yaz saati uygulayanlar.
+    expect(offsets('LPPD'), 'Azorlar').toEqual([-60, 0])
+    expect(offsets('GCLP'), 'Kanarya').toEqual([0, 60])
+    expect(offsets('LPMA'), 'Madeira').toEqual([0, 60])
+    expect(offsets('BGCO'), 'Constable Pynt').toEqual([-120, -60])
+    expect(offsets('BGKK'), 'Kulusuk').toEqual([-120, -60])
+    expect(offsets('EGLL'), 'Londra').toEqual([0, 60])
+    expect(offsets('GEML'), 'Melilla').toEqual([60, 120])
   })
 })

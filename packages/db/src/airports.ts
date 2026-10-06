@@ -214,12 +214,20 @@ function isListableRow(row: AirportSourceRow, iata: string): boolean {
   )
 }
 
+/** Kanonik ICAO kodu dört harf ya da rakamdır (`@havayolu/shared` `isCanonicalIcao`). */
+const CANONICAL_ICAO = /^[A-Z0-9]{4}$/
+
 /**
- * Yurt dışı adayı (`@havayolu/shared` `isForeignCandidate`): büyük ya da orta havalimanı, tarifeli,
- * üç harfli IATA kodu (IATA denetimi `listedEntries`'tedir).
+ * Yurt dışı adayı (`@havayolu/shared` `isForeignCandidate`; D-080, D-101): büyük ya da orta
+ * havalimanı, tarifeli, üç harfli IATA kodu (IATA denetimi `listedEntries`'tedir) ve kanonik
+ * ICAO'su (`ourAirportsIcao`) dört karakter. `icao_code` ve `gps_code` taşımayan satırın kimliği
+ * ident'tir ("UG-0002", Kihihi KHX); sayfası ve hava durumu istasyonu olamayacağı için listeye
+ * girmez. Ülke listeleri (`listAirportsWithIata`) bu koşulu uygulamaz.
  */
 const isForeignCandidateRow = (row: AirportSourceRow) =>
-  (row.type === 'large_airport' || row.type === 'medium_airport') && row.scheduledService
+  (row.type === 'large_airport' || row.type === 'medium_airport') &&
+  row.scheduledService &&
+  CANONICAL_ICAO.test(ourAirportsIcao(row))
 
 /** Türkiye referansının satırdaki alanları. */
 type ReferenceSourceRow = Pick<
@@ -360,8 +368,8 @@ function listedSelection<R extends AirportSourceRow>(
 /**
  * Saf kısım: listelenen havalimanları (D-080). Türkiye satırları liste kuralıyla
  * (`toListedAirports`); yurt dışı satırları aday kuralıyla (büyük ya da orta, tarifeli, üç harfli
- * IATA) ve halkası `enabledRing`'i aşmıyorsa. Satırlar kimlik sırasıyla verilir; sonuç
- * `toListedAirports` sırasıyladır.
+ * IATA, dört karakterli kanonik ICAO; D-101) ve halkası `enabledRing`'i aşmıyorsa. Satırlar kimlik
+ * sırasıyla verilir; sonuç `toListedAirports` sırasıyladır.
  */
 export function selectListedAirports(
   rows: readonly AirportSourceRow[],
@@ -401,7 +409,10 @@ const listedFilter = (...conditions: SQL[]): SQL =>
     ...conditions,
   ) as SQL
 
-/** Yurt dışı adayları (SQL ön süzgeci; `isForeignCandidateRow` ile aynı koşul). */
+/**
+ * Yurt dışı adayları (SQL ön süzgeci): `isForeignCandidateRow`'un koşulları; kanonik ICAO'nun
+ * biçimi bellekte denetlenir.
+ */
 const foreignCandidateFilter = (): SQL =>
   and(
     ne(airports.isoCountry, TURKEY_COUNTRY_CODE),
@@ -583,7 +594,7 @@ export interface StationSourceRow {
 }
 
 /**
- * Gösterilmeyen pist satırları (D-088, D-090), OurAirports pist kimliğine göre. Hepsi aynı
+ * Gösterilmeyen pist satırları (D-088, D-090, D-101), OurAirports pist kimliğine göre. Hepsi aynı
  * havalimanında bilgili bir pistin yanında duran, uzunluğu, genişliği ve uç koordinatları olmayan
  * (kaplaması "UNK" ya da "GRS") yinelenen kayıtlardır; gösterilseler sayfa ve pencere havalimanında
  * bir pist fazla sayardı. Satır
@@ -595,13 +606,28 @@ export interface StationSourceRow {
  *   uzatılmış olabilir; doğrulanamadı, veri olduğu gibi kalır.
  * - 504922: Linz (LOWL) "07H/25H"; havalimanının 08/26 (3.000 m) ve 08E/26E çim pisti kayıtlı.
  * - 608245: Voronej (UUOO) "18/36"; kayıtlı pist 12/30 (2.300 m).
+ * - 4. halka (D-101): 260338 Hassi Messaoud (DAUH) "01/19", kayıtlı pist 18/36 (3.000 m); 260344
+ *   Beauvais (LFOB) "13R/31L", kayıtlı pistler 04/22 ve 12/30 (2.430 m); 260310 Bujumbura (HBBA)
+ *   "02/20", kayıtlı pist 17/35 (3.600 m).
  */
 export const HIDDEN_RUNWAY_IDS: Readonly<Record<number, string>> = {
+  260310: 'HBBA 02/20',
+  260338: 'DAUH 01/19',
   260339: 'HETB 04/22',
+  260344: 'LFOB 13R/31L',
   260408: 'LRCL 08/26',
   504922: 'LOWL 07H/25H',
   608245: 'UUOO 18/36',
 }
+
+/**
+ * Bundan kısa kayıtlı uzunluk pist değildir, ft (D-101, genel kural). Pamplona'nın (LEPP) 260341
+ * "03/21" satırı 2 ft uzunluğunda, genişliği ve uç koordinatı yok, kaplaması UNK; gösterilseydi
+ * havalimanı iki pist sayardı (kayıtlı pist 15/33, 2.207 m). Fixture'da bu sınırın altında kalan
+ * öbür satırlar zaten tek uçlu helikopter alanlarıdır (Stuttgart H-NORTH ve H-SOUTH 98 ft);
+ * Bovanenkovo'nun 722 ft'lik şeridi gibi kısa ama iki uçlu satırlar değişmez.
+ */
+export const MIN_RUNWAY_LENGTH_FT = 100
 
 /**
  * Pist satırı gizlenir mi:
@@ -610,12 +636,20 @@ export const HIDDEN_RUNWAY_IDS: Readonly<Record<number, string>> = {
  *   helikopter iniş alanıdır: Stuttgart'ın (EDDS) "H-NORTH" ve "H-SOUTH" satırları (30 × 30 m)
  *   gösterilseydi sayfa ve pencere üç pist sayardı. 2026-10-01 indirmesinin bütün adaylarında bu
  *   biçimde yalnız yedi satır var; fixture'da Stuttgart'ın ikisi ve listelenmeyen iki Türkiye
- *   kaydının (LTAO, TR-0315) "H" satırı.
+ *   kaydının (LTAO, TR-0315) "H" satırı; ya da
+ * - kayıtlı uzunluğu `MIN_RUNWAY_LENGTH_FT`'ten kısa (D-101, genel kural; uzunluğu bilinmeyen satır
+ *   bu kuralla gizlenmez).
+ *
+ * Uçları kayıtlı uzunluğa göre çok uzak satır (D-101, Amravati) gizlenmez: içe aktarım uç
+ * koordinatlarını yön ve eşik için kullanmaz (`@havayolu/providers` `endsAreTooFarApart`), pist
+ * sayfada sayılır. Web'in test yardımcısı (`apps/web/src/lib/test/ourairports-fixture.ts`) aynı
+ * kuralları yazar; `airports.test.ts` iki yazımı karşılaştırır.
  */
 export function isHiddenRunway(
   row: Pick<RunwaySourceRow, 'id' | 'lengthFt' | 'widthFt' | 'heIdent'>,
 ): boolean {
   if (present(row.heIdent) === null) return true
+  if (row.lengthFt !== null && row.lengthFt < MIN_RUNWAY_LENGTH_FT) return true
   return Object.hasOwn(HIDDEN_RUNWAY_IDS, row.id) && row.lengthFt === null && row.widthFt === null
 }
 

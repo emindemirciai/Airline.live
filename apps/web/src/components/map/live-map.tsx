@@ -4,7 +4,9 @@ import 'maplibre-gl/dist/maplibre-gl.css'
 
 import { DEFAULT_UNIT_SYSTEM, type Messages } from '@havayolu/i18n'
 import type { Locale, PublicAircraft } from '@havayolu/shared'
+import dynamic from 'next/dynamic'
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react'
+import { whenIdle } from '../../lib/idle'
 import { fetchSearch } from '../../lib/live/api'
 import { monotonicNow } from '../../lib/live/clock'
 import type { TrackedAircraft } from '../../lib/live/store'
@@ -25,7 +27,6 @@ import { useNow, useWallNow } from '../../lib/use-now'
 import { WallClock } from '../../lib/wall-clock'
 import { ConsentSettingsButton } from '../analytics-consent'
 import { airportsInView, fetchMapAirports, type MapAirport } from './airport-data'
-import { AirportPopup } from './airport-popup'
 import {
   mapCustomAttributionHtml,
   siteCredit as buildSiteCredit,
@@ -40,6 +41,7 @@ import {
   SELECT_MIN_ZOOM,
   type MapViewport,
 } from './camera'
+import { AirportPopupUnavailable, withChunkFallback } from './chunk-fallback'
 import { DataAttributionNotice } from './data-attribution'
 import { NO_INSETS, type MapInsets } from './map-controller'
 import { MapView, type MapViewHandle } from './map-view'
@@ -50,6 +52,7 @@ import {
   LabelSettingsControl,
   SearchBox,
   StatusStrip,
+  preloadAirportListPanel,
 } from './panels'
 import { aircraftPlace } from './panels/aircraft-place'
 import { useAircraftListOpen } from './use-aircraft-list-open'
@@ -59,6 +62,22 @@ import { useLabelSettings } from './use-label-settings'
 import { useLive } from './use-live'
 import { useMapPanels } from './use-map-panels'
 import { supportsWebGL2 } from './webgl'
+
+/**
+ * Havalimanı penceresi ayrı parçadadır (D-101): görünen ad tabloları (`airportDisplayName`, 4.
+ * halkada ~165 KB kaynak) haritanın ilk paketine girmez. Parça harita hazır olunca boşta önceden
+ * istenir (aşağıdaki efekt); seçim ondan önce gelirse o sırada yüklenir. Yüklenemezse
+ * (yayından sonra eski sekme, kesik bağlantı) pencerenin yerine yedek not çizilir
+ * (`chunk-fallback.tsx`), harita hata ekranına düşmez. Yüklenirken yalnız pencerenin yeri boş kalır
+ * (`loading`, kendi Suspense sınırı); sınır olmasaydı ilk seçim kök kabukta askıya alınır, parça
+ * gelene kadar tablo, kart ve saat donardı.
+ */
+const loadAirportPopup = withChunkFallback(
+  () => import('./airport-popup').then((module) => module.AirportPopup),
+  AirportPopupUnavailable,
+  'Airport popup',
+)
+const AirportPopup = dynamic(() => loadAirportPopup(), { loading: () => null })
 
 export interface LiveMapProps {
   config: MapConfig
@@ -265,6 +284,18 @@ export function LiveMap({
     pendingAirportRef.current = null
   }, [])
   const markReady = useCallback(() => setMapReady(true), [])
+
+  // Pencerenin ve "Havalimanları" panelinin parçaları harita hazır olunca (ya da WebGL2 yoksa)
+  // boşta önceden istenir (D-101): ilk paketin dışında kalırlar ama sayfayı veren yayından gelirler
+  // (yayından sonra açık kalan sekmede eski parça istenmez) ve ilk seçim parçayı beklemez.
+  const mapSettled = webgl === false || mapReady
+  useEffect(() => {
+    if (!mapSettled) return
+    return whenIdle(() => {
+      void loadAirportPopup()
+      preloadAirportListPanel()
+    })
+  }, [mapSettled])
 
   // Harita görünümü gelene kadar (ya da hiç gelmeyecekse) açılış görünümüne abone olunur.
   useEffect(() => {

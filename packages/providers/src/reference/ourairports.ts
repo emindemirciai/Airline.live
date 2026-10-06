@@ -108,6 +108,33 @@ export function endsAreSeparated(le: LatLon, he: LatLon, lengthFt: number | null
   return separationM >= minimum
 }
 
+/** Uçlar kayıtlı uzunluğun bu katından uzaksa uç koordinatları kullanılmaz (D-101). */
+export const MAX_RUNWAY_END_SEPARATION_RATIO = 2
+
+/** ... ve aynı zamanda bundan uzaksa, m (kısa pistlerde küçük konum hataları kuralı tetiklemez). */
+export const MAX_RUNWAY_END_SEPARATION_M = 1000
+
+/**
+ * İki uç kayıtlı uzunluğa göre çok mu uzak (D-101, `endsAreSeparated`'ın üst sınırı)? Uçlar arası
+ * mesafe hem uzunluğun `MAX_RUNWAY_END_SEPARATION_RATIO` katından hem
+ * `MAX_RUNWAY_END_SEPARATION_M`'den fazlaysa uç koordinatlarından en az biri yanlıştır: Amravati'nin
+ * (VAAM, 610195) 08/26 pisti 1.850 m kayıtlı, uçları 74,5 km arayla yazılmış; o uçlardan hesaplanan
+ * yön 89,6°/269,6° olur, heading alanı 75°/255° der. Uzunluk bilinmiyorsa kural uygulanmaz
+ * (karşılaştıracak değer yok; 2026-10-01 indirmesinde uzunluksuz ve iki uçlu açık pist ikidir, ikisi
+ * de 1 km'den kısa). 2026-10-01 indirmesinin bütün açık pistlerinde kural 24 satırı yakalar,
+ * fixture'ın açık pistlerinde yalnız 610195'i; heading alanının birkaç derece saptığı pistler
+ * (D-066, LTFM) kuralın çok altındadır. Böyle pistte yön heading alanından gelir, eşikler
+ * havalimanı merkezine düşer (`arp_fallback`); pist sayfada sayılır.
+ */
+export function endsAreTooFarApart(le: LatLon, he: LatLon, lengthFt: number | null): boolean {
+  if (lengthFt === null || lengthFt <= 0) return false
+  const separationM = distanceKm(le, he) * 1000
+  return (
+    separationM > lengthFt * M_PER_FT * MAX_RUNWAY_END_SEPARATION_RATIO &&
+    separationM > MAX_RUNWAY_END_SEPARATION_M
+  )
+}
+
 /**
  * Kaydırma varken uç koordinatları fiziksel pist uçları mı, yoksa zaten eşikler mi? Uçlar arası
  * mesafe "uzunluk − kaydırmalar"a daha yakınsa ve tolerans içindeyse koordinatlar eşiktir.
@@ -260,17 +287,24 @@ export function parseAirports(
   return { rows, skipped, ignored }
 }
 
+/**
+ * Pistin bir ucu. `endUsable` false ise (uçlar kayıtlı uzunluğa göre çok uzak, `endsAreTooFarApart`)
+ * uç koordinatı ne yön ne eşik için kullanılır: yön heading alanından, eşik havalimanı merkezinden
+ * (ARP) gelir. Ham koordinatlar kayıtta olduğu gibi kalır.
+ */
 function runwayEnd(
   values: Record<string, string>,
   prefix: 'le' | 'he',
   opposite: LatLon | null,
   arp: LatLon,
   endsAreThresholds: boolean,
+  endUsable: boolean,
 ): RunwayEnd {
   const ident = text(values[`${prefix}_ident`])
   const latitudeDeg = number(values[`${prefix}_latitude_deg`], `${prefix}_latitude_deg`)
   const longitudeDeg = number(values[`${prefix}_longitude_deg`], `${prefix}_longitude_deg`)
-  const point = coordinate(latitudeDeg, longitudeDeg, `${prefix} ucu`)
+  const recorded = coordinate(latitudeDeg, longitudeDeg, `${prefix} ucu`)
+  const point = endUsable ? recorded : null
   const headingDegT = number(values[`${prefix}_heading_degT`], `${prefix}_heading_degT`)
   const displacedThresholdFt = number(
     values[`${prefix}_displaced_threshold_ft`],
@@ -349,11 +383,16 @@ export function parseRunways(
         'he ucu',
       )
       const lengthFt = number(values.length_ft, 'length_ft')
-      const separated = lePoint && hePoint ? endsAreSeparated(lePoint, hePoint, lengthFt) : false
+      // Uçlar kayıtlı uzunluğa göre çok uzaksa (D-101) ikisi de kullanılmaz: yön heading alanından,
+      // eşikler ARP'tan.
+      const endsUsable = !(lePoint && hePoint && endsAreTooFarApart(lePoint, hePoint, lengthFt))
+      const separated =
+        endsUsable && lePoint && hePoint ? endsAreSeparated(lePoint, hePoint, lengthFt) : false
       const displacedFt =
         (number(values.le_displaced_threshold_ft, 'le_displaced_threshold_ft') ?? 0) +
         (number(values.he_displaced_threshold_ft, 'he_displaced_threshold_ft') ?? 0)
-      const endsAreThresholds = endsLookLikeThresholds(lePoint, hePoint, lengthFt, displacedFt)
+      const endsAreThresholds =
+        endsUsable && endsLookLikeThresholds(lePoint, hePoint, lengthFt, displacedFt)
       const base = {
         id,
         airportId,
@@ -363,8 +402,8 @@ export function parseRunways(
         surface: text(values.surface),
         lighted: text(values.lighted) === '1',
         endsAreThresholds,
-        le: runwayEnd(values, 'le', separated ? hePoint : null, arp, endsAreThresholds),
-        he: runwayEnd(values, 'he', separated ? lePoint : null, arp, endsAreThresholds),
+        le: runwayEnd(values, 'le', separated ? hePoint : null, arp, endsAreThresholds, endsUsable),
+        he: runwayEnd(values, 'he', separated ? lePoint : null, arp, endsAreThresholds, endsUsable),
       }
       rows.push({ ...base, rowHash: rowHash(base) })
     } catch (error) {
