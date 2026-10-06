@@ -7,17 +7,17 @@
  *   OurAirports fixture'ına (2026-10-01 kopyası, tools/fixtures/README.md) uygulanır: içe aktarım
  *   süzgeci (`@havayolu/providers` `parseAirports`), kimlik sırası, Türkiye'deki uzaklık
  *   referansları ve halka seçimi (`@havayolu/db` `turkishReferencePoints`, `selectListedAirports`,
- *   `AIRPORT_RING_CONFIG`). Fixture Türkiye'nin bütün satırlarını ve açık halkaların (1.–3.) bütün
- *   yurt dışı adaylarını taşır: liste, üretimin kuralının bu kopyaya uygulanmış hâlidir (503 = 61 +
- *   75 + 89 + 278; `listedAirportPins`). Üretim OurAirports'u her gece yeniden içe aktarır
+ *   `AIRPORT_RING_CONFIG`). Fixture Türkiye'nin bütün satırlarını ve açık halkaların (1.–4.) bütün
+ *   yurt dışı adaylarını taşır: liste, üretimin kuralının bu kopyaya uygulanmış hâlidir (1.222 = 61
+ *   + 75 + 89 + 278 + 719; `listedAirportPins`). Üretim OurAirports'u her gece yeniden içe aktarır
  *   (`reference-import`); tarifeli sefer, tür, IATA kodu ya da konum değişirse üretimin listesi
  *   fixture'dan ayrılabilir. Bunu hiçbir test yakalamaz: kullanıcı iki listeyi elle karşılaştırır
  *   (ACTIVATION "Ülke adlarının engelleri"), ayrılık varsa fixture onayla tazelenir ve tablo yeniden
- *   üretilir. Halka açılınca (M6i) de fixture genişler ve tablo yeniden üretilir
+ *   üretilir. Halka açılınca da fixture genişler ve tablo yeniden üretilir (M6i.2, D-102)
  *   (airport-pins.test.ts açık halkayı denetler).
  * - **Haritadaki pinler** (`mapAirportPins`): liste, askerî hava üsleri (İncirlik, Afyon, Bandırma,
  *   Eskişehir, Çiğli) çıkarılarak: web onların pinini ve kodunu çizmez (D-103). Kural web
- *   haritasıyla ortaktır (`@havayolu/shared` `mapShownAirports`). Engeller bu 498 havalimanıdır
+ *   haritasıyla ortaktır (`@havayolu/shared` `mapShownAirports`). Engeller bu 1.217 havalimanıdır
  *   (Türkiye 56).
  * - **Pin:** bitmap kutusu (airport-pin.ts): 24 × 32 görünüm kutusu + her yana 3 birim pay; katman
  *   alt kenarı noktaya bağlar ve `icon-offset` ile 3 birim aşağı kaydırır (`AIRPORT_LAYER`; ofset
@@ -81,7 +81,7 @@ export const AIRPORT_CHIP_WIDTH = Math.ceil(
 export interface AirportPin {
   icao: string
   iata: string
-  /** Türkiye 0, yurt dışı açık halka (1–3). */
+  /** Türkiye 0, yurt dışı açık halka (1–4). */
   ring: number
   lat: number
   lon: number

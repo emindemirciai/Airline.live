@@ -235,7 +235,7 @@ describe('yerleşim tablosu (D-096, D-099)', { timeout: 60_000 }, () => {
       safetyKm: 2,
       clearMaxDelayZooms: CLEAR_MAX_DELAY_ZOOMS,
       crowdedMaxDelayZooms: CROWDED_MAX_DELAY_ZOOMS,
-      airportPins: 498,
+      airportPins: 1217,
       airportCodeMinZoom: 5,
       airportCodeSides: ['right', 'left'],
       capitalAnchored: ['CY'],
@@ -328,7 +328,7 @@ describe('yerleşim tablosu (D-096, D-099)', { timeout: 60_000 }, () => {
     }
   })
 
-  it('gecikme: boş yer için ad en çok 1,5 kademe geç belirir (İTALYA); 25 ülkede bir bileşim en erkenden geç', () => {
+  it('gecikme: boş yer için ad en çok 1,5 kademe geç belirir (İTALYA); 28 ülkede bir bileşim en erkenden geç', () => {
     const delays: Record<string, number> = {}
     for (const detail of result.details) {
       const delay = Math.max(
@@ -343,12 +343,14 @@ describe('yerleşim tablosu (D-096, D-099)', { timeout: 60_000 }, () => {
       AF: 0.25,
       AT: 0.5,
       BA: 0.75,
-      BE: 0.25,
+      BE: 0.75,
       BG: 0.5,
       CH: 0.5,
       CY: 0.5,
       DE: 0.75,
+      DK: 0.25,
       EG: 0.5,
+      ES: 0.25,
       GE: 0.75,
       GR: 0.5,
       HR: 0.5,
@@ -357,6 +359,7 @@ describe('yerleşim tablosu (D-096, D-099)', { timeout: 60_000 }, () => {
       IT: 1.5,
       JO: 0.25,
       KW: 0.25,
+      NL: 0.25,
       OM: 0.25,
       PL: 0.75,
       RO: 0.75,
@@ -484,7 +487,7 @@ describe('yerleşim tablosu (D-096, D-099)', { timeout: 60_000 }, () => {
     }
   })
 
-  it('görsel merkez: 10 ülkenin adı tam kutupta (TÜRKİYE dahil, D-103); çapanın kutba uzaklığı ortanca 27 km, en çok 478 km (UMMAN)', () => {
+  it('görsel merkez: 5 ülkenin adı tam kutupta (TÜRKİYE dahil, D-103); çapanın kutba uzaklığı ortanca 35 km, en çok 810 km (KAZAKİSTAN, 4. halka, D-102)', () => {
     const distances = result.details
       .filter((detail) => detail.kind !== 'hidden')
       .map((detail) => {
@@ -501,18 +504,13 @@ describe('yerleşim tablosu (D-096, D-099)', { timeout: 60_000 }, () => {
     expect(distances.filter(([, km]) => km === 0).map(([code]) => code)).toEqual([
       'AT',
       'CZ',
-      'DZ',
-      'ES',
-      'KZ',
       'RU',
-      'SD',
-      'SE',
       'TR',
       'UA',
     ])
-    expect(Math.round(distances[Math.floor(distances.length / 2)]?.[1] ?? NaN)).toBe(27)
+    expect(Math.round(distances[Math.floor(distances.length / 2)]?.[1] ?? NaN)).toBe(35)
     const [farthest, km] = distances.at(-1) ?? ['', NaN]
-    expect([farthest, Math.round(km)]).toEqual(['OM', 478])
+    expect([farthest, Math.round(km)]).toEqual(['KZ', 810])
   })
 
   it('örtüşme yok: bir bileşimde yazılan adların görünür kutuları her yakınlaştırmada ayrık', () => {
@@ -673,13 +671,15 @@ describe(
     // 39° K, 35° D merkezli 1280 × 660 geniş harita ve 375 × 600 dar harita, Türkçe.
     const centre = { lat: 39, lon: 35 }
 
-    it('geniş harita: z4’te 5, z4,5’te 4, z5’te 2 ad; dar haritada z5’te 2', () => {
+    it('geniş harita: z4’te 6, z4,5’te 4, z5’te 2 ad; dar haritada z5’te 2', () => {
       // D-096'da 8, 5, 3 ve 2'ydi: MISIR, LİBYA ve İRAN ülkelerinin ortasına, Türkiye görünümünün
       // dışına kaydı; İTALYA (z5,25), ROMANYA (z4,25) ve GÜRCİSTAN (z5,25) boş yer için geç belirir;
-      // TÜRKMENİSTAN z4'ten görünür.
+      // TÜRKMENİSTAN z4'ten görünür. 4. halkayla (D-102) KAZAKİSTAN Astana ve Karağandı'nın pinlerinden
+      // batıya, 58,2° D'ya kaydı ve z4'te geniş haritaya girer.
       expect(visibleCodes('tr', 'regular', centre, 4, 1280, 660)).toEqual([
         'IQ',
         'IR',
+        'KZ',
         'SY',
         'TM',
         'TR',
