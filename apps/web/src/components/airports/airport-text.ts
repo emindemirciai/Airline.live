@@ -232,18 +232,34 @@ export function airportDescription(
     : format(t.descriptionNoFacts, { name, place, live })
 }
 
+/**
+ * Önce `primary`, sonra ada, sonra ICAO'ya göre sayfanın dilinin alfabesiyle sıralar. Anahtarlar
+ * havalimanı başına bir kez hesaplanır (ad ve ülke tablo ve `Intl` aramasıdır): karşılaştırıcının
+ * içinde hesaplamak 4. halkanın 1.161 satırında sıralamayı ~10 kat yavaşlatıyordu (D-102).
+ */
+function sortByKeys(
+  airports: readonly AirportDetail[],
+  locale: Locale,
+  primary: (airport: AirportDetail) => string,
+): AirportDetail[] {
+  const collator = new Intl.Collator(INTL_LOCALE[locale])
+  return airports
+    .map((airport) => ({ airport, first: primary(airport), name: airportName(airport, locale) }))
+    .sort(
+      (a, b) =>
+        collator.compare(a.first, b.first) ||
+        collator.compare(a.name, b.name) ||
+        a.airport.icao.localeCompare(b.airport.icao),
+    )
+    .map((row) => row.airport)
+}
+
 /** Havalimanlarını ile, sonra ada göre sayfanın dilinin alfabesiyle sıralar. */
 export function sortByProvince(
   airports: readonly AirportDetail[],
   locale: Locale,
 ): AirportDetail[] {
-  const collator = new Intl.Collator(INTL_LOCALE[locale])
-  return airports.toSorted(
-    (a, b) =>
-      collator.compare(airportProvince(a, locale), airportProvince(b, locale)) ||
-      collator.compare(airportName(a, locale), airportName(b, locale)) ||
-      a.icao.localeCompare(b.icao),
-  )
+  return sortByKeys(airports, locale, (airport) => airportProvince(airport, locale))
 }
 
 /**
@@ -251,11 +267,5 @@ export function sortByProvince(
  * (Türkçe sayfada Türkçe sıralama; D-080).
  */
 export function sortByCountry(airports: readonly AirportDetail[], locale: Locale): AirportDetail[] {
-  const collator = new Intl.Collator(INTL_LOCALE[locale])
-  return airports.toSorted(
-    (a, b) =>
-      collator.compare(airportCountry(a, locale), airportCountry(b, locale)) ||
-      collator.compare(airportName(a, locale), airportName(b, locale)) ||
-      a.icao.localeCompare(b.icao),
-  )
+  return sortByKeys(airports, locale, (airport) => airportCountry(airport, locale))
 }

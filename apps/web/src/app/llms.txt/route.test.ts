@@ -155,6 +155,30 @@ describe('GET /llms.txt', () => {
     expect((await llms()).text).not.toContain(FOREIGN_HEADING)
   })
 
+  it('görünür pisti olmayan havalimanında pist notu yazılmaz ("0 pist" yok; D-101, D-102)', async () => {
+    // Taşkurgan'ın (ZWTK) kaynakta karşı ucu eksik tek pist satırı var: görünür pisti yoktur.
+    getAirports.mockResolvedValue([
+      ...AIRPORTS,
+      airportFixture({
+        icao: 'ZWTK',
+        iata: 'HQL',
+        name: 'Tashikuergan Hongqilafu Airport',
+        country: 'CN',
+        isoRegion: 'CN-65',
+        ring: 4,
+        distanceToTrKm: 2719,
+        runways: [],
+      }),
+    ])
+    const { text } = await llms()
+    expect(text.split('\n')).toContain(
+      `- [Taşkurgan Hongqilafu Havalimanı (HQL/ZWTK)](${HOST}/istasyon/ZWTK): Çin; Türkiye’ye uzaklık 2.719 km; English: [Tashikuergan Hongqilafu Airport](${HOST}/en/istasyon/ZWTK)`,
+    )
+    expect(text).not.toMatch(/\b0 pist/)
+    // Pisti olanlar yine sayıyla.
+    expect(text).toContain('; 2 pist; ')
+  })
+
   it('kodun doğrulamadığı "her hesaplanan değer tahmini etiketlidir" iddiasını taşımaz', async () => {
     const { text } = await llms()
     expect(text).not.toMatch(/“tahmini” etiketi|labelled “estimated”/)

@@ -1,4 +1,4 @@
-import { format, formatDistance, getMessages, NO_VALUE } from '@havayolu/i18n'
+import { format, formatCount, formatDistance, getMessages, NO_VALUE } from '@havayolu/i18n'
 import type { AirportDetail, Locale } from '@havayolu/shared'
 import Link from 'next/link'
 // Göreli yollar: vitest `@/` takma adını çözmez ve bu bileşen testte çizilir.
@@ -37,6 +37,17 @@ export interface AirportsViewProps {
 export function airportCounts(airports: readonly AirportDetail[]) {
   const { turkey, foreign } = splitByCountry(airports)
   return { count: turkey.length, foreign: foreign.length }
+}
+
+/**
+ * Sayıların metindeki yazımı, dilin binlik ayırıcısıyla ("1.161" / "1,161"; D-102): özet cümlesi ve
+ * sayfa açıklaması aynı biçimi kullanır.
+ */
+export function airportCountTexts(
+  counts: { count: number; foreign: number },
+  locale: Locale,
+): { count: string; foreign: string } {
+  return { count: formatCount(counts.count, locale), foreign: formatCount(counts.foreign, locale) }
 }
 
 /**
@@ -82,7 +93,9 @@ export function AirportsView({ locale, app, airports }: AirportsViewProps) {
       ) : (
         <>
           <p className="lead">
-            {counts.foreign > 0 ? format(t.summaryWithForeign, counts) : format(t.summary, counts)}
+            {counts.foreign > 0
+              ? format(t.summaryWithForeign, airportCountTexts(counts, locale))
+              : format(t.summary, airportCountTexts(counts, locale))}
           </p>
           {turkey.length > 0 ? (
             <section aria-labelledby="airports-turkey" className="airports-section">

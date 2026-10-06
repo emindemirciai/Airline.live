@@ -12,9 +12,10 @@ import {
 
 /**
  * Havalimanı adları haritanın ilk paketine girmez (D-101): ad tablolarını (`airportDisplayName`)
- * kullanan havalimanı penceresi ve "Havalimanları" paneli yalnız dinamik importla yüklenir; paylaşılan
- * tablolar `#__PURE__` işaretli kurulur (yardımcı çağrıları paketleyiciye yan etkili görünürdü).
- * `/` için First Load JS ölçümü önce/sonra plandadır (M6i.1).
+ * kullanan havalimanı penceresi ve "Havalimanları" paneli yalnız dinamik importla yüklenir. Yurt dışı
+ * ad ve şehir tabloları düz nesnedir (yardımcı çağrısı yok: Turbopack `#__PURE__` işaretli fonksiyonu
+ * satır içine alınca çağrıları yan etki diye tembel parçada bırakıyordu, D-102); yaymalı birleşik
+ * tablolar PURE işaretli fonksiyonda kurulur. `/` için First Load JS ölçümü plandadır (M6i.1).
  */
 const source = (path: string) => readFileSync(new URL(path, import.meta.url), 'utf8')
 
@@ -38,16 +39,12 @@ describe('ilk paket: havalimanı adları dinamik parçalarda (D-101)', () => {
     expect(source('./panels/airport-list-panel.tsx')).toContain('airportDisplayName')
   })
 
-  it('paylaşılan ad tabloları PURE işaretli fonksiyonda kurulur', () => {
+  it('paylaşılan ad tabloları düz nesne ya da PURE işaretli fonksiyonda kurulur', () => {
     const reference = '../../../../../packages/shared/src/reference/'
     const tr = source(`${reference}airport-names.ts`)
     const foreign = source(`${reference}foreign-airport-names.ts`)
     const ringFour = source(`${reference}foreign-airport-names-r4.ts`)
     expect(tr).toMatch(/export const AIRPORT_NAMES: [^=]+= \/\*#__PURE__\*\/ \(\(\) => \(\{/)
-    expect(foreign).toMatch(/const RING1_3_AIRPORT_CITIES: [^=]+= \/\*#__PURE__\*\/ \(\(\) => \(\{/)
-    expect(ringFour).toMatch(
-      /export const RING4_AIRPORT_CITIES: [^=]+= \/\*#__PURE__\*\/ \(\(\) => \(\{/,
-    )
     // Halkaların birleşik tabloları (D-102) da PURE işaretli fonksiyonda yayılır.
     for (const table of ['FOREIGN_AIRPORT_NAMES', 'FOREIGN_AIRPORT_CITIES']) {
       expect(foreign, table).toMatch(
@@ -56,9 +53,16 @@ describe('ilk paket: havalimanı adları dinamik parçalarda (D-101)', () => {
         ),
       )
     }
-    // Öbür tablolar düz nesnedir (çağrı yok): paketleyici kullanılmayınca atar.
+    // Halkaların ad ve şehir tabloları düz nesnedir (çağrı yok): paketleyici kullanılmayınca atar.
+    // Şehir tabloları D-101'de `city()` çağrılarıyla PURE fonksiyondaydı; Turbopack fonksiyonu satır
+    // içine alıp 1.161 çağrıyı (~27 KB) tembel parçada bırakıyordu (D-102).
     expect(foreign).toMatch(/const RING1_3_AIRPORT_NAMES: [^=]+= \{\n {2}[A-Z0-9]{4}: \{/)
     expect(ringFour).toMatch(/export const RING4_AIRPORT_NAMES: [^=]+= \{\n {2}[A-Z0-9]{4}: \{/)
+    expect(foreign).toMatch(/const RING1_3_AIRPORT_CITIES: [^=]+= \{\n {2}[A-Z0-9]{4}: \{ tr: /)
+    expect(ringFour).toMatch(
+      /export const RING4_AIRPORT_CITIES: [^=]+= \{\n {2}[A-Z0-9]{4}: \{ tr: /,
+    )
+    for (const text of [foreign, ringFour]) expect(text).not.toMatch(/\bcity\(/)
   })
 
   it('haritanın ilk paketindeki askerî üs kuralı ad tablolarını içe aktarmaz (D-102)', () => {

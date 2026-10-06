@@ -30,12 +30,17 @@ import { getServerEnv } from './env'
  *   gider (aynı anda gelen çizimler süren tek isteği paylaşır), gövde dakikada bir kez ayrıştırılır;
  *   çözülen istasyonlar o yanıtla birlikte bellekte kalır (aynı dakikadaki ikinci çizim yeniden
  *   çözmez). Web tek süreçtir; birden çok kopya çalışırsa her biri dakikada bir istek atar.
- * - METAR/TAF kaydı: `GET /v1/airports/<ICAO>/weather/history?hours=24`, Next veri önbelleği 15 dk
- *   (havalimanı başına ~70 KB). 503 sayfanın hepsi gezilse bile en kötü durumda dakikada ~34 istek
- *   eder (toplu istek ve liste ile ~36; 5 dk'lık önbellekle ~100/dk olurdu, D-090). Açık sekmedeki
+ * - METAR/TAF kaydı: `GET /v1/airports/<ICAO>/weather/history?hours=24`, Next veri önbelleği 30 dk
+ *   (havalimanı başına ~70 KB). 4. halkada 1.222 istasyonun sayfalarının hepsi gezilse ortalama
+ *   dakikada ~41 istek eder; web konteynerinin bu rotadaki kovası dakikada 60'tır (kova rota
+ *   başınadır; toplu istek ve liste ayrı kovalardadır). 15 dk'lık önbellekle ~81/dk olurdu (D-102;
+ *   3. halkada 503 sayfayla 15 dk ~34/dk, 5 dk ~100/dk, D-090). ~41 bir ortalamadır, tavan değil:
+ *   soğuk önbellekte (her yayından sonra) hızlı bir tarama yine dakikada 60'ı aşabilir; o sayfalar
+ *   sunucu çiziminde kayıtsız gelir, ada kaydı tarayıcıdan alır. Next süresi dolan kaydı sunar ve
+ *   arkada yeniler; 200 olmayan yanıtı (429) önbelleğe almaz, eldeki kaydı silmez. Açık sekmedeki
  *   ada kaydı tarayıcıdan (ziyaretçinin kendi hız sınırı kovasıyla) 5 dakikada bir tazeler; sunucu
- *   verisi 2 dakikadan eskiyse ada açılışta yeniler (`weather-client.ts`). METAR en sık 5 dakikada bir
- *   gelir.
+ *   verisi 2 dakikadan eskiyse ada açılışta yeniler (`weather-client.ts`): ziyaretçi 30 dk'lık
+ *   önbelleği görmez. METAR en sık 5 dakikada bir gelir.
  *
  * Hiçbir hata sayfaya taşınmaz: API ulaşılamazsa, yanıt bozuksa ya da süre dolarsa `null` döner ve
  * sayfa "Hava durumu şu an alınamıyor" der; sayfa hava durumu yüzünden 500 vermez. API ulaşılamazken
@@ -50,8 +55,11 @@ export const WEATHER_BULK_TTL_MS = 60_000
 export const WEATHER_BULK_RETRY_MS = 15_000
 /** API'ye ulaşılamazken eldeki toplu yanıtın en çok kullanılacağı yaş, ms. */
 export const WEATHER_BULK_MAX_STALE_MS = 10 * 60_000
-/** METAR/TAF kaydının Next veri önbelleği süresi, saniye (3. halkada 300 → 900, D-090). */
-export const WEATHER_HISTORY_REVALIDATE_S = 900
+/**
+ * METAR/TAF kaydının Next veri önbelleği süresi, saniye (3. halkada 300 → 900, D-090; 4. halkada
+ * 1.800, D-102: bütün sayfalar gezilse de ortalama, rotanın dakikada 60'lık kovasının altında kalır).
+ */
+export const WEATHER_HISTORY_REVALIDATE_S = 1800
 /** `revalidateTag` ile elle tazelemek için önbellek etiketi (METAR/TAF kaydı). */
 export const WEATHER_CACHE_TAG = 'weather'
 /** Hava durumu ikincil bilgidir: sayfa onu en fazla bu kadar bekler. */

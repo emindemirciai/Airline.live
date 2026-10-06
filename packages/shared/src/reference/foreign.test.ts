@@ -14,6 +14,7 @@ import {
   airportRing,
   airportRingLimitKm,
   COUNTRY_CAPITALS,
+  countryLabelText,
   countryName,
   ENABLED_AIRPORT_RING,
   FOREIGN_AIRPORT_CITIES,
@@ -381,10 +382,11 @@ describe('FOREIGN_AIRPORT_NAMES', () => {
           ] as const,
       )
       .filter(([, words]) => words.length > 0)
-    // Port Said, Port Sudan, Port Harcourt ve Port-Gentil şehrin; Saint-Exupéry kişinin,
-    // Saint-Jacques ve St. Gallen yerin adıdır; City aynı şehrin havalimanlarını ayıran tek addır
-    // (London City; Port Harcourt City, öbür havalimanı DNPO).
+    // Port Said, Port Sudan, Port Harcourt, Port-Gentil ve Benin City şehrin; Saint-Exupéry
+    // kişinin, Saint-Jacques ve St. Gallen yerin adıdır; City aynı şehrin havalimanlarını ayıran
+    // tek addır (London City; Port Harcourt City, öbür havalimanı DNPO).
     expect(Object.fromEntries(found)).toEqual({
+      DNBE: ['City'],
       DNPM: ['Port', 'City'],
       DNPO: ['Port'],
       EGLC: ['City'],
@@ -752,6 +754,23 @@ describe('ülke adları', () => {
     expect(countryName('BY', 'en')).toBe('Belarus')
     expect(countryName('NL', 'tr')).toBe('Hollanda')
     expect(countryName('UZ', 'tr')).toBe('Özbekistan')
+  })
+
+  it('countryName: CLDR kısa biçimi yerine istisna tablosu (4. halka, D-102)', () => {
+    // CLDR: "Kongo - Kinşasa" / "Congo - Kinshasa", "Kongo - Brazavil", Türkçede "Côte d’Ivoire".
+    expect(countryName('CD', 'tr')).toBe('Kongo Demokratik Cumhuriyeti')
+    expect(countryName('CD', 'en')).toBe('Democratic Republic of the Congo')
+    expect(countryName(' cg ', 'tr')).toBe('Kongo Cumhuriyeti')
+    expect(countryName('CG', 'en')).toBe('Republic of the Congo')
+    expect(countryName('CI', 'tr')).toBe('Fildişi Sahili')
+    expect(countryName('CI', 'en')).toBe('Côte d’Ivoire')
+    expect(countryLabelText('CD', 'tr')).toBe('KONGO DEMOKRATİK CUMHURİYETİ')
+    expect(airportCountryName({ icao: 'FZAA', country: 'CD' }, 'tr')).toBe(
+      'Kongo Demokratik Cumhuriyeti',
+    )
+    // Öbür 4. halka ülkeleri CLDR adıyla.
+    expect(countryName('BJ', 'tr')).toBe('Benin')
+    expect(countryName('GB', 'tr')).toBe('Birleşik Krallık')
   })
 
   it("fixture'daki açık halkaların ülkelerinin hepsi Intl'de adlandırılır (4. halkayla 113)", () => {

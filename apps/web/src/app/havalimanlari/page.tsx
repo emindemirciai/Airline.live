@@ -1,6 +1,11 @@
 import { format, getMessages } from '@havayolu/i18n'
 import type { Metadata } from 'next'
-import { AirportsView, airportCounts, listedAirportRows } from '@/components/airports/airports-view'
+import {
+  AirportsView,
+  airportCounts,
+  airportCountTexts,
+  listedAirportRows,
+} from '@/components/airports/airports-view'
 import { airportName } from '@/components/airports/airport-text'
 import { AIRPORTS_PATH, airportsCrumbs, crumbsForJsonLd } from '@/components/airports/crumbs'
 import { JsonLd } from '@/components/json-ld'
@@ -16,14 +21,15 @@ export async function generateMetadata(): Promise<Metadata> {
   const locale = await getLocale()
   const t = getMessages(locale).seo.airports
   const counts = airportCounts(await getAirports())
+  const shown = airportCountTexts(counts, locale)
   return pageMetadata({
     locale,
     path: AIRPORTS_PATH,
     title: t.title,
     description:
       counts.foreign > 0
-        ? format(t.descriptionWithForeign, counts)
-        : format(t.description, { count: counts.count }),
+        ? format(t.descriptionWithForeign, shown)
+        : format(t.description, { count: shown.count }),
   })
 }
 

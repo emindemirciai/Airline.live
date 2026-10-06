@@ -3,7 +3,7 @@ import type { Locale, LocalizedText } from '../locale'
 /**
  * Ülke adları (D-080). ISO 3166-1 alpha-2 kodunun adı `Intl.DisplayNames` (`type: 'region'`) ile
  * sayfanın dilinde yazılır: GR → "Yunanistan" / "Greece". Kod tablosu tutulmaz; ad tarayıcının ve
- * Node'un CLDR verisinden gelir. Üç ayrım vardır:
+ * Node'un CLDR verisinden gelir. Dört ayrım vardır:
  * - XK (Kosova) ISO 3166-1'de kullanıcı tanımlı bir koddur; `Intl` adını bilmiyorsa (kodu geri
  *   verirse) "Kosova" / "Kosovo" yazılır.
  * - Ercan (LCEN): OurAirports ülkesi CY'dir; kullanıcı kararıyla (2026-10-02) KKTC olarak
@@ -13,12 +13,26 @@ import type { Locale, LocalizedText } from '../locale'
  * - İngilizce CLDR adlarındaki "&" yazıda "and" olur (D-088): "Bosnia & Herzegovina" →
  *   "Bosnia and Herzegovina" (Birleşik Krallık hükümeti ve BM yazımı; sonraki halkalarda "Trinidad &
  *   Tobago", "Antigua & Barbuda" de aynı kurala girer). Türkçe adlar değişmez ("Bosna-Hersek").
+ * - CLDR'nin kısa biçimi okunmuyorsa kısa bir istisna tablosu (`COUNTRY_NAME_OVERRIDES`, D-102) önce
+ *   gelir: iki Kongo'nun CLDR adı başkenti yineler ("Kongo - Kinşasa": sayfada "Kinşasa, Kongo -
+ *   Kinşasa"), Fildişi Sahili Türkçede de Fransızca yazılırdı ("Côte d’Ivoire").
  */
 
 const INTL_LOCALE: Record<Locale, string> = { tr: 'tr-TR', en: 'en-GB' }
 
 /** ISO 3166-1 alpha-2 biçimi. */
 const COUNTRY_CODE = /^[A-Z]{2}$/
+
+/**
+ * CLDR adı yerine yazılan ülke adları (D-102): Kongo Demokratik Cumhuriyeti ve Kongo Cumhuriyeti
+ * resmî adlarıyla (CLDR kısa biçimi "Kongo - Kinşasa" / "Congo - Brazzaville"), Fildişi Sahili
+ * Türkçede yerleşik adıyla (İngilizcede CLDR yazımı kalır).
+ */
+const COUNTRY_NAME_OVERRIDES: Readonly<Record<string, LocalizedText>> = {
+  CD: { tr: 'Kongo Demokratik Cumhuriyeti', en: 'Democratic Republic of the Congo' },
+  CG: { tr: 'Kongo Cumhuriyeti', en: 'Republic of the Congo' },
+  CI: { tr: 'Fildişi Sahili', en: 'Côte d’Ivoire' },
+}
 
 /** `Intl`'in bilmeyebileceği kullanıcı tanımlı kodlar. */
 const FALLBACK_COUNTRY_NAMES: Readonly<Record<string, LocalizedText>> = {
@@ -55,12 +69,17 @@ function regionNames(locale: Locale): Intl.DisplayNames {
 
 /**
  * ISO 3166-1 alpha-2 kodunun adı, verilen dilde ("GR" → "Yunanistan" / "Greece"). Kod kırpılıp
- * büyük harfe çevrilir. Ad bilinmiyorsa ya da kod biçimsizse kodun kendisi döner (boş kodda boş
- * metin): ülke satırı hiçbir zaman düşmez.
+ * büyük harfe çevrilir. İstisna tablosu (`COUNTRY_NAME_OVERRIDES`) `Intl`'den önce gelir. Ad
+ * bilinmiyorsa ya da kod biçimsizse kodun kendisi döner (boş kodda boş metin): ülke satırı hiçbir
+ * zaman düşmez.
  */
 export function countryName(code: string, locale: Locale): string {
   const normalized = code.trim().toUpperCase()
   if (!COUNTRY_CODE.test(normalized)) return normalized
+  const override = Object.hasOwn(COUNTRY_NAME_OVERRIDES, normalized)
+    ? COUNTRY_NAME_OVERRIDES[normalized]
+    : undefined
+  if (override !== undefined) return override[locale]
   let name: string | undefined
   try {
     name = regionNames(locale).of(normalized)

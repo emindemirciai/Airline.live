@@ -80,6 +80,7 @@ export interface BreadcrumbItem {
 
 /** Görünür içerik yolu (breadcrumb) ile aynı sırada `BreadcrumbList`; konumlar 1'den başlar. */
 export function breadcrumbList(items: readonly BreadcrumbItem[], id?: string): JsonLdNode {
+  const base = siteUrl()
   return {
     '@type': 'BreadcrumbList',
     ...(id ? { '@id': id } : {}),
@@ -87,7 +88,7 @@ export function breadcrumbList(items: readonly BreadcrumbItem[], id?: string): J
       '@type': 'ListItem',
       position: index + 1,
       name: item.name,
-      item: absoluteUrl(item.url),
+      item: absoluteUrl(item.url, base),
     })),
   }
 }
@@ -195,8 +196,13 @@ export interface ItemListEntry {
   url: string
 }
 
-/** Liste sayfası (`/havalimanlari`) için `ItemList`; sıra görünür tablodaki sıradır. */
+/**
+ * Liste sayfası (`/havalimanlari`) için `ItemList`; sıra görünür tablodaki sıradır. Sitenin adresi
+ * bir kez okunur: `siteUrl()` her çağrıda ortam değişkenlerini zod ile doğrular ve 4. halkada 1.222
+ * satırda bu, her çizimde yüzlerce ms tutuyordu (D-102).
+ */
 export function itemList(entries: readonly ItemListEntry[]): JsonLdNode {
+  const base = siteUrl()
   return {
     '@type': 'ItemList',
     numberOfItems: entries.length,
@@ -204,7 +210,7 @@ export function itemList(entries: readonly ItemListEntry[]): JsonLdNode {
       '@type': 'ListItem',
       position: index + 1,
       name: entry.name,
-      url: absoluteUrl(entry.url),
+      url: absoluteUrl(entry.url, base),
     })),
   }
 }

@@ -166,6 +166,32 @@ describe('getAirports', () => {
     expect((await getAirport(' ltfj '))?.iata).toBe('SAW')
     expect(await getAirport('ZZZZ')).toBeUndefined()
   })
+
+  it('aynı gövde bir kez ayrıştırılır; gövde değişince yeniden (D-102)', async () => {
+    const parse = vi.spyOn(JSON, 'parse')
+    try {
+      const calls = stubFetch(
+        { scope: 'listed', airports: [LTFM, LGTS] },
+        { scope: 'listed', airports: [LTFM, LGTS] },
+        { scope: 'listed', airports: [LTFM] },
+      )
+      const first = await getAirports()
+      const second = await getAirports()
+      expect(calls).toHaveLength(2)
+      // Next'in veri önbelleği aynı gövdeyi verdi: JSON ve zod yeniden çalışmaz, dizi aynıdır.
+      expect(second).toBe(first)
+      expect(parse).toHaveBeenCalledTimes(1)
+      const third = await getAirports()
+      expect(third).not.toBe(first)
+      expect(third.map((a) => a.icao)).toEqual(['LTFM'])
+      expect(parse).toHaveBeenCalledTimes(2)
+    } finally {
+      parse.mockRestore()
+    }
+    // Bellekte liste varken bozuk zarf yine hata fırlatır.
+    stubFetch({ airports: 'none' })
+    await expect(getAirports()).rejects.toThrow('unexpected shape')
+  })
 })
 
 describe('resolveAirportCode', () => {

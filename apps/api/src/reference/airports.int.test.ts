@@ -108,7 +108,7 @@ afterAll(async () => {
 })
 
 describe('GET /v1/airports (gerçek PostgreSQL)', () => {
-  it('scope=listed: Türkiye ve 1. halkadaki yurt dışı adayı; pistli liste aynı sırada', async () => {
+  it('scope=listed: Türkiye ve 1.–4. halkadaki yurt dışı adayları; pistli liste aynı sırada', async () => {
     const { app } = await testApp({
       deps: {
         airports: {
@@ -128,6 +128,8 @@ describe('GET /v1/airports (gerçek PostgreSQL)', () => {
         ['AXD', 'LGAL', 'GR', 1],
         ['IGL', 'LTBL', 'TR', 0],
         ['IST', 'LTFM', 'TR', 0],
+        // Londra 4. halkada (LTFM'ye 2.489 km); M6i.2'den (D-102) beri açık halkadadır.
+        ['LHR', 'EGLL', 'GB', 4],
         ['SAW', 'LTFJ', 'TR', 0],
       ])
       expect(body.airports[0]?.distanceToTrKm).toBe(238)

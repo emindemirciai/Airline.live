@@ -6,7 +6,10 @@ import { airportOgContent, renderAirportOgPng, type AirportOgContent } from './a
 vi.mock('server-only', () => ({}))
 
 const AIRPORTS = fixtureTurkishAirports()
-/** Türkiye dışındaki listelenen havalimanları (1.–3. halka; D-080, D-088, D-090). */
+/**
+ * Türkiye dışındaki listelenen havalimanları (açık halkalar, bugün 1.–4. halka; D-080, D-088, D-090,
+ * D-102).
+ */
 const FOREIGN = fixtureListedAirports().filter((a) => a.country !== 'TR')
 
 /** PNG imzası ve IHDR'deki genişlik/yükseklik. */

@@ -18,9 +18,10 @@ import type { LocalizedText } from '../locale'
  *   Hollanda yalnızca Avrupa'daki toprağıyla; Sırbistan Kosova'sız; Kıbrıs adanın tamamıyla. Ad
  *   boyunu (kademe) ve katmanlardaki sırayı belirler.
  *
- * Kapsam: listelenen havalimanı olan her ülke (Türkiye ve açık halkalar, `ENABLED_AIRPORT_RING`),
- * İsrail hariç; artı "boşluk" ülkesi Ukrayna (`HOLE_COUNTRIES`). Yeni halka açılınca kapsam testi
- * kırılır ve yeni ülkelerin başkentleri buraya eklenir.
+ * Kapsam: 3. halkaya kadar (≤ 2.000 km) listelenen havalimanı olan her ülke ve Türkiye,
+ * `UNLABELLED_COUNTRIES` hariç; artı "boşluk" ülkesi Ukrayna (`HOLE_COUNTRIES`). 4. halkanın 55
+ * ülkesinin adı ve başkenti D-100 ile gelir (D-102); o zamana kadar kapsam testi
+ * `LABELLED_RING = 3`'e bağlıdır.
  */
 export interface CountryCapital {
   code: string
@@ -111,10 +112,10 @@ export const COUNTRY_CAPITALS: readonly CountryCapital[] = [
 export const UNLABELLED_COUNTRIES: readonly string[] = ['IL', 'PS']
 
 /**
- * Listelenen havalimanı olmadığı hâlde adı yazılan ülkeler (boşluk kuralı, D-095): başkenti açık
- * halkaların içinde (Türkiye'deki en yakın IATA kodlu havalimanına ≤ 2.000 km), bütün kara
- * komşuları adlandırılmış ve 1.000 km²'den büyük. Bugün yalnızca Ukrayna (OurAirports'ta hiçbir havalimanında
- * tarifeli sefer kayıtlı değil).
+ * Listelenen havalimanı olmadığı hâlde adı yazılan ülkeler (boşluk kuralı, D-095): başkenti adı
+ * yazılan halkaların içinde (3. halka: Türkiye'deki en yakın IATA kodlu havalimanına ≤ 2.000 km),
+ * bütün kara komşuları adlandırılmış ve 1.000 km²'den büyük. Bugün yalnızca Ukrayna (OurAirports'ta
+ * hiçbir havalimanında tarifeli sefer kayıtlı değil).
  */
 export const HOLE_COUNTRIES: readonly string[] = ['UA']
 

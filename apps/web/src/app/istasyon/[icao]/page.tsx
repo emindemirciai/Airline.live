@@ -31,7 +31,7 @@ import {
 interface LoadedAirport {
   locale: Locale
   airport: AirportDetail
-  airports: AirportDetail[]
+  airports: readonly AirportDetail[]
 }
 
 /**

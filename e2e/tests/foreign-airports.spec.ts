@@ -742,8 +742,8 @@ test.describe('harita: Türkiye dışındaki havalimanı', () => {
     const loadedFrom = Date.now()
     await page.goto(`/?havalimani=${RING4_AIRPORT.icao}`)
     await waitForMap(page)
-    // Harita Londra'dadır: görünümün ortasına en yakın havalimanı LHR (London City ~22 km, Gatwick
-    // ~40 km uzakta).
+    // Harita Londra'dadır: görünümün ortasına en yakın havalimanı LHR (London City ~36 km, Gatwick
+    // ~41 km uzakta).
     await expect
       .poll(async () => (await airportListCodes(page))[0], { timeout: 30_000 })
       .toBe(RING4_AIRPORT.iata)
@@ -767,8 +767,19 @@ test.describe('harita: Türkiye dışındaki havalimanı', () => {
   })
 })
 
+test.describe('yerel saat yardımcısı', () => {
+  test('zoneClocks: Londra kışın "UTC" (fark yazılmaz), yazın "UTC+1"; Atina "UTC+2/+3" (D-102)', () => {
+    const at = (iso: string) => Date.parse(iso)
+    const once = (timeZone: string, iso: string) => zoneClocks(timeZone, at(iso), at(iso))
+    expect(once('Europe/London', '2026-12-06T09:05:00Z')).toEqual(['09:05 (UTC)'])
+    expect(once('Europe/London', '2026-07-06T09:05:00Z')).toEqual(['10:05 (UTC+1)'])
+    expect(once('Europe/Athens', '2026-12-06T09:05:00Z')).toEqual(['11:05 (UTC+2)'])
+    expect(once('Europe/Athens', '2026-07-06T09:05:00Z')).toEqual(['12:05 (UTC+3)'])
+  })
+})
+
 /**
- * Dilimin (Atina, Kahire) `from`'dan şimdiye her dakikadaki yerel saati ve UTC farkı ("23:05
+ * Dilimin (Atina, Kahire, Londra) `from`'dan şimdiye her dakikadaki yerel saati ve UTC farkı ("23:05
  * (UTC+2)"), Node'un `Intl`'iyle. Fark koda gömülmez: test yaz saati (UTC+3) ve kış saati (UTC+2)
  * günlerinde, geçiş anında (Atina 25 Ekim 2026 01:00 UTC, Kahire 29 Ekim 2026 21:00 UTC) bile aynı
  * biçimde deterministiktir.
@@ -784,7 +795,10 @@ function zoneClocks(timeZone: string, from: number, to: number): string[] {
   const values = new Set<string>()
   for (let at = from - (from % 60_000); at <= to; at += 60_000) {
     const parts = new Map(format.formatToParts(at).map((part) => [part.type, part.value]))
-    const offset = (parts.get('timeZoneName') ?? '').replace('GMT', 'UTC')
+    // ICU 78 sıfır farkı "GMT+0" yazar (eski sürümler "GMT"); sayfa "UTC" yazar (`utcOffsetLabel(0)`).
+    const offset = (parts.get('timeZoneName') ?? '')
+      .replace(/^GMT(?:[+-]0)?$/, 'UTC')
+      .replace('GMT', 'UTC')
     values.add(`${parts.get('hour')}:${parts.get('minute')} (${offset})`)
   }
   return [...values]

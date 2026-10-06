@@ -239,12 +239,15 @@ describe('getWeather', () => {
 })
 
 describe('getWeatherHistory', () => {
-  it('15 dk önbellek (D-090); geçersiz kodda istek atılmaz; hata null', async () => {
+  it('30 dk önbellek (D-102; 3. halkada 15 dk, D-090); geçersiz kodda istek atılmaz; hata null', async () => {
     const { getWeatherHistory } = await freshWeatherModule()
-    expect(WEATHER_HISTORY_REVALIDATE_S).toBe(900)
+    expect(WEATHER_HISTORY_REVALIDATE_S).toBe(1800)
+    // 1.222 istasyonun hepsi önbellek süresi içinde gezilirse dakikada en çok ~41 istek: web
+    // konteynerinin bu rotadaki kovası (dakikada 60) aşılmaz.
+    expect(Math.ceil(1_222 / (WEATHER_HISTORY_REVALIDATE_S / 60))).toBeLessThan(60)
     const calls = stubFetch(json(fixtureHistory('LTFM')))
     expect((await getWeatherHistory('LTFM'))?.icao).toBe('LTFM')
-    expect(calls[0]?.init.next).toEqual({ revalidate: 900, tags: [WEATHER_CACHE_TAG] })
+    expect(calls[0]?.init.next).toEqual({ revalidate: 1800, tags: [WEATHER_CACHE_TAG] })
     expect(await getWeatherHistory('ltfm')).toBeNull()
     expect(await getWeatherHistory('../x')).toBeNull()
     expect(calls).toHaveLength(1)

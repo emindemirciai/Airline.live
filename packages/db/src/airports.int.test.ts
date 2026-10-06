@@ -27,7 +27,7 @@ const airportsFixture = fileURLToPath(
 )
 
 /**
- * 1. halka açık (M6d'nin ayarı; bugünkü `@havayolu/shared` `AIRPORT_RING_CONFIG` 3. halkadır, D-090).
+ * 1. halka açık (M6d'nin ayarı; bugünkü `@havayolu/shared` `AIRPORT_RING_CONFIG` 4. halkadır, D-102).
  * Testler 1. halkayı sabit tutar; 2., 3. ve 4. halka ayrı durumlarda (`enabledRing: 2`, `3`, `4`)
  * denetlenir.
  */

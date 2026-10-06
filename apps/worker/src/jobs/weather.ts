@@ -183,8 +183,9 @@ export type WeatherRunResult =
       truncated: boolean
       /**
        * Kaynağa atılan istek sayısı (AWC istemcisi grupları ve 400 kayıt sınırındaki bölünmeleri
-       * sayar; fixture 0). Çalışma günlüğünde görünür: 3. halkada olağan METAR 7, TAF 3 istektir
-       * (D-090); 4. halkanın ilk METAR çalışması ~133 (D-101).
+       * sayar; fixture 0). Çalışma günlüğünde görünür: 4. halkada (1.222 istasyon) olağan METAR 16,
+       * TAF 7 istektir (D-102; 3. halkada 7 ve 3, D-090); 4. halkanın yayından sonraki ilk METAR
+       * çalışması ~133 (D-101, D-102).
        */
       requests: number
       written: WeatherUpsertCounts
