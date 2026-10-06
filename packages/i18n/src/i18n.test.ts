@@ -1,3 +1,4 @@
+import { RUNWAY_SURFACE_KEYS } from '@havayolu/shared'
 import { describe, expect, it } from 'vitest'
 import {
   format,
@@ -61,6 +62,17 @@ describe('i18n', () => {
       (path) => placeholders(valueAt(tr, path)).join() !== placeholders(valueAt(en, path)).join(),
     )
     expect(mismatched).toEqual([])
+  })
+
+  it('pist kaplaması: her `RUNWAY_SURFACE_KEYS` anahtarının iki dilde metni var, fazlası yok', () => {
+    for (const locale of ['tr', 'en'] as const) {
+      expect(Object.keys(getMessages(locale).surface).sort(), locale).toEqual(
+        [...RUNWAY_SURFACE_KEYS].sort(),
+      )
+    }
+    // Kum (4. halka, D-101): Barra'nın (EGPR) kumsal pisti, Bosaso (HCMF).
+    expect(getMessages('tr').surface.sand).toBe('Kum')
+    expect(getMessages('en').surface.sand).toBe('Sand')
   })
 
   it('haritanın spesifikasyonda sabitlenen Türkçe metinleri değişmez', () => {

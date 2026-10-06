@@ -16,6 +16,8 @@ export const RUNWAY_SURFACE_KEYS = [
   /** Sıkıştırılmamış toprak zemin. */
   'dirt',
   'gravel',
+  /** Kum (4. halka, D-101): Barra'nın (EGPR) kumsal pisti, Bosaso (HCMF). */
+  'sand',
   'water',
   'unknown',
 ] as const
@@ -26,6 +28,11 @@ const SURFACE_CODES: Readonly<Record<string, RunwaySurfaceKey>> = {
   ASP: 'asphalt',
   ASPH: 'asphalt',
   ASPHALT: 'asphalt',
+  // 4. halka (D-101): bitüm ve makadam asfalt kaplamadır (Hindistan, İskandinavya, Afrika).
+  BIT: 'asphalt',
+  BITUM: 'asphalt',
+  MAC: 'asphalt',
+  MACADAM: 'asphalt',
   CON: 'concrete',
   CONC: 'concrete',
   CONCRETE: 'concrete',
@@ -40,7 +47,13 @@ const SURFACE_CODES: Readonly<Record<string, RunwaySurfaceKey>> = {
   'CONC-ASPH': 'mixed',
   'ASPH/CONC': 'mixed',
   'CONC/ASPH': 'mixed',
+  // 4. halka (D-101): bileşik kaplama.
+  COM: 'mixed',
+  COMPOSITE: 'mixed',
   PER: 'paved',
+  // 4. halka (D-101): türü yazılmamış sert ya da kaplamalı yüzey.
+  HARD: 'paved',
+  PAVED: 'paved',
   GRS: 'grass',
   GRASS: 'grass',
   // Rzeszów'ün (EPRZ) acil iniş şeridi; D-090.
@@ -48,9 +61,16 @@ const SURFACE_CODES: Readonly<Record<string, RunwaySurfaceKey>> = {
   TURF: 'grass',
   GROUND: 'dirt',
   DIRT: 'dirt',
+  // 4. halka (D-101): kaplamasız zemin.
+  UNPAVED: 'dirt',
   GRE: 'gravel',
   GVL: 'gravel',
   GRAVEL: 'gravel',
+  // 4. halka (D-101): sıkıştırılmış kırma taş ve laterit (Afrika'nın kırmızı toprak pistleri).
+  'GRADED HARDCORE': 'gravel',
+  LAT: 'gravel',
+  SAN: 'sand',
+  SAND: 'sand',
   WATER: 'water',
   UNK: 'unknown',
 }

@@ -1,9 +1,11 @@
+import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import {
   cleanAirportName,
   greatCircleKm,
   HIDDEN_RUNWAY_IDS,
   isHiddenRunway,
+  MIN_RUNWAY_LENGTH_FT,
   nearestDistanceKm,
   nearestReference,
   OURAIRPORTS_ICAO_CORRECTIONS,
@@ -15,6 +17,7 @@ import {
   turkishReferencePoints,
   type AirportDetailSourceRow,
   type AirportSourceRow,
+  type ListingContext,
   type RingContext,
   type RunwaySourceRow,
   type StationSourceRow,
@@ -490,6 +493,25 @@ describe('yurt dışı kayıtları', () => {
     ])
   })
 
+  it('selectListedAirports: yurt dışı adayının kanonik ICAO’su dört karakter (D-101)', () => {
+    const rows = [
+      // ICAO, GPS kodu ve ident yedekleri; küçük harf ve boşluk kanonik koda düzelir.
+      foreign({ id: 1, ident: 'LGAV', icaoCode: ' lgav ', gpsCode: null, iataCode: 'ATH' }),
+      foreign({ id: 2, ident: 'GR-0001', icaoCode: null, gpsCode: 'LGKO', iataCode: 'KGS' }),
+      foreign({ id: 3, ident: 'LGRP', icaoCode: null, gpsCode: null, iataCode: 'RHO' }),
+      // Kihihi (UG-0002): icao_code ve gps_code yok, kimlik ident'tir; listeye girmez.
+      foreign({ id: 4, ident: 'UG-0002', icaoCode: null, gpsCode: null, iataCode: 'KHX' }),
+      foreign({ id: 5, ident: 'GR-0002', icaoCode: 'LGX', gpsCode: null, iataCode: 'XXA' }),
+      foreign({ id: 6, ident: 'GR-0003', icaoCode: null, gpsCode: 'LGXYZ', iataCode: 'XXB' }),
+      // Türkiye satırına ICAO koşulu uygulanmaz (liste kuralı, D-080).
+      row({ id: 7, ident: 'TR-0042', icaoCode: null, gpsCode: null, iataCode: 'TRX' }),
+    ]
+    const selected = selectListedAirports(rows, { ...EQUATOR, enabledRing: 5 })
+    expect(selected.map((a) => a.icao).sort()).toEqual(['LGAV', 'LGKO', 'LGRP', 'TR-0042'])
+    // Ülke listesi (`toListedAirports`, `?country=UG`) ICAO koşulunu uygulamaz.
+    expect(toListedAirports(rows, EQUATOR).map((a) => a.icao)).toContain('UG-0002')
+  })
+
   it('toAirportDetails: yurt dışı kaydı ülke, halka, uzaklık ve uzaklığın ölçüldüğü Türkiye havalimanını taşır', () => {
     const [detail] = toAirportDetails(
       [
@@ -591,7 +613,7 @@ describe('kaynak düzeltmeleri (D-088)', () => {
       Object.keys(HIDDEN_RUNWAY_IDS)
         .map(Number)
         .sort((a, b) => a - b),
-    ).toEqual([260339, 260408, 504922, 608245])
+    ).toEqual([260310, 260338, 260339, 260344, 260408, 504922, 608245])
     const taba = detailRow({
       id: 3150,
       ident: 'HETB',
@@ -601,7 +623,7 @@ describe('kaynak düzeltmeleri (D-088)', () => {
       isoCountry: 'EG',
       isoRegion: 'EG-JS',
     })
-    const real = runwayRow({ id: 260338, airportId: 3150, leIdent: '04L', heIdent: '22R' })
+    const real = runwayRow({ id: 235597, airportId: 3150, leIdent: '04L', heIdent: '22R' })
     const ghost = runwayRow({
       id: 260339,
       airportId: 3150,
@@ -622,7 +644,7 @@ describe('kaynak düzeltmeleri (D-088)', () => {
     expect(isHiddenRunway(ghost)).toBe(true)
     expect(isHiddenRunway(real)).toBe(false)
     const [detail] = withDetails([taba], [real, ghost], [])
-    expect(detail?.runways.map((r) => r.id)).toEqual([260338])
+    expect(detail?.runways.map((r) => r.id)).toEqual([235597])
     // Kaynak satırı doldurursa (uzunluk ya da genişlik), pist yeniden görünür.
     const filled = { ...ghost, lengthFt: 13_123 }
     expect(isHiddenRunway(filled)).toBe(false)
@@ -681,5 +703,216 @@ describe('kaynak düzeltmeleri (D-088)', () => {
     expect(isHiddenRunway(empty(608245, '18', '36'))).toBe(true)
     expect(isHiddenRunway(empty(504922, '07H', '25H'))).toBe(true)
     expect(isHiddenRunway({ ...empty(608245, '18', '36'), lengthFt: 3000 })).toBe(false)
+  })
+})
+
+describe('4. halka pist kuralları (D-101)', () => {
+  it('Hassi Messaoud 01/19, Beauvais 13R/31L ve Bujumbura 02/20 boş satırları gizli', () => {
+    const empty = (id: number, le: string, he: string) =>
+      runwayRow({
+        id,
+        lengthFt: null,
+        widthFt: null,
+        surface: 'UNK',
+        lighted: false,
+        leIdent: le,
+        heIdent: he,
+        leTrueBearingDeg: null,
+        heTrueBearingDeg: null,
+      })
+    for (const [id, le, he] of [
+      [260338, '01', '19'],
+      [260344, '13R', '31L'],
+      [260310, '02', '20'],
+    ] as const) {
+      expect(isHiddenRunway(empty(id, le, he)), String(id)).toBe(true)
+      expect(isHiddenRunway({ ...empty(id, le, he), widthFt: 148 }), String(id)).toBe(false)
+    }
+  })
+
+  it('100 ft’ten kısa kayıtlı uzunluk pist değildir (Pamplona 03/21, 2 ft); uzunluğu bilinmeyen satır bu kuralla gizlenmez', () => {
+    expect(MIN_RUNWAY_LENGTH_FT).toBe(100)
+    const pamplona = runwayRow({
+      id: 260341,
+      lengthFt: 2,
+      widthFt: null,
+      surface: 'UNK',
+      leIdent: '03',
+      heIdent: '21',
+    })
+    expect(isHiddenRunway(pamplona)).toBe(true)
+    expect(isHiddenRunway({ ...pamplona, lengthFt: 99 })).toBe(true)
+    expect(isHiddenRunway({ ...pamplona, lengthFt: 100 })).toBe(false)
+    expect(isHiddenRunway({ ...pamplona, lengthFt: null })).toBe(false)
+    // Bovanenkovo'nun (USDB) 722 ft'lik iki uçlu helikopter şeridi pisttir.
+    expect(
+      isHiddenRunway(runwayRow({ id: 526934, lengthFt: 722, leIdent: '10H', heIdent: '28H' })),
+    ).toBe(false)
+  })
+})
+
+/**
+ * Commit'li OurAirports fixture'ı (tools/fixtures/README.md): Türkiye, sekiz uzak havalimanı ve
+ * 1.–4. halka. İçe aktarım süzgeci (data-sources.md §3) uygulanır; pistlerden kapalılar alınmaz.
+ */
+const FIXTURE_DIR = new URL('../../../tools/fixtures/ourairports/', import.meta.url)
+
+/** RFC 4180 CSV (bütün alanlar tırnaklı, `""` kaçışlı tırnak). */
+function readFixtureCsv(name: string): Map<string, string>[] {
+  const text = readFileSync(new URL(name, FIXTURE_DIR), 'utf8')
+  const records: string[][] = []
+  let record: string[] = []
+  let field = ''
+  let quoted = false
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i]
+    if (quoted) {
+      if (c === '"' && text[i + 1] === '"') {
+        field += '"'
+        i++
+      } else if (c === '"') quoted = false
+      else field += c
+    } else if (c === '"') quoted = true
+    else if (c === ',') {
+      record.push(field)
+      field = ''
+    } else if (c === '\n') {
+      record.push(field)
+      records.push(record)
+      record = []
+      field = ''
+    } else field += c
+  }
+  const [header = [], ...body] = records
+  return body.map((cells) => new Map(header.map((column, i) => [column, cells[i] ?? ''])))
+}
+
+const text = (value: string | undefined): string | null =>
+  value === undefined || value.trim() === '' ? null : value
+const number = (value: string | undefined): number | null =>
+  text(value) === null ? null : Number(value)
+
+describe('fixture: 4. halka açıkken liste ve pistler (D-101; uygulamada halka henüz 3)', () => {
+  const fixtureAirports: AirportDetailSourceRow[] = readFixtureCsv('airports.csv')
+    .filter(
+      (r) =>
+        r.get('type') === 'large_airport' ||
+        r.get('type') === 'medium_airport' ||
+        r.get('scheduled_service') === 'yes' ||
+        (r.get('iso_country') === 'TR' && /^[A-Z]{3}$/.test(r.get('iata_code') ?? '')),
+    )
+    .map((r) => ({
+      id: Number(r.get('id')),
+      ident: r.get('ident') ?? '',
+      type: r.get('type') ?? '',
+      name: r.get('name') ?? '',
+      latitudeDeg: Number(r.get('latitude_deg')),
+      longitudeDeg: Number(r.get('longitude_deg')),
+      elevationFt: number(r.get('elevation_ft')),
+      isoCountry: r.get('iso_country') ?? '',
+      isoRegion: r.get('iso_region') ?? '',
+      municipality: text(r.get('municipality')),
+      scheduledService: r.get('scheduled_service') === 'yes',
+      icaoCode: text(r.get('icao_code')),
+      iataCode: text(r.get('iata_code')),
+      gpsCode: text(r.get('gps_code')),
+      updatedAt: new Date('2026-10-01T23:03:49Z'),
+    }))
+  const imported = new Set(fixtureAirports.map((a) => a.id))
+  const fixtureRunways: RunwaySourceRow[] = readFixtureCsv('runways.csv')
+    .filter((r) => r.get('closed') !== '1' && imported.has(Number(r.get('airport_ref'))))
+    .map((r) => ({
+      ...runwayRow(),
+      id: Number(r.get('id')),
+      airportId: Number(r.get('airport_ref')),
+      lengthFt: number(r.get('length_ft')),
+      widthFt: number(r.get('width_ft')),
+      surface: text(r.get('surface')),
+      lighted: r.get('lighted') === '1',
+      leIdent: text(r.get('le_ident')),
+      heIdent: text(r.get('he_ident')),
+    }))
+  const context: ListingContext = {
+    turkey: turkishReferencePoints(fixtureAirports),
+    ringsKm: RINGS_KM,
+    enabledRing: 4,
+  }
+  const listedRing4 = selectListedAirports(fixtureAirports, context)
+
+  it('61 + 75 + 89 + 278 + 719 = 1.222; UG-0002 (KHX) listede yok, her ICAO dört karakter', () => {
+    expect(listedRing4).toHaveLength(1222)
+    const foreign = listedRing4.filter((a) => a.country !== 'TR')
+    expect(foreign).toHaveLength(1161)
+    expect([1, 2, 3, 4].map((ring) => foreign.filter((a) => a.ring === ring).length)).toEqual([
+      75, 89, 278, 719,
+    ])
+    for (const airport of listedRing4) expect(airport.icao).toMatch(/^[A-Z0-9]{4}$/)
+    expect(listedRing4.map((a) => a.icao)).not.toContain('UG-0002')
+    expect(listedRing4.map((a) => a.iata)).not.toContain('KHX')
+    // ICAO koşulu olmasa 720 aday olurdu: KHX 4. halkadadır ve ülke listesinde görünür.
+    const uganda = toListedAirports(
+      fixtureAirports.filter((a) => a.isoCountry === 'UG'),
+      context,
+    )
+    expect(uganda.find((a) => a.iata === 'KHX')).toMatchObject({ icao: 'UG-0002', ring: 4 })
+    expect(listedRing4.filter((a) => a.country === 'UG')).toHaveLength(4)
+    // Açık halka 3'te liste bugünkü 503'tür.
+    expect(selectListedAirports(fixtureAirports, { ...context, enabledRing: 3 })).toHaveLength(503)
+  })
+
+  it('gizli satırlar: tablodaki yedi kayıt, karşı ucu olmayanlar ve yalnız Pamplona’nın 2 ft’lik satırı', () => {
+    const hidden = fixtureRunways.filter(isHiddenRunway)
+    const inTable = hidden.filter((r) => Object.hasOwn(HIDDEN_RUNWAY_IDS, r.id)).map((r) => r.id)
+    expect(inTable.sort((a, b) => a - b)).toEqual(
+      Object.keys(HIDDEN_RUNWAY_IDS)
+        .map(Number)
+        .sort((a, b) => a - b),
+    )
+    const byLength = hidden
+      .filter((r) => r.heIdent !== null && !Object.hasOwn(HIDDEN_RUNWAY_IDS, r.id))
+      .map((r) => r.id)
+    expect(byLength).toEqual([260341])
+    const details = toAirportDetails(fixtureAirports, fixtureRunways, [], context)
+    const runwayIds = (icao: string) =>
+      details.find((a) => a.icao === icao)?.runways.map((r) => r.id)
+    expect(runwayIds('LEPP')).toEqual([238947])
+    expect(runwayIds('DAUH')).toEqual([232838])
+    expect(runwayIds('HBBA')).toEqual([234430])
+    expect(runwayIds('LFOB')).toEqual([235868, 235869])
+    expect(runwayIds('USDB')).toHaveLength(2)
+  })
+
+  it('görünür pisti olmayan listelenen havalimanları boş pist listesiyle gelir (GMAZ, ULDD, VIMB, VOVI, ZWTK ve UBLC)', () => {
+    const listedIcaos = new Set(listedRing4.map((a) => a.icao))
+    const details = toAirportDetails(fixtureAirports, fixtureRunways, [], context).filter((a) =>
+      listedIcaos.has(a.icao),
+    )
+    expect(details).toHaveLength(1222)
+    const withoutRunways = details.filter((a) => a.runways.length === 0).map((a) => a.icao)
+    expect(withoutRunways.sort()).toEqual(['GMAZ', 'UBLC', 'ULDD', 'VIMB', 'VOVI', 'ZWTK'])
+    for (const icao of withoutRunways) {
+      const detail = details.find((a) => a.icao === icao)
+      expect(detail?.runways, icao).toEqual([])
+      expect(detail?.dataUpdatedAt, icao).toBe('2026-10-01T23:03:49.000Z')
+    }
+  })
+})
+
+describe('pist kurallarının web test yardımcısındaki yazımı (D-101)', () => {
+  it('gizli kimlikler ve 100 ft sınırı `apps/web/src/lib/test/ourairports-fixture.ts` ile aynı', () => {
+    // Web @havayolu/db'ye bağımlı değildir; yardımcı kuralları kendi yazar (sayfa metni testleri).
+    const source = readFileSync(
+      new URL('../../../apps/web/src/lib/test/ourairports-fixture.ts', import.meta.url),
+      'utf8',
+    )
+    const ids = /const HIDDEN_RUNWAY_IDS = new Set\(\[([^\]]*)\]\)/.exec(source)?.[1] ?? ''
+    expect([...ids.matchAll(/'(\d+)'/g)].map((m) => Number(m[1])).sort((a, b) => a - b)).toEqual(
+      Object.keys(HIDDEN_RUNWAY_IDS)
+        .map(Number)
+        .sort((a, b) => a - b),
+    )
+    expect(/const MIN_RUNWAY_LENGTH_FT = (\d+)/.exec(source)?.[1]).toBe(
+      String(MIN_RUNWAY_LENGTH_FT),
+    )
   })
 })

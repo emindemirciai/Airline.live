@@ -15,7 +15,9 @@ import {
   airportRing,
   ENABLED_AIRPORT_RING,
   FOREIGN_AIRPORT_NAMES,
+  isCanonicalIcao,
   isForeignCandidate,
+  isScheduledIataAirport,
   OURAIRPORTS_ICAO_CORRECTIONS,
   ourAirportsIcao,
 } from '@havayolu/shared'
@@ -65,40 +67,67 @@ describe('halka kuralı: shared ile db aynı', () => {
     }
   })
 
-  it('db yurt dışı aday kuralı = shared isForeignCandidate', () => {
+  it('db yurt dışı aday kuralı = shared isForeignCandidate (tür, tarife, IATA ve ICAO eksenleri)', () => {
     const types = ['large_airport', 'medium_airport', 'small_airport', 'heliport', 'closed']
     const iatas = ['ATH', ' ath ', 'AB', 'A1B', 'ABCD', '', null]
+    /**
+     * Kanonik ICAO ekseni (D-101): satırın kimlik alanları; shared'a kanonik ICAO
+     * (`ourAirportsIcao`) verilir. Dört karakter, üç karakter, OurAirports'un yerel kimliği
+     * ("UG-0002", Kihihi), küçük harf, GPS kodu ve ident yedekleri, beş karakter.
+     */
+    const identities: Pick<AirportSourceRow, 'ident' | 'icaoCode' | 'gpsCode'>[] = [
+      { ident: 'LGAV', icaoCode: 'LGAV', gpsCode: 'LGAV' },
+      { ident: 'GR-0001', icaoCode: 'LGX', gpsCode: null },
+      { ident: 'UG-0002', icaoCode: null, gpsCode: null },
+      { ident: 'GR-0002', icaoCode: ' lgts ', gpsCode: null },
+      { ident: 'GR-0003', icaoCode: null, gpsCode: 'LGKO' },
+      { ident: 'GR-0004', icaoCode: ' ', gpsCode: 'lgx' },
+      { ident: 'LGRP', icaoCode: null, gpsCode: null },
+      { ident: 'lgsa', icaoCode: null, gpsCode: null },
+      { ident: 'GR-0005', icaoCode: 'LGXYZ', gpsCode: null },
+      // Kaynak düzeltmesi (D-088): İskenderiye HEAX → HEBA.
+      { ident: 'HEBA', icaoCode: 'HEAX', gpsCode: 'HEAX' },
+    ]
+    const results = new Set<boolean>()
     let id = 1
     for (const type of types) {
       for (const scheduled of [true, false]) {
         for (const iata of iatas) {
-          const row: AirportSourceRow = {
-            id: id++,
-            ident: `X${id}`,
-            type,
-            name: 'Test Airport',
-            latitudeDeg: 38,
-            longitudeDeg: 24,
-            elevationFt: null,
-            isoCountry: 'GR',
-            municipality: null,
-            scheduledService: scheduled,
-            icaoCode: `X${id}`,
-            iataCode: iata,
-            gpsCode: null,
+          for (const identity of identities) {
+            const row: AirportSourceRow = {
+              id: id++,
+              ...identity,
+              type,
+              name: 'Test Airport',
+              latitudeDeg: 38,
+              longitudeDeg: 24,
+              elevationFt: null,
+              isoCountry: 'GR',
+              municipality: null,
+              scheduledService: scheduled,
+              iataCode: iata,
+            }
+            // Tek Türkiye referansı yakında: aday olan her satır 1. halkadadır.
+            const selected = selectListedAirports([row], {
+              turkey: [{ lat: 38, lon: 25, icao: 'LTXX', iata: 'XXX', name: 'Test' }],
+              ringsKm: AIRPORT_RINGS_KM,
+              enabledRing: 1,
+            })
+            const expected = isForeignCandidate(type, scheduled, iata, ourAirportsIcao(row))
+            results.add(expected)
+            expect(
+              selected.length === 1,
+              `${type} ${scheduled} ${String(iata)} ${JSON.stringify(identity)}`,
+            ).toBe(expected)
+            // ICAO koşulu olmayan D-080 kuralı yalnız ICAO ekseninde ayrılır.
+            if (isCanonicalIcao(ourAirportsIcao(row))) {
+              expect(expected).toBe(isScheduledIataAirport(type, scheduled, iata))
+            }
           }
-          // Tek Türkiye referansı yakında: aday olan her satır 1. halkadadır.
-          const selected = selectListedAirports([row], {
-            turkey: [{ lat: 38, lon: 25, icao: 'LTXX', iata: 'XXX', name: 'Test' }],
-            ringsKm: AIRPORT_RINGS_KM,
-            enabledRing: 1,
-          })
-          expect(selected.length === 1, `${type} ${scheduled} ${String(iata)}`).toBe(
-            isForeignCandidate(type, scheduled, iata),
-          )
         }
       }
     }
+    expect([...results].sort()).toEqual([false, true])
   })
 
   it('kanonik ICAO ve kaynak düzeltmeleri iki pakette aynı (D-088)', () => {

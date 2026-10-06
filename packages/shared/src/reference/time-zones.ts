@@ -242,21 +242,69 @@ export const COUNTRY_TIME_ZONES: Readonly<Record<string, string>> = {
 }
 
 /**
- * Çok dilimli ülkelerde bölge (ISO 3166-2, OurAirports `iso_region`) → dilim. Açık halkaların
- * gerektirdiği bölgeler (1., 2. ve 3. halka; 3. halka 49 kural ekledi, D-090):
+ * Çok dilimli ülkelerde bölge (ISO 3166-2, OurAirports `iso_region`) → dilim. Açık halkaların ve
+ * 4. halkanın gerektirdiği bölgeler (3. halka 49 kural ekledi, D-090; 4. halka 93 kural, D-101):
  * - Rusya: Kuzey Kafkasya, Krasnodar, Rostov ve Kalmukya Moskova saatidir; Volgograd kendi
  *   dilimidir (Moskova kuralları); Astrahan UTC+4'tür. 3. halkada Moskova şehri ve bölgesi,
  *   Voronej, Penza, Mordovya, Nijniy Novgorod, İvanovo, Tataristan, Çuvaşistan, Yaroslavl, Kostroma,
  *   Pskov ve Vologda Moskova saatidir (UTC+3); Samara ve Udmurtya Europe/Samara, Saratov
  *   Europe/Saratov, Ulyanovsk Europe/Ulyanovsk (UTC+4); Orenburg ve Başkurdistan Asia/Yekaterinburg
- *   (UTC+5); Kaliningrad Europe/Kaliningrad (UTC+2).
- * - Kazakistan: Mangistav (Aktav), 3. halkada Atırav, Batı Kazakistan (Oral), Aktöbe, Kızılorda ve
- *   Baykonur (Asia/Qyzylorda; Baykonur Rusya'ya kiralıdır ama OurAirports ve ISO'da Kazakistan'dır).
- *   2024'ten beri bütün ülke UTC+5'tir; tzdb dilimleri ayrı tutar.
- * - Almanya (Europe/Berlin ve Büsingen; Büsingen'de havalimanı yok), İspanya (Kanarya ve Ceuta ayrı
- *   dilimdir) ve Özbekistan'ın batısı (Asia/Samarkand; Taşkent Asia/Tashkent, 4. halkada).
+ *   (UTC+5); Kaliningrad Europe/Kaliningrad (UTC+2). 4. halkada kuzeybatı (Sankt-Peterburg,
+ *   Karelya, Murmansk, Arhangelsk, Nenetsya, Komi) Moskova saati, Kirov Europe/Kirov (UTC+3); Ural
+ *   ve Batı Sibirya'nın kuzeyi (Perm, Sverdlovsk, Çelyabinsk, Kurgan, Tümen, Hantı-Mansi, Yamalo-
+ *   Nenets) Asia/Yekaterinburg (UTC+5); Omsk Asia/Omsk (UTC+6); Novosibirsk, Tomsk, Altay Krayı
+ *   (Barnaul), Kemerovo (Novokuznetsk) ve Krasnoyarsk, Hakasya, Tuva kendi dilimleri (UTC+7);
+ *   İrkutsk ve Buryatya Asia/Irkutsk (UTC+8).
+ * - Kazakistan: 2024-03-01'den beri bütün ülke UTC+5'tir; tzdb dilimleri ayrı tutar. Mangistav
+ *   (Aktav), 3. halkada Atırav, Batı Kazakistan (Oral), Aktöbe, Kızılorda ve Baykonur
+ *   (Asia/Qyzylorda; Baykonur Rusya'ya kiralıdır ama OurAirports ve ISO'da Kazakistan'dır). 4.
+ *   halkada doğu ve kuzey Asia/Almaty, Kostanay Asia/Qostanay. OurAirports kendi harf kodlarını
+ *   kullanır: ISO 3166-2'nin 2020 öncesi harf kodları, 2022'de kurulan üç bölge için ISO'da
+ *   olmayan kendi kodları (KZ-ABA Abay, KZ-JET Jetisu, KZ-ULY Ulıtav) ve Baykonur (KZ-BAY). ISO
+ *   3166-2:KZ 2020'den beri sayısaldır (17 bölge ve 3 şehir: KZ-11 Akmola … KZ-79 Şımkent; 2022
+ *   bölgeleri KZ-10, KZ-33, KZ-62). Çin'deki gibi ISO kodları da aynı dilimle yazılıdır:
+ *   OurAirports kodları değiştirirse dilim kaybolmaz. Tarifeli havalimanı olmayan Almatı bölgesi
+ *   (KZ-ALM) de tablodadır; Kazakistan'ın her bölgesinin kuralı var.
+ * - Çin (4. halka): Sincan, Tibet, Gansu ve Qinghai Asia/Shanghai, yani Pekin saati (UTC+8).
+ *   tzdb'nin Asia/Urumqi'si (UTC+6) resmî değildir; tarifeler ve havalimanları Pekin saatini
+ *   kullanır, Asia/Urumqi seçilseydi Sincan'daki her saat 2 saat kayardı. OurAirports Çin'de eski
+ *   sayısal bölge kodlarını kullanır (CN-65 Sincan); ISO 3166-2'nin 2017'den beri geçerli harf
+ *   kodları da (CN-XJ) aynı kuralla yazılıdır: OurAirports kodları değiştirirse dilim kaybolmaz.
+ * - Moğolistan (4. halka): Asia/Hovd (UTC+7) yalnız Bayan-Ölgii (MN-071), Hovd (MN-043) ve Uvs
+ *   (MN-046); Govi-Altay (MN-065) dahil öbür bölgeler Asia/Ulaanbaatar (UTC+8), tzdb
+ *   `zone1970.tab`'ın bugünkü yorumu.
+ * - Kongo Demokratik Cumhuriyeti (4. halka): batı Africa/Kinshasa (UTC+1), doğu Africa/Lubumbashi
+ *   (UTC+2; Goma, Bukavu, Kisangani).
+ * - Portekiz (4. halka): anakara Europe/Lisbon, Azorlar Atlantic/Azores, Madeira Atlantic/Madeira.
+ * - Almanya (Europe/Berlin ve Büsingen; Büsingen'de havalimanı yok), İspanya (Kanarya
+ *   Atlantic/Canary, Ceuta ve Melilla Africa/Ceuta, öbür bölgeler Europe/Madrid) ve Özbekistan
+ *   (batı Asia/Samarkand, doğu Asia/Tashkent; ikisi de 1992'den beri UTC+5).
  */
 export const REGION_TIME_ZONES: Readonly<Record<string, string>> = {
+  // Kongo DC: batı Kinşasa (UTC+1), doğu Lubumbaşi (UTC+2).
+  'CD-EQ': 'Africa/Kinshasa',
+  'CD-HU': 'Africa/Lubumbashi',
+  'CD-IT': 'Africa/Lubumbashi',
+  'CD-KC': 'Africa/Lubumbashi',
+  'CD-KE': 'Africa/Lubumbashi',
+  'CD-KL': 'Africa/Kinshasa',
+  'CD-KN': 'Africa/Kinshasa',
+  'CD-MA': 'Africa/Lubumbashi',
+  'CD-NK': 'Africa/Lubumbashi',
+  'CD-NU': 'Africa/Kinshasa',
+  'CD-SU': 'Africa/Kinshasa',
+  'CD-TA': 'Africa/Lubumbashi',
+  'CD-TO': 'Africa/Lubumbashi',
+  // Çin: Pekin saati. OurAirports'un sayısal kodu (Tibet 54, Gansu 62, Qinghai 63, Sincan 65) ve
+  // ISO 3166-2 harf kodu (XZ, GS, QH, XJ) ikisi de yazılıdır.
+  'CN-54': 'Asia/Shanghai',
+  'CN-62': 'Asia/Shanghai',
+  'CN-63': 'Asia/Shanghai',
+  'CN-65': 'Asia/Shanghai',
+  'CN-GS': 'Asia/Shanghai',
+  'CN-QH': 'Asia/Shanghai',
+  'CN-XJ': 'Asia/Shanghai',
+  'CN-XZ': 'Asia/Shanghai',
   // Almanya'nın 16 eyaleti; Brandenburg OurAirports'ta DE-BR'dir (ISO kodu DE-BB, ikisi de yazılı).
   'DE-BB': 'Europe/Berlin',
   'DE-BE': 'Europe/Berlin',
@@ -275,52 +323,155 @@ export const REGION_TIME_ZONES: Readonly<Record<string, string>> = {
   'DE-SN': 'Europe/Berlin',
   'DE-ST': 'Europe/Berlin',
   'DE-TH': 'Europe/Berlin',
-  // İspanya: Katalonya ve Balear Adaları (Kanarya Atlantic/Canary, Ceuta ve Melilla Africa/Ceuta).
+  // İspanya: anakara ve Balear Adaları Europe/Madrid, Kanarya Atlantic/Canary, Melilla Africa/Ceuta.
+  'ES-AN': 'Europe/Madrid',
+  'ES-AR': 'Europe/Madrid',
+  'ES-AS': 'Europe/Madrid',
+  'ES-CB': 'Europe/Madrid',
+  'ES-CL': 'Europe/Madrid',
+  'ES-CN': 'Atlantic/Canary',
   'ES-CT': 'Europe/Madrid',
+  'ES-EX': 'Europe/Madrid',
+  'ES-GA': 'Europe/Madrid',
   'ES-IB': 'Europe/Madrid',
+  'ES-MC': 'Europe/Madrid',
+  'ES-MD': 'Europe/Madrid',
+  'ES-ML': 'Africa/Ceuta',
+  'ES-NC': 'Europe/Madrid',
+  'ES-PV': 'Europe/Madrid',
+  'ES-RI': 'Europe/Madrid',
+  'ES-VC': 'Europe/Madrid',
+  // Kazakistan: bütün ülke UTC+5 (2024); tzdb dilimleri ayrı. ISO 3166-2:KZ'nin sayısal kodları
+  // (2020'den beri; 10, 33 ve 62 2022 bölgeleri), sonra OurAirports'un harf kodları (ABA, JET, ULY
+  // 2022 bölgeleri için OurAirports'un kendi kodları, ISO'da yok).
+  'KZ-10': 'Asia/Almaty', // Abay (KZ-ABA)
+  'KZ-11': 'Asia/Almaty', // Akmola (KZ-AKM)
+  'KZ-15': 'Asia/Aqtobe', // Aktöbe (KZ-AKT)
+  'KZ-19': 'Asia/Almaty', // Almatı bölgesi (KZ-ALM)
+  'KZ-23': 'Asia/Atyrau', // Atırav (KZ-ATY)
+  'KZ-27': 'Asia/Oral', // Batı Kazakistan (KZ-ZAP)
+  'KZ-31': 'Asia/Almaty', // Jambıl (KZ-ZHA)
+  'KZ-33': 'Asia/Almaty', // Jetisu (KZ-JET)
+  'KZ-35': 'Asia/Almaty', // Karağandı (KZ-KAR)
+  'KZ-39': 'Asia/Qostanay', // Kostanay (KZ-KUS)
+  'KZ-43': 'Asia/Qyzylorda', // Kızılorda (KZ-KZY; Baykonur KZ-BAY bu bölgededir)
+  'KZ-47': 'Asia/Aqtau', // Mangistav (KZ-MAN)
+  'KZ-55': 'Asia/Almaty', // Pavlodar (KZ-PAV)
+  'KZ-59': 'Asia/Almaty', // Kuzey Kazakistan (KZ-SEV)
+  'KZ-61': 'Asia/Almaty', // Türkistan (KZ-YUZ)
+  'KZ-62': 'Asia/Almaty', // Ulıtav (KZ-ULY)
+  'KZ-63': 'Asia/Almaty', // Doğu Kazakistan (KZ-VOS)
+  'KZ-71': 'Asia/Almaty', // Astana şehri (KZ-AST)
+  'KZ-75': 'Asia/Almaty', // Almatı şehri (KZ-ALA)
+  'KZ-79': 'Asia/Almaty', // Şımkent şehri (OurAirports'ta Türkistan, KZ-YUZ)
+  'KZ-ABA': 'Asia/Almaty',
+  'KZ-AKM': 'Asia/Almaty',
   'KZ-AKT': 'Asia/Aqtobe',
+  'KZ-ALA': 'Asia/Almaty',
+  'KZ-ALM': 'Asia/Almaty',
+  'KZ-AST': 'Asia/Almaty',
   'KZ-ATY': 'Asia/Atyrau',
   'KZ-BAY': 'Asia/Qyzylorda',
+  'KZ-JET': 'Asia/Almaty',
+  'KZ-KAR': 'Asia/Almaty',
+  'KZ-KUS': 'Asia/Qostanay',
   'KZ-KZY': 'Asia/Qyzylorda',
   'KZ-MAN': 'Asia/Aqtau',
+  'KZ-PAV': 'Asia/Almaty',
+  'KZ-SEV': 'Asia/Almaty',
+  'KZ-ULY': 'Asia/Almaty',
+  'KZ-VOS': 'Asia/Almaty',
+  'KZ-YUZ': 'Asia/Almaty',
   'KZ-ZAP': 'Asia/Oral',
+  'KZ-ZHA': 'Asia/Almaty',
+  // Moğolistan: batının üç bölgesi Hovd (UTC+7), öbürleri Ulan Batur (UTC+8).
+  'MN-041': 'Asia/Ulaanbaatar',
+  'MN-043': 'Asia/Hovd',
+  'MN-046': 'Asia/Hovd',
+  'MN-047': 'Asia/Ulaanbaatar',
+  'MN-053': 'Asia/Ulaanbaatar',
+  'MN-055': 'Asia/Ulaanbaatar',
+  'MN-065': 'Asia/Ulaanbaatar',
+  'MN-067': 'Asia/Ulaanbaatar',
+  'MN-069': 'Asia/Ulaanbaatar',
+  'MN-071': 'Asia/Hovd',
+  // Portekiz: anakaranın altı bölgesi, Azorlar (PT-20) ve Madeira (PT-30).
+  'PT-04': 'Europe/Lisbon',
+  'PT-08': 'Europe/Lisbon',
+  'PT-11': 'Europe/Lisbon',
+  'PT-13': 'Europe/Lisbon',
+  'PT-17': 'Europe/Lisbon',
+  'PT-18': 'Europe/Lisbon',
+  'PT-20': 'Atlantic/Azores',
+  'PT-30': 'Atlantic/Madeira',
   'RU-AD': 'Europe/Moscow',
+  'RU-ALT': 'Asia/Barnaul',
+  'RU-ARK': 'Europe/Moscow',
   'RU-AST': 'Europe/Astrakhan',
   'RU-BA': 'Asia/Yekaterinburg',
+  'RU-BU': 'Asia/Irkutsk',
   'RU-CE': 'Europe/Moscow',
+  'RU-CHE': 'Asia/Yekaterinburg',
   'RU-CU': 'Europe/Moscow',
   'RU-DA': 'Europe/Moscow',
   'RU-IN': 'Europe/Moscow',
+  'RU-IRK': 'Asia/Irkutsk',
   'RU-IVA': 'Europe/Moscow',
   'RU-KB': 'Europe/Moscow',
   'RU-KC': 'Europe/Moscow',
   'RU-KDA': 'Europe/Moscow',
+  'RU-KEM': 'Asia/Novokuznetsk',
   'RU-KGD': 'Europe/Kaliningrad',
+  'RU-KGN': 'Asia/Yekaterinburg',
+  'RU-KHM': 'Asia/Yekaterinburg',
+  'RU-KIR': 'Europe/Kirov',
+  'RU-KK': 'Asia/Krasnoyarsk',
   'RU-KL': 'Europe/Moscow',
+  'RU-KO': 'Europe/Moscow',
   'RU-KOS': 'Europe/Moscow',
+  'RU-KR': 'Europe/Moscow',
+  'RU-KYA': 'Asia/Krasnoyarsk',
   'RU-MO': 'Europe/Moscow',
   'RU-MOS': 'Europe/Moscow',
   'RU-MOW': 'Europe/Moscow',
+  'RU-MUR': 'Europe/Moscow',
+  'RU-NEN': 'Europe/Moscow',
   'RU-NIZ': 'Europe/Moscow',
+  'RU-NVS': 'Asia/Novosibirsk',
+  'RU-OMS': 'Asia/Omsk',
   'RU-ORE': 'Asia/Yekaterinburg',
+  'RU-PER': 'Asia/Yekaterinburg',
   'RU-PNZ': 'Europe/Moscow',
   'RU-PSK': 'Europe/Moscow',
   'RU-ROS': 'Europe/Moscow',
   'RU-SAM': 'Europe/Samara',
   'RU-SAR': 'Europe/Saratov',
   'RU-SE': 'Europe/Moscow',
+  'RU-SPE': 'Europe/Moscow',
   'RU-STA': 'Europe/Moscow',
+  'RU-SVE': 'Asia/Yekaterinburg',
   'RU-TA': 'Europe/Moscow',
+  'RU-TOM': 'Asia/Tomsk',
+  'RU-TY': 'Asia/Krasnoyarsk',
+  'RU-TYU': 'Asia/Yekaterinburg',
   'RU-UD': 'Europe/Samara',
   'RU-ULY': 'Europe/Ulyanovsk',
   'RU-VGG': 'Europe/Volgograd',
   'RU-VLG': 'Europe/Moscow',
   'RU-VOR': 'Europe/Moscow',
+  'RU-YAN': 'Asia/Yekaterinburg',
   'RU-YAR': 'Europe/Moscow',
+  // Özbekistan: batı Semerkant, doğu (Taşkent bölgesi, Fergana vadisi, Cizzak, Surhanderya) Taşkent.
+  'UZ-AN': 'Asia/Tashkent',
   'UZ-BU': 'Asia/Samarkand',
+  'UZ-FA': 'Asia/Tashkent',
+  'UZ-JI': 'Asia/Tashkent',
+  'UZ-NG': 'Asia/Tashkent',
   'UZ-NW': 'Asia/Samarkand',
   'UZ-QR': 'Asia/Samarkand',
   'UZ-SA': 'Asia/Samarkand',
+  'UZ-SU': 'Asia/Samarkand',
+  'UZ-TO': 'Asia/Tashkent',
   'UZ-XO': 'Asia/Samarkand',
 }
 
@@ -331,8 +482,13 @@ export const REGION_TIME_ZONES: Readonly<Record<string, string>> = {
  *   Asia/Nicosia.
  * - Sohum (UGSS): fiilen kullanılan Moskova saati, UTC+3 (kullanıcı kararı 2026-10-03). Ülke
  *   gösterimi Gürcistan kalır (D-080 karar 2).
+ * - Grönland (4. halka, D-101): iki havalimanı aynı bölgede (GL-SE, Sermersooq) ama farklı dilimde.
+ *   Constable Pynt (BGCO, Ittoqqortoormiit) America/Scoresbysund; Kulusuk (BGKK) Nuuk saati,
+ *   ICU yazımıyla America/Godthab (tzdb America/Nuuk). İkisi de 2024'ten beri UTC−2, yazın UTC−1.
  */
 export const AIRPORT_TIME_ZONES: Readonly<Record<string, string>> = {
+  BGCO: 'America/Scoresbysund',
+  BGKK: 'America/Godthab',
   LCEN: 'Asia/Famagusta',
   LCLK: 'Asia/Nicosia',
   LCPH: 'Asia/Nicosia',

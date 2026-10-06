@@ -65,8 +65,11 @@ const military = (tr: string, en: string): AirportNameEntry => ({ source: 'milit
  * Veritabanındaki IATA kodlu 61 Türkiye havalimanı, ICAO koduna göre sıralı. OurAirports yeni bir
  * havalimanı eklerse tabloda olmayan kod OurAirports adından kuralla Türkçeleştirilir
  * (`airportDisplayName`). Yurt dışı havalimanları `foreign-airport-names.ts`'tedir.
+ *
+ * Tablo `#__PURE__` işaretli bir fonksiyon içinde kurulur: yardımcı çağrıları paketleyiciye yan
+ * etkili görünür ve tablo, kullanılmadığı istemci parçalarında (haritanın ilk paketi) kalırdı (D-101).
  */
-export const AIRPORT_NAMES: Readonly<Record<string, AirportNameEntry>> = {
+export const AIRPORT_NAMES: Readonly<Record<string, AirportNameEntry>> = /*#__PURE__*/ (() => ({
   LTAC: dhmi('Ankara Esenboğa Havalimanı', 'Ankara Esenboğa Airport'),
   LTAD: ministry(
     'Ankara (Etimesgut) Havalimanı',
@@ -138,7 +141,7 @@ export const AIRPORT_NAMES: Readonly<Record<string, AirportNameEntry>> = {
   ),
   LTFM: operator('İstanbul Havalimanı', 'Istanbul Airport'),
   LTFO: dhmi('Rize Artvin Havalimanı', 'Rize Artvin Airport'),
-}
+}))()
 
 /**
  * Türkiye'nin yalnızca uzaklık referansı olan, IATA kodlu ve tarifesiz 5 küçük alanı (D-080):

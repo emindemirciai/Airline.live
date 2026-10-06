@@ -633,6 +633,9 @@ export function foreignAirportName(icao: string): LocalizedText | undefined {
 
 const city = (tr: string, en: string): LocalizedText => ({ tr, en })
 
+/** İki dilde yer adı tablosu (ICAO kodu → ad). */
+type LocalizedTable = Readonly<Record<string, LocalizedText>>
+
 /**
  * `FOREIGN_AIRPORT_NAMES`'teki havalimanlarının hizmet verdiği şehir, iki dilde (M6d düzeltme turu,
  * D-080): havalimanı sayfasının başlığı altındaki yer satırı ("Selanik, Yunanistan"), "Hizmet
@@ -655,8 +658,11 @@ const city = (tr: string, en: string): LocalizedText => ({ tr, en })
  * (Ercan gibi istisna). EuroAirport Basel-Mulhouse-Freiburg Fransa'dadır, şehri Mulhouse'tur
  * ("Basel, Fransa" yanlış olurdu). Kızıldeniz Havalimanı bir turizm bölgesine hizmet verir
  * (OurAirports "Hanak"); şehir yerine bölge yazılır: Kızıldeniz / Red Sea (Neom örneği).
+ *
+ * Tablo `#__PURE__` işaretli bir fonksiyon içinde kurulur: yardımcı çağrıları paketleyiciye yan
+ * etkili görünür ve tablo, kullanılmadığı istemci parçalarında (haritanın ilk paketi) kalırdı (D-101).
  */
-export const FOREIGN_AIRPORT_CITIES: Readonly<Record<string, LocalizedText>> = {
+export const FOREIGN_AIRPORT_CITIES: LocalizedTable = /*#__PURE__*/ (() => ({
   BKPR: city('Priştine', 'Pristina'),
   DAAE: city('Béjaïa', 'Béjaïa'),
   DAAS: city('Setif', 'Sétif'),
@@ -1099,7 +1105,7 @@ export const FOREIGN_AIRPORT_CITIES: Readonly<Record<string, LocalizedText>> = {
   UZSA: city('Navoi', 'Navoiy'),
   UZSB: city('Buhara', 'Bukhara'),
   UZSS: city('Semerkant', 'Samarkand'),
-}
+}))()
 
 /** Şehir tablosundaki kayıt; kod tabloda yoksa undefined. ICAO kırpılıp büyük harfe çevrilir. */
 export function foreignAirportCity(icao: string): LocalizedText | undefined {

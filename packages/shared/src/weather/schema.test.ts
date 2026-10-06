@@ -3,6 +3,7 @@ import { z } from 'zod'
 import { decodeMetar } from './metar'
 import {
   AirportWeatherSchema,
+  WeatherBulkRawResponseSchema,
   WeatherBulkResponseSchema,
   WeatherHistoryResponseSchema,
   type AirportWeather,
@@ -94,6 +95,45 @@ describe('API sözleşmesi', () => {
     expect(WeatherHistoryResponseSchema.parse(history)).toEqual(history)
   })
 
+  it('ham toplu yanıt (format=raw, D-101): yalnız metin ve zamanlar; şema dışı kategori ve kod reddedilir', () => {
+    const raw = {
+      generatedAt: '2026-01-15T13:00:00.000Z',
+      attribution: { text: 'NOAA Aviation Weather Center', url: 'https://aviationweather.gov/' },
+      stations: [
+        {
+          icao: 'LTFM',
+          metar: {
+            raw: metarRaw,
+            type: 'METAR',
+            observedAt: '2026-01-15T12:50:00.000Z',
+            flightCategory: 'VFR',
+          },
+          tafs: [
+            {
+              raw: tafRaw,
+              issuedAt: '2026-01-15T10:40:00.000Z',
+              validFrom: '2026-01-15T12:00:00.000Z',
+              validTo: '2026-01-16T18:00:00.000Z',
+            },
+          ],
+        },
+        { icao: 'LTBQ', metar: null, tafs: [] },
+      ],
+    }
+    expect(WeatherBulkRawResponseSchema.parse(raw)).toEqual(raw)
+    const [first] = raw.stations
+    if (!first?.metar) throw new Error('metar yok')
+    expect(() =>
+      WeatherBulkRawResponseSchema.parse({
+        ...raw,
+        stations: [{ ...first, metar: { ...first.metar, flightCategory: 'UNKN' } }],
+      }),
+    ).toThrow()
+    expect(() =>
+      WeatherBulkRawResponseSchema.parse({ ...raw, stations: [{ ...first, icao: 'UG-0002' }] }),
+    ).toThrow()
+  })
+
   it('bilinmeyen alanlar atılır (ileri uyumluluk)', () => {
     const weather = { ...airportWeather(), extra: 1 }
     expect(AirportWeatherSchema.parse(weather)).not.toHaveProperty('extra')
@@ -103,6 +143,7 @@ describe('API sözleşmesi', () => {
     for (const schema of [
       AirportWeatherSchema,
       WeatherBulkResponseSchema,
+      WeatherBulkRawResponseSchema,
       WeatherHistoryResponseSchema,
     ]) {
       const json = z.toJSONSchema(schema, { target: 'draft-7' }) as Record<string, unknown>
