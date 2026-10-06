@@ -26,6 +26,10 @@ import { airportDistrict } from './tr-provinces'
  *   Resmî adları birlik adıdır ("10'uncu Ana Jet Üs Komutanlığı"), havalimanı adı değildir; AA'nın
  *   ve kullanıcının bildiği biçimle "<yer> Hava Üssü" / "<place> Air Base" yazılır. İngilizcede
  *   İncirlik ABD Hava Kuvvetleri ve NATO yazımıyla "Incirlik"tir (İstanbul → Istanbul gibi).
+ *   D-107'den beri üsler sitenin hiçbir yerinde gösterilmez (listelenmezler;
+ *   `military-airfields.ts`). Kayıtlar tabloda kalır: tablo fixture'daki IATA kodlu bütün Türkiye
+ *   satırlarını kapsar ve askerî üs listesi tablonun `military` kaynağıyla denetlenir
+ *   (`reference.test.ts`).
  * - `ourairports`: tabloda olmayan (OurAirports'a sonradan eklenen) havalimanı; OurAirports adı
  *   kuralla Türkçeleştirilir (`translatedAirportName`). Tabloda bu kaynakla kayıt yoktur.
  *
@@ -62,7 +66,8 @@ const ministry = (tr: string, en: string, official: string): AirportNameEntry =>
 const military = (tr: string, en: string): AirportNameEntry => ({ source: 'military', tr, en })
 
 /**
- * Veritabanındaki IATA kodlu 61 Türkiye havalimanı, ICAO koduna göre sıralı. OurAirports yeni bir
+ * Veritabanındaki IATA kodlu 61 Türkiye havalimanı (56'sı listelenir; beşi askerî üstür ve sitede
+ * gösterilmez, D-107), ICAO koduna göre sıralı. OurAirports yeni bir
  * havalimanı eklerse tabloda olmayan kod OurAirports adından kuralla Türkçeleştirilir
  * (`airportDisplayName`). Yurt dışı havalimanları `foreign-airport-names.ts`'tedir.
  *

@@ -1,6 +1,7 @@
 import {
   cleanAirportName,
   greatCircleKm,
+  MILITARY_AIRFIELD_ICAOS as DB_MILITARY_AIRFIELD_ICAOS,
   OURAIRPORTS_ICAO_CORRECTIONS as DB_ICAO_CORRECTIONS,
   ourAirportsIcao as dbOurAirportsIcao,
   ringForDistance,
@@ -17,7 +18,9 @@ import {
   FOREIGN_AIRPORT_NAMES,
   isCanonicalIcao,
   isForeignCandidate,
+  isMilitaryAirfield,
   isScheduledIataAirport,
+  MILITARY_AIRFIELD_ICAOS,
   OURAIRPORTS_ICAO_CORRECTIONS,
   ourAirportsIcao,
 } from '@havayolu/shared'
@@ -153,6 +156,41 @@ describe('halka kuralı: shared ile db aynı', () => {
       'Bacău George Enescu International Airport',
     )
     expect(ourAirportsIcao({ ident: 'UTSS', icaoCode: 'UZSS', gpsCode: 'UTSS' })).toBe('UZSS')
+  })
+
+  it('askerî hava üsleri iki pakette aynı; db onları listelemez ve uzaklık referansı saymaz (D-107)', () => {
+    expect(DB_MILITARY_AIRFIELD_ICAOS).toEqual(MILITARY_AIRFIELD_ICAOS)
+    // Her üs, kanonik ICAO'su icao_code, gps_code ya da ident'ten gelse de listede yoktur; aynı
+    // biçimdeki sivil satır listededir.
+    const base = (icao: string, identity: Pick<AirportSourceRow, 'icaoCode' | 'gpsCode'>) =>
+      ({
+        id: 1,
+        ident: icao,
+        type: 'medium_airport',
+        name: `${icao} Airport`,
+        latitudeDeg: 38,
+        longitudeDeg: 27,
+        elevationFt: null,
+        isoCountry: 'TR',
+        municipality: null,
+        scheduledService: true,
+        iataCode: 'XXX',
+        ...identity,
+      }) satisfies AirportSourceRow
+    const listed = (row: AirportSourceRow) =>
+      selectListedAirports([row], { turkey: [], ringsKm: AIRPORT_RINGS_KM, enabledRing: 1 })
+    for (const icao of [...MILITARY_AIRFIELD_ICAOS, 'LTBJ', 'LTAD']) {
+      for (const identity of [
+        { icaoCode: icao, gpsCode: icao },
+        { icaoCode: null, gpsCode: ` ${icao.toLowerCase()} ` },
+        { icaoCode: null, gpsCode: null },
+      ]) {
+        const shown = listed(base(icao, identity))
+        expect(shown.length === 0, `${icao} ${JSON.stringify(identity)}`).toBe(
+          isMilitaryAirfield(icao),
+        )
+      }
+    }
   })
 
   it("API'nin ad temizliği shared'daki İngilizce adlarla aynı sonucu verir (D-088, D-090)", () => {

@@ -8,10 +8,11 @@ import { airports, runwayOverrides, runways, stations } from './schema'
  * Tablo zaten içe aktarım süzgecinden geçmiştir (büyük, orta ya da tarifeli sefer alan alanlar;
  * data-sources.md §3); liste kuralı bu koşulu ayrıca uygular (`isListableRow`).
  *
- * Listelenen havalimanları (D-080, `listListedAirports`): Türkiye'nin IATA kodlu havalimanları ve
- * açık halkalardaki yurt dışı adayları. Halka, Türkiye'deki en yakın IATA kodlu havalimanına büyük
- * daire uzaklığından hesaplanır. Halka sınırları ve açık halka `@havayolu/shared`'dadır
- * (`AIRPORT_RING_CONFIG`); bu paket shared'a bağımlı olmadığı için ayar çağırandan gelir.
+ * Listelenen havalimanları (D-080, `listListedAirports`): Türkiye'nin IATA kodlu havalimanları
+ * (askerî hava üsleri hariç, D-107) ve açık halkalardaki yurt dışı adayları. Halka, Türkiye'deki en
+ * yakın IATA kodlu havalimanına büyük daire uzaklığından hesaplanır. Halka sınırları ve açık halka
+ * `@havayolu/shared`'dadır (`AIRPORT_RING_CONFIG`); bu paket shared'a bağımlı olmadığı için ayar
+ * çağırandan gelir.
  */
 export const LISTED_AIRPORT_TYPES = ['large_airport', 'medium_airport', 'small_airport'] as const
 export type ListedAirportType = (typeof LISTED_AIRPORT_TYPES)[number]
@@ -127,6 +128,25 @@ export const OURAIRPORTS_ICAO_CORRECTIONS: Readonly<
 > = {
   HEBA: { icaoCode: 'HEAX', icao: 'HEBA' },
 }
+
+/**
+ * Askerî hava üsleri (D-107; D-084: İncirlik, Afyon, Bandırma, Eskişehir, Çiğli), kanonik ICAO
+ * sırasıyla. Sitenin hiçbir yerinde yoktur: listelenmez (`scope=listed`, ülke listeleri, tek
+ * havalimanı ve hava durumu uçları; sayfaları, haritası ve worker'ın hava durumu istasyonları bu
+ * listeyi kullanır) ve Türkiye'deki uzaklık referansı da sayılmaz (yabancı havalimanının
+ * "Türkiye'deki en yakın havalimanı" hiçbir zaman üs değildir; halka üyeliği değişmez). Satırları
+ * ve pistleri veritabanında kalır: içe aktarım süzgeci (`isImportedAirport`) değişmedi, süzme
+ * okurken yapılır.
+ * `@havayolu/shared` `MILITARY_AIRFIELD_ICAOS` ile aynıdır (db shared'a bağımlı değildir;
+ * `apps/api/src/reference/rings.test.ts` iki yazımı denetler).
+ */
+export const MILITARY_AIRFIELD_ICAOS: readonly string[] = ['LTAG', 'LTAH', 'LTBG', 'LTBI', 'LTBL']
+
+const MILITARY_AIRFIELDS: ReadonlySet<string> = new Set(MILITARY_AIRFIELD_ICAOS)
+
+/** Kanonik ICAO'su askerî hava üssü olan satır (D-107); `ourAirportsIcao` ile denetlenir. */
+const isMilitaryAirfieldRow = (row: Pick<AirportSourceRow, 'ident' | 'icaoCode' | 'gpsCode'>) =>
+  MILITARY_AIRFIELDS.has(ourAirportsIcao(row))
 
 /**
  * Satırın kanonik ICAO'su (listedeki kimlik): düzeltme varsa ve kaynaktaki yanlış değer duruyorsa
@@ -247,14 +267,15 @@ type ReferenceSourceRow = Pick<
  * Türkiye'deki uzaklık referansları, satırlardan: IATA kodu üç harf olan büyük, orta ve küçük
  * havalimanları (halka analizinin kuralı: "Türkiye'deki IATA kodlu en yakın havalimanı"; tarifeli
  * olma şartı yoktur, listelenmeyen küçük alanlar da referanstır; içe aktarım onları bunun için alır,
- * data-sources.md §3). Yurt dışı satırları atlanır. Kimlik listedeki kuralla kurulur (ICAO, yoksa
- * GPS kodu, o da yoksa ident).
+ * data-sources.md §3). Yurt dışı satırları ve askerî hava üsleri (D-107) atlanır. Kimlik listedeki
+ * kuralla kurulur (ICAO, yoksa GPS kodu, o da yoksa ident).
  */
 export function turkishReferencePoints(rows: readonly ReferenceSourceRow[]): TurkishReference[] {
   const references: TurkishReference[] = []
   for (const row of rows) {
     const iata = present(row.iataCode)?.toUpperCase() ?? ''
     if (!isTurkishRow(row) || !isListedType(row.type) || !IATA_CODE.test(iata)) continue
+    if (isMilitaryAirfieldRow(row)) continue
     references.push({
       lat: row.latitudeDeg,
       lon: row.longitudeDeg,
@@ -305,7 +326,10 @@ interface ListedEntry<R extends AirportSourceRow> {
   nearestTr: NearestTurkishAirportRecord | null
 }
 
-/** `toListedAirports` kuralı; satırı da taşır (ayrıntı sorguları kimliğe ihtiyaç duyar). */
+/**
+ * `toListedAirports` kuralı; satırı da taşır (ayrıntı sorguları kimliğe ihtiyaç duyar). Bütün liste
+ * ve ayrıntı okumaları buradan geçer; askerî hava üsleri (D-107) burada çıkar.
+ */
 function listedEntries<R extends AirportSourceRow>(
   rows: readonly R[],
   context: RingContext,
@@ -315,7 +339,7 @@ function listedEntries<R extends AirportSourceRow>(
     const iata = present(row.iataCode)?.toUpperCase() ?? ''
     if (!isListableRow(row, iata) || !isListedType(row.type)) continue
     const icao = ourAirportsIcao(row)
-    if (icao === '' || byIcao.has(icao)) continue
+    if (icao === '' || byIcao.has(icao) || MILITARY_AIRFIELDS.has(icao)) continue
     const { fields, nearestTr } = ringFields(row, context)
     byIcao.set(icao, {
       row,
@@ -343,7 +367,8 @@ function listedEntries<R extends AirportSourceRow>(
  * Saf kısım: ham satırlardan liste. IATA kodu kırpılıp büyük harfe çevrilir; üç harf değilse, tür
  * listede yoksa ya da satır içe aktarım koşulunu (büyük, orta ya da tarifeli) taşımıyorsa atlanır.
  * ICAO = `icao_code`, yoksa `gps_code`, o da yoksa `ident` (kaynak düzeltmeleriyle,
- * `ourAirportsIcao`); adın boşlukları teke indirilir (`cleanAirportName`). Aynı ICAO'ya düşen
+ * `ourAirportsIcao`); askerî hava üsleri (`MILITARY_AIRFIELD_ICAOS`, D-107) atlanır; adın
+ * boşlukları teke indirilir (`cleanAirportName`). Aynı ICAO'ya düşen
  * satırlardan önce gelen (satırlar kimlik sırasıyla verilir, en küçük kimlik) kalır. Sonuç IATA'ya,
  * eşitse ICAO'ya göre sıralıdır. Her kayıt ülke, halka ve Türkiye'ye uzaklık taşır (`context`).
  */
@@ -471,9 +496,10 @@ async function readListedRows<R extends AirportSourceRow>(
 }
 
 /**
- * Bir ülkenin IATA kodlu havalimanları (`country`: ISO 3166-1 alpha-2, büyük harf; ör. TR).
- * Türkiye'de ~60 satırdır; süzme SQL'de, biçim denetimi ve sıralama `toListedAirports`'tadır.
- * Yurt dışı kayıtlar halkasını ve Türkiye'ye uzaklığını taşır (`rings.ringsKm`).
+ * Bir ülkenin IATA kodlu havalimanları (`country`: ISO 3166-1 alpha-2, büyük harf; ör. TR),
+ * askerî hava üsleri hariç (D-107). Türkiye'de ~56 kayıttır; süzme SQL'de, biçim denetimi ve
+ * sıralama `toListedAirports`'tadır. Yurt dışı kayıtlar halkasını ve Türkiye'ye uzaklığını taşır
+ * (`rings.ringsKm`).
  */
 export async function listAirportsWithIata(
   db: PostgresJsDatabase,
@@ -493,8 +519,9 @@ export async function listAirportsWithIata(
 
 /**
  * Listelenen havalimanları (D-080; `GET /v1/airports?scope=listed`, worker'ın hava durumu
- * istasyonları): Türkiye'nin IATA kodlu havalimanları ve halkası `rings.enabledRing`'i aşmayan yurt
- * dışı adayları, IATA sırasıyla. Satırlar her çağrıda okunur; önbellek çağıranındır (API 10 dk).
+ * istasyonları): Türkiye'nin IATA kodlu havalimanları (askerî hava üsleri hariç, D-107) ve halkası
+ * `rings.enabledRing`'i aşmayan yurt dışı adayları, IATA sırasıyla. Satırlar her çağrıda okunur;
+ * önbellek çağıranındır (API 10 dk).
  */
 export async function listListedAirports(
   db: PostgresJsDatabase,
@@ -877,7 +904,7 @@ const rowsMatching = (db: PostgresJsDatabase, code: string) =>
  * ICAO'da gösterilen kayıtsa döner. Böylece bu uç yalnızca ülke listelerinde (`listAirportsWithIata`)
  * görünen havalimanlarını, listedeki kanonik ICAO ile verir. Halka süzgeci uygulanmaz: her ülkenin
  * IATA kodlu havalimanı bulunur ve halkasını taşır (sayfalar listelenen havalimanlarıyla sınırlıdır).
- * Eşleşme yoksa null.
+ * Askerî hava üsleri (D-107) ICAO ve IATA koduyla bulunmaz. Eşleşme yoksa null.
  */
 export async function findAirportDetail(
   db: PostgresJsDatabase,

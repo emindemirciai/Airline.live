@@ -32,7 +32,7 @@ import {
   GPTBOT_USER_AGENT,
   INDEXABLE_LISTED_AIRPORT_COUNT,
   KKTC_AIRPORT,
-  NON_INDEXABLE_AIRPORT,
+  MILITARY_AIRFIELDS,
   PRIMARY_AIRPORT,
   REPLAY_AIRCRAFT,
   RING1_AIRPORT,
@@ -285,17 +285,17 @@ test.describe('noindex ve canonical kuralları', () => {
     }
   })
 
-  test('tarifesiz askerî hava üssünün sayfası açılır ama noindex, follow', async ({ request }) => {
-    for (const path of [
-      `/istasyon/${NON_INDEXABLE_AIRPORT.icao}`,
-      enPath(`/istasyon/${NON_INDEXABLE_AIRPORT.icao}`),
-    ]) {
-      const { response, body } = await fetchRaw(request, path)
-      expect(response.status(), path).toBe(200)
-      const robots = directives(metaContents(body, 'robots'))
-      expect(robots, path).toContain('noindex')
-      expect(robots, path).toContain('follow')
-      expect(robots, path).not.toContain('nofollow')
+  test('askerî hava üslerinin sayfası yok (D-107): ICAO ve IATA adresleri iki dilde 404, yönlenme yok', async ({
+    request,
+  }) => {
+    for (const { icao, iata } of MILITARY_AIRFIELDS) {
+      for (const code of [icao, iata, icao.toLowerCase()]) {
+        for (const path of [`/istasyon/${code}`, enPath(`/istasyon/${code}`)]) {
+          const { response } = await fetchRaw(request, path)
+          expect(response.status(), path).toBe(404)
+          expect(response.headers().location, path).toBeUndefined()
+        }
+      }
     }
   })
 
@@ -382,8 +382,11 @@ test.describe('kök dosyalar', () => {
     for (const excluded of [
       '/durum',
       '/en/durum',
-      `/istasyon/${NON_INDEXABLE_AIRPORT.icao}`,
-      enPath(`/istasyon/${NON_INDEXABLE_AIRPORT.icao}`),
+      // Askerî hava üsleri (D-107).
+      ...MILITARY_AIRFIELDS.flatMap(({ icao }) => [
+        `/istasyon/${icao}`,
+        enPath(`/istasyon/${icao}`),
+      ]),
       // Fixture'da olup listelenmeyen uzak havalimanı (D-080).
       `/istasyon/${UNLISTED_FOREIGN_AIRPORT.icao}`,
     ]) {
@@ -469,7 +472,7 @@ test.describe('kök dosyalar', () => {
     )
     expect(icaos.size).toBe(INDEXABLE_LISTED_AIRPORT_COUNT)
     expect(icaos.has(PRIMARY_AIRPORT.icao)).toBe(true)
-    expect(icaos.has(NON_INDEXABLE_AIRPORT.icao)).toBe(false)
+    for (const { icao } of MILITARY_AIRFIELDS) expect(icaos.has(icao), icao).toBe(false)
     expect(icaos.has(UNLISTED_FOREIGN_AIRPORT.icao)).toBe(false)
     // Türkiye dışındakiler ayrı bir bölümdedir (D-080): başlık Türkiye listesinden sonra gelir; Atina
     // (1. halka), Kahire (2. halka) ve Viyana (3. halka) satırları o bölümdedir. Başlık 2. halkadan

@@ -5,6 +5,7 @@ import {
   greatCircleKm,
   HIDDEN_RUNWAY_IDS,
   isHiddenRunway,
+  MILITARY_AIRFIELD_ICAOS,
   MIN_RUNWAY_LENGTH_FT,
   nearestDistanceKm,
   nearestReference,
@@ -79,15 +80,30 @@ describe('toListedAirports', () => {
 
   it('ICAO: icao_code, yoksa gps_code, o da yoksa ident', () => {
     const list = listed([
-      row({ ident: 'LTBL', icaoCode: null, gpsCode: 'LTBL', iataCode: 'IGL' }),
+      row({ ident: 'LTBJ', icaoCode: null, gpsCode: 'LTBJ', iataCode: 'ADB' }),
       row({ ident: 'TR-0099', icaoCode: ' ', gpsCode: null, iataCode: 'XXA' }),
       row({ ident: 'LTXX', icaoCode: 'ltyy', gpsCode: 'LTZZ', iataCode: 'XXB' }),
     ])
     expect(list.map((a) => [a.iata, a.icao])).toEqual([
-      ['IGL', 'LTBL'],
+      ['ADB', 'LTBJ'],
       ['XXA', 'TR-0099'],
       ['XXB', 'LTYY'],
     ])
+  })
+
+  it('askerî hava üsleri (D-107) listelenmez: kanonik ICAO, gps_code, ident ya da küçük harfle de', () => {
+    expect(MILITARY_AIRFIELD_ICAOS).toEqual(['LTAG', 'LTAH', 'LTBG', 'LTBI', 'LTBL'])
+    const list = listed([
+      row({ ident: 'LTAG', icaoCode: 'LTAG', gpsCode: 'LTAG', iataCode: 'UAB' }),
+      row({ ident: 'LTAH', icaoCode: ' ltah ', gpsCode: null, iataCode: 'AFY' }),
+      row({ ident: 'TR-0101', icaoCode: null, gpsCode: 'LTBG', iataCode: 'BDM' }),
+      row({ ident: 'LTBI', icaoCode: null, gpsCode: null, iataCode: 'ESK' }),
+      row({ ident: 'LTBL', icaoCode: 'LTBL', gpsCode: 'LTBL', iataCode: 'IGL' }),
+      row({ ident: 'LTBJ', icaoCode: 'LTBJ', gpsCode: 'LTBJ', iataCode: 'ADB' }),
+      // Askerî adlı ama sivil olan Ankara (Etimesgut) listede kalır (D-084).
+      row({ ident: 'LTAD', icaoCode: 'LTAD', gpsCode: 'LTAD', iataCode: 'ANK' }),
+    ])
+    expect(list.map((a) => a.icao)).toEqual(['LTBJ', 'LTAD'])
   })
 
   it('IATA kırpılır ve büyük harfe çevrilir; üç harf değilse satır atlanır', () => {
@@ -380,6 +396,13 @@ describe('halka hesabı', () => {
     ])
     expect(byGps).toMatchObject({ icao: 'LTXA', name: 'Gökçeada Airport' })
     expect(byIdent?.icao).toBe('TR-0002')
+    // Askerî hava üsleri (D-107) uzaklık referansı değildir.
+    const civil = turkishReferencePoints([
+      row({ ident: 'LTBL', icaoCode: 'LTBL', gpsCode: 'LTBL', iataCode: 'IGL' }),
+      row({ ident: 'LTAG', icaoCode: null, gpsCode: ' ltag ', iataCode: 'UAB' }),
+      row({ ident: 'LTBJ', icaoCode: 'LTBJ', gpsCode: 'LTBJ', iataCode: 'ADB' }),
+    ])
+    expect(civil.map((p) => p.icao)).toEqual(['LTBJ'])
   })
 
   it('nearestReference: en yakın referans ve uzaklığı; eşitlikte önce gelen; referans yoksa null', () => {
@@ -839,8 +862,29 @@ describe('fixture: 4. halka açıkken liste ve pistler (D-101; uygulamada halka 
   }
   const listedRing4 = selectListedAirports(fixtureAirports, context)
 
-  it('61 + 75 + 89 + 278 + 719 = 1.222; UG-0002 (KHX) listede yok, her ICAO dört karakter', () => {
-    expect(listedRing4).toHaveLength(1222)
+  it('56 + 75 + 89 + 278 + 719 = 1.217; askerî üsler (D-107) ve UG-0002 (KHX) listede yok, her ICAO dört karakter', () => {
+    expect(listedRing4).toHaveLength(1217)
+    expect(listedRing4.filter((a) => a.country === 'TR')).toHaveLength(56)
+    for (const icao of MILITARY_AIRFIELD_ICAOS) {
+      expect(
+        listedRing4.map((a) => a.icao),
+        icao,
+      ).not.toContain(icao)
+    }
+    for (const iata of ['UAB', 'AFY', 'BDM', 'ESK', 'IGL']) {
+      expect(
+        listedRing4.map((a) => a.iata),
+        iata,
+      ).not.toContain(iata)
+    }
+    // Ülke listesi (`?country=TR`) de üssüzdür; uzaklık referansında da üs yoktur.
+    const turkey = toListedAirports(
+      fixtureAirports.filter((a) => a.isoCountry === 'TR'),
+      context,
+    )
+    expect(turkey).toHaveLength(56)
+    expect(context.turkey).toHaveLength(61)
+    expect(context.turkey.filter((r) => MILITARY_AIRFIELD_ICAOS.includes(r.icao))).toEqual([])
     const foreign = listedRing4.filter((a) => a.country !== 'TR')
     expect(foreign).toHaveLength(1161)
     expect([1, 2, 3, 4].map((ring) => foreign.filter((a) => a.ring === ring).length)).toEqual([
@@ -856,8 +900,53 @@ describe('fixture: 4. halka açıkken liste ve pistler (D-101; uygulamada halka 
     )
     expect(uganda.find((a) => a.iata === 'KHX')).toMatchObject({ icao: 'UG-0002', ring: 4 })
     expect(listedRing4.filter((a) => a.country === 'UG')).toHaveLength(4)
-    // Açık halka 3'te liste bugünkü 503'tür.
-    expect(selectListedAirports(fixtureAirports, { ...context, enabledRing: 3 })).toHaveLength(503)
+    // Açık halka 3'te liste bugünkü 498'dir (D-107'den önce 503).
+    expect(selectListedAirports(fixtureAirports, { ...context, enabledRing: 3 })).toHaveLength(498)
+  })
+
+  it('üsler uzaklık referansından çıkınca halka üyeliği değişmez; en yakın Türkiye havalimanı yalnız dört yerde Çiğli yerine sivil alan olur (D-107)', () => {
+    // D-107'den önceki referans: 61 nokta + beş üs (66).
+    const bases = fixtureAirports
+      .filter((a) => MILITARY_AIRFIELD_ICAOS.includes(ourAirportsIcao(a)))
+      .map((a) => ({
+        lat: a.latitudeDeg,
+        lon: a.longitudeDeg,
+        icao: ourAirportsIcao(a),
+        iata: a.iataCode ?? '',
+        name: cleanAirportName(a.name),
+      }))
+    expect(bases.map((b) => b.icao).sort()).toEqual([...MILITARY_AIRFIELD_ICAOS])
+    const before: ListingContext = { ...context, turkey: [...context.turkey, ...bases] }
+    const all = { ...context, enabledRing: 5 }
+    const now = toAirportDetails(fixtureAirports, [], [], all).filter((a) => a.country !== 'TR')
+    // Ayrıntı kaydı halka süzgeci uygulamaz: bütün adaylar (1.–5. halka) karşılaştırılır.
+    const old = new Map(toAirportDetails(fixtureAirports, [], [], before).map((a) => [a.icao, a]))
+    expect(now.length).toBeGreaterThan(1161)
+    const ringChanges = now.filter((a) => old.get(a.icao)?.ring !== a.ring)
+    expect(ringChanges).toEqual([])
+    expect(selectListedAirports(fixtureAirports, all)).toHaveLength(
+      selectListedAirports(fixtureAirports, { ...before, enabledRing: 5 }).length,
+    )
+    const nearestChanges = now
+      .filter((a) => old.get(a.icao)?.nearestTr?.icao !== a.nearestTr?.icao)
+      .map((a) => [
+        a.icao,
+        old.get(a.icao)?.nearestTr?.iata,
+        old.get(a.icao)?.distanceToTrKm,
+        a.nearestTr?.iata,
+        a.distanceToTrKm,
+        a.ring,
+      ])
+    expect(nearestChanges.sort()).toEqual([
+      ['HLLM', 'IGL', 1386, 'GKD', 1386, 3],
+      ['LGAV', 'IGL', 275, 'ADB', 284, 1],
+      ['LGHI', 'IGL', 78, 'ADB', 89, 1],
+      ['LGKL', 'IGL', 466, 'ADB', 472, 1],
+    ])
+    // Hiçbir kaydın en yakını üs değildir.
+    for (const airport of now) {
+      expect(MILITARY_AIRFIELD_ICAOS, airport.icao).not.toContain(airport.nearestTr?.icao)
+    }
   })
 
   it('gizli satırlar: tablodaki yedi kayıt, karşı ucu olmayanlar ve yalnız Pamplona’nın 2 ft’lik satırı', () => {
@@ -887,7 +976,7 @@ describe('fixture: 4. halka açıkken liste ve pistler (D-101; uygulamada halka 
     const details = toAirportDetails(fixtureAirports, fixtureRunways, [], context).filter((a) =>
       listedIcaos.has(a.icao),
     )
-    expect(details).toHaveLength(1222)
+    expect(details).toHaveLength(1217)
     const withoutRunways = details.filter((a) => a.runways.length === 0).map((a) => a.icao)
     expect(withoutRunways.sort()).toEqual(['GMAZ', 'UBLC', 'ULDD', 'VIMB', 'VOVI', 'ZWTK'])
     for (const icao of withoutRunways) {

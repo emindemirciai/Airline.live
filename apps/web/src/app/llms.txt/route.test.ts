@@ -27,7 +27,8 @@ const AIRPORTS = [
     name: 'Esenboğa International Airport',
     isoRegion: 'TR-06',
   }),
-  airportFixture({ icao: 'LTAG', iata: 'ADA', scheduled: false, isoRegion: 'TR-01' }),
+  // Ad tablosunda olmayan, tarifesiz ve istasyon olmayan yeni kayıt: noindex (D-076, D-084).
+  airportFixture({ icao: 'LTZZ', iata: 'YZG', scheduled: false, isoRegion: 'TR-66' }),
   // Türkiye dışındaki havalimanları (D-080): ayrı bölümde, ülkeye sonra ada göre.
   airportFixture({
     icao: 'LGAV',
@@ -36,7 +37,7 @@ const AIRPORTS = [
     country: 'GR',
     isoRegion: 'GR-I',
     ring: 1,
-    distanceToTrKm: 275,
+    distanceToTrKm: 284,
     runways: [1, 2].map((id) => runwayFixture({ id })),
   }),
   airportFixture({
@@ -123,7 +124,7 @@ describe('GET /llms.txt', () => {
       .slice(0, lines.indexOf(FOREIGN_HEADING))
       .filter((l) => l.includes('/istasyon/'))
     expect(airportLines).toHaveLength(2)
-    expect(text).not.toContain('LTAG')
+    expect(text).not.toContain('LTZZ')
     expect(airportLines).toContain(
       `- [İstanbul Havalimanı (IST/LTFM)](${HOST}/istasyon/LTFM): İstanbul; 6 pist; English: [Istanbul Airport](${HOST}/en/istasyon/LTFM)`,
     )
@@ -140,7 +141,7 @@ describe('GET /llms.txt', () => {
     )
     expect(foreign.filter((l) => l.startsWith('- '))).toEqual([
       `- [Ercan Havalimanı (ECN/LCEN)](${HOST}/istasyon/LCEN): KKTC; Türkiye’ye uzaklık 168 km; 1 pist; English: [Ercan International Airport](${HOST}/en/istasyon/LCEN)`,
-      `- [Atina Eleftherios Venizelos Havalimanı (ATH/LGAV)](${HOST}/istasyon/LGAV): Yunanistan; Türkiye’ye uzaklık 275 km; 2 pist; English: [Athens Eleftherios Venizelos International Airport](${HOST}/en/istasyon/LGAV)`,
+      `- [Atina Eleftherios Venizelos Havalimanı (ATH/LGAV)](${HOST}/istasyon/LGAV): Yunanistan; Türkiye’ye uzaklık 284 km; 2 pist; English: [Athens Eleftherios Venizelos International Airport](${HOST}/en/istasyon/LGAV)`,
     ])
     // Kapsama dürüstlüğü: Türkiye dışındaki havalimanları 2.000 km'ye kadar listelenir (3. halka,
     // D-090), canlı uçak verisi Türkiye odaklıdır.

@@ -433,11 +433,11 @@ const ath: Airport = {
   scheduled: true,
   country: 'GR',
   ring: 1,
-  distanceToTrKm: 275,
+  distanceToTrKm: 284,
 }
 const athDetail: AirportDetail = {
   ...ath,
-  nearestTr: { icao: 'LTBL', iata: 'IGL', name: 'Çiğli Airbase' },
+  nearestTr: { icao: 'LTBJ', iata: 'ADB', name: 'Adnan Menderes International Airport' },
   isoRegion: 'GR-I',
   municipality: 'Spata-Artemida',
   station: null,
