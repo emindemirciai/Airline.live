@@ -120,6 +120,29 @@ export async function paintedPixels(page: Page): Promise<number> {
   })
 }
 
+/** Etiket tuvalinin bir kesitinde (sayfa koordinatı, CSS px) çizili (saydam olmayan) piksel sayısı. */
+export async function paintedPixelsIn(
+  page: Page,
+  clip: { x: number; y: number; width: number; height: number },
+): Promise<number> {
+  return page.locator('.live-map .live-map__labels').evaluate((element, clip) => {
+    const canvas = element as HTMLCanvasElement
+    const ctx = canvas.getContext('2d')
+    if (!ctx || canvas.width === 0) return 0
+    const rect = canvas.getBoundingClientRect()
+    const scale = canvas.width / rect.width
+    const left = Math.max(0, Math.floor((clip.x - rect.left) * scale))
+    const top = Math.max(0, Math.floor((clip.y - rect.top) * scale))
+    const right = Math.min(canvas.width, Math.ceil((clip.x + clip.width - rect.left) * scale))
+    const bottom = Math.min(canvas.height, Math.ceil((clip.y + clip.height - rect.top) * scale))
+    if (right <= left || bottom <= top) return 0
+    const { data } = ctx.getImageData(left, top, right - left, bottom - top)
+    let count = 0
+    for (let i = 3; i < data.length; i += 4) if ((data[i] ?? 0) > 0) count++
+    return count
+  }, clip)
+}
+
 /** Harita tuvalinin ortası, sayfa koordinatıyla (CSS px). */
 export async function mapCenter(page: Page): Promise<{ x: number; y: number }> {
   const box = await page.locator('.live-map .maplibregl-canvas').boundingBox()

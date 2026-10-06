@@ -9,11 +9,16 @@
  *   referansları ve halka seçimi (`@havayolu/db` `turkishReferencePoints`, `selectListedAirports`,
  *   `AIRPORT_RING_CONFIG`). Fixture Türkiye'nin bütün satırlarını ve açık halkaların (1.–3.) bütün
  *   yurt dışı adaylarını taşır: liste, üretimin kuralının bu kopyaya uygulanmış hâlidir (503 = 61 +
- *   75 + 89 + 278). Üretim OurAirports'u her gece yeniden içe aktarır (`reference-import`); tarifeli
- *   sefer, tür, IATA kodu ya da konum değişirse üretimin listesi fixture'dan ayrılabilir. Bunu hiçbir
- *   test yakalamaz: kullanıcı iki listeyi elle karşılaştırır (ACTIVATION "Ülke adlarının
- *   engelleri"), ayrılık varsa fixture onayla tazelenir ve tablo yeniden üretilir. Halka açılınca
- *   (M6i) de fixture genişler ve tablo yeniden üretilir (airport-pins.test.ts açık halkayı denetler).
+ *   75 + 89 + 278; `listedAirportPins`). Üretim OurAirports'u her gece yeniden içe aktarır
+ *   (`reference-import`); tarifeli sefer, tür, IATA kodu ya da konum değişirse üretimin listesi
+ *   fixture'dan ayrılabilir. Bunu hiçbir test yakalamaz: kullanıcı iki listeyi elle karşılaştırır
+ *   (ACTIVATION "Ülke adlarının engelleri"), ayrılık varsa fixture onayla tazelenir ve tablo yeniden
+ *   üretilir. Halka açılınca (M6i) de fixture genişler ve tablo yeniden üretilir
+ *   (airport-pins.test.ts açık halkayı denetler).
+ * - **Haritadaki pinler** (`mapAirportPins`): liste, askerî hava üsleri (İncirlik, Afyon, Bandırma,
+ *   Eskişehir, Çiğli) çıkarılarak: web onların pinini ve kodunu çizmez (D-103). Kural web
+ *   haritasıyla ortaktır (`@havayolu/shared` `mapShownAirports`). Engeller bu 498 havalimanıdır
+ *   (Türkiye 56).
  * - **Pin:** bitmap kutusu (airport-pin.ts): 24 × 32 görünüm kutusu + her yana 3 birim pay; katman
  *   alt kenarı noktaya bağlar ve `icon-offset` ile 3 birim aşağı kaydırır (`AIRPORT_LAYER`; ofset
  *   `icon-size` ile çarpılır). Ucu noktadadır; kutu noktaya göre [−15s, +15s] × [−35s, +3s] px, s
@@ -38,6 +43,7 @@ import {
   AIRPORT_PIN_VIEWBOX,
   AIRPORT_RING_CONFIG,
   interpolateStops,
+  mapShownAirports,
   type CountryLabelStops,
 } from '@havayolu/shared'
 import { selectListedAirports, turkishReferencePoints } from '@havayolu/db'
@@ -71,7 +77,7 @@ export const AIRPORT_CHIP_WIDTH = Math.ceil(
   AIRPORT_CHIP_CHARS * AIRPORT_CHIP_ADVANCE_EM * AIRPORT_CHIP_FONT_PX + 2 * AIRPORT_CHIP_PAD_X,
 )
 
-/** Haritada pini çizilen havalimanı. */
+/** Listelenen ya da haritada pini çizilen havalimanı. */
 export interface AirportPin {
   icao: string
   iata: string
@@ -93,6 +99,16 @@ export function listedAirportPins(csv: string): AirportPin[] {
   return listed
     .map(({ icao, iata, ring, lat, lon }) => ({ icao, iata, ring, lat, lon }))
     .sort((a, b) => (a.icao < b.icao ? -1 : a.icao > b.icao ? 1 : 0))
+}
+
+/**
+ * Haritada pini çizilen havalimanları, ICAO sırasıyla: listelenenlerden askerî hava üsleri çıkarılır
+ * (D-103). Kural web haritasının kullandığı `mapShownAirports`'tur (`@havayolu/shared`, tek yer):
+ * değişirse buradaki engeller de değişir ve sürüklenme testi tablo yeniden üretilene kadar kırılır.
+ * Ülke adlarının engelleri bunlardır.
+ */
+export function mapAirportPins(csv: string): AirportPin[] {
+  return mapShownAirports(listedAirportPins(csv))
 }
 
 /** Commit'li fixture'ı okur. */

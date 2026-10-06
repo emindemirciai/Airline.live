@@ -3,8 +3,8 @@
 import 'maplibre-gl/dist/maplibre-gl.css'
 
 import { DEFAULT_UNIT_SYSTEM, type Messages } from '@havayolu/i18n'
-import type { Locale, PublicAircraft } from '@havayolu/shared'
-import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react'
+import { mapShownAirports, type Locale, type PublicAircraft } from '@havayolu/shared'
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import { fetchSearch } from '../../lib/live/api'
 import { monotonicNow } from '../../lib/live/clock'
 import type { TrackedAircraft } from '../../lib/live/store'
@@ -18,13 +18,18 @@ import {
   pendingHex,
   type SharedLinkState,
 } from '../../lib/map/shared-link'
-import { findAirportByCode, hexUrl } from '../../lib/map/url-state'
+import { hexUrl } from '../../lib/map/url-state'
 import { localePath } from '../../lib/locale-routing'
 import { TERMS_PATH } from '../../lib/terms'
 import { useNow, useWallNow } from '../../lib/use-now'
 import { WallClock } from '../../lib/wall-clock'
 import { ConsentSettingsButton } from '../analytics-consent'
-import { airportsInView, fetchMapAirports, type MapAirport } from './airport-data'
+import {
+  airportLinkCenter,
+  airportsInView,
+  fetchMapAirports,
+  type MapAirport,
+} from './airport-data'
 import { AirportPopup } from './airport-popup'
 import {
   mapCustomAttributionHtml,
@@ -187,7 +192,11 @@ export function LiveMap({
   const [selectedHex, setSelectedHex] = useState<string | null>(null)
   const [following, setFollowing] = useState(false)
   const [viewport, setViewport] = useState<MapViewport>(INITIAL_VIEWPORT)
+  /** Listelenen havalimanlarının hepsi, askerî üsler dahil (D-103). */
   const [airports, setAirports] = useState<readonly MapAirport[]>(NO_AIRPORTS)
+  // Haritada gösterilenler (D-103): askerî hava üslerinin pini, kodu, penceresi ve "Havalimanları"
+  // listesinde satırı yoktur. Liste değişmedikçe aynı dizi (harita kaynağı yalnız o zaman yenilenir).
+  const shownAirports = useMemo(() => mapShownAirports(airports), [airports])
   /** Açık havalimanı penceresinin ICAO kodu. */
   const [popupIcao, setPopupIcao] = useState<string | null>(null)
   const sheetLayout = useSyncExternalStore(subscribeSheet, sheetSnapshot, sheetServerSnapshot)
@@ -274,6 +283,7 @@ export function LiveMap({
   // Listelenen havalimanları (Türkiye ve yakın ülkeler, D-080; pistleriyle, havalimanı penceresi
   // için) bir kez yüklenir; yüklenemezse harita onlarsız çalışır. `?havalimani=` hedefi listede
   // varsa harita havalimanı merkezine gider (harita henüz kurulmadıysa doğrudan orada açılır).
+  // Askerî üs de bulunur (D-103): harita yine oraya gider, ama üssün pini ve penceresi yoktur.
   useEffect(() => {
     const controller = new AbortController()
     fetchMapAirports(config.apiBaseUrl, controller.signal).then(
@@ -282,8 +292,8 @@ export function LiveMap({
         setAirports(list)
         const code = pendingAirportRef.current
         pendingAirportRef.current = null
-        const airport = code === null ? undefined : findAirportByCode(list, code)
-        if (airport) mapRef.current?.flyTo({ lat: airport.lat, lon: airport.lon }, AIRPORT_MIN_ZOOM)
+        const center = code === null ? null : airportLinkCenter(list, code)
+        if (center) mapRef.current?.flyTo(center, AIRPORT_MIN_ZOOM)
       },
       (error: unknown) => {
         if (!controller.signal.aborted) console.warn('Airports could not be loaded', error)
@@ -355,11 +365,12 @@ export function LiveMap({
   const selected = current ?? (heldSelected?.hex === selectedHex ? heldSelected : undefined)
   const cardOpen = selected !== undefined
   const popupAirport =
-    popupIcao === null ? undefined : airports.find((airport) => airport.icao === popupIcao)
+    popupIcao === null ? undefined : shownAirports.find((airport) => airport.icao === popupIcao)
   const popupOpen = popupAirport !== undefined
   // Pencere yalnız kendi havalimanının havasını ister (D-090); kapalıyken istek yok.
   const weather = useAirportWeather(config.apiBaseUrl, popupAirport?.icao ?? null, weatherClock)
   // Listenin tahmini durumları (D-085): depo değiştikçe sınıflandırılır, çizimde yalnızca okunur.
+  // Bütün liste: askerî üsse yaklaşan uçağın durumu ve konumu da doğru yere göre yazılır (D-103).
   const phases = useFlightPhases(store, airports)
   // Haritanın üstündeki paneller: seçili uçağın etiketi bunların altında kalmaz (D-085). Kart açılıp
   // kapanınca panel kümesi değişir.
@@ -443,7 +454,7 @@ export function LiveMap({
           siteCredit={creditHtml}
           mapLabel={messages.mapLabel}
           store={store}
-          airports={airports}
+          airports={shownAirports}
           selectedHex={selectedHex}
           following={following}
           labelSettings={labelSettings}
@@ -539,7 +550,7 @@ export function LiveMap({
           <ConsentSettingsButton label={consentSettingsLabel} className="map-button" />
         ) : null}
         <AirportListControl
-          airports={airportsInView(airports, viewport)}
+          airports={airportsInView(shownAirports, viewport)}
           locale={locale}
           onSelect={openAirport}
           messages={messages.airportList}

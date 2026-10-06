@@ -165,6 +165,35 @@ export function airportName(icao: string): AirportNameEntry | undefined {
 }
 
 /**
+ * Askerî hava üsleri: tablodaki `military` kaynaklı kayıtlar (D-084; İncirlik, Afyon, Bandırma,
+ * Eskişehir, Çiğli), ICAO sırasıyla. Haritada pinleri, kodları, pencereleri ve "Havalimanları"
+ * listesinde satırları yoktur; ülke adlarının engeli de sayılmazlar (D-103). Sayfaları, API ve uçak
+ * listesinin konum ve durum satırı onları yine kullanır (site haritasında ve llms.txt'de zaten
+ * yoklar: `noindex`, D-084). Yurt dışındaki ortak sivil-askerî havalimanları (tarifeli sivil seferi
+ * olan) sivildir, burada yoktur.
+ */
+export const MILITARY_AIRFIELD_ICAOS: readonly string[] = Object.entries(AIRPORT_NAMES)
+  .filter(([, entry]) => entry.source === 'military')
+  .map(([icao]) => icao)
+  .sort()
+
+/** Askerî hava üssü mü (`MILITARY_AIRFIELD_ICAOS`, D-103). ICAO kırpılıp büyük harfe çevrilir. */
+export function isMilitaryAirfield(icao: string): boolean {
+  return airportName(icao)?.source === 'military'
+}
+
+/**
+ * Haritada gösterilen havalimanları (D-103), sıra korunarak: askerî hava üsleri
+ * (`isMilitaryAirfield`) çıkarılır. Kuralın tek yeridir: web haritası (pinler, kodlar, havalimanı
+ * penceresi, "Havalimanları" listesi) ve ülke adlarının engelleri (tools `mapAirportPins`, D-099)
+ * bunu kullanır. Kural değişirse ülke adlarının tablosu `pnpm country-labels` ile yeniden üretilir;
+ * tools'un sürüklenme testi o zamana kadar kırılır.
+ */
+export function mapShownAirports<T extends { readonly icao: string }>(airports: readonly T[]): T[] {
+  return airports.filter((airport) => !isMilitaryAirfield(airport.icao))
+}
+
+/**
  * Türkçe adın kaynağı; tabloda olmayan havalimanında `ourairports` (İngilizce ad OurAirports
  * adıdır). Yurt dışı havalimanlarının Türkçe adı resmî ad değil, derlemedir: `foreignAirportName`
  * kaydı olsa da kaynak `ourairports` kalır.

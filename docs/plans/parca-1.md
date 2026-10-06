@@ -35,6 +35,7 @@ Durumlar: `[ ]` başlamadı, `[~]` sürüyor, `[k]` kod bitti ve kullanıcı do�
 | M6e.7 | Haritada ülke adları başkentlerde (yama, v0.18.2) | `p1/map-country-labels` | [x] tamam; üretimde doğrulandı (2026-10-05, v0.18.2): uydu üstünde z5'te TÜRKİYE, ROMANYA, BULGARİSTAN, YUNANİSTAN okunur, iğneler ve kesikli sınırlar üstte; Balkanlarda küçük adlar soluk; v0.18.2 Release 2026-10-05T01:08:09Z | #30 |
 | M6e.8 | Ülke adları sınır içinde, kelime başına satır (yama, v0.19.1) | `p1/map-country-fit` | [x] tamam; üretimde doğrulandı (2026-10-05, v0.19.1): uydu üstünde z5,3'te TÜRKİYE sınır içinde (Ankara'nın güneyinde), BOSNA / HERSEK alt alta, adlar kıyıdan taşmıyor; v0.19.1 Release 2026-10-05T05:51:51Z | #32 |
 | M6e.9 | Ülke adları daha belirgin, boş yerde (yama, v0.21.1; D-099) | `p1/map-country-clear` | [k] kod bitti; üretimde uydu üstünde görünüm denetimi bekliyor (ACTIVATION M6e.9) | — |
+| M6e.10 | Askerî üsler haritada gösterilmez (yama; D-103) | `p1/map-no-military` | [~] kod ve testler bitti; sürüm, changelog ve yayın adımı bekliyor | — |
 | M6h | 3. halka (≤ 2.000 km) — kullanıcı isteğiyle M7a'nın önüne alındı (2026-10-04); sivil uçuşa kapalı olabilecek havalimanı notu | `p1/m6h-ring3` | [k] kod bitti; üretimde doğrulandı (2026-10-04, v0.18.0): `scope=listed` 503 (61 + 75 + 89 + 278), Viyana 3. halka 1.149 km, beş Özbek istasyonunun METAR'ı UZxx koduyla, METAR'lı istasyon 463/503, toplu hava 1,34 MB, URKK ve UUOO notu iki dilde; admin Servisler ve worker günlüğü (429 yok) bekliyor (ACTIVATION) | #28 |
 | M7a | Canlı araçlar: `smoke:live`, `record` | `p1/m7a-live-tools` | [k] kod bitti; canlı smoke ve kayıt kullanıcıda (ACTIVATION) | #31 |
 | M7b.1 | İz tablolarına ham `seen_pos` ve `baro_rate` (migration 0006, v0.20.0; D-097) | `p1/m7b1-track-columns` | [x] tamam; üretimde doğrulandı (2026-10-05, v0.20.0): `hy-migrate` 0006'yı uyguladıktan sonra servisler açıldı, `/version` 0.20.0, `/ready` 200; v0.20.0 Release 2026-10-05T07:45:13Z. Ingest yazımı üretimde adsb.lol açılınca görülür (ACTIVATION 2. adım) | #33 |
@@ -1262,6 +1263,38 @@ Hedef sürüm yayın adımında belirlenir (dal `p1/map-country-clear`, `main` `
 - Dal `734641c` sonra `origin/main` v0.21.0 ile birleştirildi (`45677a7`; çakışma `turbo.json`, `tools/README.md` ve DECISIONS'ta, iki tarafın eklemeleri birlikte). v0.21.0 `releasedAt` 2026-10-05T18:53:30Z (GitHub Release). Sürüm 0.21.1.
 - `pnpm ci:full` → yeşil: birim tools 368, shared 686, web 827, worker 292, api 278, providers 132, i18n 98, db 64, geo 36; entegrasyon db 106, worker 17, api 30, tools 14; `test:migration-upgrade` 8 → 8; e2e 127/127.
 - `pnpm stats` → 668 dosya, 136.876 satır (kod 126.052, belge 7.300).
+
+## M6e.10 — Askerî üsler haritada gösterilmez (yama)
+Onay: 2026-10-06 kullanıcı: "askeri havalimanlarını kaldır haritadan." (kapsamın yalnız harita olması, `?havalimani=` davranışı, uçak listesinin üsleri kullanmaya devam etmesi ve ülke adlarının engelleri orkestratör varsayılanıdır, itiraz edilebilir; yama sürümü, D-082)
+
+Hedef sürüm yayın adımında belirlenir (dal `p1/map-no-military`, `main` `8a7a5ea` = v0.21.1'den). Karar D-103'tedir.
+
+**Kapsam:**
+- **Harita:** beş askerî hava üssünün (D-084: İncirlik, Afyon, Bandırma, Eskişehir, Çiğli) pini, kodu, penceresi ve "Havalimanları" listesinde satırı yok. `?havalimani=<üs>` haritayı yine üssün yerinde açar, pencere açılmaz.
+- **Değişmeyenler:** havalimanları listesi, istasyon sayfaları, API (`scope=listed` 503 kayıt); site haritası ve llms.txt (üsler `noindex`'tir, D-084: oralarda zaten yoklar). Uçak listesinin tahmini durumu ve konumu bütün listeyi kullanır (üsse yaklaşan uçak doğru yere göre yazılır). Ankara (Etimesgut) ve yurt dışındaki ortak sivil-askerî havalimanları (Bağdat, Podgorica, Cuxhaven/Nordholz) sivildir, haritada kalır.
+- **Ülke adları:** engeller haritada pini çizilen 498 havalimanıdır (503 − 5 üs); tablo `pnpm country-labels` ile yeniden üretildi. Yalnız TÜRKİYE'nin çapası kaydı.
+- Sürüm, `entries.ts`, `CHANGELOG.md` ve README yayın adımındadır.
+
+**Dosyalar:**
+- `packages/shared/src/reference/airport-names.ts` (`MILITARY_AIRFIELD_ICAOS`, `isMilitaryAirfield`, `mapShownAirports`: haritada gösterilenlerin tek kuralı, web haritası ve ülke adlarının engelleri ortak kullanır); test `reference.test.ts`
+- `apps/web/src/components/map/airport-data.ts` (`airportLinkCenter`), `live-map.tsx` (harita, pencere ve liste haritadaki listeden; uçak listesi ve `?havalimani=` bütün listeden); test `airport-data.test.ts`
+- `tools/src/country-labels/airport-pins.ts` (`mapAirportPins` = listenin `mapShownAirports`'u), `cli.ts` (tablo haritadaki pinlerle; `airports` yine bütün liste), `placement.ts` (üretilen dosyanın açıklaması); testler `airport-pins.test.ts`, `placement.test.ts`
+- `packages/shared/src/map/country-label-placements.ts` (yeniden üretildi), `country-labels.ts` (açıklama: engeller haritadaki havalimanları); test `country-labels.test.ts`
+- `e2e/support.ts` (`MILITARY_AIRFIELD`, `MILITARY_AIRFIELD_NEIGHBOUR`), `e2e/label-canvas.ts` (`paintedPixelsIn`), `e2e/tests/live-map.spec.ts` (yeni test; 375 px TÜRKIYE açıklaması)
+- Belgeler: D-103, `docs/spec/domain.md` (Harita etiketleri: yeni madde, ülke adları; uçak listesinin konumu), `docs/spec/data-sources.md` ("Listelenen havalimanları" ve §5c), `tools/README.md`, `tools/fixtures/README.md`, `docs/ACTIVATION.md` ("Ülke adlarının engelleri"; M6e.9 doğrulamasının (3) TÜRKİYE maddesi), bu plan
+
+**Kabul komutları:**
+- `pnpm country-labels` (çevrimdışı) → tablo commit'lenenle aynı; 498 havalimanı pini; 54 ülke boş yerde, 1 kalabalık (TR), 1 başkentte (CY), 3 gizli (BH LU MT)
+- `pnpm test` → shared (beş üs, tablonun `military` kaynağı), web (haritadaki liste, İzmir listesi, `?havalimani=` hedefi), tools (498 pin, sürüklenme, TÜRKİYE'nin çapası ve çakışmaları)
+- `pnpm format`, `pnpm lint`, `pnpm typecheck`, `pnpm typecheck:e2e`, `pnpm lint:e2e`, `pnpm check:eol`
+- `pnpm exec playwright test -c e2e/playwright.config.ts e2e/tests/live-map.spec.ts e2e/tests/airports.spec.ts e2e/tests/weather.spec.ts` → `?havalimani=LTBL` Çiğli'de açar, listede yalnız ADB, pencere yok; Çiğli'nin yerinde pin ve kod yok, tıklanmaz; ADB'nin pini ve kodu var, pini pencereyi açar; istasyon sayfaları ve hava durumu değişmedi
+- `pnpm ci:full` yeşil; PR'da CI (`e2e` dahil) yeşil
+
+**Çıktı kaydı (2026-10-06; sürüm, changelog ve README yayın adımındadır):**
+- `pnpm country-labels` → 2,7 sn (Node 24.16.0, ICU 78.3), 498 havalimanı pini; dört bileşimde 56 ad, hiç sığmayan BH LU MT; 54 ülke boş yerde, TÜRKİYE kalabalıkta, KIBRIS başkentte. **Değişen tek kayıt TÜRKİYE / TÜRKIYE:** 34,8° D → 33,8° D, 39,4° K (görsel merkez; ilk yakınlaştırmalar aynı: geniş z3,25, dar z3); çakışma 57 / 50 / 57 / 50 → 50 / 44 / 50 / 44 (Türkçe geniş: z3,25'te 13 pin, önce 17; z4'te 6, önce 5; z5'te yine ASR ve NAV'ın 4 kod kutusu). Öbür 58 ülke aynı; görsel merkezde duran adlar 9 → 10; dar ekranda z3,8'de çapa IST'nin ~100 px doğusunda (önce ~120).
+- Birim testleri: `@havayolu/tools` 369 (+1), `@havayolu/shared` 688 (+2; `mapShownAirports` tek kural olarak shared'e taşındıktan sonra), `@havayolu/web` 830 (+3); öbürleri değişmedi (worker 292, api 278, providers 132, i18n 98, db 64, geo 36).
+- `pnpm format`, `pnpm lint` (9/9), `pnpm typecheck` (9/9), `pnpm test` (9/9), `pnpm typecheck:e2e`, `pnpm lint:e2e`, `pnpm check:eol` → yeşil.
+- E2E (yerel, `pnpm dev:replay`, yerel test stili): `live-map.spec.ts`, `airports.spec.ts`, `weather.spec.ts` 68/68 (4 kurulum + 20 + 12 + 32; 2,2 dk). `pnpm ci:full` çalıştırılmadı (yerel Docker altyapısı başka bir iş akışıyla paylaşılıyor). İnceleme düzeltmelerinden sonra (kural shared'e taşındı, belgeler) birim testleri, `format`, `lint`, `typecheck`, `typecheck:e2e`, `lint:e2e` ve `check:eol` yeniden yeşil; e2e yeniden çalıştırılmadı (3100/4100/4200/4300 başka bir iş akışında; e2e dosyaları değişmedi, haritanın davranışı aynı).
 
 ## M6h — 3. halka (v0.18.0)
 Onay: 2026-10-04 kullanıcı isteği "sonraki işlerden birine bir halka daha ekle" ve kapalı havalimanı kararı (2022'den beri sivil uçuşa kapalı olduğu hâlde OurAirports'ta tarifeli görünen havalimanları listede kalır, sayfada ve pencerede "Sivil uçuşlara kapalı olabilir (2022’den beri)" notu); diğer seçimler M6h araştırmasının önerileri (orkestratör varsayılanı 2026-10-04)
