@@ -1,9 +1,9 @@
 /**
  * Ülke adlarının yeri ve ilk sığma yakınlaştırması (D-096, D-099). ÜRETİLMİŞ DOSYA: elle
  * düzenlenmez; `pnpm country-labels` `tools/fixtures/naturalearth/countries.json`'dan ve
- * `tools/fixtures/ourairports/airports.csv`'nin listelenen havalimanlarından üretir
- * (tools/src/country-labels). Tools testi tabloyu fixture'lardan yeniden hesaplar ve fark olursa
- * kırılır.
+ * `tools/fixtures/ourairports/airports.csv`'nin haritada pini çizilen havalimanlarından
+ * (listelenenler, askerî hava üsleri hariç; D-103) üretir (tools/src/country-labels). Tools testi
+ * tabloyu fixture'lardan yeniden hesaplar ve fark olursa kırılır.
  *
  * Satır: ülke kodu → ad (tek satır; `countryLabelText`, üretimdeki Node/ICU CLDR'ından; harita
  * bu adı yazar) ve iki düzen: geniş ve dar (≤ 767 px) harita. Düzen değeri [boylam, enlem, ilk
@@ -32,7 +32,7 @@ export const COUNTRY_LABEL_PLACEMENT_PARAMS = {
   latticeSteps: 100,
   clearMaxDelayZooms: 1.5,
   crowdedMaxDelayZooms: 0.25,
-  airportPins: 503,
+  airportPins: 498,
   airportCodeMinZoom: 5,
   airportCodeSides: ['right', 'left'],
   capitalAnchored: ['CY'],
@@ -102,7 +102,7 @@ export const COUNTRY_LABEL_PLACEMENTS: Readonly<
     SY: { name: 'SURİYE', regular: [38.64, 35.28, 3.75], compact: [38.64, 35.28, 3.5] },
     TM: { name: 'TÜRKMENİSTAN', regular: [58.65, 39.15, 4], compact: [58.65, 39.15, 3.75] },
     TN: { name: 'TUNUS', regular: [9.76, 32.96, 4.75], compact: [9.76, 32.96, 4.5] },
-    TR: { name: 'TÜRKİYE', regular: [34.8, 39.4, 3.25], compact: [34.8, 39.4, 3] },
+    TR: { name: 'TÜRKİYE', regular: [33.8, 39.4, 3.25], compact: [33.8, 39.4, 3] },
     UA: { name: 'UKRAYNA', regular: [32.49, 49.4, 3.5], compact: [32.49, 49.4, 3.5] },
     UZ: { name: 'ÖZBEKİSTAN', regular: [63, 42.3, 4.5], compact: [63, 42.3, 4.25] },
     XK: { name: 'KOSOVA', regular: [20.86, 42.48, 5.75], compact: [20.86, 42.48, 5.75] },
@@ -167,7 +167,7 @@ export const COUNTRY_LABEL_PLACEMENTS: Readonly<
     SY: { name: 'SYRIA', regular: [38.64, 35.28, 3.5], compact: [38.64, 35.28, 3.5] },
     TM: { name: 'TURKMENISTAN', regular: [58.65, 39.15, 4], compact: [58.65, 39.15, 3.75] },
     TN: { name: 'TUNISIA', regular: [9.76, 32.96, 5.25], compact: [9.76, 32.96, 4.75] },
-    TR: { name: 'TÜRKIYE', regular: [34.8, 39.4, 3.25], compact: [34.8, 39.4, 3] },
+    TR: { name: 'TÜRKIYE', regular: [33.8, 39.4, 3.25], compact: [33.8, 39.4, 3] },
     UA: { name: 'UKRAINE', regular: [32.49, 49.4, 3.5], compact: [32.49, 49.4, 3.5] },
     UZ: { name: 'UZBEKISTAN', regular: [63, 42.3, 4.5], compact: [63, 42.3, 4.25] },
     XK: { name: 'KOSOVO', regular: [20.86, 42.48, 5.75], compact: [20.86, 42.48, 5.75] },

@@ -13,8 +13,11 @@ export const PRIMARY_AIRPORT_VIEW = { icao: 'LTFM', lat: 41.2753, lon: 28.7519 }
 
 /** Açılışta görünümün kısa kenarının kapsadığı yaklaşık mesafe (yaklaşma alanı), m. */
 export const INITIAL_SPAN_M = 100_000
-/** Açılış yakınlaştırmasının sınırları: geniş ekranda 8,5; telefonda kısa kenara göre daha uzak. */
-export const INITIAL_MAX_ZOOM = 8.5
+/**
+ * Açılış yakınlaştırmasının sınırları: geniş ekranda 8 (kullanıcı isteği 2026-10-06, D-104; önce
+ * 8,5); telefonda kısa kenara göre biraz daha uzak.
+ */
+export const INITIAL_MAX_ZOOM = 8
 export const INITIAL_MIN_ZOOM = 7
 
 /** Ekvator çevresi, m (Web Mercator; MapLibre'de z0'da dünya 512 px'tir). */
@@ -23,7 +26,7 @@ const TILE_PX = 512
 
 /**
  * Açılış yakınlaştırması: görünümün kısa kenarı yaklaşık `INITIAL_SPAN_M` (100 km) kapsasın;
- * en çok 8,5 (masaüstü), en az 7. Ondalık bir basamağa yuvarlanır. 375 px genişlikte ~7,8.
+ * en çok 8 (masaüstü), en az 7. Ondalık bir basamağa yuvarlanır. 375 px genişlikte ~7,8.
  */
 export function initialZoom(width: number, height: number): number {
   const side = Math.max(1, Math.min(width, height))
@@ -36,14 +39,14 @@ export function initialZoom(width: number, height: number): number {
 
 /**
  * Harita kurulmadan (MapLibre iniyor, WebGL2 yok) canlı veri aboneliğinin kutusu: açılış
- * görünümünü geniş ekranda da kapsayan IST çevresi (~±1,4° boylam, ±0,7° enlem). Harita kurulunca
- * abonelik gerçek görünümü izler.
+ * görünümünü 1920×1080 ekranda da kapsayan IST çevresi (±2,7° boylam, ±1,2° enlem; z8'de görünüm
+ * ~±2,64° × ±1,12°). Harita kurulunca abonelik gerçek görünümü izler.
  */
 export const INITIAL_BOUNDS: Bbox = {
-  minLon: PRIMARY_AIRPORT_VIEW.lon - 1.4,
-  minLat: PRIMARY_AIRPORT_VIEW.lat - 0.7,
-  maxLon: PRIMARY_AIRPORT_VIEW.lon + 1.4,
-  maxLat: PRIMARY_AIRPORT_VIEW.lat + 0.7,
+  minLon: PRIMARY_AIRPORT_VIEW.lon - 2.7,
+  minLat: PRIMARY_AIRPORT_VIEW.lat - 1.2,
+  maxLon: PRIMARY_AIRPORT_VIEW.lon + 2.7,
+  maxLat: PRIMARY_AIRPORT_VIEW.lat + 1.2,
 }
 
 /** Search, tablo ve `?hex=` seçiminde en az bu yakınlaştırmaya uçulur. */

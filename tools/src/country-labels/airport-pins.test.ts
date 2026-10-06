@@ -1,13 +1,19 @@
 /**
  * Ülke adlarının havalimanı engelleri (D-099): listelenen havalimanları üretimin kuralıyla commit'li
- * OurAirports fixture'ından gelir; pin ve kod kutuları (pin başının sağında ve solunda) haritanın
- * çizdiği boydadır (sabitler web'in labels.ts'iyle ve kod yazı tipinin dosyasıyla karşılaştırılır);
- * dizinli arama kaba taramayla aynı sonucu verir.
+ * OurAirports fixture'ından gelir; engeller onlardan askerî hava üsleri çıkarılarak haritada pini
+ * çizilenlerdir (D-103); pin ve kod kutuları (pin başının sağında ve solunda) haritanın çizdiği
+ * boydadır (sabitler web'in labels.ts'iyle ve kod yazı tipinin dosyasıyla karşılaştırılır); dizinli
+ * arama kaba taramayla aynı sonucu verir.
  */
 import { readFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import { inflateSync } from 'node:zlib'
-import { AIRPORT_LAYER, ENABLED_AIRPORT_RING } from '@havayolu/shared'
+import {
+  AIRPORT_LAYER,
+  ENABLED_AIRPORT_RING,
+  MILITARY_AIRFIELD_ICAOS,
+  mapShownAirports,
+} from '@havayolu/shared'
 import { describe, expect, it } from 'vitest'
 import {
   AIRPORT_CHIP_ADVANCE_EM,
@@ -21,6 +27,7 @@ import {
   chipBoxPx,
   chipLeftBoxPx,
   listedAirportPins,
+  mapAirportPins,
   obstacleBoxesPx,
   pinBoxPx,
   pinScaleAt,
@@ -32,6 +39,7 @@ import {
 import { mercatorX, mercatorY } from './geometry'
 
 const PINS = listedAirportPins(readOurAirportsFixture())
+const MAP_PINS = mapAirportPins(readOurAirportsFixture())
 
 /** Web'in paketleri ve kaynağı (apps/web; ağ yok). */
 const webRequire = createRequire(new URL('../../../apps/web/package.json', import.meta.url))
@@ -67,7 +75,7 @@ function bruteHits(box: WorldBox, zoom: number): { count: number; icaos: string[
   )
   let count = 0
   const icaos: string[] = []
-  for (const pin of PINS) {
+  for (const pin of MAP_PINS) {
     const inside = parts.filter((part) =>
       worldBoxesOverlap(box, worldBoxAt(pin.lon, pin.lat, part, zoom)),
     )
@@ -89,6 +97,21 @@ describe('listelenen havalimanları (D-080, D-099)', () => {
     expect(new Set(icaos).size).toBe(503)
     for (const icao of ['LTFM', 'LTAC', 'OIIE', 'LIMP', 'UUEE', 'HEBA'])
       expect(icaos).toContain(icao)
+  })
+
+  it('haritadaki pinler (D-103): liste, beş askerî hava üssü çıkarılarak; 498 havalimanı (Türkiye 56), ICAO sırasıyla', () => {
+    expect(MAP_PINS).toHaveLength(498)
+    const byRing = [0, 1, 2, 3].map((ring) => MAP_PINS.filter((pin) => pin.ring === ring).length)
+    expect(byRing).toEqual([56, 75, 89, 278])
+    const icaos = MAP_PINS.map((pin) => pin.icao)
+    expect(icaos).toEqual([...icaos].sort())
+    const removed = PINS.filter((pin) => !icaos.includes(pin.icao)).map((pin) => pin.icao)
+    expect(removed).toEqual(['LTAG', 'LTAH', 'LTBG', 'LTBI', 'LTBL'])
+    expect(removed).toEqual(MILITARY_AIRFIELD_ICAOS)
+    // Kural web haritasıyla ortaktır (tek yer `@havayolu/shared` `mapShownAirports`).
+    expect(MAP_PINS).toEqual(mapShownAirports(PINS))
+    // Ankara (Etimesgut) ve yurt dışındaki ortak sivil-askerî havalimanları sivildir, pinleri kalır.
+    for (const icao of ['LTAD', 'LTBJ', 'ORBI', 'LYPG', 'ETMN']) expect(icaos).toContain(icao)
   })
 })
 
@@ -184,7 +207,7 @@ describe('pin ve kod kutusu (D-099)', () => {
 
 describe('dizinli arama (D-099)', () => {
   it('hits ve hitIcaos kaba taramayla aynı (z3–7, rastgele ama sabit kutular)', () => {
-    const obstacles = new AirportObstacles(PINS)
+    const obstacles = new AirportObstacles(MAP_PINS)
     let seed = 20261005
     const random = () => {
       seed = (seed * 1103515245 + 12345) % 2 ** 31
@@ -213,7 +236,7 @@ describe('dizinli arama (D-099)', () => {
     }
     expect(nonEmpty).toBeGreaterThan(50)
     // Sınır: kutu pinin kenarına yalnızca değiyorsa sayılmaz.
-    const ltfm = PINS.find((pin) => pin.icao === 'LTFM')
+    const ltfm = MAP_PINS.find((pin) => pin.icao === 'LTFM')
     if (!ltfm) throw new Error('LTFM')
     const pin = worldBoxAt(ltfm.lon, ltfm.lat, pinBoxPx(4), 4)
     const touching: WorldBox = [pin[2], pin[1], pin[2] + 0.01, pin[3]]

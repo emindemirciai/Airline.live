@@ -159,6 +159,20 @@ export const PRIMARY_AIRPORT_NEIGHBOURS = ['LTFJ', 'LTBU'] as const
 export const NON_INDEXABLE_AIRPORT = { icao: 'LTAG', iata: 'UAB' } as const
 
 /**
+ * Haritada gösterilmeyen askerî hava üssü (D-103): Çiğli Hava Üssü (orta boy, tarifesiz; OurAirports
+ * fixture'ındaki konum). Sayfası açılır; haritada pini, kodu, penceresi ve "Havalimanları"
+ * listesinde satırı yoktur, `?havalimani=LTBL` haritayı yine orada açar.
+ */
+export const MILITARY_AIRFIELD = { icao: 'LTBL', iata: 'IGL', lat: 38.513, lon: 27.010099 } as const
+/** Çiğli'nin 27 km güneydoğusundaki sivil havalimanı: İzmir Adnan Menderes (büyük, beyaz kod kutusu). */
+export const MILITARY_AIRFIELD_NEIGHBOUR = {
+  icao: 'LTBJ',
+  iata: 'ADB',
+  lat: 38.2924,
+  lon: 27.157,
+} as const
+
+/**
  * Hava durumu fixture'ı (tools/fixtures/weather; elle yazılmış ve sentetik, D-078). Worker'ın `jobs`
  * rolü geliştirme ve testte yükler ve bütün zamanları tam saat kaydırır: fixture'ın "şimdi"si
  * (15 Ocak 13:00Z) içinde bulunulan UTC saatinin başına gelir, dakikalar korunur.

@@ -49,6 +49,19 @@ describe('ilk paket: havalimanı adları dinamik parçalarda (D-101)', () => {
     // Öbür tablolar düz nesnedir (çağrı yok): paketleyici kullanılmayınca atar.
     expect(foreign).toMatch(/export const FOREIGN_AIRPORT_NAMES: [^=]+= \{\n {2}[A-Z0-9]{4}: \{/)
   })
+
+  it('haritanın ilk paketindeki askerî üs kuralı ad tablolarını içe aktarmaz (D-103, D-105)', () => {
+    // `mapShownAirports` ad tablolarının modülündeyken (liste tablodan türetiliyordu) paketleyici
+    // tabloları `/`'nin ilk paketine taşıyordu; kural kendi modülündedir ve hiçbir şey içe aktarmaz.
+    expect(source('./live-map.tsx')).toContain('mapShownAirports')
+    const reference = '../../../../../packages/shared/src/reference/'
+    const military = source(`${reference}military-airfields.ts`)
+    expect(military).toContain('export function mapShownAirports')
+    expect(staticImports(military)).toEqual([])
+    const names = source(`${reference}airport-names.ts`)
+    expect(names).not.toContain('mapShownAirports')
+    expect(names).not.toContain('isMilitaryAirfield')
+  })
 })
 
 describe('parça yüklenemezse (D-101): yedek bileşen, hata ekranı yok', () => {

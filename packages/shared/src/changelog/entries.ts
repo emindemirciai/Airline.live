@@ -12,8 +12,32 @@ import type { ChangelogEntry } from './types'
  */
 export const CHANGELOG: readonly ChangelogEntry[] = [
   {
+    version: '0.22.1',
+    date: '2026-10-06',
+    title: {
+      tr: 'Askerî üsler haritadan kalktı, harita biraz daha uzaktan açılır',
+      en: 'Air bases off the map, and a slightly wider opening view',
+    },
+    items: [
+      {
+        tr: 'Beş askerî hava üssü (İncirlik, Afyon, Bandırma, Eskişehir, Çiğli) artık canlı haritada ve haritanın “Havalimanları” listesinde gösterilmez. Havalimanları sayfasında ve kendi sayfalarında yerinde durur.',
+        en: 'The five air force bases (Incirlik, Afyon, Bandırma, Eskişehir, Çiğli) no longer appear on the live map or in its “Airports” list. They stay on the airports page and on their own pages.',
+      },
+      {
+        tr: 'Harita bilgisayarda biraz daha uzaktan açılır: İstanbul Havalimanı ortada, Çorlu’dan Kocaeli’ne kadar bölge ilk bakışta görünür. Telefonda açılış değişmedi.',
+        en: 'On computers the map opens a little further out: Istanbul Airport in the middle, with the area from Çorlu to Kocaeli in view at first glance. The opening view on phones is unchanged.',
+      },
+      {
+        tr: 'Uzaktan bakınca TÜRKİYE adı ülkenin ortasına, Kırşehir yakınına kaydı.',
+        en: 'Zoomed far out, the TÜRKIYE name moved to the middle of the country, near Kırşehir.',
+      },
+    ],
+    tryLinks: [{ path: '/', label: { tr: 'Canlı harita', en: 'Live map' } }],
+  },
+  {
     version: '0.22.0',
     date: '2026-10-06',
+    releasedAt: '2026-10-06T00:41:12Z',
     title: {
       tr: '4. halkaya hazırlık: daha hafif harita',
       en: 'Getting ready for ring 4: a lighter map',

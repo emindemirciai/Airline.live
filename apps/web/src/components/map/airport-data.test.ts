@@ -1,7 +1,9 @@
+import { mapShownAirports } from '@havayolu/shared'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { ApiError } from '../../lib/live/api'
 import {
   AIRPORT_LIST_LIMIT,
+  airportLinkCenter,
   airportsInView,
   fetchMapAirports,
   mapAirportsUrl,
@@ -329,5 +331,73 @@ describe('airportsInView (Havalimanları listesi, klavye yolu)', () => {
     expect(airportsInView(many, viewport)).toHaveLength(AIRPORT_LIST_LIMIT)
     expect(airportsInView(many, viewport, 3)).toHaveLength(3)
     expect(airportsInView([], viewport)).toEqual([])
+  })
+})
+
+describe('askerî hava üsleri haritada yok (D-103)', () => {
+  const airport = (
+    icao: string,
+    iata: string,
+    lat: number,
+    lon: number,
+    country = 'TR',
+  ): MapAirport => ({
+    icao,
+    iata,
+    name: iata,
+    city: null,
+    lat,
+    lon,
+    elevationFt: null,
+    type: 'medium_airport',
+    scheduled: icao !== 'LTBL',
+    country,
+    ring: country === 'TR' ? 0 : 1,
+    distanceToTrKm: country === 'TR' ? null : 300,
+    isoRegion: `${country}-35`,
+    municipality: null,
+    runways: [],
+  })
+  // İzmir: Adnan Menderes (sivil) ve Çiğli Hava Üssü (askerî), 27 km arayla; Ankara (Etimesgut)
+  // sivil adlıdır (kullanıcı kararı 2026-10-03); Bağdat ortak sivil-askerî ama tarifeli, sivildir.
+  const IST = airport('LTFM', 'IST', 41.2753, 28.7519)
+  const ANK = airport('LTAD', 'ANK', 39.9498, 32.6886)
+  const ADB = airport('LTBJ', 'ADB', 38.2924, 27.157)
+  const BGW = airport('ORBI', 'BGW', 33.2625, 44.2346, 'IQ')
+  const UAB = airport('LTAG', 'UAB', 37.002, 35.4259)
+  const AFY = airport('LTAH', 'AFY', 38.7264, 30.6011)
+  const BDM = airport('LTBG', 'BDM', 40.318, 27.9777)
+  const ESK = airport('LTBI', 'ESK', 39.7841, 30.5821)
+  const IGL = airport('LTBL', 'IGL', 38.513, 27.010099)
+  const civil = [IST, ANK, ADB, BGW]
+  const bases = [UAB, AFY, BDM, ESK, IGL]
+  const all = [IST, ANK, UAB, AFY, ADB, BDM, ESK, IGL, BGW]
+
+  it('haritadaki liste beş askerî üssü çıkarır, öbürlerini sırasıyla tutar', () => {
+    expect(all).toHaveLength(9)
+    expect(mapShownAirports(all).map((a) => a.icao)).toEqual(['LTFM', 'LTAD', 'LTBJ', 'ORBI'])
+    expect(mapShownAirports(civil)).toEqual(civil)
+    expect(mapShownAirports(bases)).toEqual([])
+    expect(mapShownAirports([])).toEqual([])
+  })
+
+  it('İzmir görünümünün "Havalimanları" listesinde ADB var, Çiğli (IGL) yok', () => {
+    const izmir = {
+      bounds: { minLon: 26.5, minLat: 38, maxLon: 27.5, maxLat: 38.9 },
+      center: { lat: IGL.lat, lon: IGL.lon },
+    }
+    // Süzgeçsiz liste Çiğli'yi ortada, ilk sırada gösterirdi.
+    expect(airportsInView(all, izmir).map((a) => a.iata)).toEqual(['IGL', 'ADB'])
+    expect(airportsInView(mapShownAirports(all), izmir).map((a) => a.iata)).toEqual(['ADB'])
+  })
+
+  it('?havalimani= bütün listede aranır: askerî üssün merkezine gidilir (ICAO ya da IATA), pencere yok', () => {
+    expect(airportLinkCenter(all, 'LTBL')).toEqual({ lat: IGL.lat, lon: IGL.lon })
+    expect(airportLinkCenter(all, 'IGL')).toEqual({ lat: IGL.lat, lon: IGL.lon })
+    expect(airportLinkCenter(all, 'LTBJ')).toEqual({ lat: ADB.lat, lon: ADB.lon })
+    expect(airportLinkCenter(all, 'ZZZZ')).toBeNull()
+    expect(airportLinkCenter([], 'LTBL')).toBeNull()
+    // Haritada gösterilen listede üs yoktur: pin, kod ve pencere onun kaydından çizilemez.
+    expect(mapShownAirports(all).some((a) => a.icao === 'LTBL')).toBe(false)
   })
 })
