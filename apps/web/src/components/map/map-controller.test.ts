@@ -59,9 +59,11 @@ describe('açılış görünümü (IST/LTFM, D-079)', () => {
     expect([lat, lon]).toEqual([41.2753, 28.7519])
   })
 
-  it('yakınlaştırma: masaüstünde 8,5; telefonda kısa kenar ~100 km kapsar', () => {
-    expect(initialZoom(1280, 720)).toBe(INITIAL_MAX_ZOOM)
-    expect(initialZoom(1920, 1080)).toBe(INITIAL_MAX_ZOOM)
+  it('yakınlaştırma: masaüstünde 8 (D-104); telefonda kısa kenar ~100 km kapsar', () => {
+    expect(INITIAL_MAX_ZOOM).toBe(8)
+    expect(initialZoom(1280, 720)).toBe(8)
+    expect(initialZoom(1920, 1080)).toBe(8)
+    expect(initialZoom(1915, 910)).toBe(8)
     const phone = initialZoom(375, 812)
     expect(phone).toBeGreaterThan(7.5)
     expect(phone).toBeLessThan(8)
@@ -70,6 +72,22 @@ describe('açılış görünümü (IST/LTFM, D-079)', () => {
     expect(metersPerPixel * 375).toBeGreaterThan(90_000)
     expect(metersPerPixel * 375).toBeLessThan(110_000)
     expect(initialZoom(0, 0)).toBe(7)
+  })
+
+  it('açılış kutusu 1920×1080 ekrandaki açılış görünümünü kapsar', () => {
+    const zoom = initialZoom(1920, 1080)
+    const world = 512 * 2 ** zoom
+    const { lat, lon } = PRIMARY_AIRPORT_VIEW
+    // Web Mercator: ortadan yarım genişlik ve yarım yükseklik kadar uzaktaki boylam ve enlemler.
+    const y = (latitude: number) =>
+      ((1 - Math.log(Math.tan(Math.PI / 4 + (latitude * Math.PI) / 360)) / Math.PI) / 2) * world
+    const latAt = (py: number) =>
+      (Math.atan(Math.sinh(Math.PI * (1 - (2 * py) / world))) * 180) / Math.PI
+    const halfLon = (960 / world) * 360
+    expect(INITIAL_BOUNDS.minLon).toBeLessThan(lon - halfLon)
+    expect(INITIAL_BOUNDS.maxLon).toBeGreaterThan(lon + halfLon)
+    expect(INITIAL_BOUNDS.maxLat).toBeGreaterThan(latAt(y(lat) - 540))
+    expect(INITIAL_BOUNDS.minLat).toBeLessThan(latAt(y(lat) + 540))
   })
 })
 

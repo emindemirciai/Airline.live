@@ -71,7 +71,8 @@ test('harita IST/LTFM merkezli açılır, atıflar görünür, replay uçağı t
   expect((await airportListCodes(page))[0]).toBe(PRIMARY_AIRPORT.iata)
   await expect(aircraftRow(page, TAXI_AIRCRAFT.hex)).toBeVisible({ timeout: 30_000 })
   await expect(aircraftRow(page, FAR_AIRCRAFT.hex)).toHaveCount(0)
-  // Açılış görünümünde (z8,5) ülke adı yoktur (D-095): adlar z8'de biter; yazı tipi indirilmez.
+  // Açılış görünümünde (masaüstünde z8, D-104) ülke adı yoktur (D-095): adlar z8'de biter (katmanın
+  // `maxzoom`'u 8); yazı tipi indirilmez.
   await expect(page.locator('.live-map .live-map__canvas')).toHaveAttribute(
     'data-country-labels',
     '',

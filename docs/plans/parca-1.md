@@ -35,7 +35,7 @@ Durumlar: `[ ]` başlamadı, `[~]` sürüyor, `[k]` kod bitti ve kullanıcı do�
 | M6e.7 | Haritada ülke adları başkentlerde (yama, v0.18.2) | `p1/map-country-labels` | [x] tamam; üretimde doğrulandı (2026-10-05, v0.18.2): uydu üstünde z5'te TÜRKİYE, ROMANYA, BULGARİSTAN, YUNANİSTAN okunur, iğneler ve kesikli sınırlar üstte; Balkanlarda küçük adlar soluk; v0.18.2 Release 2026-10-05T01:08:09Z | #30 |
 | M6e.8 | Ülke adları sınır içinde, kelime başına satır (yama, v0.19.1) | `p1/map-country-fit` | [x] tamam; üretimde doğrulandı (2026-10-05, v0.19.1): uydu üstünde z5,3'te TÜRKİYE sınır içinde (Ankara'nın güneyinde), BOSNA / HERSEK alt alta, adlar kıyıdan taşmıyor; v0.19.1 Release 2026-10-05T05:51:51Z | #32 |
 | M6e.9 | Ülke adları daha belirgin, boş yerde (yama, v0.21.1; D-099) | `p1/map-country-clear` | [k] kod bitti; üretimde uydu üstünde görünüm denetimi bekliyor (ACTIVATION M6e.9) | — |
-| M6e.10 | Askerî üsler haritada gösterilmez (yama; D-103) | `p1/map-no-military` | [~] kod ve testler bitti; sürüm, changelog ve yayın adımı bekliyor | — |
+| M6e.10 | Askerî üsler haritada gösterilmez; açılış yakınlaştırması masaüstünde 8 (yama; D-103, D-104) | `p1/map-no-military` | [~] kod ve testler bitti; sürüm, changelog ve yayın adımı bekliyor | — |
 | M6h | 3. halka (≤ 2.000 km) — kullanıcı isteğiyle M7a'nın önüne alındı (2026-10-04); sivil uçuşa kapalı olabilecek havalimanı notu | `p1/m6h-ring3` | [k] kod bitti; üretimde doğrulandı (2026-10-04, v0.18.0): `scope=listed` 503 (61 + 75 + 89 + 278), Viyana 3. halka 1.149 km, beş Özbek istasyonunun METAR'ı UZxx koduyla, METAR'lı istasyon 463/503, toplu hava 1,34 MB, URKK ve UUOO notu iki dilde; admin Servisler ve worker günlüğü (429 yok) bekliyor (ACTIVATION) | #28 |
 | M7a | Canlı araçlar: `smoke:live`, `record` | `p1/m7a-live-tools` | [k] kod bitti; canlı smoke ve kayıt kullanıcıda (ACTIVATION) | #31 |
 | M7b.1 | İz tablolarına ham `seen_pos` ve `baro_rate` (migration 0006, v0.20.0; D-097) | `p1/m7b1-track-columns` | [x] tamam; üretimde doğrulandı (2026-10-05, v0.20.0): `hy-migrate` 0006'yı uyguladıktan sonra servisler açıldı, `/version` 0.20.0, `/ready` 200; v0.20.0 Release 2026-10-05T07:45:13Z. Ingest yazımı üretimde adsb.lol açılınca görülür (ACTIVATION 2. adım) | #33 |
@@ -482,7 +482,7 @@ Kararlar ve gerekçeler D-078'dedir; düzeltme turundaki harita ek istekleri (pi
 - **Ek istekler (kullanıcı, 2026-10-01; D-079):**
   - havalimanı noktası yerine özgün kırmızı pin (ucu referans noktasında, beyaz kenar ve koyu hat, yakınlaştırmayla büyür); IATA kodu pinin yanında ya da üstünde, pini örtmez; pin ve kod tıklanır
   - harita yazıları ~1 px küçük (uçak etiketi 12/11 px, kod 11 px), çakışma düzeni yeni boyutlarla
-  - açılış görünümü her açılışta ve yenilemede IST/LTFM merkezli, kısa kenar ~100 km (masaüstünde z8,5, telefonda ~7,8); `?hex=` ve `?havalimani=` önceliklidir; Türkiye görünümü kaldırıldı
+  - açılış görünümü her açılışta ve yenilemede IST/LTFM merkezli, kısa kenar ~100 km (masaüstünde z8,5, D-104'ten beri 8; telefonda ~7,8); `?hex=` ve `?havalimani=` önceliklidir; Türkiye görünümü kaldırıldı
   - tıklama önceliği: uçak etiketi > havadaki uçak > havalimanı kodu ya da pini > yerdeki uçak > dokunma payı; IST'nin kodu yerdeki uçakların üstüne yazılabilir
   - `/havalimanlari` kapsam cümlesindeki "OurAirports'ta tarifeli seferi kayıtlı" ifadesi kaldırıldı (yalın dahil etme cümlesi); `/hakkinda` tazelik listesi kalır
 - "Tarifeli sefer (OurAirports)" ve "İzlenen istasyon" bilgileri her yerden kaldırıldı (dizine ekleme kuralı D-076'daki gibi kalır).
@@ -1264,7 +1264,7 @@ Hedef sürüm yayın adımında belirlenir (dal `p1/map-country-clear`, `main` `
 - `pnpm ci:full` → yeşil: birim tools 368, shared 686, web 827, worker 292, api 278, providers 132, i18n 98, db 64, geo 36; entegrasyon db 106, worker 17, api 30, tools 14; `test:migration-upgrade` 8 → 8; e2e 127/127.
 - `pnpm stats` → 668 dosya, 136.876 satır (kod 126.052, belge 7.300).
 
-## M6e.10 — Askerî üsler haritada gösterilmez (yama)
+## M6e.10 — Askerî üsler haritada gösterilmez; açılış yakınlaştırması 8 (yama)
 Onay: 2026-10-06 kullanıcı: "askeri havalimanlarını kaldır haritadan." (kapsamın yalnız harita olması, `?havalimani=` davranışı, uçak listesinin üsleri kullanmaya devam etmesi ve ülke adlarının engelleri orkestratör varsayılanıdır, itiraz edilebilir; yama sürümü, D-082)
 
 Hedef sürüm yayın adımında belirlenir (dal `p1/map-no-military`, `main` `8a7a5ea` = v0.21.1'den). Karar D-103'tedir.
@@ -1273,9 +1273,11 @@ Hedef sürüm yayın adımında belirlenir (dal `p1/map-no-military`, `main` `8a
 - **Harita:** beş askerî hava üssünün (D-084: İncirlik, Afyon, Bandırma, Eskişehir, Çiğli) pini, kodu, penceresi ve "Havalimanları" listesinde satırı yok. `?havalimani=<üs>` haritayı yine üssün yerinde açar, pencere açılmaz.
 - **Değişmeyenler:** havalimanları listesi, istasyon sayfaları, API (`scope=listed` 503 kayıt); site haritası ve llms.txt (üsler `noindex`'tir, D-084: oralarda zaten yoklar). Uçak listesinin tahmini durumu ve konumu bütün listeyi kullanır (üsse yaklaşan uçak doğru yere göre yazılır). Ankara (Etimesgut) ve yurt dışındaki ortak sivil-askerî havalimanları (Bağdat, Podgorica, Cuxhaven/Nordholz) sivildir, haritada kalır.
 - **Ülke adları:** engeller haritada pini çizilen 498 havalimanıdır (503 − 5 üs); tablo `pnpm country-labels` ile yeniden üretildi. Yalnız TÜRKİYE'nin çapası kaydı.
+- **Açılış yakınlaştırması (D-104; kullanıcı 2026-10-06, İstanbul ekran görüntüsüyle: "başlangıçta zoom oranı bu olsun."):** masaüstünde 8,5 → 8; merkez IST/LTFM ve telefon kuralı (~7,8) aynı. Harita kurulmadan aboneliğin kutusu ±2,7° × ±1,2°'ye genişler (1920×1080'de z8 görünümü).
 - Sürüm, `entries.ts`, `CHANGELOG.md` ve README yayın adımındadır.
 
 **Dosyalar:**
+- `apps/web/src/components/map/camera.ts` (`INITIAL_MAX_ZOOM` 8, `INITIAL_BOUNDS`); test `map-controller.test.ts` (1280×720, 1920×1080, 1915×910 → 8; kutu 1920×1080 görünümünü kapsar); `e2e/tests/live-map.spec.ts` (açıklama)
 - `packages/shared/src/reference/airport-names.ts` (`MILITARY_AIRFIELD_ICAOS`, `isMilitaryAirfield`, `mapShownAirports`: haritada gösterilenlerin tek kuralı, web haritası ve ülke adlarının engelleri ortak kullanır); test `reference.test.ts`
 - `apps/web/src/components/map/airport-data.ts` (`airportLinkCenter`), `live-map.tsx` (harita, pencere ve liste haritadaki listeden; uçak listesi ve `?havalimani=` bütün listeden); test `airport-data.test.ts`
 - `tools/src/country-labels/airport-pins.ts` (`mapAirportPins` = listenin `mapShownAirports`'u), `cli.ts` (tablo haritadaki pinlerle; `airports` yine bütün liste), `placement.ts` (üretilen dosyanın açıklaması); testler `airport-pins.test.ts`, `placement.test.ts`
