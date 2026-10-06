@@ -34,8 +34,9 @@ const LISTED_TYPES = ['large_airport', 'medium_airport', 'small_airport']
 
 /**
  * Veritabanındaki IATA kodlu Türkiye havalimanları: içe aktarım süzgeci (büyük, orta ya da
- * tarifeli; data-sources.md §3) ve `toListedAirports` kuralı (üç harfli IATA; ICAO = icao_code,
- * yoksa gps_code, o da yoksa ident).
+ * tarifeli; data-sources.md §3) ve `toListedAirports`'ın biçim kuralı (üç harfli IATA; ICAO =
+ * icao_code, yoksa gps_code, o da yoksa ident). Askerî hava üsleri de burada sayılır; listelenmezler
+ * (D-107).
  */
 const listedIcaos = trRows
   .filter(
@@ -117,9 +118,10 @@ describe('airportDistrict', () => {
 })
 
 describe('AIRPORT_NAMES', () => {
-  it("tablo, fixture'daki IATA kodlu 61 Türkiye havalimanını eksiksiz ve fazlasız kapsar", () => {
+  it("tablo, fixture'daki IATA kodlu 61 Türkiye satırını eksiksiz ve fazlasız kapsar: listelenen 56 havalimanı ve listelenmeyen 5 askerî üs (D-107)", () => {
     expect(listedIcaos).toHaveLength(61)
     expect(Object.keys(AIRPORT_NAMES).sort()).toEqual([...listedIcaos].sort())
+    expect(listedIcaos.filter((icao) => !isMilitaryAirfield(icao))).toHaveLength(56)
   })
 
   it('adlar dolu; sivil havalimanı "Havalimanı" / "Airport", askerî üs "Hava Üssü" / "Air Base" ile biter', () => {

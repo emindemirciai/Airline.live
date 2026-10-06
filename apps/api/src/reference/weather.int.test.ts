@@ -181,13 +181,14 @@ afterAll(async () => {
 })
 
 describe('hava durumu uçları (gerçek PostgreSQL)', () => {
-  it('GET /v1/weather?country=TR: listedeki 61 havalimanı liste sırasıyla; en yeni rapor, geçerli TAF', async () => {
+  it('GET /v1/weather?country=TR: listedeki 56 havalimanı (askerî üsler yok, D-107) liste sırasıyla; en yeni rapor, geçerli TAF', async () => {
     const res = await get('/v1/weather?country=TR')
     expect(res.statusCode).toBe(200)
     expect(res.headers['cache-control']).toBe(WEATHER_CACHE_CONTROL)
     const body = res.json() as WeatherBulkResponse
     expect(WeatherBulkResponseSchema.parse(body)).toEqual(body)
-    expect(body.stations).toHaveLength(61)
+    expect(body.stations).toHaveLength(56)
+    expect(body.stations.map((s) => s.icao)).not.toContain('LTBL')
     expect(Buffer.byteLength(res.body)).toBeLessThan(1_000_000)
 
     const byIcao = new Map(body.stations.map((s) => [s.icao, s]))
@@ -215,7 +216,13 @@ describe('hava durumu uçları (gerçek PostgreSQL)', () => {
     expect(WeatherBulkResponseSchema.parse(body)).toEqual(body)
     const listed = await listListedAirports(database.db, AIRPORT_RING_CONFIG)
     expect(body.stations.map((s) => s.icao)).toEqual(listed.map((a) => a.icao))
-    expect(body.stations.length).toBeGreaterThan(61)
+    expect(body.stations.length).toBeGreaterThan(56)
+    for (const icao of ['LTAG', 'LTAH', 'LTBG', 'LTBI', 'LTBL']) {
+      expect(
+        body.stations.map((s) => s.icao),
+        icao,
+      ).not.toContain(icao)
+    }
     expect(Buffer.byteLength(res.body)).toBeLessThan(1_000_000)
     const withMetar = body.stations.filter((s) => s.metar !== null).map((s) => s.icao)
     expect(withMetar.sort()).toEqual(['LCEN', 'LGAV', 'LTBA', 'LTCW', 'LTFM'])
@@ -248,7 +255,7 @@ describe('hava durumu uçları (gerçek PostgreSQL)', () => {
     expect(Buffer.byteLength(res.body)).toBeLessThan(Buffer.byteLength(JSON.stringify(full)))
   })
 
-  it('GET /v1/airports/:code/weather: ICAO ya da IATA; raporsuz havalimanı 200; bilinmeyen 404', async () => {
+  it('GET /v1/airports/:code/weather: ICAO ya da IATA; raporsuz havalimanı 200; bilinmeyen ve askerî üs 404', async () => {
     for (const code of ['LTFM', 'ist', 'IST']) {
       const res = await get(`/v1/airports/${code}/weather`)
       expect(res.statusCode, code).toBe(200)
@@ -261,10 +268,14 @@ describe('hava durumu uçları (gerçek PostgreSQL)', () => {
     const kco = await get('/v1/airports/KCO/weather')
     expect(kco.statusCode).toBe(200)
     expect(kco.json()).toMatchObject({ icao: 'LTBQ', metar: null, tafs: [] })
-    for (const code of ['ZZZZ', 'LTAF']) {
+    // Askerî hava üsleri (D-107) güncel havada ve kayıtta 404.
+    for (const code of ['ZZZZ', 'LTAF', 'LTBL', 'igl', 'LTAG']) {
       const res = await get(`/v1/airports/${code}/weather`)
       expect(res.statusCode, code).toBe(404)
       expect(res.json(), code).toEqual(AIRPORT_ERRORS.notFound)
+      const history = await get(`/v1/airports/${code}/weather/history`)
+      expect(history.statusCode, code).toBe(404)
+      expect(history.json(), code).toEqual(AIRPORT_ERRORS.notFound)
     }
   })
 

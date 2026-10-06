@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs'
 import { mapShownAirports } from '@havayolu/shared'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { ApiError } from '../../lib/live/api'
@@ -334,7 +335,7 @@ describe('airportsInView (Havalimanları listesi, klavye yolu)', () => {
   })
 })
 
-describe('askerî hava üsleri haritada yok (D-103)', () => {
+describe('askerî hava üsleri haritada yok (D-103, D-107)', () => {
   const airport = (
     icao: string,
     iata: string,
@@ -373,7 +374,7 @@ describe('askerî hava üsleri haritada yok (D-103)', () => {
   const bases = [UAB, AFY, BDM, ESK, IGL]
   const all = [IST, ANK, UAB, AFY, ADB, BDM, ESK, IGL, BGW]
 
-  it('haritadaki liste beş askerî üssü çıkarır, öbürlerini sırasıyla tutar', () => {
+  it('savunma süzgeci (API listesinde üs yok, D-107) beş askerî üssü çıkarır, öbürlerini sırasıyla tutar', () => {
     expect(all).toHaveLength(9)
     expect(mapShownAirports(all).map((a) => a.icao)).toEqual(['LTFM', 'LTAD', 'LTBJ', 'ORBI'])
     expect(mapShownAirports(civil)).toEqual(civil)
@@ -391,13 +392,36 @@ describe('askerî hava üsleri haritada yok (D-103)', () => {
     expect(airportsInView(mapShownAirports(all), izmir).map((a) => a.iata)).toEqual(['ADB'])
   })
 
-  it('?havalimani= bütün listede aranır: askerî üssün merkezine gidilir (ICAO ya da IATA), pencere yok', () => {
-    expect(airportLinkCenter(all, 'LTBL')).toEqual({ lat: IGL.lat, lon: IGL.lon })
-    expect(airportLinkCenter(all, 'IGL')).toEqual({ lat: IGL.lat, lon: IGL.lon })
-    expect(airportLinkCenter(all, 'LTBJ')).toEqual({ lat: ADB.lat, lon: ADB.lon })
-    expect(airportLinkCenter(all, 'ZZZZ')).toBeNull()
+  it('?havalimani= haritanın listesinde aranır: askerî üs (ICAO ya da IATA) bilinmeyen kod gibidir (D-107)', () => {
+    // Canlı harita API listesini yüklerken savunma süzgecinden geçirir; eski bir liste üs taşısa da
+    // `?havalimani=<üs>` haritayı oraya götürmez, açılış görünümü kalır.
+    const shown = mapShownAirports(all)
+    for (const code of [
+      'LTBL',
+      'IGL',
+      'LTAG',
+      'UAB',
+      'LTAH',
+      'AFY',
+      'LTBG',
+      'BDM',
+      'LTBI',
+      'ESK',
+    ]) {
+      expect(airportLinkCenter(shown, code), code).toBeNull()
+    }
+    expect(airportLinkCenter(shown, 'LTBJ')).toEqual({ lat: ADB.lat, lon: ADB.lon })
+    expect(airportLinkCenter(shown, 'ADB')).toEqual({ lat: ADB.lat, lon: ADB.lon })
+    expect(airportLinkCenter(shown, 'ZZZZ')).toBeNull()
     expect(airportLinkCenter([], 'LTBL')).toBeNull()
-    // Haritada gösterilen listede üs yoktur: pin, kod ve pencere onun kaydından çizilemez.
-    expect(mapShownAirports(all).some((a) => a.icao === 'LTBL')).toBe(false)
+  })
+
+  it('canlı harita listeyi yüklerken süzer; pinler, pencere, liste, ?havalimani= ve uçak listesi aynı listeyi kullanır', () => {
+    const source = readFileSync(new URL('./live-map.tsx', import.meta.url), 'utf8')
+    expect(source).toContain('const list = mapShownAirports(loaded)')
+    expect(source).toContain('setAirports(list)')
+    expect(source).toContain('airportLinkCenter(list, code)')
+    expect(source).toContain('useFlightPhases(store, airports)')
+    expect(source).not.toContain('shownAirports')
   })
 })

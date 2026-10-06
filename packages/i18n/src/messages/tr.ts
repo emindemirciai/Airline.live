@@ -82,9 +82,10 @@ export const tr = {
     summaryWithForeign:
       'Listede Türkiye’deki {count} havalimanı ve Türkiye dışındaki {foreign} havalimanı var; her havalimanının sayfasında pistleri, hava durumu ve canlı harita bağlantısı bulunur.',
     turkeyHeading: 'Türkiye’deki havalimanları',
-    scope: 'Listede IATA kodu olan havalimanları yer alır; bazı küçük havalimanları listelenmez.',
+    scope:
+      'Listede IATA kodu olan sivil havalimanları yer alır; askerî hava üsleri ve bazı küçük havalimanları listelenmez.',
     names:
-      'Resmî Türkçe adlar DHMİ’den, havalimanı işletmecilerinden ve Ulaştırma ve Altyapı Bakanlığı’ndan derlenmiştir. Askerî hava üsleri bulunduğu yerin adıyla yazılır (İncirlik Hava Üssü); adı henüz doğrulanmamış yeni bir havalimanı OurAirports’taki adıyla gösterilir.',
+      'Resmî Türkçe adlar DHMİ’den, havalimanı işletmecilerinden ve Ulaştırma ve Altyapı Bakanlığı’ndan derlenmiştir; adı henüz doğrulanmamış yeni bir havalimanı OurAirports’taki adıyla gösterilir.',
     caption: 'Türkiye’deki havalimanları, il adına göre sıralı',
     columns: {
       name: 'Havalimanı',
@@ -219,7 +220,11 @@ export const tr = {
       /** Ankara (Etimesgut), D-084: `{name}` bakanlığın verdiği addır ("Ankara Havalimanı"). */
       ministry:
         'Resmî Türkçe ad: {name} (Ulaştırma ve Altyapı Bakanlığı); aynı ildeki diğer havalimanıyla karışmasın diye eski adı parantez içinde eklenmiştir.',
-      /** Askerî hava üsleri (D-084): ad bulunduğu yerin adıyla yazılır. */
+      /**
+       * Askerî hava üsleri (D-084): ad bulunduğu yerin adıyla yazılır. D-107'den beri üsler
+       * listelenmez ve sayfaları yoktur; metin ad kaynağı türünün (`AirportNameSource`) parçası
+       * olarak kalır.
+       */
       military:
         'Ad: {name} (askerî hava üssü; DHMİ listesinde yer almaz, bulunduğu yerin adıyla yazılır)',
       ourairports: 'Ad: OurAirports',
@@ -807,7 +812,7 @@ export const tr = {
         'Saklanan konum ve iz verisi bu veriden türetilmiş bir veritabanıdır ve ODbL altında kalır.',
       reference: 'Havalimanı ve pist verisi: {source}, kamu malı.',
       names:
-        'Resmî Türkçe havalimanı adları: DHMİ, havalimanı işletmecileri ve Ulaştırma ve Altyapı Bakanlığı; askerî hava üsleri bulunduğu yerin adıyla yazılır; henüz doğrulanmamış yeni adlarda OurAirports.',
+        'Resmî Türkçe havalimanı adları: DHMİ, havalimanı işletmecileri ve Ulaştırma ve Altyapı Bakanlığı; henüz doğrulanmamış yeni adlarda OurAirports.',
       airlines: 'Havayolu kodları: {source}, CC0 (atıf zorunlu değildir, nezaketen anılır).',
       vector:
         'Vektör harita ve uydu haritasındaki ülke sınırları: {openFreeMap} © {openMapTiles}, harita verisi © {openStreetMap} katkıcıları (ODbL).',

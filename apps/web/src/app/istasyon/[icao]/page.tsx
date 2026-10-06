@@ -64,8 +64,9 @@ export async function generateMetadata({
       locale,
       isInLiveCoverage(airport, liveCoveragePlan(airports)),
     ),
-    // Tarifesiz ve istasyon olmayan askerî hava üsleri (adı sivil bir kaynaktan doğrulanmaz):
-    // `noindex, follow`; site haritasında da yoklar (lib/airports.ts → `isIndexable`, D-076, D-084).
+    // Adı doğrulanmamış, tarifesiz ve istasyon olmayan yeni kayıt: `noindex, follow`; site
+    // haritasında da yok (lib/airports.ts → `isIndexable`, D-076, D-084). Askerî hava üsleri
+    // listede olmadığı için sayfaları 404'tür (D-107).
     index: isIndexable(airport),
     // Paylaşım görseli bu klasördeki `opengraph-image.tsx`'tir (iki dil aynı görseli kullanır).
     ogImage: 'segment',

@@ -201,9 +201,11 @@ const CIVIL_NAME_SOURCES: ReadonlySet<AirportNameSource> = new Set(['dhmi', 'ope
  * ya da bakanlık kaynağından doğrulanan sivil havalimanları (Ankara (Etimesgut) dahil, D-084),
  * izlenen istasyonlar ve OurAirports'ta tarifeli seferi kayıtlı olanlar. OurAirports
  * `scheduled_service` bayrağı tek başına ölçüt değildir: bazı sivil havalimanlarında güncel değildir
- * (Siirt, Kocaeli). Kalanlar (askerî hava üsleri; adı doğrulanmamış, tarifesiz ve istasyon olmayan
- * yeni kayıtlar) `noindex, follow` alır ve site haritasına girmez. Yakın ülkelerdeki listelenen havalimanları aday kuralı
- * gereği tarifelidir (`isForeignCandidate`), hepsi dizine eklenir (D-080).
+ * (Siirt, Kocaeli). Kalanlar (adı doğrulanmamış, tarifesiz ve istasyon olmayan yeni kayıtlar)
+ * `noindex, follow` alır ve site haritasına girmez; askerî hava üsleri D-107'den beri listede
+ * yoktur (sayfaları 404), D-084'te bu kuralla dışarıda kalıyorlardı. Yakın ülkelerdeki listelenen
+ * havalimanları aday kuralı gereği tarifelidir (`isForeignCandidate`), hepsi dizine eklenir
+ * (D-080).
  */
 export function isIndexable(airport: AirportDetail): boolean {
   return (
