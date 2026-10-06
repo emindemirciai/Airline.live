@@ -5,7 +5,6 @@ import { inflateSync } from 'node:zlib'
 import {
   COUNTRY_AREA_OVERRIDES_KM2,
   COUNTRY_LABEL_MAX_WIDTH_EM,
-  COUNTRY_LABEL_PLACEMENTS,
   COUNTRY_LABEL_SIZES,
   COUNTRY_LABEL_TIERS,
   countryLabelHalo,
@@ -17,6 +16,7 @@ import {
   interpolateStops,
   SDF_EDGE_GAMMA_PX,
 } from '@havayolu/shared'
+import { COUNTRY_LABEL_PLACEMENTS } from '@havayolu/shared/country-label-placements'
 import { describe, expect, it } from 'vitest'
 import { ProjectedShape, type LonLat } from './geometry'
 import {
@@ -322,8 +322,8 @@ describe('satır kırma', () => {
         curatedMulti.push(lines.join(' / '))
       }
     }
-    // Bütün dünyada 488 addan 141'i çok satırlı (D-100); D-095'in 59 ülkesinde yine sekiz ad.
-    expect(multi).toHaveLength(141)
+    // Bütün dünyada 488 addan 137'si çok satırlı (D-100); D-095'in 59 ülkesinde yine sekiz ad.
+    expect(multi).toHaveLength(137)
     expect(curatedMulti.toSorted()).toEqual([
       'BOSNA / HERSEK',
       'BOSNIA AND / HERZEGOVINA',
@@ -336,21 +336,36 @@ describe('satır kırma', () => {
     ])
   })
 
-  it('yazılan her adın toplam genişliği 24 em’in altında (en uzunu AMERİKA BİRLEŞİK DEVLETLERİ, 23,6 em)', () => {
-    let widest = 0
+  it('yazılan adlar: 24 em’den kısa ya da her satırı MapLibre’nin hedef satır genişliğinden kısa (iki Kongo dışında en uzunu AMERİKA BİRLEŞİK DEVLETLERİ, 23,6 em)', () => {
+    const widthEm = (text: string) => lineWidth(text) / ONE_EM
+    const long: string[] = []
     for (const { locale, name } of SHOWN) {
-      const text = countryLabelLines(name, locale).join(' ')
-      widest = Math.max(widest, lineWidth(text) / ONE_EM)
-      expect(lineWidth(text) / ONE_EM, name).toBeLessThan(COUNTRY_LABEL_MAX_WIDTH_EM)
+      const lines = countryLabelLines(name, locale)
+      const total = widthEm(lines.join(' '))
+      if (total < COUNTRY_LABEL_MAX_WIDTH_EM) continue
+      long.push(name)
+      // 24 em'i aşan adda MapLibre ⌈toplam / 24⌉ satır hedefler (hedef genişlik toplam / satır
+      // sayısı); her satır hedeften kısa olduğundan bir satırı bölmek kırma cezasını yalnız büyütür,
+      // ad yalnız kendi satır sonlarından kırılır (üstteki model de bunu verir).
+      const target = total / Math.ceil(total / COUNTRY_LABEL_MAX_WIDTH_EM)
+      for (const line of lines) expect(widthEm(line), `${name}: ${line}`).toBeLessThan(target)
     }
-    expect(widest).toBeCloseTo(lineWidth('AMERİKA BİRLEŞİK DEVLETLERİ') / ONE_EM, 9)
-    // 24 em'i aşan adlar yalnız hiçbir yerde sığmayan küçük topraklarındır (Güney Georgia, Heard,
-    // Britanya Hint Okyanusu Toprakları…); MapLibre onları da yalnız satır sonlarından kırar (üstte).
-    const long = NAMES.filter(
-      ({ locale, name }) =>
-        lineWidth(countryLabelLines(name, locale).join(' ')) / ONE_EM >= COUNTRY_LABEL_MAX_WIDTH_EM,
+    // Elle tutulan iki Kongo adı (D-100) 24 em'i aşar: 25,9 ve 28,8 em.
+    expect(long).toEqual(['KONGO DEMOKRATİK CUMHURİYETİ', 'DEMOCRATIC REPUBLIC OF THE CONGO'])
+    const widest = SHOWN.map(({ locale, name }) =>
+      widthEm(countryLabelLines(name, locale).join(' ')),
     )
-    expect(long.map(({ code }) => code).toSorted()).toEqual([
+      .filter((width) => width < COUNTRY_LABEL_MAX_WIDTH_EM)
+      .reduce((max, width) => Math.max(max, width), 0)
+    expect(widest).toBeCloseTo(widthEm('AMERİKA BİRLEŞİK DEVLETLERİ'), 9)
+    // Hiçbir yerde sığmayan küçük toprakların adları da 24 em'i aşar (Güney Georgia, Heard,
+    // Britanya Hint Okyanusu Toprakları…); MapLibre onları da yalnız satır sonlarından kırar (üstte).
+    const hidden = NAMES.filter(
+      ({ locale, name }) =>
+        widthEm(countryLabelLines(name, locale).join(' ')) >= COUNTRY_LABEL_MAX_WIDTH_EM &&
+        !SHOWN.some((shown) => shown.locale === locale && shown.name === name),
+    )
+    expect(hidden.map(({ code }) => code).toSorted()).toEqual([
       'GS',
       'GS',
       'HM',
@@ -361,7 +376,6 @@ describe('satır kırma', () => {
       'VC',
       'VC',
     ])
-    for (const label of long) expect(SHOWN, label.name).not.toContain(label)
     // Satır sonu olmasa MapLibre uzun adı dengeli iki satıra bölerdi (eski dar harita davranışı).
     expect(maplibreLineBreaks('SUUDİ ARABİSTAN', 10)).toEqual(['SUUDİ', 'ARABİSTAN'])
     expect(maplibreLineBreaks('SUUDİ ARABİSTAN', 24)).toEqual(['SUUDİ ARABİSTAN'])

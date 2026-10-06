@@ -19,10 +19,19 @@ export const TIER_1_MIN_AREA_KM2 = 700_000
 export const TIER_2_MIN_AREA_KM2 = 85_000
 
 /**
- * Yüzölçümünden ayrılan kademeler: Irak (438.300 km²) kullanıcının seçtiği tasarımda (A) kademe 1
- * boyunda çizilmiştir.
+ * Yüzölçümünden ayrılan kademeler:
+ * - Irak (438.300 km²) kullanıcının seçtiği tasarımda (A) kademe 1 boyunda çizilmiştir.
+ * - Şili, Mozambik ve Endonezya kademe 2'dir (D-100; orkestratör varsayılanı, itiraz edilebilir):
+ *   dar ya da dağınık bu kademe 1 ülkelerinin büyük adı ancak z4,75–5,5'te sığıyordu, küçük
+ *   komşularının hepsinden sonra (ARJANTİN z3,25, ZAMBİYA z4). Kademe 2'de aynı kurallarla 0,75–1
+ *   kademe erken sığar.
  */
-export const COUNTRY_TIER_OVERRIDES: Readonly<Record<string, CountryLabelTier>> = { IQ: 1 }
+export const COUNTRY_TIER_OVERRIDES: Readonly<Record<string, CountryLabelTier>> = {
+  IQ: 1,
+  CL: 2,
+  MZ: 2,
+  ID: 2,
+}
 
 /** Ülkenin ad kademesi: önce `COUNTRY_TIER_OVERRIDES`, sonra yüzölçümü eşikleri. */
 export function countryLabelTier(country: { code: string; areaKm2: number }): CountryLabelTier {
@@ -108,6 +117,26 @@ export const COUNTRY_AREA_OVERRIDES_KM2: Readonly<Record<string, number>> = {
   UA: 603_600,
   UZ: 449_000,
   XK: 10_900,
+}
+
+/** Çapanın arandığı bölge, derece: [batı, güney, doğu, kuzey]. */
+export type CountryLabelAnchorRegion = readonly [
+  west: number,
+  south: number,
+  east: number,
+  north: number,
+]
+
+/**
+ * Adın yalnız bir bölgede arandığı ülkeler (D-100): öbür kurallar aynıdır (sınırın ve kıyının
+ * içinde, pinlerden ve kodlardan uzak boş yer, en erken sığan, sonra bölgenin görsel merkezine en
+ * yakın; görsel merkez bölgenin içindeki, ülkenin sınırına ve bölgenin kenarına en uzak nokta).
+ * RUSYA / RUSSIA Avrupa Rusyası'nda, Urallar'ın batısında (60° D'nin batısı; orkestratör varsayılanı,
+ * itiraz edilebilir): bütün Rusya'nın görsel merkezi Orta Sibirya'dadır ve Türkiye ya da Avrupa
+ * merkezli görünümde z3–4'te ad görünmezdi.
+ */
+export const COUNTRY_LABEL_ANCHOR_REGIONS: Readonly<Record<string, CountryLabelAnchorRegion>> = {
+  RU: [-180, -90, 60, 90],
 }
 
 /** Adı başkentinde sabit ülkenin başkenti: adı (yalnızca okuyan için) ve şehir merkezi (0,01°). */

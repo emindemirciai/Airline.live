@@ -47,13 +47,21 @@ describe('D-095 tablosunun yüzölçümleri (D-100)', () => {
 })
 
 describe('kademe (D-095)', () => {
-  it('700.000 km² ve üstü 1, 85.000 km² ve üstü 2, altı 3; Irak 1', () => {
+  it('700.000 km² ve üstü 1, 85.000 km² ve üstü 2, altı 3; Irak 1; Şili, Mozambik, Endonezya 2 (D-100)', () => {
     expect([TIER_1_MIN_AREA_KM2, TIER_2_MIN_AREA_KM2]).toEqual([700_000, 85_000])
-    expect(COUNTRY_TIER_OVERRIDES).toEqual({ IQ: 1 })
+    expect(COUNTRY_TIER_OVERRIDES).toEqual({ IQ: 1, CL: 2, MZ: 2, ID: 2 })
     for (const [code, areaKm2] of Object.entries(COUNTRY_LABEL_AREAS_KM2)) {
+      const override = Object.hasOwn(COUNTRY_TIER_OVERRIDES, code)
+        ? COUNTRY_TIER_OVERRIDES[code]
+        : undefined
       const expected: CountryLabelTier =
-        code === 'IQ' ? 1 : areaKm2 >= 700_000 ? 1 : areaKm2 >= 85_000 ? 2 : 3
+        override ?? (areaKm2 >= 700_000 ? 1 : areaKm2 >= 85_000 ? 2 : 3)
       expect(countryLabelTier({ code, areaKm2 }), code).toBe(expected)
+    }
+    // Kademe 2'ye alınan üçü yüzölçümüyle kademe 1'dir (eşiğin üstünde).
+    for (const code of ['CL', 'MZ', 'ID']) {
+      expect(COUNTRY_LABEL_AREAS_KM2[code], code).toBeGreaterThanOrEqual(TIER_1_MIN_AREA_KM2)
+      expect(tierOf(code), code).toBe(2)
     }
     expect(countryLabelTier({ code: 'XX', areaKm2: 700_000 })).toBe(1)
     expect(countryLabelTier({ code: 'XX', areaKm2: 699_900 })).toBe(2)
@@ -120,6 +128,28 @@ describe('countryLabelText (D-095)', () => {
     expect(countryLabelText('DZ', 'en')).toBe('ALGERIA')
     expect(countryLabelText('BA', 'en')).toBe('BOSNIA AND HERZEGOVINA')
     expect(countryLabelText('TT', 'en')).toBe('TRINIDAD AND TOBAGO')
+  })
+
+  it('elle tutulan adlar (D-100): iki Kongo resmî adıyla, MYANMAR ayraçsız, FİLDİŞİ SAHİLİ Türkçe, SVALBARD', () => {
+    expect(countryLabelText('CD', 'tr')).toBe('KONGO DEMOKRATİK CUMHURİYETİ')
+    expect(countryLabelText('CD', 'en')).toBe('DEMOCRATIC REPUBLIC OF THE CONGO')
+    expect(countryLabelText('CG', 'tr')).toBe('KONGO CUMHURİYETİ')
+    expect(countryLabelText('CG', 'en')).toBe('REPUBLIC OF THE CONGO')
+    expect(countryLabelText('MM', 'tr')).toBe('MYANMAR')
+    expect(countryLabelText('MM', 'en')).toBe('MYANMAR')
+    expect(countryLabelText('CI', 'tr')).toBe('FİLDİŞİ SAHİLİ')
+    expect(countryLabelText('CI', 'en')).toBe('CÔTE D’IVOIRE')
+    expect(countryLabelText('SJ', 'tr')).toBe('SVALBARD')
+    expect(countryLabelText('SJ', 'en')).toBe('SVALBARD')
+  })
+
+  it('hiçbir adda ayraç, " - " ya da "&" yok (iki dilde, tablonun bütün kodları)', () => {
+    for (const code of Object.keys(COUNTRY_LABEL_AREAS_KM2)) {
+      for (const locale of ['tr', 'en'] as const) {
+        const name = countryName(code, locale)
+        expect(name, `${code} ${locale}`).not.toMatch(/[()&]| - /)
+      }
+    }
   })
 
   it('tablodaki her ülkenin adı countryName’in büyük harfidir; Intl adını bilir; küçük harf yok', () => {

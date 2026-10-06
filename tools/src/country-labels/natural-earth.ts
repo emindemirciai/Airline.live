@@ -13,7 +13,7 @@ import {
   clipRing,
   geodesicAreaKm2,
   placeOnOneWorldCopy,
-  ringAreaKm2,
+  ringGeodesicAreaKm2,
   shiftRingWest,
   simplifyArc,
   unwrapLongitudes,
@@ -40,8 +40,8 @@ export const NATURAL_EARTH_PARAMS = {
   /** Douglas–Peucker toleransı, km (Türkiye'ye yakın ülkeler). */
   simplifyKm: 0.5,
   /**
-   * Türkiye'den uzak ülkelerin Douglas–Peucker toleransı, km (D-100): bütün dünya 0,5 km'de ~2,3 MB
-   * olurdu (bununla ~1,98 MB). Bu ülkelerin güvenlik payı da o kadar büyüktür (label-model.ts `FAR_SAFETY_KM`).
+   * Türkiye'den uzak ülkelerin Douglas–Peucker toleransı, km (D-100): bütün dünya 0,5 km'de ~2,38 MB
+   * olurdu (bununla ~2,03 MB). Bu ülkelerin güvenlik payı da o kadar büyüktür (label-model.ts `FAR_SAFETY_KM`).
    */
   farSimplifyKm: 1,
   /**
@@ -71,6 +71,8 @@ export const NATURAL_EARTH_PARAMS = {
  * - Somaliland Somali'dedir (ISO 3166-1'de ayrı kod yok).
  * - Kosova ayrı birimdir (XK, kullanıcı tanımlı kod); Sırbistan (688) Kosova'sızdır.
  * - Avustralya'nın iki birimi aynı sayısal kodu taşır (036): adla seçilir.
+ * - Fas (504) ile Batı Sahra (732) birleştirilip 27°40′ K'de yeniden bölünür
+ *   (`NATURAL_EARTH_LATITUDE_SPLITS`).
  * Adı yazılmayan birimler `NATURAL_EARTH_UNASSIGNED`'dadır; deniz aşırı parçaları ayrı ISO koduyla
  * yazılanlar `NATURAL_EARTH_PART_SPLITS`'tedir.
  */
@@ -342,6 +344,22 @@ export const NATURAL_EARTH_PART_SPLITS: Readonly<
 }
 
 /**
+ * Natural Earth'ün fiilî sınırı yerine bir enlemde yeniden bölünen iki komşu birim: ikisi ortak
+ * yaylarından birleştirilir, enlemin kuzeyi `north`, güneyi `south` koduna gider (iki parça aynı
+ * halkadan kesildiğinden ortak kenarın noktaları aynıdır). Natural Earth 4.1.0 Fas'ı (504) Berm'e
+ * kadar çizer: Layun, Semara ve Dahla Fas'tadır, Batı Sahra (732) yalnız Berm'in doğusudur (~91 bin
+ * km²). Kod ISO 3166-1'in ve BM'nin Batı Sahra'sıdır (EH; bütün bölge, ~269 bin km²); Fas ile
+ * sınırı 27°40′ K'dir: haritanın altlığı bu çizgiyi tartışmalı sınır olarak çizer ve OurAirports da
+ * Layun (GMML), Dahla (GMMH) ve Semara (GMMA) havalimanlarını EH sayar (D-100; orkestratör
+ * varsayılanı, siyasi bir tutum değildir).
+ */
+export const NATURAL_EARTH_LATITUDE_SPLITS: readonly {
+  readonly north: string
+  readonly south: string
+  readonly lat: number
+}[] = [{ north: 'MA', south: 'EH', lat: 27 + 40 / 60 }]
+
+/**
  * Hiçbir ülkeye verilmeyen Natural Earth birimleri ve nedeni: İsrail ve Filistin'in adı yazılmaz
  * (D-095); Antarktika ülke değildir; kalanların ISO 3166-1 kodu yoktur (tartışmalı buzul ve
  * resifler, Clipperton) ya da iki kodu tek birimdedir (Hint Okyanusu Toprakları: Christmas ve
@@ -515,9 +533,10 @@ function splitParts(code: string, polygons: readonly Polygon[]): Map<string, Pol
  * Ülkelerin bütün parçaları: sadeleşmiş (`simplify`; 0 ise sadeleşmez), 180. meridyende sürekli ve
  * tek dünya kopyasında (`placeOnOneWorldCopy`), kırpılmamış; boylam/enlem, yuvarlanmamış. Her ülkenin
  * birimleri ortak yaylarından birleştirilir (`topojson.merge`); bölünen birimlerin parçaları kendi
- * kodlarına ayrılır. Ortak sınır tek yaydır ve onu kullanan birimlerin en küçük toleransıyla bir kez
- * sadeleşir: iki komşuda aynıdır, bir ülkenin sınırı kendi toleransından fazla sapmaz. Bölünen
- * birimin toleransı kodlarınınkilerin en küçüğüdür.
+ * kodlarına ayrılır; enlemde yeniden bölünen çiftin (`NATURAL_EARTH_LATITUDE_SPLITS`) iki birimi
+ * birleştirilip o enlemde kesilir. Ortak sınır tek yaydır ve onu kullanan birimlerin en küçük
+ * toleransıyla bir kez sadeleşir: iki komşuda aynıdır, bir ülkenin sınırı kendi toleransından fazla
+ * sapmaz. Bölünen birimin toleransı kodlarınınkilerin en küçüğüdür.
  */
 export function countryParts(
   topology: WorldAtlasTopology,
@@ -553,23 +572,47 @@ export function countryParts(
     objects: topology.objects,
     arcs: arcs as (readonly (readonly [number, number])[])[],
   }
+  const mergedPolygons = (geometries: readonly WorldAtlasGeometry[]): Polygon[] =>
+    topojson
+      .merge(simplified, [...geometries])
+      .coordinates.map((polygon) =>
+        polygon.map((ring) => unwrapLongitudes(ring.slice(0, -1) as LonLat[])),
+      )
   const result: Record<string, Polygon[]> = {}
   for (const code of codes) {
-    const merged = topojson.merge(simplified, selected.get(code) ?? [])
-    const polygons: Polygon[] = merged.coordinates.map((polygon) =>
-      polygon.map((ring) => unwrapLongitudes(ring.slice(0, -1) as LonLat[])),
-    )
-    for (const [owner, parts] of splitParts(code, polygons)) {
+    for (const [owner, parts] of splitParts(code, mergedPolygons(selected.get(code) ?? []))) {
       result[owner] = placeOnOneWorldCopy(parts)
     }
+  }
+  for (const { north, south, lat } of NATURAL_EARTH_LATITUDE_SPLITS) {
+    const whole = mergedPolygons([...(selected.get(north) ?? []), ...(selected.get(south) ?? [])])
+    result[north] = placeOnOneWorldCopy(clipPolygons(whole, [-180, lat, 180, 90]))
+    result[south] = placeOnOneWorldCopy(clipPolygons(whole, [-180, -90, 180, lat]))
+  }
+  return result
+}
+
+/** Çokgenleri kutuya kırpar; dış halkası kutunun dışında kalan çokgen düşer. */
+function clipPolygons(polygons: readonly Polygon[], box: LonLatBox): Polygon[] {
+  const result: Polygon[] = []
+  for (const [outer, ...holes] of polygons) {
+    const clipped = outer ? clipRing(outer, box) : null
+    if (!clipped) continue
+    const rings: Ring[] = [clipped]
+    for (const hole of holes) {
+      const clippedHole = clipRing(hole, box)
+      if (clippedHole) rings.push(clippedHole)
+    }
+    result.push(rings)
   }
   return result
 }
 
 /**
- * Ülkelerin poligonları, sadeleşmiş ve kırpılmış (`countryParts` + `roi`). Dış halkası
- * `minPartKm2`'den küçük parça, ülkenin en büyük parçası değilse düşer (Malta ve Bahreyn'in ana
- * adası, Nauru kalır; Abu Dabi adası düşer).
+ * Ülkelerin poligonları, sadeleşmiş ve kırpılmış (`countryParts` + `roi`). Dış halkasının küre
+ * üzerindeki alanı (`ringGeodesicAreaKm2`) `minPartKm2`'den küçük parça, ülkenin en büyük parçası
+ * değilse düşer (Malta ve Bahreyn'in ana adası, Nauru, Shetland'in ana adası kalır; Abu Dabi adası
+ * düşer).
  */
 export function countryPolygons(
   topology: WorldAtlasTopology,
@@ -578,17 +621,10 @@ export function countryPolygons(
   const { roi, minPartKm2 } = NATURAL_EARTH_PARAMS
   const result: Record<string, Polygon[]> = {}
   for (const [code, parts] of Object.entries(countryParts(topology, simplify))) {
-    const clipped: { polygon: Polygon; area: number }[] = []
-    for (const [outerRing, ...holeRings] of parts) {
-      const outer = outerRing ? clipRing(outerRing, roi) : null
-      if (!outer) continue
-      const rings: Ring[] = [outer]
-      for (const hole of holeRings) {
-        const clippedHole = clipRing(hole, roi)
-        if (clippedHole) rings.push(clippedHole)
-      }
-      clipped.push({ polygon: rings, area: ringAreaKm2(outer) })
-    }
+    const clipped = clipPolygons(parts, roi).map((polygon) => ({
+      polygon,
+      area: ringGeodesicAreaKm2(polygon[0] as Ring),
+    }))
     const largest = clipped.reduce((max, part) => Math.max(max, part.area), 0)
     result[code] = clipped
       .filter((part) => part.area >= minPartKm2 || part.area === largest)
@@ -618,10 +654,13 @@ const familyOf = (code: string) => [code, ...Object.keys(NATURAL_EARTH_PART_SPLI
  * Türkiye'den uzak ülkeler, sıralı. Uzaklık Natural Earth birimine göredir (tolerans birimin
  * yaylarına uygulanır; bölünen parçalar birimlerinin uzaklığını taşır):
  * 1. birimin sadeleşmemiş bütün parçalarının her noktası `FAR_REFERENCE`'a (Ankara) `farFromKm`'den
- *    uzak (büyük daire) ve
- * 2. yay paylaştığı her komşu birim de öyle. Yakın bir ülkenin kara komşusu yakın sayılır: iki
- *    ülkenin ayrı kıyı yayları farklı toleransla sadeleşince dar bir koyda birbirine geçebilirdi
- *    (Hong Kong'un Shenzhen Körfezi kıyısı Çin'in kıyısını 0,4 km aşıyordu).
+ *    uzak (büyük daire; enlemde yeniden bölünen çiftte kodun kendi parçaları) ve
+ * 2. yay paylaştığı her komşu birim de 1. koşulu sağlar. Uzaklıkla (1. koşulla) yakın bir ülkenin
+ *    kara komşusu yakın sayılır: iki ülkenin ayrı kıyı yayları farklı toleransla sadeleşince dar bir
+ *    koyda birbirine geçebilirdi (Hong Kong'un Shenzhen Körfezi kıyısı Çin'in kıyısını 0,4 km
+ *    aşıyordu). Kural tek geçiştir: böyle yakın sayılan ülkenin komşusu uzak kalabilir (Kuzey Kore
+ *    yakın, Güney Kore uzak; Tayland–Myanmar, Gambiya–Senegal, Guyana–Surinam gibi). Ülkelerin hiçbir
+ *    yerde birbirine geçmediğini natural-earth.test.ts'nin "ülkeler örtüşmez" testi denetler.
  */
 export function farCodes(
   topology: WorldAtlasTopology,

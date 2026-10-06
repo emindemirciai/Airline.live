@@ -45,11 +45,15 @@
  * Düz nesnelerdir (layers.ts gibi). Katmanlar `LIVE_MAP_LAYERS`'ta değildir: web onları
  * havalimanı pinlerinin altına ekler; mobilde (MapLibre Native) `font-faces` desteği
  * doğrulanmadığından yoktur.
+ *
+ * Yerleşim tablosu ve ondan kurulan noktalar (`countryLabelPoints`) bu modülde ve paketin ana
+ * girişinde değildir (D-100): `@havayolu/shared/country-label-points` (tablo
+ * `@havayolu/shared/country-label-placements`) yalnız web haritasının dinamik importuyla yüklenir;
+ * tablo hiçbir sayfanın ilk paketine girmez.
  */
 import type { Locale } from '../locale'
-import { countryLabelTier, type CountryLabelTier } from '../reference/country-label-set'
+import type { CountryLabelTier } from '../reference/country-label-set'
 import { MAP_COLORS, withAlpha } from './colors'
-import { COUNTRY_LABEL_AREAS_KM2, COUNTRY_LABEL_PLACEMENTS } from './country-label-placements'
 import type { StyleExpression, StyleTransition, TextSymbolLayerStyle } from './layers'
 
 export const COUNTRY_LABEL_SOURCE_ID = 'hy-country-labels'
@@ -169,9 +173,12 @@ export const COUNTRY_LABEL_COMPACT_MAX_WIDTH_PX = 767
 export const COUNTRY_LABEL_LETTER_SPACING = 0.32
 export const COUNTRY_LABEL_LINE_HEIGHT = 1
 /**
- * Satır kırma genişliği, em: yazılan her adın toplam genişliğinden büyük (en uzunu AMERİKA BİRLEŞİK
- * DEVLETLERİ, 23,6 em; D-100). MapLibre yalnızca adın kendi satır sonlarından kırar; 24 em'i aşan
- * adlar (Güney Georgia ve Güney Sandwich Adaları gibi) hiçbir yerde sığmaz, yazılmaz.
+ * Satır kırma genişliği, em. Yazılan adların toplam genişliği bundan küçüktür (en uzunu AMERİKA
+ * BİRLEŞİK DEVLETLERİ, 23,6 em); iki istisna elle tutulan Kongo adlarıdır (D-100: KONGO DEMOKRATİK
+ * CUMHURİYETİ 25,9 em, DEMOCRATIC REPUBLIC OF THE CONGO 28,8 em): MapLibre onlarda iki satır
+ * hedefler, her satırları hedef genişlikten kısa olduğundan yine yalnız adın kendi satır sonlarından
+ * kırar (tools testi MapLibre'nin modeliyle denetler). 24 em'i aşan öbür adlar (Güney Georgia ve
+ * Güney Sandwich Adaları gibi) hiçbir yerde sığmaz, yazılmaz.
  */
 export const COUNTRY_LABEL_MAX_WIDTH_EM = 24
 /** Çakışma kutusuna eklenen pay, px (adlar birbirini silmez; vektör yedekte yer adlarını iter). */
@@ -316,43 +323,8 @@ export interface CountryLabelPoint {
   properties: CountryLabelFeatureProperties
 }
 
-/** Ülkeler sırayla: Türkiye, sonra büyükten küçüğe (eşitlikte kod). */
-const RANKED_COUNTRIES: readonly { code: string; areaKm2: number }[] = Object.entries(
-  COUNTRY_LABEL_AREAS_KM2,
-)
-  .map(([code, areaKm2]) => ({ code, areaKm2 }))
-  .sort((a, b) => {
-    if (a.code === 'TR' || b.code === 'TR') return a.code === 'TR' ? -1 : 1
-    return b.areaKm2 - a.areaKm2 || (a.code < b.code ? -1 : 1)
-  })
-
-/**
- * Ülke adı noktaları, sırayla (rank 0'dan): yer ve ilk yakınlaştırma `COUNTRY_LABEL_PLACEMENTS`'tan,
- * sayfanın dilinde ve haritanın genişliğine göre. Hiç sığmayan ad yoktur.
- */
-export function countryLabelPoints(locale: Locale, compact: boolean): CountryLabelPoint[] {
-  const placements = COUNTRY_LABEL_PLACEMENTS[locale]
-  const points: CountryLabelPoint[] = []
-  for (const [rank, country] of RANKED_COUNTRIES.entries()) {
-    const row = Object.hasOwn(placements, country.code) ? placements[country.code] : undefined
-    const placement = row?.[compact ? 'compact' : 'regular']
-    if (!row || !placement) continue
-    const [lon, lat, fitZoom] = placement
-    points.push({
-      lat,
-      lon,
-      properties: {
-        code: country.code,
-        name: row.name,
-        label: countryLabelLines(row.name, locale).join('\n'),
-        tier: countryLabelTier(country),
-        fitZoom,
-        rank,
-      },
-    })
-  }
-  return points
-}
+/** Ülke adı noktalarının kaynağı (`@havayolu/shared/country-label-points`, tembel yüklenir). */
+export type CountryLabelPointsSource = (locale: Locale, compact: boolean) => CountryLabelPoint[]
 
 const zoomCurve = (stops: CountryLabelStops): StyleExpression => [
   'interpolate',

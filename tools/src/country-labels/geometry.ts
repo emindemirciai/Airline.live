@@ -339,19 +339,6 @@ export function clipRing(ring: Ring, box: LonLatBox): LonLat[] | null {
   return points.length >= 3 ? points : null
 }
 
-/** Halkanın yaklaşık alanı, km² (yerel eşdikdörtgen; küçük parçaları elemek için). */
-export function ringAreaKm2(ring: Ring): number {
-  let sum = 0
-  for (let i = 0; i < ring.length; i++) {
-    const a = ring[i] as LonLat
-    const b = ring[(i + 1) % ring.length] as LonLat
-    const scale = Math.cos(toRad((a[1] + b[1]) / 2))
-    sum += a[0] * scale * b[1] - b[0] * scale * a[1]
-  }
-  const kmPerDegree = EARTH_CIRCUMFERENCE_KM / 360
-  return (Math.abs(sum) / 2) * kmPerDegree * kmPerDegree
-}
-
 /** Nokta halkanın içinde mi (çift-tek kuralı, boylam/enlem düzleminde). */
 export function ringContains(ring: Ring, lon: number, lat: number): boolean {
   let inside = false

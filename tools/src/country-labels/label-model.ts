@@ -85,8 +85,6 @@ export const OVERPASS_600_GLYPHS: Readonly<
   Record<string, readonly [advance: number, xMin: number, yMin: number, xMax: number, yMax: number]>
 > = {
   ' ': [490, 0, 0, 0, 0],
-  '(': [725, 150, -260, 636, 1424],
-  ')': [725, 90, -260, 576, 1424],
   '-': [819, 160, 486, 660, 701],
   A: [1408, 74, 0, 1334, 1400],
   B: [1358, 176, 0, 1240, 1400],

@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs'
+import { readdirSync, readFileSync } from 'node:fs'
 import { getMessages } from '@havayolu/i18n'
 import { createElement, type ComponentType } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
@@ -48,6 +48,42 @@ describe('ilk paket: havalimanı adları dinamik parçalarda (D-101)', () => {
     )
     // Öbür tablolar düz nesnedir (çağrı yok): paketleyici kullanılmayınca atar.
     expect(foreign).toMatch(/export const FOREIGN_AIRPORT_NAMES: [^=]+= \{\n {2}[A-Z0-9]{4}: \{/)
+  })
+})
+
+describe('ilk paket: ülke adlarının yerleşim tablosu dinamik parçada (D-100)', () => {
+  const shared = '../../../../../packages/shared/'
+
+  it('web kaynağında tablo ve noktalar modülü statik import edilmez; harita denetleyicisi dinamik import eder', () => {
+    const lazy = [
+      '@havayolu/shared/country-label-points',
+      '@havayolu/shared/country-label-placements',
+    ]
+    const root = new URL('../../', import.meta.url)
+    const files = readdirSync(root, { recursive: true, encoding: 'utf8' })
+      .map((file) => file.replaceAll('\\', '/'))
+      .filter((file) => /\.tsx?$/.test(file) && !/\.test\.tsx?$/.test(file))
+    expect(files.length).toBeGreaterThan(50)
+    for (const file of files) {
+      const text = readFileSync(new URL(file, root), 'utf8')
+      for (const specifier of lazy) expect(staticImports(text), file).not.toContain(specifier)
+    }
+    const controller = source('./map-controller.ts')
+    expect(controller).toContain("import('@havayolu/shared/country-label-points')")
+    expect(controller).toContain('this.countryLabels.setPoints(chunk.countryLabelPoints)')
+  })
+
+  it('paylaşılan paketin ana girişi tabloyu vermez; katman modülü tabloyu yalnız tür olarak bilir', () => {
+    expect(source(`${shared}src/map/index.ts`)).not.toMatch(/country-label-(placements|points)/)
+    const labels = source(`${shared}src/map/country-labels.ts`)
+    expect(staticImports(labels)).not.toContain('./country-label-placements')
+    expect(labels).not.toContain('function countryLabelPoints')
+    const manifest = JSON.parse(source(`${shared}package.json`)) as { exports: object }
+    expect(manifest.exports).toEqual({
+      '.': './src/index.ts',
+      './country-label-placements': './src/map/country-label-placements.ts',
+      './country-label-points': './src/map/country-label-points.ts',
+    })
   })
 })
 

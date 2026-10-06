@@ -12,6 +12,7 @@ import {
   COUNTRY_LABEL_PLACEMENT_PARAMS,
   COUNTRY_LABEL_PLACEMENTS,
 } from './country-label-placements'
+import { countryLabelPoints } from './country-label-points'
 import {
   COUNTRY_LABEL_COMPACT_MAX_WIDTH_PX,
   COUNTRY_LABEL_CONNECTORS,
@@ -43,7 +44,6 @@ import {
   countryLabelLines,
   countryLabelOpacityAt,
   countryLabelOpacityStops,
-  countryLabelPoints,
   countryLabelSizeAt,
   countryLabelTextSize,
   interpolateStops,
@@ -310,20 +310,46 @@ describe('countryLabelLines (D-096)', () => {
     ])
   })
 
-  it('bütün dünyanın adlarında (D-100): kısa çizgi ve ayraç, bağlaç önceki sözcükte', () => {
-    expect(countryLabelLines(countryLabelText('CD', 'tr'), 'tr')).toEqual(['KONGO', 'KİNŞASA'])
+  it('bütün dünyanın adlarında (D-100): kısa çizgi, bağlaç önceki sözcükte; elle tutulan adlar', () => {
     expect(countryLabelLines(countryLabelText('US', 'tr'), 'tr')).toEqual([
       'AMERİKA',
       'BİRLEŞİK',
       'DEVLETLERİ',
     ])
-    expect(countryLabelLines(countryLabelText('MM', 'en'), 'en')).toEqual(['MYANMAR', '(BURMA)'])
-    expect(countryLabelLines(countryLabelText('SJ', 'tr'), 'tr')).toEqual([
-      'SVALBARD VE',
-      'JAN',
-      'MAYEN',
-    ])
     expect(countryLabelLines(countryLabelText('GW', 'en'), 'en')).toEqual(['GUINEA', 'BISSAU'])
+    // Elle tutulan adlar (countries.ts `COUNTRY_NAME_OVERRIDES`): "of" ve "the" kendi satırında
+    // kalmaz, önceki sözcükle yazılır.
+    expect(countryLabelLines(countryLabelText('CD', 'tr'), 'tr')).toEqual([
+      'KONGO',
+      'DEMOKRATİK',
+      'CUMHURİYETİ',
+    ])
+    expect(countryLabelLines(countryLabelText('CD', 'en'), 'en')).toEqual([
+      'DEMOCRATIC',
+      'REPUBLIC OF THE',
+      'CONGO',
+    ])
+    expect(countryLabelLines(countryLabelText('CG', 'tr'), 'tr')).toEqual(['KONGO', 'CUMHURİYETİ'])
+    expect(countryLabelLines(countryLabelText('CG', 'en'), 'en')).toEqual([
+      'REPUBLIC OF THE',
+      'CONGO',
+    ])
+    expect(countryLabelLines(countryLabelText('CI', 'tr'), 'tr')).toEqual(['FİLDİŞİ', 'SAHİLİ'])
+    expect(countryLabelLines(countryLabelText('CI', 'en'), 'en')).toEqual(['CÔTE', 'D’IVOIRE'])
+    for (const locale of ['tr', 'en'] as const) {
+      expect(countryLabelLines(countryLabelText('MM', locale), locale)).toEqual(['MYANMAR'])
+      expect(countryLabelLines(countryLabelText('SJ', locale), locale)).toEqual(['SVALBARD'])
+    }
+    // Hiçbir çok satırlı adda bağlaç tek başına satır değildir.
+    for (const code of Object.keys(COUNTRY_LABEL_AREAS_KM2)) {
+      for (const locale of ['tr', 'en'] as const) {
+        const lines = countryLabelLines(countryLabelText(code, locale), locale)
+        if (lines.length < 2) continue
+        for (const line of lines) {
+          expect(COUNTRY_LABEL_CONNECTORS[locale], `${code} ${locale}`).not.toContain(line)
+        }
+      }
+    }
   })
 })
 

@@ -9,18 +9,21 @@ import { readFileSync } from 'node:fs'
 import { distanceKm } from '@havayolu/geo'
 import {
   COUNTRY_AREA_OVERRIDES_KM2,
-  COUNTRY_LABEL_AREAS_KM2,
+  COUNTRY_LABEL_ANCHOR_REGIONS,
   COUNTRY_LABEL_CAPITAL_ANCHORS,
   COUNTRY_LABEL_FADE_START_ZOOM,
   COUNTRY_LABEL_MAX_ZOOM,
   COUNTRY_LABEL_MIN_ZOOM,
-  COUNTRY_LABEL_PLACEMENT_PARAMS,
-  COUNTRY_LABEL_PLACEMENTS,
   countryLabelLines,
   countryLabelSizeAt,
-  type CountryLabelPlacement,
   type Locale,
 } from '@havayolu/shared'
+import {
+  COUNTRY_LABEL_AREAS_KM2,
+  COUNTRY_LABEL_PLACEMENT_PARAMS,
+  COUNTRY_LABEL_PLACEMENTS,
+  type CountryLabelPlacement,
+} from '@havayolu/shared/country-label-placements'
 import { beforeAll, describe, expect, it } from 'vitest'
 import {
   IKA_PIN_Z5,
@@ -273,6 +276,7 @@ describe('yerleşim tablosu (D-096, D-099, D-100)', { timeout: 120_000 }, () => 
       airportCodeMinZoom: 5,
       airportCodeSides: ['right', 'left'],
       capitalAnchored: ['CY'],
+      anchorRegions: { RU: [-180, -90, 60, 90] },
     })
     expect([CLEAR_MAX_DELAY_ZOOMS, CROWDED_MAX_DELAY_ZOOMS]).toEqual([1.5, 0.25])
     expect(CAPITAL_ANCHORED_CODES).toEqual(['CY'])
@@ -421,8 +425,8 @@ describe('yerleşim tablosu (D-096, D-099, D-100)', { timeout: 120_000 }, () => 
       BE: 0.25,
       BG: 0.5,
       BJ: 0.25,
+      CD: 0.25,
       CF: 0.25,
-      CG: 0.25,
       CH: 0.5,
       CL: 0.25,
       CU: 0.25,
@@ -505,7 +509,7 @@ describe('yerleşim tablosu (D-096, D-099, D-100)', { timeout: 120_000 }, () => 
     expect(nearby).toBeGreaterThan(1_000)
   })
 
-  it('kullanıcının örnekleri: İTALYA ve RUSYA yazıldıkları her yakınlaştırmada pinlerden ve kodlardan uzak; RUSYA bütün Rusya’nın görsel merkezinde (D-100)', () => {
+  it('kullanıcının örnekleri: İTALYA ve RUSYA yazıldıkları her yakınlaştırmada pinlerden ve kodlardan uzak; RUSYA Urallar’ın batısında, Avrupa Rusyası’nın görsel merkezinde (D-100)', () => {
     for (const code of ['IT', 'RU']) {
       const labels = ALL_SHOWN.filter((label) => label.code === code)
       expect(labels).toHaveLength(4)
@@ -519,13 +523,24 @@ describe('yerleşim tablosu (D-096, D-099, D-100)', { timeout: 120_000 }, () => 
       }
       expect(detailOf(code).kind).toBe('clear')
     }
-    // RUSYA Moskova'nın (altında UUWW, UUDD, UUBW) değil görsel merkezde: D-099'da fixture 90° D'da
-    // kırpılıyordu, kutup Urallar'ın batısındaydı (57,51° D, 61,77° K); bütün dünyada (D-100) Orta
-    // Sibirya'da (107,73° D, 63,27° K; ızgara adımı 1,71°). İTALYA Po ovası (LIMP) yerine Alpler'de
-    // (Trentino): Orta İtalya'da Pescara'nın (PSR) sola geçen kodu adın köşesine değiyordu.
-    expect(COUNTRY_LABEL_PLACEMENTS.tr.RU?.regular).toEqual([107.73, 63.27, 3])
-    expect(detailOf('RU').pole).toEqual([107.73, 63.27])
-    expect(detailOf('RU').latticeStep).toBe(171)
+    // RUSYA Moskova'nın (altında UUWW, UUDD, UUBW) değil Avrupa Rusyası'nın görsel merkezinde: çapa
+    // bölgesi 60° D'nin batısı (`COUNTRY_LABEL_ANCHOR_REGIONS`, D-100; bütün Rusya'nın görsel
+    // merkezi Orta Sibirya'dadır, 107,73° D, 63,27° K). Kutup bölgenin içinde Rusya'nın sınırına ve
+    // 60° D'ye en uzak nokta: Kirov ile Kostroma arası (46,74° D, 59,04° K; ızgara adımı 0,41°).
+    // İTALYA Po ovası (LIMP) yerine Alpler'de (Trentino): Orta İtalya'da Pescara'nın (PSR) sola geçen
+    // kodu adın köşesine değiyordu.
+    expect(COUNTRY_LABEL_ANCHOR_REGIONS).toEqual({ RU: [-180, -90, 60, 90] })
+    for (const locale of ['tr', 'en'] as const) {
+      for (const layout of ['regular', 'compact'] as const) {
+        const placement = COUNTRY_LABEL_PLACEMENTS[locale].RU?.[layout]
+        expect(placement, `${locale} ${layout}`).toEqual([46.74, 59.04, 3])
+        expect(placement?.[0], `${locale} ${layout}`).toBeLessThan(60)
+      }
+    }
+    expect(detailOf('RU').pole).toEqual([46.74, 59.04])
+    expect(detailOf('RU').latticeStep).toBe(41)
+    // Bölgenin en erkeni bütün Rusya'nınkiyle aynı (z3); ad geç gelmez.
+    expect(detailOf('RU').bestFitZooms).toEqual([3, 3, 3, 3])
     expect(COUNTRY_LABEL_PLACEMENTS.tr.IT?.regular).toEqual([11.4, 46.2, 5.25])
     expect(COUNTRY_LABEL_PLACEMENTS.tr.IT?.compact).toEqual([11.4, 46.2, 5])
   })
@@ -576,7 +591,7 @@ describe('yerleşim tablosu (D-096, D-099, D-100)', { timeout: 120_000 }, () => 
     }
   })
 
-  it('görsel merkez: D-095’in 59 ülkesinden 10’unun adı tam kutupta (TÜRKİYE dahil, D-103), çapanın kutba uzaklığı ortanca 27 km, en çok 478 km (UMMAN); bütün dünyada 35 ülke kutupta, ortanca 37 km, en çok 1.658 km (ŞİLİ)', () => {
+  it('görsel merkez: D-095’in 59 ülkesinden 10’unun adı tam kutupta (TÜRKİYE dahil, D-103; RUSYA’nınki bölgesinin kutbu), çapanın kutba uzaklığı ortanca 27 km, en çok 478 km (UMMAN); bütün dünyada 36 ülke kutupta, ortanca 37 km, en çok 1.228 km (MALEZYA)', () => {
     const all = result.details
       .filter((detail) => detail.kind !== 'hidden')
       .map((detail) => {
@@ -590,11 +605,11 @@ describe('yerleşim tablosu (D-096, D-099, D-100)', { timeout: 120_000 }, () => 
       })
       .sort((a, b) => a[1] - b[1])
     expect(all).toHaveLength(164)
-    expect(all.filter(([, km]) => km === 0)).toHaveLength(35)
+    expect(all.filter(([, km]) => km === 0)).toHaveLength(36)
     expect(Math.round(all[Math.floor(all.length / 2)]?.[1] ?? NaN)).toBe(37)
-    // Uzun ve dar Şili'de ad kuzeyde, Atacama'da en erken sığar; kutup Patagonya'dadır.
-    expect(all.at(-1)?.[0]).toBe('CL')
-    expect(Math.round(all.at(-1)?.[1] ?? NaN)).toBe(1658)
+    // Malezya'da ad Borneo'da (Sarawak) en erken sığar; kutup Malakka Yarımadası'ndadır (Pahang).
+    expect(all.at(-1)?.[0]).toBe('MY')
+    expect(Math.round(all.at(-1)?.[1] ?? NaN)).toBe(1228)
     const distances = all.filter(([code]) => Object.hasOwn(COUNTRY_AREA_OVERRIDES_KM2, code))
     expect(distances).toHaveLength(56)
     expect(distances.filter(([, km]) => km === 0).map(([code]) => code)).toEqual([
@@ -646,6 +661,32 @@ describe('yerleşim tablosu (D-096, D-099, D-100)', { timeout: 120_000 }, () => 
         expect(overlaps(worldBox(label, zoom), crimea), `${label.code} z${zoom}`).toBe(false)
       }
     }
+  })
+
+  it('Batı Sahra (D-100): FAS adının kutusu hiçbir yakınlaştırmada 27°40′ K’nin güneyine, BATI SAHRA’nınki kuzeyine girmez', () => {
+    // Natural Earth 4.1.0 Fas'ı Berm'e kadar çizer; fixture iki ülkeyi 27°40′ K'de yeniden böler.
+    const line = 27 + 40 / 60
+    const westernSahara = (zoom: number): Box => {
+      const scale = 2 ** zoom
+      return [
+        mercatorX(-17.2) * scale,
+        mercatorY(line) * scale,
+        mercatorX(-8.67) * scale,
+        mercatorY(20.7) * scale,
+      ]
+    }
+    const labels = ALL_SHOWN.filter((candidate) => ['MA', 'EH'].includes(candidate.code))
+    expect(labels).toHaveLength(8)
+    for (const label of labels) {
+      for (let zoom = label.fitZoom; zoom < COUNTRY_LABEL_MAX_ZOOM; zoom += 0.25) {
+        const box = worldBox(label, zoom)
+        const where = `${label.code} ${label.locale} ${label.layout} z${zoom}`
+        if (label.code === 'MA') expect(overlaps(box, westernSahara(zoom)), where).toBe(false)
+        else expect(box[1], where).toBeGreaterThanOrEqual(mercatorY(line) * 2 ** zoom)
+      }
+    }
+    expect(COUNTRY_LABEL_PLACEMENTS.tr.EH?.regular).toEqual([-10.98, 26.91, 4])
+    expect(COUNTRY_LABEL_PLACEMENTS.tr.MA?.regular).toEqual([-5.46, 32.76, 3.5])
   })
 })
 

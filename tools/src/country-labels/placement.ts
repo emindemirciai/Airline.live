@@ -24,6 +24,9 @@
  *    yakın; eşitlikte kuzeydeki, sonra batıdaki.
  * 5. Dört bileşimde ortak aday yoksa her bileşim kendi çapasını aynı kuralla seçer (bugün hiçbir
  *    ülkede gerekmedi).
+ * Çapası bir bölgeyle sınırlı ülkede (`COUNTRY_LABEL_ANCHOR_REGIONS`: RUSYA Urallar'ın batısında,
+ * D-100) ızgara yalnız bölgenin içindedir (adım bölgedeki kutudan); en erken ve görsel merkez de
+ * bölgenindir: görsel merkez bölgenin içinde ülkenin sınırına ve bölgenin kenarına en uzak noktadır.
  * Ad hiçbir noktada z7'den önce sığmıyorsa (ya da ızgaranın hiçbir noktası ülkenin içinde değilse:
  * dağınık küçük adalar) o bileşimde yazılmaz (`null`). Başkentte sabit adın
  * çapası başkentin kendisidir (ızgarada olmayabilir), ilk yakınlaştırması orada ilk sığdığı
@@ -31,17 +34,21 @@
  */
 import {
   COUNTRY_AREA_OVERRIDES_KM2,
+  COUNTRY_LABEL_ANCHOR_REGIONS,
   COUNTRY_LABEL_CAPITAL_ANCHORS,
   COUNTRY_LABEL_FADE_START_ZOOM,
   COUNTRY_LABEL_FIT_ZOOM_STEP,
   countryLabelLines,
   countryLabelTier,
+  type CountryLabelAnchorRegion,
   type CountryLabelCapitalAnchor,
-  type CountryLabelPlacement,
-  type CountryLabelPlacementRow,
   type CountryLabelTier,
   type Locale,
 } from '@havayolu/shared'
+import type {
+  CountryLabelPlacement,
+  CountryLabelPlacementRow,
+} from '@havayolu/shared/country-label-placements'
 import { AIRPORT_CHIP_MIN_ZOOM, worldBoxAt, type AirportObstacles } from './airport-pins'
 import {
   latitudeOf,
@@ -78,6 +85,37 @@ export const OVERLAP_LAST_ZOOM = COUNTRY_LABEL_FADE_START_ZOOM
  */
 export const CAPITAL_ANCHORED_CODES: readonly string[] = Object.keys(COUNTRY_LABEL_CAPITAL_ANCHORS)
 
+/** Ülkenin çapa bölgesi (`COUNTRY_LABEL_ANCHOR_REGIONS`); yoksa undefined (bütün ülke). */
+export function anchorRegionOf(code: string): CountryLabelAnchorRegion | undefined {
+  return Object.hasOwn(COUNTRY_LABEL_ANCHOR_REGIONS, code)
+    ? COUNTRY_LABEL_ANCHOR_REGIONS[code]
+    : undefined
+}
+
+/** Mercator'un sonlu kaldığı enlem sınırı: bölgenin bundan öteki kenarı dünyayı kesmez. */
+const REGION_EDGE_MAX_LAT = 85
+
+/**
+ * Noktanın bölgenin dünyayı kesen kenarlarına (±180°'de ve ±85°'nin ötesinde olmayanlar) en kısa
+ * uzaklığı, z0 izdüşüm birimi; bölge yoksa Infinity.
+ */
+export function regionEdgeDistance(
+  region: CountryLabelAnchorRegion | undefined,
+  lon: number,
+  lat: number,
+): number {
+  if (!region) return Infinity
+  const [west, south, east, north] = region
+  const x = mercatorX(lon)
+  const y = mercatorY(lat)
+  let distance = Infinity
+  if (west > -180) distance = Math.min(distance, x - mercatorX(west))
+  if (east < 180) distance = Math.min(distance, mercatorX(east) - x)
+  if (north < REGION_EDGE_MAX_LAT) distance = Math.min(distance, y - mercatorY(north))
+  if (south > -REGION_EDGE_MAX_LAT) distance = Math.min(distance, mercatorY(south) - y)
+  return distance
+}
+
 /** Tabloya yazılan değişkenler (`COUNTRY_LABEL_PLACEMENT_PARAMS`). */
 export function placementParams(obstacles: AirportObstacles) {
   return {
@@ -96,6 +134,9 @@ export function placementParams(obstacles: AirportObstacles) {
     airportCodeMinZoom: AIRPORT_CHIP_MIN_ZOOM,
     airportCodeSides: ['right', 'left'],
     capitalAnchored: [...CAPITAL_ANCHORED_CODES],
+    anchorRegions: Object.fromEntries(
+      Object.entries(COUNTRY_LABEL_ANCHOR_REGIONS).map(([code, region]) => [code, [...region]]),
+    ),
     fitZoomStep: COUNTRY_LABEL_FIT_ZOOM_STEP,
   }
 }
@@ -149,15 +190,26 @@ interface LatticePoint {
 
 /**
  * Ülkenin sabit ızgarası: sınır kutusundaki, ülkenin içindeki noktalar (kuzeyden, batıdan). Adım
- * bütün ülkenin kutusundandır; noktalar yalnız 180° B–180° D arasındadır: çapa haritanın asıl
- * kopyasındadır, kutusu 180. meridyeni aşabilir (ülke orada sürekli).
+ * bütün ülkenin kutusundandır (çapa bölgesi varsa kutunun bölgedeki kısmından); noktalar yalnız
+ * 180° B–180° D arasındadır (ve bölgenin içindedir): çapa haritanın asıl kopyasındadır, kutusu 180.
+ * meridyeni aşabilir (ülke orada sürekli).
  */
-function latticeOf(shape: ProjectedShape): { step: number; rows: LatticePoint[][] } {
+function latticeOf(
+  shape: ProjectedShape,
+  region: CountryLabelAnchorRegion | undefined,
+): { step: number; rows: LatticePoint[][] } {
   const [minX, minY, maxX, maxY] = shape.bbox
-  const lonMin = (minX / WORLD_SIZE) * 360 - 180
-  const lonMax = (maxX / WORLD_SIZE) * 360 - 180
-  const latMax = latitudeOf(minY)
-  const latMin = latitudeOf(maxY)
+  let lonMin = (minX / WORLD_SIZE) * 360 - 180
+  let lonMax = (maxX / WORLD_SIZE) * 360 - 180
+  let latMax = latitudeOf(minY)
+  let latMin = latitudeOf(maxY)
+  if (region) {
+    const [west, south, east, north] = region
+    lonMin = Math.max(lonMin, west)
+    lonMax = Math.min(lonMax, east)
+    latMin = Math.max(latMin, south)
+    latMax = Math.min(latMax, north)
+  }
   const span = Math.max(lonMax - lonMin, latMax - latMin) * 100
   const step = Math.max(1, Math.ceil(span / LATTICE_STEPS))
   const west = Math.max(lonMin, -180) * 100
@@ -249,7 +301,8 @@ export function placeCountry(
   const zoomAt = (level: number) => firstZoom + level * COUNTRY_LABEL_FIT_ZOOM_STEP
   const lastLevel = Math.round((OVERLAP_LAST_ZOOM - firstZoom) / COUNTRY_LABEL_FIT_ZOOM_STEP)
   const zoomOf = (level: number) => (level < count ? zoomAt(level) : Infinity)
-  const lattice = latticeOf(shape)
+  const region = anchorRegionOf(code)
+  const lattice = latticeOf(shape, region)
   const points = lattice.rows.flat()
   if (points.length === 0) {
     if (CAPITAL_ANCHORED_CODES.includes(code)) throw new Error(`${code}: empty lattice`)
@@ -286,7 +339,12 @@ export function placeCountry(
   let poleIndex = 0
   let poleDistance = -Infinity
   for (const [index, point] of points.entries()) {
-    const distance = shape.distanceToBoundary(point.lon100 / 100, point.lat100 / 100)
+    const lon = point.lon100 / 100
+    const lat = point.lat100 / 100
+    const distance = Math.min(
+      shape.distanceToBoundary(lon, lat),
+      regionEdgeDistance(region, lon, lat),
+    )
     if (distance > poleDistance) {
       poleDistance = distance
       poleIndex = index

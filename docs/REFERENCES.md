@@ -59,6 +59,10 @@ Bir şeyi doğrulaman gerekiyorsa önce buradaki kaynakları kullan. Yeni bir ka
 - Yerelde okunan (ağ yok): `tools/node_modules/world-atlas/README.md` ve `LICENSE` (Natural Earth 4.1.0'ın TopoJSON yeniden dağıtımı; ISC), `tools/node_modules/topojson-client/README.md` ve `LICENSE` (ISC); paket sürümleri `pnpm-lock.yaml`'da.
 - **Doğrulanmadı (2026-10-05, ağ yok):** Natural Earth kullanım şartları https://www.naturalearthdata.com/about/terms-of-use/ · world-atlas deposu https://github.com/topojson/world-atlas (plan M6e.8'de açık iş).
 
+## Ülke adları (Unicode CLDR, 2026-10-06; D-100)
+- Adlar üreticinin Node'unun `Intl.DisplayNames` verisidir (Node 24.16.0, ICU 78.3, CLDR 48; `process.versions`); yerel Node kurulumunda lisans metni yoktur.
+- **Doğrulanmadı (2026-10-06, ağ yok):** Unicode License v3 metni https://www.unicode.org/license.txt (ATTRIBUTION'a eklenecek bildirimin birebir metni; plan M6e.11'de açık iş).
+
 ## Resmî havalimanı adları (erişim 2026-09-30; D-076)
 - DHMİ "Havalimanları Web Siteleri" listesi (resmî Türkçe adlar; `airport-names.ts` → `source: 'dhmi'`): https://www.dhmi.gov.tr/Sayfalar/HavalimaniListesi.aspx · bağlandığı sayfa: https://www.dhmi.gov.tr/Sayfalar/Havalimanlari.aspx · havalimanı sayfaları `https://www.dhmi.gov.tr/Sayfalar/Havalimani/<Ad>/AnaSayfa.aspx` biçimindedir
 - DHMİ İngilizce sitesi: https://www.dhmi.gov.tr/Sayfalar/EN/DefaultEN.aspx · havalimanı listesi https://www.dhmi.gov.tr/Sayfalar/EN/Airports.aspx (erişim 2026-10-01). İngilizce görünen adların kaynağı **değildir**: liste tutarsızdır ("DALAMAN AIRPORT", "MUS AIRPORT", "CUKUROVA AİRPORT", "MUĞLA-MİLAS BODRUM AIRPORT"). `airport-names.ts`'teki İngilizce adlar resmî Türkçe adın çevirisidir; İngilizce sayfalar resmî Türkçe adı ve kaynağını ayrıca yazar (D-076).

@@ -11,18 +11,20 @@ import {
   mercatorX,
   mercatorY,
   ProjectedShape,
-  ringAreaKm2,
+  ringGeodesicAreaKm2,
   type Polygon,
 } from './geometry'
 import { SAFETY_BUDGET } from './label-model'
 import {
   buildFixture,
+  countryGeometries,
   countryParts,
   countryPolygons,
   decodeFixture,
   FAR_REFERENCE,
   fixtureTolerance,
   NATURAL_EARTH_CODES,
+  NATURAL_EARTH_LATITUDE_SPLITS,
   NATURAL_EARTH_PARAMS,
   NATURAL_EARTH_PART_SPLITS,
   NATURAL_EARTH_SOURCE,
@@ -174,6 +176,57 @@ describe('Natural Earth fixture (D-096, D-100)', { timeout: 120_000 }, () => {
     )
   })
 
+  it('Batı Sahra (D-100): Fas ve Batı Sahra 27°40′ K’de bölünür; Layun, Semara ve Dahla Batı Sahra’da, Rabat ve Tantan Fas’ta; ortak kenar aynı', () => {
+    const lat = 27 + 40 / 60
+    expect(NATURAL_EARTH_LATITUDE_SPLITS).toEqual([{ north: 'MA', south: 'EH', lat }])
+    const byCode = shapes()
+    const inside = (code: string, lon: number, lat: number) =>
+      containsPoint(byCode.get(code) as ProjectedShape, lon, lat)
+    // Natural Earth 4.1.0'da (Berm sınırı) bunların ilk dördü Fas'tadır.
+    for (const [name, [lon, at]] of Object.entries({
+      laayoune: [-13.2, 27.15],
+      smara: [-11.66, 26.74],
+      boujdour: [-14.49, 26.13],
+      dakhla: [-15.6, 24.0],
+      birLahlou: [-9.57, 26.35],
+      tifariti: [-10.57, 26.09],
+    } as const)) {
+      expect(inside('EH', lon, at), name).toBe(true)
+      expect(inside('MA', lon, at), name).toBe(false)
+    }
+    for (const [name, [lon, at]] of Object.entries({
+      rabat: [-6.84, 34.02],
+      tanTan: [-11.1, 28.44],
+    } as const)) {
+      expect(inside('MA', lon, at), name).toBe(true)
+      expect(inside('EH', lon, at), name).toBe(false)
+    }
+    const decoded = decodeFixture(fixture)
+    const lats = (code: string) => (decoded[code] ?? []).flat(2).map(([, y]) => y)
+    expect(Math.min(...lats('MA'))).toBe(27.667)
+    expect(Math.max(...lats('EH'))).toBe(27.667)
+    // Bölünmüş iki ülke: Fas ~414 bin, Batı Sahra ~269 bin km²; ikisi de kademe 2.
+    expect(fixture.areasKm2.MA).toBeGreaterThan(400_000)
+    expect(fixture.areasKm2.MA).toBeLessThan(430_000)
+    expect(fixture.areasKm2.EH).toBeGreaterThan(260_000)
+    expect(fixture.areasKm2.EH).toBeLessThan(280_000)
+    // Ortak kenar: Fas'ın 27,667° K'deki noktaları Batı Sahra'nınkilerle aynı.
+    const edge = (code: string) =>
+      (decoded[code] ?? [])
+        .flat(2)
+        .filter(([, y]) => y === 27.667)
+        .map(([x]) => x)
+        .toSorted((a, b) => a - b)
+    expect(edge('MA')).toEqual(edge('EH'))
+    expect(edge('MA').length).toBeGreaterThanOrEqual(2)
+  })
+
+  it('küçük adalar küre üzerindeki alanla elenir (D-100): Shetland’in ana adası (917 km²) Birleşik Krallık’ta, Mansel Adası Kanada’da', () => {
+    const byCode = shapes()
+    expect(containsPoint(byCode.get('GB') as ProjectedShape, -1.3, 60.3)).toBe(true)
+    expect(containsPoint(byCode.get('CA') as ProjectedShape, -80, 62)).toBe(true)
+  })
+
   it('180. meridyen: ülkeler tek dünya kopyasında sürekli; en uzun kenar ABD–Kanada sınırı (49° K)', () => {
     // world-atlas yayları 180. meridyende −180'den 180'e sıçrar; sürekli kılınmasa Rusya'nın halkası
     // bütün haritayı kesen kenarlar bırakırdı. Yaylar dikilmeden önce world-atlas'ın aralığına dönmese
@@ -291,7 +344,7 @@ describe('Natural Earth fixture (D-096, D-100)', { timeout: 120_000 }, () => {
     }
   })
 
-  it('uzak ülkeler (D-100): her noktası Ankara’ya ≥ 5.000 km ve kara komşuları da öyle; ABD, Brezilya, Japonya uzak; Rusya, Çin, Grönland ve Çin’in komşusu Hong Kong yakın', () => {
+  it('uzak ülkeler (D-100): her noktası Ankara’ya ≥ 5.000 km ve kara komşuları da öyle; ABD, Japonya, Arjantin uzak; Rusya, Çin, Grönland yakın; Hong Kong ve Kuzey Kore (Çin’in komşusu) ile Brezilya (Fransız Guyanası’nın komşusu) ≥ 5.000 km olduğu hâlde yakın', () => {
     expect(fixture.farCodes).toHaveLength(106)
     expect(fixture.farCodes).toEqual(fixture.farCodes.toSorted())
     for (const code of ['US', 'AU', 'JP', 'ZA', 'CA', 'NZ', 'KR', 'AR']) {
@@ -316,6 +369,33 @@ describe('Natural Earth fixture (D-096, D-100)', { timeout: 120_000 }, () => {
     // Çin'le, Brezilya Fransa'nın Guyana'sıyla). Ülkelerin örtüşmediğini yukarıdaki test denetler.
     for (const code of ['HK', 'KP', 'BR'])
       expect(nearestKm(code), code).toBeGreaterThanOrEqual(5000)
+    // Komşu koşulu doğrudan (farCodes'un 2. kuralı): uzak bir birimle yay paylaşan her birimin
+    // (deniz aşırı parçalarıyla) her noktası da Ankara'ya ≥ 5.000 km.
+    const arcsOf = (unit: string) => {
+      const arcs = new Set<number>()
+      const visit = (value: unknown): void => {
+        if (typeof value === 'number') arcs.add(value < 0 ? ~value : value)
+        else if (Array.isArray(value)) for (const item of value) visit(item)
+      }
+      for (const geometry of countryGeometries(topology, unit)) visit(geometry.arcs)
+      return arcs
+    }
+    const units = Object.keys(NATURAL_EARTH_UNITS)
+    const unitArcs = new Map(units.map((unit) => [unit, arcsOf(unit)]))
+    const family = (unit: string) => [unit, ...Object.keys(NATURAL_EARTH_PART_SPLITS[unit] ?? {})]
+    let pairs = 0
+    for (const unit of units.filter((candidate) => fixture.farCodes.includes(candidate))) {
+      const arcs = unitArcs.get(unit) ?? new Set<number>()
+      for (const other of units) {
+        if (other === unit || ![...(unitArcs.get(other) ?? [])].some((arc) => arcs.has(arc)))
+          continue
+        pairs++
+        for (const code of family(other)) {
+          expect(nearestKm(code), `${unit}–${other}`).toBeGreaterThanOrEqual(5000)
+        }
+      }
+    }
+    expect(pairs).toBeGreaterThan(50)
   })
 
   it('yüzölçümü: bütün parçaların küre üzerindeki alanı; Türkiye D-095 tablosundan %1 içinde', () => {
@@ -343,10 +423,10 @@ describe('Natural Earth fixture (D-096, D-100)', { timeout: 120_000 }, () => {
         if (!outer) continue
         // Eşiğe yakın küçük adalar sayılmaz: ham ve sade alanı farklı düşebilir, küçük adalardan
         // oluşan ülkede en büyüğü sadeleşince başka ada olabilir (Marshall Adaları).
-        if (!single && ringAreaKm2(outer) < 1.5 * NATURAL_EARTH_PARAMS.minPartKm2) continue
+        if (!single && ringGeodesicAreaKm2(outer) < 1.5 * NATURAL_EARTH_PARAMS.minPartKm2) continue
         for (const ring of polygon) {
           // world-atlas'ın nicelemesinde alanı sıfıra inen halka (Vatikan deliği) fixture'da yoktur.
-          if (ringAreaKm2(ring) < 0.01) continue
+          if (ringGeodesicAreaKm2(ring) < 0.01) continue
           for (const [lon, lat] of ring) {
             const distance = shape.distanceToBoundaryKm(lon, lat)
             if (fixture.farCodes.includes(code)) worstFar = Math.max(worstFar, distance)

@@ -9,7 +9,6 @@ import {
   placeOnOneWorldCopy,
   ProjectedShape,
   pxPerKm,
-  ringAreaKm2,
   ringContains,
   ringGeodesicAreaKm2,
   segmentTouchesRect,
@@ -93,7 +92,7 @@ describe('simplifyArc (Douglas–Peucker)', () => {
   })
 })
 
-describe('clipRing, ringAreaKm2, ringContains', () => {
+describe('clipRing, ringContains', () => {
   it('dikdörtgene kırpma: tamamen içerideki halka değişmez, dışarıdaki düşer, kesişen kırpılır', () => {
     const roi = [0, 0, 10, 10] as const
     expect(clipRing(box(1, 1, 2, 2), roi)).toEqual(box(1, 1, 2, 2))
@@ -106,8 +105,7 @@ describe('clipRing, ringAreaKm2, ringContains', () => {
     ])
   })
 
-  it('alan: ekvatorda 1° × 1° ≈ 12.392 km²; içerme çift-tek kuralıyla', () => {
-    expect(ringAreaKm2(box(0, -0.5, 1, 0.5))).toBeCloseTo(12392, -1)
+  it('içerme çift-tek kuralıyla', () => {
     expect(ringContains(box(0, 0, 1, 1), 0.5, 0.5)).toBe(true)
     expect(ringContains(box(0, 0, 1, 1), 1.5, 0.5)).toBe(false)
   })
@@ -154,6 +152,19 @@ describe('clipRing, ringAreaKm2, ringContains', () => {
     const at60 =
       ringGeodesicAreaKm2(box(0, 59.5, 1, 60.5)) / ringGeodesicAreaKm2(box(0, -0.5, 1, 0.5))
     expect(at60).toBeCloseTo(0.5, 3)
+    // Enlem/boylam kutusunun tam alanı R² × Δboylam × (sin kuzey − sin güney), her enlemde (küçük
+    // adaların elenmesi bununla yapılır, D-100: 60° ve 78° K'de de 100 km² gerçekten 100 km²'dir).
+    for (const south of [-78.05, 0, 38.95, 59.95, 61.55, 63.95, 77.95]) {
+      const north = south + 0.1
+      const boxArea =
+        AUTHALIC_RADIUS_KM ** 2 *
+        ((0.1 * Math.PI) / 180) *
+        (Math.sin((north * Math.PI) / 180) - Math.sin((south * Math.PI) / 180))
+      expect(ringGeodesicAreaKm2(box(20, south, 20.1, north)) / boxArea, `${south}`).toBeCloseTo(
+        1,
+        9,
+      )
+    }
     // 180. meridyende sürekli halka (179–181° D) aynı alanı verir.
     expect(ringGeodesicAreaKm2(box(179, 0, 181, 1))).toBeCloseTo(2 * exact, 6)
     expect(geodesicAreaKm2([[box(0, 0, 2, 2), box(0.5, 0.5, 1.5, 1.5)]])).toBeCloseTo(
