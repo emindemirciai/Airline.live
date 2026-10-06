@@ -1,21 +1,33 @@
 /**
- * Ülke adlarının yeri ve ilk sığma yakınlaştırması (D-096): `COUNTRY_LABEL_PLACEMENTS`'ı Natural
- * Earth fixture'ından hesaplar. Çevrimdışıdır ve belirlenimcidir; aynı fixture ve adlar her zaman
- * aynı tabloyu verir (placement.test.ts commit'li tabloyla karşılaştırır).
+ * Ülke adlarının yeri ve ilk sığma yakınlaştırması (D-096, D-099): `COUNTRY_LABEL_PLACEMENTS`'ı
+ * Natural Earth fixture'ından ve listelenen havalimanlarının pinlerinden hesaplar. Çevrimdışıdır ve
+ * belirlenimcidir; aynı fixture'lar ve adlar her zaman aynı tabloyu verir (placement.test.ts commit'li
+ * tabloyla karşılaştırır).
  *
- * Çapa kuralı, ülke başına (dört bileşim: Türkçe/İngilizce × geniş/dar harita):
- * 1. Her bileşimde adın başkentteki ilk sığma yakınlaştırması ve ülkenin içindeki sabit bir nokta
- *    ızgarasında (0,01°'nin katları; adım ülkenin boyuna göre) en erken sığma (`best`) hesaplanır.
- * 2. Başkent her bileşimde en erkenin en çok 0,5 kademe gerisindeyse ad başkentte ortalıdır.
- * 3. Değilse dört bileşimin hepsinde en erkenin en çok 0,25 kademe gerisinde sığan ızgara
- *    noktalarından başkente en yakını seçilir (eşitlikte kuzeydeki, sonra batıdaki): ad dil ya da
- *    harita genişliği değişince yer değiştirmez.
- * 4. Böyle ortak bir nokta yoksa her bileşim kendi çapasını aynı kuralla seçer.
- * Ad hiçbir noktada z7'den önce sığmıyorsa o bileşimde yazılmaz (`null`).
+ * Çapa kuralı (D-099), ülke başına tek ortak nokta (dört bileşim: Türkçe/İngilizce × geniş/dar
+ * harita; ad dil ya da genişlik değişince yer değiştirmez). Başkent rol oynamaz; tek istisna
+ * kullanıcı kararıyla başkentte sabit olan KIBRIS'tır (`CAPITAL_ANCHORED_CODES`).
+ * 1. Ülkenin içindeki sabit nokta ızgarasında (0,01°'nin katları; adım ülkenin uzun kenarının
+ *    1/100'ü) her bileşimin ilk sığma düzeyi ve en erkeni (`best`) hesaplanır (D-096: kutu sınırın
+ *    içinde).
+ * 2. **Çakışma:** adın görünür kutusuna (güvenlik payı yok) giren havalimanı pini ve kod kutusu
+ *    (pin başının sağında ve solunda) sayısı (airport-pins.ts), dört bileşimde, adın ilk sığdığı
+ *    yakınlaştırmadan silinmenin başladığı z7'ye 0,25 adımla toplanır.
+ * 3. **Boş yer:** her bileşimde en erkenin en çok 1,5 kademe gerisinde sığan ve çakışması 0 olan
+ *    noktalar varsa adaylar onlardır. Yoksa adaylar her bileşimde en erkenin en çok 0,25 kademe
+ *    gerisinde sığan noktalardır: boş yer bulunamıyorsa gecikme bir şey kazandırmaz, ad geç gelmez.
+ * 4. Adaylardan sırayla: çakışması en az; dört ilk sığma düzeyinin toplamı en küçük (en erken);
+ *    ülkenin görsel merkezine (erişilmezlik kutbu: ızgarada sınıra en uzak nokta, Mercator'da) en
+ *    yakın; eşitlikte kuzeydeki, sonra batıdaki.
+ * 5. Dört bileşimde ortak aday yoksa her bileşim kendi çapasını aynı kuralla seçer (bugün hiçbir
+ *    ülkede gerekmedi).
+ * Ad hiçbir noktada z7'den önce sığmıyorsa o bileşimde yazılmaz (`null`). Başkentte sabit adın
+ * çapası başkentin kendisidir (ızgarada olmayabilir), ilk yakınlaştırması orada ilk sığdığı
+ * düzeydir; adlar silinmeden önce başkentte hiç sığmazsa üretici durur.
  */
-import { distanceKm } from '@havayolu/geo'
 import {
   COUNTRY_CAPITALS,
+  COUNTRY_LABEL_FADE_START_ZOOM,
   COUNTRY_LABEL_FIT_ZOOM_STEP,
   countryLabelLines,
   countryLabelTier,
@@ -24,6 +36,7 @@ import {
   type CountryLabelPlacementRow,
   type Locale,
 } from '@havayolu/shared'
+import { AIRPORT_CHIP_MIN_ZOOM, worldBoxAt, type AirportObstacles } from './airport-pins'
 import {
   latitudeOf,
   mercatorX,
@@ -32,28 +45,44 @@ import {
   WORLD_SIZE,
   type MultiPolygon,
 } from './geometry'
-import { LabelFitter, SAFETY_KM, SAFETY_PX, type LabelLayout } from './label-model'
+import { LabelFitter, SAFETY_KM, SAFETY_PX, type GlyphBox, type LabelLayout } from './label-model'
 import { NATURAL_EARTH_PARAMS, NATURAL_EARTH_SOURCE } from './natural-earth'
 
 /** Izgaranın uzun kenarındaki en çok adım sayısı (adım en az 0,01°). */
 export const LATTICE_STEPS = 100
-/** Başkent, en erken sığmanın bu kadar kademe gerisine kadar tercih edilir. */
-export const CAPITAL_PREFERENCE_ZOOMS = 0.5
-/** Başkent dışı aday, en erken sığmanın en çok bu kadar kademe gerisindedir. */
-export const CANDIDATE_TOLERANCE_ZOOMS = 0.25
+/** Boş (çakışmasız) yer için ad, her bileşimde en erkenin en çok bu kadar kademe gerisinde sığabilir. */
+export const CLEAR_MAX_DELAY_ZOOMS = 1.5
+/** Boş yer yoksa ad, her bileşimde en erkenin en çok bu kadar kademe gerisinde sığar. */
+export const CROWDED_MAX_DELAY_ZOOMS = 0.25
+/** Çakışmanın sayıldığı son yakınlaştırma: adların silinmeye başladığı z7 (dahil). */
+export const OVERLAP_LAST_ZOOM = COUNTRY_LABEL_FADE_START_ZOOM
+/**
+ * Yeri kullanıcı kararıyla başkentte sabit olan ülkeler: boş yer kuralı uygulanmaz, çapa
+ * `COUNTRY_CAPITALS`'taki başkenttir. KIBRIS / CYPRUS bölünmüş başkent Lefkoşa'da yazılır (D-095:
+ * "Kıbrıs Lefkoşa'da", kullanıcının kararı). Boş yer kuralı adı Lefkoşa'nın ~30 km batı-güneybatısına,
+ * z6'dan sonra tamamen Yeşil Hat'ın güneyine taşıyordu (D-099). Ercan (LCEN) pini ve kodu adın
+ * kutusunda kalır; pinler adların üstünde çizilir (TÜRKİYE gibi).
+ */
+export const CAPITAL_ANCHORED_CODES: readonly string[] = ['CY']
 
 /** Tabloya yazılan değişkenler (`COUNTRY_LABEL_PLACEMENT_PARAMS`). */
-export const PLACEMENT_PARAMS = {
-  naturalEarth: `${NATURAL_EARTH_SOURCE.version} 1:10m`,
-  worldAtlas: NATURAL_EARTH_SOURCE.package.split('@')[1] ?? '',
-  simplifyKm: NATURAL_EARTH_PARAMS.simplifyKm,
-  safetyPx: SAFETY_PX,
-  safetyKm: SAFETY_KM,
-  latticeSteps: LATTICE_STEPS,
-  capitalPreferenceZooms: CAPITAL_PREFERENCE_ZOOMS,
-  candidateToleranceZooms: CANDIDATE_TOLERANCE_ZOOMS,
-  fitZoomStep: COUNTRY_LABEL_FIT_ZOOM_STEP,
-} as const
+export function placementParams(obstacles: AirportObstacles) {
+  return {
+    naturalEarth: `${NATURAL_EARTH_SOURCE.version} 1:10m`,
+    worldAtlas: NATURAL_EARTH_SOURCE.package.split('@')[1] ?? '',
+    simplifyKm: NATURAL_EARTH_PARAMS.simplifyKm,
+    safetyPx: SAFETY_PX,
+    safetyKm: SAFETY_KM,
+    latticeSteps: LATTICE_STEPS,
+    clearMaxDelayZooms: CLEAR_MAX_DELAY_ZOOMS,
+    crowdedMaxDelayZooms: CROWDED_MAX_DELAY_ZOOMS,
+    airportPins: obstacles.airports.length,
+    airportCodeMinZoom: AIRPORT_CHIP_MIN_ZOOM,
+    airportCodeSides: ['right', 'left'],
+    capitalAnchored: [...CAPITAL_ANCHORED_CODES],
+    fitZoomStep: COUNTRY_LABEL_FIT_ZOOM_STEP,
+  }
+}
 
 export interface PlacementCombo {
   locale: Locale
@@ -70,17 +99,25 @@ export const PLACEMENT_COMBOS: readonly PlacementCombo[] = [
 
 export type PlacementTable = Record<Locale, Record<string, CountryLabelPlacementRow>>
 
+/**
+ * Ülkenin yerleşim türü: `clear` boş yerde ortak nokta (çakışma 0); `crowded` boş yer yok, en az
+ * çakışan ortak nokta; `capital` kullanıcı kararıyla başkentte (`CAPITAL_ANCHORED_CODES`);
+ * `per-combination` bileşim başına çapa; `hidden` ad hiçbir bileşimde sığmaz.
+ */
+export type PlacementKind = 'clear' | 'crowded' | 'capital' | 'per-combination' | 'hidden'
+
 /** Ülkenin yerleşim ayrıntısı (özet ve testler için). */
 export interface CountryPlacementDetail {
   code: string
-  /** `capital`: başkent; `shared`: dört bileşimin ortak noktası; `per-combination`: bileşim başına. */
-  kind: 'capital' | 'shared' | 'per-combination'
-  /** Bileşim başına başkentteki ilk sığma yakınlaştırması (Infinity: hiç). */
-  capitalFitZooms: number[]
-  /** Bileşim başına en erken sığma (başkent ve ızgara; Infinity: hiç). */
+  kind: PlacementKind
+  /** Bileşim başına ızgaradaki en erken sığma (Infinity: hiç). */
   bestFitZooms: number[]
   /** Bileşim başına çapa ve ilk yakınlaştırma. */
   placements: CountryLabelPlacement[]
+  /** Bileşim başına çakışma: ilk yakınlaştırmadan z7'ye pin ve kod kutusu sayısı (yazılmazsa 0). */
+  overlaps: number[]
+  /** Görsel merkez (erişilmezlik kutbu, ızgarada): [boylam, enlem]. */
+  pole: readonly [lon: number, lat: number]
   /** Izgara adımı, 0,01°. */
   latticeStep: number
 }
@@ -124,45 +161,35 @@ const capitalOf = (code: string): CountryCapital => {
   return capital
 }
 
+/** Seçilen nokta: ızgaradaki dizini ve bileşimlerin toplam çakışması. */
+interface Choice {
+  index: number
+  overlap: number
+}
+
 /** Bir ülkenin dört bileşimdeki yeri. */
 export function placeCountry(
   code: string,
   geometry: MultiPolygon,
   names: NameSource,
+  obstacles: AirportObstacles,
 ): CountryPlacementDetail {
-  const capital = capitalOf(code)
-  const tier = countryLabelTier(capital)
+  const tier = countryLabelTier(capitalOf(code))
   const shape = new ProjectedShape(geometry)
   const fitters = PLACEMENT_COMBOS.map(
     ({ locale, layout }) =>
       new LabelFitter(shape, countryLabelLines(names(code, locale), locale), tier, layout),
   )
-  const count = fitters[0]?.zooms.length ?? 0
-  const zoomOf = (level: number) =>
-    level < count ? (fitters[0]?.zooms[level] as number) : Infinity
-  const preference = Math.round(CAPITAL_PREFERENCE_ZOOMS / COUNTRY_LABEL_FIT_ZOOM_STEP)
-  const tolerance = Math.round(CANDIDATE_TOLERANCE_ZOOMS / COUNTRY_LABEL_FIT_ZOOM_STEP)
-  const capitalInside = shape.contains(mercatorX(capital.lon), mercatorY(capital.lat))
-  const capitalLevels = fitters.map((fitter) =>
-    capitalInside ? fitter.firstFitLevel(capital.lon, capital.lat, 0, true) : count,
-  )
+  const zooms = fitters[0]?.zooms ?? []
+  const count = zooms.length
+  const firstZoom = zooms[0] ?? COUNTRY_LABEL_FADE_START_ZOOM
+  /** Düzeyin yakınlaştırması; `count` düzeyi z7'dir (çakışmanın son yakınlaştırması). */
+  const zoomAt = (level: number) => firstZoom + level * COUNTRY_LABEL_FIT_ZOOM_STEP
+  const lastLevel = Math.round((OVERLAP_LAST_ZOOM - firstZoom) / COUNTRY_LABEL_FIT_ZOOM_STEP)
+  const zoomOf = (level: number) => (level < count ? zoomAt(level) : Infinity)
   const lattice = latticeOf(shape)
-  const capitalPlacement = (k: number): CountryLabelPlacement => {
-    const level = capitalLevels[k] as number
-    return level < count ? [capital.lon, capital.lat, zoomOf(level)] : null
-  }
-  // Başkent her bileşimde kademenin ilk yarım kademesinde sığıyorsa ızgaraya gerek yok.
-  if (capitalLevels.every((level) => level <= preference)) {
-    return {
-      code,
-      kind: 'capital',
-      capitalFitZooms: capitalLevels.map(zoomOf),
-      bestFitZooms: capitalLevels.map(zoomOf),
-      placements: fitters.map((_, k) => capitalPlacement(k)),
-      latticeStep: lattice.step,
-    }
-  }
   const points = lattice.rows.flat()
+  if (points.length === 0) throw new Error(`${code}: no lattice point inside the polygon`)
   const levels = fitters.map((fitter) => {
     const result = new Uint8Array(points.length)
     let index = 0
@@ -178,80 +205,150 @@ export function placeCountry(
     }
     return result
   })
-  const best = fitters.map((_, k) => {
-    let min = capitalLevels[k] as number
-    for (const level of levels[k] as Uint8Array) if (level < min) min = level
+  const best = levels.map((combo) => {
+    let min = count
+    for (const level of combo) if (level < min) min = level
     return min
   })
-  // "Hiç" düzeyi (count) sonsuzdur: en erkene yakın sayılmaz.
-  const capitalOk = (k: number) =>
-    (best[k] as number) >= count ||
-    ((capitalLevels[k] as number) < count &&
-      (capitalLevels[k] as number) <= (best[k] as number) + preference)
-  const detail = (
-    kind: CountryPlacementDetail['kind'],
-    placements: CountryLabelPlacement[],
-  ): CountryPlacementDetail => ({
-    code,
-    kind,
-    capitalFitZooms: capitalLevels.map(zoomOf),
-    bestFitZooms: best.map(zoomOf),
-    placements,
-    latticeStep: lattice.step,
-  })
-  if (fitters.every((_, k) => capitalOk(k))) {
-    return detail(
-      'capital',
-      fitters.map((_, k) => capitalPlacement(k)),
-    )
+  let poleIndex = 0
+  let poleDistance = -Infinity
+  for (const [index, point] of points.entries()) {
+    const distance = shape.distanceToBoundary(point.lon100 / 100, point.lat100 / 100)
+    if (distance > poleDistance) {
+      poleDistance = distance
+      poleIndex = index
+    }
   }
-  const nearest = (accept: (index: number) => boolean): number => {
-    let chosen = -1
+  const pole = points[poleIndex] as LatticePoint
+  const poleX = mercatorX(pole.lon100 / 100)
+  const poleY = mercatorY(pole.lat100 / 100)
+  const xs = Float64Array.from(points, (point) => mercatorX(point.lon100 / 100))
+  const ys = Float64Array.from(points, (point) => mercatorY(point.lat100 / 100))
+  const boxes: GlyphBox[][] = fitters.map((fitter) =>
+    Array.from({ length: lastLevel + 1 }, (_, level) => fitter.visibleBoxAt(zoomAt(level))),
+  )
+  /** k. bileşimde (lon, lat) çapasının çakışması: `level`den z7'ye; `limit`e ulaşınca durur. */
+  const overlapAt = (
+    k: number,
+    lon: number,
+    lat: number,
+    level: number,
+    limit = Infinity,
+  ): number => {
+    let total = 0
+    for (let l = level; l <= lastLevel && total < limit; l++) {
+      const zoom = zoomAt(l)
+      const box = worldBoxAt(lon, lat, (boxes[k] as GlyphBox[])[l] as GlyphBox, zoom)
+      total += obstacles.hits(box, zoom, limit - total)
+    }
+    return total
+  }
+  /** k. bileşimde ızgara noktasının çakışması: ilk sığmadan z7'ye; `limit`e ulaşınca durur. */
+  const overlapOf = (k: number, index: number, limit = Infinity): number => {
+    const point = points[index] as LatticePoint
+    const level = (levels[k] as Uint8Array)[index] as number
+    return overlapAt(k, point.lon100 / 100, point.lat100 / 100, level, limit)
+  }
+  /**
+   * Adaylar: `combos`'un her birinde sığan ve en erkenin en çok `maxDelayZooms` gerisinde olan
+   * noktalar; `clearOnly` ise yalnızca çakışması 0 olanlar. Sıra: çakışma, düzey toplamı, görsel
+   * merkeze uzaklık; eşitlikte ızgara sırası (kuzey, batı).
+   */
+  const choose = (
+    combos: readonly number[],
+    maxDelayZooms: number,
+    clearOnly: boolean,
+  ): Choice | null => {
+    const delay = Math.round(maxDelayZooms / COUNTRY_LABEL_FIT_ZOOM_STEP)
+    let chosen: Choice | null = null
+    let chosenSum = Infinity
     let chosenDistance = Infinity
-    for (const [index, point] of points.entries()) {
-      if (!accept(index)) continue
-      const distance = distanceKm(
-        { lat: point.lat100 / 100, lon: point.lon100 / 100 },
-        { lat: capital.lat, lon: capital.lon },
-      )
-      const previous = points[chosen]
-      if (
-        distance < chosenDistance ||
-        (distance === chosenDistance &&
-          previous !== undefined &&
-          (point.lat100 > previous.lat100 ||
-            (point.lat100 === previous.lat100 && point.lon100 < previous.lon100)))
-      ) {
-        chosen = index
-        chosenDistance = distance
+    for (let index = 0; index < points.length; index++) {
+      let sum = 0
+      let fits = true
+      for (const k of combos) {
+        const level = (levels[k] as Uint8Array)[index] as number
+        if (level >= count || level > (best[k] as number) + delay) {
+          fits = false
+          break
+        }
+        sum += level
       }
+      if (!fits) continue
+      const distance = Math.hypot((xs[index] as number) - poleX, (ys[index] as number) - poleY)
+      const beatsTie = sum < chosenSum || (sum === chosenSum && distance < chosenDistance)
+      // Seçilenin çakışması 0'sa daha az çakışan olamaz: eşitliği bozamayan nokta sayılmaz.
+      if (chosen && chosen.overlap === 0 && !beatsTie) continue
+      const limit = clearOnly ? 1 : (chosen?.overlap ?? Infinity) + 1
+      let overlap = 0
+      for (const k of combos) {
+        overlap += overlapOf(k, index, limit - overlap)
+        if (overlap >= limit) break
+      }
+      if (clearOnly && overlap > 0) continue
+      if (chosen && (overlap > chosen.overlap || (overlap === chosen.overlap && !beatsTie))) {
+        continue
+      }
+      chosen = { index, overlap }
+      chosenSum = sum
+      chosenDistance = distance
     }
     return chosen
   }
-  const within = (k: number, index: number) => {
-    const level = (levels[k] as Uint8Array)[index] as number
-    return (
-      (best[k] as number) >= count || (level < count && level <= (best[k] as number) + tolerance)
-    )
-  }
+  const shown = fitters.map((_, k) => k).filter((k) => (best[k] as number) < count)
   const pointPlacement = (k: number, index: number): CountryLabelPlacement => {
     const point = points[index] as LatticePoint
     const level = (levels[k] as Uint8Array)[index] as number
     return level < count ? [point.lon100 / 100, point.lat100 / 100, zoomOf(level)] : null
   }
-  const shared = nearest((index) => fitters.every((_, k) => within(k, index)))
-  if (shared >= 0) {
-    return detail(
-      'shared',
-      fitters.map((_, k) => pointPlacement(k, shared)),
-    )
+  const detail = (kind: PlacementKind, anchors: (number | null)[]): CountryPlacementDetail => ({
+    code,
+    kind,
+    bestFitZooms: best.map(zoomOf),
+    placements: anchors.map((index, k) => (index === null ? null : pointPlacement(k, index))),
+    overlaps: anchors.map((index, k) => (index === null ? 0 : overlapOf(k, index))),
+    pole: [pole.lon100 / 100, pole.lat100 / 100],
+    latticeStep: lattice.step,
+  })
+  const anchorsFor = (index: number | null) =>
+    fitters.map((_, k) => (shown.includes(k) ? index : null))
+  if (shown.length === 0) return detail('hidden', anchorsFor(null))
+  if (CAPITAL_ANCHORED_CODES.includes(code)) {
+    const { lon, lat } = capitalOf(code)
+    const capitalLevels = fitters.map((fitter, k) => {
+      if (!shown.includes(k)) return null
+      const level = fitter.firstFitLevel(lon, lat, count - 1, true)
+      if (level >= count) {
+        const combo = PLACEMENT_COMBOS[k]
+        throw new Error(
+          `${code}: the name never fits at the capital (${combo?.locale} ${combo?.layout})`,
+        )
+      }
+      return level
+    })
+    return {
+      code,
+      kind: 'capital',
+      bestFitZooms: best.map(zoomOf),
+      placements: capitalLevels.map((level) => (level === null ? null : [lon, lat, zoomAt(level)])),
+      overlaps: capitalLevels.map((level, k) =>
+        level === null ? 0 : overlapAt(k, lon, lat, level),
+      ),
+      pole: [pole.lon100 / 100, pole.lat100 / 100],
+      latticeStep: lattice.step,
+    }
   }
+  const clear = choose(shown, CLEAR_MAX_DELAY_ZOOMS, true)
+  if (clear) return detail('clear', anchorsFor(clear.index))
+  const crowded = choose(shown, CROWDED_MAX_DELAY_ZOOMS, false)
+  if (crowded) return detail('crowded', anchorsFor(crowded.index))
   return detail(
     'per-combination',
     fitters.map((_, k) => {
-      if (capitalOk(k)) return capitalPlacement(k)
-      const own = nearest((index) => within(k, index))
-      return own >= 0 ? pointPlacement(k, own) : null
+      if (!shown.includes(k)) return null
+      const own =
+        choose([k], CLEAR_MAX_DELAY_ZOOMS, true) ?? choose([k], CROWDED_MAX_DELAY_ZOOMS, false)
+      return own?.index ?? null
     }),
   )
 }
@@ -260,13 +357,14 @@ export function placeCountry(
 export function computePlacements(
   geometries: Readonly<Record<string, MultiPolygon>>,
   names: NameSource,
+  obstacles: AirportObstacles,
 ): { table: PlacementTable; details: CountryPlacementDetail[] } {
   const table: PlacementTable = { tr: {}, en: {} }
   const details: CountryPlacementDetail[] = []
   for (const { code } of COUNTRY_CAPITALS) {
     const geometry = geometries[code]
     if (!geometry) throw new Error(`no geometry for ${code}`)
-    const detail = placeCountry(code, geometry, names)
+    const detail = placeCountry(code, geometry, names, obstacles)
     details.push(detail)
     for (const locale of ['tr', 'en'] as const) {
       const at = (layout: LabelLayout) =>
@@ -296,18 +394,23 @@ const placementSource = (placement: CountryLabelPlacement) =>
   placement === null ? 'null' : `[${placement.join(', ')}]`
 
 /** Üretilen modülün kaynağı (Prettier sonra biçimler). */
-export function renderPlacementsModule(table: PlacementTable): string {
+export function renderPlacementsModule(
+  table: PlacementTable,
+  params: ReturnType<typeof placementParams>,
+): string {
   const lines: string[] = [
     '/**',
-    ' * Ülke adlarının yeri ve ilk sığma yakınlaştırması (D-096). ÜRETİLMİŞ DOSYA: elle düzenlenmez;',
-    " * `pnpm country-labels` `tools/fixtures/naturalearth/countries.json`'dan üretir",
-    " * (tools/src/country-labels). Tools testi tabloyu fixture'dan yeniden hesaplar ve fark olursa",
+    ' * Ülke adlarının yeri ve ilk sığma yakınlaştırması (D-096, D-099). ÜRETİLMİŞ DOSYA: elle',
+    " * düzenlenmez; `pnpm country-labels` `tools/fixtures/naturalearth/countries.json`'dan ve",
+    " * `tools/fixtures/ourairports/airports.csv`'nin listelenen havalimanlarından üretir",
+    " * (tools/src/country-labels). Tools testi tabloyu fixture'lardan yeniden hesaplar ve fark olursa",
     ' * kırılır.',
     ' *',
     " * Satır: ülke kodu → ad (tek satır; `countryLabelText`, üretimdeki Node/ICU CLDR'ından; harita",
     ' * bu adı yazar) ve iki düzen: geniş ve dar (≤ 767 px) harita. Düzen değeri [boylam, enlem, ilk',
     ' * sığma yakınlaştırması] ya da `null` (ad o düzende hiçbir yakınlaştırmada sınırın içine sığmaz,',
-    ' * yazılmaz). Çapa sığıyorsa başkenttir.',
+    ' * yazılmaz). Çapa ülkenin içinde, havalimanı pinlerinden ve kodlarından (modelin saydığı',
+    " * kutularla) uzak boş bir yerdedir (D-099); KIBRIS kullanıcı kararıyla Lefkoşa'dadır (D-095).",
     ' */',
     "import type { Locale } from '../locale'",
     '',
@@ -321,7 +424,7 @@ export function renderPlacementsModule(table: PlacementTable): string {
     '}',
     '',
     '/** Tablonun üretim değişkenleri (tools/src/country-labels). */',
-    `export const COUNTRY_LABEL_PLACEMENT_PARAMS = ${JSON.stringify(PLACEMENT_PARAMS)} as const`,
+    `export const COUNTRY_LABEL_PLACEMENT_PARAMS = ${JSON.stringify(params)} as const`,
     '',
     'export const COUNTRY_LABEL_PLACEMENTS: Readonly<',
     '  Record<Locale, Readonly<Record<string, CountryLabelPlacementRow>>>',

@@ -30,7 +30,7 @@ Testler, CI ve `EXTERNAL_PROVIDERS_DISABLED=true` iken yerel geliştirme bu dosy
 - **Biçim:** Satırlar kaynaktaki gibidir. Bütün alanlar tırnaklıdır, BOM yoktur ve satır sonu LF'dir; ayrıştırıcının tırnaklı alan yolunu da sınar.
 
 ## Neyi sınar
-- Ülke adlarının sınır içi yerleşimi (D-096): `naturalearth/countries.json`'dan yerleşim tablosunun yeniden hesaplanması ve her adın kutusunun ülkesinin içinde kalması (`tools/src/country-labels/*.test.ts`).
+- Ülke adlarının sınır içi yerleşimi (D-096, D-099): `naturalearth/countries.json`'dan ve `ourairports/airports.csv`'nin listelenen 503 havalimanından (üretimin liste kuralı; pinler ve kodlar boş yer aramasının engelleridir) yerleşim tablosunun yeniden hesaplanması, her adın kutusunun ülkesinin içinde kalması ve TÜRKİYE ile KIBRIS dışında kutusuna pin ya da kod girmemesi (`tools/src/country-labels/*.test.ts`). OurAirports fixture'ı değişirse `pnpm country-labels` yeniden çalıştırılır. Üretim OurAirports'u her gece yeniden içe aktarır: üretimin listelenen havalimanları bu kopyadan ayrılabilir ve testler bunu görmez; kullanıcı iki listeyi karşılaştırır (ACTIVATION "Ülke adlarının engelleri"), ayrılıkta fixture onayla tazelenir (DUR-SOR 6).
 - adsb.lol yanıt biçimi ve M3 kabulü (`packages/providers/src/live/*.test.ts`). Bu örnekte yerdeki uçak, `lastPosition`, ICAO dışı (`~`) adres yok; o durumlar testte gerçek bir kaydın alanları değiştirilerek üretilir. Bir kayıtta LADD bayrağı (8) var.
 - M2 pist kabulü: eşikler arası mesafe, eşikten eşiğe yön, kaydırılmış eşik (`packages/providers/src/reference/reference.test.ts`).
 - LTFM'de heading alanı hatalı dört pist (16L/16R/17L/17R) ve LTAC 03L'de zaten eşik olan uç koordinatı (D-066).

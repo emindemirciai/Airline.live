@@ -8,7 +8,27 @@
 
 ---
 
-## v0.21.0 — 2026-10-05
+## v0.21.1 — 2026-10-05
+
+### Türkçe
+**Ülke adları daha belirgin, boş yerlerde**
+
+- Ülke adları aynı boyutta ama daha belirgin: yazı daha az saydam, koyu kenarı daha güçlü; açık renkli uydu zemininde de okunur.
+- Adlar artık havalimanı işaretlerinin ve kodlarının arasına değil, ülkenin içinde boş bir yere yazılır; örneğin İTALYA ve RUSYA işaret kümelerinden uzaklaştı. Türkiye’de 61 havalimanı olduğu için TÜRKİYE adı uzaktan bakınca birkaç işaretle örtüşebilir.
+
+Dene: [Canlı harita](/)
+
+### English
+**Clearer country names in empty spots**
+
+- Country names keep their size but are more prominent: less transparent letters with a stronger dark edge, readable on bright satellite ground too.
+- Names now sit in an empty spot inside the country instead of among airport pins and codes; for example ITALY and RUSSIA moved away from pin clusters. With 61 airports, the TÜRKIYE name can still touch a few pins when zoomed far out.
+
+Try it: [Live map](/)
+
+---
+
+## v0.21.0 — 2026-10-05 21:53 (UTC+3)
 
 ### Türkçe
 **Kapsama raporu**

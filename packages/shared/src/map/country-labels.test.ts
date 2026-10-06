@@ -18,7 +18,9 @@ import {
   COUNTRY_LABEL_FIT_ZOOM_STEP,
   COUNTRY_LABEL_FONT,
   COUNTRY_LABEL_HALO_ALPHA,
+  COUNTRY_LABEL_HALO_BLUR_SHARE,
   COUNTRY_LABEL_HALO_TRANSITION,
+  COUNTRY_LABEL_HALO_WIDTH_SHARE,
   COUNTRY_LABEL_LAYER_IDS,
   COUNTRY_LABEL_LAYER_KEYS,
   COUNTRY_LABEL_MAX_WIDTH_EM,
@@ -171,13 +173,13 @@ describe('ülke adı katmanları (D-095, D-096)', () => {
     }
   })
 
-  it('renk: beyaz 0,6 ve koyu hale 0,85; saydamlık renkte, MAP_COLORS opak', () => {
-    expect([COUNTRY_LABEL_TEXT_ALPHA, COUNTRY_LABEL_HALO_ALPHA]).toEqual([0.6, 0.85])
+  it('renk (D-099, daha belirgin): beyaz 0,85 ve koyu hale 0,9; saydamlık renkte, MAP_COLORS opak', () => {
+    expect([COUNTRY_LABEL_TEXT_ALPHA, COUNTRY_LABEL_HALO_ALPHA]).toEqual([0.85, 0.9])
     expect(MAP_COLORS.countryLabel).toBe('#FFFFFF')
     expect(MAP_COLORS.countryLabelHalo).toBe('#000000')
     for (const layer of countryLabelLayers({ compact: false })) {
-      expect(layer.paint['text-color']).toBe('rgba(255, 255, 255, 0.6)')
-      expect(layer.paint['text-halo-color']).toBe('rgba(0, 0, 0, 0.85)')
+      expect(layer.paint['text-color']).toBe('rgba(255, 255, 255, 0.85)')
+      expect(layer.paint['text-halo-color']).toBe('rgba(0, 0, 0, 0.9)')
     }
   })
 
@@ -211,9 +213,11 @@ describe('ülke adı katmanları (D-095, D-096)', () => {
         }
       }
     }
-    expect(countryLabelHalo(34)).toEqual({ width: 2.21, blur: 0.85 })
-    expect(countryLabelHalo(22)).toEqual({ width: 1.24, blur: 0.48 })
-    expect(countryLabelHalo(14)).toEqual({ width: 0.59, blur: 0.22 })
+    // D-099: payın 0,85'i genişlik, 0,1'i yumuşaklık (en koyu hale; D-095'te 0,65 ve 0,3).
+    expect([COUNTRY_LABEL_HALO_WIDTH_SHARE, COUNTRY_LABEL_HALO_BLUR_SHARE]).toEqual([0.85, 0.1])
+    expect(countryLabelHalo(34)).toEqual({ width: 2.89, blur: 0.28 })
+    expect(countryLabelHalo(22)).toEqual({ width: 1.62, blur: 0.16 })
+    expect(countryLabelHalo(14)).toEqual({ width: 0.77, blur: 0.07 })
     expect(countryLabelHalo(4)).toEqual({ width: 0, blur: 0 })
     expect(COUNTRY_LABEL_HALO_TRANSITION).toEqual({ duration: 0, delay: 0 })
   })
@@ -306,7 +310,7 @@ describe('countryLabelLines (D-096)', () => {
   })
 })
 
-describe('yerleşim tablosu (D-096)', () => {
+describe('yerleşim tablosu (D-096, D-099)', () => {
   it('iki dilde 59 başkentin kodu; İsrail ve Filistin yok; değerler ızgarada', () => {
     const codes = COUNTRY_CAPITALS.map((capital) => capital.code)
     for (const locale of ['tr', 'en'] as const) {
@@ -328,7 +332,27 @@ describe('yerleşim tablosu (D-096)', () => {
         }
       }
     }
-    expect(COUNTRY_LABEL_PLACEMENT_PARAMS).toMatchObject({ safetyPx: 3, safetyKm: 2 })
+    expect(COUNTRY_LABEL_PLACEMENT_PARAMS).toMatchObject({
+      safetyPx: 3,
+      safetyKm: 2,
+      clearMaxDelayZooms: 1.5,
+      crowdedMaxDelayZooms: 0.25,
+      airportPins: 503,
+      airportCodeMinZoom: 5,
+    })
+  })
+
+  it('ülke başına tek çapa (D-099): ad iki dilde ve iki genişlikte aynı yerde', () => {
+    for (const { code } of COUNTRY_CAPITALS) {
+      const anchors = new Set<string>()
+      for (const locale of ['tr', 'en'] as const) {
+        const row = COUNTRY_LABEL_PLACEMENTS[locale][code]
+        for (const placement of [row?.regular, row?.compact]) {
+          if (placement) anchors.add(`${placement[0]},${placement[1]}`)
+        }
+      }
+      expect(anchors.size, code).toBe(['BH', 'LU', 'MT'].includes(code) ? 0 : 1)
+    }
   })
 
   it('tablodaki adlar bu Node’un CLDR’ıyla countryLabelText’in verdiğiyle aynı', () => {
