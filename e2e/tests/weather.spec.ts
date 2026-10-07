@@ -45,6 +45,7 @@ import {
   PRIMARY_AIRPORT,
   PRIMARY_WEATHER,
   REPLAY_AIRCRAFT,
+  searchInput,
   TAXI_AIRCRAFT,
   waitForMap,
 } from '../support'
@@ -728,7 +729,7 @@ test.describe('harita: havalimanı penceresi', () => {
     // arama kutusunundur: pencere açık kalır.
     await clickPrimaryChip(page)
     await expect(popup).toBeVisible()
-    const input = page.getByRole('search').getByRole('searchbox')
+    const input = searchInput(page)
     await input.fill(REPLAY_AIRCRAFT.callsign)
     await input.press('Escape')
     await expect(popup).toBeVisible()
