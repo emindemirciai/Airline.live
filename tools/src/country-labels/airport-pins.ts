@@ -48,7 +48,7 @@ import {
 } from '@havayolu/shared'
 import { selectListedAirports, turkishReferencePoints } from '@havayolu/db'
 import { parseAirports } from '@havayolu/providers'
-import { mercatorX, mercatorY } from './geometry'
+import { mercatorX, mercatorY, WORLD_SIZE } from './geometry'
 import type { GlyphBox } from './label-model'
 
 /** Commit'li OurAirports fixture'ı (tools/fixtures/README.md). */
@@ -230,7 +230,8 @@ export class AirportObstacles {
 
   /**
    * Kutuya z'de giren havalimanlarının dizinleri ve her birinde giren parça sayısı (pin, sağdaki ve
-   * soldaki kod).
+   * soldaki kod). Kutu dünyanın komşu kopyalarında da aranır (D-100): 180. meridyenin yanındaki bir
+   * adın kutusu meridyeni aşabilir, havalimanları ise 180° B–180° D arasındadır.
    */
   private visit(
     box: WorldBox,
@@ -243,16 +244,19 @@ export class AirportObstacles {
     // geniş uzanımı (soldaki kod solda, sağdaki kod sağda en uzağa gider).
     const reachLeft = Math.max(0, ...boxes.map((part) => -part.left)) / scale
     const reachRight = Math.max(0, ...boxes.map((part) => part.right)) / scale
-    for (let i = this.lowerBound(box[0] - reachRight); i < this.sortedX.length; i++) {
-      const x = this.sortedX[i] as number
-      if (x > box[2] + reachLeft) break
-      const index = this.order[i] as number
-      const y = this.ys[index] as number
-      let parts = 0
-      for (const part of boxes) {
-        if (worldBoxesOverlap(box, worldBoxAtPoint(x, y, part, zoom))) parts++
+    for (const shift of [0, -WORLD_SIZE, WORLD_SIZE]) {
+      const copy: WorldBox = [box[0] + shift, box[1], box[2] + shift, box[3]]
+      for (let i = this.lowerBound(copy[0] - reachRight); i < this.sortedX.length; i++) {
+        const x = this.sortedX[i] as number
+        if (x > copy[2] + reachLeft) break
+        const index = this.order[i] as number
+        const y = this.ys[index] as number
+        let parts = 0
+        for (const part of boxes) {
+          if (worldBoxesOverlap(copy, worldBoxAtPoint(x, y, part, zoom))) parts++
+        }
+        if (parts > 0 && found(index, parts)) return
       }
-      if (parts > 0 && found(index, parts)) return
     }
   }
 

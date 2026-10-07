@@ -6,9 +6,9 @@ import {
   COUNTRY_LABEL_FONT,
   COUNTRY_LABEL_LETTER_SPACING,
   COUNTRY_LABEL_MAX_WIDTH_EM,
-  COUNTRY_LABEL_PLACEMENTS,
   countryLabelLines,
 } from '@havayolu/shared'
+import { COUNTRY_LABEL_PLACEMENTS } from '@havayolu/shared/country-label-placements'
 import { describe, expect, it } from 'vitest'
 import { plainStyle, type MapStyle } from './basemap'
 import { MAP_FONT_FILES, mapFontFaces, withMapFonts } from './map-fonts'
@@ -171,13 +171,14 @@ function lineWidth(text: string): number {
 }
 
 /**
- * Haritada yazılabilecek bütün adlar (yerleşim tablosundaki 59 ülke, iki dil; hiç sığmayanlar da),
- * satırlarıyla.
+ * Yerleşim tablosundaki bütün adlar (244 ülke, iki dil; hiç sığmayanlar da), satırlarıyla; `shown`:
+ * en az bir düzende yazılır.
  */
 const LABELS = (['tr', 'en'] as const).flatMap((locale) =>
   Object.values(COUNTRY_LABEL_PLACEMENTS[locale]).map((row) => ({
     name: row.name,
     lines: countryLabelLines(row.name, locale),
+    shown: row.regular !== null || row.compact !== null,
   })),
 )
 
@@ -197,13 +198,32 @@ describe('ülke adlarının yazı tipi kapsamı ve genişliği (D-095, D-096)', 
     }
   })
 
-  it('MapLibre ad satırlarına kendi kırmasını eklemez: her adın toplam genişliği 24 em’in altında', () => {
-    expect(LABELS).toHaveLength(118)
-    const widths = LABELS.map((label) => [label.name, lineWidth(label.lines.join(' '))] as const)
-    for (const [name, width] of widths) expect(width, name).toBeLessThan(COUNTRY_LABEL_MAX_WIDTH_EM)
-    const widest = widths.toSorted((a, b) => b[1] - a[1])[0]
-    expect(widest?.[0]).toBe('BİRLEŞİK ARAP EMİRLİKLERİ')
-    expect(widest?.[1]).toBeCloseTo(21.42, 1)
+  it('MapLibre ad satırlarına kendi kırmasını eklemez: yazılan ad 24 em’den kısa ya da her satırı hedef satır genişliğinden kısa', () => {
+    expect(LABELS).toHaveLength(488)
+    const shown = LABELS.filter((label) => label.shown)
+    expect(shown).toHaveLength(328)
+    const widths = shown.map((label) => [label.name, lineWidth(label.lines.join(' '))] as const)
+    const long = widths.filter(([, width]) => width >= COUNTRY_LABEL_MAX_WIDTH_EM)
+    // Yalnız elle tutulan iki Kongo adı (D-100) 24 em'i aşar. MapLibre o zaman ⌈toplam / 24⌉ satır
+    // hedefler; her satır hedef genişlikten (toplam / satır sayısı) kısa olduğundan bir satırı bölmek
+    // kırma cezasını yalnız büyütür (tools/src/country-labels/label-model.test.ts MapLibre'nin
+    // modeliyle de denetler).
+    expect(long.map(([name]) => name)).toEqual([
+      'KONGO DEMOKRATİK CUMHURİYETİ',
+      'DEMOCRATIC REPUBLIC OF THE CONGO',
+    ])
+    for (const label of shown) {
+      const total = lineWidth(label.lines.join(' '))
+      if (total < COUNTRY_LABEL_MAX_WIDTH_EM) continue
+      const target = total / Math.ceil(total / COUNTRY_LABEL_MAX_WIDTH_EM)
+      for (const line of label.lines) expect(lineWidth(line), line).toBeLessThan(target)
+    }
+    const widest = widths
+      .filter(([, width]) => width < COUNTRY_LABEL_MAX_WIDTH_EM)
+      .toSorted((a, b) => b[1] - a[1])[0]
+    expect(widest?.[0]).toBe('AMERİKA BİRLEŞİK DEVLETLERİ')
+    expect(widest?.[1]).toBeCloseTo(23.65, 1)
+    expect(lineWidth('BİRLEŞİK ARAP EMİRLİKLERİ')).toBeCloseTo(21.42, 1)
     // tools/src/country-labels/label-model.test.ts aynı genişlikleri kendi tablosundan hesaplar.
     expect(lineWidth('TÜRKİYE')).toBeCloseTo(6.17, 1)
     expect(lineWidth('SUUDİ ARABİSTAN')).toBeCloseTo(13.42, 1)

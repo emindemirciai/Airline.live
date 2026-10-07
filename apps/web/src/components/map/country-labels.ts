@@ -3,6 +3,10 @@
  * Göster) ve pencere boyunun katmanlara uygulanması ve testlerin okuduğu `data-country-labels`
  * niteliği. Katmanların kendisi `@havayolu/shared`'dadır (`countryLabelLayers`, 40 katman).
  *
+ * Yerleşim tablosu ilk pakette değildir (D-100): harita denetleyicisi `@havayolu/shared/country-label-points`
+ * modülünü MapLibre ile paralel, dinamik importla yükler ve `setPoints` ile verir; o gelene kadar
+ * kaynak boştur (masaüstü açılışı z8'dir, orada ad yoktur).
+ *
  * Kaynak dile ve harita genişliğine bağlıdır: her adın yeri ve ilk sığma yakınlaştırması iki dilde ve
  * iki genişlikte ayrı hesaplanmıştır (`COUNTRY_LABEL_PLACEMENTS`). Dil değişince kaynak, dar harita
  * sınırı geçilince kaynak ve kademelerin boy ve hale eğrileri yenilenir. Yakınlaştırırken hiçbir
@@ -21,9 +25,9 @@ import {
   COUNTRY_LABEL_SOURCE_ID,
   countryLabelHaloCurve,
   countryLabelLayerId,
-  countryLabelPoints,
   countryLabelTextSize,
   type CountryLabelFeatureProperties,
+  type CountryLabelPointsSource,
   type Locale,
 } from '@havayolu/shared'
 import type { CountryLabelMode } from '../../lib/map/label-settings'
@@ -31,11 +35,18 @@ import type { FeatureCollection, PointFeature } from './motion'
 
 export type CountryLabelCollection = FeatureCollection<PointFeature<CountryLabelFeatureProperties>>
 
-/** Ülke adı noktaları, sayfanın dilinde ve haritanın genişliğine göre (kaynak verisi). */
-export function countryLabelCollection(locale: Locale, compact: boolean): CountryLabelCollection {
+/**
+ * Ülke adı noktaları, sayfanın dilinde ve haritanın genişliğine göre (kaynak verisi). Yerleşim
+ * tablosu henüz yüklenmediyse (`points` null; D-100) koleksiyon boştur.
+ */
+export function countryLabelCollection(
+  points: CountryLabelPointsSource | null,
+  locale: Locale,
+  compact: boolean,
+): CountryLabelCollection {
   return {
     type: 'FeatureCollection',
-    features: countryLabelPoints(locale, compact).map(({ lat, lon, properties }) => ({
+    features: (points?.(locale, compact) ?? []).map(({ lat, lon, properties }) => ({
       type: 'Feature',
       geometry: { type: 'Point', coordinates: [lon, lat] },
       properties,
@@ -130,6 +141,7 @@ export class CountryLabelOverlay {
   private readonly setTimer: (fn: () => void, ms: number) => unknown
   private readonly clearTimer: (handle: unknown) => void
   private state: CountryLabelState
+  private points: CountryLabelPointsSource | null = null
   private map: CountryLabelMap | null = null
   private ready = false
   private timer: unknown = null
@@ -156,9 +168,22 @@ export class CountryLabelOverlay {
     return this.state
   }
 
-  /** Kaynak verisi, güncel dilde ve genişlikte. */
+  /** Kaynak verisi, güncel dilde ve genişlikte (tablo gelmeden boş). */
   sourceData(): CountryLabelCollection {
-    return countryLabelCollection(this.state.locale, this.state.compact)
+    return countryLabelCollection(this.points, this.state.locale, this.state.compact)
+  }
+
+  /**
+   * Yerleşim tablosu geldi (`@havayolu/shared/country-label-points`, dinamik import; D-100):
+   * katmanlar haritadaysa kaynak hemen dolar, değilse katmanlar eklenirken (`sourceData`) dolar.
+   */
+  setPoints(points: CountryLabelPointsSource): void {
+    this.points = points
+    const map = this.map
+    if (!map || !this.usable()) return
+    const source = map.getSource(COUNTRY_LABEL_SOURCE_ID)
+    if (hasSetData(source)) source.setData(this.sourceData())
+    this.schedule()
   }
 
   /** Katmanlar haritaya eklendi (her stil yüklenişinde). */

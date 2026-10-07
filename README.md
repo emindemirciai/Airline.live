@@ -2,7 +2,7 @@
 
 **[Türkçe](#türkçe) · [English](#english)**
 
-![sürüm](https://img.shields.io/badge/s%C3%BCr%C3%BCm-v0.22.4-blue) ![lisans](https://img.shields.io/badge/lisans-MIT-green) ![durum](https://img.shields.io/badge/durum-geli%C5%9Ftirme-yellow)
+![sürüm](https://img.shields.io/badge/s%C3%BCr%C3%BCm-v0.22.5-blue) ![lisans](https://img.shields.io/badge/lisans-MIT-green) ![durum](https://img.shields.io/badge/durum-geli%C5%9Ftirme-yellow)
 
 ---
 
@@ -14,7 +14,7 @@ Herkese açık, uluslararası sivil havacılık uçuş takip platformu; birincil
 
 > **Bilinen sınır:** Kendi ADS-B alıcımız olmadığı için İstanbul Havalimanı'nda iniş anı çoğunlukla doğrudan görülmez. İniş bildirimi çoğu uçuşta "muhtemelen indi (tahmini saat)" olarak ve son sinyalden 1–1,5 dk sonra gelir. Bazı uçuşlarda yalnızca "iniş verisi alınamadı" denebilir.
 
-### Durum — v0.22.4
+### Durum — v0.22.5
 | Alan | Durum |
 |---|---|
 | Yol haritası, veri kaynakları, mimari | ✅ Hazır ve doğrulandı |
@@ -50,6 +50,7 @@ Herkese açık, uluslararası sivil havacılık uçuş takip platformu; birincil
 | Askerî hava üsleri sitenin hiçbir yerinde yok (liste 498 havalimanı, Türkiye 56) | ✅ v0.22.2 |
 | Haritada havalimanı araması: kod, ad ya da şehirle, yazarken öneri | ✅ v0.22.3 |
 | Global konumlandırma: başlık ve tanıtım metinleri Türkiye ile sınırlı değil; canlı uçak verisi şimdilik Türkiye ve çevresinde (D-106) | ✅ v0.22.4 |
+| Haritada bütün ülkelerin adları (164 ülke ve bölge, sınır içinde, boş yerde) | ✅ v0.22.5 |
 | Canlı araçlar: `pnpm smoke:live` (5 dk gerçek ingest ölçümü) ve `pnpm record` (oynatılabilir kayıt) | ✅ Parça 1 · M7a (kod hazır; canlı çalıştırma [ACTIVATION](docs/ACTIVATION.md) adımlarından sonra, kendi terminalinde) |
 | Kapsama ölçümü: iz tablolarında konum gecikmesi (`seen_pos`) ve barometrik alçalma hızı | ✅ Parça 1 · M7b.1 (rapor M7b.2 ile gelir) |
 | Kapsama raporu: admin → Kapsama (istasyon başına varış, yerde görülme oranı, güven aralığı, karar kuralları, indirilebilir rapor); gece 7 günlük oran; `pnpm coverage:report` (yerel) | ✅ Parça 1 · M7b.2 (gerçek rapor üretim ingest'inden sonra) |
@@ -84,23 +85,23 @@ pnpm dev
 - `docs/DEPLOY_DOKPLOY.md`: sunucu (Dokploy) kurulumu, bir kez
 - `docs/DECISIONS.md`: kararlar ve gerekçeleri
 
-### İstatistik (v0.22.4)
-Git'te 694 dosya, **145.432 satır**. Bunun 133.975 satırı kod (TypeScript, TSX, CSS, JS), 7.926 satırı belgedir. Lockfile, `docs/research/` ve elle yazılmayan veri (fixture CSV ve JSON dosyaları, drizzle şema snapshot'ları) hariç tutulur. Güncel değer için `pnpm stats` çalıştır.
+### İstatistik (v0.22.5)
+Git'te 695 dosya, **147.819 satır**. Bunun 136.209 satırı kod (TypeScript, TSX, CSS, JS), 8.077 satırı belgedir. Lockfile, `docs/research/` ve elle yazılmayan veri (fixture CSV ve JSON dosyaları, drizzle şema snapshot'ları) hariç tutulur. Güncel değer için `pnpm stats` çalıştır.
 
 | Alan | Satır |
 |---|---|
-| apps/web | 40.846 |
-| packages/shared | 19.197 |
+| apps/web | 41.010 |
+| packages/shared | 20.049 |
 | apps/worker | 16.408 |
-| tools | 14.773 |
+| tools | 15.992 |
 | apps/api | 14.431 |
 | packages/db | 11.640 |
-| docs | 5.917 |
+| docs | 6.042 |
 | packages/i18n | 4.551 |
 | packages/providers | 4.424 |
 | scripts | 2.185 |
 | packages/geo | 786 |
-| diğer (kök, deploy, .claude, .github) | 10.274 |
+| diğer (kök, deploy, .claude, .github) | 10.301 |
 
 ### Lisans, veri ve atıflar
 - Kod [MIT lisansı](LICENSE) ile lisanslanmıştır: © 2026 [emindemirciai](https://github.com/emindemirciai). Kodun tüm kopyaları ya da önemli bölümleri telif bildirimini ve lisans metnini içermek zorundadır; bunlar olmadan kopyalamak ya da dağıtmak lisans ve telif hakkı ihlalidir. **havayolu** adı ve logosu MIT kapsamında değildir, hakları saklıdır. Aynı bildirim sitenin sayfa kaynağında da yer alır.
@@ -120,7 +121,7 @@ A public, international civil aviation flight tracker with Istanbul Airport (IST
 
 > **Known limitation:** Without our own ADS-B receiver, the moment of touchdown at Istanbul Airport is usually not observed directly. For most flights the landing alert says "probably landed (estimated time)" and arrives 1–1.5 minutes after the last signal. For some flights it can only say "landing data unavailable".
 
-### Status — v0.22.4
+### Status — v0.22.5
 | Area | Status |
 |---|---|
 | Roadmap, data sources, architecture | ✅ Done and verified |
@@ -156,6 +157,7 @@ A public, international civil aviation flight tracker with Istanbul Airport (IST
 | Air force bases removed from the whole site (498 airports listed, 56 in Türkiye) | ✅ v0.22.2 |
 | Airport search on the map: by code, name or city, with suggestions as you type | ✅ v0.22.3 |
 | Global positioning: titles and site descriptions no longer limited to Türkiye; live aircraft data still over Türkiye and the surrounding area (D-106) | ✅ v0.22.4 |
+| Every country named on the map (164 countries and territories, inside borders, in empty space) | ✅ v0.22.5 |
 | Live tools: `pnpm smoke:live` (5-minute real ingest check) and `pnpm record` (replayable recording) | ✅ Part 1 · M7a (code ready; live runs after the [ACTIVATION](docs/ACTIVATION.md) steps, from your own terminal) |
 | Coverage measurement: position age (`seen_pos`) and barometric descent rate stored with tracks | ✅ Part 1 · M7b.1 (the report comes with M7b.2) |
 | Coverage report: admin → Kapsama (per-station arrivals, ground-seen share with confidence interval, decision rules, downloadable report); nightly 7-day ratio; `pnpm coverage:report` (local) | ✅ Part 1 · M7b.2 (the real report after production ingest) |
@@ -190,8 +192,8 @@ Then open `http://localhost:3100/` (live map), `/havalimanlari`, `/istasyon/LTFM
 - `docs/DEPLOY_DOKPLOY.md`: one-time server (Dokploy) setup
 - `docs/DECISIONS.md`: decisions and rationale
 
-### Stats (v0.22.4)
-694 files and **145,432 lines** in git: 133,975 lines of code (TypeScript, TSX, CSS, JS) and 7,926 lines of documentation. The lockfile, `docs/research/` and generated data (fixture CSV and JSON files, drizzle schema snapshots) are excluded. Run `pnpm stats` for current numbers.
+### Stats (v0.22.5)
+695 files and **147,819 lines** in git: 136,209 lines of code (TypeScript, TSX, CSS, JS) and 8,077 lines of documentation. The lockfile, `docs/research/` and generated data (fixture CSV and JSON files, drizzle schema snapshots) are excluded. Run `pnpm stats` for current numbers.
 
 ### License, data and attribution
 - Code is licensed under the [MIT License](LICENSE): © 2026 [emindemirciai](https://github.com/emindemirciai). All copies or substantial portions of the code must include the copyright notice and license text; copying or distributing without them infringes the license and the copyright. The **havayolu** name and logo are not covered by the MIT License; rights reserved. The same notice appears in the page source of the site.

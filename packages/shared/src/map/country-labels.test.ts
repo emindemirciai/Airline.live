@@ -1,16 +1,18 @@
 import { describe, expect, it } from 'vitest'
 import {
-  COUNTRY_CAPITALS,
+  COUNTRY_AREA_OVERRIDES_KM2,
   UNLABELLED_COUNTRIES,
   countryLabelTier,
   type CountryLabelTier,
-} from '../reference/capitals'
+} from '../reference/country-label-set'
 import { countryLabelText } from '../reference/countries'
 import { MAP_COLORS } from './colors'
 import {
+  COUNTRY_LABEL_AREAS_KM2,
   COUNTRY_LABEL_PLACEMENT_PARAMS,
   COUNTRY_LABEL_PLACEMENTS,
 } from './country-label-placements'
+import { countryLabelPoints } from './country-label-points'
 import {
   COUNTRY_LABEL_COMPACT_MAX_WIDTH_PX,
   COUNTRY_LABEL_CONNECTORS,
@@ -42,7 +44,6 @@ import {
   countryLabelLines,
   countryLabelOpacityAt,
   countryLabelOpacityStops,
-  countryLabelPoints,
   countryLabelSizeAt,
   countryLabelTextSize,
   interpolateStops,
@@ -289,10 +290,10 @@ describe('countryLabelLines (D-096)', () => {
     expect(COUNTRY_LABEL_CONNECTORS).toEqual({ tr: ['VE'], en: ['AND', 'OF', 'THE'] })
   })
 
-  it('bugünkü 59 × 2 addan yalnız BAE, Bosna-Hersek, Kuzey Makedonya ve Suudi Arabistan çok satırlı', () => {
+  it('D-095’in 59 × 2 adından yalnız BAE, Bosna-Hersek, Kuzey Makedonya ve Suudi Arabistan çok satırlı', () => {
     const multi: string[] = []
     for (const locale of ['tr', 'en'] as const) {
-      for (const { code } of COUNTRY_CAPITALS) {
+      for (const code of Object.keys(COUNTRY_AREA_OVERRIDES_KM2)) {
         const lines = countryLabelLines(countryLabelText(code, locale), locale)
         if (lines.length > 1) multi.push(`${locale} ${code} ${lines.join(' / ')}`)
       }
@@ -308,24 +309,78 @@ describe('countryLabelLines (D-096)', () => {
       'en SA SAUDI / ARABIA',
     ])
   })
+
+  it('bütün dünyanın adlarında (D-100): kısa çizgi, bağlaç önceki sözcükte; elle tutulan adlar', () => {
+    expect(countryLabelLines(countryLabelText('US', 'tr'), 'tr')).toEqual([
+      'AMERİKA',
+      'BİRLEŞİK',
+      'DEVLETLERİ',
+    ])
+    expect(countryLabelLines(countryLabelText('GW', 'en'), 'en')).toEqual(['GUINEA', 'BISSAU'])
+    // Elle tutulan adlar (countries.ts `COUNTRY_NAME_OVERRIDES`): "of" ve "the" kendi satırında
+    // kalmaz, önceki sözcükle yazılır.
+    expect(countryLabelLines(countryLabelText('CD', 'tr'), 'tr')).toEqual([
+      'KONGO',
+      'DEMOKRATİK',
+      'CUMHURİYETİ',
+    ])
+    expect(countryLabelLines(countryLabelText('CD', 'en'), 'en')).toEqual([
+      'DEMOCRATIC',
+      'REPUBLIC OF THE',
+      'CONGO',
+    ])
+    expect(countryLabelLines(countryLabelText('CG', 'tr'), 'tr')).toEqual(['KONGO', 'CUMHURİYETİ'])
+    expect(countryLabelLines(countryLabelText('CG', 'en'), 'en')).toEqual([
+      'REPUBLIC OF THE',
+      'CONGO',
+    ])
+    expect(countryLabelLines(countryLabelText('CI', 'tr'), 'tr')).toEqual(['FİLDİŞİ', 'SAHİLİ'])
+    expect(countryLabelLines(countryLabelText('CI', 'en'), 'en')).toEqual(['CÔTE', 'D’IVOIRE'])
+    for (const locale of ['tr', 'en'] as const) {
+      expect(countryLabelLines(countryLabelText('MM', locale), locale)).toEqual(['MYANMAR'])
+      expect(countryLabelLines(countryLabelText('SJ', locale), locale)).toEqual(['SVALBARD'])
+    }
+    // Hiçbir çok satırlı adda bağlaç tek başına satır değildir.
+    for (const code of Object.keys(COUNTRY_LABEL_AREAS_KM2)) {
+      for (const locale of ['tr', 'en'] as const) {
+        const lines = countryLabelLines(countryLabelText(code, locale), locale)
+        if (lines.length < 2) continue
+        for (const line of lines) {
+          expect(COUNTRY_LABEL_CONNECTORS[locale], `${code} ${locale}`).not.toContain(line)
+        }
+      }
+    }
+  })
 })
 
-describe('yerleşim tablosu (D-096, D-099)', () => {
-  it('iki dilde 59 başkentin kodu; İsrail ve Filistin yok; değerler ızgarada', () => {
-    const codes = COUNTRY_CAPITALS.map((capital) => capital.code)
+/** Tablonun kodları: yüzölçümü tablosunun kodları, sıralı. */
+const CODES = Object.keys(COUNTRY_LABEL_AREAS_KM2)
+/** Hiçbir bileşimde yazılmayanlar (dört düzen de null). */
+const NEVER = CODES.filter((code) =>
+  (['tr', 'en'] as const).every((locale) => {
+    const row = COUNTRY_LABEL_PLACEMENTS[locale][code]
+    return row?.regular === null && row.compact === null
+  }),
+)
+const tierOf = (code: string) =>
+  countryLabelTier({ code, areaKm2: COUNTRY_LABEL_AREAS_KM2[code] ?? NaN })
+
+describe('yerleşim tablosu (D-096, D-099, D-100)', () => {
+  it('iki dilde aynı 244 kod (yüzölçümü tablosununkiler); İsrail, Filistin ve Antarktika yok; değerler ızgarada', () => {
+    expect(CODES).toHaveLength(244)
+    expect(CODES).toEqual(CODES.toSorted())
     for (const locale of ['tr', 'en'] as const) {
       const rows = COUNTRY_LABEL_PLACEMENTS[locale]
-      expect(Object.keys(rows)).toEqual(codes)
-      for (const code of UNLABELLED_COUNTRIES) expect(rows).not.toHaveProperty(code)
+      expect(Object.keys(rows)).toEqual(CODES)
+      for (const code of [...UNLABELLED_COUNTRIES, 'AQ']) expect(rows).not.toHaveProperty(code)
       for (const [code, row] of Object.entries(rows)) {
-        const capital = COUNTRY_CAPITALS.find((candidate) => candidate.code === code)
-        if (!capital) throw new Error(code)
-        const min = COUNTRY_LABEL_MIN_ZOOM[countryLabelTier(capital)]
+        const min = COUNTRY_LABEL_MIN_ZOOM[tierOf(code)]
         for (const placement of [row.regular, row.compact]) {
           if (placement === null) continue
           const [lon, lat, fitZoom] = placement
           expect(Math.round(lon * 100) / 100, code).toBe(lon)
           expect(Math.round(lat * 100) / 100, code).toBe(lat)
+          expect(Math.abs(lon), code).toBeLessThanOrEqual(180)
           expect(fitZoom * 4, code).toBe(Math.round(fitZoom * 4))
           expect(fitZoom, code).toBeGreaterThanOrEqual(min)
           expect(fitZoom, code).toBeLessThan(COUNTRY_LABEL_FADE_START_ZOOM)
@@ -333,8 +388,11 @@ describe('yerleşim tablosu (D-096, D-099)', () => {
       }
     }
     expect(COUNTRY_LABEL_PLACEMENT_PARAMS).toMatchObject({
+      simplifyKm: 0.5,
+      farSimplifyKm: 1,
       safetyPx: 3,
       safetyKm: 2,
+      farSafetyKm: 2.5,
       clearMaxDelayZooms: 1.5,
       crowdedMaxDelayZooms: 0.25,
       airportPins: 498,
@@ -343,7 +401,7 @@ describe('yerleşim tablosu (D-096, D-099)', () => {
   })
 
   it('ülke başına tek çapa (D-099): ad iki dilde ve iki genişlikte aynı yerde', () => {
-    for (const { code } of COUNTRY_CAPITALS) {
+    for (const code of CODES) {
       const anchors = new Set<string>()
       for (const locale of ['tr', 'en'] as const) {
         const row = COUNTRY_LABEL_PLACEMENTS[locale][code]
@@ -351,8 +409,15 @@ describe('yerleşim tablosu (D-096, D-099)', () => {
           if (placement) anchors.add(`${placement[0]},${placement[1]}`)
         }
       }
-      expect(anchors.size, code).toBe(['BH', 'LU', 'MT'].includes(code) ? 0 : 1)
+      expect(anchors.size, code).toBe(NEVER.includes(code) ? 0 : 1)
     }
+    // Hiç sığmayan 80 küçük ülke ve ada; D-095'in 59 ülkesinden yine Bahreyn, Lüksemburg ve Malta.
+    expect(NEVER).toHaveLength(80)
+    expect(NEVER.filter((code) => Object.hasOwn(COUNTRY_AREA_OVERRIDES_KM2, code))).toEqual([
+      'BH',
+      'LU',
+      'MT',
+    ])
   })
 
   it('tablodaki adlar bu Node’un CLDR’ıyla countryLabelText’in verdiğiyle aynı', () => {
@@ -371,13 +436,13 @@ describe('yerleşim tablosu (D-096, D-099)', () => {
 })
 
 describe('countryLabelPoints (D-096)', () => {
-  it('yazılan adlar tablodan: Türkiye sıra 0; hiç sığmayan Bahreyn, Lüksemburg ve Malta yok', () => {
+  it('yazılan adlar tablodan: Türkiye sıra 0; hiç sığmayanlar (Bahreyn, Lüksemburg, Malta…) yok', () => {
     for (const locale of ['tr', 'en'] as const) {
       for (const compact of MODES) {
         const points = countryLabelPoints(locale, compact)
-        expect(points).toHaveLength(56)
+        expect(points).toHaveLength(164)
         const codes = points.map((point) => point.properties.code)
-        for (const code of ['BH', 'LU', 'MT', 'IL', 'PS']) expect(codes).not.toContain(code)
+        for (const code of [...NEVER, 'IL', 'PS']) expect(codes).not.toContain(code)
         expect(points[0]?.properties.code).toBe('TR')
         expect(points[0]?.properties.rank).toBe(0)
         for (const point of points) {
@@ -388,9 +453,7 @@ describe('countryLabelPoints (D-096)', () => {
           expect([point.lon, point.lat, point.properties.fitZoom]).toEqual([...placement])
           expect(point.properties.name).toBe(row.name)
           expect(point.properties.label).toBe(countryLabelLines(row.name, locale).join('\n'))
-          const capital = COUNTRY_CAPITALS.find((candidate) => candidate.code === code)
-          if (!capital) throw new Error(code)
-          expect(point.properties.tier).toBe(countryLabelTier(capital))
+          expect(point.properties.tier).toBe(tierOf(code))
         }
         const ranks = points.map((point) => point.properties.rank)
         expect(ranks).toEqual(ranks.toSorted((a, b) => a - b))

@@ -4,7 +4,7 @@ import {
   MILITARY_AIRFIELD_ICAOS,
 } from '@havayolu/shared'
 import { describe, expect, it } from 'vitest'
-import { fixtureListedAirports } from '../../../lib/test/ourairports-fixture'
+import { fixtureForeignAirport, fixtureListedAirports } from '../../../lib/test/ourairports-fixture'
 import { toMapAirport, type MapAirport } from '../airport-data'
 import { buildAirportSearch } from './airport-search-index'
 import { submitOutcome, type AircraftLookup, type SubmitOutcome } from './search-box-model'
@@ -92,6 +92,49 @@ describe('havalimanı araması: fixture listesi (D-108)', () => {
       }
     }
     expect(codes('Turkey', en)).not.toContain('ECN')
+  })
+
+  it('elle tutulan ülke adları (D-100) aranır: 4. halkanın Kongo ve Fildişi Sahili havalimanları', () => {
+    // Halka 3'te bu ülkelerin havalimanı listelenmez; 4. halkanın adayları (fixture) dizine eklenir.
+    // Ülke basamağı `countryName`'in iki dilini arar: CLDR'ın "Kongo - Kinşasa", "Congo -
+    // Brazzaville" ve Türkçedeki Fransızca "Côte d’Ivoire" adları yerine elle tutulanlar.
+    const ivoryCoast = ['DIAP', 'DIBK', 'DIKO']
+    const congo = ['FCBB', 'FCPP']
+    const drCongo = ['FZAA', 'FZIC', 'FZNA']
+    const ring4 = [...ivoryCoast, ...congo, ...drCongo].flatMap((icao) => {
+      const airport = toMapAirport(fixtureForeignAirport(icao))
+      return airport ? [airport] : []
+    })
+    expect(ring4.map((a) => a.country)).toEqual(['CI', 'CI', 'CI', 'CG', 'CG', 'CD', 'CD', 'CD'])
+    const icaos = (query: string, search: typeof tr) =>
+      search(query)
+        .rows.map((row) => row.airport.icao)
+        .sort()
+    for (const search of [buildAirportSearch(ring4, 'tr'), buildAirportSearch(ring4, 'en')]) {
+      for (const query of ['Fildişi', 'fildisi sahili', "Côte d'Ivoire", 'ivoire']) {
+        expect(icaos(query, search), query).toEqual(ivoryCoast)
+        expect(
+          search(query).rows.every((row) => row.match === 'country'),
+          query,
+        ).toBe(true)
+      }
+      for (const query of ['Kongo', 'Congo']) {
+        expect(icaos(query, search), query).toEqual([...congo, ...drCongo].sort())
+      }
+      for (const query of ['Kongo Demokratik', 'Democratic Republic']) {
+        expect(icaos(query, search), query).toEqual(drCongo)
+      }
+      expect(search('Kinshasa').rows[0]).toMatchObject({ code: 'FIH', match: 'start' })
+      expect(search('Brazzaville').rows[0]).toMatchObject({ code: 'BZV', match: 'start' })
+    }
+    const place = (icao: string, locale: 'tr' | 'en') =>
+      buildAirportSearch(ring4, locale)(icao).rows[0]?.place ?? ''
+    expect(place('FZAA', 'tr')).toContain('Kongo Demokratik Cumhuriyeti')
+    expect(place('FZAA', 'en')).toContain('Democratic Republic of the Congo')
+    expect(place('FCBB', 'en')).toContain('Republic of the Congo')
+    expect(place('DIAP', 'tr')).toContain('Fildişi Sahili')
+    expect(place('DIAP', 'en')).toContain('Côte d’Ivoire')
+    for (const icao of [...congo, ...drCongo]) expect(place(icao, 'tr')).not.toContain(' - ')
   })
 
   it('yalnız aranan şehir adları: "Adana" Çukurova, "Antep", "Urfa", "Maraş"', () => {

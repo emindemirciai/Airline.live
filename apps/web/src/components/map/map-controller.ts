@@ -365,6 +365,16 @@ export class MapController {
       this.dirty = true
     })
     this.loadFonts()
+    // Ülke adlarının yerleşim tablosu ilk pakette değildir (D-100): MapLibre ile paralel iner.
+    // Parça yüklenemezse adlar yazılmaz; hata ekranı yoktur.
+    import('@havayolu/shared/country-label-points').then(
+      (chunk) => {
+        if (!this.destroyed) this.countryLabels.setPoints(chunk.countryLabelPoints)
+      },
+      (error: unknown) => {
+        console.warn('Country labels could not be loaded', error)
+      },
+    )
     loadMaplibre().then(
       (maplibregl) => {
         if (!this.destroyed) this.createMap(maplibregl)
