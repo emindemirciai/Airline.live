@@ -36,7 +36,7 @@ Testler, CI ve `EXTERNAL_PROVIDERS_DISABLED=true` iken yerel geliştirme bu dosy
 - LTFM'de heading alanı hatalı dört pist (16L/16R/17L/17R) ve LTAC 03L'de zaten eşik olan uç koordinatı (D-066).
 - İçe aktarım, değişmeyen dosyanın yeniden yazılmaması ve hata kaydı (`apps/worker/src/jobs/jobs.int.test.ts`).
 - Türkiye dışı havalimanları (M6d, D-080; M6g, D-088; M6h, D-090): listelenen havalimanları kapsamı (`scope=listed`, 56 + 75 + 89 + 278 = 498; D-107'den önce 61 Türkiye, 503), Türkçe ad ve şehir tablosu, ülke adları, KKTC (LCEN), saat dilimleri, kaynak düzeltmeleri (İskenderiye HEBA, yinelenen boş pistler) ve hava durumu istasyon listesinin halkalarla büyümesi.
-- 4. halkanın verisi, halka açılmadan (M6i.1, D-101): 4 karakterli kanonik ICAO kuralı (4. halkada 720 aday, 719'u listelenebilir; UG-0002 dışarıda), 4. halkanın her adayının saat dilimi, yeni kaplama kodları, gizli ve kısa pist satırları, uç koordinatı kullanılmayan pist (VAAM) ve görünür pisti olmayan havalimanları. Halkaya bağlı sayılar (503 listelenen, pinler, e2e) değişmez.
+- 4. halkanın verisi, halka açılmadan (M6i.1, D-101): 4 karakterli kanonik ICAO kuralı (4. halkada 720 aday, 719'u listelenebilir; UG-0002 dışarıda), 4. halkanın her adayının saat dilimi, yeni kaplama kodları, gizli ve kısa pist satırları, uç koordinatı kullanılmayan pist (VAAM) ve görünür pisti olmayan havalimanları. Halkaya bağlı sayılar (o gün 503 listelenen, D-107'den beri 498; pinler, e2e) değişmez.
 
 ## Yeniden üretmek
 Ham dosyaları indirmek canlı istektir; önce kullanıcıya sorulur. Sonra ağa çıkmadan alt küme üretilir:

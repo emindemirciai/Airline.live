@@ -1,7 +1,6 @@
 /**
- * Askerî hava üsleri: ad tablosundaki (`AIRPORT_NAMES`, airport-names.ts) `military` kaynaklı
- * kayıtlar (D-084; İncirlik, Afyon, Bandırma, Eskişehir, Çiğli), ICAO sırasıyla. Sitenin hiçbir
- * yerinde yoktur (D-107): sunucu onları listelemez ve Türkiye'deki uzaklık referansı saymaz
+ * Askerî hava üsleri (D-084; İncirlik, Afyon, Bandırma, Eskişehir, Çiğli), ICAO sırasıyla. Sitenin
+ * hiçbir yerinde yoktur (D-107): sunucu onları listelemez ve Türkiye'deki uzaklık referansı saymaz
  * (`@havayolu/db` `MILITARY_AIRFIELD_ICAOS`, aynı liste; db shared'a bağımlı olmadığı için kendi
  * kopyasını taşır, `apps/api/src/reference/rings.test.ts` ikisini karşılaştırır). Böylece
  * `scope=listed`, ülke listeleri, tek havalimanı ve hava durumu uçları, havalimanı listesi ve
@@ -12,9 +11,10 @@
  * Liste ad tablosundan türetilmez, burada yazılıdır: canlı harita `mapShownAirports`'u ilk paketinde
  * kullanır; bu modül ad tablolarını (airport-names.ts, foreign-airport-names.ts) içe aktarsaydı
  * paketleyici tabloları haritanın ilk paketine taşırdı ve D-101'in tembel yüklemesi bozulurdu
- * (D-103). Tek kaynak yine tablodur: `reference.test.ts` listenin tablonun `military` kaynaklı
- * kayıtlarıyla tam olarak aynı olduğunu denetler; `lazy-chunks.test.ts` bu modülün hiçbir şey içe
- * aktarmadığını denetler.
+ * (D-103). Liste fixture'la denetlenir: `reference.test.ts` fixture'daki IATA kodlu Türkiye
+ * satırlarından ad tablosunda olmayanların tam olarak bu beşi olduğunu denetler (üslerin adları
+ * D-107'den beri tabloda yoktur, istemci paketlerine girmez); `lazy-chunks.test.ts` bu modülün
+ * hiçbir şey içe aktarmadığını denetler.
  */
 export const MILITARY_AIRFIELD_ICAOS: readonly string[] = ['LTAG', 'LTAH', 'LTBG', 'LTBI', 'LTBL']
 

@@ -181,8 +181,6 @@ export const en: Messages = {
         'Official Turkish name: {name} (airport operator); the English name is a translation.',
       ministry:
         'Official Turkish name: {name} (Ministry of Transport and Infrastructure); the former name is added in brackets so that it is not confused with the other airport in the same province. The English name is a translation.',
-      military:
-        'Turkish name: {name} (a military air base; it is not on the DHMİ list and is named after its location); the English name is a translation.',
       ourairports: 'Name: OurAirports',
     },
     nameSourceForeign: {

@@ -8,7 +8,27 @@
 
 ---
 
-## v0.22.1 — 2026-10-06
+## v0.22.2 — 2026-10-06
+
+### Türkçe
+**Askerî hava üsleri sitenin hiçbir yerinde yok**
+
+- Askerî hava üsleri artık yalnız haritada değil, sitenin hiçbir yerinde gösterilmez: havalimanları listesinde, havalimanı sayfalarında, yakın havalimanları satırlarında ve hava durumunda yoklar. Türkiye listesinde 56 sivil havalimanı var.
+- Atina, Sakız ve Kalamata sayfalarındaki “Türkiye’deki en yakın havalimanı” satırı artık İzmir Adnan Menderes’i gösterir.
+
+Dene: [Havalimanları](/havalimanlari)
+
+### English
+**Air force bases removed from the whole site**
+
+- Air force bases are no longer shown anywhere on the site, not just on the map: they are gone from the airport list, the airport pages, the nearby-airports rows and the weather. The Türkiye list has 56 civil airports.
+- The “nearest airport in Türkiye” row on the Athens, Chios and Kalamata pages now shows İzmir Adnan Menderes.
+
+Try it: [Airports](/havalimanlari)
+
+---
+
+## v0.22.1 — 2026-10-06 16:34 (UTC+3)
 
 ### Türkçe
 **Askerî üsler haritadan kalktı, harita biraz daha uzaktan açılır**

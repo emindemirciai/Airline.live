@@ -12,10 +12,11 @@
  * alınmaz. Pist uçlarından yalnızca uçak listesinin tahmini durumu (D-085, lib/map/flight-phase.ts)
  * için gereken ad, yön ve eşik tutulur.
  *
- * Ölçek (3. halka, D-090): 503 havalimanının yanıtı ~0,45 MB'tır (sıkıştırmasız), harita açılışında
- * bir kez indirilir; noktalar tek GeoJSON kaynağıdır. Etiket tuvali her `render` olayında görünümdeki
- * havalimanlarına kod yerleştirir (labels.ts → `layoutAirportChips`, ızgaralı dizin; z5'te ~1 ms).
- * Görünür alana göre yükleme 4. halkadadır (M6i).
+ * Ölçek (3. halka, D-090): 503 havalimanının (ölçüm; D-107'den beri 498) yanıtı ~0,45 MB'tır
+ * (sıkıştırmasız), harita açılışında bir kez indirilir; noktalar tek GeoJSON kaynağıdır. Etiket
+ * tuvali her `render` olayında görünümdeki havalimanlarına kod yerleştirir (labels.ts →
+ * `layoutAirportChips`, ızgaralı dizin; z5'te ~1 ms). Görünür alana göre yükleme 4. halkadadır
+ * (M6i).
  */
 import type { Airport, Bbox } from '@havayolu/shared'
 import { ApiError } from '../../lib/live/api'

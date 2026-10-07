@@ -220,13 +220,6 @@ export const tr = {
       /** Ankara (Etimesgut), D-084: `{name}` bakanlığın verdiği addır ("Ankara Havalimanı"). */
       ministry:
         'Resmî Türkçe ad: {name} (Ulaştırma ve Altyapı Bakanlığı); aynı ildeki diğer havalimanıyla karışmasın diye eski adı parantez içinde eklenmiştir.',
-      /**
-       * Askerî hava üsleri (D-084): ad bulunduğu yerin adıyla yazılır. D-107'den beri üsler
-       * listelenmez ve sayfaları yoktur; metin ad kaynağı türünün (`AirportNameSource`) parçası
-       * olarak kalır.
-       */
-      military:
-        'Ad: {name} (askerî hava üssü; DHMİ listesinde yer almaz, bulunduğu yerin adıyla yazılır)',
       ourairports: 'Ad: OurAirports',
     },
     /**
