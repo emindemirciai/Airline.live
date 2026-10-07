@@ -2,7 +2,10 @@ import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import {
   cleanAirportName,
+  findAirportInRows,
   greatCircleKm,
+  IDENT_ALIAS_EXCLUSIONS,
+  identAlias,
   isEmptyRunway,
   isHiddenRunway,
   MILITARY_AIRFIELD_ICAOS,
@@ -12,6 +15,7 @@ import {
   OURAIRPORTS_ICAO_CORRECTIONS,
   ourAirportsIcao,
   ringForDistance,
+  rowMatchesCode,
   RUNWAY_TOMBSTONE_SURFACE,
   selectListedAirports,
   toAirportDetails,
@@ -567,6 +571,63 @@ describe('yurt dışı kayıtları', () => {
       isoRegion: 'CY-02',
       station: null,
     })
+  })
+})
+
+describe('adres takma adı (D-109)', () => {
+  it('identAlias: dört karakterli, kanonik ICAO’dan farklı, çakışmasız ident', () => {
+    const none = new Set<string>()
+    const uzss = { ident: 'UTSS', icaoCode: 'UZSS', gpsCode: 'UZSS' }
+    expect(identAlias(uzss, none)).toBe('UTSS')
+    expect(identAlias({ ...uzss, ident: ' utss ' }, none)).toBe('UTSS')
+    // Rakamlı kimlik de (Rewa VA1G → VERW).
+    expect(identAlias({ ident: 'VA1G', icaoCode: 'VERW', gpsCode: 'VERW' }, none)).toBe('VA1G')
+    // Kimlik kanonik ICAO'ysa ya da dört karakter değilse takma ad yok.
+    expect(identAlias({ ident: 'LTFM', icaoCode: 'LTFM', gpsCode: 'LTFM' }, none)).toBeNull()
+    expect(identAlias({ ident: 'BZ-CUK', icaoCode: 'MZCK', gpsCode: 'MZCK' }, none)).toBeNull()
+    expect(identAlias({ ident: 'AXF', icaoCode: 'ZBAL', gpsCode: 'ZBAL' }, none)).toBeNull()
+    expect(identAlias({ ident: 'CN-0079', icaoCode: 'ZGSG', gpsCode: 'ZGSG' }, none)).toBeNull()
+    // Kanonik ICAO'su ident olan satır (icao_code ve gps_code boş) takma ad taşımaz.
+    expect(identAlias({ ident: 'UG-0002', icaoCode: null, gpsCode: null }, none)).toBeNull()
+    // İskenderiye: kaynak düzeltmesiyle kanonik ICAO ident'tir (HEBA).
+    expect(identAlias({ ident: 'HEBA', icaoCode: 'HEAX', gpsCode: 'HEAX' }, none)).toBeNull()
+    // Başka bir satırın kanonik ICAO'su olan kimlik takma ad değildir: eldeki satırlardan ya da
+    // veritabanında olmayan satırlardan (WABP, Burumeso ID-0394).
+    expect(identAlias(uzss, new Set(['UTSS']))).toBeNull()
+    expect(IDENT_ALIAS_EXCLUSIONS).toEqual(['WABP'])
+    expect(identAlias({ ident: 'WABP', icaoCode: 'WAYY', gpsCode: 'WAYY' }, none)).toBeNull()
+  })
+
+  it('rowMatchesCode: ICAO, GPS kodu, ident ya da IATA; kırpılır ve büyük harfe çevrilir', () => {
+    const uzss = row({ ident: 'UTSS', icaoCode: 'UZSS', gpsCode: ' uzss ', iataCode: 'SKD' })
+    for (const code of ['UZSS', 'uzss', 'UTSS', ' utss ', 'SKD']) {
+      expect(rowMatchesCode(uzss, code), code).toBe(true)
+    }
+    expect(rowMatchesCode(uzss, 'UZS')).toBe(false)
+    expect(rowMatchesCode(row({ icaoCode: null, gpsCode: null, iataCode: null }), '')).toBe(false)
+  })
+
+  it('ayrıntı kaydı takma adı taşır; yoksa alan yazılmaz', () => {
+    const details = withDetails(
+      [
+        detailRow({
+          id: 1,
+          ident: 'UTSS',
+          icaoCode: 'UZSS',
+          gpsCode: 'UZSS',
+          iataCode: 'SKD',
+          isoCountry: 'UZ',
+        }),
+        detailRow({ id: 2 }),
+      ],
+      [],
+      [],
+    )
+    const samarkand = details.find((a) => a.icao === 'UZSS')
+    const istanbul = details.find((a) => a.icao === 'LTFM')
+    expect(samarkand).toMatchObject({ icao: 'UZSS', identAlias: 'UTSS' })
+    expect(istanbul?.icao).toBe('LTFM')
+    expect(Object.hasOwn(istanbul ?? {}, 'identAlias')).toBe(false)
   })
 })
 
@@ -1127,6 +1188,56 @@ describe('fixture: 5. halka açık bağlamla (D-109; uygulamada halka 4)', () =>
   })
 })
 
+describe('fixture: adres takma adları (D-109)', () => {
+  it('1.–4. halkada 29, 5. halkada 23 takma ad; hiçbiri listelenen bir ICAO değil, WABP takma ad değil', () => {
+    const aliases = fixtureDetails
+      .filter((a) => a.identAlias !== undefined)
+      .map((a) => [a.identAlias, a.icao, a.ring] as const)
+    expect(aliases.filter(([, , ring]) => ring <= 4)).toHaveLength(29)
+    expect(aliases.filter(([, , ring]) => ring === 5)).toHaveLength(23)
+    expect(aliases.map(([alias, icao]) => `${alias}>${icao}`)).toEqual(
+      expect.arrayContaining(['UTSS>UZSS', 'LELO>LERJ', 'VA1G>VERW', 'SPIM>SPJC', 'KPBI>KDJT']),
+    )
+    for (const [alias] of aliases) expect(listedRing5Icaos.has(alias ?? ''), alias).toBe(false)
+    expect(fixtureDetails.find((a) => a.icao === 'WAYY')?.identAlias).toBeUndefined()
+  })
+
+  it('tek havalimanı: ICAO, IATA ve takma ad; askerî alan ve başka satırın ICAO’su bulunmaz', async () => {
+    const find = (code: string) =>
+      findAirportInRows(fixtureAirports, fixtureRunways, [], code, fixtureContext)
+    // 4. halka açıkken (uygulama): Semerkant'ın eski kodu.
+    expect(await find('UTSS')).toMatchObject({ icao: 'UZSS', iata: 'SKD', identAlias: 'UTSS' })
+    expect(await find('utss')).toMatchObject({ icao: 'UZSS' })
+    // 5. halka (halka süzgeci yok): Lima, Palm Beach, Harare.
+    expect(await find('SPIM')).toMatchObject({ icao: 'SPJC', iata: 'LIM', ring: 5 })
+    expect(await find('KPBI')).toMatchObject({ icao: 'KDJT', iata: 'DJT' })
+    expect(await find('FVHA')).toMatchObject({ icao: 'FVRG', iata: 'HRE' })
+    // Kanonik kod ve IATA aynı kaydı verir; kayıt takma adını taşır.
+    expect(await find('UZSS')).toMatchObject({ icao: 'UZSS', identAlias: 'UTSS' })
+    expect(await find('SKD')).toMatchObject({ icao: 'UZSS', identAlias: 'UTSS' })
+    // WABP: Timika'nın (WAYY) kimliği, ama Burumeso'nun ICAO'su; takma ad değildir.
+    expect(await find('WABP')).toBeNull()
+    expect(await find('WAYY')).toMatchObject({ icao: 'WAYY', iata: 'TIM' })
+    // Askerî alanlar hiçbir kodla bulunmaz (D-107, D-109); aday olmayan Le Bourget ülke
+    // listesindeki gibi bulunur, Thohoyandou içe aktarılmadığı için bulunmaz.
+    for (const code of [
+      'PWAK',
+      'AWK',
+      'YBOK',
+      'OKY',
+      'PKWA',
+      'KWA',
+      'LTBL',
+      'IGL',
+      'FATH',
+      'THY',
+    ]) {
+      expect(await find(code), code).toBeNull()
+    }
+    expect(await find('LBG')).toMatchObject({ icao: 'LFPB', scheduled: false })
+  })
+})
+
 describe('pist kurallarının web test yardımcısındaki yazımı (D-101, D-109)', () => {
   it('100 ft sınırı ve silme işareti `apps/web/src/lib/test/ourairports-fixture.ts` ile aynı', () => {
     // Web @havayolu/db'ye bağımlı değildir; yardımcı kuralları kendi yazar (sayfa metni testleri).
@@ -1146,5 +1257,10 @@ describe('pist kurallarının web test yardımcısındaki yazımı (D-101, D-109
     }
     // Eski kimlik tablosu kalmadı (D-109: genel kural).
     expect(source).not.toContain('HIDDEN_RUNWAY_IDS')
+    // Adres takma adı olamayacak kimlikler (D-109).
+    const exclusions = /const IDENT_ALIAS_EXCLUSIONS = \[([^\]]*)\]/.exec(source)?.[1] ?? ''
+    expect([...exclusions.matchAll(/'([A-Z0-9]+)'/g)].map((m) => m[1])).toEqual([
+      ...IDENT_ALIAS_EXCLUSIONS,
+    ])
   })
 })

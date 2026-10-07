@@ -14,6 +14,8 @@
 //   ülke, dizine eklenir, yerel saat havalimanınınki; `?havalimani=HECA`, `?havalimani=LOWW` ve
 //   `?havalimani=EGLL` haritada o havalimanında açar, pencere ülkeyi ve yerel saati gösterir
 // - /istasyon/lhr → 308 /istasyon/EGLL; /istasyon/KHX yönlendirmeden 404 (D-101)
+// - adres takma adı (D-109): /istasyon/UTSS → 308 /istasyon/UZSS; 5. halkanın SPIM'i, WABP ve
+//   askerî liste (PWAK, YBOK, PKWA) 404
 // - /istasyon/UUOO (Voronej): "Sivil uçuşlara kapalı olabilir (2022’den beri)" notu, iki dilde (D-090)
 // - /istasyon/LGAV ve /en/istasyon/LGAV: ülke, hava durumu, harita bağlantısı, dizine eklenir,
 //   JSON-LD `addressCountry` GR; /istasyon/LCEN KKTC'yi gösterir ve JSON-LD'de ülke kodu yazmaz;
@@ -36,6 +38,8 @@ import {
   expectRedirect,
   fetchRaw,
   FOREIGN_AIRPORT_COUNT,
+  FOREIGN_MILITARY_AIRFIELDS,
+  IDENT_ALIAS_AIRPORT,
   KKTC_AIRPORT,
   LABEL_SETTINGS_KEY,
   LISTED_AIRPORT_COUNT,
@@ -591,6 +595,31 @@ test.describe('havalimanı sayfası', () => {
       expect(response.status(), path).toBe(404)
       expect(response.headers()['location'], path).toBeUndefined()
     }
+  })
+
+  test('adres takma adı (D-109): kodu değişen havalimanının eski kodu kanonik adrese 308', async ({
+    request,
+  }) => {
+    const { alias, icao, closedRingAlias, notAlias } = IDENT_ALIAS_AIRPORT
+    await expectRedirect(request, `/istasyon/${alias}`, `/istasyon/${icao}`)
+    await expectRedirect(request, `/istasyon/${alias.toLowerCase()}`, `/istasyon/${icao}`)
+    await expectRedirect(request, enPath(`/istasyon/${alias}`), enPath(`/istasyon/${icao}`))
+    // API tek havalimanı ucu da takma adla kanonik kaydı verir ve takma adı yazar.
+    const api = await request.get(`${API_URL}/v1/airports/${alias}`)
+    expect(api.status()).toBe(200)
+    expect(await api.json()).toMatchObject({ icao, identAlias: alias })
+    // Halkası kapalı havalimanının takma adı, başka satırın ICAO'su olan kimlik ve askerî liste:
+    // yönlendirmesiz 404.
+    for (const path of [
+      `/istasyon/${closedRingAlias}`,
+      `/istasyon/${notAlias}`,
+      ...FOREIGN_MILITARY_AIRFIELDS.map((code) => `/istasyon/${code}`),
+    ]) {
+      const { response } = await fetchRaw(request, path)
+      expect(response.status(), path).toBe(404)
+      expect(response.headers()['location'], path).toBeUndefined()
+    }
+    expect((await request.get(`${API_URL}/v1/airports/${notAlias}`)).status()).toBe(404)
   })
 })
 

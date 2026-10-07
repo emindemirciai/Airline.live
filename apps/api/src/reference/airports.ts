@@ -223,6 +223,12 @@ const detailProperties = {
     ...nullable('string'),
     description: 'OurAirports municipality (çoğu zaman ilçe)',
   },
+  identAlias: {
+    type: 'string',
+    pattern: '^[A-Z0-9]{4}$',
+    description:
+      'Adres takma adı: kodu değişen havalimanının OurAirports kimliğindeki eski 4 karakterli kod (UTSS → UZSS); /v1/airports/<takma ad> bu kaydı verir. Takma ad yoksa alan yoktur',
+  },
   station: {
     type: ['object', 'null'],
     description: 'İzlenen istasyon ayarları; istasyon değilse null',
@@ -259,7 +265,10 @@ const airportListItemSchema = {
 /** `AirportDetail` (`@havayolu/shared`). */
 const airportDetailSchema = {
   type: 'object',
-  required: [...airportRequired, ...Object.keys(detailProperties)],
+  required: [
+    ...airportRequired,
+    ...Object.keys(detailProperties).filter((key) => key !== 'identAlias'),
+  ],
   properties: { ...airportProperties, ...detailProperties },
 } as const
 
@@ -480,7 +489,7 @@ export function registerAirportRoutes(
               type: 'string',
               pattern: AIRPORT_CODE.source,
               description:
-                'ICAO (4 karakter) ya da IATA (3 harf) kodu; büyük/küçük harf fark etmez. Yanıttaki icao kanonik koddur',
+                'ICAO (4 karakter), IATA (3 harf) ya da adres takma adı (kodu değişen havalimanının eski kodu, ör. UTSS → UZSS); büyük/küçük harf fark etmez. Yanıttaki icao kanonik koddur',
             },
           },
         },

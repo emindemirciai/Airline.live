@@ -445,6 +445,34 @@ describe('listListedAirports (D-080)', () => {
     expect(list.filter((a) => a.ring <= 3).map((a) => a.icao)).toEqual(ringThree.map((a) => a.icao))
   })
 
+  it('5. halka açık bağlamla (D-109; uygulamada halka 4): 3.243; dışlananlar yok; adres takma adları', async () => {
+    await database.db.insert(airports).values(readFixture())
+    const list = await listListedAirports(database.db, { ...RINGS, enabledRing: 5 })
+    expect(list).toHaveLength(3243)
+    expect([0, 1, 2, 3, 4, 5].map((ring) => list.filter((a) => a.ring === ring).length)).toEqual([
+      56, 75, 89, 278, 719, 2026,
+    ])
+    // Dört karakterli ICAO kuralı (WKK, KHX, LSG), askerî liste (PWAK, YBOK, PKWA) ve aday olmayan
+    // dışlama örnekleri (Le Bourget LBG tarifesiz; Thohoyandou THY içe aktarılmaz).
+    const iatas = list.map((a) => a.iata)
+    for (const iata of ['WKK', 'KHX', 'LSG', 'AWK', 'OKY', 'KWA', 'LBG', 'THY']) {
+      expect(iatas, iata).not.toContain(iata)
+    }
+    expect(list.find((a) => a.iata === 'JFK')).toMatchObject({ icao: 'KJFK', ring: 5 })
+    // Adres takma adı: kodu değişen havalimanının eski kodu kanonik kaydı verir; kayıt takma adı
+    // taşır. WABP Timika'nın kimliğidir ama başka bir OurAirports satırının ICAO'sudur.
+    expect(await findAirportDetail(database.db, 'UTSS', RINGS)).toMatchObject({
+      icao: 'UZSS',
+      identAlias: 'UTSS',
+    })
+    expect(await findAirportDetail(database.db, 'spim', RINGS)).toMatchObject({ icao: 'SPJC' })
+    expect(await findAirportDetail(database.db, 'KPBI', RINGS)).toMatchObject({ icao: 'KDJT' })
+    expect(await findAirportDetail(database.db, 'WABP', RINGS)).toBeNull()
+    expect(await findAirportDetail(database.db, 'PWAK', RINGS)).toBeNull()
+    const details = await listListedAirportDetails(database.db, { ...RINGS, enabledRing: 5 })
+    expect(details.filter((a) => a.identAlias !== undefined)).toHaveLength(52)
+  })
+
   it('uzaklık referansı küçük alanlar olmadan (M6d öncesi süzgeç) 1. halka daralır: 56 + 72', async () => {
     await database.db.insert(airports).values(readFixture({ turkishIata: false }))
     const list = await listListedAirports(database.db, RINGS)

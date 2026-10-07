@@ -160,6 +160,24 @@ export const UNLISTED_FOREIGN_AIRPORT = { icao: 'KJFK', iata: 'JFK' } as const
  * taşımaz.
  */
 export const NON_ICAO_AIRPORT = { ident: 'UG-0002', iata: 'KHX' } as const
+/**
+ * Adres takma adı (D-109): Semerkant'ın OurAirports kimliği eski UTSS kodudur, kanonik ICAO'su
+ * UZSS. `/istasyon/UTSS` 308 ile `/istasyon/UZSS`'e gider; `GET /v1/airports/UTSS` UZSS kaydını
+ * verir. `closedRingAlias`: 5. halkanın takma adı (Lima SPIM → SPJC), halka kapalıyken sayfada 404;
+ * `notAlias`: Timika'nın kimliği, ama başka bir OurAirports satırının ICAO'su (WABP), hiçbir yerde
+ * takma ad değildir.
+ */
+export const IDENT_ALIAS_AIRPORT = {
+  alias: 'UTSS',
+  icao: 'UZSS',
+  closedRingAlias: 'SPIM',
+  notAlias: 'WABP',
+} as const
+/**
+ * 5. halkanın askerî listesi (D-109): adı yalnız askerî üç alan (Wake PWAK/AWK, Oakey YBOK/OKY,
+ * Kwajalein PKWA/KWA). Halka açılınca da listelenmez; bugün 5. halka kapalı olduğu için zaten 404.
+ */
+export const FOREIGN_MILITARY_AIRFIELDS = ['PWAK', 'YBOK', 'PKWA'] as const
 /** Sitemap'teki havalimanı dışı sayfalar; her birinin `/en` ikizi de vardır (D-076). */
 export const STATIC_PUBLIC_PATHS = [
   '/',

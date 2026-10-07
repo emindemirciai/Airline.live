@@ -196,6 +196,26 @@ const importable = (row: Row) =>
 const icaoOf = (row: Row) =>
   ourAirportsIcao({ ident: row.ident ?? '', icaoCode: row.icao_code, gpsCode: row.gps_code })
 
+/**
+ * Adres takma adı olamayacak kimlikler (`@havayolu/db` `IDENT_ALIAS_EXCLUSIONS`, D-109;
+ * `packages/db/src/airports.test.ts` iki listeyi karşılaştırır).
+ */
+const IDENT_ALIAS_EXCLUSIONS = ['WABP']
+
+let knownIcaos: ReadonlySet<string> | undefined
+
+/**
+ * API'nin adres takma adı (`@havayolu/db` `identAlias`, D-109): dört karakterli, kanonik ICAO'dan
+ * farklı, fixture'daki hiçbir satırın kanonik ICAO'su olmayan ve dışlanmamış OurAirports kimliği.
+ */
+function identAliasOf(row: Row): string | undefined {
+  knownIcaos ??= new Set(read('airports.csv').map(icaoOf))
+  const ident = (row.ident ?? '').trim().toUpperCase()
+  if (!/^[A-Z0-9]{4}$/.test(ident) || ident === icaoOf(row)) return undefined
+  if (knownIcaos.has(ident) || IDENT_ALIAS_EXCLUSIONS.includes(ident)) return undefined
+  return ident
+}
+
 function toDetail(
   row: Row,
   ring: number,
@@ -205,6 +225,7 @@ function toDetail(
   const icao = icaoOf(row)
   const station = STATIONS[icao]
   const arp = { lat: Number(row.latitude_deg), lon: Number(row.longitude_deg) }
+  const alias = identAliasOf(row)
   return {
     icao,
     iata: row.iata_code ?? '',
@@ -222,6 +243,7 @@ function toDetail(
     scheduled: row.scheduled_service === 'yes',
     isoRegion: row.iso_region ?? '',
     municipality: row.municipality || null,
+    ...(alias === undefined ? {} : { identAlias: alias }),
     country: row.iso_country ?? '',
     ring,
     distanceToTrKm,

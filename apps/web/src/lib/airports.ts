@@ -94,6 +94,7 @@ const airportSchema: z.ZodType<AirportDetail> = z.object({
   scheduled: z.boolean(),
   isoRegion: z.string(),
   municipality: z.string().nullable(),
+  identAlias: z.string().regex(ICAO).optional(),
   country: z.string().regex(/^[A-Z]{2}$/),
   ring: z.number().int().min(0),
   distanceToTrKm: finite.min(0).nullable(),
@@ -182,13 +183,20 @@ export async function getAirport(icao: string): Promise<AirportDetail | undefine
 
 export type AirportCodeResolution =
   | { kind: 'found'; airport: AirportDetail }
-  /** Kanonik adres başka: küçük harfli ICAO ya da IATA kodu → büyük harfli ICAO (308). */
+  /**
+   * Kanonik adres başka: küçük harfli ICAO, IATA kodu ya da adres takma adı (D-109) → büyük harfli
+   * ICAO (308).
+   */
   | { kind: 'redirect'; icao: string }
   | { kind: 'not_found' }
 
 /**
- * Adresteki kodun çözümü (`/istasyon/<kod>`): yalnızca büyük harfli ICAO kanoniktir. IATA kodu ve
- * küçük harfli biçimler kalıcı olarak ICAO adresine yönlenir; bilinmeyen ya da biçimi bozuk kod 404.
+ * Adresteki kodun çözümü (`/istasyon/<kod>`): yalnızca büyük harfli ICAO kanoniktir. IATA kodu,
+ * küçük harfli biçimler ve adres takma adı (`identAlias`, D-109: kodu değişen havalimanının eski
+ * kodu, ör. UTSS → UZSS) kalıcı olarak ICAO adresine yönlenir; bilinmeyen ya da biçimi bozuk kod
+ * 404. Liste yalnız listelenen havalimanlarıdır: takma ad hiçbir zaman listelenmeyen bir
+ * havalimanına yönlenmez. Bir kod hem bir havalimanının ICAO'su hem başkasının takma adıysa ICAO
+ * kazanır (API takma adı zaten böyle kurar).
  */
 export function resolveAirportCode(
   raw: string,
@@ -205,7 +213,9 @@ export function resolveAirportCode(
   const byIcao = ICAO.test(upper) ? airports.find((a) => a.icao === upper) : undefined
   if (byIcao) return code === byIcao.icao ? { kind: 'found', airport: byIcao } : redirect(byIcao)
   const byIata = IATA.test(upper) ? airports.find((a) => a.iata === upper) : undefined
-  return byIata ? redirect(byIata) : { kind: 'not_found' }
+  if (byIata) return redirect(byIata)
+  const byAlias = ICAO.test(upper) ? airports.find((a) => a.identAlias === upper) : undefined
+  return byAlias ? redirect(byAlias) : { kind: 'not_found' }
 }
 
 function redirect(airport: AirportDetail): AirportCodeResolution {
