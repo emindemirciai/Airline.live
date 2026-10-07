@@ -3,7 +3,7 @@ import { dirname, join } from 'node:path'
 import { createRequire } from 'node:module'
 import { inflateSync } from 'node:zlib'
 import {
-  COUNTRY_CAPITALS,
+  COUNTRY_AREA_OVERRIDES_KM2,
   COUNTRY_LABEL_MAX_WIDTH_EM,
   COUNTRY_LABEL_SIZES,
   COUNTRY_LABEL_TIERS,
@@ -16,10 +16,12 @@ import {
   interpolateStops,
   SDF_EDGE_GAMMA_PX,
 } from '@havayolu/shared'
+import { COUNTRY_LABEL_PLACEMENTS } from '@havayolu/shared/country-label-placements'
 import { describe, expect, it } from 'vitest'
 import { ProjectedShape, type LonLat } from './geometry'
 import {
   BASELINE_FROM_LINE_TOP,
+  FAR_SAFETY_KM,
   GLYPH_BITMAP_INK_INSET,
   GLYPH_QUAD_RECT_BUFFER,
   INK_LEFT_SHIFT,
@@ -39,6 +41,7 @@ import {
   TINY_SDF_TOP_ADJUSTMENT,
   visibleBoxPx,
 } from './label-model'
+import { NATURAL_EARTH_PARAMS } from './natural-earth'
 
 /** Web'in paketleri (@fontsource/overpass ve maplibre-gl, apps/web'in bağımlılıkları; ağ yok). */
 const webRequire = createRequire(new URL('../../../apps/web/package.json', import.meta.url))
@@ -118,9 +121,16 @@ function readFont(file: string): (char: string) => FontGlyph | undefined {
   }
 }
 
+/** Tablodaki bütün ülkelerin adları (D-100: 244 kod), iki dilde. */
+const CODES = Object.keys(COUNTRY_LABEL_PLACEMENTS.tr)
 const NAMES = (['tr', 'en'] as const).flatMap((locale) =>
-  COUNTRY_CAPITALS.map((capital) => ({ locale, name: countryLabelText(capital.code, locale) })),
+  CODES.map((code) => ({ locale, code, name: countryLabelText(code, locale) })),
 )
+/** Yazılan (en az bir düzende sığan) adlar. */
+const SHOWN = NAMES.filter(({ locale, code }) => {
+  const row = COUNTRY_LABEL_PLACEMENTS[locale][code]
+  return row?.regular !== null || row.compact !== null
+})
 
 describe('Overpass 600 ölçüleri (D-096)', () => {
   it('tablo yazı tipi dosyalarıyla aynı: latin, yoksa latin-ext (MapLibre gibi ilk kapsayan dosya)', () => {
@@ -138,11 +148,15 @@ describe('Overpass 600 ölçüleri (D-096)', () => {
     }
   })
 
-  it('her adın her harfi tabloda; bütün mürekkep ilerlemenin içinde', () => {
+  it('her adın her harfi tabloda; mürekkep ilerlemenin içinde (Í’nin vurgusu dışında)', () => {
     for (const { name } of NAMES) expect(() => lineWidth(name), name).not.toThrow()
+    const used = new Set(NAMES.flatMap(({ name }) => [...name]))
+    expect(Object.keys(OVERPASS_600_GLYPHS).toSorted()).toEqual([...used].toSorted())
     for (const [char, [advance, xMin, , xMax]] of Object.entries(OVERPASS_600_GLYPHS)) {
       expect(xMin, char).toBeGreaterThanOrEqual(0)
-      expect(xMax, char).toBeLessThanOrEqual(advance)
+      // Í (SÃO TOMÉ AND PRÍNCIPE) vurgusu ilerlemenin 117 birim dışına taşar: mürekkep kutusu her
+      // harfi kendi yerinde ölçtüğü için model bunu sayar (son harf olsa bile).
+      expect(xMax, char).toBeLessThanOrEqual(char === 'Í' ? advance + 117 : advance)
     }
   })
 
@@ -281,10 +295,13 @@ describe('yazı boyu ve hale', () => {
 
 describe('güvenlik payı (D-096)', () => {
   it('km payı bütçeyi karşılar: sadeleştirme + yuvarlama + niceleme + en az 1 km Natural Earth/OSM farkı', () => {
-    expect([SAFETY_PX, SAFETY_KM]).toEqual([3, 2])
+    expect([SAFETY_PX, SAFETY_KM, FAR_SAFETY_KM]).toEqual([3, 2, 2.5])
     expect(SAFETY_BUDGET.naturalEarthVsOsmKm).toBeGreaterThanOrEqual(1)
     expect(safetyBudgetKm()).toBeCloseTo(1.8, 9)
     expect(SAFETY_KM).toBeGreaterThanOrEqual(safetyBudgetKm())
+    // Türkiye'den uzak ülkeler 1 km toleransla sadeleşir (D-100): bütçe 2,3, pay 2,5.
+    expect(safetyBudgetKm(NATURAL_EARTH_PARAMS.farSimplifyKm)).toBeCloseTo(2.3, 9)
+    expect(FAR_SAFETY_KM).toBeGreaterThanOrEqual(safetyBudgetKm(NATURAL_EARTH_PARAMS.farSimplifyKm))
   })
 
   it('px payı sınırın koyu kenarının içe taşan yarısını ve 1 px boşluğu karşılar (z3–7)', () => {
@@ -296,12 +313,18 @@ describe('güvenlik payı (D-096)', () => {
 describe('satır kırma', () => {
   it('MapLibre’nin satır kırması (satır sonu cezası, 24 em) her adda tam countryLabelLines’ı verir', () => {
     const multi: string[] = []
-    for (const { locale, name } of NAMES) {
+    const curatedMulti: string[] = []
+    for (const { locale, code, name } of NAMES) {
       const lines = countryLabelLines(name, locale)
       expect(maplibreLineBreaks(lines.join('\n'), COUNTRY_LABEL_MAX_WIDTH_EM), name).toEqual(lines)
       if (lines.length > 1) multi.push(lines.join(' / '))
+      if (lines.length > 1 && Object.hasOwn(COUNTRY_AREA_OVERRIDES_KM2, code)) {
+        curatedMulti.push(lines.join(' / '))
+      }
     }
-    expect(multi.toSorted()).toEqual([
+    // Bütün dünyada 488 addan 137'si çok satırlı (D-100); D-095'in 59 ülkesinde yine sekiz ad.
+    expect(multi).toHaveLength(137)
+    expect(curatedMulti.toSorted()).toEqual([
       'BOSNA / HERSEK',
       'BOSNIA AND / HERZEGOVINA',
       'BİRLEŞİK / ARAP / EMİRLİKLERİ',
@@ -313,11 +336,46 @@ describe('satır kırma', () => {
     ])
   })
 
-  it('her adın toplam genişliği 24 em’in altında: MapLibre ad satırlarına kendi kırmasını eklemez', () => {
-    for (const { locale, name } of NAMES) {
-      const text = countryLabelLines(name, locale).join(' ')
-      expect(lineWidth(text) / ONE_EM, name).toBeLessThan(COUNTRY_LABEL_MAX_WIDTH_EM)
+  it('yazılan adlar: 24 em’den kısa ya da her satırı MapLibre’nin hedef satır genişliğinden kısa (iki Kongo dışında en uzunu AMERİKA BİRLEŞİK DEVLETLERİ, 23,6 em)', () => {
+    const widthEm = (text: string) => lineWidth(text) / ONE_EM
+    const long: string[] = []
+    for (const { locale, name } of SHOWN) {
+      const lines = countryLabelLines(name, locale)
+      const total = widthEm(lines.join(' '))
+      if (total < COUNTRY_LABEL_MAX_WIDTH_EM) continue
+      long.push(name)
+      // 24 em'i aşan adda MapLibre ⌈toplam / 24⌉ satır hedefler (hedef genişlik toplam / satır
+      // sayısı); her satır hedeften kısa olduğundan bir satırı bölmek kırma cezasını yalnız büyütür,
+      // ad yalnız kendi satır sonlarından kırılır (üstteki model de bunu verir).
+      const target = total / Math.ceil(total / COUNTRY_LABEL_MAX_WIDTH_EM)
+      for (const line of lines) expect(widthEm(line), `${name}: ${line}`).toBeLessThan(target)
     }
+    // Elle tutulan iki Kongo adı (D-100) 24 em'i aşar: 25,9 ve 28,8 em.
+    expect(long).toEqual(['KONGO DEMOKRATİK CUMHURİYETİ', 'DEMOCRATIC REPUBLIC OF THE CONGO'])
+    const widest = SHOWN.map(({ locale, name }) =>
+      widthEm(countryLabelLines(name, locale).join(' ')),
+    )
+      .filter((width) => width < COUNTRY_LABEL_MAX_WIDTH_EM)
+      .reduce((max, width) => Math.max(max, width), 0)
+    expect(widest).toBeCloseTo(widthEm('AMERİKA BİRLEŞİK DEVLETLERİ'), 9)
+    // Hiçbir yerde sığmayan küçük toprakların adları da 24 em'i aşar (Güney Georgia, Heard,
+    // Britanya Hint Okyanusu Toprakları…); MapLibre onları da yalnız satır sonlarından kırar (üstte).
+    const hidden = NAMES.filter(
+      ({ locale, name }) =>
+        widthEm(countryLabelLines(name, locale).join(' ')) >= COUNTRY_LABEL_MAX_WIDTH_EM &&
+        !SHOWN.some((shown) => shown.locale === locale && shown.name === name),
+    )
+    expect(hidden.map(({ code }) => code).toSorted()).toEqual([
+      'GS',
+      'GS',
+      'HM',
+      'HM',
+      'IO',
+      'IO',
+      'TF',
+      'VC',
+      'VC',
+    ])
     // Satır sonu olmasa MapLibre uzun adı dengeli iki satıra bölerdi (eski dar harita davranışı).
     expect(maplibreLineBreaks('SUUDİ ARABİSTAN', 10)).toEqual(['SUUDİ', 'ARABİSTAN'])
     expect(maplibreLineBreaks('SUUDİ ARABİSTAN', 24)).toEqual(['SUUDİ ARABİSTAN'])

@@ -5,7 +5,9 @@
   "license": "MIT",
   "type": "module",
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./country-label-placements": "./src/map/country-label-placements.ts",
+    "./country-label-points": "./src/map/country-label-points.ts"
   },
   "scripts": {
     "lint": "eslint . --max-warnings 0",

@@ -12,8 +12,32 @@ import type { ChangelogEntry } from './types'
  */
 export const CHANGELOG: readonly ChangelogEntry[] = [
   {
+    version: '0.22.5',
+    date: '2026-10-07',
+    title: {
+      tr: 'Bütün ülkelerin adları haritada',
+      en: 'Every country named on the map',
+    },
+    items: [
+      {
+        tr: 'Haritayı uzaklaştırınca artık havalimanı listemizde olmayan ülkelerin adları da yazılır: dünyada 164 ülke ve bölge, her biri kendi sınırının içinde ve havalimanı işaretlerinden uzak bir yerde. Sığmayan çok küçük ada ülkeleri yazılmaz.',
+        en: 'Zoomed out, the map now names countries that have no airport in our list too: 164 countries and territories worldwide, each inside its own borders and away from airport pins. Very small island countries that do not fit are left out.',
+      },
+      {
+        tr: 'Bazı ülke adları sadeleşti: Fildişi Sahili, Kongo Demokratik Cumhuriyeti, Kongo Cumhuriyeti ve Myanmar. RUSYA adı Avrupa Rusyası’nda kalır.',
+        en: 'Some country names are simpler: Côte d’Ivoire, Democratic Republic of the Congo, Republic of the Congo and Myanmar. The RUSSIA label stays in European Russia.',
+      },
+      {
+        tr: 'Ülke adları ilk açılışta indirilmez, gerektiğinde yüklenir; sayfa biraz daha hızlı açılır.',
+        en: 'Country names are no longer part of the first download; they load when needed, so pages open a little faster.',
+      },
+    ],
+    tryLinks: [{ path: '/', label: { tr: 'Canlı harita', en: 'Live map' } }],
+  },
+  {
     version: '0.22.4',
     date: '2026-10-07',
+    releasedAt: '2026-10-07T20:09:13Z',
     title: {
       tr: 'Global bir uçuş takip sitesi',
       en: 'A global flight tracking site',
