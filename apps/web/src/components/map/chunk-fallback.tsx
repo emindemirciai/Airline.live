@@ -5,10 +5,10 @@ import type { AirportPopupProps } from './airport-popup'
 import type { AirportListPanelProps } from './panels/airport-list-panel'
 
 /**
- * Tembel parçaların yedekleri (D-101). Havalimanı penceresi ve "Havalimanları" paneli ilk paketin
- * dışında, ayrı parçadadır. Parça yüklenemezse `import()` reddedilir: yayından sonra açık kalmış
- * sekme eski, adı özetli dosyayı ister ve 404 alır (imaj yalnız yeni sürümün dosyalarını taşır) ya
- * da bağlantı kesiktir. `next/dynamic` düz `React.lazy`'dir: ret sayfanın hata sınırına
+ * Tembel parçaların yedekleri (D-101). Havalimanı penceresi, "Havalimanları" paneli ve havalimanı
+ * aramasının ad dizini (D-108) ilk paketin dışında, ayrı parçadadır. Parça yüklenemezse `import()`
+ * reddedilir: yayından sonra açık kalmış sekme eski, adı özetli dosyayı ister ve 404 alır (imaj
+ * yalnız yeni sürümün dosyalarını taşır) ya da bağlantı kesiktir. `next/dynamic` düz `React.lazy`'dir: ret sayfanın hata sınırına
  * (app/error.tsx) çıkar ve bütün canlı harita hata ekranına dönerdi; ret modül düzeyinde saklandığı
  * için yeniden denemek de yardım etmezdi. Yükleyiciler reddi yakalar ve bileşenin yerine buradaki
  * yedeği verir: kısa bir not ve "Sayfayı yenile" düğmesi (sayfa yenilenince yeni sürümün dosyaları
@@ -17,19 +17,30 @@ import type { AirportListPanelProps } from './panels/airport-list-panel'
  */
 
 /**
- * Parça yükleyicisi: `import()` reddedilirse bileşen yerine `fallback`'i verir ve hatayı uyarı
- * olarak günlüğe yazar. Ret yakalandığı için önceden isteme (`void load()`) işlenmemiş ret bırakmaz.
+ * Parça yükleyicisi: `import()` reddedilirse değerin yerine `fallback`'i verir ve hatayı uyarı olarak
+ * günlüğe yazar. Ret yakalandığı için önceden isteme (`void load()`) işlenmemiş ret bırakmaz. Değer
+ * bileşen olmak zorunda değildir: havalimanı araması (D-108) ad dizinini kuran fonksiyonu yükler,
+ * yedeği yalnız kodla arayan fonksiyondur (`panels/search-box-model.ts` → `codeOnlyAirportSearch`).
  */
-export function withChunkFallback<P extends object>(
-  load: () => Promise<ComponentType<P>>,
-  fallback: ComponentType<P>,
+export function withImportFallback<T>(
+  load: () => Promise<T>,
+  fallback: T,
   name: string,
-): () => Promise<ComponentType<P>> {
+): () => Promise<T> {
   return () =>
     load().catch((error: unknown) => {
       console.warn(`${name} could not be loaded`, error)
       return fallback
     })
+}
+
+/** Bileşen parçasının yükleyicisi (`withImportFallback`): yüklenemezse yedek bileşen. */
+export function withChunkFallback<P extends object>(
+  load: () => Promise<ComponentType<P>>,
+  fallback: ComponentType<P>,
+  name: string,
+): () => Promise<ComponentType<P>> {
+  return withImportFallback(load, fallback, name)
 }
 
 /** Sayfayı yeniler: yeni sürümün HTML'i ve parçaları gelir. */

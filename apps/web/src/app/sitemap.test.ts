@@ -31,11 +31,12 @@ const AIRPORTS = [
     scheduled: false,
     station: { active: true, primary: false, fetchRadiusNm: 30 },
   }),
-  // Tarifesiz, istasyon değil (askerî üs): noindex, site haritasında yok. Listede görünür ve
-  // `/havalimanlari` sayfasının son değişikliğine katılır.
+  // Ad tablosunda olmayan, tarifesiz, istasyon değil (yeni kayıt): noindex, site haritasında yok.
+  // Listede görünür ve `/havalimanlari` sayfasının son değişikliğine katılır. Askerî hava üsleri
+  // listede yoktur (D-107).
   airportFixture({
-    icao: 'LTAG',
-    iata: 'ADA',
+    icao: 'LTZZ',
+    iata: 'YZG',
     scheduled: false,
     dataUpdatedAt: '2026-09-25T03:00:00.000Z',
   }),
@@ -47,7 +48,7 @@ const AIRPORTS = [
     country: 'GR',
     isoRegion: 'GR-I',
     ring: 1,
-    distanceToTrKm: 275,
+    distanceToTrKm: 284,
     dataUpdatedAt: '2026-09-22T03:00:00.000Z',
   }),
 ]
@@ -113,7 +114,7 @@ describe('sitemap.xml', () => {
 
   it('noindex adresler yok: tarifesiz havalimanı, /durum, yönetim', async () => {
     const urls = (await sitemap()).map((e) => e.url)
-    expect(urls.some((u) => u.includes('LTAG'))).toBe(false)
+    expect(urls.some((u) => u.includes('LTZZ'))).toBe(false)
     expect(urls.some((u) => /\/(durum|admin|dil|api)(\/|$)/.test(u))).toBe(false)
   })
 

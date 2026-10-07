@@ -7,9 +7,11 @@ import {
   NOINDEX_ROBOTS,
   OG_SITE_IMAGE,
   pageMetadata,
+  siteOgImagePath,
   siteUrl,
   siteUrlFrom,
 } from './metadata'
+import { siteOgContent, siteOgVersion } from './og-site-content'
 
 vi.mock('server-only', () => ({}))
 
@@ -103,7 +105,7 @@ describe('pageMetadata', () => {
       alternateLocale: ['en_US'],
       images: [
         {
-          url: OG_SITE_IMAGE.path,
+          url: expect.stringMatching(/^\/og\/site\?v=[0-9a-f]{8}$/),
           width: 1200,
           height: 630,
           type: 'image/png',
@@ -111,6 +113,25 @@ describe('pageMetadata', () => {
         },
       ],
     })
+  })
+
+  it('paylaşım görselinin adresi içerikten sürümlüdür; rotanın içeriğiyle aynı (D-106)', () => {
+    const m = pageMetadata({ locale: 'en', path: '/', title: 'x', description: 'x' })
+    const images = m.openGraph?.images
+    const url = Array.isArray(images) && typeof images[0] === 'object' ? images[0] : undefined
+    const expected = `${OG_SITE_IMAGE.path}?v=${siteOgVersion(siteOgContent('havayolu', 'havayolu.live'))}`
+    expect(url).toMatchObject({ url: expected })
+    expect(siteOgImagePath('havayolu', 'havayolu.live')).toBe(expected)
+    // İki dil aynı görseli kullanır.
+    expect(
+      pageMetadata({ locale: 'tr', path: '/', title: 'x', description: 'x' }).openGraph,
+    ).toMatchObject({ images: [{ url: expected }] })
+    // Ad ya da alan adı değişince adres değişir; WEB_HOST yoksa alan adı yazılmaz.
+    expect(siteOgImagePath('başka', 'havayolu.live')).not.toBe(expected)
+    expect(siteOgImagePath('havayolu', 'staging.havayolu.live')).not.toBe(expected)
+    expect(siteOgImagePath('havayolu', undefined)).toBe(
+      `${OG_SITE_IMAGE.path}?v=${siteOgVersion(siteOgContent('havayolu', null))}`,
+    )
   })
 
   it("ogImage 'segment': images anahtarı hiç yazılmaz, klasördeki opengraph-image kullanılır", () => {

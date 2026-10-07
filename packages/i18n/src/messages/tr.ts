@@ -4,7 +4,7 @@ import { ERROR_PAGE_MESSAGES } from '../error-page'
 export const tr = {
   meta: {
     description:
-      'Türkiye odaklı, herkese açık canlı uçuş takibi: uçak konumları, havalimanları ve pistler.',
+      'Herkese açık canlı uçuş takibi: uçak konumları, havalimanları, pistler ve hava durumu.',
   },
   nav: {
     map: 'Harita',
@@ -22,21 +22,28 @@ export const tr = {
    * rötar, kalkış saati ya da hava durumu vaat etmez (şablon sayfa riski, M6b brief §b ve §i).
    */
   seo: {
+    /**
+     * Ana sayfa: başlık ve açıklama ülke adı taşımaz (D-106). Açıklama dünya geneli vaat etmez:
+     * "kapsama alanındaki" uçaklar; canlı veri şimdilik Türkiye ve çevresinden çekilir.
+     */
     home: {
-      title: 'Türkiye canlı uçak haritası ve uçuş takibi',
+      title: 'Canlı uçuş takibi ve uçak haritası',
       description:
-        'Türkiye semalarındaki uçakların canlı konumu, yüksekliği ve hızı; veriler ADS-B’den gelir. Tarife, rötar ve kapı bilgisi içermez. Canlı uçuş verisi: ADSB.lol (ODbL).',
+        'Canlı uçak takibi: kapsama alanındaki uçakların ADS-B’den gelen konumu, yüksekliği ve hızı. Tarife ve rötar bilgisi içermez. Canlı uçuş verisi: ADSB.lol (ODbL).',
     },
     airports: {
-      title: 'Türkiye’deki havalimanları: IATA ve ICAO kodları',
+      title: 'Havalimanları: IATA ve ICAO kodları, pistler',
+      /** `{count}`: listedeki bütün havalimanları (Türkiye ve diğer ülkeler), binlik ayraçlı (D-106). */
       description:
-        'Türkiye’deki {count} havalimanının IATA ve ICAO kodları, illeri ve en uzun pistleri; her biri için canlı harita bağlantısı. Kaynak: OurAirports.',
-      /** Liste Türkiye dışındaki havalimanlarını da içeriyorsa (M6d, D-080; başlık M6g, D-088). */
-      descriptionWithForeign:
-        'Türkiye’deki {count} havalimanı ile Türkiye dışındaki {foreign} havalimanının IATA ve ICAO kodları ve en uzun pistleri; her biri için canlı harita bağlantısı. Kaynak: OurAirports.',
+        '{count} havalimanının IATA ve ICAO kodları, konumu ve en uzun pisti; her birinin sayfasında hava durumu ve canlı harita bağlantısı. Kaynak: OurAirports.',
     },
     airport: {
       title: '{name} ({iata}/{icao}) canlı hava trafiği ve pistler',
+      /**
+       * Canlı veri çekim alanının dışındaki havalimanının başlığı: canlı trafik vaat edilmez (D-106).
+       * Hava durumu da vaat edilmez (her havalimanının METAR'ı yoktur; M6b brief §b, §i).
+       */
+      titleOutside: '{name} ({iata}/{icao}): pistler ve havalimanı bilgileri',
       /**
        * `{facts}`: aşağıdaki parçalardan veriye göre seçilenler, "; " ile birleşik. `{place}`: Türkiye'de
        * il, Türkiye dışında ülke (M6d).
@@ -67,24 +74,24 @@ export const tr = {
       description:
         'Kullanım koşulları: veri lisansları (ODbL), harita görüntüleri (Esri), kullanım kuralları ve uçak gizliliği.',
     },
-    /** Varsayılan paylaşım görselindeki alt başlık. */
-    ogTagline: 'Türkiye canlı uçuş takibi',
+    /** Varsayılan paylaşım görselindeki alt başlık; ülke adı taşımaz (D-106). */
+    ogTagline: 'Canlı uçuş takibi',
   },
   /**
-   * Havalimanı listesi (`/havalimanlari`): önce Türkiye, sonra Türkiye dışındaki havalimanları (M6d,
-   * D-080; 2. halkadan beri "yakın ülkeler" yerine bu başlık, kullanıcı kararı 2026-10-03, D-088).
-   * Bu bölüm açık halkalardaki havalimanlarıdır (`ENABLED_AIRPORT_RING`); `{km}` o halkanın sınırıdır.
+   * Havalimanı listesi (`/havalimanlari`): önce Türkiye, sonra diğer ülkelerdeki havalimanları (M6d,
+   * D-080; başlık D-088'de "Türkiye dışındaki", D-106'dan beri "Diğer ülkelerdeki"). İkinci bölüm açık
+   * halkalardaki havalimanlarıdır (`ENABLED_AIRPORT_RING`); `{km}` o halkanın sınırıdır. `summary`
+   * tek toplam sayı yazar, binlik ayraçlı (D-106).
    */
   airports: {
     title: 'Havalimanları',
     summary:
       'Listede {count} havalimanı var; her havalimanının sayfasında pistleri, hava durumu ve canlı harita bağlantısı bulunur.',
-    summaryWithForeign:
-      'Listede Türkiye’deki {count} havalimanı ve Türkiye dışındaki {foreign} havalimanı var; her havalimanının sayfasında pistleri, hava durumu ve canlı harita bağlantısı bulunur.',
     turkeyHeading: 'Türkiye’deki havalimanları',
-    scope: 'Listede IATA kodu olan havalimanları yer alır; bazı küçük havalimanları listelenmez.',
+    scope:
+      'Listede IATA kodu olan sivil havalimanları yer alır; askerî hava üsleri ve bazı küçük havalimanları listelenmez.',
     names:
-      'Resmî Türkçe adlar DHMİ’den, havalimanı işletmecilerinden ve Ulaştırma ve Altyapı Bakanlığı’ndan derlenmiştir. Askerî hava üsleri bulunduğu yerin adıyla yazılır (İncirlik Hava Üssü); adı henüz doğrulanmamış yeni bir havalimanı OurAirports’taki adıyla gösterilir.',
+      'Resmî Türkçe adlar DHMİ’den, havalimanı işletmecilerinden ve Ulaştırma ve Altyapı Bakanlığı’ndan derlenmiştir; adı henüz doğrulanmamış yeni bir havalimanı OurAirports’taki adıyla gösterilir.',
     caption: 'Türkiye’deki havalimanları, il adına göre sıralı',
     columns: {
       name: 'Havalimanı',
@@ -92,23 +99,18 @@ export const tr = {
       country: 'Ülke',
       iata: 'IATA',
       icao: 'ICAO',
-      distanceToTr: 'Türkiye’ye uzaklık',
       longestRunway: 'En uzun pist',
     },
     foreign: {
-      heading: 'Türkiye dışındaki havalimanları',
+      heading: 'Diğer ülkelerdeki havalimanları',
       scope:
-        'Türkiye’deki en yakın havalimanına uzaklığı en fazla {km} olan, IATA kodlu büyük ve orta boy havalimanları yer alır; bazı havalimanları listelenmez.',
+        'Şimdilik Türkiye’deki en yakın havalimanına uzaklığı en fazla {km} olan, IATA kodlu büyük ve orta boy havalimanları yer alır; bazı havalimanları listelenmez.',
       /** Bütün halkalar açıksa (uzaklık sınırı yok). */
       scopeAll:
         'IATA kodlu büyük ve orta boy havalimanları yer alır; bazı havalimanları listelenmez.',
       coverage:
-        'Canlı uçak verisi Türkiye odaklıdır: bu havalimanlarının çoğu canlı veri çekim alanının dışındadır ve çevrelerindeki uçaklar canlı haritada görünmeyebilir. Her havalimanının sayfası bunu ayrıca belirtir.',
-      caption: 'Türkiye dışındaki havalimanları, ülke adına göre sıralı',
-      distanceNote:
-        'Türkiye’ye uzaklık, Türkiye’deki en yakın IATA kodlu havalimanına kuş uçuşu mesafedir; bu havalimanı listede olmayan küçük bir alan da olabilir (Gökçeada gibi).',
-      /** llms.txt satırındaki not (lib/seo/llms.ts). */
-      distance: 'Türkiye’ye uzaklık {distance}',
+        'Canlı uçak verisi şimdilik yalnızca Türkiye ve çevresinden çekilir: bu havalimanlarının çoğu bu alanın dışındadır ve çevrelerindeki uçaklar canlı haritada görünmeyebilir. Her havalimanının sayfası bunu ayrıca belirtir.',
+      caption: 'Diğer ülkelerdeki havalimanları, ülke adına göre sıralı',
       names:
         'Türkçe adlarda bugün kullanılan yerleşik Türkçe yer adları yazılır (Atina, Selanik, Kahire); böyle bir adı olmayan yer yerel adıyla kalır (Iași, Timișoara). İngilizce adlar havalimanlarının OurAirports’taki adlarıdır. Ülke adları havalimanının OurAirports kaydından gelir; Ercan Havalimanı KKTC’de gösterilir.',
     },
@@ -143,11 +145,6 @@ export const tr = {
       province: 'İl',
       country: 'Ülke',
       municipality: 'Hizmet verdiği yerleşim',
-      /** Türkiye dışındaki havalimanında Türkiye'deki en yakın havalimanı ve uzaklığı (M6d). */
-      nearestTr: 'Türkiye’deki en yakın havalimanı',
-      nearestTrValue: '{airport}, {distance}',
-      /** En yakın havalimanı listelenmeyen küçük bir alansa (Gökçeada gibi; D-080). */
-      nearestTrUnlisted: '{name} (küçük alan, listede yok)',
       sourceName: 'OurAirports’taki adı',
       reference: 'Havalimanı merkezi',
       elevation: 'Rakım',
@@ -219,9 +216,6 @@ export const tr = {
       /** Ankara (Etimesgut), D-084: `{name}` bakanlığın verdiği addır ("Ankara Havalimanı"). */
       ministry:
         'Resmî Türkçe ad: {name} (Ulaştırma ve Altyapı Bakanlığı); aynı ildeki diğer havalimanıyla karışmasın diye eski adı parantez içinde eklenmiştir.',
-      /** Askerî hava üsleri (D-084): ad bulunduğu yerin adıyla yazılır. */
-      military:
-        'Ad: {name} (askerî hava üssü; DHMİ listesinde yer almaz, bulunduğu yerin adıyla yazılır)',
       ourairports: 'Ad: OurAirports',
     },
     /**
@@ -754,13 +748,13 @@ export const tr = {
   about: {
     title: 'Hakkında',
     intro:
-      '{app}, Türkiye odaklı, herkese açık ve ücretsiz bir canlı uçuş takip sitesidir. Siteyi {owner} geliştirir ve işletir.',
+      '{app}, İstanbul Havalimanı’nı öncelikli izleyen, herkese açık ve ücretsiz bir canlı uçuş takip sitesidir. Siteyi {owner} geliştirir ve işletir.',
     shows: {
       heading: 'Neler gösterilir',
       map: 'Canlı harita: uçakların konumu, yüksekliği, yer hızı, dikey hızı ve kimlik bilgileri (sefer no, çağrı kodu, tescil, uçak tipi).',
       search: 'Arama: havadaki uçağı sefer no, çağrı kodu, tescil ya da hex koduyla bulma.',
       airports:
-        'Havalimanları: Türkiye’deki ve Türkiye dışındaki havalimanlarının kodları, pistleri ve en yakın havalimanları.',
+        'Havalimanları: listedeki her havalimanının kodları, pistleri ve en yakın havalimanları.',
       weather:
         'Hava durumu: her havalimanı sayfasında son havacılık hava raporu (METAR), havalimanı tahmini (TAF) ve son 24 saatin rapor kaydı; haritada havalimanına tıklayınca kısa özeti.',
     },
@@ -776,26 +770,27 @@ export const tr = {
     method: {
       heading: 'Yöntem',
       adsb: 'Uçak konumları uçakların yayınladığı ADS-B sinyallerinden, bazı uçaklarda birden çok alıcının ölçümüyle hesaplanan çok noktalı konumlandırmadan (MLAT) gelir. Sinyalleri yerdeki alıcılardan toplayan {source} ağı tek canlı veri kaynağıdır.',
+      /** Önce canlı veri alanı, sonra alıcı kapsaması (D-106); llms.txt bu cümleyi ayrı satırda taşır. */
       coverage:
-        'Kapsama alıcılara bağlıdır: alçak irtifadaki ve yerdeki uçaklar bazı bölgelerde görünmeyebilir.',
+        'Canlı uçak verisi şimdilik yalnızca Türkiye ve çevresinden çekilir; bu alanın dışındaki uçakların çoğu haritada görünmez. Alanın içinde de kapsama alıcılara bağlıdır: alçak irtifadaki ve yerdeki uçaklar bazı bölgelerde görünmeyebilir.',
       /** `{radius}`: birincil istasyonun en sık çekilen çemberi (PRIMARY_EXTRA_RADIUS_NM, D-073). */
       freshness:
         'Hedeflenen veri yaşı: birincil istasyonun {radius} çevresinde yaklaşık 20 sn, diğer izlenen havalimanlarının çevresinde yaklaşık 30 sn, Doğu Türkiye’yi kapsayan veri çekim alanında yaklaşık 90 sn. Haritadaki durum satırı birincil istasyonun çevresindeki gerçekleşen veri yaşını gösterir (bu bilgi yoksa en yeni verinin yaşını); haritada bakılan bölgenin veri yaşı bundan farklı olabilir.',
       stations: 'İzlenen havalimanları:',
       /**
        * Kapsama planının (packages/geo/src/coverage.ts) dışında kalan Türkiye havalimanları, veriden.
-       * Türkiye dışındaki havalimanları `abroad` cümlesiyle anlatılır (M6d).
+       * Diğer ülkelerdeki havalimanları `abroad` ve `abroadCoverage` cümleleriyle anlatılır (M6d, D-106).
        */
       outside:
         'Türkiye’de canlı veri çekim alanının dışında kalan havalimanları; çevrelerindeki uçaklar haritada görünmeyebilir:',
       /** `{km}`: açık halkaların sınırı (`ENABLED_AIRPORT_RING`, D-080). */
       abroad:
-        'Türkiye dışındaki havalimanları da listelenir: Türkiye’deki en yakın havalimanına uzaklığı en fazla {km} olan, IATA kodlu büyük ve orta boy havalimanları.',
+        'Havalimanı listesinde şimdilik Türkiye’nin IATA kodlu havalimanları ile diğer ülkelerin, Türkiye’deki en yakın havalimanına uzaklığı en fazla {km} olan, IATA kodlu büyük ve orta boy havalimanları yer alır.',
       /** Bütün halkalar açıksa (uzaklık sınırı yok). */
       abroadAll:
-        'Türkiye dışındaki havalimanları da listelenir: IATA kodlu büyük ve orta boy havalimanları.',
+        'Havalimanı listesinde Türkiye’nin IATA kodlu havalimanları ile diğer ülkelerin IATA kodlu büyük ve orta boy havalimanları yer alır.',
       abroadCoverage:
-        'Canlı uçak verisi Türkiye odaklıdır: Türkiye dışındaki havalimanlarının çoğu canlı veri çekim alanının dışındadır ve çevrelerindeki uçaklar haritada görünmeyebilir.',
+        'Diğer ülkelerdeki havalimanlarının çoğu canlı veri çekim alanının dışındadır; çevrelerindeki uçaklar haritada görünmeyebilir.',
       primary: 'birincil istasyon',
       reference:
         'Havalimanı ve pist bilgisi her gün OurAirports’tan güncellenir. Pist yönleri, mümkün olduğunda pist uçlarının koordinatlarından hesaplanan gerçek yönlerdir.',
@@ -807,7 +802,7 @@ export const tr = {
         'Saklanan konum ve iz verisi bu veriden türetilmiş bir veritabanıdır ve ODbL altında kalır.',
       reference: 'Havalimanı ve pist verisi: {source}, kamu malı.',
       names:
-        'Resmî Türkçe havalimanı adları: DHMİ, havalimanı işletmecileri ve Ulaştırma ve Altyapı Bakanlığı; askerî hava üsleri bulunduğu yerin adıyla yazılır; henüz doğrulanmamış yeni adlarda OurAirports.',
+        'Resmî Türkçe havalimanı adları: DHMİ, havalimanı işletmecileri ve Ulaştırma ve Altyapı Bakanlığı; henüz doğrulanmamış yeni adlarda OurAirports.',
       airlines: 'Havayolu kodları: {source}, CC0 (atıf zorunlu değildir, nezaketen anılır).',
       vector:
         'Vektör harita ve uydu haritasındaki ülke sınırları: {openFreeMap} © {openMapTiles}, harita verisi © {openStreetMap} katkıcıları (ODbL).',
@@ -847,11 +842,13 @@ export const tr = {
     siteCreditLabel: '{credit}, yenilikler',
     search: {
       /**
-       * Arama kutusunun erişilebilir adı tam metindir; görünen ipucu (`placeholder`) 375 px'lik
-       * telefonda da kesilmeyecek kadar kısadır (e2e live-map.spec.ts ölçer).
+       * Arama kutusunun erişilebilir adı tam metindir; görünen ipucu (`placeholder`) 320 px'lik
+       * telefonda da kesilmeyecek kadar kısadır (e2e live-map.spec.ts 1280, 375 ve 320 px'te ölçer).
+       * Kutu uçak ve havalimanı arar (D-108).
        */
-      label: 'Uçak ara: sefer no, çağrı kodu, tescil ya da hex',
-      placeholder: 'Sefer no, çağrı kodu, tescil, hex',
+      label:
+        'Uçak ya da havalimanı ara: sefer no, çağrı kodu, tescil ya da hex; havalimanı kodu, adı ya da şehri',
+      placeholder: 'Sefer, tescil, havalimanı',
       submit: 'Ara',
       searching: 'Aranıyor…',
       notFound:
@@ -862,6 +859,28 @@ export const tr = {
       flightNumberNote:
         'Sefer no, uçağın yayınladığı çağrı kodundan çıkarılır. Harfli çağrı kodu kullanan seferler (ör. THY4KN) sefer no ile bulunamaz; çağrı kodu ya da tescille ara.',
       results: 'Arama sonuçları',
+      /** Sonuç listesinin grupları (D-108): önce havalimanları, sonra uçaklar. */
+      groupAirports: 'Havalimanları',
+      groupAircraft: 'Uçaklar',
+      pickAirports: 'Birden fazla havalimanı bulundu; birini seç.',
+      /** Enter'da doğrudan açılmayan tek havalimanı ("gok", "THY"; D-108): kullanıcı seçer. */
+      pickAirport: 'Bir havalimanı bulundu; açmak için seç.',
+      pickMixed: 'Uçak ve havalimanı bulundu; birini seç.',
+      /** Yazarken (son değişiklikten 600 ms sonra) ekran okuyucuya okunan öneri sayısı. */
+      airportCount: 'Eşleşen havalimanı: {n}.',
+      airportCountMore: 'Eşleşen havalimanı: {n}; ilk {shown} tanesi listede, aramayı daralt.',
+      airportNotFound:
+        'Bu adla ya da kodla bir havalimanı bulunamadı. IATA ya da ICAO kodunu, adını ya da şehrini yaz.',
+      airportNote: 'Havalimanı arıyorsan IATA ya da ICAO kodunu, adını ya da şehrini yaz.',
+      aircraftUnavailable: 'Uçak araması şu an yapılamıyor; havalimanı sonuçları listede.',
+      airportNamesUnavailable:
+        'Havalimanı adları yüklenemedi; havalimanını kodla arayabilir ya da sayfayı yenileyebilirsin.',
+      /**
+       * Havalimanı bulunamayınca eklenir: yalnız açık halkalar aranır. `{km}`: açık halkaların sınırı
+       * (`ENABLED_AIRPORT_RING`, D-080); bütün halkalar açılınca cümle yazılmaz.
+       */
+      airportCoverage:
+        'Türkiye dışında yalnız Türkiye’deki en yakın havalimanına uzaklığı en fazla {km} olan havalimanları aranır.',
     },
     card: {
       close: 'Kapat',
@@ -1042,7 +1061,7 @@ export const tr = {
     released: 'Yayın tarihi',
     /**
      * Yayın anı (D-091, `formatReleaseTime`): Europe/Istanbul'da gün, 24 saatlik saat ve dilim
-     * etiketi. `{zone}` Türkçede "Türkiye saati", İngilizcede o anki UTC farkıdır ("UTC+3").
+     * etiketi. `{zone}` iki dilde de o anki UTC farkıdır ("UTC+3", D-106).
      */
     releasedAtValue: '{date}, {time} ({zone})',
   },
@@ -1294,7 +1313,7 @@ export const tr = {
     service: {
       heading: 'Hizmet',
       about:
-        '{app}, Türkiye odaklı, herkese açık ve ücretsiz bir uçuş takip hizmetidir. Uçak konumları uçakların yayınladığı ADS-B sinyallerinden, bazı uçaklarda çok noktalı konumlandırmadan (MLAT) gelir ve yalnızca bilgi amaçlıdır.',
+        '{app}, herkese açık ve ücretsiz bir uçuş takip hizmetidir. Uçak konumları uçakların yayınladığı ADS-B sinyallerinden, bazı uçaklarda çok noktalı konumlandırmadan (MLAT) gelir ve yalnızca bilgi amaçlıdır.',
       notOperational:
         'Hizmet operasyonel, seyrüsefer ya da uçuş emniyetiyle ilgili kararlar için kullanılamaz.',
       noWarranty:

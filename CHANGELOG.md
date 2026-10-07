@@ -8,7 +8,91 @@
 
 ---
 
-## v0.22.0 — 2026-10-06
+## v0.22.4 — 2026-10-07
+
+### Türkçe
+**Global bir uçuş takip sitesi**
+
+- Site artık Türkiye’ye özgü bir harita gibi sunulmuyor: başlıklar ve açıklamalar “Canlı uçuş takibi ve uçak haritası” der; İstanbul Havalimanı önceliğimiz olmaya devam ediyor.
+- Canlı uçak verisinin şimdilik Türkiye ve çevresinden çekildiği Hakkında sayfasında ve havalimanı sayfalarında açıkça yazıyor; bu alanın dışındaki havalimanlarının sayfa başlığı bunu belirtir.
+- Havalimanları listesinde Türkiye dışındaki tablo “Diğer ülkelerdeki havalimanları” oldu; yabancı havalimanı sayfalarındaki “Türkiye’deki en yakın havalimanı” satırı ve “Türkiye’ye uzaklık” sütunu kaldırıldı. Yenilikler sayfasındaki yayın saatleri UTC farkıyla yazılır.
+
+Dene: [Hakkında](/hakkinda) · [Havalimanları](/havalimanlari)
+
+### English
+**A global flight tracking site**
+
+- The site is no longer presented as a Türkiye-only map: titles and descriptions now read “Live flight tracker and aircraft map”, with Istanbul Airport still our top priority.
+- The About page and airport pages state plainly that live aircraft data is for now fetched over Türkiye and the surrounding area; airports outside that area say so in their page title.
+- In the airport list the second table is now “Airports in other countries”; the “nearest airport in Türkiye” row and the “distance to Türkiye” column are gone. Release times on What’s new show the UTC offset.
+
+Try it: [About](/hakkinda) · [Airports](/havalimanlari)
+
+---
+
+## v0.22.3 — 2026-10-07 22:24 (UTC+3)
+
+### Türkçe
+**Haritada havalimanı araması**
+
+- Sol üstteki arama kutusu artık havalimanlarını da bulur: IATA ya da ICAO kodu (IST, LTFM), adı ya da şehri (Sabiha Gökçen, Londra, Heathrow) yazınca öneriler yazarken çıkar. Türkçe harfler ve aksanlar fark etmez.
+- Bir havalimanı seçince harita oraya gider ve havalimanının penceresi açılır. Uçak araması (sefer no, çağrı kodu, tescil, hex) eskisi gibi çalışır; ikisi birlikte eşleşirse liste havalimanlarını ve uçakları ayrı gösterir.
+
+Dene: [Canlı harita](/)
+
+### English
+**Airport search on the map**
+
+- The search box at the top left now finds airports too: type an IATA or ICAO code (IST, LTFM), a name or a city (Sabiha Gökçen, London, Heathrow) and suggestions appear as you type. Turkish letters and accents do not matter.
+- Picking an airport flies the map there and opens its window. Aircraft search (flight number, callsign, registration, hex) works as before; when both match, the list shows airports and aircraft separately.
+
+Try it: [Live map](/)
+
+---
+
+## v0.22.2 — 2026-10-07 17:31 (UTC+3)
+
+### Türkçe
+**Askerî hava üsleri sitenin hiçbir yerinde yok**
+
+- Askerî hava üsleri artık yalnız haritada değil, sitenin hiçbir yerinde gösterilmez: havalimanları listesinde, havalimanı sayfalarında, yakın havalimanları satırlarında ve hava durumunda yoklar. Türkiye listesinde 56 sivil havalimanı var.
+- Atina, Sakız ve Kalamata sayfalarındaki “Türkiye’deki en yakın havalimanı” satırı artık İzmir Adnan Menderes’i gösterir.
+
+Dene: [Havalimanları](/havalimanlari)
+
+### English
+**Air force bases removed from the whole site**
+
+- Air force bases are no longer shown anywhere on the site, not just on the map: they are gone from the airport list, the airport pages, the nearby-airports rows and the weather. The Türkiye list has 56 civil airports.
+- The “nearest airport in Türkiye” row on the Athens, Chios and Kalamata pages now shows İzmir Adnan Menderes.
+
+Try it: [Airports](/havalimanlari)
+
+---
+
+## v0.22.1 — 2026-10-06 16:34 (UTC+3)
+
+### Türkçe
+**Askerî üsler haritadan kalktı, harita biraz daha uzaktan açılır**
+
+- Beş askerî hava üssü (İncirlik, Afyon, Bandırma, Eskişehir, Çiğli) artık canlı haritada ve haritanın “Havalimanları” listesinde gösterilmez. Havalimanları sayfasında ve kendi sayfalarında yerinde durur.
+- Harita bilgisayarda biraz daha uzaktan açılır: İstanbul Havalimanı ortada, Çorlu’dan Kocaeli’ne kadar bölge ilk bakışta görünür. Telefonda açılış değişmedi.
+- Uzaktan bakınca TÜRKİYE adı ülkenin ortasına, Kırşehir yakınına kaydı.
+
+Dene: [Canlı harita](/)
+
+### English
+**Air bases off the map, and a slightly wider opening view**
+
+- The five air force bases (Incirlik, Afyon, Bandırma, Eskişehir, Çiğli) no longer appear on the live map or in its “Airports” list. They stay on the airports page and on their own pages.
+- On computers the map opens a little further out: Istanbul Airport in the middle, with the area from Çorlu to Kocaeli in view at first glance. The opening view on phones is unchanged.
+- Zoomed far out, the TÜRKIYE name moved to the middle of the country, near Kırşehir.
+
+Try it: [Live map](/)
+
+---
+
+## v0.22.0 — 2026-10-06 03:41 (UTC+3)
 
 ### Türkçe
 **4. halkaya hazırlık: daha hafif harita**

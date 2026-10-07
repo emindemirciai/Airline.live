@@ -12,8 +12,99 @@ import type { ChangelogEntry } from './types'
  */
 export const CHANGELOG: readonly ChangelogEntry[] = [
   {
+    version: '0.22.4',
+    date: '2026-10-07',
+    title: {
+      tr: 'Global bir uçuş takip sitesi',
+      en: 'A global flight tracking site',
+    },
+    items: [
+      {
+        tr: 'Site artık Türkiye’ye özgü bir harita gibi sunulmuyor: başlıklar ve açıklamalar “Canlı uçuş takibi ve uçak haritası” der; İstanbul Havalimanı önceliğimiz olmaya devam ediyor.',
+        en: 'The site is no longer presented as a Türkiye-only map: titles and descriptions now read “Live flight tracker and aircraft map”, with Istanbul Airport still our top priority.',
+      },
+      {
+        tr: 'Canlı uçak verisinin şimdilik Türkiye ve çevresinden çekildiği Hakkında sayfasında ve havalimanı sayfalarında açıkça yazıyor; bu alanın dışındaki havalimanlarının sayfa başlığı bunu belirtir.',
+        en: 'The About page and airport pages state plainly that live aircraft data is for now fetched over Türkiye and the surrounding area; airports outside that area say so in their page title.',
+      },
+      {
+        tr: 'Havalimanları listesinde Türkiye dışındaki tablo “Diğer ülkelerdeki havalimanları” oldu; yabancı havalimanı sayfalarındaki “Türkiye’deki en yakın havalimanı” satırı ve “Türkiye’ye uzaklık” sütunu kaldırıldı. Yenilikler sayfasındaki yayın saatleri UTC farkıyla yazılır.',
+        en: 'In the airport list the second table is now “Airports in other countries”; the “nearest airport in Türkiye” row and the “distance to Türkiye” column are gone. Release times on What’s new show the UTC offset.',
+      },
+    ],
+    tryLinks: [
+      { path: '/hakkinda', label: { tr: 'Hakkında', en: 'About' } },
+      { path: '/havalimanlari', label: { tr: 'Havalimanları', en: 'Airports' } },
+    ],
+  },
+  {
+    version: '0.22.3',
+    date: '2026-10-07',
+    releasedAt: '2026-10-07T19:24:54Z',
+    title: {
+      tr: 'Haritada havalimanı araması',
+      en: 'Airport search on the map',
+    },
+    items: [
+      {
+        tr: 'Sol üstteki arama kutusu artık havalimanlarını da bulur: IATA ya da ICAO kodu (IST, LTFM), adı ya da şehri (Sabiha Gökçen, Londra, Heathrow) yazınca öneriler yazarken çıkar. Türkçe harfler ve aksanlar fark etmez.',
+        en: 'The search box at the top left now finds airports too: type an IATA or ICAO code (IST, LTFM), a name or a city (Sabiha Gökçen, London, Heathrow) and suggestions appear as you type. Turkish letters and accents do not matter.',
+      },
+      {
+        tr: 'Bir havalimanı seçince harita oraya gider ve havalimanının penceresi açılır. Uçak araması (sefer no, çağrı kodu, tescil, hex) eskisi gibi çalışır; ikisi birlikte eşleşirse liste havalimanlarını ve uçakları ayrı gösterir.',
+        en: 'Picking an airport flies the map there and opens its window. Aircraft search (flight number, callsign, registration, hex) works as before; when both match, the list shows airports and aircraft separately.',
+      },
+    ],
+    tryLinks: [{ path: '/', label: { tr: 'Canlı harita', en: 'Live map' } }],
+  },
+  {
+    version: '0.22.2',
+    date: '2026-10-07',
+    releasedAt: '2026-10-07T14:31:41Z',
+    title: {
+      tr: 'Askerî hava üsleri sitenin hiçbir yerinde yok',
+      en: 'Air force bases removed from the whole site',
+    },
+    items: [
+      {
+        tr: 'Askerî hava üsleri artık yalnız haritada değil, sitenin hiçbir yerinde gösterilmez: havalimanları listesinde, havalimanı sayfalarında, yakın havalimanları satırlarında ve hava durumunda yoklar. Türkiye listesinde 56 sivil havalimanı var.',
+        en: 'Air force bases are no longer shown anywhere on the site, not just on the map: they are gone from the airport list, the airport pages, the nearby-airports rows and the weather. The Türkiye list has 56 civil airports.',
+      },
+      {
+        tr: 'Atina, Sakız ve Kalamata sayfalarındaki “Türkiye’deki en yakın havalimanı” satırı artık İzmir Adnan Menderes’i gösterir.',
+        en: 'The “nearest airport in Türkiye” row on the Athens, Chios and Kalamata pages now shows İzmir Adnan Menderes.',
+      },
+    ],
+    tryLinks: [{ path: '/havalimanlari', label: { tr: 'Havalimanları', en: 'Airports' } }],
+  },
+  {
+    version: '0.22.1',
+    date: '2026-10-06',
+    releasedAt: '2026-10-06T13:34:14Z',
+    title: {
+      tr: 'Askerî üsler haritadan kalktı, harita biraz daha uzaktan açılır',
+      en: 'Air bases off the map, and a slightly wider opening view',
+    },
+    items: [
+      {
+        tr: 'Beş askerî hava üssü (İncirlik, Afyon, Bandırma, Eskişehir, Çiğli) artık canlı haritada ve haritanın “Havalimanları” listesinde gösterilmez. Havalimanları sayfasında ve kendi sayfalarında yerinde durur.',
+        en: 'The five air force bases (Incirlik, Afyon, Bandırma, Eskişehir, Çiğli) no longer appear on the live map or in its “Airports” list. They stay on the airports page and on their own pages.',
+      },
+      {
+        tr: 'Harita bilgisayarda biraz daha uzaktan açılır: İstanbul Havalimanı ortada, Çorlu’dan Kocaeli’ne kadar bölge ilk bakışta görünür. Telefonda açılış değişmedi.',
+        en: 'On computers the map opens a little further out: Istanbul Airport in the middle, with the area from Çorlu to Kocaeli in view at first glance. The opening view on phones is unchanged.',
+      },
+      {
+        tr: 'Uzaktan bakınca TÜRKİYE adı ülkenin ortasına, Kırşehir yakınına kaydı.',
+        en: 'Zoomed far out, the TÜRKIYE name moved to the middle of the country, near Kırşehir.',
+      },
+    ],
+    tryLinks: [{ path: '/', label: { tr: 'Canlı harita', en: 'Live map' } }],
+  },
+  {
     version: '0.22.0',
     date: '2026-10-06',
+    releasedAt: '2026-10-06T00:41:12Z',
     title: {
       tr: '4. halkaya hazırlık: daha hafif harita',
       en: 'Getting ready for ring 4: a lighter map',

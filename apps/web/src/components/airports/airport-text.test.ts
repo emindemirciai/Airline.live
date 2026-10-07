@@ -20,6 +20,7 @@ import {
   formatBearing,
   formatCoordinatesDecimal,
   formatCoordinatesDms,
+  formatCount,
   formatDataDate,
   formatLength,
   formatMeters,
@@ -42,8 +43,8 @@ const byIcao = (icao: string) => {
 }
 
 describe('fixture', () => {
-  it('IATA kodlu 61 Türkiye havalimanı, 51 tarifeli (M6b brief §g)', () => {
-    expect(AIRPORTS).toHaveLength(61)
+  it('IATA kodlu 56 Türkiye havalimanı (askerî üsler yok, D-107), 51 tarifeli (M6b brief §g)', () => {
+    expect(AIRPORTS).toHaveLength(56)
     expect(AIRPORTS.filter((a) => a.scheduled)).toHaveLength(51)
     expect(AIRPORTS.every((a) => a.runways.length > 0)).toBe(true)
   })
@@ -57,7 +58,7 @@ describe('fixture', () => {
     expect(ring3).toHaveLength(278)
     expect(FOREIGN).toHaveLength(ring1.length + ring2.length + ring3.length)
     expect(LISTED).toHaveLength(AIRPORTS.length + FOREIGN.length)
-    expect(LISTED).toHaveLength(503)
+    expect(LISTED).toHaveLength(498)
     expect(FOREIGN.every((a) => a.scheduled)).toBe(true)
     expect(ring1.every((a) => (a.distanceToTrKm ?? Infinity) <= 500)).toBe(true)
     // Uzaklık tam km'ye yuvarlıdır, halka tam uzaklıktandır: Ben Gurion 500,44 km → 500, 2. halka.
@@ -105,6 +106,13 @@ describe('biçimleyiciler (metrik önce, D-072)', () => {
     expect(formatLength(13451, 'en')).toBe('4,100 m (13,451 ft)')
     expect(formatLength(null, 'tr')).toBe('—')
     expect(formatMeters(148, 'tr')).toBe('45 m')
+  })
+
+  it('sayı binlik ayraçlı, dile göre (D-106)', () => {
+    expect(formatCount(1222, 'tr')).toBe('1.222')
+    expect(formatCount(1222, 'en')).toBe('1,222')
+    expect(formatCount(503, 'tr')).toBe('503')
+    expect(formatCount(503, 'en')).toBe('503')
   })
 
   it('yarıçap km (NM)', () => {
@@ -265,8 +273,10 @@ describe('başlık ve açıklama: fixture’daki her havalimanı', () => {
         [a, true] as const,
         [a, false] as const,
       ])) {
-        const title = airportTitle(airport, locale)
+        const title = airportTitle(airport, locale, covered)
         const description = airportDescription(airport, locale, covered)
+        // Çekim alanının dışındaki havalimanının başlığı canlı trafik vaat etmez (D-106).
+        if (!covered) expect(title, airport.icao).not.toMatch(/canlı|live/i)
         expect(title, airport.icao).toContain(`(${airport.iata}/${airport.icao})`)
         expect(title.startsWith(airportName(airport, locale)), airport.icao).toBe(true)
         expect(description.length, `${airport.icao}: ${description}`).toBeGreaterThanOrEqual(70)
@@ -309,19 +319,35 @@ describe('başlık ve açıklama: fixture’daki her havalimanı', () => {
   })
 
   it('başlık', () => {
-    expect(airportTitle(byIcao('LTFM'), 'tr')).toBe(
+    expect(airportTitle(byIcao('LTFM'), 'tr', true)).toBe(
       'İstanbul Havalimanı (IST/LTFM) canlı hava trafiği ve pistler',
     )
-    expect(airportTitle(byIcao('LTFM'), 'en')).toBe(
+    expect(airportTitle(byIcao('LTFM'), 'en', true)).toBe(
       'Istanbul Airport (IST/LTFM) live air traffic and runways',
     )
+  })
+
+  it('çekim alanının dışındaki havalimanının başlığı canlı trafik vaat etmez (Viyana, Hakkari Yüksekova; D-106)', () => {
+    expect(airportTitle(byIcao('LOWW'), 'tr', false)).toBe(
+      'Viyana Havalimanı (VIE/LOWW): pistler ve havalimanı bilgileri',
+    )
+    expect(airportTitle(byIcao('LOWW'), 'en', false)).toBe(
+      'Vienna International Airport (VIE/LOWW): runways and airport information',
+    )
+    for (const locale of LOCALES) {
+      const title = airportTitle(byIcao('LTCW'), locale, false)
+      expect(title, locale).toContain('(YKO/LTCW): ')
+      expect(title, locale).not.toMatch(/canlı|live|hava durumu|weather/i)
+    }
   })
 })
 
 describe('sortByProvince', () => {
   it('ile, sonra ada göre, sayfanın dilinin alfabesiyle', () => {
     const tr = sortByProvince(AIRPORTS, 'tr').map((a) => airportProvince(a, 'tr'))
-    expect(tr[0]).toBe('Adana')
+    // Adana'nın listelenen havalimanı yok (İncirlik askerî üs, D-107; Şakirpaşa tarifesiz küçük alan).
+    expect(tr[0]).toBe('Adıyaman')
+    expect(tr).not.toContain('Adana')
     // Türk alfabesi: Çanakkale C'den sonra, İ I'dan sonra gelir.
     expect(tr.indexOf('Çanakkale')).toBeGreaterThan(tr.lastIndexOf('Bursa'))
     expect(tr.indexOf('Çanakkale')).toBeLessThan(tr.indexOf('Denizli'))

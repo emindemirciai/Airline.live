@@ -36,12 +36,13 @@ export const MISSING_HEX = 'fe0099'
 
 /**
  * Referans verisi fixture'ı (tools/fixtures/ourairports; worker'ın `jobs` rolü ilk açılışta yükler):
- * IATA kodlu 61 Türkiye havalimanı; OurAirports'a göre 51'inde tarifeli sefer var. İndekslenen
- * havalimanı sayfası 56'dır (D-076, D-084: tarifeli, istasyon ya da resmî adı DHMİ, işletmeci ya da
- * bakanlıktan doğrulanmış sivil havalimanı; Siirt, Kocaeli, Uşak, Atatürk ve Ankara (Etimesgut) bu
- * yüzden eklenir). Kalan 5'i askerî hava üssüdür ve `noindex, follow` alır.
+ * IATA kodlu 61 Türkiye satırından beşi askerî hava üssüdür ve listelenmez (D-107); listelenen 56
+ * Türkiye havalimanının 51'inde OurAirports'a göre tarifeli sefer var. 56'sının da sayfası dizine
+ * eklenir (D-076, D-084: tarifeli, istasyon ya da resmî adı DHMİ, işletmeci ya da bakanlıktan
+ * doğrulanmış sivil havalimanı; Siirt, Kocaeli, Uşak, Atatürk ve Ankara (Etimesgut) bu yüzden
+ * eklenir). Fixture'da `noindex` Türkiye havalimanı kalmadı.
  */
-export const AIRPORT_COUNT = 61
+export const AIRPORT_COUNT = 56
 export const INDEXABLE_AIRPORT_COUNT = 56
 
 /**
@@ -56,7 +57,7 @@ export const RING1_AIRPORT_COUNT = 75
 export const RING2_AIRPORT_COUNT = 89
 export const RING3_AIRPORT_COUNT = 278
 export const FOREIGN_AIRPORT_COUNT = RING1_AIRPORT_COUNT + RING2_AIRPORT_COUNT + RING3_AIRPORT_COUNT
-/** `GET /v1/airports?scope=listed`: 61 Türkiye + 442 Türkiye dışı = 503. */
+/** `GET /v1/airports?scope=listed`: 56 Türkiye + 442 Türkiye dışı = 498 (D-107'den önce 503). */
 export const LISTED_AIRPORT_COUNT = AIRPORT_COUNT + FOREIGN_AIRPORT_COUNT
 /** Dizine eklenen havalimanı sayfaları: Türkiye'nin 56'sı ve Türkiye dışındakilerin hepsi (498). */
 export const INDEXABLE_LISTED_AIRPORT_COUNT = INDEXABLE_AIRPORT_COUNT + FOREIGN_AIRPORT_COUNT
@@ -64,7 +65,8 @@ export const INDEXABLE_LISTED_AIRPORT_COUNT = INDEXABLE_AIRPORT_COUNT + FOREIGN_
 export const RING_LIMITS_KM = { 1: 500, 2: 1000, 3: 2000 } as const
 
 /**
- * 1. halkadan örnek havalimanı: Atina (en yakın Türkiye havalimanına ~275 km). OurAirports ülkesi
+ * 1. halkadan örnek havalimanı: Atina (en yakın Türkiye havalimanı İzmir Adnan Menderes, 284 km;
+ * D-107'den önce Çiğli üssü, 275 km). OurAirports ülkesi
  * GR; hava durumu fixture'ında güncel METAR'ı ve TAF'ı vardır (tools/fixtures/weather).
  */
 export const RING1_AIRPORT = {
@@ -153,15 +155,23 @@ export const PRIMARY_AIRPORT = {
 /** LTFM'ye en yakın tarifeli iki havalimanı: Sabiha Gökçen (~64 km) ve Çorlu (~70 km). */
 export const PRIMARY_AIRPORT_NEIGHBOURS = ['LTFJ', 'LTBU'] as const
 /**
- * Tarifeli seferi kayıtlı olmayan ve istasyon olmayan askerî hava üssü (İncirlik Hava Üssü, D-084):
- * sayfası açılır ama noindex.
+ * Askerî hava üsleri (D-084: İncirlik, Afyon, Bandırma, Eskişehir, Çiğli): sitenin hiçbir yerinde
+ * yoktur (D-107). Veritabanında satırları vardır (fixture'dan içe aktarılır) ama hiçbir API
+ * listesinde, tek havalimanı ve hava durumu uçlarında (404), sayfada (404; IATA kodu yönlenmez), site
+ * haritasında, llms.txt'de ve haritada görünmezler.
  */
-export const NON_INDEXABLE_AIRPORT = { icao: 'LTAG', iata: 'UAB' } as const
+export const MILITARY_AIRFIELDS = [
+  { icao: 'LTAG', iata: 'UAB', tr: 'İncirlik', en: 'Incirlik' },
+  { icao: 'LTAH', iata: 'AFY', tr: 'Afyon', en: 'Afyon' },
+  { icao: 'LTBG', iata: 'BDM', tr: 'Bandırma', en: 'Bandırma' },
+  { icao: 'LTBI', iata: 'ESK', tr: 'Eskişehir', en: 'Eskişehir' },
+  { icao: 'LTBL', iata: 'IGL', tr: 'Çiğli', en: 'Çiğli' },
+] as const
 
 /**
- * Haritada gösterilmeyen askerî hava üssü (D-103): Çiğli Hava Üssü (orta boy, tarifesiz; OurAirports
- * fixture'ındaki konum). Sayfası açılır; haritada pini, kodu, penceresi ve "Havalimanları"
- * listesinde satırı yoktur, `?havalimani=LTBL` haritayı yine orada açar.
+ * Haritada da olmayan askerî hava üssü (D-103, D-107): Çiğli Hava Üssü (orta boy, tarifesiz;
+ * OurAirports fixture'ındaki konum). `?havalimani=LTBL` bilinmeyen kod gibidir: harita açılış
+ * görünümünde (IST) açılır; üssün yerinde pin, kod ve liste satırı yoktur.
  */
 export const MILITARY_AIRFIELD = { icao: 'LTBL', iata: 'IGL', lat: 38.513, lon: 27.010099 } as const
 /** Çiğli'nin 27 km güneydoğusundaki sivil havalimanı: İzmir Adnan Menderes (büyük, beyaz kod kutusu). */
@@ -373,4 +383,9 @@ export async function expectRedirect(
   const target = new URL(location ?? '', WEB_URL)
   expect(`${target.pathname}${target.search}`, `${from}: hedef`).toBe(to)
   return response
+}
+
+/** Canlı haritanın arama kutusu (D-108): ARIA 1.2 combobox, `role="search"` formunun içinde. */
+export function searchInput(page: Page): Locator {
+  return page.getByRole('search').getByRole('combobox')
 }

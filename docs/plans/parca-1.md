@@ -34,17 +34,20 @@ Durumlar: `[ ]` başlamadı, `[~]` sürüyor, `[k]` kod bitti ve kullanıcı do�
 | M6e.6 | API yanıtlarının sıkıştırılması (yama, v0.18.1) | `p1/api-gzip` | [x] tamam; üretimde doğrulandı (2026-10-04, v0.18.1): content-encoding br; haritanın havalimanı ve pist listesi 439.090 → 75.715 bayt; v0.18.1 Release 2026-10-04T20:32:07Z | #29 |
 | M6e.7 | Haritada ülke adları başkentlerde (yama, v0.18.2) | `p1/map-country-labels` | [x] tamam; üretimde doğrulandı (2026-10-05, v0.18.2): uydu üstünde z5'te TÜRKİYE, ROMANYA, BULGARİSTAN, YUNANİSTAN okunur, iğneler ve kesikli sınırlar üstte; Balkanlarda küçük adlar soluk; v0.18.2 Release 2026-10-05T01:08:09Z | #30 |
 | M6e.8 | Ülke adları sınır içinde, kelime başına satır (yama, v0.19.1) | `p1/map-country-fit` | [x] tamam; üretimde doğrulandı (2026-10-05, v0.19.1): uydu üstünde z5,3'te TÜRKİYE sınır içinde (Ankara'nın güneyinde), BOSNA / HERSEK alt alta, adlar kıyıdan taşmıyor; v0.19.1 Release 2026-10-05T05:51:51Z | #32 |
-| M6e.9 | Ülke adları daha belirgin, boş yerde (yama, v0.21.1; D-099) | `p1/map-country-clear` | [k] kod bitti; üretimde uydu üstünde görünüm denetimi bekliyor (ACTIVATION M6e.9) | — |
-| M6e.10 | Askerî üsler haritada gösterilmez; açılış yakınlaştırması masaüstünde 8 (yama; D-103, D-104) | `p1/map-no-military` | [~] kod ve testler bitti; sürüm, changelog ve yayın adımı bekliyor | — |
-| M6e.11 | Bütün ülkelerin adları (yama; D-100) | `p1/map-all-countries` | [~] kod ve testler bitti; sürüm, changelog ve yayın adımı bekliyor; üretimde görünüm denetimi ACTIVATION M6e.11 | — |
+| M6e.9 | Ülke adları daha belirgin, boş yerde (yama, v0.21.1; D-099) | `p1/map-country-clear` | [k] kod bitti; üretimde uydu üstünde görünüm denetimi bekliyor (ACTIVATION M6e.9) | #35 |
+| M6e.10 | Askerî üsler haritada gösterilmez; açılış yakınlaştırması masaüstünde 8 (yama; D-103, D-104) | `p1/map-no-military` | [k] kod bitti; üretimde doğrulandı (2026-10-06, v0.22.1): `/version` 0.22.1, Release 2026-10-06T13:34:14Z; görünüm denetimi kullanıcıda (ACTIVATION v0.22.1) | #37 |
+| M6e.13 | Askerî üsler sitenin hiçbir yerinde yok (yama; D-107) | `p1/no-military-site` | [k] kod bitti; üretimde doğrulandı (2026-10-07, v0.22.2): `/version` 0.22.2, `scope=listed` 498 (Türkiye 56, üs 0), `/istasyon/LTBL`, `/istasyon/IGL`, `/en/istasyon/LTAG` 404; Release 2026-10-07T14:31:41Z; tarayıcı denetimi kullanıcıda (ACTIVATION v0.22.2) | #38 |
+| M6e.14 | Haritada havalimanı araması (yama; D-108) | `p1/map-airport-search` | [k] kod bitti; üretimde doğrulandı (2026-10-07, v0.22.3): `/version` 0.22.3, Release 2026-10-07T19:24:54Z; tarayıcıda arama denetimi kullanıcıda (ACTIVATION v0.22.3) | #39 |
+| M6e.12 | Global konumlandırma (yama; D-106) | `p1/map-global-copy` | [k] kod bitti (v0.22.4); üretim denetimi bekliyor (ACTIVATION v0.22.4) | — |
+| M6e.11 | Bütün ülkelerin adları (yama; D-100) | `p1/map-all-countries` | [~] kod ve testler bitti; v0.22.4 hattıyla (`p1/map-global-copy`) birleşti; sürüm (v0.22.5), changelog ve yayın adımı bekliyor; üretimde görünüm denetimi ACTIVATION M6e.11 | — |
 | M6h | 3. halka (≤ 2.000 km) — kullanıcı isteğiyle M7a'nın önüne alındı (2026-10-04); sivil uçuşa kapalı olabilecek havalimanı notu | `p1/m6h-ring3` | [k] kod bitti; üretimde doğrulandı (2026-10-04, v0.18.0): `scope=listed` 503 (61 + 75 + 89 + 278), Viyana 3. halka 1.149 km, beş Özbek istasyonunun METAR'ı UZxx koduyla, METAR'lı istasyon 463/503, toplu hava 1,34 MB, URKK ve UUOO notu iki dilde; admin Servisler ve worker günlüğü (429 yok) bekliyor (ACTIVATION) | #28 |
 | M7a | Canlı araçlar: `smoke:live`, `record` | `p1/m7a-live-tools` | [k] kod bitti; canlı smoke ve kayıt kullanıcıda (ACTIVATION) | #31 |
 | M7b.1 | İz tablolarına ham `seen_pos` ve `baro_rate` (migration 0006, v0.20.0; D-097) | `p1/m7b1-track-columns` | [x] tamam; üretimde doğrulandı (2026-10-05, v0.20.0): `hy-migrate` 0006'yı uyguladıktan sonra servisler açıldı, `/version` 0.20.0, `/ready` 200; v0.20.0 Release 2026-10-05T07:45:13Z. Ingest yazımı üretimde adsb.lol açılınca görülür (ACTIVATION 2. adım) | #33 |
-| M7b.2 | Kapsama raporu: worker işi, admin sayfası, CLI (`coverage:report`, v0.21.0; D-098) | `p1/m7b-coverage` | [k] kod bitti; gerçek 24 saatlik rapor üretim ingest'i açıldıktan sonra (ACTIVATION) | — |
-| M6i.1 | 4. halkanın ön koşulları ve veri altyapısı (halka 3'te kalır, 503 listelenen): fixture'a 4. halka, 4 karakterli ICAO kuralı, pist kuralları, kaplama kodları, saat dilimleri; toplu havanın ham biçimi, AWC istek sayısı günlükte, uçuş evresi ızgarası, harita penceresinin tembel yüklenmesi — kullanıcı isteğiyle M7c'nin önüne alındı (2026-10-05; D-101) | `p1/m6i1-ring4-prep` | [k] kod bitti (v0.22.0); üretimde ham hava biçimi ve worker istek sayısı denetimi bekliyor | — |
+| M7b.2 | Kapsama raporu: worker işi, admin sayfası, CLI (`coverage:report`, v0.21.0; D-098) | `p1/m7b-coverage` | [k] kod bitti; gerçek 24 saatlik rapor üretim ingest'i açıldıktan sonra (ACTIVATION) | #34 |
+| M6i.1 | 4. halkanın ön koşulları ve veri altyapısı (halka 3'te kalır, 503 listelenen): fixture'a 4. halka, 4 karakterli ICAO kuralı, pist kuralları, kaplama kodları, saat dilimleri; toplu havanın ham biçimi, AWC istek sayısı günlükte, uçuş evresi ızgarası, harita penceresinin tembel yüklenmesi — kullanıcı isteğiyle M7c'nin önüne alındı (2026-10-05; D-101) | `p1/m6i1-ring4-prep` | [k] kod bitti; üretimde doğrulandı (2026-10-06, v0.22.0): `/version` 0.22.0, ham toplu hava (`format=raw`) 502 KB, br ile 60 KB (çözülmüş biçim 1,36 MB, br ile 70 KB); v0.22.0 Release 2026-10-06T00:41:12Z; worker günlüğünde AWC `requests` denetimi bekliyor (ACTIVATION) | #36 |
 | M6i.2 | 4. halka (≤ 5.000 km, 719 havalimanı, 1.222 listelenen): adlar, halkanın açılması, ülke adı yerleşiminin yeniden üretimi, metinler, e2e (D-102) | `p1/m6i2-ring4` | [ ] | — |
-| M7c | Kapsama ölçümü yedek yolu (`coverage:probe`) | `p1/m7c-coverage-probe` | [ ] | — |
 | M6j | 5. halka (dünyanın geri kalanı, ABD dahil); haritada görünür alana göre havalimanı yükleme, AWC toplu dosyası (DUR-SOR) ve adların tembel yüklenmesi burada değerlendirilir (D-101) | `p1/m6j-ring5` | [ ] | — |
+| M7c | Kapsama ölçümü yedek yolu (`coverage:probe`) | `p1/m7c-coverage-probe` | [ ] | — |
 
 ## M0 — Repo iskeleti ve yerel test ortamı
 **Dizinler:**
@@ -1269,7 +1272,7 @@ Hedef sürüm yayın adımında belirlenir (dal `p1/map-country-clear`, `main` `
 ## M6e.10 — Askerî üsler haritada gösterilmez; açılış yakınlaştırması 8 (yama)
 Onay: 2026-10-06 kullanıcı: "askeri havalimanlarını kaldır haritadan." (kapsamın yalnız harita olması, `?havalimani=` davranışı, uçak listesinin üsleri kullanmaya devam etmesi ve ülke adlarının engelleri orkestratör varsayılanıdır, itiraz edilebilir; yama sürümü, D-082)
 
-Hedef sürüm yayın adımında belirlenir (dal `p1/map-no-military`, `main` `8a7a5ea` = v0.21.1'den). Karar D-103'tedir.
+Sürüm v0.22.1 (dal `p1/map-no-military`, `main` `8a7a5ea` = v0.21.1'den; v0.22.0'ın dalı birleştirildi). Kararlar D-103 ve D-104'tedir.
 
 **Kapsam:**
 - **Harita:** beş askerî hava üssünün (D-084: İncirlik, Afyon, Bandırma, Eskişehir, Çiğli) pini, kodu, penceresi ve "Havalimanları" listesinde satırı yok. `?havalimani=<üs>` haritayı yine üssün yerinde açar, pencere açılmaz.
@@ -1280,7 +1283,7 @@ Hedef sürüm yayın adımında belirlenir (dal `p1/map-no-military`, `main` `8a
 
 **Dosyalar:**
 - `apps/web/src/components/map/camera.ts` (`INITIAL_MAX_ZOOM` 8, `INITIAL_BOUNDS`); test `map-controller.test.ts` (1280×720, 1920×1080, 1915×910 → 8; kutu 1920×1080 görünümünü kapsar); `e2e/tests/live-map.spec.ts` (açıklama)
-- `packages/shared/src/reference/airport-names.ts` (`MILITARY_AIRFIELD_ICAOS`, `isMilitaryAirfield`, `mapShownAirports`: haritada gösterilenlerin tek kuralı, web haritası ve ülke adlarının engelleri ortak kullanır); test `reference.test.ts`
+- `packages/shared/src/reference/military-airfields.ts` (`MILITARY_AIRFIELD_ICAOS`, `isMilitaryAirfield`, `mapShownAirports`: haritada gösterilenlerin tek kuralı; ad tablolarını içe aktarmaz, web haritası ve ülke adlarının engelleri ortak kullanır); test `reference.test.ts`
 - `apps/web/src/components/map/airport-data.ts` (`airportLinkCenter`), `live-map.tsx` (harita, pencere ve liste haritadaki listeden; uçak listesi ve `?havalimani=` bütün listeden); test `airport-data.test.ts`
 - `tools/src/country-labels/airport-pins.ts` (`mapAirportPins` = listenin `mapShownAirports`'u), `cli.ts` (tablo haritadaki pinlerle; `airports` yine bütün liste), `placement.ts` (üretilen dosyanın açıklaması); testler `airport-pins.test.ts`, `placement.test.ts`
 - `packages/shared/src/map/country-label-placements.ts` (yeniden üretildi), `country-labels.ts` (açıklama: engeller haritadaki havalimanları); test `country-labels.test.ts`
@@ -1294,11 +1297,180 @@ Hedef sürüm yayın adımında belirlenir (dal `p1/map-no-military`, `main` `8a
 - `pnpm exec playwright test -c e2e/playwright.config.ts e2e/tests/live-map.spec.ts e2e/tests/airports.spec.ts e2e/tests/weather.spec.ts` → `?havalimani=LTBL` Çiğli'de açar, listede yalnız ADB, pencere yok; Çiğli'nin yerinde pin ve kod yok, tıklanmaz; ADB'nin pini ve kodu var, pini pencereyi açar; istasyon sayfaları ve hava durumu değişmedi
 - `pnpm ci:full` yeşil; PR'da CI (`e2e` dahil) yeşil
 
-**Çıktı kaydı, ilk sürüm (2026-10-06, `10ae037`; sürüm, changelog ve README yayın adımındadır):**
+**Çıktı kaydı (2026-10-06; sürüm, changelog ve README yayın adımındadır):**
 - `pnpm country-labels` → 2,7 sn (Node 24.16.0, ICU 78.3), 498 havalimanı pini; dört bileşimde 56 ad, hiç sığmayan BH LU MT; 54 ülke boş yerde, TÜRKİYE kalabalıkta, KIBRIS başkentte. **Değişen tek kayıt TÜRKİYE / TÜRKIYE:** 34,8° D → 33,8° D, 39,4° K (görsel merkez; ilk yakınlaştırmalar aynı: geniş z3,25, dar z3); çakışma 57 / 50 / 57 / 50 → 50 / 44 / 50 / 44 (Türkçe geniş: z3,25'te 13 pin, önce 17; z4'te 6, önce 5; z5'te yine ASR ve NAV'ın 4 kod kutusu). Öbür 58 ülke aynı; görsel merkezde duran adlar 9 → 10; dar ekranda z3,8'de çapa IST'nin ~100 px doğusunda (önce ~120).
 - Birim testleri: `@havayolu/tools` 369 (+1), `@havayolu/shared` 688 (+2; `mapShownAirports` tek kural olarak shared'e taşındıktan sonra), `@havayolu/web` 830 (+3); öbürleri değişmedi (worker 292, api 278, providers 132, i18n 98, db 64, geo 36).
 - `pnpm format`, `pnpm lint` (9/9), `pnpm typecheck` (9/9), `pnpm test` (9/9), `pnpm typecheck:e2e`, `pnpm lint:e2e`, `pnpm check:eol` → yeşil.
 - E2E (yerel, `pnpm dev:replay`, yerel test stili): `live-map.spec.ts`, `airports.spec.ts`, `weather.spec.ts` 68/68 (4 kurulum + 20 + 12 + 32; 2,2 dk). `pnpm ci:full` çalıştırılmadı (yerel Docker altyapısı başka bir iş akışıyla paylaşılıyor). İnceleme düzeltmelerinden sonra (kural shared'e taşındı, belgeler) birim testleri, `format`, `lint`, `typecheck`, `typecheck:e2e`, `lint:e2e` ve `check:eol` yeniden yeşil; e2e yeniden çalıştırılmadı (3100/4100/4200/4300 başka bir iş akışında; e2e dosyaları değişmedi, haritanın davranışı aynı).
+- **Yayın (v0.22.1, 2026-10-06):** dal v0.22.0'ın dalıyla ve `main` (`7cad4dc`) ile birleştirildi (çakışmalar `live-map.tsx` içe aktarımları, D-101 ile D-103'ün sırası ve data-sources.md "Listelenen havalimanları" maddesi; birleşik hâlde tablo yeniden üretildi, değişmedi). Açılış yakınlaştırması 8 (D-104). Birim testleri: web 852, shared 703, tools 369, worker 294, api 284, providers 135, i18n 99, db 71, geo 36. Entegrasyon: db 107, api 31, worker 17, tools 14; migration yükseltmesi 8 → 8; `compose:guard` tamam. E2E 128/128: ilk koşuda 127 (tek hata, v0.22.0'ın `releasedAt`'ı henüz yazılmadığı için changelog testi), değer yazılınca `changelog.spec.ts` 7/7. `pnpm ci:local` yeşil. Yerel önizleme 1915×910: sürüm 0.22.1; görünümdeki havalimanları IST, ISL, SAW, TEQ, KCO (kullanıcının ekran görüntüsündeki alan). `pnpm stats`: 678 dosya, 140.980 satır (kod 129.889).
+- **Paket boyutu (D-103):** `mapShownAirports` ad tablosunun modülündeyken tablolar haritanın ilk paketine dönmüştü (4. halka dalının ölçümü); kural `military-airfields.ts`'e taşındı. `/` ilk paketi 1.166.525 → 1.129.643 B (v0.22.0: 1.129.270 B); `/havalimanlari` ve istasyon sayfası v0.22.0 ile aynı. Test `lazy-chunks.test.ts`.
+- **PR #37 CI (D-105):** ilk koşuda `checks` kırıldı: `apps/api` hava durumu testi 5 sn sınırını aştı (CI'da 5.754 ms, yerelde 52 ms); kök neden tek turbo çağrısında testlerin tsc, ESLint ve Next derlemesiyle aynı çekirdekleri paylaşmasıydı. CI'da testler ayrı adımda, aynı anda en çok iki paket koşar; yerelde bu adım 20,5 sn, 9/9 paket yeşil.
+
+## M6e.13 — Askerî üsler sitenin hiçbir yerinde yok (yama)
+Onay: 2026-10-06 kullanıcı (v0.22.1 yayına çıktıktan sonra): "önceliğin askeri havalimanlarını kaldırmak olsun.!" D-103'ün "itiraz edilebilir" varsayılanına (yalnız harita) itiraz olarak okundu; öncelikli yama (D-082). Uzaklık referansı seçimi (b) orkestratörün ölçümünün önerisidir (itiraz edilebilir).
+
+Sürüm v0.22.2 (dal `p1/no-military-site`, `main` `7a9309e` = v0.22.1'den). Karar D-107'dedir.
+
+**Kapsam:**
+- **Tek kural, sunucuda:** `@havayolu/db` `listedEntries` ve `turkishReferencePoints` beş askerî üssü (D-084: LTAG, LTAH, LTBG, LTBI, LTBL; kanonik ICAO ile) atlar. API'nin bütün liste, tek havalimanı ve hava durumu uçları, sayfalar, site haritası, llms.txt, harita, uçak listesinin konumu ve worker'ın hava durumu istasyonları bunu izler. İçe aktarım değişmedi (satırlar veritabanında kalır), migration yok.
+- **Sayılar (fixture):** Türkiye 61 → 56, listelenen 503 → 498; dizine eklenen sayfalar (498), site haritası (1.006 adres) ve ülke adı tablosu değişmedi.
+- **Sayfalar:** `/istasyon/<üs ICAO ya da IATA>` iki dilde 404 (yönlenme yok); 14 sayfanın "En yakın havalimanları"nda, 4 sayfanın aynı il cümlesinde üs yok; Atina, Sakız, Kalamata'nın en yakın Türkiye havalimanı İzmir Adnan Menderes (284, 89, 472 km), Mitiga'nınki Gökçeada (1.386 km).
+- **Metinler (TR/EN):** `/havalimanlari` kapsam cümlesi "askerî hava üsleri ve bazı küçük havalimanları listelenmez"; ad kaynağı ipucundaki ve `/hakkinda` kaynak satırındaki üs cümlesi kalktı.
+- **Harita:** `mapShownAirports` savunma süzgeci olarak kaldı ve sadeleşti: liste yüklenirken bir kez süzülür; pin, pencere, liste, `?havalimani=` ve uçak listesi aynı listeyi kullanır. `?havalimani=<üs>` artık açılış görünümünde açar.
+- **Uzaklık referansı:** 66 → 61 nokta; halka üyeliği 0 değişiklik, `nearestTr` 4 değişiklik (D-107).
+- Sürüm, `entries.ts`, `CHANGELOG.md` ve README yayın adımındadır.
+
+**Dosyalar:**
+- `packages/db/src/airports.ts` (`MILITARY_AIRFIELD_ICAOS`, `listedEntries`, `turkishReferencePoints`, açıklamalar); testler `airports.test.ts` (kural, fixture 1.217 / 498 / 56, halka kararlılığı ve dört `nearestTr` değişikliği), `airports.int.test.ts` (beklentiler)
+- `packages/shared/src/reference/military-airfields.ts` (açıklama: D-107, savunma süzgeci, fixture denetimi), `airport-names.ts` (beş `military` kaydı, `military` ad kaynağı ve yardımcısı silindi; gözden geçirme düzeltmesi); testler `reference.test.ts` (tablo 56; tablo + `MILITARY_AIRFIELD_ICAOS` = fixture'ın 61 satırı), `names.test.ts` (56 / 503), `foreign.test.ts` (halka analizi ve küçük alan listesi üssüz referansla)
+- `apps/api/src/reference/airports.ts` (OpenAPI açıklaması), `weather.ts` (açıklama); testler `rings.test.ts` (iki paketin listesi aynı, db her kimlik biçiminde üssü listelemez), `airports.test.ts`, `airports.int.test.ts`, `airport-details.int.test.ts`, `weather.int.test.ts`
+- `apps/worker/src/jobs/jobs.int.test.ts` (498 istasyon, üs yok)
+- `apps/web/src/components/map/live-map.tsx` (liste yüklenirken bir kez süzülür), `airport-data.ts`, `lib/airports.ts`, `lib/map/flight-phase.ts`, `app/istasyon/[icao]/page.tsx` (açıklamalar), `lib/test/ourairports-fixture.ts` (test yardımcısı üsleri listeden ve referanstan çıkarır); testler `airports.test.ts`, `airport-view.test.ts`, `airport-text.test.ts`, `airport-data.test.ts`, `airport-popup-model.test.ts`, `labels.test.ts`, `sitemap.test.ts`, `llms.txt/route.test.ts`
+- `packages/i18n/src/messages/tr.ts`, `en.ts` (`airports.scope`, `airports.names`, `about.sources.names`; `airport.nameSource.military` silindi)
+- `apps/web/src/components/airports/airport-metadata.ts` (yeni: istasyon sayfasının üst verisi `page.tsx`'ten taşındı) ve testi `airport-metadata.test.ts` (iki dilde `noindex, follow` ve `index`)
+- `tools/src/country-labels/airport-pins.ts`, `cli.ts` (açıklamalar); test `airport-pins.test.ts` (liste 498, harita pinleri listenin kendisi)
+- `e2e/support.ts` (`AIRPORT_COUNT` 56, `LISTED_AIRPORT_COUNT` 498, `MILITARY_AIRFIELDS`; `NON_INDEXABLE_AIRPORT` kalktı), `e2e/tests/airports.spec.ts`, `seo.spec.ts`, `live-map.spec.ts`, `foreign-airports.spec.ts`
+- Belgeler: D-107 (ve D-103, D-084, D-080, D-088, D-090, D-076 işaretleri), `docs/spec/domain.md` (uçak listesinin Eskişehir/Çiğli bilinen sınırı dahil), `docs/spec/data-sources.md` (498 istasyonla AWC istek düzeni), `docs/RUNBOOK.md` (istek sayıları ve NOAA e-postası), `docs/ACTIVATION.md` (v0.22.2 doğrulaması; v0.22.1 satırının 3. maddesi ve "Ülke adlarının engelleri"), `docs/REFERENCES.md`, `ATTRIBUTION.md`, `.claude/rules/web-ui.md`, `tools/README.md`, `tools/fixtures/README.md`
+
+**Kabul komutları:**
+- `pnpm format`, `pnpm lint`, `pnpm typecheck`, `pnpm typecheck:scripts`, `pnpm test`, `pnpm typecheck:e2e`, `pnpm lint:e2e`, `pnpm check:eol`, `pnpm db:check` → yeşil
+- `pnpm country-labels` (çevrimdışı) → 498 havalimanı pini, tablo commit'lenenle aynı (fark yok)
+- `pnpm ci:full` (entegrasyon ve e2e) → CI'da; PR'da `checks`, `test-integration` ve `e2e` yeşil
+
+**Çıktı kaydı (2026-10-06; sürüm, changelog ve README yayın adımındadır):**
+- `pnpm format`, `pnpm lint` (9/9), `pnpm typecheck` (9/9), `pnpm typecheck:scripts`, `pnpm typecheck:e2e`, `pnpm lint:e2e`, `pnpm check:eol` ("Satır sonları LF"), `pnpm db:check` ("Şema ve migration'lar tutarlı") → yeşil.
+- `pnpm test` (9/9): web 865 (+12), api 285 (+1), db 73 (+2), shared 703, tools 369, worker 294, providers 135, i18n 99, geo 36.
+- `pnpm country-labels` → 2,6 sn (Node 24.16.0, ICU 78.3), 498 airport pins; TR kalabalık (çakışma 50, 44, 50, 44, değişmedi); `country-label-placements.ts` değişmedi. `tsx tools/src/country-labels/cli.ts airports` → 498 satır, beş üsten hiçbiri yok.
+- Entegrasyon testlerinin (db, api, worker) ve e2e'nin beklentileri güncellendi; bu oturumda çalıştırılmadı (Docker, yerel veritabanı ve 3100/4100 portları kullanılmadı): CI'da `test-integration` ve `e2e` doğrular.
+
+**Çıktı kaydı (2026-10-06, gözden geçirme düzeltmeleri):**
+- Üslerin adları istemci JS'inden çıktı: `AIRPORT_NAMES`'in beş `military` kaydı, `military` ad kaynağı ve i18n metni silindi (D-107 "Ad tablosu"). `next build`'in (`pnpm ci:local`) `.next/static/chunks/*.js` dosyalarında "Hava Üssü", "İncirlik", "Incirlik", "Çiğli" ve "Air Base" yok; sivil adlar iki parçada (pencere ve liste) duruyor. Sunucu tarafında adlar yalnız changelog parçasında (`/yenilikler`'in v0.14.0 ve v0.22.1 notları) kalır.
+- İstasyon sayfasının `noindex, follow` bağlantısı birim testinde (`airport-metadata.test.ts`, iki dil; `index: true`'ya çevrilince 2 test kırılır, denendi).
+- Belgeler: 503 → 498 istasyonla AWC istek düzeni (METAR 80 × 6 + 18, TAF 200 + 200 + 98, 24 saatlik doldurma 83 istek; olağan 7 + 3 istek değişmez) data-sources §5, RUNBOOK ve kod açıklamalarında; Eskişehir/Çiğli tahmini durum sınırı domain.md ve D-107'de; kapsama raporunun üs satırlarına bağımlılığı D-107'de; D-103'ün "Seçilmeyenler (c)" işareti.
+- `pnpm ci:local` (format, check:eol, changelog:check, typecheck:scripts, typecheck:e2e, lint:e2e, db:check, test:scripts 39, turbo lint + typecheck + test + build 31/31) → yeşil. Testler: web 869 (+4), shared 703, api 285, tools 369, worker 294, providers 135, i18n 99, db 73, geo 36. `pnpm country-labels` → tablo değişmedi.
+
+**Çıktı kaydı (2026-10-06, yayın v0.22.2):**
+- `pnpm ci:full` yeşil: birim web 869, shared 703, tools 369, worker 294, api 285, providers 135, i18n 99, db 73, geo 36; entegrasyon db 107, api 31, worker 17, tools 14; `compose:guard` tamam; migration yükseltmesi 8 → 8; e2e 129/129 (3,9 dk).
+- Yerel önizleme (`pnpm dev:replay`): sürüm 0.22.2; `/istasyon/LTBL`, `/istasyon/IGL`, `/istasyon/LTBI`, `/en/istasyon/LTAG` 404; `/havalimanlari` Türkiye tablosu 56, Türkiye dışı 442 satır, sayfada üs adı ve kodu yok; Atina'nın "Türkiye’deki en yakın havalimanı" satırı "İzmir Adnan Menderes Havalimanı (ADB), 284 km".
+- `pnpm stats`: 681 dosya, 141.609 satır (kod 130.402).
+
+## M6e.14 — Haritada havalimanı araması (yama)
+Onay: 2026-10-06 kullanıcı: "sol üst kısımdaki arama kutusundan havalimanı da aranabilsin." ve "ilk sıraya askeri üsler sonra havalimanı aramayı al." (D-107 önce). Tasarım ayrıntıları orkestratörün iki tasarım karşılaştırmasının varsayılanıdır (itiraz edilebilir).
+
+Sürüm v0.22.3 (dal `p1/map-airport-search`, `main` `7a9309e` = v0.22.1'den; `p1/no-military-site` ve PR #38'in birleşmesinden sonra `origin/main` `8f72873` = v0.22.2 birleştirildi). Karar D-108'dedir.
+
+**Kapsam:**
+- **Yazarken öneri:** arama kutusu ARIA 1.2 combobox'ıdır; havalimanı kodu, adı (TR/EN), il, şehir ya da ülkesiyle en çok 8 havalimanı önerir (ağ isteği yok). Büyük-küçük harf, Türkçe harf, aksan ve noktalama yok sayılır; dolgu sözcükleri sayılmaz; yalnız sözcük başı eşleşir. Askerî hava üsleri bulunmaz.
+- **Enter ya da "Ara":** uçak araması da yapılır; tek uçak seçilir, tam kodlu havalimanı ya da en az 4 harfli sorguyla (dolgu sözcükleri sayılmaz) adla eşleşen tek havalimanı doğrudan açılır, öbür sonuçlarda "Havalimanları" ve "Uçaklar" gruplu liste, ikisi de yoksa açıklayıcı metin (D-108 → "Sonuç kuralları").
+- **Seçim:** pine tıklamakla aynı (harita en az z10, pencere, adres değişmez); pencere kapanınca odak kutuya döner.
+- **Türkçe klavye:** uçak aramasında İ→I, ı→i ve tire çeşitleri; Türkçe harfli sorgu uçak aramaz.
+- **İlk yükleme (D-101):** ad tabloları `/`'nin ilk paketine girmez; dizin kurucusu ayrı parçadadır (pencere ve panelle ortak tembel giriş), harita hazır olunca boşta istenir ve liste gelince boşta kurulur, kutu odaklanınca da istenir; yüklenemezse yalnız kodla arama.
+- Sürüm, `entries.ts`, `CHANGELOG.md` ve README yayın adımındadır.
+
+**Dosyalar:**
+- `packages/shared/src/reference/airport-search.ts` (yeni, saf motor; hiçbir şey içe aktarmaz), `airport-search-places.ts` (yeni, yalnız aranan ek adlar), `index.ts`; test `airport-search.test.ts`
+- `apps/web/src/components/map/panels/airport-search-index.ts` (yeni, tembel dizin kurucusu), `search-box-model.ts` (yeni, ilk paketteki saf mantık), `search-box.tsx` (combobox, `SearchResultsList`, `preloadAirportSearch`, `prebuildAirportSearch`), `index.ts`, `airport-list-control.tsx` (ortak tembel giriş); testler `airport-search-index.test.ts`, `search-box-model.test.ts`, `panels.test.ts`
+- `apps/web/src/components/map/airport-lazy.ts` (yeni, pencere, panel ve dizinin ortak tembel girişi), `chunk-fallback.tsx` (`withImportFallback`), `live-map.tsx` (`showAirport`, üçüncü boşta önceden isteme, dizinin boşta kurulumu), `lazy-chunks.test.ts`; `apps/web/src/app/globals.css` (sonuç listesi)
+- `packages/i18n/src/messages/tr.ts`, `en.ts` (`map.search`), `i18n.test.ts`
+- `e2e/support.ts` (`searchInput`), `e2e/tests/map-search.spec.ts` (yeni), `live-map.spec.ts`, `weather.spec.ts` (combobox, yeni etiket)
+- Belgeler: D-108, `docs/spec/domain.md` ("Haritada arama"), `docs/ACTIVATION.md` (v0.22.3 doğrulaması)
+
+**Kabul komutları:**
+- `pnpm format`, `pnpm lint`, `pnpm typecheck`, `pnpm test`, `pnpm typecheck:e2e`, `pnpm lint:e2e`, `pnpm check:eol` → yeşil
+- `pnpm --filter @havayolu/web build` → `/` ilk yükleme gzip artışı ≤ 4.096 B; ilk yükleme parçalarında "Thessaloniki Macedonia" ve "Kapadokya Airport" yok; boşta yüklenen parçalar ≤ +16 KB
+- `pnpm ci:full` (entegrasyon ve e2e) → CI'da; PR'da `checks`, `test-integration` ve `e2e` yeşil
+
+**Çıktı kaydı (2026-10-07; sürüm, changelog ve README yayın adımındadır):**
+- `pnpm format`, `pnpm lint` (9/9), `pnpm typecheck` (9/9), `pnpm typecheck:e2e`, `pnpm lint:e2e`, `pnpm check:eol` ("Satır sonları LF") → yeşil.
+- `pnpm test` (9/9): web 910 (+41), shared 719 (+16), tools 369, worker 294, api 285, providers 135, i18n 99, db 73, geo 36.
+- `/` ilk yükleme (route-bundle-stats, gzip 9): 286.776 → 289.010 B (+2.234 B), 15 parça; `first-load.mjs` 326.296 → 328.530 B (+2.234 B). Ad tablosu işaretleri ilk yükleme parçalarında yok. `/havalimanlari` 246.507 B ve `/istasyon/[icao]` 263.280 B değişmedi.
+- Boşta yüklenen parçalar (pencere, panel, arama): 31.273 → 44.612 B gzip (+13.339 B). Arama: motor ve kurucu 1.952 B + pencereyle ortak ad tablosu parçası 16.700 B; tablolar üçüncü kez kopyalanmadı.
+- Süre ve bellek (Node 24, masaüstü): 498 havalimanında dizin ~10 ms, ~127 KB; sentetik 3.500'de 42–60 ms, ~640–770 KB; sorgu ("ist", "istanbul sabiha", "yunanistan") 498'de ~0,2 ms, 3.500'de < 1 ms.
+- e2e ve entegrasyon bu oturumda çalıştırılmadı; CI doğrular.
+
+**İnceleme düzeltmeleri (2026-10-07, aynı sürüm):** klavyedeki etkin seçenek listenin görünen alanına kaydırılır; havalimanı satırının adı `aria-label` (e2e ad eşleşmeleri "IST , …" yüzünden tutmazdı); durum satırı listenin altında; Escape ve odağın formdan çıkması "Ara"dayken de listeyi kapatır, "Ara"dan açılan listede odak kutuya döner; dokunmayla seçim ve gönderim telefon klavyesini kapatır (pencere kapanınca klavye açılmaz); yarım yazılmış dolgu sözcüğü ("antalya hava") listeyi boşaltmaz; tek başına 3 İngilizce harf (havayolu kodu) ad, yer ve ülke sözcüğüne yalnız tam uyar ("THY" Sfaks Thyna'yı bulmaz; aynı gün geri alındı, aşağıda "Enter kuralı"); ülke basamağı 3 harf (boşluk sayılmaz); "Adana" → Çukurova, "Antep", "Urfa", "Maraş", "Afyon", "İzmit", "Fethiye", "Turkey"; bulunamadı metnine kapsama cümlesi; liste yüklenmemişken uçak olamayan sorguda hata metni; ipucu "Sefer, tescil, havalimanı" / "Flight, reg., airport" (320 px'te sığar); pencere, panel ve arama tek tembel girişten (`airport-lazy.ts`); dizin harita hazır olunca boşta kurulur.
+- `pnpm format`, `pnpm lint` (9/9), `pnpm typecheck` (9/9), `pnpm typecheck:e2e`, `pnpm lint:e2e`, `pnpm typecheck:scripts`, `pnpm check:eol` → yeşil.
+- `pnpm test` (9/9): web 917, shared 722, tools 369, worker 294, api 285, providers 135, i18n 99, db 73, geo 36.
+- `/` ilk yükleme: 286.776 → 288.961 B gzip (+2.185 B); `first-load.mjs` 326.296 → 328.481 B. `/havalimanlari` 246.323 B, `/istasyon/[icao]` 262.830 B. Boşta yüklenen parçalar 31.273 → 28.348 B gzip, tek parça grubu (ilk taslak 44.612 B).
+- Süre (Node 24, masaüstü, yeni süreç): ilk kurulum 498'de ~34 ms, 3.500'de ~75 ms; tuş başına 3.500'de ortanca 0,86 ms, p95 1,75 ms.
+- e2e (yeni adımlar: uzun listede kaydırma, "Ara"dan klavye, telefonda dokunma, 320 px ipucu) ve entegrasyon bu oturumda çalıştırılmadı; CI doğrular.
+
+**Enter kuralı (2026-10-07, aynı sürüm; orkestratör kararı):** inceleme düzeltmesindeki "tek başına 3 İngilizce harf yalnız tam sözcük" kuralı yazarken öneriyi kötüleştiriyordu ("sab" Sabiha Gökçen'i ancak "sabi"de, "gok" hiçbir şeyi bulmuyordu); geri alındı. 3 harfli sorgu yine bütün basamaklarla aranır ("sab", "gok", "ant"; "THY" öneride Sfaks Thyna'yı verir). Asıl risk (Enter'ın haritayı Sfaks Thyna'ya uçurması) gönderim kuralıyla karşılandı: havalimanı yalnız tam kodla ya da en az 4 harfli sorguyla tek eşleşmede doğrudan açılır; öbür durumlarda liste (tek havalimanında "Bir havalimanı bulundu; açmak için seç."); tek uçak yalnız havalimanı eşleşmesi yokken doğrudan seçilir ("anka" + tek ANKA… çağrı kodu artık liste). D-108, `docs/spec/domain.md`, ACTIVATION v0.22.3 (6) güncellendi.
+- `pnpm format`, `pnpm lint` (9/9), `pnpm typecheck` (9/9), `pnpm typecheck:e2e`, `pnpm lint:e2e`, `pnpm check:eol` → yeşil.
+- `pnpm test` (9/9): web 922 (+5), shared 722, tools 369, worker 294, api 285, providers 135, i18n 99, db 73, geo 36.
+- e2e'ye "THY" ve "gok" + Enter adımı eklendi (liste açık, Sfaks Thyna ve Sabiha Gökçen penceresi açılmaz); bu oturumda çalıştırılmadı, CI doğrular.
+
+**Enter kuralının inceleme düzeltmeleri (2026-10-07, aynı sürüm):**
+- **Harfler aranan sorgunundur:** 4 harf sınırı ham sorgunun harflerini sayıyordu; "THY airport", "thy havalimanı", "THY h", "THY a" ve "gok hava" Enter'da Sfaks Thyna'yı ve Sabiha Gökçen'i açıyordu (motor yalnız "thy" ya da "gok" aramıştı). Motor artık aradığı sorgunun harf sayısını sonuçla döndürür (`searchAirportIndex` → `queryLetters`: dolgu sözcükleri ve yedekte atılan yarım dolgu sözcüğü sayılmaz); arama kutusu bununla sayar (`AirportSearchResult.queryLetters`; ilk paket motoru içe aktarmaz). "esenboğa hav" ve "gokcen" yine açar.
+- **Ülke adıyla tek eşleşme açılmaz:** "turkish", "turkish air" ve "turkis" ("Turkish Airlines" yazılırken) yalnız Ercan'ı (KKTC'nin İngilizce uzun adı "Turkish Republic of Northern Cyprus") ülke basamağında buluyor ve Enter haritayı Kuzey Kıbrıs'a uçuruyordu; artık tek satırlık liste. "KKTC" ve "lebanon" da tek satırlık liste (kabul edildi; "lefkoşa" ve "ECN" açar).
+- **Tam kod yalnız İngilizce harf ve rakamdır:** kod anahtarı katlanmış metinden kuruluyordu; "küt" (Kütahya) KUT'a katlanıp Kutaisi'yi tam kod olarak öneriyor ve Enter'da açıyordu ("buş" Batum'u, "haş" Hail'i). Artık kırpılmış, boşluksuz, yalnız İ/ı'sı dönüşmüş sorgu `[A-Za-z0-9]{3,4}` ise koddur (yalnız kodla aramanın kuralı); "küt" Zafer'i ve Kutaisi'yi adın başıyla listeler, "İST" yine IST'dir.
+- **Ek adlar:** "Sabiha Gökçen" → SAW (bütün adları "İstanbul" ile başladığı için "sab" Sebzevar ve Sebha'nın altında, "sa" ilk 8 satırın dışındaydı; artık ikisinde de ilk) ve "Cappadocia" → Kapadokya (NAV; "capp" ve "cappadocia" hiçbir şey bulmuyordu).
+- **Belgeler:** D-108 (Alanlar, Basamaklar, Sonuç kuralları 2, Belirsiz durumlar: "anka" Esenboğa, Etimesgut ve uçak; Ölçüm'deki kaldırılmış kod alanı notu silindi; Bilinen sınırlar), `docs/spec/domain.md`, ACTIVATION v0.22.3 (6) ve (7), `submitOutcome`'un kural yorumu.
+- `pnpm format`, `pnpm format:check`, `pnpm lint` (9/9), `pnpm typecheck` (9/9), `pnpm typecheck:e2e`, `pnpm lint:e2e`, `pnpm typecheck:scripts`, `pnpm check:eol` → yeşil.
+- `pnpm test` (9/9): web 925 (+3), shared 724 (+2), tools 369, worker 294, api 285, providers 135, i18n 99, db 73, geo 36.
+- e2e'nin Enter adımına "THY airport" (SFA) ve "turkish" (ECN; Ercan penceresi açılmaz) eklendi; bu oturumda çalıştırılmadı, CI doğrular.
+
+**Çıktı kaydı (2026-10-07, yayın v0.22.3):**
+- `pnpm ci:full` yeşil: birim web 925, shared 724, tools 369, worker 294, api 285, providers 135, i18n 99, db 73, geo 36; entegrasyon db 107, api 31, worker 17, tools 14; `compose:guard` tamam; migration yükseltmesi 8 → 8; e2e 134/134 (4,2 dk; `map-search.spec.ts` dahil).
+- Yerel önizleme (`pnpm dev:replay`, 1280×800): sürüm 0.22.3; "sab" → SAW (İstanbul Sabiha Gökçen), AFZ, SEB, "Eşleşen havalimanı: 3."; ok tuşu ve Enter ile SAW seçilince harita Sabiha Gökçen'e gitti, havalimanı penceresi açıldı (hava durumu, pistler, yerel saat).
+- `pnpm stats`: 690 dosya, 145.262 satır (kod 133.918).
+
+## M6e.12 — Global konumlandırma (yama)
+Onay: 2026-10-06 kullanıcı: "Türkiye semalarındaki uçakların canlı konumu olmasın. Türkiye canlı uçak harita vs olmasın başlık. uluslararası bir site gibi yap. önceliğimiz istanbul havalimanı ok ama site global olmalı. Türkiye ile sınırlama." Seçimler: metinler şimdi yama sürümüyle, dünya geneli canlı veri ayrı kilometre taşı; Türkçe kökte, `/en` ikizleri ve adresler değişmez (D-076). Sıra: "glabal metinleri halkaların önüne al. halkalar peşpeşe gelsin." (M6e.12 → M6i.2 → M6j → M7c). Yapı seçimleri orkestratör varsayılanıdır (D-106; itiraz edilebilir).
+
+Sürüm geçici olarak v0.22.3 (dal `p1/map-global-copy`, `main` `7a9309e` = v0.22.1'den açıldı; `p1/no-military-site` v0.22.2 olarak birleşti (PR #38) ve 2026-10-07'de bu dala merge commit ile alındı; `p1/map-airport-search` (D-108) de v0.22.3'ü tutar ve kullanıcının sırasında önce birleşir). Birleştirmede `origin/main`'deki ilk boş PATCH alınır: arama önce birleşirse v0.22.4. Karar D-106.
+
+**Kapsam:**
+- **Konumlandırma metinleri:** ana sayfanın başlığı ve açıklaması (manifest, JSON-LD WebSite ve Organization, llms.txt özeti aynı anahtardan), varsayılan açıklama, paylaşım görselinin alt başlığı, Hakkında girişi (İstanbul Havalimanı öncelikli), kullanım koşullarının "Hizmet" maddesi (yürürlük tarihi yayın günü, aşağıda). Hiçbiri ülke adı taşımaz, dünya geneli vaat etmez.
+- **Kapsama dürüstlüğü:** "Türkiye odaklıdır" yerine "Canlı uçak verisi şimdilik yalnızca Türkiye ve çevresinden çekilir"; Hakkında → Yöntem'in kapsama cümlesi, `/havalimanlari` kapsama notu, llms.txt'te ayrı satır. Liste kuralı "Şimdilik …" ile başlar.
+- **`/havalimanlari`:** ikinci bölüm "Diğer ülkelerdeki havalimanları"; "Türkiye’ye uzaklık" sütunu ve dipnotu yok; SEO başlığı "Havalimanları: IATA ve ICAO kodları, pistler"; özet ve açıklamada tek toplam sayı, binlik ayraçlı.
+- **Yurt dışı havalimanı sayfası:** "Türkiye’deki en yakın havalimanı" satırı yok; "En yakın havalimanları" listesi kalır.
+- **Havalimanı sayfasının başlığı** (gözden geçirme): açıklama gibi kapsama planına bakar; alanın dışındaki havalimanı "{ad} ({IATA}/{ICAO}): pistler ve havalimanı bilgileri" alır (`seo.airport.titleOutside`), alanın içindekinin başlığı değişmez.
+- **Paylaşım görseli** (gözden geçirme): `og:image` adresi içerikten sürümlü, `/og/site?v=<8 hane>` (`lib/seo/og-site-content.ts`); sosyal ağlar eski kartı adresinden tanımaz.
+- **Saat:** yayın saati Türkçede de "(UTC+3)"; `/durum` kontrol zamanı UTC, etiketli.
+- **Yol haritası:** "Diğer ülkelerdeki havalimanları, 2. halka / 3. halka".
+- **Değişmeyenler:** adresler, API (`ring`, `distanceToTrKm`, `nearestTr`), halka kuralı, IST açılışı, hava durumunun saat yedeği ("Türkiye saati", M6j'ye kaldı).
+- **Yayın adımında** (ayrı `chore: release` commit'i): sürüm (`origin/main`'deki ilk boş PATCH), `entries.ts`, `CHANGELOG.md`, README sürüm rozeti, durum satırları (⏳ → ✅ ve sürüm) ve satır sayısı; **kullanım koşullarının yürürlük tarihi** (`apps/web/src/lib/terms.ts` → `TERMS_EFFECTIVE_DATE` ve `terms-content.test.ts`'in iki beklentisi) bu sürümün `entries.ts` tarihiyle aynı gün (İstanbul takvimi, yayın günü; gelecek bir gün değil, e2e `lastmod`'un bugünden sonra olmadığını denetler); bir önceki sürümün `releasedAt`'ı ve tarihi önceki yayın adımında yazılmadıysa (v0.22.2: Release 2026-10-07T14:31:41Z, tarih 2026-10-07) o da yazılır.
+
+**Dosyalar:**
+- `packages/i18n/src/messages/{tr,en}.ts` (metinler; silinen anahtarlar `seo.airports.descriptionWithForeign`, `airports.summaryWithForeign`, `airports.columns.distanceToTr`, `airports.foreign.distanceNote`, `airports.foreign.distance`, `airport.facts.nearestTr*`), `packages/i18n/src/index.ts` (`formatReleaseTime` iki dilde UTC farkı); test `i18n.test.ts` (UTC+3; konumlandırma metinleri ülke adı ve dünya geneli taşımaz, açıklama 70–170)
+- `apps/web/src/components/airports/airport-text.ts` (`formatCount`), `airports-view.tsx` (toplam sayı, uzaklık sütunu yok), `airport-view.tsx` (Türkiye'ye göre satır yok), `apps/web/src/lib/airports.ts` (`nearestTurkishAirport` silindi), `apps/web/src/app/havalimanlari/page.tsx` (açıklama), `apps/web/src/lib/seo/llms.ts` (kapsama satırı, Türkiye başlığı, uzaklık yok), `apps/web/src/lib/terms.ts` (2026-10-06), `apps/web/src/app/durum/page.tsx` (UTC), `apps/web/src/components/changelog/release-time.ts`, `about/about-content.tsx`, `globals.css` (açıklamalar)
+- Testler: `airport-view.test.ts`, `airport-text.test.ts`, `airports.test.ts`, `about-content.test.ts`, `changelog-content.test.ts`, `terms-content.test.ts`, `llms.txt/route.test.ts`
+- `packages/shared/src/roadmap.ts` (M6g, M6h adları)
+- e2e (CI'da): `seo.spec.ts`, `foreign-airports.spec.ts`, `airports.spec.ts`, `changelog.spec.ts`
+- Belgeler: D-106 (ve D-101, D-091, D-088, D-080'e işaret satırları), `docs/spec/domain.md` ("v1 sınırları"), `docs/ACTIVATION.md` (yayın doğrulaması, CLAUDE.md onayı), `README.md` (giriş cümleleri, durum satırı), `ATTRIBUTION.md` (METAR cümlesi), bu plan
+
+**Kabul komutları:**
+- `pnpm format`, `pnpm lint`, `pnpm typecheck`, `pnpm test`, `pnpm typecheck:e2e`, `pnpm lint:e2e`, `pnpm check:eol`
+- `pnpm ci:local` (derleme dahil), `pnpm stats`
+- Metin taraması: `packages/i18n/src/messages/*.ts`'te "odaklı", "focused on Türkiye", "Türkiye dışındaki", "outside Türkiye", "Türkiye’ye uzaklık", "Distance to Türkiye", "semalarındaki" geçmez (açıklamalar hariç); `nearestTurkishAirport` hiçbir yerde geçmez
+- e2e, `test:integration` ve `ci:full` CI'da; PR'da CI (`e2e` dahil) yeşil
+
+**Çıktı kaydı (2026-10-06; sürüm, changelog, README rozeti ve satır sayısı yayın adımındadır):**
+- `pnpm ci:local` → yeşil (format:check, check:eol, changelog:check, typecheck:scripts, typecheck:e2e, lint:e2e, db:check, test:scripts 39; turbo lint, typecheck, test, build 31/31).
+- Birim testleri: `@havayolu/web` 849 (−5 +2: kalkan "Türkiye’deki en yakın havalimanı" satırının testleri silindi; `formatCount` ve "yurt dışı sayfasında Türkiye’ye göre satır yok" eklendi), `@havayolu/i18n` 100 (+1: konumlandırma metinleri); öbürleri değişmedi (shared 703, tools 369, worker 294, api 284, providers 135, db 71, geo 36).
+- Açıklama uzunlukları: ana sayfa TR 160, EN 155; `/havalimanlari` 503 havalimanıyla TR 148, EN 152 (1.222 ile 150 / 154).
+- Metin taraması: `packages/i18n/src/messages/*.ts`’te yasak ifadeler yalnız açıklamalarda (4 satır, "Türkiye dışındaki"); `nearestTurkishAirport` hiçbir yerde yok.
+- `pnpm stats` → 679 dosya, 140.897 satır, 129.722 kod satırı.
+- e2e (`seo`, `foreign-airports`, `airports`, `changelog`) yerelde çalıştırılmadı; CI'nin `e2e` işinde doğrulanır.
+
+**Çıktı kaydı (2026-10-07, `main` birleştirmesi ve gözden geçirme düzeltmeleri):**
+- **`origin/main` (v0.22.2, D-107) birleştirildi** (merge commit, rebase yok). Dokuz çakışma D-106 lehine çözüldü: yurt dışı sayfalarında "Türkiye’deki en yakın havalimanı" satırı yine yok; D-107'nin o satırı denetleyen testleri veri denetimine çevrildi (web birim: fixture'da LGAV/LGHI/LGKL → LTBJ 284/89/472 km, HLLM → LTFK 1.386 km, hiçbir `nearestTr` üs değil; e2e: `/v1/airports/LGAV` → `nearestTr.icao` LTBJ, `distanceToTrKm` 284). Türkiye sayıları 61 → 56; liste özetinin beklentisi sabit sayı yerine fixture'dan (`LISTED.length`, 498). ACTIVATION'da v0.22.2 satırının (3)'teki LGAV maddesi bu yamadan sonra geçersiz işaretlendi (API ile denetim komutu yazıldı).
+- **Havalimanı başlığı kapsamaya bakar:** `airportTitle(airport, locale, covered)`; `airportPageMetadata` kapsamayı bir kez hesaplayıp başlığa ve açıklamaya verir. Testler: `airport-text.test.ts` (fixture'daki her havalimanı alanın dışındaysa başlıkta "canlı/live" yok; Viyana ve Hakkari Yüksekova beklentileri), `airport-metadata.test.ts` (iki dilde LTFM "canlı hava trafiği", LOWW değil; og:title aynı), e2e `foreign-airports.spec.ts` (`/istasyon/LOWW` ve `/en/istasyon/LOWW` `<title>` ve og:title).
+- **Metin düzeltmeleri:** Hakkında → Yöntem kapsama cümlesi "bu alanın dışındaki uçakların çoğu haritada görünmez" / "most aircraft outside it do not appear on the map" (takip listesi P1 alanın dışında da çeker; domain.md "v1 sınırları" aynı); liste cümlesi "Türkiye’nin IATA kodlu havalimanları ile diğer ülkelerin, …" / "airports in Türkiye with an IATA code and, in other countries, …"; `airports.foreign.scope` EN "includes". D-106'nın korunan alt dizgileri ("uzaklığı en fazla 2.000 km olan", "at most 2,000 km from the nearest airport in Türkiye.") değişmedi.
+- **Paylaşım görseli:** `og:image` `/og/site?v=<8 hane>`; sürüm ad, alan adı ve iki dildeki kısa tanımdan (`SITE_OG_DESIGN_REVISION` 1). Testler `og-site-content.test.ts` (aynı içerik aynı sürüm, her alan sürümü değiştirir), `metadata.test.ts` (sayfanın adresi rotanın içeriğiyle aynı sürüm).
+- **`/durum`:** kontrol zamanı `lib/status-time.ts` → `formatCheckedAt` (birim testi: iki dil ve İstanbul'da ertesi güne düşen 22:30 UTC).
+- **Belgeler:** D-106 (sıra kullanıcının kaydıyla, başlık, paylaşım görseli, "Türkiye saati" cümlesi, yürürlük tarihi, bilinen sınırlar), D-107'ye D-106 notu, D-101 işareti, `.claude/rules/web-ui.md`, domain.md, ACTIVATION (global metinler satırı; v0.22.2 satırı), README durum satırları ⏳ (sürüm yayında kesinleşir); `airport-view.tsx` prop açıklaması.
+- `pnpm format`, `pnpm lint` (9/9), `pnpm typecheck` (9/9), `pnpm test` (9/9), `pnpm typecheck:e2e`, `pnpm lint:e2e`, `pnpm check:eol` ("Satır sonları LF"), `pnpm changelog:check` ("v0.22.2"), `pnpm format:check` → yeşil. Birim testleri: web 875 (birleşik ağaçta 867; +8: başlık 1, havalimanı üst verisi 2, paylaşım görseli 3, `/durum` 2), i18n 100, shared 703, tools 369, worker 294, api 285, providers 135, db 73, geo 36.
+- Açıklama uzunlukları: `/havalimanlari` 498 havalimanıyla TR 148, EN 152 (503 ile aynı hane sayısı).
+- `pnpm stats` → 685 dosya, 141.729 satır, 130.432 kod satırı (README'deki sayı yayın adımında güncellenir).
+- e2e, `test:integration`, `ci:local`'in derlemesi ve `ci:full` bu oturumda çalıştırılmadı (Docker ve 3100/4100/4200/4300 kullanılmadı); CI doğrular.
+
+**Çıktı kaydı (2026-10-07, yayın v0.22.4):**
+- `pnpm ci:full` yeşil: birim web 931, shared 724, tools 369, worker 294, api 285, providers 135, i18n 100, db 73, geo 36; entegrasyon db 107, api 31, worker 17, tools 14; `compose:guard` tamam; migration yükseltmesi 8 → 8; e2e 134/134 (4,5 dk).
+- Yerel önizleme (`pnpm dev:replay`): sürüm 0.22.4; `/` "Canlı uçuş takibi ve uçak haritası · havayolu", `/en` "Live flight tracker and aircraft map · havayolu"; açıklama "kapsama alanındaki uçakların…"; `/hakkinda` girişi "İstanbul Havalimanı’nı öncelikli izleyen…"; `/havalimanlari` başlıkları "Türkiye’deki havalimanları" ve "Diğer ülkelerdeki havalimanları", açıklama "498 havalimanının…"; `/istasyon/LOWW` başlığı "…: pistler ve havalimanı bilgileri", "Türkiye’deki en yakın havalimanı" satırı yok; `/istasyon/LTFM` başlığı değişmedi.
+- Kullanım koşullarının yürürlük tarihi 2026-10-07 (yayın günü).
+- `pnpm stats`: 694 dosya, 145.432 satır (kod 133.975).
 
 ## M6e.11 — Bütün ülkelerin adları (yama)
 Onay: 2026-10-05 kullanıcı: "havalimanı olmayan ülke isimlerini eklemiyorsun." (kümenin kuralı, tartışmalı bölgelerin yazımı ve Batı Sahra'nın 27°40′ K'de ayrılması, Natural Earth'ten hesaplanan yüzölçümü, fixture'ın uzak ülkelerde 1 km sadeleşmesi, deniz aşırı bölgelerin ayrılması, beş ülkenin elle tutulan adı, RUSYA'nın Avrupa Rusyası'nda tutulması ve Şili, Mozambik, Endonezya'nın orta boyda yazılması orkestratör varsayılanıdır, itiraz edilebilir; yazılmayan küçük yerler için kullanıcı: "boyut iyi"; yama sürümü, D-082)
@@ -1337,7 +1509,7 @@ Hedef sürüm yayın adımında belirlenir (dal `p1/map-all-countries`, `d807f15
 - `pnpm exec playwright test -c e2e/playwright.config.ts e2e/tests/live-map.spec.ts` → Tahran z3'te HİNDİSTAN ve ÇAD, z4'te PAKİSTAN yok; öbür beklentiler aynı
 - `pnpm ci:full` yeşil; PR'da CI (`e2e` dahil) yeşil
 
-**Çıktı kaydı (2026-10-06; sürüm, changelog ve README yayın adımındadır):**
+**Çıktı kaydı, ilk sürüm (2026-10-06, `10ae037`; sürüm, changelog ve README yayın adımındadır):**
 - `pnpm country-labels:fixture` → `244 countries (106 far), 194963 points`; dosya 1.981.336 B (önce 396.118 B: 59 ülke, 39.975 nokta). Her yerde 0,5 km olsa 231.574 nokta, 2.315.462 B olurdu. D-095'in 59 ülkesinden geometrisi değişenler yalnız RU (bütün Rusya) ve AE (64 km²'lik Abu Dabi adası düştü).
 - `pnpm country-labels` → 7.341 ms (Node 24.16.0, ICU 78.3), 498 havalimanı pini; dört bileşimde 164 ad; clear 162, crowded 1 (TR), capital 1 (CY), per-combination 0, hidden 80. 59 ülkeden değişen tek kayıt RUSYA / RUSSIA: [57,51, 61,77, 3] → [107,73, 63,27, 3]. Üretilen modül 12.231 → 45.605 B (gzip 9.893 B); GeoJSON dil ve genişlik başına 164 nokta, ~28 KB.
 - Birim testleri: `@havayolu/tools` 379 (+10), `@havayolu/shared` 704 (+1; `capitals.test.ts` 10 test silindi, `country-label-set.test.ts` 10 eklendi), `@havayolu/web` 852 (sayı aynı, beklentiler güncellendi); öbürleri değişmedi (worker 294, api 284, providers 135, i18n 99, db 71, geo 36). tools'un ülke adı testleri ~20 sn.
@@ -1351,6 +1523,16 @@ Hedef sürüm yayın adımında belirlenir (dal `p1/map-all-countries`, `d807f15
 - Birim testleri: `@havayolu/tools` 382 (+3: Batı Sahra, küçük adalar, Batı Sahra kutuları; uzak ülkeler testi komşu koşulunu da doğrudan denetler), `@havayolu/shared` 707 (+3: elle tutulan adlar ×2, ayraçsız adlar; kademe testi CL, MZ, ID ile), `@havayolu/web` 855 (+3: tembel tablo, ilk paket ×2); öbürleri değişmedi (worker 294, api 284, providers 135, i18n 99, db 71, geo 36).
 - `pnpm format`, `pnpm lint` (9/9), `pnpm typecheck` (9/9), `pnpm test` (9/9), `pnpm typecheck:e2e`, `pnpm lint:e2e`, `pnpm check:eol` → yeşil.
 - E2E çalıştırılmadı: 3100/4100/4200/4300 boştu ama yerel altyapı (Postgres 45432, Redis 46379/46380) dinlemiyordu; bu oturum Docker'ı başlatmaz. Tahran ve 375 px beklentileri değişmedi, tools testinde tablodan doğrulandı (RUSYA'nın yeni yeri Tahran z3 tuvalinin dışında). Yayın adımının `ci:full`'unda çalışır.
+
+**Çıktı kaydı, v0.22.4 hattıyla birleştirme (2026-10-07; `p1/map-global-copy` `b8a717d` = v0.22.4, `--no-ff`; sürüm, changelog ve README yayın adımındadır):**
+- **Çakışmalar ve çözümleri:** `packages/shared/src/reference/index.ts` (dal `capitals`'ı kaldırıp `country-label-set`'i, `main` `airport-search`, `airport-search-places` ve `military-airfields`'ı ekledi: hepsi, `capitals` yok; `capitals.ts`'i kullanan başka kod yok); `docs/DECISIONS.md` (en yeni üstte: D-108 2026-10-07, sonra 2026-10-06'nın kayıtları commit saatine göre D-106, D-107, **D-100**, D-105, D-104; D-100'e "Engeller (D-103, D-107)" maddesi ve aramanın elle tutulan adları araması eklendi); `docs/ACTIVATION.md` (M6e.9 satırı dalınki, "Ülke adlarının engelleri" `main`'inki (498, üssüz), v0.22.1–v0.22.4 satırları, en sonda M6e.11); `docs/plans/parca-1.md` (tablo: `main`'in M6e.10, M6e.13, M6e.14, M6e.12 satırları, sonra M6e.11; bölümler: M6e.10'un yayın notları, M6e.13, M6e.14, M6e.12, sonra M6e.11); `docs/spec/domain.md` (üs maddesi D-107'ninki; ülke adları maddesi dalınki, engeller `main`'in 498/üssüz cümlesiyle, D-107 eklendi); `docs/spec/data-sources.md` §5c (dalın metni, engel cümlesi `main`'inki: 56 + 442, `mapShownAirports` bir şey çıkarmaz); `ATTRIBUTION.md` (dalın Natural Earth ve CLDR maddeleri, `main`'in NOAA cümlesi); `tools/README.md` ve `tools/fixtures/README.md` (dalın metni, `main`'in 498/üssüz sayılarıyla). Kendiliğinden birleşenler: `lazy-chunks.test.ts` (`main`'in D-101/D-103/D-108 korumaları ve dalın D-100 tablo/nokta koruması ayrı `describe`'larda), `tools/src/country-labels/airport-pins.ts`/`cli.ts`/`airport-pins.test.ts` (dalın 180. meridyen kopyaları ve alanlar, `main`'in 498'lik liste metinleri), `e2e/tests/live-map.spec.ts`, `foreign.test.ts`.
+- **Dalın kendi hatası düzeltildi:** dalın inceleme commit'i (`70754db`) "Çıktı kaydı, ilk sürüm (… `10ae037` …)" başlığını M6e.10'un çıktı kaydına yazmıştı (aynı başlık metni iki bölümde vardı); başlık M6e.11'e taşındı, M6e.10'unki eski hâline döndü. `e2e/tests/live-map.spec.ts`'in baş açıklamasındaki "`?havalimani=` yine oraya gider (D-103)" D-107'ye göre düzeltildi (yalnız açıklama).
+- **Yeniden üretim:** `pnpm country-labels` → 7.620 ms (Node 24.16.0, ICU 78.3), 498 havalimanı pini; dört bileşimde 164 ad; clear 162, crowded 1 (TR), capital 1 (CY), per-combination 0, hidden 80; tablo commit'lenenle bayt bayt aynı (`git diff` boş: engeller D-103'te de D-107'de de aynı 498 pin). `pnpm country-labels:fixture` → `244 countries (106 far), 199104 points`, fixture bayt bayt aynı (SHA-256 `be6ba16c…`). Sabitler, tools testleri ve `e2e/country-label-expectations.ts` değişmedi.
+- **Arama ve elle tutulan adlar (D-108 × D-100):** dizinin ülke basamağı `airportCountryName`'in iki dilini arar; halka 3'te CD, CG, CI, MM ve SJ'de listelenen havalimanı yoktur (fixture'da 4. halkada CI 3, CG 2, CD 14; MM ve SJ hiç). Yeni test (`airport-search-index.test.ts`, 4. halka adaylarıyla): "Fildişi", "fildisi sahili", "Côte d'Ivoire", "ivoire" yalnız ABJ/BYK/HGO; "Kongo", "Congo" iki Kongo'nun hepsi; "Kongo Demokratik", "Democratic Republic" yalnız CD; "Kinshasa" FIH, "Brazzaville" BZV (şehirden); satırın yeri elle tutulan adla, " - " yok. Bilinen: CLDR'ın eski adlarındaki "Kinşasa", "Brazavil" ve "Burma" artık ülke basamağında aranmaz (Türkçe şehir adları 4. halkada henüz yok: "Kinşasa" bir şey bulmaz; M6i.2'de şehir adlarıyla gelir).
+- Birim testleri (`pnpm test`, 9/9): web 935 (+1: elle tutulan adlarla arama), shared 728, tools 382, worker 294, api 285, providers 135, i18n 100, db 73, geo 36.
+- `pnpm format`, `pnpm lint` (9/9), `pnpm typecheck` (9/9), `pnpm typecheck:scripts`, `pnpm typecheck:e2e`, `pnpm lint:e2e`, `pnpm check:eol`, `pnpm db:check`, `pnpm changelog:check` (v0.22.4; sürüm yayın adımında) → yeşil.
+- `pnpm --filter @havayolu/web build` (Next 16.3.6 Turbopack): `first-load.mjs` `/` 16 dosya, 1.132.010 B (gzip 328.206 B), `/havalimanlari` 283.809 B, `/istasyon/[icao]` 301.827 B gzip; `route-bundle-stats.json` `/` 15 parça, 1.019.416 B (gzip 288.686 B), haritasız yollar (`/hakkinda`, `/havalimanlari`, `/admin`) 11 parça, 894.795 B (gzip 244.289 B). Tembel parçalar ilk yüklemede değil: ülke adı tablosu 35.127 B (gzip 8.680 B), havalimanı ad tabloları ve arama dizini tek parçada (`airport-lazy.ts`) 66.572 B (gzip 22.309 B).
+- E2E bu oturumda çalıştırılmadı (iş akışı kuralı: Playwright ve port açan komut yok); yayın adımının `ci:full`'unda çalışır.
 
 ## M6h — 3. halka (v0.18.0)
 Onay: 2026-10-04 kullanıcı isteği "sonraki işlerden birine bir halka daha ekle" ve kapalı havalimanı kararı (2022'den beri sivil uçuşa kapalı olduğu hâlde OurAirports'ta tarifeli görünen havalimanları listede kalır, sayfada ve pencerede "Sivil uçuşlara kapalı olabilir (2022’den beri)" notu); diğer seçimler M6h araştırmasının önerileri (orkestratör varsayılanı 2026-10-04)

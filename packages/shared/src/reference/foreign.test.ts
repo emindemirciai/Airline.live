@@ -23,6 +23,7 @@ import {
   isEnabledAirportRing,
   isCanonicalIcao,
   isForeignCandidate,
+  isMilitaryAirfield,
   isScheduledIataAirport,
   OURAIRPORTS_ICAO_CORRECTIONS,
   ourAirportsIcao,
@@ -83,11 +84,15 @@ const position = (r: Map<string, string>) => ({
   lon: Number(r.get('longitude_deg')),
 })
 
-/** Halka analizinin kuralı: Türkiye'deki IATA kodlu her havalimanı uzaklık referansıdır. */
+/**
+ * Halka analizinin kuralı: Türkiye'deki IATA kodlu her havalimanı uzaklık referansıdır; askerî hava
+ * üsleri hariç (D-107, `@havayolu/db` `turkishReferencePoints`): 56 listelenen ve 5 küçük alan.
+ */
 const turkishRows = rows
   .filter((r) => r.get('iso_country') === 'TR')
   .filter((r) => LISTABLE.includes(r.get('type') ?? ''))
   .filter((r) => IATA.test((r.get('iata_code') ?? '').trim().toUpperCase()))
+  .filter((r) => !isMilitaryAirfield(icaoOf(r)))
 const turkish = turkishRows.map(position)
 /**
  * Halka analizinin adayları: D-080 kuralı, ICAO koşulu olmadan (`isScheduledIataAirport`; fixture

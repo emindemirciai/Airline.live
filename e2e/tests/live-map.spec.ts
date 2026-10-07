@@ -4,12 +4,12 @@
 // seçili uçağın etiketi ve simgesi listenin altında kalmaz → arama (her yerdeki) uçağı bulur →
 // /?hex= ile doğrudan açılış aynı uçağı seçer → etiket ayarı (uçaklar, havalimanları ve ülke adları,
 // D-084, D-095) cihazda saklanır → askerî hava üslerinin pini, kodu ve liste satırı yoktur,
-// `?havalimani=` yine oraya gider (D-103) → ülke adları uzaklaşınca sınırlarının içinde, pinlerden
-// uzak boş yerde yazılır (D-096, D-099), havalimanı olmayan ülkeler de (D-100), yakınlaşınca
-// silinir. Tablo, haritanın erişilebilir karşılığıdır; testler uçakları WebGL tuvalinden değil
-// tablodan okur. Havalimanı kutuları ve seçili etiket etiket tuvalinin piksellerinden okunur
-// (`e2e/label-canvas.ts`); ülke adları haritanın `data-country-labels` niteliğinden ve WebGL
-// tuvalinin ekran görüntüsünden (`e2e/map-pixels.ts`).
+// `?havalimani=<üs>` bilinmeyen kod gibidir (D-103, D-107) → ülke adları uzaklaşınca sınırlarının
+// içinde, pinlerden uzak boş yerde yazılır (D-096, D-099), havalimanı olmayan ülkeler de (D-100),
+// yakınlaşınca silinir. Tablo, haritanın erişilebilir karşılığıdır; testler uçakları WebGL
+// tuvalinden değil tablodan okur. Havalimanı kutuları ve seçili etiket etiket tuvalinin
+// piksellerinden okunur (`e2e/label-canvas.ts`); ülke adları haritanın `data-country-labels`
+// niteliğinden ve WebGL tuvalinin ekran görüntüsünden (`e2e/map-pixels.ts`).
 import { expect, test, type Locator, type Page } from '@playwright/test'
 import { IKA_PIN_Z5, IRAN_Z5_BOX, TEHRAN_COUNTRY_LABELS } from '../country-label-expectations'
 import {
@@ -40,6 +40,7 @@ import {
   openMap,
   PRIMARY_AIRPORT,
   REPLAY_AIRCRAFT,
+  searchInput,
   TAXI_AIRCRAFT,
   waitForMap,
   WEB_URL,
@@ -334,8 +335,7 @@ test('tablo satırı klavyeyle seçilebilir', async ({ page }) => {
 
 test('arama çağrı kodunu bulur ve uçağı seçer', async ({ page }) => {
   await openMap(page)
-  const search = page.getByRole('search')
-  const input = search.getByRole('searchbox')
+  const input = searchInput(page)
   await input.fill(callsign)
   await input.press('Enter')
 
@@ -345,8 +345,7 @@ test('arama çağrı kodunu bulur ve uçağı seçer', async ({ page }) => {
 
 test('bulunamayan uçak için açıklayıcı metin çıkar', async ({ page }) => {
   await openMap(page)
-  const search = page.getByRole('search')
-  const input = search.getByRole('searchbox')
+  const input = searchInput(page)
   await input.fill(MISSING_CALLSIGN)
   await input.press('Enter')
 
@@ -522,31 +521,41 @@ function mercatorOffset(
   return { x: ((to.lon - from.lon) / 360) * world, y: y(to.lat) - y(from.lat) }
 }
 
-test.describe('askerî hava üsleri haritada yok (D-103)', () => {
+test.describe('askerî hava üsleri haritada yok (D-103, D-107)', () => {
   // MapLibre `prefers-reduced-motion`'da kamera geçişlerini anında yapar: `?havalimani=` uçuşu ve
   // klavyeyle uzaklaştırma beklemesiz ve kesindir (her basış tam bir kademe). Harita yüksek: z10'da
-  // Çiğli ortadayken ADB (27 km güneydoğuda, ~410 px aşağıda) görünümün içindedir.
+  // ADB ortadayken Çiğli (27 km kuzeybatıda, ~410 px yukarıda) görünümün içindedir.
   test.use({ reducedMotion: 'reduce', viewport: { width: 1280, height: 1100 } })
 
-  test('?havalimani=LTBL Çiğli’de açar, pencere açılmaz; Çiğli’nin pini, kodu ve liste satırı yok, ADB’ninki var', async ({
+  test('?havalimani=LTBL bilinmeyen kod gibidir (harita IST’de açılır); İzmir’de Çiğli’nin pini, kodu ve liste satırı yok, ADB’ninki var', async ({
     page,
   }) => {
     const base = MILITARY_AIRFIELD
     const civil = MILITARY_AIRFIELD_NEIGHBOUR
     const popup = page.locator('.live-map [role="dialog"].map-popup')
-    // Tek sayfa yüklemesi (`WS_RATE_LIMIT`).
+    // İki sayfa yüklemesi (her biri bir WebSocket el sıkışması, `WS_RATE_LIMIT`).
+    // 1. Üs listede yoktur (D-107): `?havalimani=LTBL` haritayı oraya götürmez, açılış görünümü
+    // (IST/LTFM, D-079) kalır; pencere açılmaz.
     await page.goto(`/?havalimani=${base.icao}`)
     await waitForMap(page)
-    // Kamera üsse gitti (z10): görünümdeki tek havalimanı ADB; Çiğli (IGL) listede yok. `?havalimani=`
-    // hiçbir havalimanında pencere açmaz.
+    await expect
+      .poll(async () => (await airportListCodes(page))[0], { timeout: 30_000 })
+      .toBe(PRIMARY_AIRPORT.iata)
+    expect(await airportListCodes(page)).not.toContain(base.iata)
+    await expect(popup).toHaveCount(0)
+
+    // 2. İzmir: `?havalimani=LTBJ` ADB'de z10'da açar; görünümde Çiğli'nin yeri de var ama listede
+    // yalnız ADB vardır.
+    await page.goto(`/?havalimani=${civil.icao}`)
+    await waitForMap(page)
     await expect.poll(() => airportListCodes(page), { timeout: 30_000 }).toEqual([civil.iata])
     await expect(popup).toHaveCount(0)
 
-    // z9: ADB'nin pini ortanın ~107 px sağında, ~205 px altında.
+    // z9: ADB'nin pini ortada; Çiğli'nin yeri ~107 px solda, ~205 px yukarıda.
     await zoomOut(page, 1)
-    const tip = await mapCenter(page)
-    const offset = mercatorOffset(base, civil, 9)
-    const civilTip = { x: tip.x + offset.x, y: tip.y + offset.y }
+    const civilTip = await mapCenter(page)
+    const offset = mercatorOffset(civil, base, 9)
+    const tip = { x: civilTip.x + offset.x, y: civilTip.y + offset.y }
     const head = (point: { x: number; y: number }) => ({ x: point.x, y: point.y - 13 })
     await expect(async () => {
       // ADB'nin pini ve kod kutusu (pin başının yanında) çizili.
@@ -558,8 +567,8 @@ test.describe('askerî hava üsleri haritada yok (D-103)', () => {
         30 + chip.width / 2,
       )
     }).toPass({ timeout: 15_000 })
-    // Çiğli'nin yeri (haritanın ortası): pin kırmızısı yok; kodun dört adayının (pin başının sağı,
-    // solu, pinin üstü, noktanın altı) bulunduğu kesitte etiket tuvali boş.
+    // Çiğli'nin yeri: pin kırmızısı yok; kodun dört adayının (pin başının sağı, solu, pinin üstü,
+    // noktanın altı) bulunduğu kesitte etiket tuvali boş.
     await expect(async () => {
       expect((await pinPixels(page, tip)).red).toBe(0)
       expect(
@@ -739,31 +748,45 @@ test.describe('ülke adları (D-095, D-096, D-099, D-100)', () => {
 test.describe('arama kutusunun ipucu kesilmez', () => {
   // İpucu (placeholder) kısa, erişilebilir ad tam metindir (packages/i18n → map.search).
   const COPY = {
-    tr: { path: '/', name: 'Uçak ara: sefer no, çağrı kodu, tescil ya da hex' },
-    en: { path: '/en', name: 'Search aircraft: flight number, callsign, registration or hex' },
+    tr: {
+      path: '/',
+      name: 'Uçak ya da havalimanı ara: sefer no, çağrı kodu, tescil ya da hex; havalimanı kodu, adı ya da şehri',
+    },
+    en: {
+      path: '/en',
+      name: 'Search aircraft or airports: flight number, callsign, registration or hex; airport code, name or city',
+    },
   } as const
 
-  for (const width of [1280, 375]) {
+  // Telefonun iki genişliği tek sayfa yüklemesinde ölçülür (her yükleme bir WebSocket el sıkışması,
+  // `WS_RATE_LIMIT`).
+  for (const widths of [[1280], [375, 320]]) {
     for (const locale of ['tr', 'en'] as const) {
-      test(`${width} px, ${locale}: ipucu kutuya sığar; erişilebilir ad tam`, async ({ page }) => {
-        await page.setViewportSize({ width, height: 812 })
+      test(`${widths.join(' ve ')} px, ${locale}: ipucu kutuya sığar; erişilebilir ad tam`, async ({
+        page,
+      }) => {
+        await page.setViewportSize({ width: widths[0] ?? 1280, height: 812 })
         await page.goto(COPY[locale].path)
-        const input = page.getByRole('search').getByRole('searchbox')
+        const input = searchInput(page)
         await expect(input).toBeVisible()
         await expect(input).toHaveAccessibleName(COPY[locale].name)
         const placeholder = (await input.getAttribute('placeholder')) ?? ''
         expect(placeholder.length).toBeGreaterThan(0)
         await page.evaluate(() => document.fonts.ready)
-        // İpucu, ipucu ile aynı yazı tipindeki metin kutuya sığıyorsa sığar: aynı metin yazılır ve
-        // kutunun kaydırma genişliği ölçülür (tarayıcının iç düzeni, temizle düğmesi yeri dahil).
-        // M6d ilk sürümü: "…tescil ya da he" (1280) ve "…tescil ya" (375) kesiliyordu.
-        await input.fill(placeholder)
-        const overflow = await input.evaluate(
-          (element) => element.scrollWidth - element.clientWidth,
-        )
-        expect(overflow, placeholder).toBeLessThanOrEqual(0)
-        await input.fill('')
-        await expect(input).toHaveAttribute('placeholder', placeholder)
+        for (const width of widths) {
+          await page.setViewportSize({ width, height: 812 })
+          // İpucu, ipucu ile aynı yazı tipindeki metin kutuya sığıyorsa sığar: aynı metin yazılır ve
+          // kutunun kaydırma genişliği ölçülür (tarayıcının iç düzeni, temizle düğmesi yeri dahil).
+          // M6d ilk sürümü: "…tescil ya da he" (1280) ve "…tescil ya" (375) kesiliyordu; v0.22.3'ün
+          // ilk ipucu "Sefer no, tescil, havalimanı" 320 px'te kesiliyordu.
+          await input.fill(placeholder)
+          const overflow = await input.evaluate(
+            (element) => element.scrollWidth - element.clientWidth,
+          )
+          expect(overflow, `${width} px: ${placeholder}`).toBeLessThanOrEqual(0)
+          await input.fill('')
+          await expect(input).toHaveAttribute('placeholder', placeholder)
+        }
       })
     }
   }
@@ -777,7 +800,7 @@ test.describe('telefon genişliği', () => {
   }) => {
     await openMap(page)
     expect((await airportListCodes(page))[0]).toBe(PRIMARY_AIRPORT.iata)
-    await expect(page.getByRole('search').getByRole('searchbox')).toBeVisible()
+    await expect(searchInput(page)).toBeVisible()
     const attribution = page.locator('.maplibregl-ctrl-attrib')
     await expect(attribution).toBeVisible()
     // Künye şeridin başında; zorunlu atıflar ve Koşullar ekranın içinde kalır (D-089).

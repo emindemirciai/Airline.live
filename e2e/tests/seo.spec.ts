@@ -4,8 +4,9 @@
 //   mutlak canonical, karşılıklı tr/en/x-default hreflang (x-default İngilizce), hepsi `<head>` içinde
 //   (GPTBot User-Agent'ıyla da; `htmlLimitedBots`); ayrıştırılabilir JSON-LD sayfa gövdesindedir
 //   (`<main>`; React satır içi JSON-LD betiğini `<head>`'e taşımaz)
-// - noindex kuralları: /durum, tarifesiz askerî hava üssü, admin; sorgulu
-//   adreslerin canonical'ı sorgusuzdur
+// - noindex kuralları: /durum, admin; askerî hava üsleri 404 (D-107; istasyon sayfasının noindex
+//   bağlantısı birim testindedir: airport-metadata.test.ts); sorgulu adreslerin canonical'ı
+//   sorgusuzdur
 // - kök dosyalar: robots.txt, sitemap.xml, llms.txt, manifest, ikonlar, OG görselleri
 // - X-Robots-Tag: web'in /api/* yolları ve API host'unun bütün yanıtları
 import { expect, test, type APIRequestContext } from '@playwright/test'
@@ -32,7 +33,7 @@ import {
   GPTBOT_USER_AGENT,
   INDEXABLE_LISTED_AIRPORT_COUNT,
   KKTC_AIRPORT,
-  NON_INDEXABLE_AIRPORT,
+  MILITARY_AIRFIELDS,
   PRIMARY_AIRPORT,
   REPLAY_AIRCRAFT,
   RING1_AIRPORT,
@@ -79,16 +80,16 @@ const PUBLIC_PAGES: PublicPage[] = [
   {
     path: '/',
     title: {
-      tr: exactTitle(`Türkiye canlı uçak haritası ve uçuş takibi${SUFFIX}`),
-      en: exactTitle(`Live flight tracker and aircraft map for Türkiye${SUFFIX}`),
+      tr: exactTitle(`Canlı uçuş takibi ve uçak haritası${SUFFIX}`),
+      en: exactTitle(`Live flight tracker and aircraft map${SUFFIX}`),
     },
     jsonLd: ['WebSite', 'Organization'],
   },
   {
     path: '/havalimanlari',
     title: {
-      tr: /^Türkiye['’]deki havalimanları: IATA ve ICAO kodları · havayolu$/,
-      en: exactTitle(`Airports in Türkiye: IATA and ICAO codes${SUFFIX}`),
+      tr: exactTitle(`Havalimanları: IATA ve ICAO kodları, pistler${SUFFIX}`),
+      en: exactTitle(`Airports: IATA and ICAO codes, runways${SUFFIX}`),
     },
     jsonLd: ['CollectionPage', 'ItemList', 'BreadcrumbList'],
   },
@@ -285,17 +286,17 @@ test.describe('noindex ve canonical kuralları', () => {
     }
   })
 
-  test('tarifesiz askerî hava üssünün sayfası açılır ama noindex, follow', async ({ request }) => {
-    for (const path of [
-      `/istasyon/${NON_INDEXABLE_AIRPORT.icao}`,
-      enPath(`/istasyon/${NON_INDEXABLE_AIRPORT.icao}`),
-    ]) {
-      const { response, body } = await fetchRaw(request, path)
-      expect(response.status(), path).toBe(200)
-      const robots = directives(metaContents(body, 'robots'))
-      expect(robots, path).toContain('noindex')
-      expect(robots, path).toContain('follow')
-      expect(robots, path).not.toContain('nofollow')
+  test('askerî hava üslerinin sayfası yok (D-107): ICAO ve IATA adresleri iki dilde 404, yönlenme yok', async ({
+    request,
+  }) => {
+    for (const { icao, iata } of MILITARY_AIRFIELDS) {
+      for (const code of [icao, iata, icao.toLowerCase()]) {
+        for (const path of [`/istasyon/${code}`, enPath(`/istasyon/${code}`)]) {
+          const { response } = await fetchRaw(request, path)
+          expect(response.status(), path).toBe(404)
+          expect(response.headers().location, path).toBeUndefined()
+        }
+      }
     }
   })
 
@@ -382,8 +383,11 @@ test.describe('kök dosyalar', () => {
     for (const excluded of [
       '/durum',
       '/en/durum',
-      `/istasyon/${NON_INDEXABLE_AIRPORT.icao}`,
-      enPath(`/istasyon/${NON_INDEXABLE_AIRPORT.icao}`),
+      // Askerî hava üsleri (D-107).
+      ...MILITARY_AIRFIELDS.flatMap(({ icao }) => [
+        `/istasyon/${icao}`,
+        enPath(`/istasyon/${icao}`),
+      ]),
       // Fixture'da olup listelenmeyen uzak havalimanı (D-080).
       `/istasyon/${UNLISTED_FOREIGN_AIRPORT.icao}`,
     ]) {
@@ -438,7 +442,7 @@ test.describe('kök dosyalar', () => {
     expect(again.body, 'iki istek arasında değişmez').toBe(body)
   })
 
-  test('llms.txt: mutlak bağlantılar, indekslenen her havalimanı için bir satır; Türkiye dışındakiler ayrı', async ({
+  test('llms.txt: mutlak bağlantılar, indekslenen her havalimanı için bir satır; diğer ülkelerdekiler ayrı', async ({
     request,
   }) => {
     const { response, body } = await fetchRaw(request, '/llms.txt')
@@ -469,17 +473,17 @@ test.describe('kök dosyalar', () => {
     )
     expect(icaos.size).toBe(INDEXABLE_LISTED_AIRPORT_COUNT)
     expect(icaos.has(PRIMARY_AIRPORT.icao)).toBe(true)
-    expect(icaos.has(NON_INDEXABLE_AIRPORT.icao)).toBe(false)
+    for (const { icao } of MILITARY_AIRFIELDS) expect(icaos.has(icao), icao).toBe(false)
     expect(icaos.has(UNLISTED_FOREIGN_AIRPORT.icao)).toBe(false)
-    // Türkiye dışındakiler ayrı bir bölümdedir (D-080): başlık Türkiye listesinden sonra gelir; Atina
-    // (1. halka), Kahire (2. halka) ve Viyana (3. halka) satırları o bölümdedir. Başlık 2. halkadan
-    // beri "Türkiye dışındaki havalimanları"dır (kullanıcı kararı 2026-10-03, D-088); kapsam 3.
-    // halkadan beri 2.000 km'dir (D-090).
+    // Diğer ülkelerdekiler ayrı bir bölümdedir (D-080): başlık Türkiye listesinden sonra gelir; Atina
+    // (1. halka), Kahire (2. halka) ve Viyana (3. halka) satırları o bölümdedir. Başlık D-106'dan
+    // beri "Diğer ülkelerdeki havalimanları"dır (D-088'de "Türkiye dışındaki"); kapsam 3. halkadan
+    // beri 2.000 km'dir (D-090).
     const lines = body.split('\n')
     const foreignHeading = lines.indexOf(
-      '## Türkiye dışındaki havalimanları / Airports outside Türkiye',
+      '## Diğer ülkelerdeki havalimanları / Airports in other countries',
     )
-    expect(foreignHeading, 'Türkiye dışındakiler başlığı').toBeGreaterThan(0)
+    expect(foreignHeading, 'diğer ülkelerdekiler başlığı').toBeGreaterThan(0)
     expect(body).not.toMatch(/[Yy]akın ülke|neighbouring/)
     expect(body).toContain('uzaklığı en fazla 2.000 km olan')
     expect(body).toContain('at most 2,000 km from the nearest airport in Türkiye')

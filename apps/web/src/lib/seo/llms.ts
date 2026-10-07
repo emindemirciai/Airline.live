@@ -22,8 +22,10 @@ import { airportPath } from './paths'
 /**
  * `/llms.txt` (öneri: https://llmstxt.org/, 2024-09-03). Dil modellerine sitenin kısa özetini ve
  * önemli sayfalarını verir. Metinler sayfalarla aynı kaynaktan gelir (`packages/i18n`: seo, about,
- * nav) ve havalimanı satırları sayfalarla aynı veriden kurulur; ikisi birbirinden ayrışamaz. Yakın
- * ülkelerdeki havalimanları (D-080) ayrı bir bölümde, `/havalimanlari`'daki gibi ülkeye göre sıralıdır.
+ * nav) ve havalimanı satırları sayfalarla aynı veriden kurulur; ikisi birbirinden ayrışamaz. Türkiye'deki
+ * havalimanları kendi başlığı altında, diğer ülkelerdeki havalimanları (D-080, D-106) ayrı bir bölümde,
+ * `/havalimanlari`'daki gibi ülkeye göre sıralıdır; Türkiye'ye uzaklık yazılmaz (D-106). Canlı veri
+ * alanı (Hakkında → Yöntem'in kapsama cümlesi) ayrı satırdır.
  * Google Search bu dosyayı kullanmaz; ucuz ve zararsız olduğu için sunulur (M6b brief §d).
  * `llms-full.txt` ve sayfaların `.md` kopyaları yoktur. E-posta ya da kişisel veri yazılmaz.
  */
@@ -45,7 +47,7 @@ function link(label: string, url: string): string {
   return `[${label.replaceAll('[', '(').replaceAll(']', ')')}](${url})`
 }
 
-/** Yakın ülkelerin hangi havalimanlarının listelendiği ve canlı verinin Türkiye odaklı olduğu. */
+/** Hangi havalimanlarının listelendiği ve diğer ülkelerdekilerin çoğunun canlı veri alanı dışında olduğu. */
 function abroad(t: Messages, locale: Locale): string {
   const { method } = t.about
   const km = listedRadiusKm()
@@ -59,6 +61,7 @@ function facts(t: Messages, locale: Locale): string[] {
   const { shows, limits, privacy, sources } = t.about
   return [
     `- ${shows.map}`,
+    `- ${t.about.method.coverage}`,
     `- ${shows.airports} ${abroad(t, locale)}`,
     `- ${shows.weather} ${format(sources.weather, { source: link('aviationweather.gov', AVIATION_WEATHER_URL) })}`,
     `- ${limits.intro} ${[limits.times, limits.delays, limits.board].join('; ')}.`,
@@ -105,13 +108,8 @@ export function buildLlmsTxt(input: LlmsInput): string {
     const name = `${airportDisplayName(airport, 'tr')} (${airport.iata}/${airport.icao.toUpperCase()})`
     const notes = [
       airportCountry(airport, 'tr'),
-      airport.distanceToTrKm === null
-        ? null
-        : format(tr.airports.foreign.distance, {
-            distance: formatDistance(airport.distanceToTrKm, { locale: 'tr' }),
-          }),
       format(tr.seo.airport.runwaysCount, { count: airport.runways.length }),
-    ].filter((note): note is string => Boolean(note))
+    ]
     const english = `${tr.nav.switchTo}: ${link(airportDisplayName(airport, 'en'), url('en', path))}`
     return `- ${link(name, url('tr', path))}: ${[...notes, english].join('; ')}`
   })
@@ -135,7 +133,9 @@ export function buildLlmsTxt(input: LlmsInput): string {
     `## ${tr.nav.airports} / ${en.nav.airports}`,
     '',
     `- ${pair('/havalimanlari', (t) => t.seo.airports.title)}`,
-    ...airportLines,
+    ...(airportLines.length > 0
+      ? ['', `## ${tr.airports.turkeyHeading} / ${en.airports.turkeyHeading}`, '', ...airportLines]
+      : []),
     '',
     ...(foreignLines.length > 0
       ? [

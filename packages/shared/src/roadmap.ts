@@ -142,8 +142,8 @@ export const ROADMAP: readonly Milestone[] = [
     part: '1',
     status: 'done',
     title: {
-      tr: 'Türkiye dışındaki havalimanları, 2. halka',
-      en: 'Airports outside Türkiye, ring 2',
+      tr: 'Diğer ülkelerdeki havalimanları, 2. halka',
+      en: 'Airports in other countries, ring 2',
     },
   },
   {
@@ -151,8 +151,8 @@ export const ROADMAP: readonly Milestone[] = [
     part: '1',
     status: 'done',
     title: {
-      tr: 'Türkiye dışındaki havalimanları, 3. halka',
-      en: 'Airports outside Türkiye, ring 3',
+      tr: 'Diğer ülkelerdeki havalimanları, 3. halka',
+      en: 'Airports in other countries, ring 3',
     },
   },
   {

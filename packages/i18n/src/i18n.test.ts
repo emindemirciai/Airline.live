@@ -81,6 +81,12 @@ describe('i18n', () => {
     expect(map.search.notFound).toBe(
       'Bu sefer şu an havada görünmüyor ya da farklı bir çağrı koduyla uçuyor; tescil ile arayabilirsin.',
     )
+    // Arama kutusu uçak ve havalimanı arar (D-108); ipucu 320 px'te de kesilmez (e2e ölçer).
+    expect(map.search.label).toBe(
+      'Uçak ya da havalimanı ara: sefer no, çağrı kodu, tescil ya da hex; havalimanı kodu, adı ya da şehri',
+    )
+    expect(map.search.placeholder).toBe('Sefer, tescil, havalimanı')
+    expect(map.search.groupAirports).toBe('Havalimanları')
     expect(map.card.follow).toBe('Uçağı ortala')
     expect(map.status.noProvider).toBe('Canlı veri kaynağı şu an kapalı; haritada uçak görünmüyor.')
     expect(map.status.basemapFailed).toBe('Harita altlığı yüklenemedi.')
@@ -167,23 +173,42 @@ describe('i18n', () => {
     expect(en.map.airportPopup.civilClosure).toBe(en.airport.civilClosure)
   })
 
-  it('yayın anı: İstanbul saatiyle gün, 24 saatlik saat ve dilim etiketi (D-091)', () => {
-    expect(formatReleaseTime('2026-10-04T17:27:12Z', 'tr')).toBe(
-      '4 Ekim 2026, 20:27 (Türkiye saati)',
-    )
+  it('yayın anı: İstanbul saatiyle gün, 24 saatlik saat ve UTC farkı (D-091, D-106)', () => {
+    expect(formatReleaseTime('2026-10-04T17:27:12Z', 'tr')).toBe('4 Ekim 2026, 20:27 (UTC+3)')
     expect(formatReleaseTime('2026-10-04T17:27:12Z', 'en')).toBe('4 October 2026, 20:27 (UTC+3)')
     // Gün de İstanbul takvimindedir: UTC 23:17 ertesi gün 02:17'dir.
-    expect(formatReleaseTime('2026-10-01T23:17:49Z', 'tr')).toBe(
-      '2 Ekim 2026, 02:17 (Türkiye saati)',
-    )
+    expect(formatReleaseTime('2026-10-01T23:17:49Z', 'tr')).toBe('2 Ekim 2026, 02:17 (UTC+3)')
     expect(formatReleaseTime('2026-10-01T23:17:49Z', 'en')).toBe('2 October 2026, 02:17 (UTC+3)')
     // Gece yarısı 00:00 yazılır (24:00 değil); Date ve epoch ms de kabul edilir.
     expect(formatReleaseTime(new Date('2026-09-30T21:00:00Z'), 'tr')).toBe(
-      '1 Ekim 2026, 00:00 (Türkiye saati)',
+      '1 Ekim 2026, 00:00 (UTC+3)',
     )
     expect(formatReleaseTime(Date.UTC(2026, 8, 25, 15, 7, 8), 'en')).toBe(
       '25 September 2026, 18:07 (UTC+3)',
     )
     expect(formatReleaseTime('bozuk', 'tr')).toBe('—')
+  })
+
+  it('konumlandırma metinleri ülke adı taşımaz ve dünya geneli vaat etmez (D-106)', () => {
+    for (const locale of ['tr', 'en'] as const) {
+      const m = getMessages(locale)
+      const positioning = [
+        m.meta.description,
+        m.seo.home.title,
+        m.seo.home.description,
+        m.seo.ogTagline,
+        m.about.intro,
+        m.terms.service.about,
+      ]
+      for (const text of positioning) {
+        expect(text).not.toMatch(/Türkiye|Turkey|Türk/)
+        expect(text).not.toMatch(/dünya|world|global/i)
+      }
+      expect(m.seo.home.description).toContain(
+        locale === 'tr' ? 'kapsama alanındaki' : 'coverage area',
+      )
+      expect(m.seo.home.description.length).toBeGreaterThanOrEqual(70)
+      expect(m.seo.home.description.length).toBeLessThanOrEqual(170)
+    }
   })
 })

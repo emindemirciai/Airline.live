@@ -1,9 +1,9 @@
 /**
  * Ülke adlarının havalimanı engelleri (D-099): listelenen havalimanları üretimin kuralıyla commit'li
- * OurAirports fixture'ından gelir; engeller onlardan askerî hava üsleri çıkarılarak haritada pini
- * çizilenlerdir (D-103); pin ve kod kutuları (pin başının sağında ve solunda) haritanın çizdiği
- * boydadır (sabitler web'in labels.ts'iyle ve kod yazı tipinin dosyasıyla karşılaştırılır); dizinli
- * arama kaba taramayla aynı sonucu verir.
+ * OurAirports fixture'ından gelir (askerî hava üsleri listede yok, D-107); engeller haritada pini
+ * çizilenlerdir (D-103: liste, savunma süzgecinden geçerek); pin ve kod kutuları (pin başının
+ * sağında ve solunda) haritanın çizdiği boydadır (sabitler web'in labels.ts'iyle ve kod yazı
+ * tipinin dosyasıyla karşılaştırılır); dizinli arama kaba taramayla aynı sonucu verir.
  */
 import { readFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
@@ -87,28 +87,27 @@ function bruteHits(box: WorldBox, zoom: number): { count: number; icaos: string[
 }
 
 describe('listelenen havalimanları (D-080, D-099)', () => {
-  it('üretimdeki liste: 503 havalimanı (Türkiye 61, 1. halka 75, 2. halka 89, 3. halka 278), ICAO sırasıyla', () => {
+  it('üretimdeki liste: 498 havalimanı (Türkiye 56, 1. halka 75, 2. halka 89, 3. halka 278), askerî üsler yok (D-107), ICAO sırasıyla', () => {
     // Halka açılınca (M6i) fixture yeni halkanın adaylarıyla genişler ve tablo yeniden üretilir.
     expect(ENABLED_AIRPORT_RING).toBe(3)
-    expect(PINS).toHaveLength(503)
+    expect(PINS).toHaveLength(498)
     const byRing = [0, 1, 2, 3].map((ring) => PINS.filter((pin) => pin.ring === ring).length)
-    expect(byRing).toEqual([61, 75, 89, 278])
+    expect(byRing).toEqual([56, 75, 89, 278])
     const icaos = PINS.map((pin) => pin.icao)
     expect(icaos).toEqual([...icaos].sort())
-    expect(new Set(icaos).size).toBe(503)
+    expect(new Set(icaos).size).toBe(498)
     for (const icao of ['LTFM', 'LTAC', 'OIIE', 'LIMP', 'UUEE', 'HEBA'])
       expect(icaos).toContain(icao)
+    for (const icao of MILITARY_AIRFIELD_ICAOS) expect(icaos).not.toContain(icao)
   })
 
-  it('haritadaki pinler (D-103): liste, beş askerî hava üssü çıkarılarak; 498 havalimanı (Türkiye 56), ICAO sırasıyla', () => {
+  it('haritadaki pinler (D-103, D-107): listenin kendisi; savunma süzgeci (`mapShownAirports`) bir şey çıkarmaz; 498 havalimanı (Türkiye 56)', () => {
     expect(MAP_PINS).toHaveLength(498)
     const byRing = [0, 1, 2, 3].map((ring) => MAP_PINS.filter((pin) => pin.ring === ring).length)
     expect(byRing).toEqual([56, 75, 89, 278])
     const icaos = MAP_PINS.map((pin) => pin.icao)
     expect(icaos).toEqual([...icaos].sort())
-    const removed = PINS.filter((pin) => !icaos.includes(pin.icao)).map((pin) => pin.icao)
-    expect(removed).toEqual(['LTAG', 'LTAH', 'LTBG', 'LTBI', 'LTBL'])
-    expect(removed).toEqual(MILITARY_AIRFIELD_ICAOS)
+    expect(MAP_PINS).toEqual(PINS)
     // Kural web haritasıyla ortaktır (tek yer `@havayolu/shared` `mapShownAirports`).
     expect(MAP_PINS).toEqual(mapShownAirports(PINS))
     // Ankara (Etimesgut) ve yurt dışındaki ortak sivil-askerî havalimanları sivildir, pinleri kalır.
