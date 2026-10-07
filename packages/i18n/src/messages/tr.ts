@@ -846,10 +846,12 @@ export const tr = {
     search: {
       /**
        * Arama kutusunun erişilebilir adı tam metindir; görünen ipucu (`placeholder`) 375 px'lik
-       * telefonda da kesilmeyecek kadar kısadır (e2e live-map.spec.ts ölçer).
+       * telefonda da kesilmeyecek kadar kısadır (e2e live-map.spec.ts ölçer). Kutu uçak ve
+       * havalimanı arar (D-108).
        */
-      label: 'Uçak ara: sefer no, çağrı kodu, tescil ya da hex',
-      placeholder: 'Sefer no, çağrı kodu, tescil, hex',
+      label:
+        'Uçak ya da havalimanı ara: sefer no, çağrı kodu, tescil ya da hex; havalimanı kodu, adı ya da şehri',
+      placeholder: 'Sefer no, tescil, havalimanı',
       submit: 'Ara',
       searching: 'Aranıyor…',
       notFound:
@@ -860,6 +862,20 @@ export const tr = {
       flightNumberNote:
         'Sefer no, uçağın yayınladığı çağrı kodundan çıkarılır. Harfli çağrı kodu kullanan seferler (ör. THY4KN) sefer no ile bulunamaz; çağrı kodu ya da tescille ara.',
       results: 'Arama sonuçları',
+      /** Sonuç listesinin grupları (D-108): önce havalimanları, sonra uçaklar. */
+      groupAirports: 'Havalimanları',
+      groupAircraft: 'Uçaklar',
+      pickAirports: 'Birden fazla havalimanı bulundu; birini seç.',
+      pickMixed: 'Uçak ve havalimanı bulundu; birini seç.',
+      /** Yazarken (son değişiklikten 600 ms sonra) ekran okuyucuya okunan öneri sayısı. */
+      airportCount: 'Eşleşen havalimanı: {n}.',
+      airportCountMore: 'Eşleşen havalimanı: {n}; ilk {shown} tanesi listede, aramayı daralt.',
+      airportNotFound:
+        'Bu adla ya da kodla bir havalimanı bulunamadı. IATA ya da ICAO kodunu, adını ya da şehrini yaz.',
+      airportNote: 'Havalimanı arıyorsan IATA ya da ICAO kodunu, adını ya da şehrini yaz.',
+      aircraftUnavailable: 'Uçak araması şu an yapılamıyor; havalimanı sonuçları listede.',
+      airportNamesUnavailable:
+        'Havalimanı adları yüklenemedi; havalimanını kodla arayabilir ya da sayfayı yenileyebilirsin.',
     },
     card: {
       close: 'Kapat',

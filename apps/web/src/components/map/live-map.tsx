@@ -58,6 +58,7 @@ import {
   SearchBox,
   StatusStrip,
   preloadAirportListPanel,
+  preloadAirportSearch,
 } from './panels'
 import { aircraftPlace } from './panels/aircraft-place'
 import { useAircraftListOpen } from './use-aircraft-list-open'
@@ -253,6 +254,18 @@ export function LiveMap({
   )
   const closeAirport = useCallback(() => setPopupIcao(null), [])
 
+  /**
+   * Aramada seçilen havalimanı (D-108): pine tıklamakla aynı pencere açılır, harita en az z10 ile
+   * oraya uçar. Adres değişmez (`?havalimani=` pencere açmayan giriş bağlantısıdır, D-079, D-103).
+   */
+  const showAirport = useCallback(
+    (airport: MapAirport) => {
+      openAirport(airport.icao)
+      mapRef.current?.flyTo({ lat: airport.lat, lon: airport.lon }, AIRPORT_MIN_ZOOM)
+    },
+    [openAirport],
+  )
+
   /** Arama sonucu ya da paylaşılan bağlantı: uçak depoya eklenir (görünüm dışında olabilir). */
   const showAircraft = useCallback(
     (ac: PublicAircraft) => {
@@ -296,15 +309,17 @@ export function LiveMap({
   }, [])
   const markReady = useCallback(() => setMapReady(true), [])
 
-  // Pencerenin ve "Havalimanları" panelinin parçaları harita hazır olunca (ya da WebGL2 yoksa)
-  // boşta önceden istenir (D-101): ilk paketin dışında kalırlar ama sayfayı veren yayından gelirler
-  // (yayından sonra açık kalan sekmede eski parça istenmez) ve ilk seçim parçayı beklemez.
+  // Pencerenin, "Havalimanları" panelinin ve havalimanı aramasının (D-108) parçaları harita hazır
+  // olunca (ya da WebGL2 yoksa) boşta önceden istenir (D-101): ilk paketin dışında kalırlar ama
+  // sayfayı veren yayından gelirler (yayından sonra açık kalan sekmede eski parça istenmez) ve ilk
+  // seçim parçayı beklemez.
   const mapSettled = webgl === false || mapReady
   useEffect(() => {
     if (!mapSettled) return
     return whenIdle(() => {
       void loadAirportPopup()
       preloadAirportListPanel()
+      preloadAirportSearch()
     })
   }, [mapSettled])
 
@@ -521,8 +536,11 @@ export function LiveMap({
         <div className="live-map__search" data-map-panel="">
           <SearchBox
             apiBaseUrl={config.apiBaseUrl}
+            locale={locale}
+            airports={airports}
             messages={messages.search}
             onFound={showAircraft}
+            onAirportFound={showAirport}
             notice={sharedLink.phase === 'missing' ? messages.search.notFound : null}
           />
         </div>

@@ -40,6 +40,7 @@ import {
   openMap,
   PRIMARY_AIRPORT,
   REPLAY_AIRCRAFT,
+  searchInput,
   TAXI_AIRCRAFT,
   waitForMap,
   WEB_URL,
@@ -334,8 +335,7 @@ test('tablo satırı klavyeyle seçilebilir', async ({ page }) => {
 
 test('arama çağrı kodunu bulur ve uçağı seçer', async ({ page }) => {
   await openMap(page)
-  const search = page.getByRole('search')
-  const input = search.getByRole('searchbox')
+  const input = searchInput(page)
   await input.fill(callsign)
   await input.press('Enter')
 
@@ -345,8 +345,7 @@ test('arama çağrı kodunu bulur ve uçağı seçer', async ({ page }) => {
 
 test('bulunamayan uçak için açıklayıcı metin çıkar', async ({ page }) => {
   await openMap(page)
-  const search = page.getByRole('search')
-  const input = search.getByRole('searchbox')
+  const input = searchInput(page)
   await input.fill(MISSING_CALLSIGN)
   await input.press('Enter')
 
@@ -748,8 +747,14 @@ test.describe('ülke adları (D-095, D-096, D-099)', () => {
 test.describe('arama kutusunun ipucu kesilmez', () => {
   // İpucu (placeholder) kısa, erişilebilir ad tam metindir (packages/i18n → map.search).
   const COPY = {
-    tr: { path: '/', name: 'Uçak ara: sefer no, çağrı kodu, tescil ya da hex' },
-    en: { path: '/en', name: 'Search aircraft: flight number, callsign, registration or hex' },
+    tr: {
+      path: '/',
+      name: 'Uçak ya da havalimanı ara: sefer no, çağrı kodu, tescil ya da hex; havalimanı kodu, adı ya da şehri',
+    },
+    en: {
+      path: '/en',
+      name: 'Search aircraft or airports: flight number, callsign, registration or hex; airport code, name or city',
+    },
   } as const
 
   for (const width of [1280, 375]) {
@@ -757,7 +762,7 @@ test.describe('arama kutusunun ipucu kesilmez', () => {
       test(`${width} px, ${locale}: ipucu kutuya sığar; erişilebilir ad tam`, async ({ page }) => {
         await page.setViewportSize({ width, height: 812 })
         await page.goto(COPY[locale].path)
-        const input = page.getByRole('search').getByRole('searchbox')
+        const input = searchInput(page)
         await expect(input).toBeVisible()
         await expect(input).toHaveAccessibleName(COPY[locale].name)
         const placeholder = (await input.getAttribute('placeholder')) ?? ''
@@ -786,7 +791,7 @@ test.describe('telefon genişliği', () => {
   }) => {
     await openMap(page)
     expect((await airportListCodes(page))[0]).toBe(PRIMARY_AIRPORT.iata)
-    await expect(page.getByRole('search').getByRole('searchbox')).toBeVisible()
+    await expect(searchInput(page)).toBeVisible()
     const attribution = page.locator('.maplibregl-ctrl-attrib')
     await expect(attribution).toBeVisible()
     // Künye şeridin başında; zorunlu atıflar ve Koşullar ekranın içinde kalır (D-089).

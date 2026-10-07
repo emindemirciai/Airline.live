@@ -5,11 +5,13 @@ import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
 import type { TrackedAircraft } from '../../../lib/live/store'
 import type { LabelSettings } from '../../../lib/map/label-settings'
+import type { MapAirport } from '../airport-data'
 import type { AircraftPlaceView } from './aircraft-place'
 import { AircraftTable } from './aircraft-table'
 import { InfoCard } from './info-card'
 import { LabelSettingsControl, LabelSettingsPanel } from './label-settings-control'
-import { SearchBox } from './search-box'
+import { SearchBox, SearchResultsList } from './search-box'
+import { searchOptions, type AirportSearchRow } from './search-box-model'
 import {
   dataAgeSeconds,
   providerHealth,
@@ -371,39 +373,138 @@ describe('StatusStrip', () => {
 })
 
 describe('SearchBox', () => {
-  it('arama alanı: role="search", etiketli searchbox ve gönder düğmesi', () => {
-    const html = renderToStaticMarkup(
-      createElement(SearchBox, {
-        apiBaseUrl: 'http://localhost:4100',
-        messages: tr.search,
-        onFound: noop,
-      }),
-    )
+  const searchBoxProps = {
+    apiBaseUrl: 'http://localhost:4100',
+    locale: 'tr' as const,
+    airports: [],
+    messages: tr.search,
+    onFound: noop,
+    onAirportFound: noop,
+  }
+
+  it('arama alanı: role="search", etiketli combobox (kapalı) ve gönder düğmesi (D-108)', () => {
+    const html = renderToStaticMarkup(createElement(SearchBox, searchBoxProps))
     expect(html).toMatch(/<form role="search"/)
-    const inputId = /<input id="([^"]+)" type="search"/.exec(html)?.[1]
+    const input = /<input [^>]*>/.exec(html)?.[0] ?? ''
+    const inputId = /id="([^"]+)"/.exec(input)?.[1]
     expect(inputId).toBeTruthy()
     expect(html).toContain(
-      `<label for="${inputId}" class="sr-only">Uçak ara: sefer no, çağrı kodu, tescil ya da hex</label>`,
+      `<label for="${inputId}" class="sr-only">Uçak ya da havalimanı ara: sefer no, çağrı kodu, tescil ya da hex; havalimanı kodu, adı ya da şehri</label>`,
     )
+    expect(input).toContain('type="search"')
+    expect(input).toContain('role="combobox"')
+    expect(input).toContain('aria-autocomplete="list"')
+    expect(input).toContain('aria-expanded="false"')
+    // Liste kapalıyken ne denetlenen liste ne etkin seçenek var.
+    expect(input).not.toContain('aria-controls')
+    expect(input).not.toContain('aria-activedescendant')
+    expect(input).toContain('placeholder="Sefer no, tescil, havalimanı"')
     // API sorgu sınırı (SEARCH_QUERY_MAX_LENGTH); HTML öznitelik adı büyük-küçük harf duyarsızdır.
-    expect(html).toMatch(/maxlength="32"/i)
+    expect(input).toMatch(/maxlength="32"/i)
+    expect(input).toMatch(/autocomplete="off"/i)
+    expect(input).toContain(`aria-describedby="`)
     expect(html).toMatch(/<button type="submit"[^>]*>Ara<\/button>/)
     expect(html).toMatch(/aria-live="polite"/)
+    expect(html).not.toContain('role="listbox"')
   })
 
   it('paylaşılan bağlantıdaki uçak bulunamadıysa durum satırında "bulunamadı" metni yazar', () => {
     const html = renderToStaticMarkup(
-      createElement(SearchBox, {
-        apiBaseUrl: 'http://localhost:4100',
-        messages: tr.search,
-        onFound: noop,
-        notice: tr.search.notFound,
-      }),
+      createElement(SearchBox, { ...searchBoxProps, notice: tr.search.notFound }),
     )
     expect(html).toMatch(/<p id="[^"]+" class="map-search__status" aria-live="polite">Bu sefer/)
     expect(tr.search.notFound).toBe(
       'Bu sefer şu an havada görünmüyor ya da farklı bir çağrı koduyla uçuyor; tescil ile arayabilirsin.',
     )
+  })
+})
+
+describe('SearchResultsList (D-108)', () => {
+  const ist = { icao: 'LTFM', iata: 'IST' } as MapAirport
+  const ath = { icao: 'LGAV', iata: 'ATH' } as MapAirport
+  const rows = (locale: 'tr' | 'en'): AirportSearchRow[] => [
+    {
+      airport: ist,
+      code: 'IST',
+      name: locale === 'tr' ? 'İstanbul Havalimanı' : 'Istanbul Airport',
+      place: locale === 'tr' ? 'İstanbul' : 'Istanbul',
+      match: 'code',
+    },
+    // Yalnız kodla aramada (ad parçası yüklenemedi) ad ve yer boştur: yer yerine ICAO.
+    { airport: ath, code: 'ATH', name: '', place: '', match: 'code' },
+  ]
+
+  /** Seçeneğin görünen ve okunan metni (etiketler atılmış). */
+  const optionText = (html: string, id: string) =>
+    new RegExp(`<div id="${id}" role="option"[^>]*>(.*?)</div>`)
+      .exec(html)?.[1]
+      ?.replace(/<[^>]+>/g, '')
+
+  it.each(['tr', 'en'] as const)(
+    'listbox: önce Havalimanları, sonra Uçaklar; kimlikler ve etkin seçenek (%s)',
+    (locale) => {
+      const t = getMessages(locale).map.search
+      const options = searchOptions('list', rows(locale), [THY974])
+      const html = renderToStaticMarkup(
+        createElement(SearchResultsList, {
+          id: 'list',
+          options,
+          activeId: 'list-a-LTFM',
+          messages: t,
+          onChoose: noop,
+        }),
+      )
+      expect(html).toMatch(
+        new RegExp(
+          `^<div id="list" role="listbox" aria-label="${t.results}" class="map-search__results"`,
+        ),
+      )
+      const groups = [...html.matchAll(/<div role="group" aria-labelledby="([^"]+)">/g)].map(
+        (match) => match[1],
+      )
+      expect(groups).toEqual(['list-ga', 'list-gp'])
+      expect(html).toContain(
+        `<div id="list-ga" role="presentation" class="map-search__group-label">${t.groupAirports}</div>`,
+      )
+      expect(html).toContain(
+        `<div id="list-gp" role="presentation" class="map-search__group-label">${t.groupAircraft}</div>`,
+      )
+      expect(html.indexOf(t.groupAirports)).toBeLessThan(html.indexOf(t.groupAircraft))
+      expect(html).toContain('id="list-a-LTFM"')
+      expect(html).toContain('id="list-a-LGAV"')
+      expect(html).toContain('id="list-p-4bb26c"')
+      expect(html.match(/aria-selected="true"/g)).toHaveLength(1)
+      expect(html).toMatch(/<div id="list-a-LTFM" role="option" aria-selected="true"/)
+      expect(html.match(/aria-selected="false"/g)).toHaveLength(2)
+      expect(optionText(html, 'list-a-LTFM')).toBe(
+        locale === 'tr'
+          ? 'IST, İstanbul Havalimanı, İstanbul · LTFM'
+          : 'IST, Istanbul Airport, Istanbul · LTFM',
+      )
+      expect(optionText(html, 'list-a-LGAV')).toBe('ATH, LGAV')
+      expect(optionText(html, 'list-p-4bb26c')).toBe('TK-974, A21N, TC-LSA')
+      // "Havalimanları" panelinin kod sınıfı burada yoktur (e2e `airportListCodes` onu okur).
+      expect(html).not.toContain('map-airports__code')
+      expect(html).toContain('<span class="map-search__code">IST</span>')
+      const place = locale === 'tr' ? 'İstanbul' : 'Istanbul'
+      expect(html).toContain(`<span class="map-search__place">${place} · LTFM</span>`)
+      expect(html).toContain('<span class="map-search__place">LGAV</span>')
+    },
+  )
+
+  it('boş grup çizilmez: yalnız uçak sonuçları', () => {
+    const html = renderToStaticMarkup(
+      createElement(SearchResultsList, {
+        id: 'list',
+        options: searchOptions('list', [], [THY974]),
+        activeId: null,
+        messages: tr.search,
+        onChoose: noop,
+      }),
+    )
+    expect(html).not.toContain(tr.search.groupAirports)
+    expect(html).toContain(tr.search.groupAircraft)
+    expect(html).not.toContain('aria-selected="true"')
   })
 })
 

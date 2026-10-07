@@ -8,13 +8,16 @@ import {
   AirportListPanelUnavailable,
   AirportPopupUnavailable,
   withChunkFallback,
+  withImportFallback,
 } from './chunk-fallback'
 
 /**
  * Havalimanı adları haritanın ilk paketine girmez (D-101): ad tablolarını (`airportDisplayName`)
  * kullanan havalimanı penceresi ve "Havalimanları" paneli yalnız dinamik importla yüklenir; paylaşılan
  * tablolar `#__PURE__` işaretli kurulur (yardımcı çağrıları paketleyiciye yan etkili görünürdü).
- * `/` için First Load JS ölçümü önce/sonra plandadır (M6i.1).
+ * `/` için First Load JS ölçümü önce/sonra plandadır (M6i.1). Havalimanı aramasının ad dizini de
+ * (D-108) yalnız dinamik importla yüklenir; arama motoru (`@havayolu/shared` `airport-search.ts`)
+ * hiçbir şey içe aktarmaz.
  */
 const source = (path: string) => readFileSync(new URL(path, import.meta.url), 'utf8')
 
@@ -36,6 +39,28 @@ describe('ilk paket: havalimanı adları dinamik parçalarda (D-101)', () => {
   it('ad tablolarını yalnız dinamik parçalar kullanır', () => {
     expect(source('./airport-popup-model.ts')).toContain('airportDisplayName')
     expect(source('./panels/airport-list-panel.tsx')).toContain('airportDisplayName')
+    expect(source('./panels/airport-search-index.ts')).toContain('airportDisplayName')
+  })
+
+  it('arama kutusu ad dizinini statik import etmez; motor hiçbir şey içe aktarmaz (D-108)', () => {
+    const box = source('./panels/search-box.tsx')
+    const model = source('./panels/search-box-model.ts')
+    expect(staticImports(box)).not.toContain('./airport-search-index')
+    expect(staticImports(model)).not.toContain('./airport-search-index')
+    expect(box).toContain("import('./airport-search-index')")
+    for (const text of [box, model]) {
+      for (const name of [
+        'airportDisplayName',
+        'airportLocality',
+        'provinceName',
+        'airportCountryName',
+      ]) {
+        expect(text).not.toContain(name)
+      }
+    }
+    expect(source('./panels/index.ts')).not.toContain('airport-search-index')
+    const reference = '../../../../../packages/shared/src/reference/'
+    expect(staticImports(source(`${reference}airport-search.ts`))).toEqual([])
   })
 
   it('paylaşılan ad tabloları PURE işaretli fonksiyonda kurulur', () => {
@@ -71,6 +96,31 @@ describe('parça yüklenemezse (D-101): yedek bileşen, hata ekranı yok', () =>
 
   const Real = () => null
   const Fallback = () => null
+
+  it('değer yükleyicisi: ret yedeği verir, uyarı yazar, işlenmemiş ret bırakmaz', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined)
+    const unhandled = vi.fn()
+    process.on('unhandledRejection', unhandled)
+    try {
+      const chunkError = new Error('Failed to load chunk')
+      const fallback = (x: number) => x
+      const failing = withImportFallback(() => Promise.reject(chunkError), fallback, 'Search')
+      await expect(failing()).resolves.toBe(fallback)
+      // Önceden isteme gibi sonucu beklenmeyen çağrı da reddedilmez.
+      void failing()
+      await new Promise((resolve) => setTimeout(resolve, 0))
+      expect(warn).toHaveBeenCalledTimes(2)
+      expect(warn).toHaveBeenCalledWith('Search could not be loaded', chunkError)
+      expect(unhandled).not.toHaveBeenCalled()
+
+      const value = (x: number) => x + 1
+      const working = withImportFallback(() => Promise.resolve(value), fallback, 'Search')
+      await expect(working()).resolves.toBe(value)
+      expect(warn).toHaveBeenCalledTimes(2)
+    } finally {
+      process.off('unhandledRejection', unhandled)
+    }
+  })
 
   it('yükleyici import() reddedilirse yedeği verir ve uyarı yazar; başarıda bileşeni', async () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined)
@@ -113,8 +163,17 @@ describe('parça yüklenemezse (D-101): yedek bileşen, hata ekranı yok', () =>
     expect(control).toContain('onPointerEnter={preloadAirportListPanel}')
     expect(control).toContain('onFocus={preloadAirportListPanel}')
     expect(liveMap).toMatch(
-      /return whenIdle\(\(\) => \{\s*void loadAirportPopup\(\)\s*preloadAirportListPanel\(\)\s*\}\)/,
+      /return whenIdle\(\(\) => \{\s*void loadAirportPopup\(\)\s*preloadAirportListPanel\(\)\s*preloadAirportSearch\(\)\s*\}\)/,
     )
+    // Havalimanı aramasının ad dizini (D-108): yedeği yalnız kodla arama; kutu odaklanınca ya da
+    // üstüne gelinince de istenir.
+    const box = source('./panels/search-box.tsx')
+    expect(box).toMatch(
+      /const loadAirportSearch = withImportFallback<AirportSearchBuilder>\(\s*\(\) => import\('\.\/airport-search-index'\)\.then\(\(module\) => module\.buildAirportSearch\),\s*codeOnlyAirportSearch,/,
+    )
+    expect(box).not.toMatch(/void import\(/)
+    expect(box).toContain('onFocus={warmAirportSearch}')
+    expect(box).toContain('onPointerEnter={warmAirportSearch}')
   })
 
   it('yedekler ilk pakettedir: tembel modülleri yalnız tür olarak import eder', () => {
