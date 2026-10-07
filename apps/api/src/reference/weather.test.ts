@@ -860,8 +860,8 @@ describe('GET /v1/airports/:code/weather/history', () => {
     expect(historyCacheWindow(168)).toBe(168)
     // 3. halkada listelenen havalimanları × 2 pencereyi karşılıyordu (498 × 2 = 996; D-107'den önce
     // 503 × 2 = 1.006, D-090). 4. halkada (1.217 × 2 = 2.434) değişmedi (D-101, D-102): asıl sınır
-    // bayt bütçesidir, en küçük
-    // 24 saatlik pencerelerle (~50 KB) bile bütçe anahtar sınırından önce dolar.
+    // bayt bütçesidir, en küçük 24 saatlik pencerelerle (~50 KB) bile bütçe anahtar sınırından önce
+    // dolar.
     expect(WEATHER_HISTORY_CACHE_MAX_ENTRIES).toBe(1024)
     expect(WEATHER_HISTORY_CACHE_MAX_BYTES / (50 * 1024)).toBeLessThan(
       WEATHER_HISTORY_CACHE_MAX_ENTRIES,

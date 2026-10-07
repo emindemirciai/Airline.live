@@ -38,10 +38,9 @@ import { getServerEnv } from './env'
  *   değil: soğuk önbellekte (her yayından sonra) hızlı bir tarama yine dakikada 60'ı aşabilir; o
  *   sayfalar sunucu çiziminde kayıtsız gelir, ada kaydı tarayıcıdan alır. Next süresi dolan kaydı
  *   sunar ve arkada yeniler; 200 olmayan yanıtı (429) önbelleğe almaz, eldeki kaydı silmez. Açık
- *   sekmedeki
- *   ada kaydı tarayıcıdan (ziyaretçinin kendi hız sınırı kovasıyla) 5 dakikada bir tazeler; sunucu
- *   verisi 2 dakikadan eskiyse ada açılışta yeniler (`weather-client.ts`): ziyaretçi 30 dk'lık
- *   önbelleği görmez. METAR en sık 5 dakikada bir gelir.
+ *   sekmedeki ada kaydı tarayıcıdan (ziyaretçinin kendi hız sınırı kovasıyla) 5 dakikada bir
+ *   tazeler; sunucu verisi 2 dakikadan eskiyse ada açılışta yeniler (`weather-client.ts`):
+ *   ziyaretçi 30 dk'lık önbelleği görmez. METAR en sık 5 dakikada bir gelir.
  *
  * Hiçbir hata sayfaya taşınmaz: API ulaşılamazsa, yanıt bozuksa ya da süre dolarsa `null` döner ve
  * sayfa "Hava durumu şu an alınamıyor" der; sayfa hava durumu yüzünden 500 vermez. API ulaşılamazken

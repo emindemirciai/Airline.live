@@ -486,7 +486,7 @@ describe('istekler arası en kısa aralık (D-090)', () => {
     expect(starts).toEqual([0, 700, 1400])
   })
 
-  it('ilk açılışta bütün istasyonların 24 saatlik doldurması (204 istek) dakikada 100 sınırının altında kalır', async () => {
+  it('ilk açılışta bütün istasyonların 24 saatlik doldurması (203 istek) dakikada 100 sınırının altında kalır', async () => {
     const drive = fakeClock()
     const perMinute = (list: number[]) =>
       Math.max(...list.map((start) => list.filter((t) => t >= start && t < start + 60_000).length))

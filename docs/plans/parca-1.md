@@ -1935,7 +1935,7 @@ Hedef sürüm 0.23.0 (yayın adımında yazılır). Dal `p1/m6i2-ring4`, `main`'
 - **Yapılmayanlar (D-102):** üretim listesi kaymasının otomatik uyarısı, yerel e2e tuzağının otomatikleşmesi (ayrı küçük işler); METAR/TAF kaydının yalnız tarayıcıdan yüklenmesi (5. halka seçeneği); bbox yükleme, AWC toplu dosyası, pin kümeleme 5. halkaya.
 
 **Dosyalar:**
-- `packages/shared/src/reference/`: `foreign-airport-names-r4.ts` (yeni), `foreign-airport-names.ts` (birleştirme), `airport-rings.ts` (`ENABLED_AIRPORT_RING` 4), `military-airfields.ts` (yeni; `airport-names.ts`'ten taşındı), `index.ts`; testler `foreign.test.ts`, `names.test.ts`, `reference.test.ts`, `time-zones.test.ts`
+- `packages/shared/src/reference/`: `foreign-airport-names-r4.ts` (yeni), `foreign-airport-names.ts` (birleştirme), `airport-rings.ts` (`ENABLED_AIRPORT_RING` 4); testler `foreign.test.ts`, `names.test.ts`, `reference.test.ts`, `time-zones.test.ts`
 - `packages/shared/src/map/country-label-placements.ts` (üretildi), `country-labels.test.ts`; `tools/src/country-labels/airport-pins.ts` (açıklama), `airport-pins.test.ts`, `placement.test.ts`
 - `apps/api/src/reference/airports-cache-size.test.ts` (yeni), `weather.ts` (açıklama), `weather.test.ts`, `airport-details.int.test.ts`
 - `apps/worker/src/jobs/weather.ts` (açıklama), `weather.test.ts`, `jobs.int.test.ts`; `packages/providers/src/weather/aviationweather.ts` (açıklama), `aviationweather.test.ts`; `packages/db/src/airports.test.ts`

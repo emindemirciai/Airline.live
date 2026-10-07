@@ -439,7 +439,7 @@ describe('listListedAirports (D-080)', () => {
     expect(uganda.find((a) => a.iata === 'KHX')).toMatchObject({ icao: 'UG-0002', ring: 4 })
     const details = await listListedAirportDetails(database.db, { ...RINGS, enabledRing: 4 })
     expect(details.map((a) => a.icao)).toEqual(list.map((a) => a.icao))
-    // Bugünkü açık halka (3) değişmez.
+    // 3. halkanın listesi (D-107'den sonra 498) 4. halka açılınca değişmez.
     const ringThree = await listListedAirports(database.db, { ...RINGS, enabledRing: 3 })
     expect(ringThree).toHaveLength(498)
     expect(list.filter((a) => a.ring <= 3).map((a) => a.icao)).toEqual(ringThree.map((a) => a.icao))
