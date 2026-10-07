@@ -34,8 +34,9 @@ const LISTED_TYPES = ['large_airport', 'medium_airport', 'small_airport']
 
 /**
  * Veritabanındaki IATA kodlu Türkiye havalimanları: içe aktarım süzgeci (büyük, orta ya da
- * tarifeli; data-sources.md §3) ve `toListedAirports` kuralı (üç harfli IATA; ICAO = icao_code,
- * yoksa gps_code, o da yoksa ident).
+ * tarifeli; data-sources.md §3) ve `toListedAirports`'ın biçim kuralı (üç harfli IATA; ICAO =
+ * icao_code, yoksa gps_code, o da yoksa ident). Askerî hava üsleri de burada sayılır; listelenmezler
+ * ve ad tablosunda yoktur (D-107).
  */
 const listedIcaos = trRows
   .filter(
@@ -117,22 +118,23 @@ describe('airportDistrict', () => {
 })
 
 describe('AIRPORT_NAMES', () => {
-  it("tablo, fixture'daki IATA kodlu 61 Türkiye havalimanını eksiksiz ve fazlasız kapsar", () => {
+  it("tablo, fixture'daki IATA kodlu 61 Türkiye satırından askerî üsler dışındaki 56'sını eksiksiz ve fazlasız kapsar (D-107)", () => {
     expect(listedIcaos).toHaveLength(61)
-    expect(Object.keys(AIRPORT_NAMES).sort()).toEqual([...listedIcaos].sort())
+    const civil = listedIcaos.filter((icao) => !isMilitaryAirfield(icao)).sort()
+    expect(civil).toHaveLength(56)
+    expect(Object.keys(AIRPORT_NAMES).sort()).toEqual(civil)
   })
 
-  it('adlar dolu; sivil havalimanı "Havalimanı" / "Airport", askerî üs "Hava Üssü" / "Air Base" ile biter', () => {
+  it('adlar dolu; "Havalimanı" / "Airport" ile biter', () => {
     for (const [icao, entry] of Object.entries(AIRPORT_NAMES)) {
-      const military = entry.source === 'military'
-      expect(entry.tr, icao).toMatch(military ? /^\S+ Hava Üssü$/ : /\S Havalimanı$/)
-      expect(entry.en, icao).toMatch(military ? /^\S+ Air Base$/ : /\S Airport$/)
+      expect(entry.tr, icao).toMatch(/\S Havalimanı$/)
+      expect(entry.en, icao).toMatch(/\S Airport$/)
       expect(entry.tr, icao).toBe(entry.tr.trim())
-      expect(entry.en, icao).not.toMatch(/Havalimanı|Uluslararası|İstanbul|İzmir|İncirlik/)
+      expect(entry.en, icao).not.toMatch(/Havalimanı|Uluslararası|İstanbul|İzmir/)
     }
   })
 
-  it('kaynak dağılımı: 50 DHMİ, 5 işletmeci, 1 bakanlık (LTAD), 5 askerî üs; OurAirports adı kalmadı', () => {
+  it('kaynak dağılımı: 50 DHMİ, 5 işletmeci, 1 bakanlık (LTAD); askerî üs ve OurAirports adı yok', () => {
     const sources = Object.values(AIRPORT_NAMES).map((e) => e.source)
     expect(sources.filter((s) => s === 'dhmi')).toHaveLength(50)
     expect(sources.filter((s) => s === 'operator')).toHaveLength(5)
@@ -141,11 +143,13 @@ describe('AIRPORT_NAMES', () => {
         .filter(([, e]) => e.source === source)
         .map(([icao]) => icao)
     expect(icaos('ministry')).toEqual(['LTAD'])
-    expect(icaos('military')).toEqual(['LTAG', 'LTAH', 'LTBG', 'LTBI', 'LTBL'])
+    expect(sources).toHaveLength(56)
     expect(sources).not.toContain('ourairports')
+    // Askerî üslerin adı tabloda yoktur (D-107): istemci paketlerine girmez.
+    for (const icao of MILITARY_AIRFIELD_ICAOS) expect(airportName(icao), icao).toBeUndefined()
   })
 
-  it('askerî üsler ve Ankara (Etimesgut) iki dilde (kullanıcı istekleri ve kararı 2026-10-03, D-084)', () => {
+  it('Ankara (Etimesgut) iki dilde (kullanıcı kararı 2026-10-03, D-084)', () => {
     const names = (icao: string, name: string) => [
       airportDisplayName({ icao, name }, 'tr'),
       airportDisplayName({ icao, name }, 'en'),
@@ -154,15 +158,7 @@ describe('AIRPORT_NAMES', () => {
       'Ankara (Etimesgut) Havalimanı',
       'Ankara (Etimesgut) Airport',
     ])
-    expect(names('LTAG', 'İncirlik Air Base')).toEqual(['İncirlik Hava Üssü', 'Incirlik Air Base'])
-    expect(names('LTAH', 'Afyon Air Base')).toEqual(['Afyon Hava Üssü', 'Afyon Air Base'])
-    expect(names('LTBG', 'Bandırma Airport')).toEqual(['Bandırma Hava Üssü', 'Bandırma Air Base'])
-    expect(names('LTBI', 'Eskişehir Air Base')).toEqual([
-      'Eskişehir Hava Üssü',
-      'Eskişehir Air Base',
-    ])
-    expect(names('LTBL', 'Çiğli Airbase')).toEqual(['Çiğli Hava Üssü', 'Çiğli Air Base'])
-    // Resmî ad: bakanlığın verdiği ad (parantezsiz); askerî üsse resmî havalimanı adı yoktur.
+    // Resmî ad: bakanlığın verdiği ad (parantezsiz); tabloda olmayan kodda (askerî üs dahil) yok.
     expect(airportOfficialName('LTAD')).toBe('Ankara Havalimanı')
     expect(airportOfficialName('LTAC')).toBe('Ankara Esenboğa Havalimanı')
     expect(airportOfficialName(' ltfm ')).toBe('İstanbul Havalimanı')
@@ -177,9 +173,6 @@ describe('AIRPORT_NAMES', () => {
     expect(airportDisplayName(ist, 'en')).toBe('Istanbul Airport')
     const cov = { icao: 'LTDB', name: 'Çukurova International Airport' }
     expect(airportDisplayName(cov, 'tr')).toBe('Çukurova Uluslararası Havalimanı')
-    const incirlik = { icao: 'LTAG', name: 'İncirlik Air Base' }
-    expect(airportDisplayName(incirlik, 'tr')).toBe('İncirlik Hava Üssü')
-    expect(airportDisplayName(incirlik, 'en')).toBe('Incirlik Air Base')
     // Tabloda olmayan havalimanı (ör. OurAirports'a sonradan eklenen ya da sonraki halkalardaki)
     // OurAirports adıyla görünür; Türkçede "Airport" kuralla "Havalimanı" olur (D-080).
     expect(airportDisplayName({ icao: 'EGLL', name: 'London Heathrow Airport' }, 'tr')).toBe(
@@ -199,7 +192,7 @@ describe('AIRPORT_NAMES', () => {
   it("fixture'daki her havalimanı tablodaki Türkçe adına çözülür", () => {
     for (const row of trRows) {
       const icao = (row.get('icao_code') || row.get('gps_code') || row.get('ident') || '').trim()
-      if (!listedIcaos.includes(icao)) continue
+      if (!listedIcaos.includes(icao) || isMilitaryAirfield(icao)) continue
       const name = row.get('name') ?? ''
       const entry = airportName(icao)
       expect(entry, icao).toBeDefined()
@@ -209,21 +202,18 @@ describe('AIRPORT_NAMES', () => {
     }
   })
 
-  it('askerî hava üsleri (D-103): tam olarak tablonun `military` kaynaklı beş kaydı; Etimesgut ve yurt dışındaki ortak sivil-askerî havalimanları sivil', () => {
-    const military = Object.entries(AIRPORT_NAMES)
-      .filter(([, entry]) => entry.source === 'military')
-      .map(([icao]) => icao)
-      .sort()
+  it("askerî hava üsleri (D-103, D-107): tam olarak fixture'daki IATA kodlu Türkiye satırlarından ad tablosunda olmayan beşi; Etimesgut ve yurt dışındaki ortak sivil-askerî havalimanları sivil", () => {
+    const unnamed = listedIcaos.filter((icao) => !Object.hasOwn(AIRPORT_NAMES, icao)).sort()
     expect(MILITARY_AIRFIELD_ICAOS).toEqual(['LTAG', 'LTAH', 'LTBG', 'LTBI', 'LTBL'])
-    expect(MILITARY_AIRFIELD_ICAOS).toEqual(military)
+    expect(MILITARY_AIRFIELD_ICAOS).toEqual(unnamed)
     for (const icao of MILITARY_AIRFIELD_ICAOS) {
       expect(isMilitaryAirfield(icao), icao).toBe(true)
       expect(isMilitaryAirfield(` ${icao.toLowerCase()} `), icao).toBe(true)
     }
-    // Sivil: tablonun öbür 56 kaydı (Ankara (Etimesgut) dahil, kullanıcı kararı 2026-10-03),
-    // tarifeli sivil seferi olan ortak sivil-askerî havalimanları (Bağdat ORBI, Podgorica LYPG,
+    // Sivil: tablonun 56 kaydı (Ankara (Etimesgut) dahil, kullanıcı kararı 2026-10-03), tarifeli
+    // sivil seferi olan ortak sivil-askerî havalimanları (Bağdat ORBI, Podgorica LYPG,
     // Cuxhaven/Nordholz ETMN; 4. halkanın EKKA, VIAG, DNPM ve ZURK'u) ve tabloda olmayan kodlar.
-    const civil = Object.keys(AIRPORT_NAMES).filter((icao) => !military.includes(icao))
+    const civil = Object.keys(AIRPORT_NAMES)
     expect(civil).toHaveLength(56)
     for (const icao of [...civil, 'ORBI', 'LYPG', 'ETMN', 'EKKA', 'VIAG', 'DNPM', 'ZURK', 'ZZZZ'])
       expect(isMilitaryAirfield(icao), icao).toBe(false)
@@ -242,9 +232,7 @@ describe('AIRPORT_NAMES', () => {
     expect(shown[0]).toBe(rows[0])
     expect(mapShownAirports(MILITARY_AIRFIELD_ICAOS.map((icao) => ({ icao })))).toEqual([])
     expect(mapShownAirports([])).toEqual([])
-    const civil = Object.keys(AIRPORT_NAMES)
-      .filter((icao) => !MILITARY_AIRFIELD_ICAOS.includes(icao))
-      .map((icao) => ({ icao }))
+    const civil = Object.keys(AIRPORT_NAMES).map((icao) => ({ icao }))
     expect(mapShownAirports(civil)).toEqual(civil)
   })
 
@@ -253,7 +241,8 @@ describe('AIRPORT_NAMES', () => {
     expect(airportName('toString')).toBeUndefined()
     expect(airportName('__proto__')).toBeUndefined()
     expect(airportNameSource('LTAC')).toBe('dhmi')
-    expect(airportNameSource('LTBI')).toBe('military')
+    // Askerî üs tabloda yoktur (D-107); listelenmediği için bu kaynak hiçbir sayfada yazılmaz.
+    expect(airportNameSource('LTBI')).toBe('ourairports')
     expect(airportNameSource('LTAD')).toBe('ministry')
     expect(airportNameSource('ZZZZ')).toBe('ourairports')
   })

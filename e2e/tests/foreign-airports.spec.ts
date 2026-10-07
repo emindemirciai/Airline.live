@@ -3,8 +3,9 @@
 // havalimanına en çok 2.000 km olan, OurAirports'ta tarifeli seferi kayıtlı büyük ve orta boy yabancı
 // havalimanlarıdır. Veri tools/fixtures/ourairports'taki commit'li alt kümeden (2026-10-01 indirmesi),
 // hava durumu elle yazılmış fixture'dan gelir. Denetlenenler:
-// - API: `scope=listed` (61 + 75 + 89 + 278), halka ve uzaklık alanları (1. halka ≤ 500 km, 2. halka
-//   500–1.000 km, sınırdaki Ben Gurion 500; 3. halka 1.000–2.000 km), `country` ile birlikte 400; tek
+// - API: `scope=listed` (56 + 75 + 89 + 278; askerî üsler yok, D-107), halka ve uzaklık alanları
+//   (1. halka ≤ 500 km, 2. halka 500–1.000 km, sınırdaki Ben Gurion 500; 3. halka 1.000–2.000 km),
+//   `country` ile birlikte 400; tek
 //   havalimanı ve hava durumu yabancı havalimanını da çözer
 // - /havalimanlari: Türkiye tablosundan sonra "Türkiye dışındaki havalimanları" tablosu (442 satır,
 //   ülkeye göre Türkçe sıralı, ülke ve Türkiye'ye uzaklık sütunları); Kahire ve Viyana satırları
@@ -134,7 +135,7 @@ function row(scope: Locator, label: string): Locator {
 }
 
 test.describe('API', () => {
-  test('scope=listed: 61 Türkiye + 442 Türkiye dışı havalimanı (75 + 89 + 278); halka ve uzaklık; uzak havalimanı yok', async ({
+  test('scope=listed: 56 Türkiye + 442 Türkiye dışı havalimanı (75 + 89 + 278); halka ve uzaklık; uzak havalimanı yok', async ({
     request,
   }) => {
     for (const path of ['/v1/airports?scope=listed', '/v1/airports?scope=listed&include=runways']) {
@@ -277,7 +278,7 @@ test.describe('havalimanı listesi', () => {
       await expect(athens).toHaveCount(1)
       await expect(athens).toContainText(copy.country)
       await expect(athens).toContainText(iata)
-      // Türkiye'ye uzaklık km ile yazılır (Atina ~275 km).
+      // Türkiye'ye uzaklık km ile yazılır (Atina 284 km).
       await expect(athens.locator('td').nth(3)).toHaveText(/^\s*\d+\s*km\s*$/)
       await expect(rows.filter({ hasText: KKTC_AIRPORT.icao })).toContainText(copy.kktc)
       // 2. halkadan Kahire (D-088): ad, ülke ve uzaklık (~693 km, 500 km'nin üstünde).

@@ -42,8 +42,8 @@ const byIcao = (icao: string) => {
 }
 
 describe('fixture', () => {
-  it('IATA kodlu 61 Türkiye havalimanı, 51 tarifeli (M6b brief §g)', () => {
-    expect(AIRPORTS).toHaveLength(61)
+  it('IATA kodlu 56 Türkiye havalimanı (askerî üsler yok, D-107), 51 tarifeli (M6b brief §g)', () => {
+    expect(AIRPORTS).toHaveLength(56)
     expect(AIRPORTS.filter((a) => a.scheduled)).toHaveLength(51)
     expect(AIRPORTS.every((a) => a.runways.length > 0)).toBe(true)
   })
@@ -57,7 +57,7 @@ describe('fixture', () => {
     expect(ring3).toHaveLength(278)
     expect(FOREIGN).toHaveLength(ring1.length + ring2.length + ring3.length)
     expect(LISTED).toHaveLength(AIRPORTS.length + FOREIGN.length)
-    expect(LISTED).toHaveLength(503)
+    expect(LISTED).toHaveLength(498)
     expect(FOREIGN.every((a) => a.scheduled)).toBe(true)
     expect(ring1.every((a) => (a.distanceToTrKm ?? Infinity) <= 500)).toBe(true)
     // Uzaklık tam km'ye yuvarlıdır, halka tam uzaklıktandır: Ben Gurion 500,44 km → 500, 2. halka.
@@ -321,7 +321,9 @@ describe('başlık ve açıklama: fixture’daki her havalimanı', () => {
 describe('sortByProvince', () => {
   it('ile, sonra ada göre, sayfanın dilinin alfabesiyle', () => {
     const tr = sortByProvince(AIRPORTS, 'tr').map((a) => airportProvince(a, 'tr'))
-    expect(tr[0]).toBe('Adana')
+    // Adana'nın listelenen havalimanı yok (İncirlik askerî üs, D-107; Şakirpaşa tarifesiz küçük alan).
+    expect(tr[0]).toBe('Adıyaman')
+    expect(tr).not.toContain('Adana')
     // Türk alfabesi: Çanakkale C'den sonra, İ I'dan sonra gelir.
     expect(tr.indexOf('Çanakkale')).toBeGreaterThan(tr.lastIndexOf('Bursa'))
     expect(tr.indexOf('Çanakkale')).toBeLessThan(tr.indexOf('Denizli'))

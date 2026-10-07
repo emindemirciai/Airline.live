@@ -31,8 +31,9 @@ import { getServerEnv } from './env'
  *   çözülen istasyonlar o yanıtla birlikte bellekte kalır (aynı dakikadaki ikinci çizim yeniden
  *   çözmez). Web tek süreçtir; birden çok kopya çalışırsa her biri dakikada bir istek atar.
  * - METAR/TAF kaydı: `GET /v1/airports/<ICAO>/weather/history?hours=24`, Next veri önbelleği 15 dk
- *   (havalimanı başına ~70 KB). 503 sayfanın hepsi gezilse bile en kötü durumda dakikada ~34 istek
- *   eder (toplu istek ve liste ile ~36; 5 dk'lık önbellekle ~100/dk olurdu, D-090). Açık sekmedeki
+ *   (havalimanı başına ~70 KB). 503 sayfanın (ölçüm; D-107'den beri 498) hepsi gezilse bile en
+ *   kötü durumda dakikada ~34 istek eder (toplu istek ve liste ile ~36; 5 dk'lık önbellekle ~100/dk
+ *   olurdu, D-090). Açık sekmedeki
  *   ada kaydı tarayıcıdan (ziyaretçinin kendi hız sınırı kovasıyla) 5 dakikada bir tazeler; sunucu
  *   verisi 2 dakikadan eskiyse ada açılışta yeniler (`weather-client.ts`). METAR en sık 5 dakikada bir
  *   gelir.
