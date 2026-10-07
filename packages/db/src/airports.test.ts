@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest'
 import {
   cleanAirportName,
   greatCircleKm,
-  HIDDEN_RUNWAY_IDS,
+  isEmptyRunway,
   isHiddenRunway,
   MILITARY_AIRFIELD_ICAOS,
   MIN_RUNWAY_LENGTH_FT,
@@ -12,10 +12,12 @@ import {
   OURAIRPORTS_ICAO_CORRECTIONS,
   ourAirportsIcao,
   ringForDistance,
+  RUNWAY_TOMBSTONE_SURFACE,
   selectListedAirports,
   toAirportDetails,
   toListedAirports,
   turkishReferencePoints,
+  visibleRunways,
   type AirportDetailSourceRow,
   type AirportSourceRow,
   type ListingContext,
@@ -92,7 +94,11 @@ describe('toListedAirports', () => {
   })
 
   it('askerî hava üsleri (D-107) listelenmez: kanonik ICAO, gps_code, ident ya da küçük harfle de', () => {
-    expect(MILITARY_AIRFIELD_ICAOS).toEqual(['LTAG', 'LTAH', 'LTBG', 'LTBI', 'LTBL'])
+    // Türkiye'nin beş üssü (D-107) ve 5. halkanın askerî listesi (D-109).
+    expect(MILITARY_AIRFIELD_ICAOS).toEqual([
+      ...['LTAG', 'LTAH', 'LTBG', 'LTBI', 'LTBL'],
+      ...['PKWA', 'PWAK', 'YBOK'],
+    ])
     const list = listed([
       row({ ident: 'LTAG', icaoCode: 'LTAG', gpsCode: 'LTAG', iataCode: 'UAB' }),
       row({ ident: 'LTAH', icaoCode: ' ltah ', gpsCode: null, iataCode: 'AFY' }),
@@ -209,6 +215,8 @@ const runwayRow = (overrides: Partial<RunwaySourceRow> = {}): RunwaySourceRow =>
   heDisplacedThresholdFt: 0,
   heThresholdLat: 41.26,
   heThresholdLon: 28.73,
+  leLatitudeDeg: 41.29,
+  heLatitudeDeg: 41.26,
   updatedAt: new Date('2026-09-27T04:40:00Z'),
   overrideUpdatedAt: null,
   ...overrides,
@@ -631,12 +639,7 @@ describe('kaynak düzeltmeleri (D-088)', () => {
     expect(bastia?.name).toBe('Bastia-Poretta International Airport')
   })
 
-  it('HIDDEN_RUNWAY_IDS: yinelenen boş pist satırı gösterilmez; doldurulursa görünür', () => {
-    expect(
-      Object.keys(HIDDEN_RUNWAY_IDS)
-        .map(Number)
-        .sort((a, b) => a - b),
-    ).toEqual([260310, 260338, 260339, 260344, 260408, 504922, 608245])
+  it('boş yinelenen pist satırı gösterilmez; doldurulursa görünür (genel kural, D-088, D-109)', () => {
     const taba = detailRow({
       id: 3150,
       ident: 'HETB',
@@ -663,17 +666,34 @@ describe('kaynak düzeltmeleri (D-088)', () => {
       heTrueBearingDeg: null,
       heThresholdLat: 29.587778,
       heThresholdLon: 34.778056,
+      leLatitudeDeg: null,
+      heLatitudeDeg: null,
     })
-    expect(isHiddenRunway(ghost)).toBe(true)
-    expect(isHiddenRunway(real)).toBe(false)
+    expect(isEmptyRunway(ghost)).toBe(true)
+    expect(isEmptyRunway(real)).toBe(false)
+    // Satır kuralları boş satırı tek başına gizlemez: kural havalimanının öbür satırlarına bakar.
+    expect(isHiddenRunway(ghost)).toBe(false)
+    expect(visibleRunways([real, ghost]).map((r) => r.id)).toEqual([235597])
     const [detail] = withDetails([taba], [real, ghost], [])
     expect(detail?.runways.map((r) => r.id)).toEqual([235597])
-    // Kaynak satırı doldurursa (uzunluk ya da genişlik), pist yeniden görünür.
-    const filled = { ...ghost, lengthFt: 13_123 }
-    expect(isHiddenRunway(filled)).toBe(false)
-    expect(withDetails([taba], [real, filled], [])[0]?.runways).toHaveLength(2)
-    // Tabloda olmayan boş satır gösterilir (genel kural yok, yalnız bilinen kayıtlar).
-    expect(isHiddenRunway({ ...ghost, id: 1 })).toBe(false)
+    // Kaynak satırı doldurursa (uzunluk, genişlik ya da uç koordinatı), pist yeniden görünür.
+    for (const filled of [
+      { ...ghost, lengthFt: 13_123 },
+      { ...ghost, widthFt: 148 },
+      { ...ghost, leLatitudeDeg: 29.6 },
+      { ...ghost, heLatitudeDeg: 29.6 },
+    ]) {
+      expect(isEmptyRunway(filled)).toBe(false)
+      expect(withDetails([taba], [real, filled], [])[0]?.runways).toHaveLength(2)
+    }
+    // Havalimanının tek bilgisi boş satırsa gösterilir (pist var, ölçüsü bilinmiyor); öbür satırın
+    // uzunluğu yoksa da.
+    expect(visibleRunways([ghost])).toEqual([ghost])
+    expect(visibleRunways([ghost, { ...real, lengthFt: null }])).toHaveLength(2)
+    // Başka havalimanının pisti sayılmaz.
+    expect(visibleRunways([{ ...real, airportId: 1 }, ghost])).toHaveLength(2)
+    // Satır kurallarıyla gizlenen uzun satır (karşı ucu yok) boş satırı gizletmez.
+    expect(visibleRunways([{ ...real, heIdent: null }, ghost])).toEqual([ghost])
   })
 
   it('karşı ucu olmayan satır pist sayılmaz: Stuttgart helikopter alanları (D-090)', () => {
@@ -700,6 +720,7 @@ describe('kaynak düzeltmeleri (D-088)', () => {
         heDisplacedThresholdFt: null,
         heThresholdLat: null,
         heThresholdLon: null,
+        heLatitudeDeg: null,
       })
     const north = helipad(608377, 'H-NORTH')
     const south = helipad(608378, 'H-SOUTH')
@@ -711,9 +732,11 @@ describe('kaynak düzeltmeleri (D-088)', () => {
   })
 
   it('Voronej 18/36 ve Linz 07H/25H boş satırları gizli (D-090)', () => {
+    const real = runwayRow({ id: 1, airportId: 7, leIdent: '12', heIdent: '30' })
     const empty = (id: number, le: string, he: string) =>
       runwayRow({
         id,
+        airportId: 7,
         lengthFt: null,
         widthFt: null,
         surface: 'GRS',
@@ -722,18 +745,22 @@ describe('kaynak düzeltmeleri (D-088)', () => {
         heIdent: he,
         leTrueBearingDeg: null,
         heTrueBearingDeg: null,
+        leLatitudeDeg: null,
+        heLatitudeDeg: null,
       })
-    expect(isHiddenRunway(empty(608245, '18', '36'))).toBe(true)
-    expect(isHiddenRunway(empty(504922, '07H', '25H'))).toBe(true)
-    expect(isHiddenRunway({ ...empty(608245, '18', '36'), lengthFt: 3000 })).toBe(false)
+    expect(visibleRunways([real, empty(608245, '18', '36')])).toEqual([real])
+    expect(visibleRunways([real, empty(504922, '07H', '25H')])).toEqual([real])
+    expect(visibleRunways([real, { ...empty(608245, '18', '36'), lengthFt: 3000 }])).toHaveLength(2)
   })
 })
 
 describe('4. halka pist kuralları (D-101)', () => {
   it('Hassi Messaoud 01/19, Beauvais 13R/31L ve Bujumbura 02/20 boş satırları gizli', () => {
+    const real = runwayRow({ id: 1, airportId: 9, leIdent: '18', heIdent: '36' })
     const empty = (id: number, le: string, he: string) =>
       runwayRow({
         id,
+        airportId: 9,
         lengthFt: null,
         widthFt: null,
         surface: 'UNK',
@@ -742,14 +769,19 @@ describe('4. halka pist kuralları (D-101)', () => {
         heIdent: he,
         leTrueBearingDeg: null,
         heTrueBearingDeg: null,
+        leLatitudeDeg: null,
+        heLatitudeDeg: null,
       })
     for (const [id, le, he] of [
       [260338, '01', '19'],
       [260344, '13R', '31L'],
       [260310, '02', '20'],
     ] as const) {
-      expect(isHiddenRunway(empty(id, le, he)), String(id)).toBe(true)
-      expect(isHiddenRunway({ ...empty(id, le, he), widthFt: 148 }), String(id)).toBe(false)
+      expect(visibleRunways([real, empty(id, le, he)]), String(id)).toEqual([real])
+      expect(
+        visibleRunways([real, { ...empty(id, le, he), widthFt: 148 }]),
+        String(id),
+      ).toHaveLength(2)
     }
   })
 
@@ -774,9 +806,35 @@ describe('4. halka pist kuralları (D-101)', () => {
   })
 })
 
+describe('5. halka pist kuralları (D-109)', () => {
+  it('OurAirports düzenleyicisinin silme işareti gizlenir, satır dolu olsa da (Hamilton NZHN)', () => {
+    expect(RUNWAY_TOMBSTONE_SURFACE.source).toBe('^\\s*delete')
+    expect(RUNWAY_TOMBSTONE_SURFACE.flags).toBe('i')
+    const duplicate = runwayRow({ id: 238057, surface: 'Delete duplicate', lengthFt: 2033 })
+    expect(isHiddenRunway(duplicate)).toBe(true)
+    expect(isHiddenRunway({ ...duplicate, surface: ' DELETE ' })).toBe(true)
+    expect(isHiddenRunway({ ...duplicate, surface: 'ASP' })).toBe(false)
+    // "DELETE" yalnız başta: kaplama adının içinde geçen sözcük işaret değildir.
+    expect(isHiddenRunway({ ...duplicate, surface: 'ASP (to delete)' })).toBe(false)
+  })
+
+  it('karşı ucu olmayan uzun satır da gizli kalır (Langzhong ZULA, D-090)', () => {
+    const zula = runwayRow({
+      id: 354841,
+      lengthFt: 11_811,
+      surface: 'ASP',
+      leIdent: null,
+      heIdent: null,
+    })
+    expect(isHiddenRunway(zula)).toBe(true)
+    expect(visibleRunways([zula])).toEqual([])
+  })
+})
+
 /**
- * Commit'li OurAirports fixture'ı (tools/fixtures/README.md): Türkiye, sekiz uzak havalimanı ve
- * 1.–4. halka. İçe aktarım süzgeci (data-sources.md §3) uygulanır; pistlerden kapalılar alınmaz.
+ * Commit'li OurAirports fixture'ı (tools/fixtures/README.md): Türkiye, on uzak havalimanı (iki
+ * dışlama örneği LFPB ve FATH dahil) ve 1.–5. halka. İçe aktarım süzgeci (data-sources.md §3)
+ * uygulanır; pistlerden kapalılar alınmaz. Dosyalar test dosyası başına bir kez ayrıştırılır (D-109).
  */
 const FIXTURE_DIR = new URL('../../../tools/fixtures/ourairports/', import.meta.url)
 
@@ -815,52 +873,62 @@ const text = (value: string | undefined): string | null =>
 const number = (value: string | undefined): number | null =>
   text(value) === null ? null : Number(value)
 
+const fixtureAirports: AirportDetailSourceRow[] = readFixtureCsv('airports.csv')
+  .filter(
+    (r) =>
+      r.get('type') === 'large_airport' ||
+      r.get('type') === 'medium_airport' ||
+      r.get('scheduled_service') === 'yes' ||
+      (r.get('iso_country') === 'TR' && /^[A-Z]{3}$/.test(r.get('iata_code') ?? '')),
+  )
+  .map((r) => ({
+    id: Number(r.get('id')),
+    ident: r.get('ident') ?? '',
+    type: r.get('type') ?? '',
+    name: r.get('name') ?? '',
+    latitudeDeg: Number(r.get('latitude_deg')),
+    longitudeDeg: Number(r.get('longitude_deg')),
+    elevationFt: number(r.get('elevation_ft')),
+    isoCountry: r.get('iso_country') ?? '',
+    isoRegion: r.get('iso_region') ?? '',
+    municipality: text(r.get('municipality')),
+    scheduledService: r.get('scheduled_service') === 'yes',
+    icaoCode: text(r.get('icao_code')),
+    iataCode: text(r.get('iata_code')),
+    gpsCode: text(r.get('gps_code')),
+    updatedAt: new Date('2026-10-01T23:03:49Z'),
+  }))
+const imported = new Set(fixtureAirports.map((a) => a.id))
+const fixtureRunways: RunwaySourceRow[] = readFixtureCsv('runways.csv')
+  .filter((r) => r.get('closed') !== '1' && imported.has(Number(r.get('airport_ref'))))
+  .map((r) => ({
+    ...runwayRow(),
+    id: Number(r.get('id')),
+    airportId: Number(r.get('airport_ref')),
+    lengthFt: number(r.get('length_ft')),
+    widthFt: number(r.get('width_ft')),
+    surface: text(r.get('surface')),
+    lighted: r.get('lighted') === '1',
+    leIdent: text(r.get('le_ident')),
+    heIdent: text(r.get('he_ident')),
+    leLatitudeDeg: number(r.get('le_latitude_deg')),
+    heLatitudeDeg: number(r.get('he_latitude_deg')),
+  }))
+/** Bütün halkalar açık bağlam (5. halka, D-109): uygulamada açık halka hâlâ 4'tür. */
+const fixtureContext: ListingContext = {
+  turkey: turkishReferencePoints(fixtureAirports),
+  ringsKm: RINGS_KM,
+  enabledRing: 5,
+}
+const listedRing5 = selectListedAirports(fixtureAirports, fixtureContext)
+const listedRing4 = selectListedAirports(fixtureAirports, { ...fixtureContext, enabledRing: 4 })
+const listedRing5Icaos = new Set(listedRing5.map((a) => a.icao))
+const fixtureDetails = toAirportDetails(fixtureAirports, fixtureRunways, [], fixtureContext).filter(
+  (a) => listedRing5Icaos.has(a.icao),
+)
+
 describe('fixture: 4. halka açıkken liste ve pistler (D-101; uygulamada M6i.2’den beri açık, D-102)', () => {
-  const fixtureAirports: AirportDetailSourceRow[] = readFixtureCsv('airports.csv')
-    .filter(
-      (r) =>
-        r.get('type') === 'large_airport' ||
-        r.get('type') === 'medium_airport' ||
-        r.get('scheduled_service') === 'yes' ||
-        (r.get('iso_country') === 'TR' && /^[A-Z]{3}$/.test(r.get('iata_code') ?? '')),
-    )
-    .map((r) => ({
-      id: Number(r.get('id')),
-      ident: r.get('ident') ?? '',
-      type: r.get('type') ?? '',
-      name: r.get('name') ?? '',
-      latitudeDeg: Number(r.get('latitude_deg')),
-      longitudeDeg: Number(r.get('longitude_deg')),
-      elevationFt: number(r.get('elevation_ft')),
-      isoCountry: r.get('iso_country') ?? '',
-      isoRegion: r.get('iso_region') ?? '',
-      municipality: text(r.get('municipality')),
-      scheduledService: r.get('scheduled_service') === 'yes',
-      icaoCode: text(r.get('icao_code')),
-      iataCode: text(r.get('iata_code')),
-      gpsCode: text(r.get('gps_code')),
-      updatedAt: new Date('2026-10-01T23:03:49Z'),
-    }))
-  const imported = new Set(fixtureAirports.map((a) => a.id))
-  const fixtureRunways: RunwaySourceRow[] = readFixtureCsv('runways.csv')
-    .filter((r) => r.get('closed') !== '1' && imported.has(Number(r.get('airport_ref'))))
-    .map((r) => ({
-      ...runwayRow(),
-      id: Number(r.get('id')),
-      airportId: Number(r.get('airport_ref')),
-      lengthFt: number(r.get('length_ft')),
-      widthFt: number(r.get('width_ft')),
-      surface: text(r.get('surface')),
-      lighted: r.get('lighted') === '1',
-      leIdent: text(r.get('le_ident')),
-      heIdent: text(r.get('he_ident')),
-    }))
-  const context: ListingContext = {
-    turkey: turkishReferencePoints(fixtureAirports),
-    ringsKm: RINGS_KM,
-    enabledRing: 4,
-  }
-  const listedRing4 = selectListedAirports(fixtureAirports, context)
+  const context: ListingContext = { ...fixtureContext, enabledRing: 4 }
 
   it('56 + 75 + 89 + 278 + 719 = 1.217; askerî üsler (D-107) ve UG-0002 (KHX) listede yok, her ICAO dört karakter', () => {
     expect(listedRing4).toHaveLength(1217)
@@ -907,6 +975,7 @@ describe('fixture: 4. halka açıkken liste ve pistler (D-101; uygulamada M6i.2�
   it('üsler uzaklık referansından çıkınca halka üyeliği değişmez; en yakın Türkiye havalimanı yalnız dört yerde Çiğli yerine sivil alan olur (D-107)', () => {
     // D-107'den önceki referans: 61 nokta + beş üs (66).
     const bases = fixtureAirports
+      .filter((a) => a.isoCountry === 'TR')
       .filter((a) => MILITARY_AIRFIELD_ICAOS.includes(ourAirportsIcao(a)))
       .map((a) => ({
         lat: a.latitudeDeg,
@@ -915,13 +984,13 @@ describe('fixture: 4. halka açıkken liste ve pistler (D-101; uygulamada M6i.2�
         iata: a.iataCode ?? '',
         name: cleanAirportName(a.name),
       }))
-    expect(bases.map((b) => b.icao).sort()).toEqual([...MILITARY_AIRFIELD_ICAOS])
+    expect(bases.map((b) => b.icao).sort()).toEqual(['LTAG', 'LTAH', 'LTBG', 'LTBI', 'LTBL'])
     const before: ListingContext = { ...context, turkey: [...context.turkey, ...bases] }
     const all = { ...context, enabledRing: 5 }
     const now = toAirportDetails(fixtureAirports, [], [], all).filter((a) => a.country !== 'TR')
     // Ayrıntı kaydı halka süzgeci uygulamaz: bütün adaylar (1.–5. halka) karşılaştırılır.
     const old = new Map(toAirportDetails(fixtureAirports, [], [], before).map((a) => [a.icao, a]))
-    expect(now.length).toBeGreaterThan(1161)
+    expect(now.length).toBeGreaterThan(3187)
     const ringChanges = now.filter((a) => old.get(a.icao)?.ring !== a.ring)
     expect(ringChanges).toEqual([])
     expect(selectListedAirports(fixtureAirports, all)).toHaveLength(
@@ -949,33 +1018,8 @@ describe('fixture: 4. halka açıkken liste ve pistler (D-101; uygulamada M6i.2�
     }
   })
 
-  it('gizli satırlar: tablodaki yedi kayıt, karşı ucu olmayanlar ve yalnız Pamplona’nın 2 ft’lik satırı', () => {
-    const hidden = fixtureRunways.filter(isHiddenRunway)
-    const inTable = hidden.filter((r) => Object.hasOwn(HIDDEN_RUNWAY_IDS, r.id)).map((r) => r.id)
-    expect(inTable.sort((a, b) => a - b)).toEqual(
-      Object.keys(HIDDEN_RUNWAY_IDS)
-        .map(Number)
-        .sort((a, b) => a - b),
-    )
-    const byLength = hidden
-      .filter((r) => r.heIdent !== null && !Object.hasOwn(HIDDEN_RUNWAY_IDS, r.id))
-      .map((r) => r.id)
-    expect(byLength).toEqual([260341])
-    const details = toAirportDetails(fixtureAirports, fixtureRunways, [], context)
-    const runwayIds = (icao: string) =>
-      details.find((a) => a.icao === icao)?.runways.map((r) => r.id)
-    expect(runwayIds('LEPP')).toEqual([238947])
-    expect(runwayIds('DAUH')).toEqual([232838])
-    expect(runwayIds('HBBA')).toEqual([234430])
-    expect(runwayIds('LFOB')).toEqual([235868, 235869])
-    expect(runwayIds('USDB')).toHaveLength(2)
-  })
-
   it('görünür pisti olmayan listelenen havalimanları boş pist listesiyle gelir (GMAZ, ULDD, VIMB, VOVI, ZWTK ve UBLC)', () => {
-    const listedIcaos = new Set(listedRing4.map((a) => a.icao))
-    const details = toAirportDetails(fixtureAirports, fixtureRunways, [], context).filter((a) =>
-      listedIcaos.has(a.icao),
-    )
+    const details = fixtureDetails.filter((a) => a.ring <= 4)
     expect(details).toHaveLength(1217)
     const withoutRunways = details.filter((a) => a.runways.length === 0).map((a) => a.icao)
     expect(withoutRunways.sort()).toEqual(['GMAZ', 'UBLC', 'ULDD', 'VIMB', 'VOVI', 'ZWTK'])
@@ -987,21 +1031,120 @@ describe('fixture: 4. halka açıkken liste ve pistler (D-101; uygulamada M6i.2�
   })
 })
 
-describe('pist kurallarının web test yardımcısındaki yazımı (D-101)', () => {
-  it('gizli kimlikler ve 100 ft sınırı `apps/web/src/lib/test/ourairports-fixture.ts` ile aynı', () => {
+describe('fixture: 5. halka açık bağlamla (D-109; uygulamada halka 4)', () => {
+  it('56 + 75 + 89 + 278 + 719 + 2.026 = 3.243; dışlananlar listede yok', () => {
+    expect(listedRing5).toHaveLength(3243)
+    expect(
+      [0, 1, 2, 3, 4, 5].map((ring) => listedRing5.filter((a) => a.ring === ring).length),
+    ).toEqual([56, 75, 89, 278, 719, 2026])
+    expect(listedRing5.filter((a) => a.country !== 'TR')).toHaveLength(3187)
+    // Dört karakterli ICAO kuralı (D-101: Aleknagik 5A8/WKK, Kihihi UG-0002/KHX, Leshan
+    // CN-0249/LSG), askerî liste (D-109: Wake PWAK/AWK, Oakey YBOK/OKY, Kwajalein PKWA/KWA) ve aday
+    // olmayan iki dışlama örneği (Paris-Le Bourget LFPB/LBG tarifesiz; Thohoyandou FATH/THY küçük,
+    // içe aktarılmaz).
+    const icaos = listedRing5.map((a) => a.icao)
+    const iatas = listedRing5.map((a) => a.iata)
+    for (const icao of ['5A8', 'UG-0002', 'CN-0249', 'PWAK', 'YBOK', 'PKWA', 'LFPB', 'FATH']) {
+      expect(icaos, icao).not.toContain(icao)
+    }
+    for (const iata of ['WKK', 'KHX', 'LSG', 'AWK', 'OKY', 'KWA', 'LBG', 'THY']) {
+      expect(iatas, iata).not.toContain(iata)
+    }
+    for (const airport of listedRing5) expect(airport.icao).toMatch(/^[A-Z0-9]{4}$/)
+    // Le Bourget içe aktarılır (büyük havalimanı) ve ülke listesinde görünür; Thohoyandou hiç yoktur.
+    const france = toListedAirports(
+      fixtureAirports.filter((a) => a.isoCountry === 'FR'),
+      fixtureContext,
+    )
+    expect(france.find((a) => a.iata === 'LBG')).toMatchObject({ icao: 'LFPB', scheduled: false })
+    expect(fixtureAirports.some((a) => a.ident === 'FATH')).toBe(false)
+    // Askerî alanlar ülke listesinde de yoktur.
+    const marshall = toListedAirports(
+      fixtureAirports.filter((a) => a.isoCountry === 'MH'),
+      fixtureContext,
+    )
+    expect(marshall.map((a) => a.icao)).not.toContain('PKWA')
+  })
+
+  it('boş yinelenen satır kuralı tablodaki yedi satırı ve 5. halkanın 13 satırını tutar; silme işareti NZHN 238057 ve 260389', () => {
+    const measured = new Set(
+      fixtureRunways
+        .filter((r) => !isHiddenRunway(r) && r.lengthFt !== null)
+        .map((r) => r.airportId),
+    )
+    // Karşı ucu olan boş satırlar (Ponta Porã'nın karşı ucu olmayan boş satırı 352918 satır
+    // kuralıyla zaten gizli).
+    const emptyDuplicates = fixtureRunways
+      .filter((r) => isEmptyRunway(r) && r.heIdent !== null && measured.has(r.airportId))
+      .map((r) => r.id)
+    // D-088, D-090, D-101'in kimlik tablosu (Bujumbura, Hassi Messaoud, Taba, Beauvais, Cluj, Linz,
+    // Voronej) ve 5. halkanın 13 satırı (SKBS, SKMZ, SKAS, SKRH, SKSV, RJNO, NZGS, NZHN 260389 (silme
+    // işareti de), NZKK, NZRO, NZWK, RCKU, WAJO).
+    const table = [260310, 260338, 260339, 260344, 260408, 504922, 608245]
+    const ringFive = [260326, 260329, 260332, 260333, 260334, 260378, 260388, 260389]
+    const ringFiveRest = [260391, 260398, 260402, 260411, 327756]
+    expect(emptyDuplicates.sort((x, y) => x - y)).toEqual(
+      [...table, ...ringFive, ...ringFiveRest].sort((x, y) => x - y),
+    )
+    const tombstones = fixtureRunways
+      .filter((r) => RUNWAY_TOMBSTONE_SURFACE.test(r.surface ?? ''))
+      .map((r) => r.id)
+    expect(tombstones).toEqual([238057, 260389])
+    // Satır kuralları: karşı ucu olmayanlar (Stuttgart'ın iki helikopter alanı, LTAO ve TR-0315'in
+    // "H" satırları, 5. halkada Atlanta-DeKalb ve Campo Grande helikopter alanları, Langzhong ZULA
+    // ve Ponta Porã'nın boş satırı), 100 ft'ten kısa Pamplona ve iki silme işareti.
+    const rowHidden = fixtureRunways.filter((r) => isHiddenRunway(r)).map((r) => r.id)
+    expect(rowHidden).toHaveLength(10)
+    expect(rowHidden.filter((id) => id === 260341 || id === 354841)).toHaveLength(2)
+    const runwayIds = (icao: string) =>
+      fixtureDetails.find((a) => a.icao === icao)?.runways.map((r) => r.id)
+    expect(runwayIds('LEPP')).toEqual([238947])
+    expect(runwayIds('DAUH')).toEqual([232838])
+    expect(runwayIds('HBBA')).toEqual([234430])
+    expect(runwayIds('LFOB')).toEqual([235868, 235869])
+    expect(runwayIds('USDB')).toHaveLength(2)
+    // Hamilton: üç gerçek satır; 238057 (07/25'in dolu kopyası) ve 260389 (boş) silme işaretli.
+    expect(runwayIds('NZHN')?.sort((a, b) => a - b)).toEqual([238058, 238059, 238060])
+  })
+
+  it('görünür pistler: 1.–4. halka 1.541, 5. halka 2.978; pistsiz 6 + 14 havalimanı', () => {
+    const visible = (rings: readonly number[]) =>
+      fixtureDetails
+        .filter((a) => rings.includes(a.ring))
+        .reduce((total, airport) => total + airport.runways.length, 0)
+    expect(visible([0, 1, 2, 3, 4])).toBe(1541)
+    expect(visible([5])).toBe(2978)
+    const withoutRunways = (ring: (r: number) => boolean) =>
+      fixtureDetails
+        .filter((a) => ring(a.ring) && a.runways.length === 0)
+        .map((a) => a.icao)
+        .sort()
+    expect(withoutRunways((r) => r <= 4)).toEqual(['GMAZ', 'UBLC', 'ULDD', 'VIMB', 'VOVI', 'ZWTK'])
+    expect(withoutRunways((r) => r === 5)).toEqual([
+      ...['AYBM', 'MZBE', 'MZCK', 'MZCP', 'MZPB', 'NWWA', 'UERS'],
+      ...['UESU', 'UEVV', 'WAKT', 'WIOS', 'WITC', 'ZPZT', 'ZULA'],
+    ])
+  })
+})
+
+describe('pist kurallarının web test yardımcısındaki yazımı (D-101, D-109)', () => {
+  it('100 ft sınırı ve silme işareti `apps/web/src/lib/test/ourairports-fixture.ts` ile aynı', () => {
     // Web @havayolu/db'ye bağımlı değildir; yardımcı kuralları kendi yazar (sayfa metni testleri).
     const source = readFileSync(
       new URL('../../../apps/web/src/lib/test/ourairports-fixture.ts', import.meta.url),
       'utf8',
     )
-    const ids = /const HIDDEN_RUNWAY_IDS = new Set\(\[([^\]]*)\]\)/.exec(source)?.[1] ?? ''
-    expect([...ids.matchAll(/'(\d+)'/g)].map((m) => Number(m[1])).sort((a, b) => a - b)).toEqual(
-      Object.keys(HIDDEN_RUNWAY_IDS)
-        .map(Number)
-        .sort((a, b) => a - b),
-    )
     expect(/const MIN_RUNWAY_LENGTH_FT = (\d+)/.exec(source)?.[1]).toBe(
       String(MIN_RUNWAY_LENGTH_FT),
     )
+    expect(/const RUNWAY_TOMBSTONE_SURFACE = (\/.*\/[a-z]*)\n/.exec(source)?.[1]).toBe(
+      String(RUNWAY_TOMBSTONE_SURFACE),
+    )
+    // Boş satır: uzunluk, genişlik ve iki ucun koordinatı (dört sütun).
+    for (const column of ['length_ft', 'width_ft', 'le_latitude_deg', 'he_latitude_deg']) {
+      expect(source, column).toContain(`num(row.${column}) === null`)
+    }
+    // Eski kimlik tablosu kalmadı (D-109: genel kural).
+    expect(source).not.toContain('HIDDEN_RUNWAY_IDS')
   })
 })

@@ -130,17 +130,27 @@ export const OURAIRPORTS_ICAO_CORRECTIONS: Readonly<
 }
 
 /**
- * Askerî hava üsleri (D-107; D-084: İncirlik, Afyon, Bandırma, Eskişehir, Çiğli), kanonik ICAO
- * sırasıyla. Sitenin hiçbir yerinde yoktur: listelenmez (`scope=listed`, ülke listeleri, tek
- * havalimanı ve hava durumu uçları; sayfaları, haritası ve worker'ın hava durumu istasyonları bu
- * listeyi kullanır) ve Türkiye'deki uzaklık referansı da sayılmaz (yabancı havalimanının
- * "Türkiye'deki en yakın havalimanı" hiçbir zaman üs değildir; halka üyeliği değişmez). Satırları
- * ve pistleri veritabanında kalır: içe aktarım süzgeci (`isImportedAirport`) değişmedi, süzme
- * okurken yapılır.
+ * Askerî hava alanları, kanonik ICAO sırasıyla: Türkiye'nin beş askerî hava üssü (D-107; D-084:
+ * İncirlik, Afyon, Bandırma, Eskişehir, Çiğli) ve yurt dışında adı yalnız askerî olan üç alan (5.
+ * halka, D-109: Kwajalein Bucholz PKWA, Wake Adası PWAK, Oakey YBOK). Sitenin hiçbir yerinde
+ * yoktur: listelenmez (`scope=listed`, ülke listeleri, tek havalimanı ve hava durumu uçları;
+ * sayfaları, haritası ve worker'ın hava durumu istasyonları bu listeyi kullanır) ve Türkiye'deki
+ * uzaklık referansı da sayılmaz (yabancı havalimanının "Türkiye'deki en yakın havalimanı" hiçbir
+ * zaman üs değildir; halka üyeliği değişmez). Satırları ve pistleri veritabanında kalır: içe aktarım
+ * süzgeci (`isImportedAirport`) değişmedi, süzme okurken yapılır.
  * `@havayolu/shared` `MILITARY_AIRFIELD_ICAOS` ile aynıdır (db shared'a bağımlı değildir;
  * `apps/api/src/reference/rings.test.ts` iki yazımı denetler).
  */
-export const MILITARY_AIRFIELD_ICAOS: readonly string[] = ['LTAG', 'LTAH', 'LTBG', 'LTBI', 'LTBL']
+export const MILITARY_AIRFIELD_ICAOS: readonly string[] = [
+  'LTAG',
+  'LTAH',
+  'LTBG',
+  'LTBI',
+  'LTBL',
+  'PKWA',
+  'PWAK',
+  'YBOK',
+]
 
 const MILITARY_AIRFIELDS: ReadonlySet<string> = new Set(MILITARY_AIRFIELD_ICAOS)
 
@@ -608,6 +618,13 @@ export interface RunwaySourceRow {
   heDisplacedThresholdFt: number | null
   heThresholdLat: number | null
   heThresholdLon: number | null
+  /**
+   * Kaynaktaki uç koordinatlarının enlemi (OurAirports `le_latitude_deg`, `he_latitude_deg`); yoksa
+   * null. Yalnız boş satır kuralı okur (`visibleRunways`): uç koordinatı olmayan pistin eşiği içe
+   * aktarımda havalimanı merkezine (ARP) düşer, eşik ölçüt olamaz.
+   */
+  leLatitudeDeg: number | null
+  heLatitudeDeg: number | null
   updatedAt: Date
   /** Düzeltme yoksa null. */
   overrideUpdatedAt: Date | null
@@ -621,33 +638,6 @@ export interface StationSourceRow {
 }
 
 /**
- * Gösterilmeyen pist satırları (D-088, D-090, D-101), OurAirports pist kimliğine göre. Hepsi aynı
- * havalimanında bilgili bir pistin yanında duran, uzunluğu, genişliği ve uç koordinatları olmayan
- * (kaplaması "UNK" ya da "GRS") yinelenen kayıtlardır; gösterilseler sayfa ve pencere havalimanında
- * bir pist fazla sayardı. Satır
- * veritabanında kalır; yalnız hâlâ boşken (uzunluk ve genişlik yok) gizlenir, OurAirports satırı
- * doldurursa yeniden görünür. Eşik koordinatı ölçüt değildir: uç koordinatı olmayan pistin eşiği içe
- * aktarımda havalimanı merkezine (ARP) düşer (`arp_fallback`).
- * - 260339: Taba (HETB) "04/22"; havalimanının tek pisti 04L/22R (4.000 m) olarak kayıtlı.
- * - 260408: Cluj-Napoca (LRCL) "08/26"; kayıtlı pist 07/25 (2.040 m). Pist yeniden numaralanmış ve
- *   uzatılmış olabilir; doğrulanamadı, veri olduğu gibi kalır.
- * - 504922: Linz (LOWL) "07H/25H"; havalimanının 08/26 (3.000 m) ve 08E/26E çim pisti kayıtlı.
- * - 608245: Voronej (UUOO) "18/36"; kayıtlı pist 12/30 (2.300 m).
- * - 4. halka (D-101): 260338 Hassi Messaoud (DAUH) "01/19", kayıtlı pist 18/36 (3.000 m); 260344
- *   Beauvais (LFOB) "13R/31L", kayıtlı pistler 04/22 ve 12/30 (2.430 m); 260310 Bujumbura (HBBA)
- *   "02/20", kayıtlı pist 17/35 (3.600 m).
- */
-export const HIDDEN_RUNWAY_IDS: Readonly<Record<number, string>> = {
-  260310: 'HBBA 02/20',
-  260338: 'DAUH 01/19',
-  260339: 'HETB 04/22',
-  260344: 'LFOB 13R/31L',
-  260408: 'LRCL 08/26',
-  504922: 'LOWL 07H/25H',
-  608245: 'UUOO 18/36',
-}
-
-/**
  * Bundan kısa kayıtlı uzunluk pist değildir, ft (D-101, genel kural). Pamplona'nın (LEPP) 260341
  * "03/21" satırı 2 ft uzunluğunda, genişliği ve uç koordinatı yok, kaplaması UNK; gösterilseydi
  * havalimanı iki pist sayardı (kayıtlı pist 15/33, 2.207 m). Fixture'da bu sınırın altında kalan
@@ -657,15 +647,23 @@ export const HIDDEN_RUNWAY_IDS: Readonly<Record<number, string>> = {
 export const MIN_RUNWAY_LENGTH_FT = 100
 
 /**
- * Pist satırı gizlenir mi:
- * - `HIDDEN_RUNWAY_IDS`'te ve hâlâ boş (uzunluk ve genişlik yok; D-088), ya da
+ * OurAirports düzenleyicisinin silme işareti (D-109): kaplama alanı "DELETE" ile başlayan satır
+ * (büyük-küçük harf fark etmez). 2026-10-01 indirmesinin bütün içe aktarımında yalnız Hamilton'ın
+ * (NZHN) iki satırı: 238057 "Delete duplicate" (uzunluğu, genişliği ve uç koordinatları var; gerçek
+ * 07/25'in yinelenmiş 07R/25L kopyası) ve 260389 "Delete" (boş).
+ */
+export const RUNWAY_TOMBSTONE_SURFACE = /^\s*delete/i
+
+/**
+ * Pist satırı tek başına gizlenir mi (satırın kendi alanlarıyla; havalimanının öbür satırlarına
+ * bakan boş satır kuralı `visibleRunways`'tedir):
  * - karşı ucu yok (`he_ident` boş; D-090, genel kural). Pistin iki ucu vardır; tek uçlu satır
  *   helikopter iniş alanıdır: Stuttgart'ın (EDDS) "H-NORTH" ve "H-SOUTH" satırları (30 × 30 m)
- *   gösterilseydi sayfa ve pencere üç pist sayardı. 2026-10-01 indirmesinin bütün adaylarında bu
- *   biçimde yalnız yedi satır var; fixture'da Stuttgart'ın ikisi ve listelenmeyen iki Türkiye
- *   kaydının (LTAO, TR-0315) "H" satırı; ya da
+ *   gösterilseydi sayfa ve pencere üç pist sayardı. Langzhong'un (ZULA) adsız 11.811 ft'lik satırı
+ *   da bu kuralla gizli kalır (D-090; havalimanı pistsiz görünür, 4. halkanın ZWTK'si gibi); ya da
  * - kayıtlı uzunluğu `MIN_RUNWAY_LENGTH_FT`'ten kısa (D-101, genel kural; uzunluğu bilinmeyen satır
- *   bu kuralla gizlenmez).
+ *   bu kuralla gizlenmez); ya da
+ * - kaplaması düzenleyicinin silme işareti (`RUNWAY_TOMBSTONE_SURFACE`, D-109; dolu satırda da).
  *
  * Uçları kayıtlı uzunluğa göre çok uzak satır (D-101, Amravati) gizlenmez: içe aktarım uç
  * koordinatlarını yön ve eşik için kullanmaz (`@havayolu/providers` `endsAreTooFarApart`), pist
@@ -673,11 +671,57 @@ export const MIN_RUNWAY_LENGTH_FT = 100
  * kuralları yazar; `airports.test.ts` iki yazımı karşılaştırır.
  */
 export function isHiddenRunway(
-  row: Pick<RunwaySourceRow, 'id' | 'lengthFt' | 'widthFt' | 'heIdent'>,
+  row: Pick<RunwaySourceRow, 'lengthFt' | 'heIdent' | 'surface'>,
 ): boolean {
   if (present(row.heIdent) === null) return true
   if (row.lengthFt !== null && row.lengthFt < MIN_RUNWAY_LENGTH_FT) return true
-  return Object.hasOwn(HIDDEN_RUNWAY_IDS, row.id) && row.lengthFt === null && row.widthFt === null
+  return RUNWAY_TOMBSTONE_SURFACE.test(row.surface ?? '')
+}
+
+/** Boş pist satırının alanları (`isEmptyRunway`, `visibleRunways`). */
+export type RunwayVisibilityRow = Pick<
+  RunwaySourceRow,
+  | 'id'
+  | 'airportId'
+  | 'lengthFt'
+  | 'widthFt'
+  | 'surface'
+  | 'heIdent'
+  | 'leLatitudeDeg'
+  | 'heLatitudeDeg'
+>
+
+/** Satır boş mu: uzunluğu, genişliği ve iki ucunun da koordinatı yok (D-088, D-109). */
+export const isEmptyRunway = (
+  row: Pick<RunwaySourceRow, 'lengthFt' | 'widthFt' | 'leLatitudeDeg' | 'heLatitudeDeg'>,
+): boolean =>
+  row.lengthFt === null &&
+  row.widthFt === null &&
+  row.leLatitudeDeg === null &&
+  row.heLatitudeDeg === null
+
+/**
+ * Gösterilen pist satırları, sıra korunarak (D-088, D-090, D-101, D-109). Satırlar bir ya da birçok
+ * havalimanından olabilir; kurallar havalimanı başına uygulanır:
+ * - `isHiddenRunway`'in satır kuralları (karşı ucu yok, 100 ft'ten kısa, silme işareti), ve
+ * - boş yinelenen satır (D-109, genel kural; D-088'den beri kimlik tablosuydu): boş satır
+ *   (`isEmptyRunway`) aynı havalimanında satır kurallarıyla gizlenmeyen ve uzunluğu bilinen başka
+ *   bir satır varken gösterilmez. Gösterilse sayfa ve pencere havalimanında bir pist fazla sayardı.
+ *   Satır veritabanında kalır; yalnız boş kaldıkça gizlenir, OurAirports satırı doldurursa (uzunluk,
+ *   genişlik ya da uç koordinatı) yeniden görünür. Havalimanının tek bilgisi boş satırsa satır
+ *   gösterilir (pist var, ölçüsü bilinmiyor).
+ *
+ * 2026-10-01 indirmesinde boş satır kuralı 1.–4. halkada tam olarak eski tablonun yedi satırını
+ * (260339 Taba, 260408 Cluj, 504922 Linz, 608245 Voronej; 4. halkada 260338 Hassi Messaoud, 260344
+ * Beauvais, 260310 Bujumbura) ve 5. halkada 13 satırı gizler (NZGS, NZHN 260389, NZKK, NZRO, NZWK,
+ * RCKU, RJNO, SKAS, SKBS, SKMZ, SKRH, SKSV, WAJO); bütün içe aktarımda 32 satır.
+ */
+export function visibleRunways<R extends RunwayVisibilityRow>(rows: readonly R[]): R[] {
+  const shown = rows.filter((row) => !isHiddenRunway(row))
+  // Uzunluğu bilinen gösterilen satırı olan havalimanları (boş satırın uzunluğu yoktur: "başka").
+  const measured = new Set<number>()
+  for (const row of shown) if (row.lengthFt !== null) measured.add(row.airportId)
+  return shown.filter((row) => !(isEmptyRunway(row) && measured.has(row.airportId)))
 }
 
 /** Sayısal sütun (sürücü `real`/`double` değerini sayı verir; ifade sonuçları için güvence). */
@@ -745,8 +789,7 @@ function detailRecords(
   stationRows: readonly StationSourceRow[],
 ): AirportDetailRecord[] {
   const runwaysByAirport = new Map<number, RunwaySourceRow[]>()
-  for (const runway of runwayRows) {
-    if (isHiddenRunway(runway)) continue
+  for (const runway of visibleRunways(runwayRows)) {
     const list = runwaysByAirport.get(runway.airportId)
     if (list === undefined) runwaysByAirport.set(runway.airportId, [runway])
     else list.push(runway)
@@ -825,6 +868,8 @@ async function readDetails(
         heDisplacedThresholdFt: runways.heDisplacedThresholdFt,
         heThresholdLat: overridden<number>(runwayOverrides.heThresholdLat, runways.heThresholdLat),
         heThresholdLon: overridden<number>(runwayOverrides.heThresholdLon, runways.heThresholdLon),
+        leLatitudeDeg: runways.leLatitudeDeg,
+        heLatitudeDeg: runways.heLatitudeDeg,
         updatedAt: runways.updatedAt,
         overrideUpdatedAt: runwayOverrides.updatedAt,
       })

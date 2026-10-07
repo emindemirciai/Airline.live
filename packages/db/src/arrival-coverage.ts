@@ -1,5 +1,5 @@
 import type postgres from 'postgres'
-import { greatCircleKm, isHiddenRunway } from './airports'
+import { greatCircleKm, visibleRunways } from './airports'
 import { hourStart } from './ingest'
 import { utcDay } from './partitions'
 
@@ -206,7 +206,7 @@ export interface ArrivalCoverageStationRow {
 /**
  * Etkin istasyonlar: ARP ve alan yüksekliği (`activeStationsWithArp` ile aynı lateral birleşim,
  * aynı ident'in en küçük kimlikli satırı), geoid ondülasyonu ve pist eşikleri. Gizli pistler
- * (`isHiddenRunway`) atlanır; yöneticinin düzeltmesi eşik koordinatına alan alan uygulanır ve
+ * (`visibleRunways`: satır kuralları ve boş yinelenen satır, D-109) atlanır; yöneticinin düzeltmesi eşik koordinatına alan alan uygulanır ve
  * düzeltilen ucun kaynağı 'override' olur. Havalimanı satırı olmayan istasyon atlanır.
  * Sıra: önce birincil, sonra ICAO; eşikler pist kimliği ve uç sırasıyla.
  */
@@ -248,6 +248,9 @@ export async function readArrivalCoverageStations(
           airport_id: number
           length_ft: number | null
           width_ft: number | null
+          surface: string | null
+          le_latitude_deg: number | null
+          he_latitude_deg: number | null
           le_ident: string | null
           le_elevation_ft: number | null
           le_threshold_lat: number
@@ -262,7 +265,8 @@ export async function readArrivalCoverageStations(
           he_overridden: boolean
         }[]
       >`
-        select r.id, r.airport_id, r.length_ft, r.width_ft,
+        select r.id, r.airport_id, r.length_ft, r.width_ft, r.surface,
+          r.le_latitude_deg, r.he_latitude_deg,
           r.le_ident, r.le_elevation_ft,
           coalesce(o.le_threshold_lat, r.le_threshold_lat) as le_threshold_lat,
           coalesce(o.le_threshold_lon, r.le_threshold_lon) as le_threshold_lon,
@@ -278,17 +282,22 @@ export async function readArrivalCoverageStations(
         where r.airport_id in ${tx(stations.map((s) => s.airport_id))}
         order by r.id`
       const byAirport = new Map<number, ArrivalCoverageThresholdRow[]>()
-      for (const r of runways) {
-        if (
-          isHiddenRunway({
+      const shown = new Set(
+        visibleRunways(
+          runways.map((r) => ({
             id: r.id,
+            airportId: r.airport_id,
             lengthFt: r.length_ft,
             widthFt: r.width_ft,
+            surface: r.surface,
             heIdent: r.he_ident,
-          })
-        ) {
-          continue
-        }
+            leLatitudeDeg: r.le_latitude_deg,
+            heLatitudeDeg: r.he_latitude_deg,
+          })),
+        ).map((r) => r.id),
+      )
+      for (const r of runways) {
+        if (!shown.has(r.id)) continue
         const list = byAirport.get(r.airport_id) ?? []
         list.push(
           {

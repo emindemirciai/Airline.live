@@ -73,11 +73,22 @@ const ECN: MapAirport = {
   municipality: 'Tymbou (Kirklar)',
 }
 
-/** Tiflis (UTC+4), Sohum (Gürcistan; Moskova saati), Tahran (UTC+3:30), New York (kuralı yok). */
+/**
+ * Tiflis (UTC+4), Sohum (Gürcistan; Moskova saati), Tahran (UTC+3:30), New York (5. halkanın
+ * kuralıyla America/New_York, D-109) ve kuralı olmayan bölge (ABD'de OurAirports'un "atanmamış"
+ * kodu US-U-A).
+ */
 const TBS: MapAirport = { ...ATH, icao: 'UGTB', iata: 'TBS', country: 'GE', isoRegion: 'GE-TB' }
 const SUI: MapAirport = { ...ATH, icao: 'UGSS', iata: 'SUI', country: 'GE', isoRegion: 'GE-AB' }
 const THR: MapAirport = { ...ATH, icao: 'OIII', iata: 'THR', country: 'IR', isoRegion: 'IR-23' }
 const JFK: MapAirport = { ...ATH, icao: 'KJFK', iata: 'JFK', country: 'US', isoRegion: 'US-NY' }
+const NO_ZONE: MapAirport = {
+  ...ATH,
+  icao: 'KXXX',
+  iata: 'XXX',
+  country: 'US',
+  isoRegion: 'US-U-A',
+}
 
 /** 1 Ekim 2026 13:00 UTC = 16:00 İstanbul. */
 const NOW = Date.parse('2026-10-01T13:00:00Z')
@@ -156,7 +167,8 @@ describe('havalimanı bilgileri', () => {
     // Sohum: fiilen kullanılan Moskova saati (kullanıcı kararı 2026-10-03).
     expect(popupTimeZone(SUI)).toBe('Europe/Moscow')
     expect(popupTimeZone(THR)).toBe('Asia/Tehran')
-    expect(popupTimeZone(JFK)).toBeNull()
+    expect(popupTimeZone(JFK)).toBe('America/New_York')
+    expect(popupTimeZone(NO_ZONE)).toBeNull()
   })
 
   it('listelenen her havalimanının penceresinde yer ve saat dilimi vardır (4. halka dahil, D-090, D-102)', () => {
@@ -297,7 +309,7 @@ describe('havalimanı bilgileri', () => {
   })
 
   it('saat dilimi bilinmeyen havalimanında yerel saat satırı yok', () => {
-    const facts = airportFacts(JFK, NOW, 'tr', tr.map.airportPopup)
+    const facts = airportFacts(NO_ZONE, NOW, 'tr', tr.map.airportPopup)
     expect(facts.rows.map((row) => row.key)).toEqual(['elevation', 'runways'])
     // Dilim açıkça null verilirse de yazılmaz.
     expect(

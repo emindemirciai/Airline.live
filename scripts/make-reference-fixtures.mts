@@ -5,8 +5,8 @@
 // 2026-10-01 indirmesinin kalıcı kopyası depo dışındadır: C:/PROJELER/havayolu-data/ourairports-2026-10-01
 // (SHA256SUMS ile; tools/fixtures/README.md). Bugünkü fixture o klasörden bayt bayt aynı üretilir.
 // Alt küme: Türkiye'deki bütün kayıtlar ve FIXTURE_EXTRA_AIRPORTS (pistlerinin hepsiyle), ardından
-// Türkiye dışı adaylar halka halka: önce 1., sonra 2., 3. ve 4. halka (açık pistleriyle; D-080,
-// D-088, D-090, D-101);
+// Türkiye dışı adaylar halka halka: önce 1., sonra 2., 3., 4. ve 5. halka (açık pistleriyle; D-080,
+// D-088, D-090, D-101, D-109);
 // havayollarının tamamı.
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
@@ -14,12 +14,30 @@ import { fileURLToPath } from 'node:url'
 import { distanceKm } from '../packages/geo/src/index.ts'
 import { parseCsv } from '../packages/providers/src/reference/csv.ts'
 
-/** Türkiye dışından testlerde kullanılabilecek birkaç büyük havalimanı. */
-const FIXTURE_EXTRA_AIRPORTS = ['EGLL', 'LFPG', 'EDDF', 'EHAM', 'OMDB', 'OTHH', 'KJFK', 'LEMD']
 /**
- * Fixture'a alınan halkaların üst sınırları, km (`@havayolu/shared` `AIRPORT_RINGS_KM`; 1. halka
- * ≤ 500, 2. halka 500 < uzaklık ≤ 1.000, 3. halka 1.000 < uzaklık ≤ 2.000, 4. halka 2.000 <
- * uzaklık ≤ 5.000; D-080, D-088, D-090, D-101). Aday: Türkiye dışında,
+ * Türkiye dışından testlerde kullanılabilecek birkaç büyük havalimanı ve iki dışlama örneği
+ * (D-109): Paris-Le Bourget (LFPB, LBG; büyük ama tarifesiz, dört karakterli ICAO'su ve üç pisti
+ * var: aday değildir) ve Thohoyandou (FATH, THY; küçük, tarifesiz, pisti yok: içe aktarılmaz).
+ * Bütün halkalar fixture'a girince listelenmeyen, geçerli ICAO'lu yabancı havalimanının örnekleri
+ * bunlardır; FATH ayrıca "THY"nin listede hiçbir zaman havalimanı kodu olmadığını gösterir (D-108).
+ */
+const FIXTURE_EXTRA_AIRPORTS = [
+  'EGLL',
+  'LFPG',
+  'EDDF',
+  'EHAM',
+  'OMDB',
+  'OTHH',
+  'KJFK',
+  'LEMD',
+  'LFPB',
+  'FATH',
+]
+/**
+ * Fixture'a alınan halkaların üst sınırları, km (`@havayolu/shared` `AIRPORT_RINGS_KM` ve son
+ * halka; 1. halka ≤ 500, 2. halka 500 < uzaklık ≤ 1.000, 3. halka 1.000 < uzaklık ≤ 2.000, 4.
+ * halka 2.000 < uzaklık ≤ 5.000, 5. halka 5.000 km'nin ötesi, sınırsız; D-080, D-088, D-090,
+ * D-101, D-109). Aday: Türkiye dışında,
  * tarifeli seferi olan, üç harfli IATA kodlu büyük ya da orta havalimanı (D-080 kuralı; uygulamanın
  * dört karakterli ICAO koşulu burada yoktur: Kihihi UG-0002 fixture'da dışlamanın örneğidir).
  * Uzaklık Türkiye'deki IATA
@@ -27,11 +45,11 @@ const FIXTURE_EXTRA_AIRPORTS = ['EGLL', 'LFPG', 'EDDF', 'EHAM', 'OMDB', 'OTHH', 
  * kümeyle ölçer). Halkalar sırayla yazılır, her halka kaynak sırasıyla: yeni halka dosyanın sonuna
  * eklenir, önceki satırlar ve sıraları değişmez (tek eşikle yazılsa sonraki halkanın satırları
  * öncekilerin arasına karışırdı; kaynak alfabetik sıradadır). Uzak örneklerden (FIXTURE_EXTRA_AIRPORTS)
- * 3. halkaya düşen Frankfurt, Dubai ve Doha Hamad ile 4. halkaya düşen Paris Charles de Gaulle,
- * Amsterdam, Londra Heathrow ve Madrid tabanda kalır, halka satırı olarak yinelenmez; yalnız KJFK
- * hiçbir fixture halkasında değildir.
+ * 3. halkaya düşen Frankfurt, Dubai ve Doha Hamad, 4. halkaya düşen Paris Charles de Gaulle,
+ * Amsterdam, Londra Heathrow ve Madrid ile 5. halkaya düşen New York JFK tabanda kalır, halka
+ * satırı olarak yinelenmez (5. halkanın satırları bu yüzden 2.031 adayın 2.030'udur).
  */
-const FIXTURE_RINGS_KM = [500, 1000, 2000, 5000] as const
+const FIXTURE_RINGS_KM = [500, 1000, 2000, 5000, Number.POSITIVE_INFINITY] as const
 const IATA_CODE = /^[A-Z]{3}$/
 
 const root = fileURLToPath(new URL('..', import.meta.url))
@@ -81,7 +99,7 @@ const candidates = airports.filter(
     IATA_CODE.test(row[iataCol] ?? ''),
 )
 const distances = new Map(candidates.map((row) => [row, nearestTurkishKm(row)]))
-/** Halka halka adaylar: [1. halka, 2. halka, 3. halka, 4. halka], her biri kaynak sırasıyla. */
+/** Halka halka adaylar: [1. halka, …, 5. halka], her biri kaynak sırasıyla. */
 const rings = FIXTURE_RINGS_KM.map((limit, index) => {
   const lower = index === 0 ? -1 : (FIXTURE_RINGS_KM[index - 1] ?? -1)
   return candidates.filter((row) => {
@@ -95,7 +113,7 @@ const [runwayHeader = [], ...runways] = read('runways.csv')
 const runwayAirportCol = col(runwayHeader, 'airport_ident')
 const closedCol = col(runwayHeader, 'closed')
 const baseRunways = runways.filter((row) => baseIdents.has(row[runwayAirportCol]))
-// Pistler de halka halka: önce 1. halkanın açık pistleri, sonra 2., 3. ve 4. halkanınkiler.
+// Pistler de halka halka: önce 1. halkanın açık pistleri, sonra 2., 3., 4. ve 5. halkanınkiler.
 const ringRunways = rings.flatMap((ring) => {
   const idents = new Set(ring.map((row) => row[identCol]))
   return runways.filter((row) => idents.has(row[runwayAirportCol]) && row[closedCol] !== '1')

@@ -13,8 +13,8 @@ import {
 } from '@havayolu/shared'
 
 /**
- * Commit'li OurAirports fixture'ından (üretim dökümünün Türkiye kesiti ile 1.–4. halkanın yabancı
- * havalimanları, D-080, D-088, D-090, D-101) API'nin döndüreceği `AirportDetail` listesine yakın bir liste kurar:
+ * Commit'li OurAirports fixture'ından (üretim dökümünün Türkiye kesiti ile 1.–5. halkanın yabancı
+ * havalimanları, D-080, D-088, D-090, D-101, D-109) API'nin döndüreceği `AirportDetail` listesine yakın bir liste kurar:
  * IATA kodlu Türkiye havalimanları, içe aktarım filtresi (büyük/orta ya da tarifeli; data-sources.md §3),
  * açık pistler ve tohum istasyonları; `fixtureListedAirports` bunlara açık halkalardaki yabancı
  * adayları ekler. Sayfa metinlerinin her gerçek havalimanı için sınırlar içinde kaldığını denetlemek
@@ -66,8 +66,19 @@ function parseCsv(text: string): Row[] {
   return body.map((cells) => Object.fromEntries(header.map((key, i) => [key, cells[i] ?? ''])))
 }
 
+/**
+ * Dosya başına bir kez ayrıştırılır (D-109): fixture 5. halkayla 3.624 havalimanı ve 4.604 pist
+ * satırıdır; her çağrıda yeniden ayrıştırmak test dosyası başına yüzlerce milisaniye ekliyordu.
+ */
+const parsed = new Map<string, Row[]>()
+
 function read(file: string): Row[] {
-  return parseCsv(readFileSync(fileURLToPath(new URL(file, FIXTURE_DIR)), 'utf8'))
+  let rows = parsed.get(file)
+  if (rows === undefined) {
+    rows = parseCsv(readFileSync(fileURLToPath(new URL(file, FIXTURE_DIR)), 'utf8'))
+    parsed.set(file, rows)
+  }
+  return rows
 }
 
 const num = (value: string | undefined): number | null =>
@@ -126,42 +137,52 @@ function end(
 
 let cached: AirportDetail[] | undefined
 let cachedListed: AirportDetail[] | undefined
-let cachedRunways: Row[] | undefined
-
-/**
- * API'nin gizlediği yinelenen boş pist satırları (D-088, D-090, D-101; `@havayolu/db` →
- * `HIDDEN_RUNWAY_IDS`, web o pakete bağımlı değildir, `packages/db/src/airports.test.ts` iki listeyi
- * karşılaştırır): Bujumbura "02/20", Hassi Messaoud "01/19", Taba "04/22", Beauvais "13R/31L",
- * Cluj-Napoca "08/26", Linz "07H/25H" ve Voronej "18/36"; yalnız uzunluk ve genişlik boşken.
- */
-const HIDDEN_RUNWAY_IDS = new Set([
-  '260310',
-  '260338',
-  '260339',
-  '260344',
-  '260408',
-  '504922',
-  '608245',
-])
+let cachedRunways: Map<string, Row[]> | undefined
 
 /** Bundan kısa kayıtlı uzunluk pist değildir, ft (`@havayolu/db` `MIN_RUNWAY_LENGTH_FT`, D-101). */
 const MIN_RUNWAY_LENGTH_FT = 100
 
+/** OurAirports düzenleyicisinin silme işareti (`@havayolu/db` `RUNWAY_TOMBSTONE_SURFACE`, D-109). */
+const RUNWAY_TOMBSTONE_SURFACE = /^\s*delete/i
+
+/** Boş satır: uzunluğu, genişliği ve iki ucunun koordinatı yok (`@havayolu/db` `isEmptyRunway`). */
+const isEmptyRunway = (row: Row) =>
+  num(row.length_ft) === null &&
+  num(row.width_ft) === null &&
+  num(row.le_latitude_deg) === null &&
+  num(row.he_latitude_deg) === null
+
 /**
- * API'nin gösterdiği pist satırları (`isHiddenRunway`): açık, tabloda boş satır olarak yok, karşı
- * ucu var (D-090: tek uçlu satır pist değildir; Stuttgart'ın H-NORTH ve H-SOUTH helikopter alanları)
- * ve kayıtlı uzunluğu 100 ft'ten kısa değil (D-101: Pamplona'nın 2 ft'lik "03/21" satırı).
+ * API'nin gösterdiği pist satırları, havalimanı kimliğine (`airport_ident`) göre
+ * (`@havayolu/db` `visibleRunways`; web o pakete bağımlı değildir, `packages/db/src/airports.test.ts`
+ * iki yazımı karşılaştırır): açık, karşı ucu var (D-090: tek uçlu satır pist değildir; Stuttgart'ın
+ * H-NORTH ve H-SOUTH helikopter alanları), kayıtlı uzunluğu 100 ft'ten kısa değil (D-101:
+ * Pamplona'nın 2 ft'lik "03/21" satırı), silme işareti değil (D-109: Hamilton NZHN) ve aynı
+ * havalimanında uzunluğu bilinen bir satır varken boş değil (D-109; D-088'den beri Taba, Cluj,
+ * Linz, Voronej, Hassi Messaoud, Beauvais, Bujumbura ve 5. halkanın 13 satırı).
  */
-function openRunways(): Row[] {
-  cachedRunways ??= read('runways.csv').filter((row) => {
+function openRunways(): Map<string, Row[]> {
+  if (cachedRunways) return cachedRunways
+  const shown = read('runways.csv').filter((row) => {
     const lengthFt = num(row.length_ft)
     return (
       row.closed !== '1' &&
       (row.he_ident ?? '').trim() !== '' &&
       !(lengthFt !== null && lengthFt < MIN_RUNWAY_LENGTH_FT) &&
-      !(HIDDEN_RUNWAY_IDS.has(row.id ?? '') && !row.length_ft && !row.width_ft)
+      !RUNWAY_TOMBSTONE_SURFACE.test(row.surface ?? '')
     )
   })
+  const measured = new Set(
+    shown.filter((row) => num(row.length_ft) !== null).map((row) => row.airport_ref),
+  )
+  cachedRunways = new Map()
+  for (const row of shown) {
+    if (isEmptyRunway(row) && measured.has(row.airport_ref)) continue
+    const key = row.airport_ident ?? ''
+    const list = cachedRunways.get(key)
+    if (list === undefined) cachedRunways.set(key, [row])
+    else list.push(row)
+  }
   return cachedRunways
 }
 
@@ -207,8 +228,7 @@ function toDetail(
     nearestTr,
     station: station ? { active: true, primary: station.primary, fetchRadiusNm: 60 } : null,
     dataUpdatedAt: '2026-09-29T04:40:00.000Z',
-    runways: openRunways()
-      .filter((r) => r.airport_ident === row.ident)
+    runways: (openRunways().get(row.ident ?? '') ?? [])
       .map((r): RunwayDetail => ({
         id: Number(r.id),
         lengthFt: num(r.length_ft),
@@ -300,7 +320,9 @@ function foreignCandidates(): ForeignCandidate[] {
           row.scheduled_service === 'yes',
           row.iata_code ?? '',
           icaoOf(row),
-        ),
+        ) &&
+        // Askerî hava alanları listelenmez (D-107, D-109; 5. halkada PKWA, PWAK, YBOK).
+        !isMilitaryAirfield(icaoOf(row)),
     )
     .flatMap((row) => {
       const point = { lat: Number(row.latitude_deg), lon: Number(row.longitude_deg) }

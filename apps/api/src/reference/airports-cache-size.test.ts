@@ -26,7 +26,8 @@ import { testApp } from '../test/helpers'
  * kaydı tek istasyonluktur. Test, commit'li OurAirports fixture'ından (2026-10-01 kopyası) açık
  * halkanın bütün listesini (4. halkada 1.217 havalimanı) üretimdeki gibi kurar (içe aktarım
  * çözümleyicisi, liste kuralı, ayrıntı kaydı, API'nin serileştiricisi) ve kaydın sınırın %85'inin
- * altında kaldığını denetler. 5. halkada (~3.250 havalimanı) bu sınır kırılır (D-101).
+ * altında kaldığını denetler. 5. halkada (3.243 havalimanı) bu sınır kırılır (D-101); 5. halkanın ölçek işi
+ * M6j.2'dedir (D-109).
  */
 const NEXT_FETCH_CACHE_LIMIT = 2 * 1024 * 1024
 /** Güvenlik payı: kayıt sınırın en çok %85'i. */
@@ -35,8 +36,20 @@ const BUDGET = 0.85 * NEXT_FETCH_CACHE_LIMIT
 const fixture = (file: string) =>
   readFileSync(new URL(`../../../../tools/fixtures/ourairports/${file}`, import.meta.url), 'utf8')
 
-/** Fixture'ın içe aktarılmış satırları, veritabanındaki gibi (kimlik sırası). */
-function fixtureDetails(stationsForAll: boolean): AirportDetail[] {
+/**
+ * Fixture'ın içe aktarılmış satırları, veritabanındaki gibi (kimlik sırası). Dosya test dosyası
+ * başına bir kez ayrıştırılır (D-109; 5. halkayla 3.624 havalimanı ve 4.604 pist satırı).
+ */
+let parsed:
+  | {
+      airportRows: AirportDetailSourceRow[]
+      runwayRows: RunwaySourceRow[]
+      context: Parameters<typeof selectListedAirports>[1]
+    }
+  | undefined
+
+function parseFixture(): NonNullable<typeof parsed> {
+  if (parsed) return parsed
   const airports = parseAirports(fixture('airports.csv'))
   const runways = parseRunways(
     fixture('runways.csv'),
@@ -65,10 +78,18 @@ function fixtureDetails(stationsForAll: boolean): AirportDetail[] {
     heDisplacedThresholdFt: r.he.displacedThresholdFt,
     heThresholdLat: r.he.thresholdLat,
     heThresholdLon: r.he.thresholdLon,
+    leLatitudeDeg: r.le.latitudeDeg,
+    heLatitudeDeg: r.he.latitudeDeg,
     updatedAt,
     overrideUpdatedAt: null,
   }))
   const context = { turkey: turkishReferencePoints(airportRows), ...AIRPORT_RING_CONFIG }
+  parsed = { airportRows, runwayRows, context }
+  return parsed
+}
+
+function fixtureDetails(stationsForAll: boolean): AirportDetail[] {
+  const { airportRows, runwayRows, context } = parseFixture()
   const listed = new Set(selectListedAirports(airportRows, context).map((a) => a.icao))
   const icaos = stationsForAll ? [...listed] : SEED_STATIONS.map((s) => s.icao)
   const stations: StationSourceRow[] = icaos.map((icao) => ({

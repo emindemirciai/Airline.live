@@ -38,8 +38,8 @@ import {
 import { RING4_AIRPORT_CITIES, RING4_AIRPORT_NAMES } from './foreign-airport-names-r4'
 
 // Commit'li OurAirports alt kümesi (tools/fixtures/README.md): Türkiye'nin bütün kayıtları, birkaç
-// uzak havalimanı, 1.–4. halkanın havalimanları (D-080, D-088, D-090, D-101). Alanlar tırnaklı; `""`
-// kaçışlı tırnaktır.
+// uzak havalimanı, 1.–5. halkanın havalimanları (D-080, D-088, D-090, D-101, D-109). Alanlar
+// tırnaklı; `""` kaçışlı tırnaktır. Dosya test dosyası başına bir kez ayrıştırılır (D-109).
 const csv = (path: string) => {
   const text = readFileSync(new URL(`../../../../tools/fixtures/${path}`, import.meta.url), 'utf8')
   const [header = '', ...lines] = text.split(/\r?\n/)
@@ -132,6 +132,7 @@ const ringOne = candidates.filter((c) => c.ring === 1)
 const ringTwo = candidates.filter((c) => c.ring === 2)
 const ringThree = candidates.filter((c) => c.ring === 3)
 const ringFour = candidates.filter((c) => c.ring === 4)
+const ringFive = candidates.filter((c) => c.ring === 5)
 /** Açık halkalardaki yabancı havalimanları (M6i.2'den beri 1.–4. halka, D-102). */
 const listed = candidates.filter((c) => c.listable && c.ring <= ENABLED_AIRPORT_RING)
 /**
@@ -211,9 +212,12 @@ describe('halkalar', () => {
 
   it("fixture: halka analiziyle aynı kural 75 havalimanı verir (Türkiye'ye en yakın 48 km)", () => {
     expect(ringOne).toHaveLength(75)
-    // Sekiz uzak fixture havalimanından yalnız KJFK 4. halkanın ötesindedir; EDDF, OMDB ve OTHH 3.
-    // halkada (D-090), EGLL, LFPG, EHAM ve LEMD 4. halkadadır (D-101).
-    expect(candidates.filter((c) => c.ring > 4).map((c) => c.icao)).toEqual(['KJFK'])
+    // Sekiz uzak fixture havalimanından EDDF, OMDB ve OTHH 3. halkada (D-090), EGLL, LFPG, EHAM ve
+    // LEMD 4. halkada (D-101), KJFK 5. halkadadır (D-109).
+    const far = ['EDDF', 'OMDB', 'OTHH', 'EGLL', 'LFPG', 'EHAM', 'LEMD', 'KJFK']
+    expect(far.map((icao) => candidates.find((c) => c.icao === icao)?.ring)).toEqual([
+      3, 3, 3, 4, 4, 4, 4, 5,
+    ])
     expect(
       ringFour
         .map((c) => c.icao)
@@ -284,8 +288,10 @@ describe('halkalar', () => {
     expect(ringFour).toHaveLength(720)
     expect(ringFour.filter((c) => c.listable)).toHaveLength(719)
     // Kihihi Savannah pisti (IATA KHX): icao_code ve gps_code yok, kanonik kimliği ident'tir.
-    // Bütün fixture'da dört karakterli ICAO kuralına takılan tek aday odur.
-    expect(candidates.filter((c) => !c.listable).map((c) => c.icao)).toEqual(['UG-0002'])
+    // 1.–4. halkada dört karakterli ICAO kuralına takılan tek aday odur (5. halkada WKK ve LSG).
+    expect(candidates.filter((c) => c.ring <= 4 && !c.listable).map((c) => c.icao)).toEqual([
+      'UG-0002',
+    ])
     const khx = rows.find((r) => r.get('ident') === 'UG-0002')
     expect(khx?.get('iata_code')).toBe('KHX')
     expect([khx?.get('icao_code'), khx?.get('gps_code')]).toEqual(['', ''])
@@ -321,6 +327,48 @@ describe('halkalar', () => {
     )
     expect(listed.map((c) => c.icao)).not.toContain('UG-0002')
     expect(listed.map((c) => c.icao)).not.toContain('KJFK')
+  })
+
+  it("fixture: 5. halka 2.031 aday, 2.029'u dört karakterli ICAO'lu, 2.026'sı listelenebilir (askerî liste); halka kapalı (D-109)", () => {
+    expect(ringFive).toHaveLength(2031)
+    expect(ringFive.filter((c) => c.listable)).toHaveLength(2029)
+    // Dört karakterli ICAO kuralına takılan iki aday (D-101'in öngördüğü): Aleknagik (5A8, WKK) ve
+    // Leshan (CN-0249, LSG).
+    expect(ringFive.filter((c) => !c.listable).map((c) => c.icao)).toEqual(['5A8', 'CN-0249'])
+    // Askerî liste (D-109): adı yalnız askerî üç alan listelenmez.
+    const military = ringFive.filter((c) => isMilitaryAirfield(c.icao)).map((c) => c.icao)
+    expect(military.sort()).toEqual(['PKWA', 'PWAK', 'YBOK'])
+    const ringFiveListed = ringFive.filter((c) => c.listable && !isMilitaryAirfield(c.icao))
+    expect(ringFiveListed).toHaveLength(2026)
+    // Ortak sivil-askerî iki havalimanı listelenir (D-103): Ascension (FHAW) ve MidAmerica (KBLV).
+    expect(ringFiveListed.map((c) => c.icao)).toEqual(expect.arrayContaining(['FHAW', 'KBLV']))
+    const byDistance = ringFive.toSorted((a, b) => a.distance - b.distance)
+    // 5.000 km sınırında yuvarlama vakası yok: en yakını Xining 5.002,66 km.
+    expect(byDistance[0]?.icao).toBe('ZLXN')
+    expect(byDistance[0]?.distance).toBeCloseTo(5002.66, 1)
+    expect(byDistance.at(-1)?.icao).toBe('NTAT')
+    expect(byDistance.at(-1)?.distance).toBeCloseTo(17767.2, 0)
+    const earlier = new Set(
+      [...ringOne, ...ringTwo, ...ringThree, ...ringFour].map((c) => c.country),
+    )
+    const countries = new Set(ringFiveListed.map((c) => c.country))
+    expect(countries.size).toBe(129)
+    expect([...countries].filter((code) => !earlier.has(code))).toHaveLength(118)
+    // Bütün halkalar açılınca: 1.161 + 2.026 = 3.187 yurt dışı havalimanı; uygulamada halka 4'tür.
+    expect(listed.length + ringFiveListed.length).toBe(3187)
+    expect(ENABLED_AIRPORT_RING).toBe(4)
+    expect(listed.map((c) => c.icao)).not.toContain('KJFK')
+    // Fixture'ın iki dışlama örneği aday değildir (D-109): Le Bourget tarifesiz, Thohoyandou küçük.
+    for (const icao of ['LFPB', 'FATH']) {
+      expect(
+        rows.some((r) => icaoOf(r) === icao),
+        icao,
+      ).toBe(true)
+      expect(
+        candidates.map((c) => c.icao),
+        icao,
+      ).not.toContain(icao)
+    }
   })
 })
 
@@ -441,7 +489,8 @@ describe('FOREIGN_AIRPORT_NAMES', () => {
     expect(FOREIGN_AIRPORT_NAMES.LFKB?.en).toBe('Bastia-Poretta International Airport')
     expect(raw('LFLW')).toBe('Aurillac airport')
     expect(FOREIGN_AIRPORT_NAMES.LFLW?.en).toBe('Aurillac Airport')
-    // Bütün fixture'da (4. halkanın yedi Fransız havalimanı dahil, D-101) küçük harfli "airport".
+    // Bütün fixture'da (4. halkanın yedi Fransız havalimanı dahil, D-101; 5. halkada Puerto Suárez
+    // SLPS, D-109) küçük harfli "airport".
     const lowercase = rows
       .filter((r) => /\bairport\b/.test(r.get('name') ?? ''))
       .map(icaoOf)
@@ -449,6 +498,7 @@ describe('FOREIGN_AIRPORT_NAMES', () => {
     expect(lowercase).toEqual([
       ...['LFBE', 'LFBZ', 'LFKB', 'LFKJ', 'LFLB', 'LFLC', 'LFLP', 'LFLW'],
       ...['LFMU', 'LFMV', 'LFOB', 'LFOK', 'LFRB', 'LFRG', 'LFRK', 'LFSL'],
+      'SLPS',
     ])
   })
 
