@@ -36,8 +36,8 @@ Durumlar: `[ ]` başlamadı, `[~]` sürüyor, `[k]` kod bitti ve kullanıcı do�
 | M6e.8 | Ülke adları sınır içinde, kelime başına satır (yama, v0.19.1) | `p1/map-country-fit` | [x] tamam; üretimde doğrulandı (2026-10-05, v0.19.1): uydu üstünde z5,3'te TÜRKİYE sınır içinde (Ankara'nın güneyinde), BOSNA / HERSEK alt alta, adlar kıyıdan taşmıyor; v0.19.1 Release 2026-10-05T05:51:51Z | #32 |
 | M6e.9 | Ülke adları daha belirgin, boş yerde (yama, v0.21.1; D-099) | `p1/map-country-clear` | [k] kod bitti; üretimde uydu üstünde görünüm denetimi bekliyor (ACTIVATION M6e.9) | #35 |
 | M6e.10 | Askerî üsler haritada gösterilmez; açılış yakınlaştırması masaüstünde 8 (yama; D-103, D-104) | `p1/map-no-military` | [k] kod bitti; üretimde doğrulandı (2026-10-06, v0.22.1): `/version` 0.22.1, Release 2026-10-06T13:34:14Z; görünüm denetimi kullanıcıda (ACTIVATION v0.22.1) | #37 |
-| M6e.13 | Askerî üsler sitenin hiçbir yerinde yok (yama; D-107) | `p1/no-military-site` | [k] kod bitti (v0.22.2); üretim denetimi bekliyor (ACTIVATION v0.22.2) | #38 |
-| M6e.14 | Haritada havalimanı araması (yama; D-108) | `p1/map-airport-search` | [~] kod ve yerel kontroller bitti (v0.22.3); yayın ve üretim denetimi bekliyor (ACTIVATION v0.22.3) | — |
+| M6e.13 | Askerî üsler sitenin hiçbir yerinde yok (yama; D-107) | `p1/no-military-site` | [k] kod bitti; üretimde doğrulandı (2026-10-07, v0.22.2): `/version` 0.22.2, `scope=listed` 498 (Türkiye 56, üs 0), `/istasyon/LTBL`, `/istasyon/IGL`, `/en/istasyon/LTAG` 404; Release 2026-10-07T14:31:41Z; tarayıcı denetimi kullanıcıda (ACTIVATION v0.22.2) | #38 |
+| M6e.14 | Haritada havalimanı araması (yama; D-108) | `p1/map-airport-search` | [k] kod bitti (v0.22.3); üretim denetimi bekliyor (ACTIVATION v0.22.3) | — |
 | M6h | 3. halka (≤ 2.000 km) — kullanıcı isteğiyle M7a'nın önüne alındı (2026-10-04); sivil uçuşa kapalı olabilecek havalimanı notu | `p1/m6h-ring3` | [k] kod bitti; üretimde doğrulandı (2026-10-04, v0.18.0): `scope=listed` 503 (61 + 75 + 89 + 278), Viyana 3. halka 1.149 km, beş Özbek istasyonunun METAR'ı UZxx koduyla, METAR'lı istasyon 463/503, toplu hava 1,34 MB, URKK ve UUOO notu iki dilde; admin Servisler ve worker günlüğü (429 yok) bekliyor (ACTIVATION) | #28 |
 | M7a | Canlı araçlar: `smoke:live`, `record` | `p1/m7a-live-tools` | [k] kod bitti; canlı smoke ve kayıt kullanıcıda (ACTIVATION) | #31 |
 | M7b.1 | İz tablolarına ham `seen_pos` ve `baro_rate` (migration 0006, v0.20.0; D-097) | `p1/m7b1-track-columns` | [x] tamam; üretimde doğrulandı (2026-10-05, v0.20.0): `hy-migrate` 0006'yı uyguladıktan sonra servisler açıldı, `/version` 0.20.0, `/ready` 200; v0.20.0 Release 2026-10-05T07:45:13Z. Ingest yazımı üretimde adsb.lol açılınca görülür (ACTIVATION 2. adım) | #33 |
@@ -1408,6 +1408,11 @@ Sürüm v0.22.3 (dal `p1/map-airport-search`, `main` `7a9309e` = v0.22.1'den; `p
 - `pnpm format`, `pnpm format:check`, `pnpm lint` (9/9), `pnpm typecheck` (9/9), `pnpm typecheck:e2e`, `pnpm lint:e2e`, `pnpm typecheck:scripts`, `pnpm check:eol` → yeşil.
 - `pnpm test` (9/9): web 925 (+3), shared 724 (+2), tools 369, worker 294, api 285, providers 135, i18n 99, db 73, geo 36.
 - e2e'nin Enter adımına "THY airport" (SFA) ve "turkish" (ECN; Ercan penceresi açılmaz) eklendi; bu oturumda çalıştırılmadı, CI doğrular.
+
+**Çıktı kaydı (2026-10-07, yayın v0.22.3):**
+- `pnpm ci:full` yeşil: birim web 925, shared 724, tools 369, worker 294, api 285, providers 135, i18n 99, db 73, geo 36; entegrasyon db 107, api 31, worker 17, tools 14; `compose:guard` tamam; migration yükseltmesi 8 → 8; e2e 134/134 (4,2 dk; `map-search.spec.ts` dahil).
+- Yerel önizleme (`pnpm dev:replay`, 1280×800): sürüm 0.22.3; "sab" → SAW (İstanbul Sabiha Gökçen), AFZ, SEB, "Eşleşen havalimanı: 3."; ok tuşu ve Enter ile SAW seçilince harita Sabiha Gökçen'e gitti, havalimanı penceresi açıldı (hava durumu, pistler, yerel saat).
+- `pnpm stats`: 690 dosya, 145.262 satır (kod 133.918).
 
 ## M6h — 3. halka (v0.18.0)
 Onay: 2026-10-04 kullanıcı isteği "sonraki işlerden birine bir halka daha ekle" ve kapalı havalimanı kararı (2022'den beri sivil uçuşa kapalı olduğu hâlde OurAirports'ta tarifeli görünen havalimanları listede kalır, sayfada ve pencerede "Sivil uçuşlara kapalı olabilir (2022’den beri)" notu); diğer seçimler M6h araştırmasının önerileri (orkestratör varsayılanı 2026-10-04)
