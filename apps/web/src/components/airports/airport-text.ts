@@ -104,6 +104,11 @@ export function airportLocation(airport: AirportDetail, locale: Locale): string 
   return city === null ? country : format(t.locationAbroad, { city, country })
 }
 
+/** Sayı, binlik ayraçlı (D-106): 1222 → "1.222" (TR) / "1,222" (EN); 503 → "503". */
+export function formatCount(value: number, locale: Locale): string {
+  return new Intl.NumberFormat(INTL_LOCALE[locale]).format(value)
+}
+
 /** Uzunluk (ft girdi), metrik önce: "3.750 m (12.303 ft)". Bilinmiyorsa "—". */
 export function formatLength(ft: number | null, locale: Locale): string {
   if (ft === null || !Number.isFinite(ft)) return NO_VALUE
@@ -190,9 +195,15 @@ export function longestRunway(airport: AirportDetail): RunwayDetail | null {
   return longest
 }
 
-/** Sayfa başlığı (şablon " · havayolu" ekler): "İstanbul Havalimanı (IST/LTFM) canlı hava trafiği ve pistler". */
-export function airportTitle(airport: AirportDetail, locale: Locale): string {
-  return format(getMessages(locale).seo.airport.title, {
+/**
+ * Sayfa başlığı (şablon " · havayolu" ekler): "İstanbul Havalimanı (IST/LTFM) canlı hava trafiği ve
+ * pistler". Havalimanı canlı veri çekim alanının dışındaysa (`covered` false; lib/airports.ts →
+ * `isInLiveCoverage`, açıklamadaki gibi) canlı trafik vaat etmez: "Viyana Havalimanı (VIE/LOWW):
+ * pistler ve havalimanı bilgileri" (D-106).
+ */
+export function airportTitle(airport: AirportDetail, locale: Locale, covered: boolean): string {
+  const t = getMessages(locale).seo.airport
+  return format(covered ? t.title : t.titleOutside, {
     name: airportName(airport, locale),
     iata: airport.iata,
     icao: airport.icao,

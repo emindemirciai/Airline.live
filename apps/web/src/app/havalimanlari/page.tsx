@@ -1,7 +1,7 @@
 import { format, getMessages } from '@havayolu/i18n'
 import type { Metadata } from 'next'
 import { AirportsView, airportCounts, listedAirportRows } from '@/components/airports/airports-view'
-import { airportName } from '@/components/airports/airport-text'
+import { airportName, formatCount } from '@/components/airports/airport-text'
 import { AIRPORTS_PATH, airportsCrumbs, crumbsForJsonLd } from '@/components/airports/crumbs'
 import { JsonLd } from '@/components/json-ld'
 import { getAirports, latestDataUpdate } from '@/lib/airports'
@@ -20,15 +20,14 @@ export async function generateMetadata(): Promise<Metadata> {
     locale,
     path: AIRPORTS_PATH,
     title: t.title,
-    description:
-      counts.foreign > 0
-        ? format(t.descriptionWithForeign, counts)
-        : format(t.description, { count: counts.count }),
+    description: format(t.description, {
+      count: formatCount(counts.count + counts.foreign, locale),
+    }),
   })
 }
 
 /**
- * Havalimanlarının listesi (M6b): Türkiye, sonra yakın ülkeler (M6d, D-080). Veri tek toplu API
+ * Havalimanlarının listesi (M6b): Türkiye, sonra diğer ülkeler (M6d, D-080, D-106). Veri tek toplu API
  * çağrısından gelir (`getAirports`, saatlik önbellek); API ulaşılamazsa sayfa 500 verir. JSON-LD
  * `ItemList` iki tablonun satırlarını görünen sırayla taşır.
  */

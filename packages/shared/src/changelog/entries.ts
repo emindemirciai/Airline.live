@@ -12,8 +12,35 @@ import type { ChangelogEntry } from './types'
  */
 export const CHANGELOG: readonly ChangelogEntry[] = [
   {
+    version: '0.22.4',
+    date: '2026-10-07',
+    title: {
+      tr: 'Global bir uçuş takip sitesi',
+      en: 'A global flight tracking site',
+    },
+    items: [
+      {
+        tr: 'Site artık Türkiye’ye özgü bir harita gibi sunulmuyor: başlıklar ve açıklamalar “Canlı uçuş takibi ve uçak haritası” der; İstanbul Havalimanı önceliğimiz olmaya devam ediyor.',
+        en: 'The site is no longer presented as a Türkiye-only map: titles and descriptions now read “Live flight tracker and aircraft map”, with Istanbul Airport still our top priority.',
+      },
+      {
+        tr: 'Canlı uçak verisinin şimdilik Türkiye ve çevresinden çekildiği Hakkında sayfasında ve havalimanı sayfalarında açıkça yazıyor; bu alanın dışındaki havalimanlarının sayfa başlığı bunu belirtir.',
+        en: 'The About page and airport pages state plainly that live aircraft data is for now fetched over Türkiye and the surrounding area; airports outside that area say so in their page title.',
+      },
+      {
+        tr: 'Havalimanları listesinde Türkiye dışındaki tablo “Diğer ülkelerdeki havalimanları” oldu; yabancı havalimanı sayfalarındaki “Türkiye’deki en yakın havalimanı” satırı ve “Türkiye’ye uzaklık” sütunu kaldırıldı. Yenilikler sayfasındaki yayın saatleri UTC farkıyla yazılır.',
+        en: 'In the airport list the second table is now “Airports in other countries”; the “nearest airport in Türkiye” row and the “distance to Türkiye” column are gone. Release times on What’s new show the UTC offset.',
+      },
+    ],
+    tryLinks: [
+      { path: '/hakkinda', label: { tr: 'Hakkında', en: 'About' } },
+      { path: '/havalimanlari', label: { tr: 'Havalimanları', en: 'Airports' } },
+    ],
+  },
+  {
     version: '0.22.3',
     date: '2026-10-07',
+    releasedAt: '2026-10-07T19:24:54Z',
     title: {
       tr: 'Haritada havalimanı araması',
       en: 'Airport search on the map',

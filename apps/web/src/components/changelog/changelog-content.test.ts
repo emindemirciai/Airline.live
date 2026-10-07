@@ -6,7 +6,7 @@ import { describe, expect, it } from 'vitest'
 import { ChangelogContent } from './changelog-content'
 import { isoInstant, releaseTime } from './release-time'
 
-/** Web sunucusunun açılışı (sahte): 4 Ekim 2026 21:05:09 Türkiye saati. */
+/** Web sunucusunun açılışı (sahte): 4 Ekim 2026 21:05:09, İstanbul saatiyle (UTC+3). */
 const SERVER_START = new Date('2026-10-04T18:05:09.734Z')
 
 const entry = (version: string, date: string, releasedAt?: string): ChangelogEntry => ({
@@ -52,7 +52,7 @@ describe('releaseTime (D-091)', () => {
   it('yayın anı varsa onu gösterir: İstanbul saatiyle gün ve saat', () => {
     expect(releaseTime(ENTRIES[1] as ChangelogEntry, tr)).toEqual({
       dateTime: '2026-10-04T17:27:12Z',
-      text: '4 Ekim 2026, 20:27 (Türkiye saati)',
+      text: '4 Ekim 2026, 20:27 (UTC+3)',
       source: 'released',
     })
     expect(releaseTime(ENTRIES[1] as ChangelogEntry, { ...tr, locale: 'en' })).toMatchObject({
@@ -63,7 +63,7 @@ describe('releaseTime (D-091)', () => {
   it('yayın anı olmayan çalışan sürüm: sunucunun açılış anı, saniyeye kadar', () => {
     expect(releaseTime(ENTRIES[0] as ChangelogEntry, tr)).toEqual({
       dateTime: '2026-10-04T18:05:09Z',
-      text: '4 Ekim 2026, 21:05 (Türkiye saati)',
+      text: '4 Ekim 2026, 21:05 (UTC+3)',
       source: 'serverStart',
     })
   })
@@ -97,14 +97,8 @@ describe('releaseTime (D-091)', () => {
 describe('ChangelogContent', () => {
   it('<time dateTime> ve metin: yayın anı, sunucu açılışı, yalnızca gün', () => {
     const html = render('tr')
-    expect(timeOf(html, '0.17.1')).toEqual([
-      '2026-10-04T18:05:09Z',
-      '4 Ekim 2026, 21:05 (Türkiye saati)',
-    ])
-    expect(timeOf(html, '0.17.0')).toEqual([
-      '2026-10-04T17:27:12Z',
-      '4 Ekim 2026, 20:27 (Türkiye saati)',
-    ])
+    expect(timeOf(html, '0.17.1')).toEqual(['2026-10-04T18:05:09Z', '4 Ekim 2026, 21:05 (UTC+3)'])
+    expect(timeOf(html, '0.17.0')).toEqual(['2026-10-04T17:27:12Z', '4 Ekim 2026, 20:27 (UTC+3)'])
     expect(timeOf(html, '0.1.0')).toEqual(['2026-09-25', '25 Eylül 2026'])
     // Etiket <time>'ın dışında, metin yalnızca zamandır.
     expect(html).toContain('Yayın tarihi: <time dateTime="2026-10-04T17:27:12Z">')
@@ -141,20 +135,14 @@ describe('ChangelogContent', () => {
         expect(dateTime, `v${e.version}`).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/)
         expect(text, `v${e.version}`).toMatch(
           locale === 'tr'
-            ? /^\d{1,2} \p{L}+ \d{4}, \d{2}:\d{2} \(Türkiye saati\)$/u
+            ? /^\d{1,2} \p{L}+ \d{4}, \d{2}:\d{2} \(UTC\+3\)$/u
             : /, \d{2}:\d{2} \(UTC\+3\)$/,
         )
       }
     }
     const tr = render('tr', CHANGELOG, currentVersion())
-    expect(timeOf(tr, '0.17.0')).toEqual([
-      '2026-10-04T17:27:12Z',
-      '4 Ekim 2026, 20:27 (Türkiye saati)',
-    ])
+    expect(timeOf(tr, '0.17.0')).toEqual(['2026-10-04T17:27:12Z', '4 Ekim 2026, 20:27 (UTC+3)'])
     // Gece yarısından sonra yayımlanan sürüm (UTC 23:17): İstanbul'da ertesi gün.
-    expect(timeOf(tr, '0.11.0')).toEqual([
-      '2026-10-01T23:17:49Z',
-      '2 Ekim 2026, 02:17 (Türkiye saati)',
-    ])
+    expect(timeOf(tr, '0.11.0')).toEqual(['2026-10-01T23:17:49Z', '2 Ekim 2026, 02:17 (UTC+3)'])
   })
 })
