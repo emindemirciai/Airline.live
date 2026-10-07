@@ -422,7 +422,7 @@ describe('LabelPainter.airportHitTest', () => {
   })
 })
 
-describe('listelenen bütün havalimanları z5’te (3. halka, 503 havalimanı; D-090)', () => {
+describe('listelenen bütün havalimanları z5’te (3. halka, 498 havalimanı; D-090, D-107)', () => {
   // Web Mercator, z5: kodların yazıldığı en uzak yakınlaştırma (AIRPORT_LABEL_MIN_ZOOM), görünümdeki
   // havalimanı sayısı en büyüktür. 2560×1440 görünüm Palma'dan Semerkant'a, Pärnu'dan Port Sudan'a
   // bütün listeyi kapsar (1440×900'de ~437'si görünür). Kod yerleşimi haritanın her `render`
@@ -444,7 +444,7 @@ describe('listelenen bütün havalimanları z5’te (3. halka, 503 havalimanı; 
   })
 
   it('hepsi görünümde; kodlar birbirini örtmez, görünümden taşmaz, her havalimanına en çok bir kod', () => {
-    expect(screen).toHaveLength(503)
+    expect(screen).toHaveLength(498)
     for (const { airport, x, y } of screen) {
       expect(x >= 0 && x <= VIEW.width && y >= 0 && y <= VIEW.height, airport.icao).toBe(true)
     }

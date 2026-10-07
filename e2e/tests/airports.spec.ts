@@ -8,9 +8,11 @@ import { expect, test } from '@playwright/test'
 import { jsonLdNodes, metaContents, nodesOfType, titles, type JsonLdNode } from '../html'
 import {
   AIRPORT_COUNT,
+  API_URL,
   aircraftRow,
   FOREIGN_AIRPORT_COUNT,
   LISTED_AIRPORT_COUNT,
+  MILITARY_AIRFIELDS,
   RING1_AIRPORT,
   airportListCodes,
   declineAnalytics,
@@ -29,9 +31,9 @@ const { icao, iata } = PRIMARY_AIRPORT
 const STATION_PATH = `/istasyon/${icao}`
 
 /**
- * DHMİ listesinde olmayan altı alanın adları (kullanıcı isteği ve kararı 2026-10-03, D-084):
- * Ankara (Etimesgut) bakanlığın verdiği ad, beşi askerî hava üssü
- * (packages/shared/src/reference/airport-names.ts).
+ * DHMİ listesinde olmayan sivil alanın adı (kullanıcı isteği ve kararı 2026-10-03, D-084): Ankara
+ * (Etimesgut), bakanlığın verdiği ad (packages/shared/src/reference/airport-names.ts). Aynı karardaki
+ * beş askerî hava üssü D-107'den beri listelenmez (aşağıda).
  */
 const RENAMED_AIRPORTS = [
   {
@@ -40,11 +42,6 @@ const RENAMED_AIRPORTS = [
     tr: 'Ankara (Etimesgut) Havalimanı',
     en: 'Ankara (Etimesgut) Airport',
   },
-  { icao: 'LTAG', iata: 'UAB', tr: 'İncirlik Hava Üssü', en: 'Incirlik Air Base' },
-  { icao: 'LTAH', iata: 'AFY', tr: 'Afyon Hava Üssü', en: 'Afyon Air Base' },
-  { icao: 'LTBG', iata: 'BDM', tr: 'Bandırma Hava Üssü', en: 'Bandırma Air Base' },
-  { icao: 'LTBI', iata: 'ESK', tr: 'Eskişehir Hava Üssü', en: 'Eskişehir Air Base' },
-  { icao: 'LTBL', iata: 'IGL', tr: 'Çiğli Hava Üssü', en: 'Çiğli Air Base' },
 ] as const
 
 function isRecord(value: unknown): value is JsonLdNode {
@@ -164,7 +161,7 @@ test.describe('yapılandırılmış veri', () => {
     expect(paths.every((path) => /^\/istasyon\/[A-Z0-9]{4}$/.test(path))).toBe(true)
     expect(new Set(paths).size).toBe(LISTED_AIRPORT_COUNT)
     expect(paths).toContain(STATION_PATH)
-    // Önce Türkiye tablosu, sonra Türkiye dışındakiler (D-080): Atina ilk 61 öğenin içinde değildir.
+    // Önce Türkiye tablosu, sonra Türkiye dışındakiler (D-080): Atina ilk 56 öğenin içinde değildir.
     expect(paths.indexOf(`/istasyon/${RING1_AIRPORT.icao}`)).toBeGreaterThanOrEqual(AIRPORT_COUNT)
   })
 })
@@ -283,9 +280,11 @@ test.describe('tarayıcıda', () => {
     }
   })
 
-  test('askerî üsler ve Ankara (Etimesgut) iki dilde adlanır (D-084)', async ({ page }) => {
-    // Önceden altısı da iki dilde OurAirports adıyla yazılıyordu ("Etimesgut Air Base", "Çiğli
-    // Airbase"). Yurt dışı sayfalarındaki "Türkiye’deki en yakın havalimanı" satırı D-106 ile kalktı.
+  test('Ankara (Etimesgut) iki dilde adlanır (D-084); Atina’da Türkiye’ye göre satır yok (D-106), API’deki en yakını İzmir Adnan Menderes (D-107)', async ({
+    page,
+    request,
+  }) => {
+    // Önceden iki dilde OurAirports adıyla yazılıyordu ("Etimesgut Air Base").
     for (const { icao: code, iata: codeIata, tr, en } of RENAMED_AIRPORTS) {
       for (const [locale, name] of [
         ['tr', tr],
@@ -311,13 +310,91 @@ test.describe('tarayıcıda', () => {
         )
       }
     }
-    // Atina (LGAV) sayfasında Türkiye'ye göre satır yoktur (D-106).
+    // Atina (LGAV) sayfasında Türkiye'ye göre satır yoktur (D-106); v0.22.1'e kadar Çiğli Hava Üssü'nü
+    // (275 km), v0.22.2'de İzmir Adnan Menderes'i (284 km) gösteriyordu.
     for (const [path, label] of [
       [`/istasyon/${RING1_AIRPORT.icao}`, 'Türkiye’deki en yakın havalimanı'],
       [enPath(`/istasyon/${RING1_AIRPORT.icao}`), 'Nearest airport in Türkiye'],
     ] as const) {
       await page.goto(path)
       await expect(page.locator('main dt', { hasText: label }), path).toHaveCount(0)
+      await expect(page.locator('main'), path).not.toContainText(/Hava Üssü|Air Base|Airbase/)
+    }
+    // API alanı değişmez ve askerî üs değildir (D-107): İzmir Adnan Menderes, 284 km.
+    const athens = (await (
+      await request.get(`${API_URL}/v1/airports/${RING1_AIRPORT.icao}`)
+    ).json()) as { nearestTr: { icao: string } | null; distanceToTrKm: number | null }
+    expect(athens.nearestTr?.icao).toBe('LTBJ')
+    expect(athens.distanceToTrKm).toBe(284)
+  })
+
+  test('askerî hava üsleri hiçbir yerde yok (D-107): liste, sayfa, en yakınlar, API', async ({
+    page,
+    request,
+  }) => {
+    for (const path of ['/havalimanlari', enPath('/havalimanlari')]) {
+      await page.goto(path)
+      const main = page.locator('main')
+      await expect(main.locator('table').first().locator('tbody tr')).toHaveCount(AIRPORT_COUNT)
+      for (const { icao: code, iata: codeIata, tr, en } of MILITARY_AIRFIELDS) {
+        await expect(main.locator(`a[href$="/istasyon/${code}"]`), `${path} ${code}`).toHaveCount(0)
+        await expect(main, `${path} ${codeIata}`).not.toContainText(
+          new RegExp(`\\b${codeIata}\\b|${tr} Hava Üssü|${en} Air Base`),
+        )
+      }
+    }
+    // Sayfası yok: ICAO ve IATA adresi 404, yönlenme yok (seo.spec.ts iki dili de sınar).
+    for (const { icao: code, iata: codeIata } of MILITARY_AIRFIELDS) {
+      for (const path of [`/istasyon/${code}`, `/istasyon/${codeIata}`]) {
+        const { response } = await fetchRaw(request, path)
+        expect(response.status(), path).toBe(404)
+      }
+    }
+    // API: listelerde yok; tek havalimanı, güncel hava ve kayıt 404 airport_not_found.
+    const listed = (await (await request.get(`${API_URL}/v1/airports?scope=listed`)).json()) as {
+      airports: { icao: string; iata: string; country: string }[]
+    }
+    const turkey = (await (await request.get(`${API_URL}/v1/airports?country=TR`)).json()) as {
+      airports: { icao: string }[]
+    }
+    expect(listed.airports.filter((a) => a.country === 'TR')).toHaveLength(AIRPORT_COUNT)
+    for (const { icao: code, iata: codeIata } of MILITARY_AIRFIELDS) {
+      expect(
+        listed.airports.map((a) => a.icao),
+        code,
+      ).not.toContain(code)
+      expect(
+        listed.airports.map((a) => a.iata),
+        codeIata,
+      ).not.toContain(codeIata)
+      expect(
+        turkey.airports.map((a) => a.icao),
+        code,
+      ).not.toContain(code)
+      for (const path of [
+        `/v1/airports/${code}`,
+        `/v1/airports/${codeIata}`,
+        `/v1/airports/${code}/weather`,
+        `/v1/airports/${codeIata}/weather/history`,
+      ]) {
+        const response = await request.get(`${API_URL}${path}`, { failOnStatusCode: false })
+        expect(response.status(), path).toBe(404)
+        expect(((await response.json()) as { error?: unknown }).error, path).toBe(
+          'airport_not_found',
+        )
+      }
+    }
+    // v0.22.1'de üssü "En yakın havalimanları"nda ya da aynı il cümlesinde gösteren sayfalar.
+    for (const code of ['LTBJ', 'LTBY', 'LTBF', 'LTFD', 'LGHI']) {
+      const path = `/istasyon/${code}`
+      await page.goto(path)
+      for (const { icao: base } of MILITARY_AIRFIELDS) {
+        await expect(
+          page.locator(`main a[href="/istasyon/${base}"]`),
+          `${path} ${base}`,
+        ).toHaveCount(0)
+      }
+      await expect(page.locator('main'), path).not.toContainText(/Hava Üssü/)
     }
   })
 

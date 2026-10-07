@@ -5,6 +5,7 @@ import {
   airportRing,
   ENABLED_AIRPORT_RING,
   isForeignCandidate,
+  isMilitaryAirfield,
   ourAirportsIcao,
   type AirportDetail,
   type RunwayDetail,
@@ -220,24 +221,30 @@ function toDetail(
   }
 }
 
-/** IATA kodlu Türkiye havalimanları (bugünkü 61; içe aktarım filtresiyle). */
+/**
+ * IATA kodlu Türkiye havalimanları (bugünkü 56; içe aktarım filtresiyle). Askerî hava üsleri API
+ * gibi atlanır (D-107; `@havayolu/db` `listedEntries`).
+ */
 export function fixtureTurkishAirports(): AirportDetail[] {
   cached ??= read('airports.csv')
     .filter((row) => row.iso_country === 'TR' && row.iata_code !== '' && importable(row))
+    .filter((row) => !isMilitaryAirfield(icaoOf(row)))
     .map((row) => toDetail(row, 0, null))
   return cached
 }
 
 /**
  * Türkiye'deki uzaklık referansları (API'nin kuralı, D-080): IATA kodlu büyük, orta ve küçük
- * alanlar; tarifesiz küçük alanlar da (Gökçeada gibi; listelenmezler).
+ * alanlar; tarifesiz küçük alanlar da (Gökçeada gibi; listelenmezler). Askerî hava üsleri referans
+ * değildir (D-107; `@havayolu/db` `turkishReferencePoints`).
  */
 function turkishReferences(): Row[] {
   return read('airports.csv').filter(
     (row) =>
       row.iso_country === 'TR' &&
       /^[A-Z]{3}$/.test(row.iata_code ?? '') &&
-      ['large_airport', 'medium_airport', 'small_airport'].includes(row.type ?? ''),
+      ['large_airport', 'medium_airport', 'small_airport'].includes(row.type ?? '') &&
+      !isMilitaryAirfield(icaoOf(row)),
   )
 }
 

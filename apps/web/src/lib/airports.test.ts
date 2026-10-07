@@ -46,9 +46,10 @@ const LTBA = airportFixture({
   scheduled: false,
   dataUpdatedAt: '2026-09-29T04:40:12.000Z',
 })
-const LTAG = airportFixture({
-  icao: 'LTAG',
-  iata: 'UAB',
+/** Ad tablosunda olmayan (OurAirports'a sonradan eklenen), tarifesiz Türkiye havalimanı. */
+const LTXA = airportFixture({
+  icao: 'LTXA',
+  iata: 'XXA',
   isoRegion: 'TR-01',
   lat: 37.002102,
   lon: 35.4259,
@@ -72,7 +73,7 @@ const LGTS = airportFixture({
   lat: 40.519699,
   lon: 22.9709,
 })
-const ALL = [LTFM, LTFJ, LTBA, LTAG, LTBU]
+const ALL = [LTFM, LTFJ, LTBA, LTXA, LTBU]
 
 afterEach(() => {
   vi.unstubAllGlobals()
@@ -91,8 +92,8 @@ describe('parseAirportsBody', () => {
   it('geçerli kayıtları alır, bozuk kaydı atlar, fazla alanı düşürür', () => {
     const extra = { ...LTFM, unexpected: 1 }
     const broken = { ...LTFJ, lat: 'x' }
-    const parsed = parseAirportsBody({ country: 'TR', airports: [extra, broken, LTAG] })
-    expect(parsed.map((a) => a.icao)).toEqual(['LTFM', 'LTAG'])
+    const parsed = parseAirportsBody({ country: 'TR', airports: [extra, broken, LTXA] })
+    expect(parsed.map((a) => a.icao)).toEqual(['LTFM', 'LTXA'])
     expect(parsed[0]).toEqual(LTFM)
   })
 
@@ -185,15 +186,22 @@ describe('resolveAirportCode', () => {
   it.each(['ZZZZ', 'XXX', 'LT', 'LTFMX', 'LT-M', '%E0%A4%A', '', 'İST'])('%s bulunamaz', (code) => {
     expect(resolveAirportCode(code, ALL)).toEqual({ kind: 'not_found' })
   })
+
+  it.each(['LTAG', 'UAB', 'ltah', 'AFY', 'LTBG', 'bdm', 'LTBI', 'ESK', 'LTBL', 'igl'])(
+    'askerî hava üssü %s listede yok: yönlenmez, 404 (D-107)',
+    (code) => {
+      expect(resolveAirportCode(code, fixtureListedAirports())).toEqual({ kind: 'not_found' })
+    },
+  )
 })
 
 describe('isIndexable ve isMonitoredStation', () => {
   it('tarifeli ya da istasyon olan havalimanı dizine eklenir', () => {
     expect(isIndexable(LTFM)).toBe(true)
     expect(isIndexable(LTBU)).toBe(true)
-    expect(isIndexable(LTAG)).toBe(false)
+    expect(isIndexable(LTXA)).toBe(false)
     expect(
-      isIndexable({ ...LTAG, station: { active: false, primary: false, fetchRadiusNm: 60 } }),
+      isIndexable({ ...LTXA, station: { active: false, primary: false, fetchRadiusNm: 60 } }),
     ).toBe(true)
   })
 
@@ -212,14 +220,16 @@ describe('isIndexable ve isMonitoredStation', () => {
       expect(airport?.scheduled, icao).toBe(false)
       expect(airport && isIndexable(airport), icao).toBe(true)
     }
-    // Askerî hava üsleri noindex kalır; Ankara (Etimesgut) resmî adı bakanlıktan doğrulanan sivil
-    // havalimanıdır ve tarifesiz olsa da dizine girer (D-084).
-    const hidden = fixture.filter((airport) => !isIndexable(airport)).map((airport) => airport.icao)
-    expect(hidden.sort()).toEqual(['LTAG', 'LTAH', 'LTBG', 'LTBI', 'LTBL'])
+    // Ankara (Etimesgut) resmî adı bakanlıktan doğrulanan sivil havalimanıdır ve tarifesiz olsa da
+    // dizine girer (D-084). Askerî hava üsleri listede yoktur (D-107): listelenen 56 Türkiye
+    // havalimanının hepsi dizine girer.
     const ltad = byIcao.get('LTAD')
     expect(ltad?.scheduled).toBe(false)
     expect(ltad && isIndexable(ltad)).toBe(true)
+    expect(fixture).toHaveLength(56)
     expect(fixture.filter(isIndexable)).toHaveLength(56)
+    for (const icao of ['LTAG', 'LTAH', 'LTBG', 'LTBI', 'LTBL'])
+      expect(byIcao.has(icao)).toBe(false)
   })
 
   it('tabloda olmayan (OurAirports’a sonradan eklenen) Türkiye havalimanı yalnız tarifeliyse ya da istasyonsa dizine girer (D-076, D-084)', () => {
@@ -290,7 +300,7 @@ describe('nearestAirports', () => {
 describe('sameProvinceAirports', () => {
   it('aynı ildeki diğer havalimanlarını verir', () => {
     expect(sameProvinceAirports(LTFM, ALL).map((a) => a.icao)).toEqual(['LTBA', 'LTFJ'])
-    expect(sameProvinceAirports(LTAG, ALL)).toEqual([])
+    expect(sameProvinceAirports(LTXA, ALL)).toEqual([])
   })
 
   it('yalnızca Türkiye’de: yabancı havalimanında boş, Türkiye’de yabancı kayıt karışmaz', () => {
@@ -309,6 +319,37 @@ describe('splitByCountry', () => {
     const { turkey, foreign } = splitByCountry([LGTS, LTFM, LTFJ])
     expect(turkey.map((a) => a.icao)).toEqual(['LTFM', 'LTFJ'])
     expect(foreign.map((a) => a.icao)).toEqual(['LGTS'])
+  })
+})
+
+describe('nearestTr (API verisi; sayfada satır yok, D-106)', () => {
+  it('yabancı havalimanının API verisi: Türkiye’deki en yakın havalimanı askerî üs değildir (D-107)', () => {
+    const listed = fixtureListedAirports()
+    const byIcao = (icao: string) => {
+      const airport = listed.find((a) => a.icao === icao)
+      if (!airport) throw new Error(`fixture has no ${icao}`)
+      return airport
+    }
+    // Atina: İzmir Adnan Menderes, 284 km; Çiğli üssü (275 km) uzaklık referansı değildir (D-107).
+    expect(byIcao('LGAV')).toMatchObject({
+      distanceToTrKm: 284,
+      nearestTr: { icao: 'LTBJ', iata: 'ADB' },
+    })
+    // Hiçbir yabancı havalimanının en yakını askerî üs değildir.
+    for (const airport of listed) {
+      expect(['LTAG', 'LTAH', 'LTBG', 'LTBI', 'LTBL'], airport.icao).not.toContain(
+        airport.nearestTr?.icao,
+      )
+    }
+    // Selanik ve Priştine: en yakın IATA kodlu Türkiye havalimanı Gökçeada (listelenmez, D-080).
+    for (const icao of ['LGTS', 'BKPR']) {
+      expect(byIcao(icao).nearestTr, icao).toEqual({
+        icao: 'LTFK',
+        iata: 'GKD',
+        name: 'Gökçeada Airport',
+      })
+    }
+    expect(byIcao('LTFM').nearestTr).toBeNull()
   })
 })
 

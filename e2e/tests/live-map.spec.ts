@@ -522,31 +522,41 @@ function mercatorOffset(
   return { x: ((to.lon - from.lon) / 360) * world, y: y(to.lat) - y(from.lat) }
 }
 
-test.describe('askerî hava üsleri haritada yok (D-103)', () => {
+test.describe('askerî hava üsleri haritada yok (D-103, D-107)', () => {
   // MapLibre `prefers-reduced-motion`'da kamera geçişlerini anında yapar: `?havalimani=` uçuşu ve
   // klavyeyle uzaklaştırma beklemesiz ve kesindir (her basış tam bir kademe). Harita yüksek: z10'da
-  // Çiğli ortadayken ADB (27 km güneydoğuda, ~410 px aşağıda) görünümün içindedir.
+  // ADB ortadayken Çiğli (27 km kuzeybatıda, ~410 px yukarıda) görünümün içindedir.
   test.use({ reducedMotion: 'reduce', viewport: { width: 1280, height: 1100 } })
 
-  test('?havalimani=LTBL Çiğli’de açar, pencere açılmaz; Çiğli’nin pini, kodu ve liste satırı yok, ADB’ninki var', async ({
+  test('?havalimani=LTBL bilinmeyen kod gibidir (harita IST’de açılır); İzmir’de Çiğli’nin pini, kodu ve liste satırı yok, ADB’ninki var', async ({
     page,
   }) => {
     const base = MILITARY_AIRFIELD
     const civil = MILITARY_AIRFIELD_NEIGHBOUR
     const popup = page.locator('.live-map [role="dialog"].map-popup')
-    // Tek sayfa yüklemesi (`WS_RATE_LIMIT`).
+    // İki sayfa yüklemesi (her biri bir WebSocket el sıkışması, `WS_RATE_LIMIT`).
+    // 1. Üs listede yoktur (D-107): `?havalimani=LTBL` haritayı oraya götürmez, açılış görünümü
+    // (IST/LTFM, D-079) kalır; pencere açılmaz.
     await page.goto(`/?havalimani=${base.icao}`)
     await waitForMap(page)
-    // Kamera üsse gitti (z10): görünümdeki tek havalimanı ADB; Çiğli (IGL) listede yok. `?havalimani=`
-    // hiçbir havalimanında pencere açmaz.
+    await expect
+      .poll(async () => (await airportListCodes(page))[0], { timeout: 30_000 })
+      .toBe(PRIMARY_AIRPORT.iata)
+    expect(await airportListCodes(page)).not.toContain(base.iata)
+    await expect(popup).toHaveCount(0)
+
+    // 2. İzmir: `?havalimani=LTBJ` ADB'de z10'da açar; görünümde Çiğli'nin yeri de var ama listede
+    // yalnız ADB vardır.
+    await page.goto(`/?havalimani=${civil.icao}`)
+    await waitForMap(page)
     await expect.poll(() => airportListCodes(page), { timeout: 30_000 }).toEqual([civil.iata])
     await expect(popup).toHaveCount(0)
 
-    // z9: ADB'nin pini ortanın ~107 px sağında, ~205 px altında.
+    // z9: ADB'nin pini ortada; Çiğli'nin yeri ~107 px solda, ~205 px yukarıda.
     await zoomOut(page, 1)
-    const tip = await mapCenter(page)
-    const offset = mercatorOffset(base, civil, 9)
-    const civilTip = { x: tip.x + offset.x, y: tip.y + offset.y }
+    const civilTip = await mapCenter(page)
+    const offset = mercatorOffset(civil, base, 9)
+    const tip = { x: civilTip.x + offset.x, y: civilTip.y + offset.y }
     const head = (point: { x: number; y: number }) => ({ x: point.x, y: point.y - 13 })
     await expect(async () => {
       // ADB'nin pini ve kod kutusu (pin başının yanında) çizili.
@@ -558,8 +568,8 @@ test.describe('askerî hava üsleri haritada yok (D-103)', () => {
         30 + chip.width / 2,
       )
     }).toPass({ timeout: 15_000 })
-    // Çiğli'nin yeri (haritanın ortası): pin kırmızısı yok; kodun dört adayının (pin başının sağı,
-    // solu, pinin üstü, noktanın altı) bulunduğu kesitte etiket tuvali boş.
+    // Çiğli'nin yeri: pin kırmızısı yok; kodun dört adayının (pin başının sağı, solu, pinin üstü,
+    // noktanın altı) bulunduğu kesitte etiket tuvali boş.
     await expect(async () => {
       expect((await pinPixels(page, tip)).red).toBe(0)
       expect(

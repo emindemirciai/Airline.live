@@ -50,7 +50,7 @@ describe('ilk paket: havalimanı adları dinamik parçalarda (D-101)', () => {
     expect(foreign).toMatch(/export const FOREIGN_AIRPORT_NAMES: [^=]+= \{\n {2}[A-Z0-9]{4}: \{/)
   })
 
-  it('haritanın ilk paketindeki askerî üs kuralı ad tablolarını içe aktarmaz (D-103, D-105)', () => {
+  it('haritanın ilk paketindeki askerî üs kuralı ad tablolarını içe aktarmaz (D-103, D-107)', () => {
     // `mapShownAirports` ad tablolarının modülündeyken (liste tablodan türetiliyordu) paketleyici
     // tabloları `/`'nin ilk paketine taşıyordu; kural kendi modülündedir ve hiçbir şey içe aktarmaz.
     expect(source('./live-map.tsx')).toContain('mapShownAirports')

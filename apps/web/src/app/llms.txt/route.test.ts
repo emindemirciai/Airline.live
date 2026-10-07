@@ -27,7 +27,8 @@ const AIRPORTS = [
     name: 'Esenboğa International Airport',
     isoRegion: 'TR-06',
   }),
-  airportFixture({ icao: 'LTAG', iata: 'ADA', scheduled: false, isoRegion: 'TR-01' }),
+  // Ad tablosunda olmayan, tarifesiz ve istasyon olmayan yeni kayıt: noindex (D-076, D-084).
+  airportFixture({ icao: 'LTZZ', iata: 'YZG', scheduled: false, isoRegion: 'TR-66' }),
   // Diğer ülkelerdeki havalimanları (D-080, D-106): ayrı bölümde, ülkeye sonra ada göre.
   airportFixture({
     icao: 'LGAV',
@@ -36,7 +37,7 @@ const AIRPORTS = [
     country: 'GR',
     isoRegion: 'GR-I',
     ring: 1,
-    distanceToTrKm: 275,
+    distanceToTrKm: 284,
     runways: [1, 2].map((id) => runwayFixture({ id })),
   }),
   airportFixture({
@@ -125,7 +126,7 @@ describe('GET /llms.txt', () => {
       .slice(0, lines.indexOf(FOREIGN_HEADING))
       .filter((l) => l.includes('/istasyon/'))
     expect(airportLines).toHaveLength(2)
-    expect(text).not.toContain('LTAG')
+    expect(text).not.toContain('LTZZ')
     expect(airportLines).toContain(
       `- [İstanbul Havalimanı (IST/LTFM)](${HOST}/istasyon/LTFM): İstanbul; 6 pist; English: [Istanbul Airport](${HOST}/en/istasyon/LTFM)`,
     )
