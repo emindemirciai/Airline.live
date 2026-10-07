@@ -8,7 +8,29 @@
 
 ---
 
-## v0.22.4 — 2026-10-07
+## v0.22.5 — 2026-10-07
+
+### Türkçe
+**Bütün ülkelerin adları haritada**
+
+- Haritayı uzaklaştırınca artık havalimanı listemizde olmayan ülkelerin adları da yazılır: dünyada 164 ülke ve bölge, her biri kendi sınırının içinde ve havalimanı işaretlerinden uzak bir yerde. Sığmayan çok küçük ada ülkeleri yazılmaz.
+- Bazı ülke adları sadeleşti: Fildişi Sahili, Kongo Demokratik Cumhuriyeti, Kongo Cumhuriyeti ve Myanmar. RUSYA adı Avrupa Rusyası’nda kalır.
+- Ülke adları ilk açılışta indirilmez, gerektiğinde yüklenir; sayfa biraz daha hızlı açılır.
+
+Dene: [Canlı harita](/)
+
+### English
+**Every country named on the map**
+
+- Zoomed out, the map now names countries that have no airport in our list too: 164 countries and territories worldwide, each inside its own borders and away from airport pins. Very small island countries that do not fit are left out.
+- Some country names are simpler: Côte d’Ivoire, Democratic Republic of the Congo, Republic of the Congo and Myanmar. The RUSSIA label stays in European Russia.
+- Country names are no longer part of the first download; they load when needed, so pages open a little faster.
+
+Try it: [Live map](/)
+
+---
+
+## v0.22.4 — 2026-10-07 23:09 (UTC+3)
 
 ### Türkçe
 **Global bir uçuş takip sitesi**
