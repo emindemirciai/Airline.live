@@ -3,6 +3,7 @@ import { getMessages } from '@havayolu/i18n'
 import { createElement, type ComponentType } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import type { IdleScheduler } from '../../lib/idle'
 import type { MapAirport } from './airport-data'
 import {
   AirportListPanelUnavailable,
@@ -10,6 +11,8 @@ import {
   withChunkFallback,
   withImportFallback,
 } from './chunk-fallback'
+import { prebuildAirportSearch } from './panels/search-box'
+import type { AirportSearchBuilder } from './panels/search-box-model'
 
 /**
  * Havalimanı adları haritanın ilk paketine girmez (D-101): ad tablolarını (`airportDisplayName`)
@@ -17,7 +20,8 @@ import {
  * tablolar `#__PURE__` işaretli kurulur (yardımcı çağrıları paketleyiciye yan etkili görünürdü).
  * `/` için First Load JS ölçümü önce/sonra plandadır (M6i.1). Havalimanı aramasının ad dizini de
  * (D-108) yalnız dinamik importla yüklenir; arama motoru (`@havayolu/shared` `airport-search.ts`)
- * hiçbir şey içe aktarmaz.
+ * hiçbir şey içe aktarmaz. Üçü tek tembel girişten gelir (`airport-lazy.ts`): ayrı girişlerde
+ * paketleyici ad tablolarını her parça grubuna kopyalıyordu.
  */
 const source = (path: string) => readFileSync(new URL(path, import.meta.url), 'utf8')
 
@@ -28,12 +32,38 @@ describe('ilk paket: havalimanı adları dinamik parçalarda (D-101)', () => {
   it('canlı harita pencereyi ve paneli statik import etmez', () => {
     const liveMap = source('./live-map.tsx')
     expect(staticImports(liveMap)).not.toContain('./airport-popup')
-    expect(liveMap).toContain("import('./airport-popup')")
+    expect(staticImports(liveMap)).not.toContain('./airport-lazy')
+    expect(liveMap).toContain("import('./airport-lazy')")
     const control = source('./panels/airport-list-control.tsx')
     expect(staticImports(control)).not.toContain('./airport-list-panel')
-    expect(control).toContain("import('./airport-list-panel')")
+    expect(staticImports(control)).not.toContain('../airport-lazy')
+    expect(control).toContain("import('../airport-lazy')")
     expect(control).not.toContain('airportDisplayName')
     expect(source('./panels/index.ts')).not.toContain('airport-list-panel')
+  })
+
+  it('pencere, panel ve arama tek tembel girişten (tablolar bir kez; D-108)', () => {
+    const lazy = source('./airport-lazy.ts')
+    expect(staticImports(lazy)).toEqual([])
+    const reexports = [...lazy.matchAll(/^export \{ (\w+) \} from '([^']+)'$/gm)].map(
+      (match) => `${match[1]} ${match[2]}`,
+    )
+    expect(reexports).toEqual([
+      'AirportPopup ./airport-popup',
+      'AirportListPanel ./panels/airport-list-panel',
+      'buildAirportSearch ./panels/airport-search-index',
+    ])
+    const lazyModule = /airport-lazy|airport-popup$|airport-list-panel|airport-search-index/
+    for (const path of [
+      './live-map.tsx',
+      './panels/airport-list-control.tsx',
+      './panels/search-box.tsx',
+      './panels/search-box-model.ts',
+      './panels/index.ts',
+    ]) {
+      const imports = staticImports(source(path)).filter((name) => lazyModule.test(name ?? ''))
+      expect(imports, path).toEqual([])
+    }
   })
 
   it('ad tablolarını yalnız dinamik parçalar kullanır', () => {
@@ -47,13 +77,15 @@ describe('ilk paket: havalimanı adları dinamik parçalarda (D-101)', () => {
     const model = source('./panels/search-box-model.ts')
     expect(staticImports(box)).not.toContain('./airport-search-index')
     expect(staticImports(model)).not.toContain('./airport-search-index')
-    expect(box).toContain("import('./airport-search-index')")
+    expect(box).toContain("import('../airport-lazy')")
     for (const text of [box, model]) {
       for (const name of [
         'airportDisplayName',
         'airportLocality',
         'provinceName',
         'airportCountryName',
+        'airportSearchPlaces',
+        'countrySearchAliases',
       ]) {
         expect(text).not.toContain(name)
       }
@@ -61,6 +93,10 @@ describe('ilk paket: havalimanı adları dinamik parçalarda (D-101)', () => {
     expect(source('./panels/index.ts')).not.toContain('airport-search-index')
     const reference = '../../../../../packages/shared/src/reference/'
     expect(staticImports(source(`${reference}airport-search.ts`))).toEqual([])
+    // Yalnız aranan ek adlar düz nesnedir (çağrı yok) ve hiçbir şey içe aktarmaz.
+    const places = source(`${reference}airport-search-places.ts`)
+    expect(staticImports(places)).toEqual([])
+    expect(places).toMatch(/export const AIRPORT_SEARCH_PLACES: [^=]+= \{\n {2}[A-Z0-9]{4}: \[/)
   })
 
   it('paylaşılan ad tabloları PURE işaretli fonksiyonda kurulur', () => {
@@ -144,7 +180,7 @@ describe('parça yüklenemezse (D-101): yedek bileşen, hata ekranı yok', () =>
   it('pencere ve panel yükleyicileri yedekle sarılı; ikisinin de kendi Suspense sınırı var', () => {
     const liveMap = source('./live-map.tsx')
     expect(liveMap).toMatch(
-      /const loadAirportPopup = withChunkFallback\(\s*\(\) => import\('\.\/airport-popup'\)\.then\(\(module\) => module\.AirportPopup\),\s*AirportPopupUnavailable,/,
+      /const loadAirportPopup = withChunkFallback\(\s*\(\) => import\('\.\/airport-lazy'\)\.then\(\(module\) => module\.AirportPopup\),\s*AirportPopupUnavailable,/,
     )
     // `loading` olmadan next/dynamic Suspense sınırı kurmaz (ssr açıkken): ilk seçim kök kabukta
     // askıya alınır ve parça gelene kadar bütün ağaç donardı.
@@ -153,7 +189,7 @@ describe('parça yüklenemezse (D-101): yedek bileşen, hata ekranı yok', () =>
     )
     const control = source('./panels/airport-list-control.tsx')
     expect(control).toMatch(
-      /const loadPanel = withChunkFallback\(\s*\(\) => import\('\.\/airport-list-panel'\)\.then\(\(module\) => module\.AirportListPanel\),\s*AirportListPanelUnavailable,/,
+      /const loadPanel = withChunkFallback\(\s*\(\) => import\('\.\.\/airport-lazy'\)\.then\(\(module\) => module\.AirportListPanel\),\s*AirportListPanelUnavailable,/,
     )
     expect(control).toContain(
       'const AirportListPanel = dynamic(() => loadPanel(), { loading: () => null })',
@@ -169,11 +205,62 @@ describe('parça yüklenemezse (D-101): yedek bileşen, hata ekranı yok', () =>
     // üstüne gelinince de istenir.
     const box = source('./panels/search-box.tsx')
     expect(box).toMatch(
-      /const loadAirportSearch = withImportFallback<AirportSearchBuilder>\(\s*\(\) => import\('\.\/airport-search-index'\)\.then\(\(module\) => module\.buildAirportSearch\),\s*codeOnlyAirportSearch,/,
+      /const loadAirportSearch = withImportFallback<AirportSearchBuilder>\(\s*\(\) => import\('\.\.\/airport-lazy'\)\.then\(\(module\) => module\.buildAirportSearch\),\s*codeOnlyAirportSearch,/,
     )
     expect(box).not.toMatch(/void import\(/)
     expect(box).toContain('onFocus={warmAirportSearch}')
     expect(box).toContain('onPointerEnter={warmAirportSearch}')
+    // Dizin harita hazır olduktan ve liste geldikten sonra boşta kurulur (ilk odak beklemez).
+    expect(liveMap).toMatch(
+      /if \(!mapSettled \|\| airports\.length === 0\) return\s*return prebuildAirportSearch\(airports, locale\)\s*\}, \[mapSettled, airports, locale\]\)/,
+    )
+  })
+
+  it('dizinin boşta kurulumu: parça bir boşta işte, kurulum ayrı bir boşta işte; iptal kurmaz', async () => {
+    const queue = new Map<number, () => void>()
+    let next = 0
+    const scheduler: IdleScheduler = {
+      requestIdleCallback: (callback) => {
+        next += 1
+        queue.set(next, callback)
+        return next
+      },
+      cancelIdleCallback: (handle) => {
+        queue.delete(handle)
+      },
+      setTimeout: () => 0,
+      clearTimeout: () => undefined,
+    }
+    const runIdle = async () => {
+      const tasks = [...queue.values()]
+      queue.clear()
+      for (const task of tasks) task()
+      await new Promise((resolve) => setTimeout(resolve, 0))
+    }
+    const airports = [{ icao: 'LTFM', iata: 'IST' } as MapAirport]
+    const build = vi.fn<AirportSearchBuilder>(() => () => ({ rows: [], total: 0, degraded: false }))
+    const load = vi.fn(() => Promise.resolve<AirportSearchBuilder>(build))
+
+    prebuildAirportSearch(airports, 'tr', load, scheduler)
+    expect(load).not.toHaveBeenCalled()
+    await runIdle()
+    expect(load).toHaveBeenCalledTimes(1)
+    expect(build).not.toHaveBeenCalled()
+    await runIdle()
+    expect(build).toHaveBeenCalledTimes(1)
+    expect(build).toHaveBeenCalledWith(airports, 'tr')
+
+    // Parça gelmeden ya da kurulum sırası gelmeden iptal edilirse kurulmaz.
+    build.mockClear()
+    const cancelEarly = prebuildAirportSearch(airports, 'en', load, scheduler)
+    cancelEarly()
+    await runIdle()
+    await runIdle()
+    const cancelLate = prebuildAirportSearch(airports, 'en', load, scheduler)
+    await runIdle()
+    cancelLate()
+    await runIdle()
+    expect(build).not.toHaveBeenCalled()
   })
 
   it('yedekler ilk pakettedir: tembel modülleri yalnız tür olarak import eder', () => {

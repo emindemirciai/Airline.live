@@ -1,5 +1,7 @@
-import { format, type Messages } from '@havayolu/i18n'
+import { format, formatDistance, type Messages } from '@havayolu/i18n'
 import {
+  airportRingLimitKm,
+  ENABLED_AIRPORT_RING,
   mapShownAirports,
   type AirportSearchMatch,
   type Locale,
@@ -157,7 +159,23 @@ export type AircraftLookup =
 
 /** "Bulunamadı" metninin parçaları, sırasıyla (`map.search` anahtarları). */
 export type NotFoundPart =
-  'notFound' | 'flightNumberNote' | 'airportNotFound' | 'airportNote' | 'airportNamesUnavailable'
+  | 'notFound'
+  | 'flightNumberNote'
+  | 'airportNotFound'
+  | 'airportNote'
+  | 'airportNamesUnavailable'
+  | 'airportCoverage'
+
+/**
+ * Aranan yurt dışı havalimanlarının Türkiye'ye en büyük uzaklığı, km: açık son halkanın sınırı
+ * (`ENABLED_AIRPORT_RING`, D-080); bütün halkalar açıksa null (kapsama cümlesi yazılmaz).
+ */
+const AIRPORT_COVERAGE_KM = airportRingLimitKm(ENABLED_AIRPORT_RING)
+
+/** Havalimanı bulunamadı metnine kapsama cümlesi eklenir (yalnız açık halkalar aranır). */
+function withCoverage(parts: NotFoundPart[]): NotFoundPart[] {
+  return AIRPORT_COVERAGE_KM === null ? parts : [...parts, 'airportCoverage']
+}
 
 /** Uçak araması yapılamadı (sonuç listesinde yalnız havalimanları varken). */
 export interface AircraftFailure {
@@ -230,7 +248,9 @@ export type SubmitOutcome =
  * 1. Tek uçak bulundu ve tam kodla eşleşen havalimanı yok → uçak seçilir.
  * 2. Uçak yok (ya da sorgu uçak olamaz) ve tek havalimanı ya da ilki tam kod → havalimanı açılır.
  * 3. Uçak yok ve havalimanı yok → bulunamadı (uçak araması atlandıysa havalimanı metni; değilse
- *    uçak metni, sefer no notu ve rakamsız sorguda havalimanı ipucu).
+ *    uçak metni, sefer no notu ve rakamsız sorguda havalimanı ipucu; havalimanı metnine ve ipucuna
+ *    kapsama cümlesi eklenir). Uçak araması atlandı ve havalimanı listesi yüklenmedi → hata (hiçbir
+ *    şey aranmadı, "bulunamadı" denmez).
  * 4. Uçak araması hata verdi, havalimanı var → yalnız havalimanları listede; 4b. havalimanı da yok
  *    → hata.
  * 5. Öbür durumlar → tek liste: önce havalimanları (en fazla 8), sonra uçaklar (en fazla 20).
@@ -256,15 +276,22 @@ export function submitOutcome({
     const digit = hasDigit(query)
     const namesUnavailable = airports.degraded && !digit
     if (aircraft.status === 'skipped') {
+      // Havalimanı listesi yüklenmedi ve sorgu uçak olamaz: hiçbir şey aranmadı.
+      if (!airportsLoaded) return { type: 'failed', rateLimited: false }
       return {
         type: 'notFound',
-        parts: [namesUnavailable ? 'airportNamesUnavailable' : 'airportNotFound'],
+        parts: namesUnavailable ? ['airportNamesUnavailable'] : withCoverage(['airportNotFound']),
       }
     }
     const parts: NotFoundPart[] = ['notFound']
     if (aircraft.status === 'ok' && aircraft.kind === 'flight') parts.push('flightNumberNote')
     if (!digit && airportsLoaded) {
-      parts.push(namesUnavailable ? 'airportNamesUnavailable' : 'airportNote')
+      return {
+        type: 'notFound',
+        parts: namesUnavailable
+          ? [...parts, 'airportNamesUnavailable']
+          : withCoverage([...parts, 'airportNote']),
+      }
     }
     return { type: 'notFound', parts }
   }
@@ -300,11 +327,16 @@ const joined = (...parts: string[]) => parts.filter((part) => part !== '').join(
  * Durum satırının metni (ekran okuyucuya `aria-live="polite"` ile okunur):
  * - yazarken öneri sayısı ("Eşleşen havalimanı: 3."; liste kesildiyse ilk kaçının listede olduğu),
  *   öneri yoksa boş; ad parçası yüklenemediyse ve sorgu bir ad olabilirse bunu söyler;
- * - aranıyor, bulunamadı (parçalar sırayla), hata;
+ * - aranıyor, bulunamadı (parçalar sırayla; kapsama cümlesi açık halkanın sınırıyla, sayfanın dilinde),
+ *   hata;
  * - sonuç listesi: yalnız uçak, yalnız havalimanı ya da ikisi; uçak araması yapılamadıysa onu söyler;
  *   havalimanı listesi kesildiyse sayı eklenir.
  */
-export function searchStatusText(status: SearchStatus, messages: SearchMessages): string {
+export function searchStatusText(
+  status: SearchStatus,
+  messages: SearchMessages,
+  locale: Locale,
+): string {
   switch (status.phase) {
     case 'idle':
       return ''
@@ -317,7 +349,17 @@ export function searchStatusText(status: SearchStatus, messages: SearchMessages)
     case 'searching':
       return messages.searching
     case 'notFound':
-      return joined(...status.parts.map((part) => messages[part]))
+      return joined(
+        ...status.parts.map((part) =>
+          part === 'airportCoverage'
+            ? AIRPORT_COVERAGE_KM === null
+              ? ''
+              : format(messages.airportCoverage, {
+                  km: formatDistance(AIRPORT_COVERAGE_KM, { locale }),
+                })
+            : messages[part],
+        ),
+      )
     case 'pick': {
       const more = countMore(status.airports.length, status.airportTotal, messages)
       if (status.aircraftFailure !== null) {

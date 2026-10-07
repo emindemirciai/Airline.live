@@ -5,6 +5,8 @@ import {
   airportDistrict,
   airportLocality,
   airportOfficialName,
+  airportSearchPlaces,
+  countrySearchAliases,
   createAirportSearchIndex,
   mapShownAirports,
   provinceName,
@@ -25,7 +27,8 @@ import type { AirportSearch, AirportSearchRow } from './search-box-model'
  * - **Alanlar**, sayfanın dili ne olursa olsun iki dilde: görünen ad (TR ve EN), resmî Türkçe ad,
  *   OurAirports adı; yerleşim (TR ve EN), Türkiye'de il (TR ve EN), OurAirports yerleşimi ve şehri;
  *   ülke (kısa ve uzun, TR ve EN; Ercan için KKTC / TRNC). "Atina" İngilizce sayfada da, "Athens"
- *   Türkçe sayfada da bulunur.
+ *   Türkçe sayfada da bulunur. Yalnız aranan, gösterilmeyen ek adlar (`AIRPORT_SEARCH_PLACES`:
+ *   "Adana" → Çukurova, "Antep", "Urfa", "Maraş"…; `AIRPORT_SEARCH_COUNTRY_ALIASES`: "Turkey").
  * - **Sıra** (bir eşleşme basamağının içinde): İstanbul Havalimanı (LTFM), Türkiye, tarifeli sefer,
  *   büyüklük (büyük, orta, küçük), Türkiye'ye uzaklık, görünen ad (sayfanın dilinin alfabesiyle),
  *   ICAO.
@@ -87,18 +90,21 @@ function searchEntries(
   )
 
   // Ülke adları ülke koduna göre (görünümü havalimanına bağlı olanlarda ICAO'ya göre) bir kez.
+  // Yalnız aranan ülke adları ("Turkey") ülke koduna bağlıdır; Ercan (KKTC) onları almaz.
   const countryNames = new Map<string, readonly string[]>()
   const countriesOf = (a: MapAirport): readonly string[] => {
-    const key = Object.hasOwn(AIRPORT_COUNTRY_OVERRIDES, a.icao) ? `icao:${a.icao}` : a.country
+    const override = Object.hasOwn(AIRPORT_COUNTRY_OVERRIDES, a.icao)
+    const key = override ? `icao:${a.icao}` : a.country
     let names = countryNames.get(key)
     if (names === undefined) {
       names = [
-        ...new Set(
-          LOCALES.flatMap((l) => [
+        ...new Set([
+          ...LOCALES.flatMap((l) => [
             airportCountryName(a, l, 'short'),
             airportCountryName(a, l, 'long'),
           ]),
-        ),
+          ...(override ? [] : countrySearchAliases(a.country)),
+        ]),
       ]
       countryNames.set(key, names)
     }
@@ -116,6 +122,7 @@ function searchEntries(
       a.name,
     ]),
     places: nonEmpty([
+      ...airportSearchPlaces(a.icao),
       ...LOCALES.map((l) => airportLocality(a, l)),
       ...(a.country === TURKEY ? LOCALES.map((l) => provinceName(a.isoRegion, l)) : []),
       a.municipality,

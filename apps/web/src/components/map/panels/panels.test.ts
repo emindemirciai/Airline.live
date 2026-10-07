@@ -398,7 +398,7 @@ describe('SearchBox', () => {
     // Liste kapalıyken ne denetlenen liste ne etkin seçenek var.
     expect(input).not.toContain('aria-controls')
     expect(input).not.toContain('aria-activedescendant')
-    expect(input).toContain('placeholder="Sefer no, tescil, havalimanı"')
+    expect(input).toContain('placeholder="Sefer, tescil, havalimanı"')
     // API sorgu sınırı (SEARCH_QUERY_MAX_LENGTH); HTML öznitelik adı büyük-küçük harf duyarsızdır.
     expect(input).toMatch(/maxlength="32"/i)
     expect(input).toMatch(/autocomplete="off"/i)
@@ -434,11 +434,14 @@ describe('SearchResultsList (D-108)', () => {
     { airport: ath, code: 'ATH', name: '', place: '', match: 'code' },
   ]
 
-  /** Seçeneğin görünen ve okunan metni (etiketler atılmış). */
+  /** Seçeneğin görünen metni (etiketler atılmış). */
   const optionText = (html: string, id: string) =>
     new RegExp(`<div id="${id}" role="option"[^>]*>(.*?)</div>`)
       .exec(html)?.[1]
       ?.replace(/<[^>]+>/g, '')
+  /** Seçeneğin açılış etiketi. */
+  const optionTag = (html: string, id: string) =>
+    new RegExp(`<div id="${id}" role="option"[^>]*>`).exec(html)?.[0] ?? ''
 
   it.each(['tr', 'en'] as const)(
     'listbox: önce Havalimanları, sonra Uçaklar; kimlikler ve etkin seçenek (%s)',
@@ -474,15 +477,26 @@ describe('SearchResultsList (D-108)', () => {
       expect(html).toContain('id="list-a-LGAV"')
       expect(html).toContain('id="list-p-4bb26c"')
       expect(html.match(/aria-selected="true"/g)).toHaveLength(1)
-      expect(html).toMatch(/<div id="list-a-LTFM" role="option" aria-selected="true"/)
+      expect(optionTag(html, 'list-a-LTFM')).toContain('aria-selected="true"')
       expect(html.match(/aria-selected="false"/g)).toHaveLength(2)
+      // Havalimanı seçeneğinin adı virgüllerle açıkça verilir: içerikten türeyen ad blok satırın
+      // çevresine boşluk koyardı ("IST , …"; Playwright ve tarayıcılar aynı).
+      expect(optionTag(html, 'list-a-LTFM')).toContain(
+        locale === 'tr'
+          ? 'aria-label="IST, İstanbul Havalimanı, İstanbul · LTFM"'
+          : 'aria-label="IST, Istanbul Airport, Istanbul · LTFM"',
+      )
+      expect(optionTag(html, 'list-a-LGAV')).toContain('aria-label="ATH, LGAV"')
       expect(optionText(html, 'list-a-LTFM')).toBe(
         locale === 'tr'
-          ? 'IST, İstanbul Havalimanı, İstanbul · LTFM'
-          : 'IST, Istanbul Airport, Istanbul · LTFM',
+          ? 'ISTİstanbul Havalimanıİstanbul · LTFM'
+          : 'ISTIstanbul AirportIstanbul · LTFM',
       )
-      expect(optionText(html, 'list-a-LGAV')).toBe('ATH, LGAV')
+      expect(optionText(html, 'list-a-LGAV')).toBe('ATHLGAV')
+      // Uçak satırının adı görünen metnidir (virgüller metnin içinde).
+      expect(optionTag(html, 'list-p-4bb26c')).not.toContain('aria-label')
       expect(optionText(html, 'list-p-4bb26c')).toBe('TK-974, A21N, TC-LSA')
+      expect(html).not.toContain('sr-only')
       // "Havalimanları" panelinin kod sınıfı burada yoktur (e2e `airportListCodes` onu okur).
       expect(html).not.toContain('map-airports__code')
       expect(html).toContain('<span class="map-search__code">IST</span>')

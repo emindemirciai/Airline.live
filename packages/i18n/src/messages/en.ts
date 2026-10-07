@@ -704,7 +704,7 @@ export const en: Messages = {
     search: {
       label:
         'Search aircraft or airports: flight number, callsign, registration or hex; airport code, name or city',
-      placeholder: 'Flight no., reg., airport',
+      placeholder: 'Flight, reg., airport',
       submit: 'Search',
       searching: 'Searching…',
       notFound:
@@ -728,6 +728,8 @@ export const en: Messages = {
         'Aircraft search is not available right now; airport results are listed.',
       airportNamesUnavailable:
         'Airport names could not be loaded; search by airport code or reload the page.',
+      airportCoverage:
+        'Outside Türkiye, only airports at most {km} from the nearest airport in Türkiye are searched.',
     },
     card: {
       close: 'Close',

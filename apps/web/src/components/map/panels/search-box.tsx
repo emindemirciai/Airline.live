@@ -7,6 +7,7 @@ import {
   useDeferredValue,
   useEffect,
   useId,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -15,9 +16,11 @@ import {
   type FormEvent,
   type KeyboardEvent,
   type MouseEvent,
+  type PointerEvent as ReactPointerEvent,
   type SyntheticEvent,
 } from 'react'
-// Göreli yol: vitest `@/` takma adını çözmez (panel testleri bu dosyayı yükler).
+// Göreli yollar: vitest `@/` takma adını çözmez (panel testleri bu dosyayı yükler).
+import { whenIdle, type IdleScheduler } from '../../../lib/idle'
 import { ApiError, fetchSearch } from '../../../lib/live/api'
 import type { MapAirport } from '../airport-data'
 import { withImportFallback } from '../chunk-fallback'
@@ -48,12 +51,13 @@ const STATUS_DELAY_MS = 600
 
 /**
  * Havalimanı aramasının ad dizini ayrı parçadadır (D-101, D-108): ad tabloları haritanın ilk
- * paketine girmez. Parça harita hazır olunca boşta (`preloadAirportSearch`, live-map.tsx), kutu
- * odaklanınca ya da üstüne gelinince ve ilk gönderimde istenir. Yüklenemezse arama yalnız tam kodla
- * çalışır (`codeOnlyAirportSearch`); durum satırı adların yüklenemediğini söyler.
+ * paketine girmez. Parça pencere ve panelle ortak girişten gelir (`airport-lazy.ts`; tablolar bir
+ * kez); harita hazır olunca boşta (`preloadAirportSearch`, live-map.tsx), kutu odaklanınca ya da
+ * üstüne gelinince ve ilk gönderimde istenir. Yüklenemezse arama yalnız tam kodla çalışır
+ * (`codeOnlyAirportSearch`); durum satırı adların yüklenemediğini söyler.
  */
 const loadAirportSearch = withImportFallback<AirportSearchBuilder>(
-  () => import('./airport-search-index').then((module) => module.buildAirportSearch),
+  () => import('../airport-lazy').then((module) => module.buildAirportSearch),
   codeOnlyAirportSearch,
   'Airport search',
 )
@@ -61,6 +65,32 @@ const loadAirportSearch = withImportFallback<AirportSearchBuilder>(
 /** Havalimanı aramasının parçasını önceden ister (canlı harita hazır olunca boşta; D-101). */
 export function preloadAirportSearch(): void {
   void loadAirportSearch()
+}
+
+/**
+ * Dizini boşta kurar (D-108): parça geldikten sonra ayrı bir boşta işte, liste ve dil başına bir kez
+ * (`buildAirportSearch` saklar; kutunun kurulumu yalnız saklananı bulur). Kutunun ilk odağı ya da
+ * dokunması (telefonda klavye açılırken) kurulumu beklemez. Dönen fonksiyon iptal eder (efektin
+ * temizliği). `load` ve `scheduler` testte değiştirilir.
+ */
+export function prebuildAirportSearch(
+  airports: readonly MapAirport[],
+  locale: Locale,
+  load: () => Promise<AirportSearchBuilder> = loadAirportSearch,
+  scheduler?: IdleScheduler,
+): () => void {
+  let active = true
+  let cancelBuild: (() => void) | null = null
+  const cancelLoad = whenIdle(() => {
+    void load().then((build) => {
+      if (active) cancelBuild = whenIdle(() => void build(airports, locale), scheduler)
+    })
+  }, scheduler)
+  return () => {
+    active = false
+    cancelLoad()
+    cancelBuild?.()
+  }
 }
 
 type SearchMessages = Messages['map']['search']
@@ -100,22 +130,49 @@ function pointerTypeOf(event: MouseEvent): string {
   return 'pointerType' in native && typeof native.pointerType === 'string' ? native.pointerType : ''
 }
 
-/** Havalimanı satırı: IATA kodu, görünen ad ve "yer · ICAO" (ekran okuyucu için virgüllerle). */
+/** Havalimanı satırının yer satırı: "yer · ICAO"; yer bilinmiyorsa ICAO. */
+function airportOptionPlace(row: AirportSearchRow): string {
+  return row.place === '' ? row.airport.icao : `${row.place} · ${row.airport.icao}`
+}
+
+/**
+ * Havalimanı seçeneğinin erişilebilir adı: "IST, İstanbul Havalimanı, İstanbul · LTFM" (yalnız
+ * kodla aramada "ATH, LGAV"). İçerikten türeyen ad blok öğelerin çevresine boşluk koyardı
+ * ("IST , …"); ad görünen metnin sözcüklerini aynı sırayla taşır (WCAG 2.5.3).
+ */
+export function airportOptionLabel(row: AirportSearchRow): string {
+  return [row.code, row.name, airportOptionPlace(row)].filter((part) => part !== '').join(', ')
+}
+
+/** Havalimanı satırı: IATA kodu, görünen ad ve "yer · ICAO". */
 function AirportOptionText({ row }: { row: AirportSearchRow }) {
-  const place = row.place === '' ? row.airport.icao : `${row.place} · ${row.airport.icao}`
   return (
     <>
       <span className="map-search__code">{row.code}</span>
-      {row.name === '' ? null : (
-        <>
-          <span className="sr-only">, </span>
-          <span className="map-search__name">{row.name}</span>
-        </>
-      )}
-      <span className="sr-only">, </span>
-      <span className="map-search__place">{place}</span>
+      {row.name === '' ? null : <span className="map-search__name">{row.name}</span>}
+      <span className="map-search__place">{airportOptionPlace(row)}</span>
     </>
   )
+}
+
+/**
+ * Etkin seçeneği listenin görünen alanına getirir; yalnız liste kaydırılır (sayfa ve haritanın
+ * kapları değil). Listenin ilk seçeneğinde liste başa döner; bir grubun ilk seçeneğinde grubun adı da
+ * görünür.
+ */
+function revealOption(list: HTMLElement, option: HTMLElement): void {
+  if (list.querySelector('[role="option"]') === option) {
+    list.scrollTop = 0
+    return
+  }
+  const group = option.parentElement
+  const firstInGroup = group?.querySelector('[role="option"]') === option
+  const top = (firstInGroup && group ? group : option).getBoundingClientRect().top
+  const { bottom } = option.getBoundingClientRect()
+  const viewTop = list.getBoundingClientRect().top + list.clientTop
+  const viewBottom = viewTop + list.clientHeight
+  if (top < viewTop) list.scrollTop -= viewTop - top
+  else if (bottom > viewBottom) list.scrollTop += bottom - viewBottom
 }
 
 /**
@@ -161,6 +218,7 @@ export function SearchResultsList({
               key={option.id}
               id={option.id}
               role="option"
+              aria-label={option.kind === 'airport' ? airportOptionLabel(option.row) : undefined}
               aria-selected={option.id === activeId}
               className={
                 option.kind === 'airport'
@@ -188,15 +246,18 @@ export function SearchResultsList({
  *
  * - **Yazarken** yalnız havalimanı önerilir (ağ isteği yok): kutu ARIA 1.2 combobox'ıdır, liste en çok
  *   8 havalimanıdır. Hiçbir öneri kendiliğinden seçilmez. Aşağı/yukarı ok listeyi açar ve gezer
- *   (iki uçta sarar; Alt+aşağı yalnız açar), Enter etkin seçeneği seçer, Escape listeyi kapatır
- *   (açık havalimanı penceresi kapanmaz), Tab listeyi kapatır ve bir şey seçmez. Dışarı tıklamak ya
- *   da odağı başka yere vermek listeyi kapatır; yalnız odaklanmak açmaz.
+ *   (iki uçta sarar; Alt+aşağı yalnız açar; etkin seçenek listenin görünen alanına kaydırılır), Enter
+ *   etkin seçeneği seçer, Tab listeyi kapatır ve bir şey seçmez. Escape odak formun neresindeyse
+ *   listeyi kapatır (açık havalimanı penceresi kapanmaz). Dışarı tıklamak ya da odağı formun dışına
+ *   vermek listeyi kapatır; yalnız odaklanmak açmaz.
  * - **Enter ya da "Ara"** uçak aramasını da yapar; sonuç `submitOutcome`'un kurallarıyla tek uçak,
- *   tek havalimanı, bulunamadı ya da "Havalimanları" ve "Uçaklar" gruplu tek listedir.
+ *   tek havalimanı, bulunamadı ya da "Havalimanları" ve "Uçaklar" gruplu tek listedir. Liste "Ara"
+ *   düğmesinden açılınca odak kutuya döner (oklar çalışır; dokunmada dönmez, klavye açılmaz).
  * - Havalimanı seçmek pine tıklamakla aynıdır (`onAirportFound`); odak kutudayken pencere açıldığı
- *   için pencere kapanınca odak kutuya döner. Dokunmayla uçak seçilince klavye kapanır (kart görünür).
+ *   için pencere kapanınca odak kutuya döner (klavye ve fare). Dokunmayla seçilince ya da gönderilince
+ *   telefon klavyesi kapanır: kart ya da pencere görünür ve pencere kapanınca klavye yeniden açılmaz.
  * - Durum metni ekran okuyucuya `aria-live="polite"` ile okunur; yazarken öneri sayısı son
- *   değişiklikten 600 ms sonra.
+ *   değişiklikten 600 ms sonra. Satır listenin altındadır: sayı belirince satırlar kaymaz.
  */
 export function SearchBox({
   apiBaseUrl,
@@ -220,6 +281,11 @@ export function SearchBox({
   const [settledQuery, setSettledQuery] = useState('')
   const pending = useRef<AbortController | null>(null)
   const warmed = useRef(false)
+  /**
+   * Formdaki son basışın aygıtı (`pointerType`; hiç basılmadıysa boş). Odak çıkınca boşaltılmaz:
+   * iOS'ta "Ara"ya dokunmak kutunun odağını gönderimden önce bırakır.
+   */
+  const lastPointer = useRef('')
 
   useEffect(() => () => pending.current?.abort(), [])
 
@@ -263,6 +329,16 @@ export function SearchBox({
   const expanded = listOpen && options.length > 0
   const activeIndex = expanded ? options.findIndex((option) => option.id === activeId) : -1
   const activeOption = activeIndex < 0 ? undefined : options[activeIndex]
+  const activeOptionId = activeOption?.id ?? null
+
+  // `aria-activedescendant` listeyi kaydırmaz (odak kutudadır): klavyedeki etkin seçenek listenin
+  // görünen alanında tutulur (WCAG 2.4.7). Liste aynı çizimde açılsa da DOM hazırdır.
+  useLayoutEffect(() => {
+    if (activeOptionId === null) return
+    const option = document.getElementById(activeOptionId)
+    const list = option?.closest('[role="listbox"]')
+    if (option instanceof HTMLElement && list instanceof HTMLElement) revealOption(list, option)
+  }, [activeOptionId])
 
   /** Listeyi kapatır, bir şey seçmez; gönderimin sonuç listesi düşer (kutu yazmaya döner). */
   const closeList = useCallback(() => {
@@ -291,17 +367,45 @@ export function SearchBox({
     setListOpen(true)
   }
 
+  /** Dokunma ya da kalem (fare değil); aygıt bilinmiyorsa formdaki son basışın aygıtı. */
+  const byTouch = (pointerType: string) => {
+    const device = pointerType === '' ? lastPointer.current : pointerType
+    return device !== '' && device !== 'mouse'
+  }
+
+  /**
+   * Dokunmayla seçilince ya da gönderilince telefon klavyesi kapanır (kutu odağı bırakır): alttan
+   * açılan kart ya da pencere görünür ve pencere kapanınca odak (klavye) kutuya dönmez, harita
+   * tuvaline gider (pin dokunuşu gibi). Klavye ve farede odak kutuda kalır (WCAG 2.4.3).
+   */
+  const releaseTouchFocus = (pointerType: string) => {
+    if (byTouch(pointerType) && document.activeElement === inputRef.current) {
+      inputRef.current?.blur()
+    }
+  }
+
   function choose(option: SearchOption, pointerType: string | null) {
     setListOpen(false)
     setActiveId(null)
     setState({ phase: 'idle' })
-    if (option.kind === 'airport') {
-      onAirportFound(option.row.airport)
-      return
+    // Odak, pencere ya da kart açılmadan bırakılır: pencere dönüş hedefini açılışta saklar.
+    if (pointerType !== null) releaseTouchFocus(pointerType)
+    if (option.kind === 'airport') onAirportFound(option.row.airport)
+    else onFound(option.aircraft)
+  }
+
+  /**
+   * Gönderimin listesi "Ara" düğmesinden açıldıysa (klavyeyle ya da Chrome ve Firefox'ta tıklamayla
+   * odak düğmede; Safari'de sayfada) odak kutuya döner: oklar, Enter ve Escape listede çalışır.
+   * Dokunmada dönmez (telefon klavyesi açılırdı); arama sürerken odak başka yere geçtiyse alınmaz.
+   */
+  function refocusAfterSubmit() {
+    const input = inputRef.current
+    const active = document.activeElement
+    if (input === null || active === input || byTouch('')) return
+    if (active === null || active === document.body || formRef.current?.contains(active)) {
+      input.focus({ preventScroll: true })
     }
-    onFound(option.aircraft)
-    // Dokunmayla seçilince telefon klavyesi kapanır: alttan açılan kart görünür.
-    if (pointerType !== null && pointerType !== 'mouse') inputRef.current?.blur()
   }
 
   function handleKeyDown(event: KeyboardEvent<HTMLInputElement>) {
@@ -327,22 +431,31 @@ export function SearchBox({
         event.preventDefault()
         choose(activeOption, null)
         return
-      case 'Escape':
-        // Açık liste Escape'i tüketir: açık havalimanı penceresi aynı tuşla kapanmaz.
-        if (!expanded) return
-        event.preventDefault()
-        closeList()
-        return
       case 'Tab':
         closeList()
         return
     }
   }
 
-  function handleBlur(event: FocusEvent<HTMLInputElement>) {
+  /**
+   * Escape, odak formun neresindeyse (kutu ya da "Ara") açık listeyi kapatır. Açık liste Escape'i
+   * tüketir: açık havalimanı penceresi aynı tuşla kapanmaz.
+   */
+  function closeOnEscape(event: KeyboardEvent<HTMLFormElement>) {
+    if (event.key !== 'Escape' || event.nativeEvent.isComposing || !expanded) return
+    event.preventDefault()
+    closeList()
+  }
+
+  /** Odak formdan çıkınca (kutudan ya da "Ara"dan) liste kapanır; form içinde gezinmek kapatmaz. */
+  function handleBlur(event: FocusEvent<HTMLFormElement>) {
     const next = event.relatedTarget
     if (next instanceof Node && formRef.current?.contains(next)) return
     closeList()
+  }
+
+  function rememberPointer(event: ReactPointerEvent<HTMLFormElement>) {
+    lastPointer.current = event.pointerType
   }
 
   async function search(event: FormEvent<HTMLFormElement>) {
@@ -392,10 +505,12 @@ export function SearchBox({
     switch (outcome.type) {
       case 'aircraft':
         setState({ phase: 'idle' })
+        releaseTouchFocus('')
         onFound(outcome.aircraft)
         return
       case 'airport':
         setState({ phase: 'idle' })
+        releaseTouchFocus('')
         onAirportFound(outcome.airport)
         return
       case 'list':
@@ -407,6 +522,7 @@ export function SearchBox({
           aircraftFailure: outcome.aircraftFailure,
         })
         setListOpen(true)
+        refocusAfterSubmit()
         return
       case 'notFound':
         setState({ phase: 'notFound', parts: outcome.parts })
@@ -419,7 +535,7 @@ export function SearchBox({
 
   const typing = state.phase === 'idle' && listOpen && query.trim() !== '' && settledQuery === query
   const status: SearchStatus = typing ? typingStatus(suggestions, query) : state
-  const statusText = searchStatusText(status, messages)
+  const statusText = searchStatusText(status, messages, locale)
   const text = statusText === '' && state.phase === 'idle' && notice ? notice : statusText
   return (
     <form
@@ -427,6 +543,9 @@ export function SearchBox({
       role="search"
       className="map-panel map-search"
       onSubmit={search}
+      onKeyDown={closeOnEscape}
+      onBlur={handleBlur}
+      onPointerDown={rememberPointer}
       aria-busy={state.phase === 'searching'}
     >
       <label htmlFor={inputId} className="sr-only">
@@ -460,7 +579,6 @@ export function SearchBox({
           onKeyDown={handleKeyDown}
           onFocus={warmAirportSearch}
           onPointerEnter={warmAirportSearch}
-          onBlur={handleBlur}
           placeholder={messages.placeholder}
           maxLength={QUERY_MAX_LENGTH}
           autoComplete="off"
@@ -473,19 +591,22 @@ export function SearchBox({
           {messages.submit}
         </button>
       </div>
-      {/* Canlı bölge boşken de DOM'da kalır; yoksa ilk duyuru kaçabilir. Boşken yer kaplamaz. */}
-      <p id={statusId} className="map-search__status" aria-live="polite">
-        {text}
-      </p>
       {expanded ? (
         <SearchResultsList
           id={listId}
           options={options}
-          activeId={activeOption?.id ?? null}
+          activeId={activeOptionId}
           messages={messages}
           onChoose={choose}
         />
       ) : null}
+      {/*
+       * Canlı bölge boşken de DOM'da kalır; yoksa ilk duyuru kaçabilir. Boşken yer kaplamaz. Listenin
+       * altındadır: yazarken 600 ms sonra beliren öneri sayısı satırları kaydırmaz.
+       */}
+      <p id={statusId} className="map-search__status" aria-live="polite">
+        {text}
+      </p>
     </form>
   )
 }

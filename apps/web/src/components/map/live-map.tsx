@@ -57,6 +57,7 @@ import {
   LabelSettingsControl,
   SearchBox,
   StatusStrip,
+  prebuildAirportSearch,
   preloadAirportListPanel,
   preloadAirportSearch,
 } from './panels'
@@ -71,7 +72,8 @@ import { supportsWebGL2 } from './webgl'
 
 /**
  * Havalimanı penceresi ayrı parçadadır (D-101): görünen ad tabloları (`airportDisplayName`, 4.
- * halkada ~165 KB kaynak) haritanın ilk paketine girmez. Parça harita hazır olunca boşta önceden
+ * halkada ~165 KB kaynak) haritanın ilk paketine girmez. Parça, panel ve aramayla ortak girişten
+ * (`airport-lazy.ts`; tablolar bir kez gelir, D-108) gelir; harita hazır olunca boşta önceden
  * istenir (aşağıdaki efekt); seçim ondan önce gelirse o sırada yüklenir. Yüklenemezse
  * (yayından sonra eski sekme, kesik bağlantı) pencerenin yerine yedek not çizilir
  * (`chunk-fallback.tsx`), harita hata ekranına düşmez. Yüklenirken yalnız pencerenin yeri boş kalır
@@ -79,7 +81,7 @@ import { supportsWebGL2 } from './webgl'
  * gelene kadar tablo, kart ve saat donardı.
  */
 const loadAirportPopup = withChunkFallback(
-  () => import('./airport-popup').then((module) => module.AirportPopup),
+  () => import('./airport-lazy').then((module) => module.AirportPopup),
   AirportPopupUnavailable,
   'Airport popup',
 )
@@ -322,6 +324,13 @@ export function LiveMap({
       preloadAirportSearch()
     })
   }, [mapSettled])
+
+  // Havalimanı aramasının dizini (D-108) harita hazır olduktan ve liste geldikten sonra boşta kurulur:
+  // kutunun ilk odağı ya da dokunması (telefonda klavye açılırken) kurulumu beklemez.
+  useEffect(() => {
+    if (!mapSettled || airports.length === 0) return
+    return prebuildAirportSearch(airports, locale)
+  }, [mapSettled, airports, locale])
 
   // Harita görünümü gelene kadar (ya da hiç gelmeyecekse) açılış görünümüne abone olunur.
   useEffect(() => {

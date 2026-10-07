@@ -757,10 +757,14 @@ test.describe('arama kutusunun ipucu kesilmez', () => {
     },
   } as const
 
-  for (const width of [1280, 375]) {
+  // Telefonun iki genişliği tek sayfa yüklemesinde ölçülür (her yükleme bir WebSocket el sıkışması,
+  // `WS_RATE_LIMIT`).
+  for (const widths of [[1280], [375, 320]]) {
     for (const locale of ['tr', 'en'] as const) {
-      test(`${width} px, ${locale}: ipucu kutuya sığar; erişilebilir ad tam`, async ({ page }) => {
-        await page.setViewportSize({ width, height: 812 })
+      test(`${widths.join(' ve ')} px, ${locale}: ipucu kutuya sığar; erişilebilir ad tam`, async ({
+        page,
+      }) => {
+        await page.setViewportSize({ width: widths[0] ?? 1280, height: 812 })
         await page.goto(COPY[locale].path)
         const input = searchInput(page)
         await expect(input).toBeVisible()
@@ -768,16 +772,20 @@ test.describe('arama kutusunun ipucu kesilmez', () => {
         const placeholder = (await input.getAttribute('placeholder')) ?? ''
         expect(placeholder.length).toBeGreaterThan(0)
         await page.evaluate(() => document.fonts.ready)
-        // İpucu, ipucu ile aynı yazı tipindeki metin kutuya sığıyorsa sığar: aynı metin yazılır ve
-        // kutunun kaydırma genişliği ölçülür (tarayıcının iç düzeni, temizle düğmesi yeri dahil).
-        // M6d ilk sürümü: "…tescil ya da he" (1280) ve "…tescil ya" (375) kesiliyordu.
-        await input.fill(placeholder)
-        const overflow = await input.evaluate(
-          (element) => element.scrollWidth - element.clientWidth,
-        )
-        expect(overflow, placeholder).toBeLessThanOrEqual(0)
-        await input.fill('')
-        await expect(input).toHaveAttribute('placeholder', placeholder)
+        for (const width of widths) {
+          await page.setViewportSize({ width, height: 812 })
+          // İpucu, ipucu ile aynı yazı tipindeki metin kutuya sığıyorsa sığar: aynı metin yazılır ve
+          // kutunun kaydırma genişliği ölçülür (tarayıcının iç düzeni, temizle düğmesi yeri dahil).
+          // M6d ilk sürümü: "…tescil ya da he" (1280) ve "…tescil ya" (375) kesiliyordu; v0.22.3'ün
+          // ilk ipucu "Sefer no, tescil, havalimanı" 320 px'te kesiliyordu.
+          await input.fill(placeholder)
+          const overflow = await input.evaluate(
+            (element) => element.scrollWidth - element.clientWidth,
+          )
+          expect(overflow, `${width} px: ${placeholder}`).toBeLessThanOrEqual(0)
+          await input.fill('')
+          await expect(input).toHaveAttribute('placeholder', placeholder)
+        }
       })
     }
   }

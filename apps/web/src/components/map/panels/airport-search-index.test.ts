@@ -1,4 +1,8 @@
-import { MILITARY_AIRFIELD_ICAOS } from '@havayolu/shared'
+import {
+  AIRPORT_SEARCH_PLACES,
+  isMilitaryAirfield,
+  MILITARY_AIRFIELD_ICAOS,
+} from '@havayolu/shared'
 import { describe, expect, it } from 'vitest'
 import { fixtureListedAirports } from '../../../lib/test/ourairports-fixture'
 import { toMapAirport, type MapAirport } from '../airport-data'
@@ -69,6 +73,68 @@ describe('havalimanı araması: fixture listesi (D-108)', () => {
     const turkey = tr('Türkiye')
     expect(turkey.total).toBe(56)
     expect(turkey.rows[0]?.code).toBe('IST')
+  })
+
+  it('"Turkey" (yalnız aranır, gösterilmez): Türkiye havalimanları, Ercan değil', () => {
+    for (const [query, search] of [
+      ['Turkey', en],
+      ['turkey', tr],
+      ['turke', en],
+    ] as const) {
+      const result = search(query)
+      expect(result.total, query).toBe(56)
+      expect(result.rows[0]?.code, query).toBe('IST')
+      for (const row of result.rows) {
+        expect(row.airport.country).toBe('TR')
+        expect(row.match).toBe('country')
+        expect(`${row.name} ${row.place}`).not.toMatch(/Turkey/i)
+      }
+    }
+    expect(codes('Turkey', en)).not.toContain('ECN')
+  })
+
+  it('yalnız aranan şehir adları: "Adana" Çukurova, "Antep", "Urfa", "Maraş"', () => {
+    for (const search of [tr, en]) {
+      expect(search('Adana').rows[0], 'Adana').toMatchObject({ code: 'COV', match: 'start' })
+      expect(codes('Antep', search)).toEqual(['GZT'])
+      expect(codes('Urfa', search)).toEqual(['GNY'])
+      expect(codes('Maraş', search)).toEqual(['KCM'])
+      expect(codes('maras', search)).toEqual(['KCM'])
+      expect(codes('İzmit', search)).toContain('KCO')
+      expect(codes('Fethiye', search)).toContain('DLM')
+      expect(codes('Afyon', search)).toEqual(['KZR'])
+    }
+    // Satır havalimanının gerçek yerini yazar (Çukurova Mersin'dedir); ek ad gösterilmez.
+    expect(tr('Adana').rows[0]?.place).toBe('Mersin')
+    expect(tr('Adana').rows[0]?.name).not.toContain('Adana')
+  })
+
+  it('ek adların her anahtarı listelenen sivil havalimanıdır (eskiyen anahtar testi bozar)', () => {
+    const listed = new Set(AIRPORTS.map((a) => a.icao))
+    for (const icao of Object.keys(AIRPORT_SEARCH_PLACES)) {
+      expect(listed.has(icao), icao).toBe(true)
+      expect(isMilitaryAirfield(icao), icao).toBe(false)
+    }
+  })
+
+  it('"THY" havalimanı bulmaz (havayolu kodu; Sfaks Thyna yalnız 4 harfle); "GAP" bulur', () => {
+    for (const search of [tr, en]) {
+      expect(search('THY').rows, 'THY').toEqual([])
+      expect(search('thy').rows, 'thy').toEqual([])
+      expect(codes('thyna', search)).toEqual(['SFA'])
+      expect(codes('GAP', search)).toEqual(['GNY'])
+    }
+  })
+
+  it('yarım yazılmış dolgu sözcüğü listeyi boşaltmaz', () => {
+    const full = tr('antalya havalimanı').rows.map((row) => row.code)
+    expect(full).toContain('AYT')
+    for (const query of ['antalya h', 'antalya hava', 'antalya havali']) {
+      expect(codes(query), query).toEqual(full)
+    }
+    expect(codes('esenboğa hav')).toEqual(['ESB'])
+    expect(codes('istanbul airp', en)).toEqual(codes('istanbul airport', en))
+    expect(codes('istanbul airp', en).slice(0, 3)).toEqual(['IST', 'SAW', 'ISL'])
   })
 
   it('satırın metinleri sayfanın dilinde', () => {

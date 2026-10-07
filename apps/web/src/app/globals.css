@@ -1654,7 +1654,7 @@ body:has(.map-page) .site-footer {
     left: var(--map-gutter);
   }
 
-  /* Arama ipucu 375 px'te de kesilmesin: gönder düğmesinin yan boşluğu daralır, kutu genişler. */
+  /* Arama ipucu 320 px'te de kesilmesin: gönder düğmesinin yan boşluğu daralır, kutu genişler. */
   .map-search__submit {
     padding-inline: 0.6rem;
   }

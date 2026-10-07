@@ -2,8 +2,10 @@
 // (ARIA 1.2 combobox, ağ isteği yok), seçmek pine tıklamakla aynıdır (harita oraya gider, pencere
 // açılır, adres değişmez), Escape önce listeyi kapatır, pencere kapanınca odak kutuya döner. Enter
 // uçak aramasını da yapar: tek uçak seçilir, tam kodlu havalimanı açılır, ikisi yoksa açıklayıcı
-// metin çıkar. Askerî hava üsleri hiçbir sorguyla bulunmaz (D-103, D-107). Her test tek sayfa
-// yüklemesidir (her biri bir WebSocket el sıkışması, `WS_RATE_LIMIT`).
+// metin çıkar. Askerî hava üsleri hiçbir sorguyla bulunmaz (D-103, D-107). Klavyedeki etkin seçenek
+// uzun listede görünür kalır; "Ara"dan açılan listede odak kutuya döner; telefonda dokunup seçmek
+// klavyeyi kapatır, pencere kapanınca kutu odak almaz. Her test tek sayfa yüklemesidir (her biri bir
+// WebSocket el sıkışması, `WS_RATE_LIMIT`).
 import { expect, test, type Locator, type Page } from '@playwright/test'
 import {
   airportListCodes,
@@ -23,9 +25,24 @@ function options(page: Page): Locator {
   return page.getByRole('search').getByRole('listbox').getByRole('option')
 }
 
-/** Kodla başlayan seçenek (erişilebilir ad "IST, İstanbul Havalimanı, İstanbul · LTFM"). */
+/** Kodla başlayan seçenek (erişilebilir ad `aria-label`: "IST, İstanbul Havalimanı, İstanbul · LTFM"). */
 function option(page: Page, code: string): Locator {
   return options(page).filter({ hasText: new RegExp(`^${code}`) })
+}
+
+function listbox(page: Page): Locator {
+  return page.getByRole('search').getByRole('listbox')
+}
+
+/** Seçenek listenin görünen alanının içinde (liste kendi içinde kaydırılır; 1 px pay). */
+async function expectInsideList(page: Page, item: Locator): Promise<void> {
+  await expect
+    .poll(async () => {
+      const [outer, inner] = await Promise.all([listbox(page).boundingBox(), item.boundingBox()])
+      if (outer === null || inner === null) return false
+      return inner.y >= outer.y - 1 && inner.y + inner.height <= outer.y + outer.height + 1
+    })
+    .toBe(true)
 }
 
 function popup(page: Page, icao?: string): Locator {
@@ -129,6 +146,19 @@ test('ad, şehir ve kodla arama; askerî üsler bulunmaz; Enter tam kodu açar, 
   // Yurt dışı: Türkçe adla.
   await input.fill('Atina')
   await expect(option(page, 'ATH')).toBeVisible()
+
+  // "Ara" düğmesinden klavyeyle gönderim: liste açılınca odak kutuya döner, oklar ve Escape çalışır.
+  await input.fill('istanbul')
+  await input.press('Tab')
+  await expect(page.getByRole('search').getByRole('button', { name: 'Ara' })).toBeFocused()
+  await page.keyboard.press('Enter')
+  await expect(input).toHaveAttribute('aria-expanded', 'true')
+  await expect(input).toBeFocused()
+  await expect(option(page, PRIMARY_AIRPORT.iata)).toBeVisible()
+  await input.press('ArrowDown')
+  await expect(input).toHaveAttribute('aria-activedescendant', /.+/)
+  await page.keyboard.press('Escape')
+  await expectClosed(input)
 })
 
 test('/en: İngilizce ve Türkçe adla Atina bulunur', async ({ page }) => {
@@ -170,6 +200,28 @@ test('klavye: uçak araması eskisi gibi; Escape önce listeyi kapatır, açık 
   expect(id).not.toBe('')
   await expect(input).toHaveAttribute('aria-activedescendant', id)
 
+  // Uzun listede (8 havalimanı) etkin seçenek listenin görünen alanında kalır: yukarı ok sonuncuya
+  // gider ve liste kendi içinde kayar; aşağı ok başa sarar, liste başa döner.
+  await input.fill('Türkiye')
+  await expect(options(page)).toHaveCount(8)
+  const overflow = await listbox(page).evaluate((list) => list.scrollHeight - list.clientHeight)
+  expect(overflow).toBeGreaterThan(0)
+  await input.press('ArrowUp')
+  const lastOfEight = options(page).last()
+  await expect(input).toHaveAttribute(
+    'aria-activedescendant',
+    (await lastOfEight.getAttribute('id')) ?? '',
+  )
+  await expectInsideList(page, lastOfEight)
+  await input.press('ArrowDown')
+  const first = options(page).first()
+  await expect(input).toHaveAttribute(
+    'aria-activedescendant',
+    (await first.getAttribute('id')) ?? '',
+  )
+  await expectInsideList(page, first)
+  await expect.poll(() => listbox(page).evaluate((list) => list.scrollTop)).toBe(0)
+
   // Escape listeyi kapatır, pencere açık kalır; ikinci Escape de kutunundur.
   await input.press('Escape')
   await expectClosed(input)
@@ -179,22 +231,39 @@ test('klavye: uçak araması eskisi gibi; Escape önce listeyi kapatır, açık 
 })
 
 test.describe('telefon genişliği', () => {
-  test.use({ viewport: { width: 375, height: 812 } })
+  test.use({ viewport: { width: 375, height: 812 }, hasTouch: true })
 
-  test('375 px: liste ekranda, yatay taşmaz; dokunup seçmek pencereyi açar', async ({ page }) => {
+  test('375 px: liste ekranda, yatay taşmaz; seçmek pencereyi açar; dokunmada kutu odak almaz', async ({
+    page,
+  }) => {
     await openMap(page)
     const input = searchInput(page)
     await input.fill('esenboğa')
-    const list = page.getByRole('search').getByRole('listbox')
+    const list = listbox(page)
     const esb = option(page, 'ESB')
     await expect(esb).toBeVisible()
     await expect(list).toBeInViewport({ ratio: 1 })
     const overflow = await list.evaluate((element) => element.scrollWidth - element.clientWidth)
     expect(overflow).toBeLessThanOrEqual(0)
 
+    // Fareyle: pencere kapanınca odak kutuya döner (WCAG 2.4.3).
     await esb.click()
     await expect(page.locator('.live-map__popup')).toBeVisible({ timeout: 15_000 })
     await expect(popup(page, 'LTAC')).toBeVisible()
     await expectClosed(input)
+    await popup(page, 'LTAC').getByRole('button', { name: 'Kapat' }).click()
+    await expect(popup(page)).toHaveCount(0)
+    await expect(input).toBeFocused()
+
+    // Dokunarak: telefon klavyesi kapanır; pencere kapanınca kutu odak almaz (klavye yeniden
+    // açılmaz), odak haritaya gider. Aynı metin yeniden yazılınca değişiklik olmaz: önce boşaltılır.
+    await input.fill('')
+    await input.fill('esenboğa')
+    await esb.tap()
+    await expect(popup(page, 'LTAC')).toBeVisible({ timeout: 15_000 })
+    await expect(input).not.toBeFocused()
+    await popup(page, 'LTAC').getByRole('button', { name: 'Kapat' }).tap()
+    await expect(popup(page)).toHaveCount(0)
+    await expect(input).not.toBeFocused()
   })
 })

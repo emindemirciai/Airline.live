@@ -213,10 +213,10 @@ describe('searchAirportIndex', () => {
       entry('XW01', 'XWA', ['North Greenhill'], []),
       entry('XS02', 'XSB', ['Greenway'], []),
       entry('XS01', 'XSA', ['Greenfield'], []),
-      entry('XGRE', 'GRE', ['Foo'], []),
+      entry('GREE', '', ['Foo'], []),
     ])
-    expect(searchAirportIndex(index, 'gre').hits).toEqual([
-      { value: 'XGRE', match: 'code' },
+    expect(searchAirportIndex(index, 'gree').hits).toEqual([
+      { value: 'GREE', match: 'code' },
       { value: 'XS02', match: 'start' },
       { value: 'XS01', match: 'start' },
       { value: 'XW01', match: 'words' },
@@ -248,16 +248,101 @@ describe('searchAirportIndex', () => {
     expect(searchAirportIndex(INDEX, 'gaziemir adb').hits).toEqual([
       { value: 'LTBJ', match: 'words' },
     ])
+    // Ülke adıyla karışık: ülke basamağı.
     expect(searchAirportIndex(INDEX, 'atina yunanistan').hits).toEqual([
       { value: 'LGAV', match: 'country' },
     ])
     expect(codes('adnan antalya')).toEqual([])
   })
 
-  it('ülke basamağı en az 3 karakter ister', () => {
+  it('ülke basamağı en az 3 harf ister (boşluk sayılmaz)', () => {
     expect(codes('yu')).toEqual([])
-    expect(codes('yun')).toEqual(['LGAV', 'LGTS'])
-    expect(codes('kos')).toEqual(['BKPR'])
+    expect(codes('yuna')).toEqual(['LGAV', 'LGTS'])
+    expect(codes('koso')).toEqual(['BKPR'])
+    expect(codes('kosovo')).toEqual(['BKPR'])
+    // İki harf ve boşluk: ad ya da yer sözcüğü yoksa ülke basamağına inmez.
+    expect(searchAirportIndex(INDEX, 'y g').hits).toEqual([])
+    expect(searchAirportIndex(INDEX, 'g y').hits).toEqual([])
+  })
+
+  it('tek başına 3 harf (havayolu kodu biçimi): ad, yer ve ülke sözcüğü yalnız tam; kod önekle', () => {
+    const index = createAirportSearchIndex([
+      entry(
+        'DTTX',
+        'SFA',
+        ['Sfaks Thyna Havalimanı', 'Sfax Thyna International Airport'],
+        ['Sfaks', 'Sfax'],
+        ['Tunus', 'Tunisia'],
+      ),
+      entry('LTCS', 'GNY', ['Şanlıurfa GAP Havalimanı'], ['Şanlıurfa'], TR),
+      entry(
+        'ORER',
+        'EBL',
+        ['Erbil Havalimanı', 'Erbil International Airport'],
+        ['Erbil'],
+        ['Irak', 'Iraq'],
+      ),
+      entry('OIII', 'THR', ['Tahran Mehrabad Havalimanı'], ['Tahran', 'Tehran'], ['İran', 'Iran']),
+    ])
+    const found = (query: string) => searchAirportIndex(index, query).hits
+    // "THY" (Türk Hava Yolları) Sfaks Thyna'yı, "IRA" (Iran Air) Irak'ı bulmaz.
+    expect(found('THY')).toEqual([])
+    expect(found('thy')).toEqual([])
+    expect(found('IRA')).toEqual([])
+    // Dört harfle sözcük başı yine eşleşir.
+    expect(found('thyn')).toEqual([{ value: 'DTTX', match: 'words' }])
+    expect(found('irak')).toEqual([{ value: 'ORER', match: 'country' }])
+    // Tam sözcük ve kod öneki eşleşir; ülke adı tam ise ülke basamağı.
+    expect(found('GAP')).toEqual([{ value: 'LTCS', match: 'words' }])
+    expect(found('LTC')).toEqual([{ value: 'LTCS', match: 'words' }])
+    expect(found('iran')).toEqual([{ value: 'OIII', match: 'country' }])
+    // Başlangıç ve tam kod basamağı değişmez.
+    expect(found('sfa')).toEqual([{ value: 'DTTX', match: 'code' }])
+    expect(found('erb')).toEqual([{ value: 'ORER', match: 'start' }])
+    // Çok sözcüklü sorguda kural yok.
+    expect(found('sfax thy')).toEqual([{ value: 'DTTX', match: 'start' }])
+    // Türkçe harfli 3 harf havayolu kodu olamaz: sözcük başı eşleşir. İngilizce harflerle sözcük başı
+    // dördüncü harfte gelir.
+    expect(codes('gök')).toEqual(['LTFJ'])
+    expect(codes('gok')).toEqual([])
+    expect(codes('sab')).toEqual([])
+    expect(codes('sabi')).toEqual(['LTFJ'])
+  })
+
+  it('yarım yazılmış dolgu sözcüğü hiçbir şey bulmazsa sayılmaz', () => {
+    for (const query of ['antalya h', 'antalya hava', 'antalya havali', 'Antalya Airp']) {
+      expect(codes(query), query).toEqual(['LTAI'])
+    }
+    expect(searchAirportIndex(INDEX, 'antalya havali').hits).toEqual(
+      searchAirportIndex(INDEX, 'antalya havalimanı').hits,
+    )
+    expect(codes('istanbul airp')).toEqual(codes('istanbul airport'))
+    expect(codes('istanbul airp')).toEqual(['LTFM', 'LTFJ', 'LTBA'])
+    expect(codes('athens inter')).toEqual(['LGAV'])
+    expect(codes('sabiha gokcen ulu')).toEqual(['LTFJ'])
+    // Ad giriş sınırında (32 karakter) kesilmiş: kendi havalimanını bulur.
+    expect(codes('Athens Eleftherios Venizelos Int')).toEqual(['LGAV'])
+    expect(codes('Istanbul Sabiha Gökçen Internati')).toEqual(['LTFJ'])
+    expect(codes('İzmir Adnan Menderes Havaliman')).toEqual(['LTBJ'])
+    // Tek sözcük kısalmaz; tam dolgu sözcüğü zaten sayılmaz.
+    expect(codes('hava')).toEqual([])
+    expect(codes('inter')).toEqual([])
+    expect(codes('xyz havalimanı h')).toEqual([])
+    // Sorgu bir şey bulduysa yarım sözcük sayılır: "istanbul a" yalnız Atatürk'tür.
+    expect(codes('istanbul a')).toEqual(['LTBA'])
+    // Kod ve yarım dolgu sözcüğü: kod basamağı.
+    expect(searchAirportIndex(INDEX, 'ADB h').hits).toEqual([{ value: 'LTBJ', match: 'code' }])
+  })
+
+  it('yarım dolgu sözcüğü: gerçek sözcük daralttıysa bütün ülke gelmez ("italy bol")', () => {
+    const index = createAirportSearchIndex([
+      entry('LIRF', 'FCO', ['Rome Fiumicino Airport'], ['Rome'], ['İtalya', 'Italy']),
+      entry('LIPE', 'BLQ', ['Bologna Guglielmo Marconi Airport'], ['Bologna'], ['İtalya', 'Italy']),
+      entry('LIMC', 'MXP', ['Milan Malpensa Airport'], ['Milan'], ['İtalya', 'Italy']),
+    ])
+    expect(searchAirportIndex(index, 'italy bol').hits).toEqual([
+      { value: 'LIPE', match: 'country' },
+    ])
   })
 
   it('rakamlı ve hex sorgu yalnız tam kod bulur; 1 karakter hiçbir şey', () => {

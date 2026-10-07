@@ -845,13 +845,13 @@ export const tr = {
     siteCreditLabel: '{credit}, yenilikler',
     search: {
       /**
-       * Arama kutusunun erişilebilir adı tam metindir; görünen ipucu (`placeholder`) 375 px'lik
-       * telefonda da kesilmeyecek kadar kısadır (e2e live-map.spec.ts ölçer). Kutu uçak ve
-       * havalimanı arar (D-108).
+       * Arama kutusunun erişilebilir adı tam metindir; görünen ipucu (`placeholder`) 320 px'lik
+       * telefonda da kesilmeyecek kadar kısadır (e2e live-map.spec.ts 1280, 375 ve 320 px'te ölçer).
+       * Kutu uçak ve havalimanı arar (D-108).
        */
       label:
         'Uçak ya da havalimanı ara: sefer no, çağrı kodu, tescil ya da hex; havalimanı kodu, adı ya da şehri',
-      placeholder: 'Sefer no, tescil, havalimanı',
+      placeholder: 'Sefer, tescil, havalimanı',
       submit: 'Ara',
       searching: 'Aranıyor…',
       notFound:
@@ -876,6 +876,12 @@ export const tr = {
       aircraftUnavailable: 'Uçak araması şu an yapılamıyor; havalimanı sonuçları listede.',
       airportNamesUnavailable:
         'Havalimanı adları yüklenemedi; havalimanını kodla arayabilir ya da sayfayı yenileyebilirsin.',
+      /**
+       * Havalimanı bulunamayınca eklenir: yalnız açık halkalar aranır. `{km}`: açık halkaların sınırı
+       * (`ENABLED_AIRPORT_RING`, D-080); bütün halkalar açılınca cümle yazılmaz.
+       */
+      airportCoverage:
+        'Türkiye dışında yalnız Türkiye’deki en yakın havalimanına uzaklığı en fazla {km} olan havalimanları aranır.',
     },
     card: {
       close: 'Kapat',

@@ -7,5 +7,10 @@ export {
 } from './airport-list-control'
 export { InfoCard, type InfoCardProps } from './info-card'
 export { LabelSettingsControl, type LabelSettingsControlProps } from './label-settings-control'
-export { SearchBox, preloadAirportSearch, type SearchBoxProps } from './search-box'
+export {
+  SearchBox,
+  prebuildAirportSearch,
+  preloadAirportSearch,
+  type SearchBoxProps,
+} from './search-box'
 export { StatusStrip, type StatusStripProps } from './status-strip'

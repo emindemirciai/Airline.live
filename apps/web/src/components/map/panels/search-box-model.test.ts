@@ -1,5 +1,5 @@
 import { getMessages } from '@havayolu/i18n'
-import type { PublicAircraft } from '@havayolu/shared'
+import { airportRingLimitKm, ENABLED_AIRPORT_RING, type PublicAircraft } from '@havayolu/shared'
 import { describe, expect, it } from 'vitest'
 import type { MapAirport } from '../airport-data'
 import {
@@ -52,6 +52,10 @@ const ok = (...results: PublicAircraft[]): AircraftLookup => ({
 const SKIPPED: AircraftLookup = { status: 'skipped' }
 const failed = (rateLimited = false): AircraftLookup => ({ status: 'failed', rateLimited })
 
+/** Havalimanı bulunamadı metnine eklenen kapsama cümlesi (bütün halkalar açılınca yok). */
+const COVERAGE =
+  airportRingLimitKm(ENABLED_AIRPORT_RING) === null ? [] : (['airportCoverage'] as const)
+
 const input = (
   query: string,
   lookup: AircraftLookup,
@@ -88,15 +92,15 @@ describe('submitOutcome: gönderimin kuralları (D-108)', () => {
   })
 
   it('3: hiçbir şey yok → bulunamadı; metnin parçaları', () => {
-    // Uçak araması atlandı (sorgu uçak olamaz): yalnız havalimanı metni.
+    // Uçak araması atlandı (sorgu uçak olamaz): yalnız havalimanı metni ve kapsama.
     expect(submitOutcome(input('Çiğli', SKIPPED, NO_AIRPORT_RESULTS))).toEqual({
       type: 'notFound',
-      parts: ['airportNotFound'],
+      parts: ['airportNotFound', ...COVERAGE],
     })
-    // Uçak araması boş: uçak metni ve rakamsız sorguda havalimanı ipucu.
+    // Uçak araması boş: uçak metni, rakamsız sorguda havalimanı ipucu ve kapsama.
     expect(submitOutcome(input('xyzq', ok(), NO_AIRPORT_RESULTS))).toEqual({
       type: 'notFound',
-      parts: ['notFound', 'airportNote'],
+      parts: ['notFound', 'airportNote', ...COVERAGE],
     })
     // Sefer no araması: sefer no notu; rakamlı sorguda havalimanı ipucu yok.
     expect(
@@ -108,6 +112,12 @@ describe('submitOutcome: gönderimin kuralları (D-108)', () => {
     expect(submitOutcome(input('xyzq', ok(), NO_AIRPORT_RESULTS, false))).toEqual({
       type: 'notFound',
       parts: ['notFound'],
+    })
+    // Havalimanı listesi yüklenmedi ve sorgu uçak olamaz: hiçbir şey aranmadı → hata, "bulunamadı"
+    // değil.
+    expect(submitOutcome(input('Çiğli', SKIPPED, NO_AIRPORT_RESULTS, false))).toEqual({
+      type: 'failed',
+      rateLimited: false,
     })
   })
 
@@ -240,30 +250,49 @@ describe.each(['tr', 'en'] as const)('searchStatusText (%s)', (locale) => {
     list: PublicAircraft[],
     aircraftFailure: { rateLimited: boolean } | null = null,
   ) =>
-    searchStatusText({ phase: 'pick', airports, airportTotal, aircraft: list, aircraftFailure }, t)
+    searchStatusText(
+      { phase: 'pick', airports, airportTotal, aircraft: list, aircraftFailure },
+      t,
+      locale,
+    )
 
   it('boş, aranıyor, hata', () => {
-    expect(searchStatusText({ phase: 'idle' }, t)).toBe('')
-    expect(searchStatusText({ phase: 'searching' }, t)).toBe(t.searching)
-    expect(searchStatusText({ phase: 'failed', rateLimited: false }, t)).toBe(t.error)
-    expect(searchStatusText({ phase: 'failed', rateLimited: true }, t)).toBe(t.rateLimited)
+    expect(searchStatusText({ phase: 'idle' }, t, locale)).toBe('')
+    expect(searchStatusText({ phase: 'searching' }, t, locale)).toBe(t.searching)
+    expect(searchStatusText({ phase: 'failed', rateLimited: false }, t, locale)).toBe(t.error)
+    expect(searchStatusText({ phase: 'failed', rateLimited: true }, t, locale)).toBe(t.rateLimited)
   })
 
-  it('bulunamadı: parçalar sırayla', () => {
-    expect(searchStatusText({ phase: 'notFound', parts: ['airportNotFound'] }, t)).toBe(
+  it('bulunamadı: parçalar sırayla; kapsama açık halkanın sınırıyla, sayfanın dilinde', () => {
+    expect(searchStatusText({ phase: 'notFound', parts: ['airportNotFound'] }, t, locale)).toBe(
       t.airportNotFound,
     )
     expect(
       searchStatusText(
         { phase: 'notFound', parts: ['notFound', 'flightNumberNote', 'airportNote'] },
         t,
+        locale,
       ),
     ).toBe(`${t.notFound} ${t.flightNumberNote} ${t.airportNote}`)
+    const coverage = searchStatusText(
+      { phase: 'notFound', parts: ['airportNotFound', 'airportCoverage'] },
+      t,
+      locale,
+    )
+    const km = airportRingLimitKm(ENABLED_AIRPORT_RING)
+    if (km === null) {
+      expect(coverage).toBe(t.airportNotFound)
+    } else {
+      expect(coverage).toBe(
+        `${t.airportNotFound} ${t.airportCoverage.replace('{km}', locale === 'tr' ? '2.000 km' : '2,000 km')}`,
+      )
+      expect(km).toBe(2000)
+    }
   })
 
   it('yazarken: öneri sayısı; liste kesildiyse ilk kaçı', () => {
     const typing = (shown: number, total: number, namesUnavailable = false) =>
-      searchStatusText({ phase: 'typing', shown, total, namesUnavailable }, t)
+      searchStatusText({ phase: 'typing', shown, total, namesUnavailable }, t, locale)
     expect(typing(0, 0)).toBe('')
     expect(typing(3, 3)).toBe(locale === 'tr' ? 'Eşleşen havalimanı: 3.' : 'Matching airports: 3.')
     expect(typing(8, 56)).toBe(
