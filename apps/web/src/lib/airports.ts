@@ -22,9 +22,10 @@ export { isTurkish } from '../components/airports/airport-text'
  * - İstemci başlıkları (X-Forwarded-For, CF-Connecting-IP) **iletilmez**: Next önbellek anahtarı
  *   istek başlıklarını içerir (next/dist/server/lib/incremental-cache → generateCacheKey); iletilse
  *   önbellek ziyaretçi başına bölünürdü.
- * - Boyut (3. halka, D-090): 503 havalimanı ve pistleri ~0,45 MB (base64 ~0,6 MB); Next veri
- *   önbelleğinin 2 MiB öğe sınırının altındadır. Gövdenin denetimi (`parseAirportsBody`) sayfa
- *   çizimi başına ~6 ms'dir (Node, ölçüm). Görünür alana göre yükleme 4. halkadadır (M6i).
+ * - Boyut (3. halka, D-090): 503 havalimanı (ölçüm; D-107'den beri 498) ve pistleri ~0,45 MB
+ *   (base64 ~0,6 MB); Next veri önbelleğinin 2 MiB öğe sınırının altındadır. Gövdenin denetimi
+ *   (`parseAirportsBody`) sayfa çizimi başına ~6 ms'dir (Node, ölçüm). Görünür alana göre yükleme
+ *   4. halkadadır (M6i).
  * - İstek başına tek çağrı: React `cache()`.
  * - Next yalnızca 200 yanıtı önbelleğe alır; API ulaşılamazsa sayfa 500 verir (yumuşak 404 değil),
  *   önbellekte eski kopya varsa o sunulur.
@@ -201,9 +202,11 @@ const CIVIL_NAME_SOURCES: ReadonlySet<AirportNameSource> = new Set(['dhmi', 'ope
  * ya da bakanlık kaynağından doğrulanan sivil havalimanları (Ankara (Etimesgut) dahil, D-084),
  * izlenen istasyonlar ve OurAirports'ta tarifeli seferi kayıtlı olanlar. OurAirports
  * `scheduled_service` bayrağı tek başına ölçüt değildir: bazı sivil havalimanlarında güncel değildir
- * (Siirt, Kocaeli). Kalanlar (askerî hava üsleri; adı doğrulanmamış, tarifesiz ve istasyon olmayan
- * yeni kayıtlar) `noindex, follow` alır ve site haritasına girmez. Yakın ülkelerdeki listelenen havalimanları aday kuralı
- * gereği tarifelidir (`isForeignCandidate`), hepsi dizine eklenir (D-080).
+ * (Siirt, Kocaeli). Kalanlar (adı doğrulanmamış, tarifesiz ve istasyon olmayan yeni kayıtlar)
+ * `noindex, follow` alır ve site haritasına girmez; askerî hava üsleri D-107'den beri listede
+ * yoktur (sayfaları 404), D-084'te bu kuralla dışarıda kalıyorlardı. Yakın ülkelerdeki listelenen
+ * havalimanları aday kuralı gereği tarifelidir (`isForeignCandidate`), hepsi dizine eklenir
+ * (D-080).
  */
 export function isIndexable(airport: AirportDetail): boolean {
   return (

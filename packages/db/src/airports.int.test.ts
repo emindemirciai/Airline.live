@@ -123,7 +123,7 @@ describe('listAirportsWithIata', () => {
     expect(await listAirportsWithIata(database.db, 'TR', RINGS)).toEqual([])
   })
 
-  it("fixture: Türkiye'nin içe aktarılan 73 alanından IATA kodlu 61'i, IATA sırasıyla", async () => {
+  it("fixture: Türkiye'nin içe aktarılan 73 alanından IATA kodlu 61'inin askerî üsler (D-107) dışındaki 56'sı, IATA sırasıyla", async () => {
     const rows = readFixture()
     // 68 büyük, orta ya da tarifeli alan + IATA kodlu 5 tarifesiz küçük alan (uzaklık referansı,
     // D-080; listeye girmez).
@@ -131,10 +131,10 @@ describe('listAirportsWithIata', () => {
     await database.db.insert(airports).values(rows)
 
     const list = await listAirportsWithIata(database.db, 'TR', RINGS)
-    expect(list).toHaveLength(61)
+    expect(list).toHaveLength(56)
     const codes = list.map((a) => a.iata)
     expect(codes).toEqual([...codes].sort())
-    expect(new Set(list.map((a) => a.icao)).size).toBe(61)
+    expect(new Set(list.map((a) => a.icao)).size).toBe(56)
     expect(codes).toEqual(expect.arrayContaining(['IST', 'SAW', 'ESB', 'ADB', 'AYT', 'ISL']))
     for (const airport of list) {
       expect(airport.iata).toMatch(/^[A-Z]{3}$/)
@@ -156,8 +156,17 @@ describe('listAirportsWithIata', () => {
       ring: 0,
       distanceToTrKm: null,
     })
-    // icao_code'u boş kayıt: ICAO gps_code'dan gelir.
-    expect(list.find((a) => a.iata === 'IGL')?.icao).toBe('LTBL')
+    // Askerî hava üsleri (D-107) listede yok; Çiğli'nin icao_code'u boştur, kanonik ICAO'su
+    // gps_code'dan (LTBL) gelir ve yine süzülür.
+    for (const code of ['UAB', 'AFY', 'BDM', 'ESK', 'IGL']) expect(codes, code).not.toContain(code)
+    for (const icao of ['LTAG', 'LTAH', 'LTBG', 'LTBI', 'LTBL']) {
+      expect(
+        list.map((a) => a.icao),
+        icao,
+      ).not.toContain(icao)
+    }
+    // Askerî adlı ama sivil Ankara (Etimesgut) listede (D-084).
+    expect(list.find((a) => a.iata === 'ANK')?.icao).toBe('LTAD')
     // Tarifeli seferi olmayan Atatürk de listelenir.
     expect(list.find((a) => a.iata === 'ISL')).toMatchObject({ icao: 'LTBA', scheduled: false })
     // IATA kodu olmayan askeri alanlar yoktur.
@@ -244,7 +253,7 @@ describe('listListedAirports (D-080)', () => {
     expect(await listListedAirportDetails(database.db, RINGS)).toEqual([])
   })
 
-  it('fixture, içe aktarım süzgeciyle: 61 Türkiye + 75 yurt dışı (1. halka) = 136, IATA sırasıyla', async () => {
+  it('fixture, içe aktarım süzgeciyle: 56 Türkiye (askerî üsler hariç, D-107) + 75 yurt dışı (1. halka) = 131, IATA sırasıyla', async () => {
     const rows = readFixture()
     // Gökçeada, Selçuk-Efes, Bodrum-İmsık, Aydın Çıldır, Adana Şakirpaşa: tarifesiz küçük alanlar,
     // yalnızca uzaklık referansı.
@@ -263,18 +272,19 @@ describe('listListedAirports (D-080)', () => {
     expect(list.map((a) => a.icao)).not.toContain('LTFK')
     const foreign = list.filter((a) => a.country !== 'TR')
     expect(foreign).toHaveLength(75)
-    expect(list).toHaveLength(136)
+    expect(list).toHaveLength(131)
     for (const airport of foreign) {
       expect(airport.ring, airport.icao).toBe(1)
       expect(airport.distanceToTrKm, airport.icao).toBeLessThanOrEqual(500)
       expect(['large_airport', 'medium_airport']).toContain(airport.type)
       expect(airport.scheduled, airport.icao).toBe(true)
     }
+    // Atina'nın uzaklığı İzmir Adnan Menderes'e ölçülür; Çiğli üssü (275 km) referans değildir (D-107).
     expect(list.find((a) => a.icao === 'LGAV')).toMatchObject({
       iata: 'ATH',
       country: 'GR',
       ring: 1,
-      distanceToTrKm: 275,
+      distanceToTrKm: 284,
     })
     expect(list.find((a) => a.icao === 'LCEN')).toMatchObject({ iata: 'ECN', country: 'CY' })
     // Süleymaniye: OurAirports kimliği ORSU, ICAO'su ORSJ.
@@ -297,8 +307,8 @@ describe('listListedAirports (D-080)', () => {
       isoRegion: 'GR-I',
       country: 'GR',
       ring: 1,
-      distanceToTrKm: 275,
-      nearestTr: { icao: 'LTBL', iata: 'IGL' },
+      distanceToTrKm: 284,
+      nearestTr: { icao: 'LTBJ', iata: 'ADB' },
       station: null,
     })
     // Uzaklığın ölçüldüğü havalimanı listelenmeyen küçük alan olabilir (Selanik → Gökçeada).
@@ -308,18 +318,24 @@ describe('listListedAirports (D-080)', () => {
       name: 'Gökçeada Airport',
     })
     expect(details.filter((a) => a.country === 'TR').every((a) => a.nearestTr === null)).toBe(true)
+    // Hiçbir kaydın en yakın Türkiye havalimanı askerî üs değildir (D-107).
+    for (const detail of details) {
+      expect(['LTAG', 'LTAH', 'LTBG', 'LTBI', 'LTBL'], detail.icao).not.toContain(
+        detail.nearestTr?.icao,
+      )
+    }
     // Açık halka genişlerse liste büyür; Türkiye kısmı değişmez.
     const wider = await listListedAirports(database.db, { ...RINGS, enabledRing: 5 })
     expect(wider.length).toBeGreaterThan(list.length)
-    expect(wider.filter((a) => a.country === 'TR')).toHaveLength(61)
+    expect(wider.filter((a) => a.country === 'TR')).toHaveLength(56)
   })
 
-  it('2. halka açık (M6g, D-088): 61 + 75 + 89 = 225; İskenderiye HEBA, Ben Gurion 500 km 2. halkada', async () => {
+  it('2. halka açık (M6g, D-088): 56 + 75 + 89 = 220; İskenderiye HEBA, Ben Gurion 500 km 2. halkada', async () => {
     await database.db.insert(airports).values(readFixture())
     const list = await listListedAirports(database.db, { ...RINGS, enabledRing: 2 })
-    expect(list).toHaveLength(225)
-    expect(new Set(list.map((a) => a.icao)).size).toBe(225)
-    expect(new Set(list.map((a) => a.iata)).size).toBe(225)
+    expect(list).toHaveLength(220)
+    expect(new Set(list.map((a) => a.icao)).size).toBe(220)
+    expect(new Set(list.map((a) => a.iata)).size).toBe(220)
     const foreign = list.filter((a) => a.country !== 'TR')
     expect(foreign.filter((a) => a.ring === 1)).toHaveLength(75)
     const ringTwo = foreign.filter((a) => a.ring === 2)
@@ -347,12 +363,12 @@ describe('listListedAirports (D-080)', () => {
     expect(await findAirportDetail(database.db, 'HEAX', RINGS)).toBeNull()
   })
 
-  it('3. halka açık (M6h, D-090): 61 + 75 + 89 + 278 = 503; Viyana, UZxx kodları, ad temizliği', async () => {
+  it('3. halka açık (M6h, D-090): 56 + 75 + 89 + 278 = 498; Viyana, UZxx kodları, ad temizliği', async () => {
     await database.db.insert(airports).values(readFixture())
     const list = await listListedAirports(database.db, { ...RINGS, enabledRing: 3 })
-    expect(list).toHaveLength(503)
-    expect(new Set(list.map((a) => a.icao)).size).toBe(503)
-    expect(new Set(list.map((a) => a.iata)).size).toBe(503)
+    expect(list).toHaveLength(498)
+    expect(new Set(list.map((a) => a.icao)).size).toBe(498)
+    expect(new Set(list.map((a) => a.iata)).size).toBe(498)
     const foreign = list.filter((a) => a.country !== 'TR')
     expect(foreign).toHaveLength(442)
     expect(foreign.filter((a) => a.ring === 1)).toHaveLength(75)
@@ -397,11 +413,11 @@ describe('listListedAirports (D-080)', () => {
     expect(vienna).toMatchObject({ icao: 'LOWW', ring: 3, nearestTr: { icao: 'LTFK' } })
   })
 
-  it('4. halka açık (D-101, uygulamada henüz kapalı): 61 + 75 + 89 + 278 + 719 = 1.222; Kihihi (UG-0002) dört karakterli ICAO kuralıyla dışarıda', async () => {
+  it('4. halka açık (D-101, uygulamada henüz kapalı): 56 + 75 + 89 + 278 + 719 = 1.217; Kihihi (UG-0002) dört karakterli ICAO kuralıyla dışarıda', async () => {
     await database.db.insert(airports).values(readFixture())
     const list = await listListedAirports(database.db, { ...RINGS, enabledRing: 4 })
-    expect(list).toHaveLength(1222)
-    expect(new Set(list.map((a) => a.icao)).size).toBe(1222)
+    expect(list).toHaveLength(1217)
+    expect(new Set(list.map((a) => a.icao)).size).toBe(1217)
     const foreign = list.filter((a) => a.country !== 'TR')
     expect([1, 2, 3, 4].map((ring) => foreign.filter((a) => a.ring === ring).length)).toEqual([
       75, 89, 278, 719,
@@ -425,14 +441,14 @@ describe('listListedAirports (D-080)', () => {
     expect(details.map((a) => a.icao)).toEqual(list.map((a) => a.icao))
     // Bugünkü açık halka (3) değişmez.
     const ringThree = await listListedAirports(database.db, { ...RINGS, enabledRing: 3 })
-    expect(ringThree).toHaveLength(503)
+    expect(ringThree).toHaveLength(498)
     expect(list.filter((a) => a.ring <= 3).map((a) => a.icao)).toEqual(ringThree.map((a) => a.icao))
   })
 
-  it('uzaklık referansı küçük alanlar olmadan (M6d öncesi süzgeç) 1. halka daralır: 61 + 72', async () => {
+  it('uzaklık referansı küçük alanlar olmadan (M6d öncesi süzgeç) 1. halka daralır: 56 + 72', async () => {
     await database.db.insert(airports).values(readFixture({ turkishIata: false }))
     const list = await listListedAirports(database.db, RINGS)
-    expect(list.filter((a) => a.country === 'TR')).toHaveLength(61)
+    expect(list.filter((a) => a.country === 'TR')).toHaveLength(56)
     expect(list.filter((a) => a.country !== 'TR')).toHaveLength(72)
     for (const icao of ['BKPR', 'LGPZ', 'LYNI']) {
       expect(
@@ -440,18 +456,18 @@ describe('listListedAirports (D-080)', () => {
         icao,
       ).not.toContain(icao)
     }
-    expect(await listAirportsWithIata(database.db, 'TR', RINGS)).toHaveLength(61)
+    expect(await listAirportsWithIata(database.db, 'TR', RINGS)).toHaveLength(56)
   })
 })
 
 describe('listAirportDetails', () => {
-  it('fixture: listeyle aynı 61 havalimanı; pisti olmayanın listesi boş, tarih havalimanınınki', async () => {
+  it('fixture: listeyle aynı 56 havalimanı; pisti olmayanın listesi boş, tarih havalimanınınki', async () => {
     await database.db
       .insert(airports)
       .values(readFixture().map((r) => ({ ...r, updatedAt: at('2026-09-01T00:00:00Z') })))
     const details = await listAirportDetails(database.db, 'TR', RINGS)
     const list = await listAirportsWithIata(database.db, 'TR', RINGS)
-    expect(details).toHaveLength(61)
+    expect(details).toHaveLength(56)
     expect(details.map((d) => d.icao)).toEqual(list.map((a) => a.icao))
     for (const detail of details) {
       expect(detail.isoRegion).toMatch(/^TR-\d{2}$/)
@@ -541,7 +557,10 @@ describe('findAirportDetail', () => {
   beforeEach(async () => {
     await database.db.insert(airports).values([
       extra(1, { ident: 'LTFM', icaoCode: 'LTFM', iataCode: 'IST', type: 'large_airport' }),
-      extra(2, { ident: 'LTBL', gpsCode: 'LTBL', iataCode: 'IGL', type: 'medium_airport' }),
+      extra(2, { ident: 'LTBJ', gpsCode: 'LTBJ', iataCode: 'ADB', type: 'large_airport' }),
+      // Askerî hava üssü (D-107): içe aktarılır ama hiçbir kodla bulunmaz.
+      extra(9, { ident: 'LTBL', gpsCode: 'LTBL', iataCode: 'IGL', type: 'medium_airport' }),
+      extra(10, { ident: 'LTAG', icaoCode: 'LTAG', iataCode: 'UAB', type: 'medium_airport' }),
       extra(3, { ident: 'LTAE', icaoCode: 'LTAE', type: 'medium_airport' }),
       extra(4, {
         ident: 'EGLL',
@@ -572,8 +591,8 @@ describe('findAirportDetail', () => {
       ).toEqual([11])
     }
     // ICAO gps_code'dan gelir; başka ülke de bulunur.
-    expect((await findAirportDetail(database.db, 'igl', RINGS))?.icao).toBe('LTBL')
-    expect((await findAirportDetail(database.db, 'LTBL', RINGS))?.iata).toBe('IGL')
+    expect((await findAirportDetail(database.db, 'adb', RINGS))?.icao).toBe('LTBJ')
+    expect((await findAirportDetail(database.db, 'LTBJ', RINGS))?.iata).toBe('ADB')
     // Halka süzgeci yok: 1. halkanın dışındaki havalimanı da bulunur, halkasını taşır (Londra 4.
     // halkada).
     expect(await findAirportDetail(database.db, 'lhr', RINGS)).toMatchObject({
@@ -584,8 +603,20 @@ describe('findAirportDetail', () => {
     expect((await findAirportDetail(database.db, 'LTFM', RINGS))?.distanceToTrKm).toBeNull()
   })
 
-  it('listede görünmeyen kayıt bulunmaz: IATA kodu yok, heliport, gölgelenen ICAO, bilinmeyen kod', async () => {
-    for (const code of ['LTAE', 'LTHP', 'HPX', 'BBB', 'LTGK', 'GKX', 'ZZZ', 'ZZZZ', '']) {
+  it('listede görünmeyen kayıt bulunmaz: IATA kodu yok, heliport, gölgelenen ICAO, askerî üs, bilinmeyen kod', async () => {
+    const military = ['LTBL', 'ltbl', 'IGL', 'igl', 'LTAG', 'UAB']
+    for (const code of [
+      'LTAE',
+      'LTHP',
+      'HPX',
+      'BBB',
+      'LTGK',
+      'GKX',
+      ...military,
+      'ZZZ',
+      'ZZZZ',
+      '',
+    ]) {
       expect(await findAirportDetail(database.db, code, RINGS), code).toBeNull()
     }
     // Aynı ICAO'daki iki kayıttan küçük kimlikli olan listede görünür.

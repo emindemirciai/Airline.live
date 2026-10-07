@@ -113,7 +113,7 @@ export interface PhaseAirportInput {
   /**
    * Tarifeli seferi var mı (OurAirports `scheduled_service`). Merkeze göre kurallar (hizasız İnişte ve
    * Yaklaşmada) yalnızca tarifeli havalimanlarında uygulanır; tarifesiz havalimanında (ör. Atatürk,
-   * hava üsleri) durum yalnızca pist hizasından çıkar.
+   * Uşak) durum yalnızca pist hizasından çıkar.
    */
   scheduled: boolean
   runways: readonly { ends?: readonly PhaseRunwayEndInput[] }[]

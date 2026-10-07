@@ -12,8 +12,28 @@ import type { ChangelogEntry } from './types'
  */
 export const CHANGELOG: readonly ChangelogEntry[] = [
   {
+    version: '0.22.2',
+    date: '2026-10-06',
+    title: {
+      tr: 'Askerî hava üsleri sitenin hiçbir yerinde yok',
+      en: 'Air force bases removed from the whole site',
+    },
+    items: [
+      {
+        tr: 'Askerî hava üsleri artık yalnız haritada değil, sitenin hiçbir yerinde gösterilmez: havalimanları listesinde, havalimanı sayfalarında, yakın havalimanları satırlarında ve hava durumunda yoklar. Türkiye listesinde 56 sivil havalimanı var.',
+        en: 'Air force bases are no longer shown anywhere on the site, not just on the map: they are gone from the airport list, the airport pages, the nearby-airports rows and the weather. The Türkiye list has 56 civil airports.',
+      },
+      {
+        tr: 'Atina, Sakız ve Kalamata sayfalarındaki “Türkiye’deki en yakın havalimanı” satırı artık İzmir Adnan Menderes’i gösterir.',
+        en: 'The “nearest airport in Türkiye” row on the Athens, Chios and Kalamata pages now shows İzmir Adnan Menderes.',
+      },
+    ],
+    tryLinks: [{ path: '/havalimanlari', label: { tr: 'Havalimanları', en: 'Airports' } }],
+  },
+  {
     version: '0.22.1',
     date: '2026-10-06',
+    releasedAt: '2026-10-06T13:34:14Z',
     title: {
       tr: 'Askerî üsler haritadan kalktı, harita biraz daha uzaktan açılır',
       en: 'Air bases off the map, and a slightly wider opening view',
