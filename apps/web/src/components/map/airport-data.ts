@@ -1,17 +1,18 @@
 /**
  * Haritanın havalimanı verisi (M6c, M6d): listelenen havalimanları, yani IATA kodlu Türkiye
  * havalimanları ve açık halkalardaki yakın ülke havalimanları (D-080), tek istekte:
- * `GET /v1/airports?scope=listed&include=runways`. Noktalar ve IATA kodları bu listeden, askerî
- * hava üsleri çıkarılarak (`mapShownAirports`, `@havayolu/shared`; D-103) çizilir; havalimanı
- * penceresi (airport-popup.tsx) aynı kayıttaki il ya da ülke, rakım ve pistleri gösterir. Bütün
- * liste veri olarak kalır: uçak listesinin tahmini durumu ve konumu (D-085) üsse yaklaşan uçağı
- * doğru yere göre yazar, `?havalimani=` hedefi (`airportLinkCenter`) üssü de bulur.
+ * `GET /v1/airports?scope=listed&include=runways`. Listede askerî hava üssü yoktur (D-107);
+ * canlı harita listeyi yüklerken yine savunma süzgecinden geçirir (`mapShownAirports`,
+ * `@havayolu/shared`; D-103). Noktalar ve IATA kodları bu listeden çizilir; havalimanı penceresi
+ * (airport-popup.tsx) aynı kayıttaki il ya da ülke, rakım ve pistleri gösterir. Uçak listesinin
+ * tahmini durumu ve konumu (D-085) ve `?havalimani=` hedefi (`airportLinkCenter`) aynı listeyi
+ * kullanır.
  * Yanıt tarayıcıda savunmacı biçimde denetlenir (bozuk kayıt atlanır, lib/live/validate.ts ile aynı
  * yaklaşım) ve yalnızca haritanın kullandığı alanlar tutulur: kaplama ve istasyon ayarları belleğe
  * alınmaz. Pist uçlarından yalnızca uçak listesinin tahmini durumu (D-085, lib/map/flight-phase.ts)
  * için gereken ad, yön ve eşik tutulur.
  *
- * Ölçek (4. halka, D-102): 1.222 havalimanının yanıtı ~1,06 MB'tır (sıkıştırmasız; 3. halkada 503
+ * Ölçek (4. halka, D-102): 1.217 havalimanının yanıtı ~1,05 MB'tır (sıkıştırmasız; 3. halkada 498
  * havalimanıyla ~0,45 MB), harita açılışında bir kez indirilir; noktalar tek GeoJSON kaynağıdır.
  * Etiket tuvali her `render` olayında görünümdeki havalimanlarına kod yerleştirir (labels.ts →
  * `layoutAirportChips`, ızgaralı dizin). Görünür alana göre yükleme 5. halkada değerlendirilir
@@ -202,10 +203,10 @@ export async function fetchMapAirports(
 }
 
 /**
- * `?havalimani=` hedefinin merkezi: kod (ICAO ya da IATA) bütün listede aranır, askerî üs de
- * bulunur (D-103). Harita oraya gider (havalimanı sayfasındaki "Canlı haritada aç" bağlantısı
- * çalışır), ama üssün pini, kodu ve penceresi yoktur (haritada gösterilenler `mapShownAirports`,
- * `@havayolu/shared`); `?havalimani=` hiçbir havalimanında pencere açmaz. Kod listede yoksa null.
+ * `?havalimani=` hedefinin merkezi: kod (ICAO ya da IATA) haritanın listesinde aranır; harita oraya
+ * gider (havalimanı sayfasındaki "Canlı haritada aç" bağlantısı). `?havalimani=` hiçbir
+ * havalimanında pencere açmaz. Kod listede yoksa null: askerî hava üsleri listede olmadığı için
+ * (D-107) `?havalimani=<üs>` haritayı açılış görünümünde bırakır.
  */
 export function airportLinkCenter(
   airports: readonly MapAirport[],

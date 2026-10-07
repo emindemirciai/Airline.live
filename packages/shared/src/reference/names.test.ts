@@ -38,8 +38,8 @@ const turkish = Object.keys(AIRPORT_NAMES)
 const reference = Object.keys(REFERENCE_AIRFIELD_NAMES)
 const foreign = Object.keys(FOREIGN_AIRPORT_NAMES)
 /**
- * Görünen adı olan bütün havalimanları: 61 Türkiye, 5 uzaklık referansı, 1.–4. halkanın 1.161'i
- * (75 + 89 + 278 + 719, D-088, D-090, D-102).
+ * Görünen adı olan bütün havalimanları: 56 Türkiye (askerî hava üsleri tabloda yok, D-107), 5
+ * uzaklık referansı, 1.–4. halkanın 1.161'i (75 + 89 + 278 + 719, D-088, D-090, D-102).
  */
 const all = [...turkish, ...reference, ...foreign]
 
@@ -49,8 +49,8 @@ const ENGLISH_GENERIC = /\b(Air ?[Bb]ase|Airport|International|National|Airfield
 const TURKISH_GENERIC = /Havalimanı|Havaalanı|Hava Üssü|Üssü|Uluslararası|Ulusal/
 
 describe('görünen adların dili (D-084)', () => {
-  it("fixture'daki 1.227 havalimanının her biri fixture'da vardır ve iki dilde adlanır", () => {
-    expect(turkish).toHaveLength(61)
+  it("fixture'daki 1.222 havalimanının her biri fixture'da vardır ve iki dilde adlanır", () => {
+    expect(turkish).toHaveLength(56)
     expect(reference).toHaveLength(5)
     expect(foreign).toHaveLength(1161)
     for (const icao of all) {

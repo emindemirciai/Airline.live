@@ -22,8 +22,8 @@ export { isTurkish } from '../components/airports/airport-text'
  * - İstemci başlıkları (X-Forwarded-For, CF-Connecting-IP) **iletilmez**: Next önbellek anahtarı
  *   istek başlıklarını içerir (next/dist/server/lib/incremental-cache → generateCacheKey); iletilse
  *   önbellek ziyaretçi başına bölünürdü.
- * - Boyut (4. halka, D-102): 1.222 havalimanı ve pistleri 1,06 MB; Next'in önbellek kaydı (gövde
- *   base64) 1,41 MB, 2 MiB öğe sınırının %67'si (geliştirmede sınır aşılırsa hata, üretimde
+ * - Boyut (4. halka, D-102): 1.217 havalimanı ve pistleri 1,05 MB; Next'in önbellek kaydı (gövde
+ *   base64) 1,40 MB, 2 MiB öğe sınırının %67'si (geliştirmede sınır aşılırsa hata, üretimde
  *   önbelleksiz istek). API'nin `airports-cache-size.test.ts` testi kaydın sınırın %85'inin altında
  *   kaldığını fixture'dan denetler; 5. halkada sınır kırılır (D-101).
  * - Ayrıştırma önbellek kaydı başına bir kez: Next her çizimde kaydın gövdesini yeniden verir;
@@ -220,9 +220,11 @@ const CIVIL_NAME_SOURCES: ReadonlySet<AirportNameSource> = new Set(['dhmi', 'ope
  * ya da bakanlık kaynağından doğrulanan sivil havalimanları (Ankara (Etimesgut) dahil, D-084),
  * izlenen istasyonlar ve OurAirports'ta tarifeli seferi kayıtlı olanlar. OurAirports
  * `scheduled_service` bayrağı tek başına ölçüt değildir: bazı sivil havalimanlarında güncel değildir
- * (Siirt, Kocaeli). Kalanlar (askerî hava üsleri; adı doğrulanmamış, tarifesiz ve istasyon olmayan
- * yeni kayıtlar) `noindex, follow` alır ve site haritasına girmez. Yakın ülkelerdeki listelenen havalimanları aday kuralı
- * gereği tarifelidir (`isForeignCandidate`), hepsi dizine eklenir (D-080).
+ * (Siirt, Kocaeli). Kalanlar (adı doğrulanmamış, tarifesiz ve istasyon olmayan yeni kayıtlar)
+ * `noindex, follow` alır ve site haritasına girmez; askerî hava üsleri D-107'den beri listede
+ * yoktur (sayfaları 404), D-084'te bu kuralla dışarıda kalıyorlardı. Yakın ülkelerdeki listelenen
+ * havalimanları aday kuralı gereği tarifelidir (`isForeignCandidate`), hepsi dizine eklenir
+ * (D-080).
  */
 export function isIndexable(airport: AirportDetail): boolean {
   return (

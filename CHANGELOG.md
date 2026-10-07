@@ -8,7 +8,47 @@
 
 ---
 
-## v0.22.1 — 2026-10-06
+## v0.22.3 — 2026-10-07
+
+### Türkçe
+**Haritada havalimanı araması**
+
+- Sol üstteki arama kutusu artık havalimanlarını da bulur: IATA ya da ICAO kodu (IST, LTFM), adı ya da şehri (Sabiha Gökçen, Londra, Heathrow) yazınca öneriler yazarken çıkar. Türkçe harfler ve aksanlar fark etmez.
+- Bir havalimanı seçince harita oraya gider ve havalimanının penceresi açılır. Uçak araması (sefer no, çağrı kodu, tescil, hex) eskisi gibi çalışır; ikisi birlikte eşleşirse liste havalimanlarını ve uçakları ayrı gösterir.
+
+Dene: [Canlı harita](/)
+
+### English
+**Airport search on the map**
+
+- The search box at the top left now finds airports too: type an IATA or ICAO code (IST, LTFM), a name or a city (Sabiha Gökçen, London, Heathrow) and suggestions appear as you type. Turkish letters and accents do not matter.
+- Picking an airport flies the map there and opens its window. Aircraft search (flight number, callsign, registration, hex) works as before; when both match, the list shows airports and aircraft separately.
+
+Try it: [Live map](/)
+
+---
+
+## v0.22.2 — 2026-10-07 17:31 (UTC+3)
+
+### Türkçe
+**Askerî hava üsleri sitenin hiçbir yerinde yok**
+
+- Askerî hava üsleri artık yalnız haritada değil, sitenin hiçbir yerinde gösterilmez: havalimanları listesinde, havalimanı sayfalarında, yakın havalimanları satırlarında ve hava durumunda yoklar. Türkiye listesinde 56 sivil havalimanı var.
+- Atina, Sakız ve Kalamata sayfalarındaki “Türkiye’deki en yakın havalimanı” satırı artık İzmir Adnan Menderes’i gösterir.
+
+Dene: [Havalimanları](/havalimanlari)
+
+### English
+**Air force bases removed from the whole site**
+
+- Air force bases are no longer shown anywhere on the site, not just on the map: they are gone from the airport list, the airport pages, the nearby-airports rows and the weather. The Türkiye list has 56 civil airports.
+- The “nearest airport in Türkiye” row on the Athens, Chios and Kalamata pages now shows İzmir Adnan Menderes.
+
+Try it: [Airports](/havalimanlari)
+
+---
+
+## v0.22.1 — 2026-10-06 16:34 (UTC+3)
 
 ### Türkçe
 **Askerî üsler haritadan kalktı, harita biraz daha uzaktan açılır**

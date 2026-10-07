@@ -8,16 +8,16 @@
  *   süzgeci (`@havayolu/providers` `parseAirports`), kimlik sırası, Türkiye'deki uzaklık
  *   referansları ve halka seçimi (`@havayolu/db` `turkishReferencePoints`, `selectListedAirports`,
  *   `AIRPORT_RING_CONFIG`). Fixture Türkiye'nin bütün satırlarını ve açık halkaların (1.–4.) bütün
- *   yurt dışı adaylarını taşır: liste, üretimin kuralının bu kopyaya uygulanmış hâlidir (1.222 = 61
- *   + 75 + 89 + 278 + 719; `listedAirportPins`). Üretim OurAirports'u her gece yeniden içe aktarır
- *   (`reference-import`); tarifeli sefer, tür, IATA kodu ya da konum değişirse üretimin listesi
- *   fixture'dan ayrılabilir. Bunu hiçbir test yakalamaz: kullanıcı iki listeyi elle karşılaştırır
- *   (ACTIVATION "Ülke adlarının engelleri"), ayrılık varsa fixture onayla tazelenir ve tablo yeniden
- *   üretilir. Halka açılınca da fixture genişler ve tablo yeniden üretilir (M6i.2, D-102)
- *   (airport-pins.test.ts açık halkayı denetler).
- * - **Haritadaki pinler** (`mapAirportPins`): liste, askerî hava üsleri (İncirlik, Afyon, Bandırma,
- *   Eskişehir, Çiğli) çıkarılarak: web onların pinini ve kodunu çizmez (D-103). Kural web
- *   haritasıyla ortaktır (`@havayolu/shared` `mapShownAirports`). Engeller bu 1.217 havalimanıdır
+ *   yurt dışı adaylarını taşır: liste, üretimin kuralının bu kopyaya uygulanmış hâlidir (1.217 = 56
+ *   + 75 + 89 + 278 + 719; askerî hava üsleri listelenmez, D-107; `listedAirportPins`). Üretim
+ *   OurAirports'u her gece yeniden içe aktarır (`reference-import`); tarifeli sefer, tür, IATA kodu
+ *   ya da konum değişirse üretimin listesi fixture'dan ayrılabilir. Bunu hiçbir test yakalamaz:
+ *   kullanıcı iki listeyi elle karşılaştırır (ACTIVATION "Ülke adlarının engelleri"), ayrılık varsa
+ *   fixture onayla tazelenir ve tablo yeniden üretilir. Halka açılınca da fixture genişler ve tablo
+ *   yeniden üretilir (M6i.2, D-102) (airport-pins.test.ts açık halkayı denetler).
+ * - **Haritadaki pinler** (`mapAirportPins`): liste, web haritasının savunma süzgecinden
+ *   (`@havayolu/shared` `mapShownAirports`, D-103) geçerek. D-107'den beri liste askerî hava üssü
+ *   taşımadığı için süzgeç bir şey çıkarmaz; engeller listenin kendisidir: 1.217 havalimanı
  *   (Türkiye 56).
  * - **Pin:** bitmap kutusu (airport-pin.ts): 24 × 32 görünüm kutusu + her yana 3 birim pay; katman
  *   alt kenarı noktaya bağlar ve `icon-offset` ile 3 birim aşağı kaydırır (`AIRPORT_LAYER`; ofset
@@ -102,10 +102,11 @@ export function listedAirportPins(csv: string): AirportPin[] {
 }
 
 /**
- * Haritada pini çizilen havalimanları, ICAO sırasıyla: listelenenlerden askerî hava üsleri çıkarılır
- * (D-103). Kural web haritasının kullandığı `mapShownAirports`'tur (`@havayolu/shared`, tek yer):
- * değişirse buradaki engeller de değişir ve sürüklenme testi tablo yeniden üretilene kadar kırılır.
- * Ülke adlarının engelleri bunlardır.
+ * Haritada pini çizilen havalimanları, ICAO sırasıyla: listelenenler, web haritasının kullandığı
+ * savunma süzgecinden (`mapShownAirports`, `@havayolu/shared`; D-103) geçerek. Liste askerî hava
+ * üssü taşımadığı için (D-107) bugün listenin kendisidir. Süzgeç ya da liste kuralı değişirse
+ * buradaki engeller de değişir ve sürüklenme testi tablo yeniden üretilene kadar kırılır. Ülke
+ * adlarının engelleri bunlardır.
  */
 export function mapAirportPins(csv: string): AirportPin[] {
   return mapShownAirports(listedAirportPins(csv))

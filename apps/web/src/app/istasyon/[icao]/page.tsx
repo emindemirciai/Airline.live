@@ -2,23 +2,17 @@ import type { AirportDetail, Locale } from '@havayolu/shared'
 import type { Metadata } from 'next'
 import { notFound, permanentRedirect } from 'next/navigation'
 import { Suspense } from 'react'
-import { airportDescription, airportName, airportTitle } from '@/components/airports/airport-text'
+import { airportPageMetadata } from '@/components/airports/airport-metadata'
+import { airportName } from '@/components/airports/airport-text'
 import { AirportView } from '@/components/airports/airport-view'
 import { AirportWeatherSection, WeatherSkeleton } from '@/components/airports/airport-weather'
 import { airportCrumbs, crumbsForJsonLd } from '@/components/airports/crumbs'
 import { JsonLd } from '@/components/json-ld'
-import {
-  getAirports,
-  isInLiveCoverage,
-  isIndexable,
-  liveCoveragePlan,
-  resolveAirportCode,
-} from '@/lib/airports'
+import { getAirports, resolveAirportCode } from '@/lib/airports'
 import { appName, getServerEnv } from '@/lib/env'
 import { getLocale } from '@/lib/locale'
 import { localePath } from '@/lib/locale-routing'
 import { apiBaseUrl } from '@/lib/map-config'
-import { pageMetadata } from '@/lib/seo/metadata'
 import { airportPath } from '@/lib/seo/paths'
 import {
   airportId,
@@ -51,25 +45,11 @@ async function loadAirport(params: Promise<{ icao: string }>): Promise<LoadedAir
   return { locale, airport: resolved.airport, airports }
 }
 
+/** Kanonik adres, başlık, açıklama ve robots (`airportPageMetadata`; `index: isIndexable`). */
 export async function generateMetadata({
   params,
 }: PageProps<'/istasyon/[icao]'>): Promise<Metadata> {
-  const { locale, airport, airports } = await loadAirport(params)
-  return pageMetadata({
-    locale,
-    path: airportPath(airport.icao),
-    title: airportTitle(airport, locale),
-    description: airportDescription(
-      airport,
-      locale,
-      isInLiveCoverage(airport, liveCoveragePlan(airports)),
-    ),
-    // Tarifesiz ve istasyon olmayan askerî hava üsleri (adı sivil bir kaynaktan doğrulanmaz):
-    // `noindex, follow`; site haritasında da yoklar (lib/airports.ts → `isIndexable`, D-076, D-084).
-    index: isIndexable(airport),
-    // Paylaşım görseli bu klasördeki `opengraph-image.tsx`'tir (iki dil aynı görseli kullanır).
-    ogImage: 'segment',
-  })
+  return airportPageMetadata(await loadAirport(params))
 }
 
 /**

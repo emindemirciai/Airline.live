@@ -64,9 +64,10 @@ export const en: Messages = {
     summaryWithForeign:
       'The list has {count} airports in Türkiye and {foreign} airports outside Türkiye; each airport’s page shows its runways, the weather and a link to the live map.',
     turkeyHeading: 'Airports in Türkiye',
-    scope: 'The list includes airports with an IATA code; some small airports are not listed.',
+    scope:
+      'The list includes civil airports with an IATA code; military air bases and some small airports are not listed.',
     names:
-      'Official Turkish names come from DHMİ, the airport operators and the Ministry of Transport and Infrastructure; the English names shown here are translations of them. Military air bases are named after their location (Incirlik Air Base); a new airport whose name has not been confirmed yet is shown with its OurAirports name.',
+      'Official Turkish names come from DHMİ, the airport operators and the Ministry of Transport and Infrastructure; the English names shown here are translations of them. A new airport whose name has not been confirmed yet is shown with its OurAirports name.',
     caption: 'Airports in Türkiye, sorted by province name',
     columns: {
       name: 'Airport',
@@ -180,8 +181,6 @@ export const en: Messages = {
         'Official Turkish name: {name} (airport operator); the English name is a translation.',
       ministry:
         'Official Turkish name: {name} (Ministry of Transport and Infrastructure); the former name is added in brackets so that it is not confused with the other airport in the same province. The English name is a translation.',
-      military:
-        'Turkish name: {name} (a military air base; it is not on the DHMİ list and is named after its location); the English name is a translation.',
       ourairports: 'Name: OurAirports',
     },
     nameSourceForeign: {
@@ -671,7 +670,7 @@ export const en: Messages = {
         'The stored position and track data is a database derived from it and stays under the ODbL.',
       reference: 'Airport and runway data: {source}, public domain.',
       names:
-        'Official Turkish airport names: DHMİ, the airport operators and the Ministry of Transport and Infrastructure (English names are translations of them); military air bases are named after their location; OurAirports for new names not confirmed yet.',
+        'Official Turkish airport names: DHMİ, the airport operators and the Ministry of Transport and Infrastructure (English names are translations of them); OurAirports for new names not confirmed yet.',
       airlines: 'Airline codes: {source}, CC0 (no attribution required; credited as a courtesy).',
       vector:
         'Vector map and the country borders on the satellite map: {openFreeMap} © {openMapTiles}, map data © {openStreetMap} contributors (ODbL).',
@@ -703,8 +702,9 @@ export const en: Messages = {
     termsLink: 'Terms',
     siteCreditLabel: '{credit}, what’s new',
     search: {
-      label: 'Search aircraft: flight number, callsign, registration or hex',
-      placeholder: 'Flight no., callsign, reg., hex',
+      label:
+        'Search aircraft or airports: flight number, callsign, registration or hex; airport code, name or city',
+      placeholder: 'Flight, reg., airport',
       submit: 'Search',
       searching: 'Searching…',
       notFound:
@@ -715,6 +715,22 @@ export const en: Messages = {
       flightNumberNote:
         'The flight number is derived from the callsign the aircraft broadcasts. Flights that use an alphanumeric callsign (e.g. THY4KN) cannot be found by flight number; search by callsign or registration.',
       results: 'Search results',
+      groupAirports: 'Airports',
+      groupAircraft: 'Aircraft',
+      pickAirports: 'More than one airport matched; pick one.',
+      pickAirport: 'One airport matched; select it to open.',
+      pickMixed: 'Aircraft and airports matched; pick one.',
+      airportCount: 'Matching airports: {n}.',
+      airportCountMore: 'Matching airports: {n}; the first {shown} are listed, narrow your search.',
+      airportNotFound:
+        'No airport matches this name or code. Type its IATA or ICAO code, name or city.',
+      airportNote: 'For an airport, type its IATA or ICAO code, name or city.',
+      aircraftUnavailable:
+        'Aircraft search is not available right now; airport results are listed.',
+      airportNamesUnavailable:
+        'Airport names could not be loaded; search by airport code or reload the page.',
+      airportCoverage:
+        'Outside Türkiye, only airports at most {km} from the nearest airport in Türkiye are searched.',
     },
     card: {
       close: 'Close',

@@ -1,12 +1,13 @@
 // Türkiye dışındaki havalimanları, 1.–4. halka (Parça 1 M6d, D-080; M6g, D-088; M6h, D-090; M6i.2,
-// D-102). Listelenen havalimanları IATA kodlu Türkiye havalimanları ve IATA kodlu en yakın Türkiye
-// havalimanına en çok 5.000 km olan, OurAirports'ta tarifeli seferi kayıtlı, dört karakterli ICAO'su
-// olan büyük ve orta boy yabancı havalimanlarıdır. Veri tools/fixtures/ourairports'taki commit'li alt
-// kümeden (2026-10-01 indirmesi), hava durumu elle yazılmış fixture'dan gelir. Denetlenenler:
-// - API: `scope=listed` (61 + 75 + 89 + 278 + 719), halka ve uzaklık alanları (1. halka ≤ 500 km, 2.
-//   halka 500–1.000 km, sınırdaki Ben Gurion 500; 3. halka 1.000–2.000 km; 4. halka 2.000–5.000 km),
-//   Kihihi (UG-0002, KHX) ve New York JFK yok, `country` ile birlikte 400; tek havalimanı ve hava
-//   durumu yabancı havalimanını da çözer
+// D-102). Listelenen havalimanları IATA kodlu Türkiye havalimanları (askerî hava üsleri hariç, D-107)
+// ve IATA kodlu en yakın Türkiye havalimanına en çok 5.000 km olan, OurAirports'ta tarifeli seferi
+// kayıtlı, dört karakterli ICAO'su olan büyük ve orta boy yabancı havalimanlarıdır. Veri
+// tools/fixtures/ourairports'taki commit'li alt kümeden (2026-10-01 indirmesi), hava durumu elle
+// yazılmış fixture'dan gelir. Denetlenenler:
+// - API: `scope=listed` (56 + 75 + 89 + 278 + 719; askerî üsler yok, D-107), halka ve uzaklık
+//   alanları (1. halka ≤ 500 km, 2. halka 500–1.000 km, sınırdaki Ben Gurion 500; 3. halka
+//   1.000–2.000 km; 4. halka 2.000–5.000 km), Kihihi (UG-0002, KHX) ve New York JFK yok, `country`
+//   ile birlikte 400; tek havalimanı ve hava durumu yabancı havalimanını da çözer
 // - /havalimanlari: Türkiye tablosundan sonra "Türkiye dışındaki havalimanları" tablosu (1.161 satır,
 //   ülkeye göre Türkçe sıralı, ülke ve Türkiye'ye uzaklık sütunları); Kahire, Viyana ve Londra satırları
 // - /istasyon/HECA (2. halka), /istasyon/LOWW (3. halka) ve /istasyon/EGLL (4. halka), iki dilde: ad,
@@ -144,7 +145,7 @@ function row(scope: Locator, label: string): Locator {
 }
 
 test.describe('API', () => {
-  test('scope=listed: 61 Türkiye + 1.161 Türkiye dışı havalimanı (75 + 89 + 278 + 719); halka ve uzaklık; 5. halka ve ICAO’suz havalimanı yok', async ({
+  test('scope=listed: 56 Türkiye + 1.161 Türkiye dışı havalimanı (75 + 89 + 278 + 719); halka ve uzaklık; 5. halka ve ICAO’suz havalimanı yok', async ({
     request,
   }) => {
     for (const path of ['/v1/airports?scope=listed', '/v1/airports?scope=listed&include=runways']) {
@@ -248,7 +249,7 @@ test.describe('API', () => {
     expect(String(body.metar?.raw)).toContain(icao)
   })
 
-  test('toplu hava: scope=listed bütün listelenen havalimanları (1.222); 1. halka fixture istasyonlarında METAR; ICAO’suz havalimanı yok', async ({
+  test('toplu hava: scope=listed bütün listelenen havalimanları (1.217); 1. halka fixture istasyonlarında METAR; ICAO’suz havalimanı yok', async ({
     request,
   }) => {
     const response = await request.get(`${API_URL}/v1/weather?scope=listed`)
@@ -304,7 +305,7 @@ test.describe('havalimanı listesi', () => {
       await expect(athens).toHaveCount(1)
       await expect(athens).toContainText(copy.country)
       await expect(athens).toContainText(iata)
-      // Türkiye'ye uzaklık km ile yazılır (Atina ~275 km).
+      // Türkiye'ye uzaklık km ile yazılır (Atina 284 km).
       await expect(athens.locator('td').nth(3)).toHaveText(/^\s*\d+\s*km\s*$/)
       await expect(rows.filter({ hasText: KKTC_AIRPORT.icao })).toContainText(copy.kktc)
       // 2. halkadan Kahire (D-088): ad, ülke ve uzaklık (~693 km, 500 km'nin üstünde).

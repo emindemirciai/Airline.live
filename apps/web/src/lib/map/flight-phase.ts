@@ -113,7 +113,7 @@ export interface PhaseAirportInput {
   /**
    * Tarifeli seferi var mı (OurAirports `scheduled_service`). Merkeze göre kurallar (hizasız İnişte ve
    * Yaklaşmada) yalnızca tarifeli havalimanlarında uygulanır; tarifesiz havalimanında (ör. Atatürk,
-   * hava üsleri) durum yalnızca pist hizasından çıkar.
+   * Uşak) durum yalnızca pist hizasından çıkar.
    */
   scheduled: boolean
   runways: readonly { ends?: readonly PhaseRunwayEndInput[] }[]
@@ -440,7 +440,7 @@ export class FlightPhaseTracker {
     if (list === this.source) return
     this.source = list
     const prepared = list.map(prepareAirport)
-    // Izgara liste başına bir kez kurulur (4. halkada ~1.222 havalimanı, ~0,2 ms).
+    // Izgara liste başına bir kez kurulur (4. halkada 1.217 havalimanı, ~0,2 ms).
     this.airports = new PointGrid(prepared)
     this.byIcao = new Map(prepared.map((airport) => [airport.ref.icao, airport]))
     this.entries.clear()

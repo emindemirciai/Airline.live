@@ -24,6 +24,8 @@ import {
   ENABLED_AIRPORT_RING,
   foreignAirportName,
   isForeignCandidate,
+  isMilitaryAirfield,
+  MILITARY_AIRFIELD_ICAOS,
   ourAirportsIcao,
   provinceName,
   runwaySurfaceKey,
@@ -99,7 +101,8 @@ const runwayRows = parseRunways(fixture('ourairports/runways.csv'), arps).rows
 /**
  * Açık halkaların (M6i.2'den beri 1.–4., ≤ 5.000 km; D-102) beklenen ICAO'ları, içe aktarılan
  * satırlardan (veritabanından bağımsız hesap). ICAO kaynak düzeltmeleriyle (İskenderiye HEAX →
- * HEBA); aday kuralı dört karakterli kanonik ICAO'yu da ister (D-101).
+ * HEBA); aday kuralı dört karakterli kanonik ICAO'yu da ister (D-101). Askerî hava üsleri uzaklık
+ * referansı değildir (D-107).
  */
 function expectedListedForeign(): string[] {
   const limitKm = AIRPORT_RINGS_KM[ENABLED_AIRPORT_RING - 1] ?? 0
@@ -107,6 +110,7 @@ function expectedListedForeign(): string[] {
   const listable = ['large_airport', 'medium_airport', 'small_airport']
   const turkey = airportRows
     .filter((r) => r.isoCountry === 'TR' && listable.includes(r.type) && /^[A-Z]{3}$/.test(iata(r)))
+    .filter((r) => !isMilitaryAirfield(ourAirportsIcao(r)))
     .map((r) => ({ lat: r.latitudeDeg, lon: r.longitudeDeg }))
   return airportRows
     .filter(
@@ -156,7 +160,7 @@ async function app() {
 }
 
 describe('havalimanı ayrıntıları (gerçek PostgreSQL, OurAirports fixture)', () => {
-  it('include=runways: 61 havalimanı, 51 dizinlenebilir, hepsinin açık pisti var', async () => {
+  it('include=runways: 56 havalimanı (askerî üsler yok, D-107), 51 dizinlenebilir, hepsinin açık pisti var', async () => {
     const instance = await app()
     try {
       const res = await instance.inject({
@@ -167,7 +171,13 @@ describe('havalimanı ayrıntıları (gerçek PostgreSQL, OurAirports fixture)',
       expect(res.headers['cache-control']).toBe(AIRPORTS_CACHE_CONTROL)
       const body = res.json() as AirportDetailsResponse
       expect(body.country).toBe('TR')
-      expect(body.airports).toHaveLength(61)
+      expect(body.airports).toHaveLength(56)
+      for (const icao of MILITARY_AIRFIELD_ICAOS) {
+        expect(
+          body.airports.map((a) => a.icao),
+          icao,
+        ).not.toContain(icao)
+      }
 
       const plain = (
         await instance.inject({ method: 'GET', url: '/v1/airports?country=TR' })
@@ -179,7 +189,8 @@ describe('havalimanı ayrıntıları (gerçek PostgreSQL, OurAirports fixture)',
       // Dizinlenebilir sayfa: tarifeli sefer ya da izlenen istasyon (M6b sözleşmesi).
       const indexable = body.airports.filter((a) => a.scheduled || a.station !== null)
       expect(indexable).toHaveLength(51)
-      expect(body.airports.reduce((n, a) => n + a.runways.length, 0)).toBe(79)
+      // 79 pistten üslerin altısı çıktı (D-107).
+      expect(body.airports.reduce((n, a) => n + a.runways.length, 0)).toBe(73)
 
       for (const airport of body.airports) {
         expect(airport.runways.length, airport.icao).toBeGreaterThan(0)
@@ -257,8 +268,10 @@ describe('havalimanı ayrıntıları (gerçek PostgreSQL, OurAirports fixture)',
       }
       const cov = await instance.inject({ method: 'GET', url: '/v1/airports/cov' })
       expect((cov.json() as AirportDetail).icao).toBe('LTDB')
-      // Adana Şakirpaşa içe aktarılmaz (tarifeli sefer yok); Akıncı'nın IATA kodu yok.
-      for (const code of ['LTAF', 'ADA', 'LTAE', 'ZZZZ']) {
+      // Adana Şakirpaşa içe aktarılmaz (tarifeli sefer yok); Akıncı'nın IATA kodu yok; askerî hava
+      // üsleri (D-107) ICAO ve IATA koduyla 404.
+      const military = ['LTAG', 'UAB', 'LTAH', 'AFY', 'LTBG', 'BDM', 'LTBI', 'esk', 'ltbl', 'IGL']
+      for (const code of ['LTAF', 'ADA', 'LTAE', ...military, 'ZZZZ']) {
         const res = await instance.inject({ method: 'GET', url: `/v1/airports/${code}` })
         expect(res.statusCode, code).toBe(404)
         expect(res.json(), code).toEqual(AIRPORT_ERRORS.notFound)
@@ -268,7 +281,7 @@ describe('havalimanı ayrıntıları (gerçek PostgreSQL, OurAirports fixture)',
     }
   })
 
-  it('scope=listed&include=runways: 61 Türkiye + 1.–4. halka (1.161); yurt dışı adları, ülkeleri, pistleri', async () => {
+  it('scope=listed&include=runways: 56 Türkiye + 1.–4. halka (1.161); yurt dışı adları, ülkeleri, pistleri', async () => {
     const instance = await app()
     try {
       const res = await instance.inject({
@@ -281,7 +294,7 @@ describe('havalimanı ayrıntıları (gerçek PostgreSQL, OurAirports fixture)',
       expect(body.scope).toBe('listed')
       const turkish = body.airports.filter((a) => a.country === 'TR')
       const foreign = body.airports.filter((a) => a.country !== 'TR')
-      expect(turkish).toHaveLength(61)
+      expect(turkish).toHaveLength(56)
       // Beklenen küme içe aktarılan satırlardan bağımsız hesaplanır (halka analizinin kuralı,
       // @havayolu/geo): uzaklık referansı Türkiye'nin içe aktarılmış IATA kodlu alanlarıdır.
       // Türkiye'nin IATA kodlu tarifesiz küçük alanları (Gökçeada …) referans olmasa 1. halka 72,
@@ -290,7 +303,7 @@ describe('havalimanı ayrıntıları (gerçek PostgreSQL, OurAirports fixture)',
       // km'de ayrılan sekiz havalimanı 5.000 km'nin içindedir.
       expect(foreign.map((a) => a.icao).sort()).toEqual(expectedListedForeign())
       expect(foreign).toHaveLength(1161)
-      expect(body.airports).toHaveLength(61 + foreign.length)
+      expect(body.airports).toHaveLength(56 + foreign.length)
       // Değişmez kural (D-101): listelenen her havalimanının dört karakterli ICAO'su vardır (sayfa
       // yolu, hava durumu istasyonu). Fixture'ın 4. halkasındaki Kihihi (UG-0002, KHX) bu yüzden
       // halka açılınca da listeye girmez.
@@ -395,7 +408,8 @@ describe('havalimanı ayrıntıları (gerçek PostgreSQL, OurAirports fixture)',
         country: 'GR',
         isoRegion: 'GR-I',
         ring: 1,
-        distanceToTrKm: 275,
+        distanceToTrKm: 284,
+        nearestTr: { icao: 'LTBJ', iata: 'ADB' },
       })
       expect(lgav?.runways.length).toBeGreaterThan(0)
       const lcen = body.airports.find((a) => a.icao === 'LCEN') as AirportDetail

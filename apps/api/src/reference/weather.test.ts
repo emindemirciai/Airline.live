@@ -466,7 +466,7 @@ describe('GET /v1/weather?scope=listed (D-080)', () => {
     ).toBe(true)
     // En kötü durum (her istasyonda ağır METAR ve yürürlükte iki ağır TAF) istasyon başına ~6,8 KB
     // (503 istasyonda ~3,4 MB); eski TAF da girseydi ~8,2 KB olurdu. Bütçe istasyon başınadır
-    // (D-101): 4. halkada (1.222 istasyon) web ham biçimi ister (weather-raw.test.ts).
+    // (D-101): 4. halkada (1.217 istasyon) web ham biçimi ister (weather-raw.test.ts).
     expect(Buffer.byteLength(res.body) / 503).toBeLessThanOrEqual(HEAVY_FULL_BYTES_PER_STATION)
     expect(weather.latest).toHaveBeenCalledTimes(1)
   })
@@ -858,8 +858,9 @@ describe('GET /v1/airports/:code/weather/history', () => {
     expect(historyCacheWindow(24)).toBe(24)
     expect(historyCacheWindow(25)).toBe(168)
     expect(historyCacheWindow(168)).toBe(168)
-    // 3. halkada listelenen havalimanları × 2 pencereyi karşılıyordu (503 × 2 = 1.006, D-090). 4.
-    // halkada (1.222 × 2 = 2.444) değişmedi (D-101, D-102): asıl sınır bayt bütçesidir, en küçük
+    // 3. halkada listelenen havalimanları × 2 pencereyi karşılıyordu (498 × 2 = 996; D-107'den önce
+    // 503 × 2 = 1.006, D-090). 4. halkada (1.217 × 2 = 2.434) değişmedi (D-101, D-102): asıl sınır
+    // bayt bütçesidir, en küçük
     // 24 saatlik pencerelerle (~50 KB) bile bütçe anahtar sınırından önce dolar.
     expect(WEATHER_HISTORY_CACHE_MAX_ENTRIES).toBe(1024)
     expect(WEATHER_HISTORY_CACHE_MAX_BYTES / (50 * 1024)).toBeLessThan(

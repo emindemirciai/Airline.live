@@ -5,16 +5,16 @@
  * - `fixture`: `node_modules/world-atlas`'tan `tools/fixtures/naturalearth/countries.json`
  *   (kökte `pnpm country-labels:fixture`).
  * - `placements`: fixture'lardan (Natural Earth ve OurAirports'un haritada pini çizilen
- *   havalimanları: listelenenler, askerî hava üsleri hariç, D-103)
+ *   havalimanları: listelenenler; askerî hava üsleri listede yok, D-103, D-107)
  *   `packages/shared/src/map/country-label-placements.ts` (kökte `pnpm country-labels`). Adlar bu
  *   makinedeki Node'un CLDR'ından gelir (`countryLabelText`). Özet: bileşim başına yazılan ad
  *   sayısı, hiç sığmayanlar, yerleşim türleri, boş yer için geciken adlar, boş yer bulunamayan ve
  *   başkentte sabit adların çakışması (D-099).
- * - `airports`: fixture'ın listelenen havalimanlarının (askerî üsler dahil) ICAO kodları, satır
- *   başına bir, sıralı (kökte `pnpm exec tsx tools/src/country-labels/cli.ts airports`). Kullanıcı
- *   bunu üretimin `GET /v1/airports?scope=listed` listesiyle karşılaştırır (ACTIVATION, D-099):
- *   üretim OurAirports'u her gece yeniler, fixture 2026-10-01 kopyasıdır. Tablonun engelleri bu
- *   listeden askerî üsler çıkarılarak bulunur (D-103); karşılaştırma yine listenin tamamıyladır.
+ * - `airports`: fixture'ın listelenen havalimanlarının ICAO kodları (1.217; askerî hava üsleri
+ *   listelenmez, D-107), satır başına bir, sıralı (kökte
+ *   `pnpm exec tsx tools/src/country-labels/cli.ts airports`). Kullanıcı bunu üretimin
+ *   `GET /v1/airports?scope=listed` listesiyle karşılaştırır (ACTIVATION, D-099): üretim
+ *   OurAirports'u her gece yeniler, fixture 2026-10-01 kopyasıdır. Tablonun engelleri bu listedir.
  */
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'

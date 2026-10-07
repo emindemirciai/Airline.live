@@ -60,8 +60,15 @@ jobs:
         run: pnpm run compose:guard
       - name: Deploy script tests (stub Dokploy, fake clock)
         run: pnpm run test:scripts
-      - name: Lint, typecheck, test, build
-        run: pnpm exec turbo run lint typecheck test build
+      # Unit tests run on their own, two packages at a time (D-105): in one combined turbo run they
+      # shared the runner's CPUs with tsc, ESLint and the Next build, and API route tests that take
+      # ~50 ms locally hit vitest's 5 s timeout.
+      - name: Lint and typecheck
+        run: pnpm exec turbo run lint typecheck
+      - name: Unit tests
+        run: nproc && pnpm exec turbo run test --concurrency=2
+      - name: Build
+        run: pnpm exec turbo run build
 
   test-integration:
     name: test-integration

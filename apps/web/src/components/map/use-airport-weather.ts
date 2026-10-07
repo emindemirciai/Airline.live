@@ -4,8 +4,8 @@
  * Havalimanı penceresinin hava durumu verisi (M6c, M6d; M6h'den beri tek havalimanı, D-090): açılan
  * havalimanının güncel havası, `GET /v1/airports/<ICAO>/weather` (havalimanı sayfasının adasıyla aynı
  * uç nokta ve aynı denetim, `../airports/weather-client`). Pencere yalnız kendi havalimanını gösterir;
- * listelenen bütün istasyonların toplu yanıtı (`/v1/weather?scope=listed`; 3. halkada 503 istasyonla
- * 1,4–2,4 MB, 4. halkada 1.222 istasyon, sıkıştırmasız) tek bir havalimanı için indirilmez (yanıt
+ * listelenen bütün istasyonların toplu yanıtı (`/v1/weather?scope=listed`; 3. halkada ~500 istasyonla
+ * 1,4–2,4 MB, 4. halkada 1.217 istasyon, sıkıştırmasız) tek bir havalimanı için indirilmez (yanıt
  * ~3–7 KB).
  *
  * İstek ilk pencere açılışında atılır (harita açılışında değil); pencere açıkken ve sayfa görünürken

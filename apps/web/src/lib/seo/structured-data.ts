@@ -198,7 +198,7 @@ export interface ItemListEntry {
 
 /**
  * Liste sayfası (`/havalimanlari`) için `ItemList`; sıra görünür tablodaki sıradır. Sitenin adresi
- * bir kez okunur: `siteUrl()` her çağrıda ortam değişkenlerini zod ile doğrular ve 4. halkada 1.222
+ * bir kez okunur: `siteUrl()` her çağrıda ortam değişkenlerini zod ile doğrular ve 4. halkada 1.217
  * satırda bu, her çizimde yüzlerce ms tutuyordu (D-102).
  */
 export function itemList(entries: readonly ItemListEntry[]): JsonLdNode {

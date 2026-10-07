@@ -137,7 +137,7 @@ export const selectionQueryProperties = {
   scope: {
     type: 'string',
     enum: [...AIRPORT_LIST_SCOPES],
-    description: `listed: listelenen havalimanları (Türkiye'nin IATA kodlu havalimanları ve açık halkalardaki yurt dışı havalimanları; açık halka ${ENABLED_AIRPORT_RING}${enabledRingLimit()}). country ile birlikte verilemez`,
+    description: `listed: listelenen havalimanları (Türkiye'nin IATA kodlu sivil havalimanları ve açık halkalardaki yurt dışı havalimanları; açık halka ${ENABLED_AIRPORT_RING}${enabledRingLimit()}). country ile birlikte verilemez`,
   },
 } as const
 
@@ -471,7 +471,7 @@ export function registerAirportRoutes(
         tags: ['reference'],
         summary: 'Tek havalimanı: pistler, istasyon ve veri tarihiyle',
         description:
-          "Her ülkenin IATA kodlu havalimanı bulunur (halka süzgeci uygulanmaz); kayıt ülkesini, halkasını ve Türkiye'ye uzaklığını taşır.",
+          "Her ülkenin IATA kodlu havalimanı bulunur (halka süzgeci uygulanmaz); kayıt ülkesini, halkasını ve Türkiye'ye uzaklığını taşır. Askerî hava üsleri hiçbir uçta yoktur (404).",
         params: {
           type: 'object',
           required: ['code'],

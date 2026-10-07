@@ -24,7 +24,7 @@ import { testApp } from '../test/helpers'
  *
  * Halkaya göre büyüyen tek önbellekli yanıt budur: toplu hava web belleğindedir (`no-store`), METAR/TAF
  * kaydı tek istasyonluktur. Test, commit'li OurAirports fixture'ından (2026-10-01 kopyası) açık
- * halkanın bütün listesini (4. halkada 1.222 havalimanı) üretimdeki gibi kurar (içe aktarım
+ * halkanın bütün listesini (4. halkada 1.217 havalimanı) üretimdeki gibi kurar (içe aktarım
  * çözümleyicisi, liste kuralı, ayrıntı kaydı, API'nin serileştiricisi) ve kaydın sınırın %85'inin
  * altında kaldığını denetler. 5. halkada (~3.250 havalimanı) bu sınır kırılır (D-101).
  */
@@ -118,12 +118,13 @@ async function cacheEntry(details: AirportDetail[]) {
 }
 
 describe('Next veri önbelleği sınırı: havalimanı listesi (D-102)', () => {
-  it('açık halkanın bütün listesi (4. halka, 1.222 havalimanı) kaydı 2 MiB sınırının %85’inin altında', async () => {
+  it('açık halkanın bütün listesi (4. halka, 1.217 havalimanı) kaydı 2 MiB sınırının %85’inin altında', async () => {
     expect(ENABLED_AIRPORT_RING).toBe(4)
     const { bytes, airports, item } = await cacheEntry(fixtureDetails(false))
-    expect(airports).toBe(1222)
-    // Ölçüm (2026-10-06, fixture): gövde 1.056.369 B, kayıt 1.409.605 karakter (sınırın %67,2'si;
-    // 3. halkada 503 havalimanıyla gövde ~0,45 MB).
+    expect(airports).toBe(1217)
+    // Ölçüm (2026-10-07, fixture; askerî üssüz liste, D-107): gövde 1.052.488 B, kayıt 1.404.433
+    // karakter (sınırın %67,0'ı; üslerle 1.222 havalimanında 1.056.369 B ve 1.409.605; 3. halkada 498
+    // havalimanıyla gövde ~0,45 MB).
     expect(item).toBeGreaterThan((bytes * 4) / 3)
     expect(item).toBeLessThan(BUDGET)
     expect(bytes / airports).toBeLessThan(1000)
@@ -132,9 +133,9 @@ describe('Next veri önbelleği sınırı: havalimanı listesi (D-102)', () => {
   it('en kötü durum: her havalimanı istasyon kaydı taşısa da kayıt sınırın %85’inin altında', async () => {
     const real = await cacheEntry(fixtureDetails(false))
     const worst = await cacheEntry(fixtureDetails(true))
-    expect(worst.airports).toBe(1222)
+    expect(worst.airports).toBe(1217)
     expect(worst.bytes).toBeGreaterThan(real.bytes)
-    // Ölçüm: gövde 1.112.351 B, kayıt 1.484.249 karakter (%70,8).
+    // Ölçüm: gövde 1.108.240 B, kayıt 1.478.769 karakter (%70,5; üslerle 1.112.351 B, %70,8).
     expect(worst.item).toBeLessThan(BUDGET)
   })
 })

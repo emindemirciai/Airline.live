@@ -160,11 +160,12 @@ describe('havalimanı bilgileri', () => {
   })
 
   it('listelenen her havalimanının penceresinde yer ve saat dilimi vardır (4. halka dahil, D-090, D-102)', () => {
-    // API kaydı haritanın okuyucusundan geçer (`toMapAirport`): sayfadaki listeyle aynı 1.222 kayıt.
+    // API kaydı haritanın okuyucusundan geçer (`toMapAirport`): sayfadaki listeyle aynı 1.217 kayıt
+    // (askerî üsler yok, D-107).
     const listed = fixtureListedAirports().map((airport) => toMapAirport(airport))
     expect(listed.filter((airport) => airport === null)).toEqual([])
     const map = new Map(listed.flatMap((airport) => (airport ? [[airport.icao, airport]] : [])))
-    expect(map.size).toBe(1222)
+    expect(map.size).toBe(1217)
     for (const airport of map.values()) {
       expect(airportPlace(airport, 'tr'), airport.icao).not.toBeNull()
       expect(airportPlace(airport, 'en'), airport.icao).not.toBeNull()

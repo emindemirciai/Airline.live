@@ -59,6 +59,7 @@ beforeAll(async () => {
   await database.db.insert(airports).values([
     airport(1, 'LTFJ', 'SAW'),
     airport(2, 'LTFM', 'IST', { latitudeDeg: 41.2611, longitudeDeg: 28.7419, elevationFt: 325 }),
+    // Askerî hava üssü (D-107): tabloda durur, hiçbir listede yoktur.
     airport(3, 'LTBL', 'IGL', {
       icaoCode: null,
       type: 'medium_airport',
@@ -126,7 +127,6 @@ describe('GET /v1/airports (gerçek PostgreSQL)', () => {
       expect(body).not.toHaveProperty('country')
       expect(body.airports.map((a) => [a.iata, a.icao, a.country, a.ring])).toEqual([
         ['AXD', 'LGAL', 'GR', 1],
-        ['IGL', 'LTBL', 'TR', 0],
         ['IST', 'LTFM', 'TR', 0],
         // Londra 4. halkada (LTFM'ye 2.489 km); M6i.2'den (D-102) beri açık halkadadır.
         ['LHR', 'EGLL', 'GB', 4],
@@ -168,11 +168,10 @@ describe('GET /v1/airports (gerçek PostgreSQL)', () => {
       const body = res.json() as { country: string; airports: Record<string, unknown>[] }
       expect(body.country).toBe('TR')
       expect(body.airports.map((a) => [a.iata, a.icao, a.type])).toEqual([
-        ['IGL', 'LTBL', 'medium_airport'],
         ['IST', 'LTFM', 'large_airport'],
         ['SAW', 'LTFJ', 'large_airport'],
       ])
-      expect(body.airports[1]).toEqual({
+      expect(body.airports[0]).toEqual({
         icao: 'LTFM',
         iata: 'IST',
         name: 'LTFM Airport',

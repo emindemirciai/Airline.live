@@ -22,7 +22,7 @@ import { getServerEnv } from './env'
  *   (listelenen havalimanları: Türkiye ve Türkiye dışındakiler, D-080; ham biçim D-101). API hiçbir
  *   raporu çözümlemez; sayfa yalnız çizdiği havalimanını paylaşılan görünümlerle çözer
  *   (`toAirportWeather`: METAR, süresi dolmamış TAF'lar ve yürürlükteki TAF seçimi; API'nin tam
- *   biçimiyle aynı kayıt). 4. halkada (1.222 istasyon) ham gövde istasyon başına ~0,9 KB, toplam
+ *   biçimiyle aynı kayıt). 4. halkada (1.217 istasyon) ham gövde istasyon başına ~0,9 KB, toplam
  *   ~1,1 MB'tır; tam biçim ~4 MB olurdu. **Next veri önbelleğinde değil, web sunucusunun
  *   belleğinde** 60 sn tutulur (`createMemoryCache`, tek kayıt): Next veri önbelleği gövdeyi base64
  *   saklar ve kaydı 2 MiB'ta keser (D-088); sınırı aşan yanıt önbelleğe alınmaz ve her sayfa çizimi
@@ -31,13 +31,14 @@ import { getServerEnv } from './env'
  *   çözülen istasyonlar o yanıtla birlikte bellekte kalır (aynı dakikadaki ikinci çizim yeniden
  *   çözmez). Web tek süreçtir; birden çok kopya çalışırsa her biri dakikada bir istek atar.
  * - METAR/TAF kaydı: `GET /v1/airports/<ICAO>/weather/history?hours=24`, Next veri önbelleği 30 dk
- *   (havalimanı başına ~70 KB). 4. halkada 1.222 istasyonun sayfalarının hepsi gezilse ortalama
+ *   (havalimanı başına ~70 KB). 4. halkada 1.217 istasyonun sayfalarının hepsi gezilse ortalama
  *   dakikada ~41 istek eder; web konteynerinin bu rotadaki kovası dakikada 60'tır (kova rota
  *   başınadır; toplu istek ve liste ayrı kovalardadır). 15 dk'lık önbellekle ~81/dk olurdu (D-102;
- *   3. halkada 503 sayfayla 15 dk ~34/dk, 5 dk ~100/dk, D-090). ~41 bir ortalamadır, tavan değil:
- *   soğuk önbellekte (her yayından sonra) hızlı bir tarama yine dakikada 60'ı aşabilir; o sayfalar
- *   sunucu çiziminde kayıtsız gelir, ada kaydı tarayıcıdan alır. Next süresi dolan kaydı sunar ve
- *   arkada yeniler; 200 olmayan yanıtı (429) önbelleğe almaz, eldeki kaydı silmez. Açık sekmedeki
+ *   3. halkada 498 sayfayla 15 dk ~33/dk, 5 dk ~100/dk, D-090, D-107). ~41 bir ortalamadır, tavan
+ *   değil: soğuk önbellekte (her yayından sonra) hızlı bir tarama yine dakikada 60'ı aşabilir; o
+ *   sayfalar sunucu çiziminde kayıtsız gelir, ada kaydı tarayıcıdan alır. Next süresi dolan kaydı
+ *   sunar ve arkada yeniler; 200 olmayan yanıtı (429) önbelleğe almaz, eldeki kaydı silmez. Açık
+ *   sekmedeki
  *   ada kaydı tarayıcıdan (ziyaretçinin kendi hız sınırı kovasıyla) 5 dakikada bir tazeler; sunucu
  *   verisi 2 dakikadan eskiyse ada açılışta yeniler (`weather-client.ts`): ziyaretçi 30 dk'lık
  *   önbelleği görmez. METAR en sık 5 dakikada bir gelir.

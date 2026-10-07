@@ -22,22 +22,22 @@ afterEach(() => {
 
 /**
  * `getServerEnv()` her çağrıda ortam değişkenlerini kopyalayıp zod ile doğrular: `/havalimanlari`'nın
- * `ItemList`'i satır başına okusaydı 4. halkada (1.222 satır) her çizim yüzlerce ms tutardı (D-102).
+ * `ItemList`'i satır başına okusaydı 4. halkada (1.217 satır) her çizim yüzlerce ms tutardı (D-102).
  */
 describe('JSON-LD listeleri sitenin adresini bir kez okur (D-102)', () => {
-  it('itemList: 1.222 satırda tek getServerEnv çağrısı; adresler mutlak', () => {
-    const entries = Array.from({ length: 1_222 }, (_, index) => ({
+  it('itemList: 1.217 satırda tek getServerEnv çağrısı; adresler mutlak', () => {
+    const entries = Array.from({ length: 1_217 }, (_, index) => ({
       name: `Havalimanı ${index}`,
       url: `/istasyon/X${String(index).padStart(3, '0')}`,
     }))
     const list = itemList(entries)
     expect(getServerEnv).toHaveBeenCalledTimes(1)
     const items = list.itemListElement as { position: number; url: string }[]
-    expect(items).toHaveLength(1_222)
+    expect(items).toHaveLength(1_217)
     expect(items[0]).toMatchObject({ position: 1, url: 'https://havayolu.live/istasyon/X000' })
     expect(items.at(-1)).toMatchObject({
-      position: 1_222,
-      url: 'https://havayolu.live/istasyon/X1221',
+      position: 1_217,
+      url: 'https://havayolu.live/istasyon/X1216',
     })
   })
 

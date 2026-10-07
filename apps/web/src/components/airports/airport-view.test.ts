@@ -87,14 +87,13 @@ describe('AirportView', () => {
     expect(body).not.toMatch(/Havalimanı(nda|nın)|izliyor/)
   })
 
-  it('tarifesiz havalimanı ve tek pist (LTAG)', () => {
-    const body = text(renderAirport('LTAG'))
-    expect(body).toContain('Havalimanında tek pist var: 3.048 m (10.000 ft) uzunluğundaki 05/23.')
+  it('tarifesiz havalimanı ve tek pist (LTBQ)', () => {
+    expect(byIcao('LTBQ').scheduled).toBe(false)
+    const body = text(renderAirport('LTBQ'))
+    expect(body).toContain('Havalimanında tek pist var: 3.000 m (9.842 ft) uzunluğundaki 09/27.')
     expect(body).toContain('Havalimanı canlı veri çekim alanının içinde')
     expect(body).not.toContain('ilindeki diğer')
-    expect(body).toContain(
-      'Ad: İncirlik Hava Üssü (askerî hava üssü; DHMİ listesinde yer almaz, bulunduğu yerin adıyla yazılır)',
-    )
+    expect(body).toContain('Resmî Türkçe ad: Kocaeli Cengiz Topel Havalimanı (DHMİ)')
   })
 
   it('pist tablosu: başlık, birimler, yüzey, gerçek yönler; kaydırılmış eşik yalnızca varsa', () => {
@@ -220,19 +219,11 @@ describe('AirportView', () => {
     expect(text(renderAirport('LTBS'))).toContain(
       'Resmî Türkçe ad: Muğla Dalaman Havalimanı (DHMİ)',
     )
-    expect(text(renderAirport('LTAG', 'en'))).toContain(
-      'Turkish name: İncirlik Hava Üssü (a military air base; it is not on the DHMİ list and is named after its location); the English name is a translation.',
-    )
   })
 
-  it('askerî üsler ve Ankara (Etimesgut) iki dilde: başlık, içerik yolu, ad kaynağı (D-084)', () => {
+  it('Ankara (Etimesgut) iki dilde: başlık, içerik yolu, ad kaynağı (D-084)', () => {
     const cases = [
       ['LTAD', 'Ankara (Etimesgut) Havalimanı', 'Ankara (Etimesgut) Airport', 'ANK'],
-      ['LTAG', 'İncirlik Hava Üssü', 'Incirlik Air Base', 'UAB'],
-      ['LTAH', 'Afyon Hava Üssü', 'Afyon Air Base', 'AFY'],
-      ['LTBG', 'Bandırma Hava Üssü', 'Bandırma Air Base', 'BDM'],
-      ['LTBI', 'Eskişehir Hava Üssü', 'Eskişehir Air Base', 'ESK'],
-      ['LTBL', 'Çiğli Hava Üssü', 'Çiğli Air Base', 'IGL'],
     ] as const
     for (const [icao, tr, en, iata] of cases) {
       for (const [locale, name] of [
@@ -254,7 +245,6 @@ describe('AirportView', () => {
     }
     // OurAirports'taki İngilizce ad Türkçe sayfada yalnız kendi satırında ve `lang="en"` ile kalır.
     expect(renderAirport('LTAD')).toContain('<dd lang="en">Etimesgut Air Base</dd>')
-    expect(renderAirport('LTBL')).toContain('<dd lang="en">Çiğli Airbase</dd>')
     // Ankara (Etimesgut): resmî ad bakanlığınkidir, parantez ayırt etmek içindir.
     expect(text(renderAirport('LTAD'))).toContain(
       'Resmî Türkçe ad: Ankara Havalimanı (Ulaştırma ve Altyapı Bakanlığı); aynı ildeki diğer havalimanıyla karışmasın diye eski adı parantez içinde eklenmiştir.',
@@ -264,8 +254,35 @@ describe('AirportView', () => {
     )
     // Aynı ildeki havalimanları cümlesi Türkçe adlarla.
     expect(text(renderAirport('LTAC'))).toContain('Ankara (Etimesgut) Havalimanı (ANK)')
-    expect(text(renderAirport('LTBJ'))).toContain('Çiğli Hava Üssü (IGL)')
-    expect(text(renderAirport('LTBJ', 'en'))).toContain('Çiğli Air Base (IGL)')
+  })
+
+  it('askerî hava üsleri (D-107) hiçbir sayfada yok: en yakın üç, aynı il cümlesi ve Türkiye’deki en yakın havalimanı', () => {
+    for (const icao of ['LTAG', 'LTAH', 'LTBG', 'LTBI', 'LTBL']) {
+      expect(LISTED.some((a) => a.icao === icao)).toBe(false)
+    }
+    // v0.22.1'de üssü gösteren sayfalar: en yakın üçte 14, aynı il cümlesinde 4, Türkiye'deki en
+    // yakın havalimanı satırında 4 (D-107 ölçümü).
+    const pages = [
+      ...['ADB', 'AOE', 'BZI', 'COV', 'DNZ', 'HTY', 'ISE', 'KYA', 'KZR', 'TEQ', 'USQ'],
+      ...['JKH', 'MJT', 'SMI', 'EDO', 'ATH', 'KLX', 'MJI'],
+    ]
+    for (const iata of pages) {
+      const airport = LISTED.find((a) => a.iata === iata)
+      expect(airport, iata).toBeDefined()
+      for (const locale of ['tr', 'en'] as const) {
+        const html = renderAirport(airport?.icao ?? '', locale, LISTED)
+        expect(html, `${iata} ${locale}`).not.toMatch(/LTAG|LTAH|LTBG|LTBI|LTBL/)
+        expect(text(html), `${iata} ${locale}`).not.toMatch(
+          /Hava Üssü|Air Base|Airbase|\((UAB|AFY|BDM|ESK|IGL)\)/,
+        )
+      }
+    }
+    // İzmir'de listelenen başka havalimanı kalmadı (Selçuk-Efes listelenmeyen küçük alan).
+    expect(text(renderAirport('LTBJ', 'tr', LISTED))).not.toContain('ilindeki diğer')
+    // Balıkesir'de Bandırma üssü çıktı; Koca Seyit kalır (tekil cümle).
+    expect(text(renderAirport('LTBF', 'tr', LISTED))).toContain(
+      'Balıkesir ilindeki diğer havalimanı: Balıkesir Koca Seyit Havalimanı (EDO)',
+    )
   })
 
   it('OurAirports adı resmî addan farklıysa görünür (JSON-LD alternateName ile aynı)', () => {
@@ -293,7 +310,7 @@ describe('AirportView', () => {
   })
 
   it('hiçbir metinde çözülmemiş yer tutucu yoktur', () => {
-    for (const icao of ['LTFM', 'LTAG', 'LTAC', 'LTDB', 'LGAV', 'LCEN']) {
+    for (const icao of ['LTFM', 'LTBQ', 'LTAC', 'LTDB', 'LGAV', 'LCEN']) {
       for (const locale of ['tr', 'en'] as const) {
         expect(text(renderAirport(icao, locale, LISTED)), `${icao} ${locale}`).not.toMatch(
           /\{\w+\}/,
@@ -331,19 +348,34 @@ describe('AirportView: Türkiye dışındaki havalimanı (D-080)', () => {
     )
   })
 
-  it('Türkiye’deki en yakın havalimanı askerî üsse Türkçe ve İngilizce adıyla (Atina → Çiğli, D-084)', () => {
-    const athens = byIcao('LGAV')
-    for (const [locale, label, name] of [
-      ['tr', 'Türkiye’deki en yakın havalimanı', 'Çiğli Hava Üssü (IGL)'],
-      ['en', 'Nearest airport in Türkiye', 'Çiğli Air Base (IGL)'],
-    ] as const) {
-      const html = renderAirport('LGAV', locale, LISTED)
-      const fact = html.slice(html.indexOf(label))
-      const line = text(fact.slice(0, fact.indexOf('</dd>')))
-      expect(line, locale).toContain(`${label} ${name} , ${athens.distanceToTrKm} km`)
-      // Önceden iki dilde de OurAirports adı: "Çiğli Airbase (IGL)".
-      expect(line, locale).not.toContain('Airbase')
+  it('Türkiye’deki en yakın havalimanı askerî üs değildir: Atina, Sakız ve Kalamata → İzmir Adnan Menderes, Mitiga → Gökçeada (D-107)', () => {
+    const cases = [
+      ['LGAV', 284],
+      ['LGHI', 89],
+      ['LGKL', 472],
+    ] as const
+    for (const [icao, km] of cases) {
+      expect(byIcao(icao).distanceToTrKm, icao).toBe(km)
+      for (const [locale, label, name] of [
+        ['tr', 'Türkiye’deki en yakın havalimanı', 'İzmir Adnan Menderes Havalimanı (ADB)'],
+        ['en', 'Nearest airport in Türkiye', 'Izmir Adnan Menderes Airport (ADB)'],
+      ] as const) {
+        const html = renderAirport(icao, locale, LISTED)
+        const fact = html.slice(html.indexOf(label))
+        const dd = fact.slice(0, fact.indexOf('</dd>'))
+        expect(text(dd), `${icao} ${locale}`).toContain(`${label} ${name} , ${km} km`)
+        // Listelenen havalimanıdır: sayfasına bağlanır.
+        expect(dd, `${icao} ${locale}`).toContain(
+          `href="${locale === 'en' ? '/en' : ''}/istasyon/LTBJ"`,
+        )
+      }
     }
+    // Mitiga (Trablus, 3. halka): Gökçeada'ya 1.386 km (Çiğli'ye de 1.386 km'ydi).
+    const mitiga = byIcao('HLLM')
+    expect(mitiga).toMatchObject({ ring: 3, distanceToTrKm: 1386, nearestTr: { icao: 'LTFK' } })
+    expect(text(renderAirport('HLLM', 'tr', LISTED))).toContain(
+      'Türkiye’deki en yakın havalimanı Çanakkale Gökçeada Havalimanı (küçük alan, listede yok), 1.386 km',
+    )
   })
 
   it('en yakın Türkiye havalimanı listelenmeyen küçük alansa bağlantısız, adıyla ve notla (Selanik → Gökçeada)', () => {
@@ -508,7 +540,7 @@ describe('AirportView: Türkiye dışındaki havalimanı (D-080)', () => {
     }
   })
 
-  it('4. halka (halka henüz kapalı, D-101): görünür pisti olmayan beş havalimanı pistsiz çizilir', () => {
+  it('4. halka (D-101, D-102): görünür pisti olmayan beş havalimanı pistsiz çizilir', () => {
     for (const icao of ['GMAZ', 'VIMB', 'ULDD', 'VOVI', 'ZWTK']) {
       const airport = fixtureForeignAirport(icao)
       expect(airport.ring, icao).toBe(4)
@@ -596,15 +628,15 @@ describe('AirportsView', () => {
     return renderToStaticMarkup(createElement(AirportsView, { locale, app: 'havayolu', airports }))
   }
 
-  it('liste sayfasının açıklaması 4. halkayla da 70–170 karakter (61 + 1.161; D-102)', () => {
+  it('liste sayfasının açıklaması 4. halkayla da 70–170 karakter (56 + 1.161; D-102, D-107)', () => {
     const counts = airportCounts(LISTED)
-    expect(counts).toEqual({ count: 61, foreign: 1161 })
+    expect(counts).toEqual({ count: 56, foreign: 1161 })
     // Sayılar dilin binlik ayırıcısıyla yazılır; Türkçe açıklama tam 170 karakterdir.
     const grouped = { tr: '1.161', en: '1,161' } as const
     const lengths = { tr: 170, en: 157 } as const
     for (const locale of ['tr', 'en'] as const) {
       const shown = airportCountTexts(counts, locale)
-      expect(shown, locale).toEqual({ count: '61', foreign: grouped[locale] })
+      expect(shown, locale).toEqual({ count: '56', foreign: grouped[locale] })
       const description = format(getMessages(locale).seo.airports.descriptionWithForeign, shown)
       expect(description, locale).toContain(grouped[locale])
       expect(description, locale).not.toContain('1161')
@@ -626,11 +658,13 @@ describe('AirportsView', () => {
     // Yabancı havalimanı yoksa Türkiye dışındaki havalimanları bölümü çizilmez.
     expect(html).not.toContain('airports-foreign')
     const rows = [...html.matchAll(/<tr><th scope="row"><a href="(\/istasyon\/[A-Z0-9]+)">/g)]
-    expect(rows).toHaveLength(61)
-    expect(rows[0]?.[1]).toBe('/istasyon/LTAG')
+    // Askerî hava üsleri listede yok (D-107): ilk satır Adana'nın İncirlik'i değil, Adıyaman.
+    expect(rows).toHaveLength(56)
+    expect(rows[0]?.[1]).toBe('/istasyon/LTCP')
+    expect(html).not.toMatch(/LTAG|LTAH|LTBG|LTBI|LTBL|Hava Üssü/)
     expect(html).not.toContain('is-unscheduled')
     expect(text(html)).toContain(
-      'Listede 61 havalimanı var; her havalimanının sayfasında pistleri, hava durumu ve canlı harita bağlantısı bulunur.',
+      'Listede 56 havalimanı var; her havalimanının sayfasında pistleri, hava durumu ve canlı harita bağlantısı bulunur.',
     )
     expect(text(html)).toContain('son değişiklik 29 Eylül 2026')
   })
@@ -663,7 +697,7 @@ describe('AirportsView', () => {
     const foreign = html.slice(html.indexOf('<section aria-labelledby="airports-foreign"'))
     const rowLinks = (part: string) =>
       [...part.matchAll(/<tr><th scope="row"><a href="(\/istasyon\/[A-Z0-9]+)">/g)].map((m) => m[1])
-    expect(rowLinks(turkey)).toHaveLength(61)
+    expect(rowLinks(turkey)).toHaveLength(56)
     expect(rowLinks(foreign)).toHaveLength(FOREIGN.length)
     // Başlık 2. halkadan beri "Türkiye dışındaki havalimanları"dır (kullanıcı kararı, D-088).
     expect(foreign).toContain('<h2 id="airports-foreign">Türkiye dışındaki havalimanları</h2>')
@@ -689,7 +723,7 @@ describe('AirportsView', () => {
     expect(countries.at(-1)).toBe('Yunanistan')
     const body = text(html)
     expect(body).toContain(
-      `Listede Türkiye’deki 61 havalimanı ve Türkiye dışındaki ${formatCount(FOREIGN.length, 'tr')} havalimanı var;`,
+      `Listede Türkiye’deki 56 havalimanı ve Türkiye dışındaki ${formatCount(FOREIGN.length, 'tr')} havalimanı var;`,
     )
     expect(body).toContain(
       'Türkiye’deki en yakın havalimanına uzaklığı en fazla 5.000 km olan, IATA kodlu büyük ve orta boy havalimanları yer alır; bazı havalimanları listelenmez.',

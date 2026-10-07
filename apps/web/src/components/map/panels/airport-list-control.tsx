@@ -8,12 +8,13 @@ import type { MapAirport } from '../airport-data'
 import { AirportListPanelUnavailable, withChunkFallback } from '../chunk-fallback'
 
 /**
- * Panelin modülü (ad tablolarıyla); harita hazır olunca boşta, düğmenin üstüne gelince, odakta ya
- * da ilk açılışta yüklenir. Yüklenemezse yedek panel (`chunk-fallback.tsx`): not ve "Sayfayı
- * yenile"; ret yakalandığı için önceden isteme işlenmemiş ret bırakmaz.
+ * Panelin modülü (ad tablolarıyla; pencere ve aramayla ortak giriş `airport-lazy.ts`, tablolar bir
+ * kez gelir); harita hazır olunca boşta, düğmenin üstüne gelince, odakta ya da ilk açılışta
+ * yüklenir. Yüklenemezse yedek panel (`chunk-fallback.tsx`): not ve "Sayfayı yenile"; ret
+ * yakalandığı için önceden isteme işlenmemiş ret bırakmaz.
  */
 const loadPanel = withChunkFallback(
-  () => import('./airport-list-panel').then((module) => module.AirportListPanel),
+  () => import('../airport-lazy').then((module) => module.AirportListPanel),
   AirportListPanelUnavailable,
   'Airport list panel',
 )

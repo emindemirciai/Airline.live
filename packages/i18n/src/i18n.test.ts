@@ -81,6 +81,12 @@ describe('i18n', () => {
     expect(map.search.notFound).toBe(
       'Bu sefer şu an havada görünmüyor ya da farklı bir çağrı koduyla uçuyor; tescil ile arayabilirsin.',
     )
+    // Arama kutusu uçak ve havalimanı arar (D-108); ipucu 320 px'te de kesilmez (e2e ölçer).
+    expect(map.search.label).toBe(
+      'Uçak ya da havalimanı ara: sefer no, çağrı kodu, tescil ya da hex; havalimanı kodu, adı ya da şehri',
+    )
+    expect(map.search.placeholder).toBe('Sefer, tescil, havalimanı')
+    expect(map.search.groupAirports).toBe('Havalimanları')
     expect(map.card.follow).toBe('Uçağı ortala')
     expect(map.status.noProvider).toBe('Canlı veri kaynağı şu an kapalı; haritada uçak görünmüyor.')
     expect(map.status.basemapFailed).toBe('Harita altlığı yüklenemedi.')

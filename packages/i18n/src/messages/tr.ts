@@ -82,9 +82,10 @@ export const tr = {
     summaryWithForeign:
       'Listede Türkiye’deki {count} havalimanı ve Türkiye dışındaki {foreign} havalimanı var; her havalimanının sayfasında pistleri, hava durumu ve canlı harita bağlantısı bulunur.',
     turkeyHeading: 'Türkiye’deki havalimanları',
-    scope: 'Listede IATA kodu olan havalimanları yer alır; bazı küçük havalimanları listelenmez.',
+    scope:
+      'Listede IATA kodu olan sivil havalimanları yer alır; askerî hava üsleri ve bazı küçük havalimanları listelenmez.',
     names:
-      'Resmî Türkçe adlar DHMİ’den, havalimanı işletmecilerinden ve Ulaştırma ve Altyapı Bakanlığı’ndan derlenmiştir. Askerî hava üsleri bulunduğu yerin adıyla yazılır (İncirlik Hava Üssü); adı henüz doğrulanmamış yeni bir havalimanı OurAirports’taki adıyla gösterilir.',
+      'Resmî Türkçe adlar DHMİ’den, havalimanı işletmecilerinden ve Ulaştırma ve Altyapı Bakanlığı’ndan derlenmiştir; adı henüz doğrulanmamış yeni bir havalimanı OurAirports’taki adıyla gösterilir.',
     caption: 'Türkiye’deki havalimanları, il adına göre sıralı',
     columns: {
       name: 'Havalimanı',
@@ -219,9 +220,6 @@ export const tr = {
       /** Ankara (Etimesgut), D-084: `{name}` bakanlığın verdiği addır ("Ankara Havalimanı"). */
       ministry:
         'Resmî Türkçe ad: {name} (Ulaştırma ve Altyapı Bakanlığı); aynı ildeki diğer havalimanıyla karışmasın diye eski adı parantez içinde eklenmiştir.',
-      /** Askerî hava üsleri (D-084): ad bulunduğu yerin adıyla yazılır. */
-      military:
-        'Ad: {name} (askerî hava üssü; DHMİ listesinde yer almaz, bulunduğu yerin adıyla yazılır)',
       ourairports: 'Ad: OurAirports',
     },
     /**
@@ -807,7 +805,7 @@ export const tr = {
         'Saklanan konum ve iz verisi bu veriden türetilmiş bir veritabanıdır ve ODbL altında kalır.',
       reference: 'Havalimanı ve pist verisi: {source}, kamu malı.',
       names:
-        'Resmî Türkçe havalimanı adları: DHMİ, havalimanı işletmecileri ve Ulaştırma ve Altyapı Bakanlığı; askerî hava üsleri bulunduğu yerin adıyla yazılır; henüz doğrulanmamış yeni adlarda OurAirports.',
+        'Resmî Türkçe havalimanı adları: DHMİ, havalimanı işletmecileri ve Ulaştırma ve Altyapı Bakanlığı; henüz doğrulanmamış yeni adlarda OurAirports.',
       airlines: 'Havayolu kodları: {source}, CC0 (atıf zorunlu değildir, nezaketen anılır).',
       vector:
         'Vektör harita ve uydu haritasındaki ülke sınırları: {openFreeMap} © {openMapTiles}, harita verisi © {openStreetMap} katkıcıları (ODbL).',
@@ -847,11 +845,13 @@ export const tr = {
     siteCreditLabel: '{credit}, yenilikler',
     search: {
       /**
-       * Arama kutusunun erişilebilir adı tam metindir; görünen ipucu (`placeholder`) 375 px'lik
-       * telefonda da kesilmeyecek kadar kısadır (e2e live-map.spec.ts ölçer).
+       * Arama kutusunun erişilebilir adı tam metindir; görünen ipucu (`placeholder`) 320 px'lik
+       * telefonda da kesilmeyecek kadar kısadır (e2e live-map.spec.ts 1280, 375 ve 320 px'te ölçer).
+       * Kutu uçak ve havalimanı arar (D-108).
        */
-      label: 'Uçak ara: sefer no, çağrı kodu, tescil ya da hex',
-      placeholder: 'Sefer no, çağrı kodu, tescil, hex',
+      label:
+        'Uçak ya da havalimanı ara: sefer no, çağrı kodu, tescil ya da hex; havalimanı kodu, adı ya da şehri',
+      placeholder: 'Sefer, tescil, havalimanı',
       submit: 'Ara',
       searching: 'Aranıyor…',
       notFound:
@@ -862,6 +862,28 @@ export const tr = {
       flightNumberNote:
         'Sefer no, uçağın yayınladığı çağrı kodundan çıkarılır. Harfli çağrı kodu kullanan seferler (ör. THY4KN) sefer no ile bulunamaz; çağrı kodu ya da tescille ara.',
       results: 'Arama sonuçları',
+      /** Sonuç listesinin grupları (D-108): önce havalimanları, sonra uçaklar. */
+      groupAirports: 'Havalimanları',
+      groupAircraft: 'Uçaklar',
+      pickAirports: 'Birden fazla havalimanı bulundu; birini seç.',
+      /** Enter'da doğrudan açılmayan tek havalimanı ("gok", "THY"; D-108): kullanıcı seçer. */
+      pickAirport: 'Bir havalimanı bulundu; açmak için seç.',
+      pickMixed: 'Uçak ve havalimanı bulundu; birini seç.',
+      /** Yazarken (son değişiklikten 600 ms sonra) ekran okuyucuya okunan öneri sayısı. */
+      airportCount: 'Eşleşen havalimanı: {n}.',
+      airportCountMore: 'Eşleşen havalimanı: {n}; ilk {shown} tanesi listede, aramayı daralt.',
+      airportNotFound:
+        'Bu adla ya da kodla bir havalimanı bulunamadı. IATA ya da ICAO kodunu, adını ya da şehrini yaz.',
+      airportNote: 'Havalimanı arıyorsan IATA ya da ICAO kodunu, adını ya da şehrini yaz.',
+      aircraftUnavailable: 'Uçak araması şu an yapılamıyor; havalimanı sonuçları listede.',
+      airportNamesUnavailable:
+        'Havalimanı adları yüklenemedi; havalimanını kodla arayabilir ya da sayfayı yenileyebilirsin.',
+      /**
+       * Havalimanı bulunamayınca eklenir: yalnız açık halkalar aranır. `{km}`: açık halkaların sınırı
+       * (`ENABLED_AIRPORT_RING`, D-080); bütün halkalar açılınca cümle yazılmaz.
+       */
+      airportCoverage:
+        'Türkiye dışında yalnız Türkiye’deki en yakın havalimanına uzaklığı en fazla {km} olan havalimanları aranır.',
     },
     card: {
       close: 'Kapat',

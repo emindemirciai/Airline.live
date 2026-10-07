@@ -206,7 +206,7 @@ describe('GET /v1/weather?format=raw (D-101)', () => {
 })
 
 // ---------------------------------------------------------------------------------------------
-// Ölçek (D-101): 4. halkada ~1.222 istasyon. Bütçeler istasyon başınadır.
+// Ölçek (D-101): 4. halkada 1.217 istasyon (D-102, D-107). Bütçeler istasyon başınadır.
 
 /**
  * Üretime benzer raporlar. 2026-10-04 üretim görüntüsünde (225 istasyon, TAF yayım saati) METAR
@@ -290,14 +290,14 @@ function productionLike(count: number): { icaos: string[]; records: WeatherRecor
   return { icaos, records: { metars, tafs } }
 }
 
-/** Ham biçimde istasyon başına bütçe: 1.222 istasyonda gövde 1,2 MB'ın altında kalır. */
+/** Ham biçimde istasyon başına bütçe: 1.217 istasyonda gövde 1,2 MB'ın altında kalır. */
 const RAW_BYTES_PER_STATION = 980
 /**
  * Tam biçimde üretime benzer veriyle istasyon başına bütçe: 2026-10-04 üretim görüntüsü ~3,3 KB,
  * buradaki veri ~3,6 KB (METAR'larından biri TREND taşır). Ham biçim ~0,9 KB'tır.
  */
 const FULL_BYTES_PER_STATION = 3_800
-const RING4_STATIONS = 1_222
+const RING4_STATIONS = 1_217
 
 const decodeSpies = (): WeatherViews & {
   metarView: ReturnType<typeof vi.fn>
@@ -307,7 +307,7 @@ const decodeSpies = (): WeatherViews & {
   tafView: vi.fn(() => null),
 })
 
-describe('ölçek: 1.222 istasyon (4. halka, D-101)', () => {
+describe('ölçek: 1.217 istasyon (4. halka, D-101, D-102)', () => {
   it('ham gövde istasyon başına ≤ 980 B, toplam < 1,2 MB; tam biçim istasyon başına ≤ 3,8 KB', async () => {
     const { icaos, records } = productionLike(RING4_STATIONS)
     expect(records.tafs.length / icaos.length).toBeCloseTo(3.4, 2)
@@ -335,7 +335,7 @@ describe('ölçek: 1.222 istasyon (4. halka, D-101)', () => {
     )
   })
 
-  it('ham gövde çözümleme yapmaz ve doğrusal büyür (2.444 / 1.222 istasyon süresi < 3 kat)', () => {
+  it('ham gövde çözümleme yapmaz ve doğrusal büyür (2.434 / 1.217 istasyon süresi < 3 kat)', () => {
     const small = productionLike(RING4_STATIONS)
     const large = productionLike(RING4_STATIONS * 2)
     const views = decodeSpies()

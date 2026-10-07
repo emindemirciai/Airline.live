@@ -12,8 +12,48 @@ import type { ChangelogEntry } from './types'
  */
 export const CHANGELOG: readonly ChangelogEntry[] = [
   {
+    version: '0.22.3',
+    date: '2026-10-07',
+    title: {
+      tr: 'Haritada havalimanı araması',
+      en: 'Airport search on the map',
+    },
+    items: [
+      {
+        tr: 'Sol üstteki arama kutusu artık havalimanlarını da bulur: IATA ya da ICAO kodu (IST, LTFM), adı ya da şehri (Sabiha Gökçen, Londra, Heathrow) yazınca öneriler yazarken çıkar. Türkçe harfler ve aksanlar fark etmez.',
+        en: 'The search box at the top left now finds airports too: type an IATA or ICAO code (IST, LTFM), a name or a city (Sabiha Gökçen, London, Heathrow) and suggestions appear as you type. Turkish letters and accents do not matter.',
+      },
+      {
+        tr: 'Bir havalimanı seçince harita oraya gider ve havalimanının penceresi açılır. Uçak araması (sefer no, çağrı kodu, tescil, hex) eskisi gibi çalışır; ikisi birlikte eşleşirse liste havalimanlarını ve uçakları ayrı gösterir.',
+        en: 'Picking an airport flies the map there and opens its window. Aircraft search (flight number, callsign, registration, hex) works as before; when both match, the list shows airports and aircraft separately.',
+      },
+    ],
+    tryLinks: [{ path: '/', label: { tr: 'Canlı harita', en: 'Live map' } }],
+  },
+  {
+    version: '0.22.2',
+    date: '2026-10-07',
+    releasedAt: '2026-10-07T14:31:41Z',
+    title: {
+      tr: 'Askerî hava üsleri sitenin hiçbir yerinde yok',
+      en: 'Air force bases removed from the whole site',
+    },
+    items: [
+      {
+        tr: 'Askerî hava üsleri artık yalnız haritada değil, sitenin hiçbir yerinde gösterilmez: havalimanları listesinde, havalimanı sayfalarında, yakın havalimanları satırlarında ve hava durumunda yoklar. Türkiye listesinde 56 sivil havalimanı var.',
+        en: 'Air force bases are no longer shown anywhere on the site, not just on the map: they are gone from the airport list, the airport pages, the nearby-airports rows and the weather. The Türkiye list has 56 civil airports.',
+      },
+      {
+        tr: 'Atina, Sakız ve Kalamata sayfalarındaki “Türkiye’deki en yakın havalimanı” satırı artık İzmir Adnan Menderes’i gösterir.',
+        en: 'The “nearest airport in Türkiye” row on the Athens, Chios and Kalamata pages now shows İzmir Adnan Menderes.',
+      },
+    ],
+    tryLinks: [{ path: '/havalimanlari', label: { tr: 'Havalimanları', en: 'Airports' } }],
+  },
+  {
     version: '0.22.1',
     date: '2026-10-06',
+    releasedAt: '2026-10-06T13:34:14Z',
     title: {
       tr: 'Askerî üsler haritadan kalktı, harita biraz daha uzaktan açılır',
       en: 'Air bases off the map, and a slightly wider opening view',
