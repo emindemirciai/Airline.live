@@ -28,7 +28,8 @@ import type { AirportSearch, AirportSearchRow } from './search-box-model'
  *   OurAirports adı; yerleşim (TR ve EN), Türkiye'de il (TR ve EN), OurAirports yerleşimi ve şehri;
  *   ülke (kısa ve uzun, TR ve EN; Ercan için KKTC / TRNC). "Atina" İngilizce sayfada da, "Athens"
  *   Türkçe sayfada da bulunur. Yalnız aranan, gösterilmeyen ek adlar (`AIRPORT_SEARCH_PLACES`:
- *   "Adana" → Çukurova, "Antep", "Urfa", "Maraş"…; `AIRPORT_SEARCH_COUNTRY_ALIASES`: "Turkey").
+ *   "Adana" → Çukurova, "Antep", "Urfa", "Maraş", "Sabiha Gökçen", "Cappadocia"…;
+ *   `AIRPORT_SEARCH_COUNTRY_ALIASES`: "Turkey").
  * - **Sıra** (bir eşleşme basamağının içinde): İstanbul Havalimanı (LTFM), Türkiye, tarifeli sefer,
  *   büyüklük (büyük, orta, küçük), Türkiye'ye uzaklık, görünen ad (sayfanın dilinin alfabesiyle),
  *   ICAO.
@@ -154,10 +155,11 @@ function createSearch(airports: readonly MapAirport[], locale: Locale): AirportS
   }
 
   return (query) => {
-    const { hits, total } = searchAirportIndex(index, query)
+    const { hits, total, queryLetters } = searchAirportIndex(index, query)
     return {
       rows: hits.map((hit) => ({ ...rowOf(hit.value), match: hit.match })),
       total,
+      queryLetters,
       degraded: false,
     }
   }

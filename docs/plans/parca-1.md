@@ -1360,7 +1360,7 @@ Sürüm v0.22.3 (dal `p1/map-airport-search`, `main` `7a9309e` = v0.22.1'den; `p
 
 **Kapsam:**
 - **Yazarken öneri:** arama kutusu ARIA 1.2 combobox'ıdır; havalimanı kodu, adı (TR/EN), il, şehir ya da ülkesiyle en çok 8 havalimanı önerir (ağ isteği yok). Büyük-küçük harf, Türkçe harf, aksan ve noktalama yok sayılır; dolgu sözcükleri sayılmaz; yalnız sözcük başı eşleşir. Askerî hava üsleri bulunmaz.
-- **Enter ya da "Ara":** uçak araması da yapılır; tek uçak seçilir, tam kodlu havalimanı ya da en az 4 harfli sorguyla tek havalimanı doğrudan açılır, öbür sonuçlarda "Havalimanları" ve "Uçaklar" gruplu liste, ikisi de yoksa açıklayıcı metin (D-108 → "Sonuç kuralları").
+- **Enter ya da "Ara":** uçak araması da yapılır; tek uçak seçilir, tam kodlu havalimanı ya da en az 4 harfli sorguyla (dolgu sözcükleri sayılmaz) adla eşleşen tek havalimanı doğrudan açılır, öbür sonuçlarda "Havalimanları" ve "Uçaklar" gruplu liste, ikisi de yoksa açıklayıcı metin (D-108 → "Sonuç kuralları").
 - **Seçim:** pine tıklamakla aynı (harita en az z10, pencere, adres değişmez); pencere kapanınca odak kutuya döner.
 - **Türkçe klavye:** uçak aramasında İ→I, ı→i ve tire çeşitleri; Türkçe harfli sorgu uçak aramaz.
 - **İlk yükleme (D-101):** ad tabloları `/`'nin ilk paketine girmez; dizin kurucusu ayrı parçadadır (pencere ve panelle ortak tembel giriş), harita hazır olunca boşta istenir ve liste gelince boşta kurulur, kutu odaklanınca da istenir; yüklenemezse yalnız kodla arama.
@@ -1398,6 +1398,16 @@ Sürüm v0.22.3 (dal `p1/map-airport-search`, `main` `7a9309e` = v0.22.1'den; `p
 - `pnpm format`, `pnpm lint` (9/9), `pnpm typecheck` (9/9), `pnpm typecheck:e2e`, `pnpm lint:e2e`, `pnpm check:eol` → yeşil.
 - `pnpm test` (9/9): web 922 (+5), shared 722, tools 369, worker 294, api 285, providers 135, i18n 99, db 73, geo 36.
 - e2e'ye "THY" ve "gok" + Enter adımı eklendi (liste açık, Sfaks Thyna ve Sabiha Gökçen penceresi açılmaz); bu oturumda çalıştırılmadı, CI doğrular.
+
+**Enter kuralının inceleme düzeltmeleri (2026-10-07, aynı sürüm):**
+- **Harfler aranan sorgunundur:** 4 harf sınırı ham sorgunun harflerini sayıyordu; "THY airport", "thy havalimanı", "THY h", "THY a" ve "gok hava" Enter'da Sfaks Thyna'yı ve Sabiha Gökçen'i açıyordu (motor yalnız "thy" ya da "gok" aramıştı). Motor artık aradığı sorgunun harf sayısını sonuçla döndürür (`searchAirportIndex` → `queryLetters`: dolgu sözcükleri ve yedekte atılan yarım dolgu sözcüğü sayılmaz); arama kutusu bununla sayar (`AirportSearchResult.queryLetters`; ilk paket motoru içe aktarmaz). "esenboğa hav" ve "gokcen" yine açar.
+- **Ülke adıyla tek eşleşme açılmaz:** "turkish", "turkish air" ve "turkis" ("Turkish Airlines" yazılırken) yalnız Ercan'ı (KKTC'nin İngilizce uzun adı "Turkish Republic of Northern Cyprus") ülke basamağında buluyor ve Enter haritayı Kuzey Kıbrıs'a uçuruyordu; artık tek satırlık liste. "KKTC" ve "lebanon" da tek satırlık liste (kabul edildi; "lefkoşa" ve "ECN" açar).
+- **Tam kod yalnız İngilizce harf ve rakamdır:** kod anahtarı katlanmış metinden kuruluyordu; "küt" (Kütahya) KUT'a katlanıp Kutaisi'yi tam kod olarak öneriyor ve Enter'da açıyordu ("buş" Batum'u, "haş" Hail'i). Artık kırpılmış, boşluksuz, yalnız İ/ı'sı dönüşmüş sorgu `[A-Za-z0-9]{3,4}` ise koddur (yalnız kodla aramanın kuralı); "küt" Zafer'i ve Kutaisi'yi adın başıyla listeler, "İST" yine IST'dir.
+- **Ek adlar:** "Sabiha Gökçen" → SAW (bütün adları "İstanbul" ile başladığı için "sab" Sebzevar ve Sebha'nın altında, "sa" ilk 8 satırın dışındaydı; artık ikisinde de ilk) ve "Cappadocia" → Kapadokya (NAV; "capp" ve "cappadocia" hiçbir şey bulmuyordu).
+- **Belgeler:** D-108 (Alanlar, Basamaklar, Sonuç kuralları 2, Belirsiz durumlar: "anka" Esenboğa, Etimesgut ve uçak; Ölçüm'deki kaldırılmış kod alanı notu silindi; Bilinen sınırlar), `docs/spec/domain.md`, ACTIVATION v0.22.3 (6) ve (7), `submitOutcome`'un kural yorumu.
+- `pnpm format`, `pnpm format:check`, `pnpm lint` (9/9), `pnpm typecheck` (9/9), `pnpm typecheck:e2e`, `pnpm lint:e2e`, `pnpm typecheck:scripts`, `pnpm check:eol` → yeşil.
+- `pnpm test` (9/9): web 925 (+3), shared 724 (+2), tools 369, worker 294, api 285, providers 135, i18n 99, db 73, geo 36.
+- e2e'nin Enter adımına "THY airport" (SFA) ve "turkish" (ECN; Ercan penceresi açılmaz) eklendi; bu oturumda çalıştırılmadı, CI doğrular.
 
 ## M6h — 3. halka (v0.18.0)
 Onay: 2026-10-04 kullanıcı isteği "sonraki işlerden birine bir halka daha ekle" ve kapalı havalimanı kararı (2022'den beri sivil uçuşa kapalı olduğu hâlde OurAirports'ta tarifeli görünen havalimanları listede kalır, sayfada ve pencerede "Sivil uçuşlara kapalı olabilir (2022’den beri)" notu); diğer seçimler M6h araştırmasının önerileri (orkestratör varsayılanı 2026-10-04)

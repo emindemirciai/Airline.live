@@ -17,11 +17,16 @@
  *   başı) > sözcükler (her sorgu sözcüğü bir ad, yer ya da kod sözcüğünün başı; "LTF", "ES" gibi kod
  *   önekleri dahil) > ülke (en az 3 harf; sözcükler ülke adlarında da aranır). Bir basamağın içinde
  *   çağıranın sırası korunur.
+ * - **Tam kod** yalnız İngilizce harf ve rakamdan oluşan 3–4 karakterlik sorgudur (kırpılır, boşluk
+ *   atılır, Türkçe klavyenin İ ve ı harfleri I ve i olur: "İST" IST'dir). Başka bir harf kod
+ *   olamaz: "küt" Kutaisi'nin KUT kodu değil, Kütahya'nın (Zafer) ve Kutaisi'nin adının başıdır.
  * - **3 harfli sorgu** da aynı basamaklarla aranır: tam kod önce, sonra adın ya da yerin başı ve
  *   sözcük başı ("sab" ve "gok" Sabiha Gökçen, "ant" Antalya). Havayolu kodu biçimindeki sorgu
  *   ("THY") bir sözcük başını da bulabilir (Sfaks Thyna); bu bir öneri listesidir. Enter'da
  *   havalimanının doğrudan açılması arama kutusunun kuralıdır (`search-box-model.ts`
- *   `submitOutcome`, D-108): tam kod ya da en az 4 harfle tek eşleşme.
+ *   `submitOutcome`, D-108): tam kod ya da aranan sorgunun en az 4 harfiyle tek eşleşme. Aranan
+ *   sorgunun harf sayısı sonuçla döner (`queryLetters`): dolgu sözcükleri ve yedekte atılan yarım
+ *   dolgu sözcüğü sayılmaz ("THY airport" ve "THY h" 3 harftir).
  * - **Rakamlı ya da hex sorgu** (`airportQueryKind` → `code`) yalnız tam kod arar: "TK1985" ya da
  *   "4BB26C" hiçbir havalimanı adına uymaz.
  *
@@ -222,19 +227,40 @@ export interface AirportSearchHit<T> {
   match: AirportSearchMatch
 }
 
+/** Bir aramanın sonucu (`searchAirportIndex`). */
+export interface AirportIndexResult<T> {
+  /** İyi basamak önce, en fazla `limit` sonuç. */
+  hits: AirportSearchHit<T>[]
+  /** Bütün eşleşmelerin sayısı. */
+  total: number
+  /**
+   * Aranan sorgudaki harf sayısı: katlanmış sözcüklerin harfleri; dolgu sözcükleri, yedekte atılan
+   * yarım dolgu sözcüğü, rakam, boşluk ve noktalama sayılmaz ("esenboğa hav" 8, "THY airport" 3,
+   * "s-a.b" 3). Enter kuralı bununla sayar (D-108).
+   */
+  queryLetters: number
+}
+
 const TIERS: readonly AirportSearchMatch[] = ['code', 'start', 'words', 'country']
+
+const LETTER = /\p{L}/gu
+
+/** Katlanmış sözcüklerdeki harf sayısı (rakam sayılmaz). */
+function letterCount(tokens: readonly string[]): number {
+  return tokens.join('').match(LETTER)?.length ?? 0
+}
 
 /**
  * Sorguya uyan havalimanları, iyi basamak önce (basamağın içinde dizinin sırası), en fazla `limit`;
  * `total` bütün eşleşmelerin sayısıdır. `none` türündeki sorgu hiçbir şey bulmaz. Hiçbir şey
  * bulunmazsa ve sorgunun son sözcüğü bir dolgu sözcüğünün yarım yazılmış başıysa sözcük yokmuş gibi
- * yeniden aranır (`withoutPartialStopWord`).
+ * yeniden aranır (`withoutPartialStopWord`); `queryLetters` o zaman kısalan sorgununkidir.
  */
 export function searchAirportIndex<T>(
   index: AirportSearchIndex<T>,
   query: string,
   limit: number = AIRPORT_SEARCH_LIMIT,
-): { hits: AirportSearchHit<T>[]; total: number } {
+): AirportIndexResult<T> {
   const result = searchQuery(index, query, limit)
   if (result.total > 0) return result
   const shorter = withoutPartialStopWord(query)
@@ -256,18 +282,31 @@ function withoutPartialStopWord(query: string): string | null {
     : null
 }
 
+/** Tam kod olabilecek sorgu: İngilizce harf ve rakam, 3–4 karakter. */
+const CODE_QUERY = /^[A-Za-z0-9]{3,4}$/
+
+/**
+ * Sorgunun tam kod anahtarı: kırpılır, boşluk atılır, Türkçe klavyenin İ ve ı harfleri I ve i olur
+ * (aksan atılmaz), büyük harf; kod olamıyorsa null ("küt", "Łódź", "TK1985"). Web'in yalnız kodla
+ * aramasıyla (`search-box-model.ts` `airportCodeKey`) aynı kuraldır.
+ */
+function codeKey(query: string): string | null {
+  const key = query.trim().replace(/İ/g, 'I').replace(/ı/g, 'i').replace(/\s+/g, '')
+  return CODE_QUERY.test(key) ? key.toUpperCase() : null
+}
+
 /** Sorgunun kendisiyle arama (dolgu sözcüğü yedeği yok). */
 function searchQuery<T>(
   index: AirportSearchIndex<T>,
   query: string,
   limit: number,
-): { hits: AirportSearchHit<T>[]; total: number } {
-  const kind = airportQueryKind(query)
-  if (kind === 'none') return { hits: [], total: 0 }
-  const key = foldSearchText(query).replace(/ /g, '').toUpperCase()
+): AirportIndexResult<T> {
   const tokens = searchTokens(query)
+  const queryLetters = letterCount(tokens)
+  const kind = airportQueryKind(query)
+  if (kind === 'none') return { hits: [], total: 0, queryLetters }
+  const key = codeKey(query)
   const phrase = tokens.join(' ')
-  const isCode = key.length >= 3 && key.length <= 4
   const inWords = (item: IndexedAirport<T>, token: string): boolean =>
     item.words.includes(` ${token}`)
   const inCountry = (item: IndexedAirport<T>, token: string): boolean =>
@@ -277,7 +316,7 @@ function searchQuery<T>(
 
   const items = (INDEX_ITEMS.get(index) ?? []) as readonly IndexedAirport<T>[]
   for (const item of items) {
-    if (isCode && (key === item.iata || key === item.icao)) {
+    if (key !== null && (key === item.iata || key === item.icao)) {
       buckets.code.push(item.value)
       continue
     }
@@ -305,5 +344,5 @@ function searchQuery<T>(
       hits.push({ value, match })
     }
   }
-  return { hits, total }
+  return { hits, total, queryLetters }
 }

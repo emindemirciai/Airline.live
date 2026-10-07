@@ -12,7 +12,7 @@ import {
   withImportFallback,
 } from './chunk-fallback'
 import { prebuildAirportSearch } from './panels/search-box'
-import type { AirportSearchBuilder } from './panels/search-box-model'
+import { NO_AIRPORT_RESULTS, type AirportSearchBuilder } from './panels/search-box-model'
 
 /**
  * Havalimanı adları haritanın ilk paketine girmez (D-101): ad tablolarını (`airportDisplayName`)
@@ -238,7 +238,7 @@ describe('parça yüklenemezse (D-101): yedek bileşen, hata ekranı yok', () =>
       await new Promise((resolve) => setTimeout(resolve, 0))
     }
     const airports = [{ icao: 'LTFM', iata: 'IST' } as MapAirport]
-    const build = vi.fn<AirportSearchBuilder>(() => () => ({ rows: [], total: 0, degraded: false }))
+    const build = vi.fn<AirportSearchBuilder>(() => () => NO_AIRPORT_RESULTS)
     const load = vi.fn(() => Promise.resolve<AirportSearchBuilder>(build))
 
     prebuildAirportSearch(airports, 'tr', load, scheduler)

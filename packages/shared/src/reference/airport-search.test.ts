@@ -372,6 +372,81 @@ describe('searchAirportIndex', () => {
     expect(searchAirportIndex(INDEX, 'ADB h').hits).toEqual([{ value: 'LTBJ', match: 'code' }])
   })
 
+  it('tam kod yalnız İngilizce harf ve rakamdır: "küt" Kutaisi’nin KUT kodu değil (Türkçe İ/ı olur)', () => {
+    const index = createAirportSearchIndex([
+      entry('LTBZ', 'KZR', ['Zafer Havalimanı', 'Zafer Airport'], ['Kütahya', 'Altıntaş'], TR),
+      entry('LTBU', 'TEQ', ['Tekirdağ Çorlu Havalimanı'], ['Tekirdağ', 'Çorlu'], TR),
+      entry(
+        'UGKO',
+        'KUT',
+        ['Kutaisi Havalimanı', 'Kutaisi International Airport'],
+        ['Kutaisi'],
+        ['Gürcistan', 'Georgia'],
+      ),
+      entry(
+        'UGSB',
+        'BUS',
+        ['Batum Havalimanı', 'Batumi International Airport'],
+        ['Batum'],
+        ['Gürcistan', 'Georgia'],
+      ),
+    ])
+    const found = (query: string) => searchAirportIndex(index, query).hits
+    // Ü ve ş kod olamaz: ikisi de adın başıyla (Türkiye önce), kod basamağı yok.
+    expect(found('küt')).toEqual([
+      { value: 'LTBZ', match: 'start' },
+      { value: 'UGKO', match: 'start' },
+    ])
+    expect(found('KÜT')).toEqual(found('küt'))
+    // "buş" Batum'un BUS kodunu tam kod olarak bulmaz; kod sözcüğünün başı olarak sözcük basamağında.
+    expect(found('buş')).toEqual([{ value: 'UGSB', match: 'words' }])
+    expect(found('bus')).toEqual([{ value: 'UGSB', match: 'code' }])
+    // İngilizce harflerle yazılan kod tam koddur; Türkçe klavyenin İ ve ı harfleri I ve i olur.
+    expect(found('kut')[0]).toEqual({ value: 'UGKO', match: 'code' })
+    expect(found('KUT')[0]).toEqual({ value: 'UGKO', match: 'code' })
+    expect(found('teq')).toEqual([{ value: 'LTBU', match: 'code' }])
+    expect(searchAirportIndex(INDEX, 'İST').hits[0]).toEqual({ value: 'LTFM', match: 'code' })
+    expect(searchAirportIndex(INDEX, 'ıst').hits[0]).toEqual({ value: 'LTFM', match: 'code' })
+    expect(searchAirportIndex(INDEX, ' ltbj ').hits).toEqual([{ value: 'LTBJ', match: 'code' }])
+  })
+
+  it('queryLetters: aranan sorgunun harfleri; dolgu sözcükleri ve yedekteki yarım sözcük sayılmaz', () => {
+    const index = createAirportSearchIndex([
+      entry(
+        'DTTX',
+        'SFA',
+        ['Sfaks Thyna Havalimanı', 'Sfax Thyna International Airport'],
+        ['Sfaks', 'Sfax'],
+        ['Tunus', 'Tunisia'],
+      ),
+      entry(
+        'LTAC',
+        'ESB',
+        ['Ankara Esenboğa Havalimanı', 'Ankara Esenboğa Airport'],
+        ['Ankara'],
+        TR,
+      ),
+    ])
+    const letters = (query: string) => searchAirportIndex(index, query).queryLetters
+    const values = (query: string) => searchAirportIndex(index, query).hits.map((hit) => hit.value)
+    // Havayolu kodu ve dolgu sözcüğü: yalnız "thy" aranır, 3 harf.
+    for (const query of ['THY', 'THY airport', 'thy havalimanı', 'THY intl', 'THY h', 'THY hava']) {
+      expect(values(query), query).toEqual(['DTTX'])
+      expect(letters(query), query).toBe(3)
+    }
+    // Yarım dolgu sözcüğü yedekte atılır: aranan sorgu "esenboğa".
+    expect(values('esenboğa hav')).toEqual(['LTAC'])
+    expect(letters('esenboğa hav')).toBe(8)
+    expect(letters('esenboğa')).toBe(8)
+    // Boşluk, tire, noktalama ve rakam sayılmaz; katlama harf atmaz.
+    expect(letters('s-a.f')).toBe(3)
+    expect(letters('Ağrı')).toBe(4)
+    expect(letters('TK1985')).toBe(2)
+    // Hiçbir şey aranmayan sorgu.
+    expect(letters('havalimanı')).toBe(0)
+    expect(letters('')).toBe(0)
+  })
+
   it('yarım dolgu sözcüğü: gerçek sözcük daralttıysa bütün ülke gelmez ("italy bol")', () => {
     const index = createAirportSearchIndex([
       entry('LIRF', 'FCO', ['Rome Fiumicino Airport'], ['Rome'], ['İtalya', 'Italy']),
@@ -415,6 +490,7 @@ describe('searchAirportIndex', () => {
         { value: 'LTFJ', match: 'start' },
       ],
       total: 3,
+      queryLetters: 8,
     })
     expect(many.size).toBe(12)
   })

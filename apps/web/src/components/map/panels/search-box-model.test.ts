@@ -35,11 +35,13 @@ const row = (a: MapAirport, match: AirportSearchRow['match']): AirportSearchRow 
   match,
 })
 
+/** Arama sonucu; `queryLetters` motorun aradığı sorgunun harfleridir (dolgu sözcükleri sayılmaz). */
 const result = (
   rows: AirportSearchRow[],
   total = rows.length,
   degraded = false,
-): AirportSearchResult => ({ rows, total, degraded })
+  queryLetters = 0,
+): AirportSearchResult => ({ rows, total, queryLetters, degraded })
 
 const aircraft = (hex: string, cs: string): PublicAircraft => ({ hex, cs }) as PublicAircraft
 const AJA123 = aircraft('4bb001', 'AJA123')
@@ -105,36 +107,41 @@ describe('submitOutcome: gönderimin kuralları (D-108)', () => {
     ).toEqual({ type: 'airport', airport: IST })
   })
 
-  it('2: tek havalimanı ve en az 4 harf → havalimanı açılır', () => {
-    expect(submitOutcome(input('esenboğa', SKIPPED, result([row(ESB, 'start')])))).toEqual({
-      type: 'airport',
-      airport: ESB,
-    })
-    expect(submitOutcome(input('esenboga', ok(), result([row(ESB, 'start')])))).toEqual({
-      type: 'airport',
-      airport: ESB,
-    })
-    // Sınır: 4 harf açar; boşluk, tire ve noktalama sayılmaz.
-    expect(submitOutcome(input('thyn', ok(), result([row(SFA, 'words')])))).toEqual({
+  it('2: tek havalimanı ve aranan sorguda en az 4 harf → havalimanı açılır', () => {
+    // Harf sayısı motorundur (`queryLetters`): "esenboğa" 8; "esenboğa hav" da 8 (yarım dolgu
+    // sözcüğü atıldı).
+    for (const [query, lookup, only, match, letters] of [
+      ['esenboğa', SKIPPED, ESB, 'start', 8],
+      ['esenboga', ok(), ESB, 'start', 8],
+      ['esenboğa hav', SKIPPED, ESB, 'start', 8],
+      ['gokcen', ok(), SAW, 'words', 6],
+    ] as const) {
+      expect(
+        submitOutcome(input(query, lookup, result([row(only, match)], 1, false, letters))),
+        query,
+      ).toEqual({ type: 'airport', airport: only })
+    }
+    // Sınır: 4 harf açar.
+    expect(submitOutcome(input('thyn', ok(), result([row(SFA, 'words')], 1, false, 4)))).toEqual({
       type: 'airport',
       airport: SFA,
     })
-    expect(submitOutcome(input('Ağrı', SKIPPED, result([row(ESB, 'start')])))).toEqual({
-      type: 'airport',
-      airport: ESB,
-    })
   })
 
-  it('2: 3 harfle tek ad eşleşmesi açılmaz → tek satırlık liste ("THY" Sfaks Thyna değil)', () => {
+  it('2: aranan sorguda 3 harfle tek ad eşleşmesi açılmaz → tek satırlık liste ("THY")', () => {
     for (const [query, lookup, only] of [
       ['THY', ok(), SFA],
       ['thy', ok(), SFA],
-      ['sab', ok(), SAW],
+      // Dolgu sözcükleri sayılmaz: motor yalnız "thy" ya da "gok" aradı (3 harf).
+      ['THY airport', ok(), SFA],
+      ['thy havalimanı', SKIPPED, SFA],
+      ['THY h', ok(), SFA],
+      ['gok hava', ok(), SAW],
       ['gök', SKIPPED, SAW],
       ['s-a.b', ok(), SAW],
       ['İst', SKIPPED, IST],
     ] as const) {
-      const airports = result([row(only, 'words')])
+      const airports = result([row(only, 'words')], 1, false, 3)
       expect(submitOutcome(input(query, lookup, airports)), query).toEqual({
         type: 'list',
         airports: airports.rows,
@@ -143,8 +150,14 @@ describe('submitOutcome: gönderimin kuralları (D-108)', () => {
         aircraftFailure: null,
       })
     }
+    // Ham sorgunun harfleri sayılmaz: "THY airport" 10 harf olsa da motor 3 harf aradı.
+    expect(
+      submitOutcome(input('THY airport', ok(), result([row(SFA, 'words')], 1, false, 3))).type,
+    ).toBe('list')
     // "THY" ile uçaklar da bulunduysa: havalimanı satırı ve uçaklar tek listede.
-    expect(submitOutcome(input('THY', ok(THY974, AJA123), result([row(SFA, 'words')])))).toEqual({
+    expect(
+      submitOutcome(input('THY', ok(THY974, AJA123), result([row(SFA, 'words')], 1, false, 3))),
+    ).toEqual({
       type: 'list',
       airports: [row(SFA, 'words')],
       airportTotal: 1,
@@ -153,8 +166,32 @@ describe('submitOutcome: gönderimin kuralları (D-108)', () => {
     })
     // Birden fazla havalimanı her zaman liste (4 harf ve üstü de).
     expect(
-      submitOutcome(input('sabiha', ok(), result([row(SAW, 'words'), row(IST, 'words')]))),
+      submitOutcome(
+        input('sabiha', ok(), result([row(SAW, 'words'), row(IST, 'words')], 2, false, 6)),
+      ),
     ).toEqual(expect.objectContaining({ type: 'list', airportTotal: 2 }))
+  })
+
+  it('2: ülke adıyla tek eşleşme açılmaz → tek satırlık liste ("turkish" Ercan değil)', () => {
+    const ECN = airport('LCEN', 'ECN')
+    for (const [query, letters] of [
+      ['turkish', 7],
+      ['turkish air', 7],
+      ['KKTC', 4],
+    ] as const) {
+      const airports = result([row(ECN, 'country')], 1, false, letters)
+      expect(submitOutcome(input(query, ok(), airports)), query).toEqual({
+        type: 'list',
+        airports: airports.rows,
+        airportTotal: 1,
+        aircraft: [],
+        aircraftFailure: null,
+      })
+    }
+    // Aynı harf sayısıyla ad eşleşmesi açılır.
+    expect(
+      submitOutcome(input('lefkoşa', SKIPPED, result([row(ECN, 'start')], 1, false, 7))),
+    ).toEqual({ type: 'airport', airport: ECN })
   })
 
   it('3: hiçbir şey yok → bulunamadı; metnin parçaları', () => {
@@ -410,18 +447,26 @@ describe('codeOnlyAirportSearch: ad parçası yüklenemezse yalnız tam kod', ()
   const search = codeOnlyAirportSearch([IST, SAW, ESB, LTBL], 'tr')
 
   it('IATA ya da ICAO, büyük-küçük harf ve Türkçe İ/ı yok sayılır', () => {
-    for (const query of ['ist', 'IST', 'İST', 'ıst', ' ltfm ', 'LTFM']) {
+    for (const [query, letters] of [
+      ['ist', 3],
+      ['IST', 3],
+      ['İST', 3],
+      ['ıst', 3],
+      [' ltfm ', 4],
+      ['LTFM', 4],
+    ] as const) {
       expect(search(query), query).toEqual({
         rows: [{ airport: IST, code: 'IST', name: '', place: '', match: 'code' }],
         total: 1,
+        queryLetters: letters,
         degraded: true,
       })
     }
   })
 
-  it('ad, önek ve askerî üs bulunmaz; sonuç yine degraded', () => {
-    for (const query of ['istanbul', 'es', 'LT', 'LTBL', 'IGL', 'Çiğli', '']) {
-      expect(search(query), query).toEqual({ rows: [], total: 0, degraded: true })
+  it('ad, önek, Türkçe harfli metin ve askerî üs bulunmaz; sonuç yine degraded', () => {
+    for (const query of ['istanbul', 'es', 'LT', 'LTBL', 'IGL', 'Çiğli', 'İŞT', '']) {
+      expect(search(query), query).toMatchObject({ rows: [], total: 0, degraded: true })
     }
   })
 })

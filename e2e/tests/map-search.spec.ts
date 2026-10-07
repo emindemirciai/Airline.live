@@ -2,11 +2,11 @@
 // (ARIA 1.2 combobox, ağ isteği yok), seçmek pine tıklamakla aynıdır (harita oraya gider, pencere
 // açılır, adres değişmez), Escape önce listeyi kapatır, pencere kapanınca odak kutuya döner. Enter
 // uçak aramasını da yapar: tek uçak seçilir, tam kodlu havalimanı açılır (en az 4 harfle tek
-// eşleşme de; "THY" ve "gok" listede kalır), ikisi yoksa açıklayıcı metin çıkar. Askerî hava üsleri
-// hiçbir sorguyla bulunmaz (D-103, D-107). Klavyedeki etkin seçenek uzun listede görünür kalır;
-// "Ara"dan açılan listede odak kutuya döner; telefonda dokunup seçmek klavyeyi kapatır, pencere
-// kapanınca kutu odak almaz. Her test tek sayfa yüklemesidir (her biri bir WebSocket el sıkışması,
-// `WS_RATE_LIMIT`).
+// eşleşme de; "THY", "THY airport", "gok" ve "turkish" listede kalır), ikisi yoksa açıklayıcı metin
+// çıkar. Askerî hava üsleri hiçbir sorguyla bulunmaz (D-103, D-107). Klavyedeki etkin seçenek uzun
+// listede görünür kalır; "Ara"dan açılan listede odak kutuya döner; telefonda dokunup seçmek
+// klavyeyi kapatır, pencere kapanınca kutu odak almaz. Her test tek sayfa yüklemesidir (her biri bir
+// WebSocket el sıkışması, `WS_RATE_LIMIT`).
 import { expect, test, type Locator, type Page } from '@playwright/test'
 import {
   airportListCodes,
@@ -146,10 +146,13 @@ test('ad, şehir ve kodla arama; askerî üsler bulunmaz; Enter tam kodu açar, 
 
   // 3 harfle tek ad eşleşmesi Enter'da açılmaz: "THY" (havayolu kodu) Sfaks Thyna'yı, "gok" Sabiha
   // Gökçen'i yalnız listede gösterir ("açmak için seç"; uçak da bulunduysa "birini seç"); kullanıcı
-  // seçer.
+  // seçer. Dolgu sözcüğü harf saymaz ("THY airport" yine 3 harftir); ülke adıyla tek eşleşme de
+  // açılmaz ("turkish" Ercan'ı, KKTC'nin İngilizce uzun adıyla bulur).
   for (const [query, code] of [
     ['THY', 'SFA'],
+    ['THY airport', 'SFA'],
     ['gok', 'SAW'],
+    ['turkish', 'ECN'],
   ] as const) {
     await input.fill(query)
     await input.press('Enter')
@@ -159,6 +162,7 @@ test('ad, şehir ve kodla arama; askerî üsler bulunmaz; Enter tam kodu açar, 
   }
   await expect(popup(page, 'DTTX')).toHaveCount(0)
   await expect(popup(page, 'LTFJ')).toHaveCount(0)
+  await expect(popup(page, 'LCEN')).toHaveCount(0)
 
   // Yurt dışı: Türkçe adla.
   await input.fill('Atina')

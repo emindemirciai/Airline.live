@@ -110,6 +110,54 @@ describe('havalimanı araması: fixture listesi (D-108)', () => {
     expect(tr('Adana').rows[0]?.name).not.toContain('Adana')
   })
 
+  it('yalnız aranan adlar: "Sabiha Gökçen" adın başıdır, "Cappadocia" Kapadokya', () => {
+    for (const search of [tr, en]) {
+      // Bütün adları "İstanbul" ile başlar; ek adla başlangıç basamağında, yabancı "Sa…"ların önünde.
+      expect(
+        search('sab').rows.map((row) => [row.code, row.match]),
+        'sab',
+      ).toEqual([
+        ['SAW', 'start'],
+        ['AFZ', 'start'],
+        ['SEB', 'start'],
+      ])
+      expect(codes('sa', search)[0], 'sa').toBe('SAW')
+      expect(codes('sabiha', search), 'sabiha').toEqual(['SAW'])
+      // "istanbul" ve "ist" değişmez.
+      expect(codes('istanbul', search).slice(0, 3)).toEqual(['IST', 'SAW', 'ISL'])
+      expect(codes('ist', search)[0]).toBe('IST')
+      // Kapadokya (NAV): verinin İngilizce adı "Kapadokya Airport"tur.
+      expect(codes('cap', search)[0], 'cap').toBe('NAV')
+      expect(codes('capp', search), 'capp').toEqual(['NAV'])
+      expect(codes('Cappadocia', search), 'Cappadocia').toEqual(['NAV'])
+      expect(codes('Cappadocia Airport', search)).toEqual(['NAV'])
+    }
+    // Satır ek adı göstermez.
+    expect(en('Cappadocia').rows[0]?.name).toBe('Kapadokya Airport')
+    expect(en('Cappadocia').rows[0]?.place).not.toContain('Cappadocia')
+    expect(tr('sab').rows[0]?.name).toBe('İstanbul Sabiha Gökçen Uluslararası Havalimanı')
+  })
+
+  it('Türkçe harfli sorgu tam kod değildir: "küt" Kütahya (Zafer) ve Kutaisi, KUT kodu değil', () => {
+    for (const search of [tr, en]) {
+      expect(
+        search('küt').rows.map((row) => [row.code, row.match]),
+        'küt',
+      ).toEqual([
+        ['KZR', 'start'],
+        ['KUT', 'start'],
+      ])
+      expect(search('kut').rows[0], 'kut').toMatchObject({ code: 'KUT', match: 'code' })
+      // "buş" Batum'u (BUS), "haş" Hail'i (HAS) tam kodla bulmaz.
+      for (const query of ['küt', 'buş', 'haş']) {
+        expect(
+          search(query).rows.map((row) => row.match),
+          query,
+        ).not.toContain('code')
+      }
+    }
+  })
+
   it('ek adların her anahtarı listelenen sivil havalimanıdır (eskiyen anahtar testi bozar)', () => {
     const listed = new Set(AIRPORTS.map((a) => a.icao))
     for (const icao of Object.keys(AIRPORT_SEARCH_PLACES)) {
@@ -120,7 +168,7 @@ describe('havalimanı araması: fixture listesi (D-108)', () => {
 
   it('3 harfle öneri: "sab" Sabiha Gökçen, "gok" ve "gök" Sabiha Gökçen, "ant" Antalya', () => {
     for (const search of [tr, en]) {
-      expect(codes('sab', search), 'sab').toContain('SAW')
+      expect(codes('sab', search)[0], 'sab').toBe('SAW')
       expect(codes('gok', search), 'gok').toEqual(['SAW'])
       expect(codes('gök', search), 'gök').toEqual(['SAW'])
       // "ant": Antalya ve yeri Antalya ya da Antakya olanlar, ek adla Gaziantep ("Antep").
@@ -137,7 +185,7 @@ describe('havalimanı araması: fixture listesi (D-108)', () => {
     }
   })
 
-  it('Enter (uçak yok): tam kod ya da en az 4 harfle tek eşleşme açılır; "THY" ve "sab" liste', () => {
+  it('Enter (uçak yok): tam kod ya da en az 4 harfle tek ad eşleşmesi açılır; "THY", "sab" liste', () => {
     const NO_AIRCRAFT: AircraftLookup = { status: 'ok', kind: 'callsign', results: [] }
     const enter = (query: string, search = tr): SubmitOutcome =>
       submitOutcome({
@@ -158,10 +206,36 @@ describe('havalimanı araması: fixture listesi (D-108)', () => {
       expect(opened(enter('İST', search))).toBe('IST')
       expect(opened(enter('thyna', search))).toBe('SFA')
       expect(opened(enter('gokcen', search))).toBe('SAW')
+      expect(opened(enter('Cappadocia', search))).toBe('NAV')
       // "THY": öneride Sfaks Thyna var, Enter onu açmaz; liste gösterilir.
       expect(listed(enter('THY', search))).toEqual(['SFA'])
       expect(listed(enter('thy', search))).toEqual(['SFA'])
-      expect(listed(enter('sab', search))).toContain('SAW')
+      // Dolgu sözcükleri harf saymaz: motor yalnız "thy" ve "gok" aradı (yarım sözcük yedekte atılır).
+      for (const query of [
+        'THY air',
+        'THY hava',
+        'THY airport',
+        'thy havalimanı',
+        'THY h',
+        'THY a',
+      ]) {
+        expect(listed(enter(query, search)), query).toEqual(['SFA'])
+      }
+      for (const query of ['gok hava', 'gok hav', 'gok h']) {
+        expect(listed(enter(query, search)), query).toEqual(['SAW'])
+      }
+      // Ülke adıyla tek eşleşme açılmaz: "Turkish Air(lines)" yazılırken Ercan (KKTC'nin İngilizce
+      // uzun adı "Turkish Republic of Northern Cyprus").
+      for (const query of ['turkish', 'turkish air', 'turkish a', 'turkis', 'KKTC']) {
+        expect(
+          search(query).rows.map((row) => row.match),
+          query,
+        ).toEqual(['country'])
+        expect(listed(enter(query, search)), query).toEqual(['ECN'])
+      }
+      // Türkçe harfli 3 harf tam kod değildir: "küt" Kutaisi'yi (KUT) açmaz.
+      expect(listed(enter('küt', search))).toEqual(['KZR', 'KUT'])
+      expect(listed(enter('sab', search))).toEqual(['SAW', 'AFZ', 'SEB'])
       expect(listed(enter('gok', search))).toEqual(['SAW'])
       expect(listed(enter('ant', search))).toEqual(['AYT', 'GZT', 'GZP', 'HTY'])
     }
@@ -199,7 +273,7 @@ describe('havalimanı araması: fixture listesi (D-108)', () => {
   })
 
   it('rakamlı sorgu ad aramaz; tek karakter hiçbir şey bulmaz', () => {
-    expect(tr('TK1985')).toEqual({ rows: [], total: 0, degraded: false })
+    expect(tr('TK1985')).toEqual({ rows: [], total: 0, queryLetters: 2, degraded: false })
     expect(tr('i').rows).toEqual([])
     expect(tr('havalimanı').rows).toEqual([])
   })

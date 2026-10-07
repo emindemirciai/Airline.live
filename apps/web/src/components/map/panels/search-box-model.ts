@@ -32,10 +32,20 @@ export interface AirportSearchRow {
   match: AirportSearchMatch
 }
 
-/** Bir havalimanı araması: en fazla 8 satır, bütün eşleşmelerin sayısı, adların yüklenip yüklenmediği. */
+/**
+ * Bir havalimanı araması: en fazla 8 satır, bütün eşleşmelerin sayısı, aranan sorgunun harf sayısı,
+ * adların yüklenip yüklenmediği.
+ */
 export interface AirportSearchResult {
   rows: readonly AirportSearchRow[]
   total: number
+  /**
+   * Motorun aradığı sorgudaki harf sayısı (`@havayolu/shared` `searchAirportIndex`): dolgu sözcükleri
+   * ve yedekte atılan yarım dolgu sözcüğü sayılmaz ("THY airport" ve "THY h" 3, "esenboğa hav" 8).
+   * Enter kuralı bununla sayar (`AIRPORT_OPEN_MIN_LETTERS`); ilk paket motoru içe aktarmadığı için
+   * sonuçla gelir.
+   */
+  queryLetters: number
   /** Ad parçası yüklenemedi: yalnız tam kodla arandı (`codeOnlyAirportSearch`). */
   degraded: boolean
 }
@@ -49,9 +59,17 @@ export type AirportSearchBuilder = (
   locale: Locale,
 ) => AirportSearch
 
-export const NO_AIRPORT_RESULTS: AirportSearchResult = { rows: [], total: 0, degraded: false }
+export const NO_AIRPORT_RESULTS: AirportSearchResult = {
+  rows: [],
+  total: 0,
+  queryLetters: 0,
+  degraded: false,
+}
 
-/** Sorgunun havalimanı kodu biçimi: kırpılır, Türkçe İ/ı karşılığına döner, büyük harf, boşluksuz. */
+/**
+ * Sorgunun havalimanı kodu biçimi: kırpılır, Türkçe İ/ı karşılığına döner, büyük harf, boşluksuz.
+ * Motorun tam kod kuralıyla aynıdır (`airport-search.ts` `codeKey`).
+ */
 function airportCodeKey(query: string): string {
   return query.trim().replace(/İ/g, 'I').replace(/ı/g, 'i').toUpperCase().replace(/\s+/g, '')
 }
@@ -59,14 +77,16 @@ function airportCodeKey(query: string): string {
 /**
  * Ad parçası yüklenemezse (`withImportFallback`) kullanılan arama: yalnız tam IATA ya da ICAO kodu
  * ("ist", "LTFM"). Askerî hava üsleri aranmaz (`mapShownAirports`). Satırda ad ve yer yoktur; sonuç
- * `degraded` işaretlidir (durum satırı adların yüklenemediğini söyler).
+ * `degraded` işaretlidir (durum satırı adların yüklenemediğini söyler). Yalnız tam kod döndüğü için
+ * harf sayısı sorgunun kendisinindir (tam kod Enter'da harf sayısına bakılmadan açılır).
  */
 export const codeOnlyAirportSearch: AirportSearchBuilder = (airports) => {
   const shown = mapShownAirports(airports)
   return (query) => {
     const key = airportCodeKey(query)
+    const queryLetters = letterCount(key)
     const airport = key.length >= 3 && key.length <= 4 ? findAirportByCode(shown, key) : undefined
-    if (airport === undefined) return { rows: [], total: 0, degraded: true }
+    if (airport === undefined) return { rows: [], total: 0, queryLetters, degraded: true }
     const row: AirportSearchRow = {
       airport,
       code: airport.iata || airport.icao,
@@ -74,7 +94,7 @@ export const codeOnlyAirportSearch: AirportSearchBuilder = (airports) => {
       place: '',
       match: 'code',
     }
-    return { rows: [row], total: 1, degraded: true }
+    return { rows: [row], total: 1, queryLetters, degraded: true }
   }
 }
 
@@ -89,16 +109,18 @@ export function hasDigit(query: string): boolean {
 
 /**
  * Sorgudaki harf sayısı; rakam, boşluk ve noktalama sayılmaz ("esenboğa" 8, "İst" 3). Katlanmış
- * sorgunun sayısıdır: katlama aksanı ve büyük harfi kaldırır, harf atmaz.
+ * sorgunun sayısıdır: katlama aksanı ve büyük harfi kaldırır, harf atmaz. Dolgu sözcüklerini bilmez:
+ * Enter kuralı motorun saydığını kullanır (`AirportSearchResult.queryLetters`).
  */
 function letterCount(query: string): number {
   return query.match(LETTER)?.length ?? 0
 }
 
 /**
- * Enter'da tam kod olmayan tek havalimanı eşleşmesinin doğrudan açılması için sorgudaki en az harf
- * (D-108). 3 harf havayolu kodu da olabilir ("THY" Sfaks Thyna'nın sözcük başıdır) ya da yazarken
- * yarım kalmış bir adın başıdır ("sab"); ikisinde de liste gösterilir, kullanıcı seçer.
+ * Enter'da tam kod olmayan tek havalimanı eşleşmesinin doğrudan açılması için aranan sorgudaki en az
+ * harf (`AirportSearchResult.queryLetters`, D-108). 3 harf havayolu kodu da olabilir ("THY" Sfaks
+ * Thyna'nın sözcük başıdır) ya da yazarken yarım kalmış bir adın başıdır ("gok"); ikisinde de liste
+ * gösterilir, kullanıcı seçer. Dolgu sözcükleri sayılmaz: "THY airport", "THY h" de 3 harftir.
  */
 const AIRPORT_OPEN_MIN_LETTERS = 4
 
@@ -261,9 +283,12 @@ export type SubmitOutcome =
 /**
  * Gönderimin kuralları, sırayla (D-108):
  * 1. Tek uçak bulundu ve hiçbir havalimanı eşleşmedi → uçak seçilir.
- * 2. Uçak yok (ya da sorgu uçak olamaz) ve ilki tam kod (IATA ya da ICAO) ya da tek havalimanı ve
- *    sorguda en az 4 harf (`AIRPORT_OPEN_MIN_LETTERS`) → havalimanı açılır. "THY" Sfaks Thyna'yı,
- *    "sab" Sabiha Gökçen'i açmaz: ikisi de 5. kurala gider (tek satırlık liste).
+ * 2. Uçak yok (ya da sorgu uçak olamaz) ve ilki tam kod (IATA ya da ICAO) ya da tek havalimanı, ülke
+ *    basamağında değil ve aranan sorguda en az 4 harf (`queryLetters`, `AIRPORT_OPEN_MIN_LETTERS`;
+ *    dolgu sözcükleri sayılmaz) → havalimanı açılır. "THY", "THY airport" ve "THY h" Sfaks Thyna'yı,
+ *    "gok" Sabiha Gökçen'i açmaz: 5. kurala gider (tek satırlık liste). Ülke adıyla tek eşleşme de
+ *    açılmaz: "turkish" ("Turkish Airlines" yazılırken) Ercan'ı (KKTC'nin İngilizce uzun adı)
+ *    yalnız tek satırlık listede gösterir.
  * 3. Uçak yok ve havalimanı yok → bulunamadı (uçak araması atlandıysa havalimanı metni; değilse
  *    uçak metni, sefer no notu ve rakamsız sorguda havalimanı ipucu; havalimanı metnine ve ipucuna
  *    kapsama cümlesi eklenir). Uçak araması atlandı ve havalimanı listesi yüklenmedi → hata (hiçbir
@@ -287,7 +312,9 @@ export function submitOutcome({
     aircraft.status === 'skipped' || (aircraft.status === 'ok' && aircraft.results.length === 0)
   const opensAirport =
     firstAirport?.match === 'code' ||
-    (airports.total === 1 && letterCount(query) >= AIRPORT_OPEN_MIN_LETTERS)
+    (airports.total === 1 &&
+      firstAirport?.match !== 'country' &&
+      airports.queryLetters >= AIRPORT_OPEN_MIN_LETTERS)
   if (noAircraft && firstAirport && opensAirport) {
     return { type: 'airport', airport: firstAirport.airport }
   }
