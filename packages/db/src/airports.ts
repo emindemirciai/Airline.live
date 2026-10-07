@@ -436,6 +436,27 @@ function listedSelection<R extends AirportSourceRow>(
 }
 
 /**
+ * Kanonik ICAO çakışmaları (D-109, içe aktarım kayması): liste kuralına giren satırlardan (Türkiye
+ * satırları ve yurt dışı adayları; üç harfli IATA, liste türü, askerî alan değil) aynı kanonik
+ * ICAO'yu taşıyanlar. `listedEntries` en küçük kimlikli satırı tutar, öbürünü sessizce atar; bu
+ * işlev atılanların ICAO'larını sırasıyla verir (2026-10-01 indirmesinde hiç yok).
+ */
+export function canonicalIcaoCollisions(rows: readonly AirportSourceRow[]): string[] {
+  const seen = new Set<string>()
+  const collisions: string[] = []
+  for (const row of byId(rows)) {
+    if (!isTurkishRow(row) && !isForeignCandidateRow(row)) continue
+    const iata = present(row.iataCode)?.toUpperCase() ?? ''
+    if (!isListableRow(row, iata)) continue
+    const icao = ourAirportsIcao(row)
+    if (icao === '' || MILITARY_AIRFIELDS.has(icao)) continue
+    if (seen.has(icao)) collisions.push(icao)
+    else seen.add(icao)
+  }
+  return collisions
+}
+
+/**
  * Saf kısım: listelenen havalimanları (D-080). Türkiye satırları liste kuralıyla
  * (`toListedAirports`); yurt dışı satırları aday kuralıyla (büyük ya da orta, tarifeli, üç harfli
  * IATA, dört karakterli kanonik ICAO; D-101) ve halkası `enabledRing`'i aşmıyorsa. Satırlar kimlik
@@ -968,6 +989,34 @@ export async function listAirportDetails(
     listedEntries(rows, { turkey, ringsKm: rings.ringsKm }),
     canonicalIcaos(rows),
   )
+}
+
+/** İçe aktarım kayması ölçümünün veritabanı girdisi (D-109; worker'ın günlük satırı). */
+export interface ListingDriftInput {
+  /** Listelenen havalimanları pistleriyle (`listListedAirportDetails` ile aynı). */
+  airports: AirportDetailRecord[]
+  /** Kanonik ICAO çakışmaları (`canonicalIcaoCollisions`). */
+  icaoCollisions: string[]
+}
+
+/**
+ * İçe aktarımdan sonra listenin kayma ölçümü için okuma (D-109): listelenen havalimanları
+ * pistleriyle ve aday satırlardaki kanonik ICAO çakışmaları. Worker gece içe aktarımından sonra bir
+ * kez çağırır.
+ */
+export async function readListingDrift(
+  db: PostgresJsDatabase,
+  rings: AirportRingConfig,
+): Promise<ListingDriftInput> {
+  const { rows, turkey } = await readListedRows(db, async (where) =>
+    db.select(detailAirportColumns).from(airports).where(where).orderBy(asc(airports.id)),
+  )
+  const airportsWithRunways = await readDetails(
+    db,
+    listedSelection(rows, { turkey, ringsKm: rings.ringsKm, enabledRing: rings.enabledRing }),
+    canonicalIcaos(rows),
+  )
+  return { airports: airportsWithRunways, icaoCollisions: canonicalIcaoCollisions(rows) }
 }
 
 /**

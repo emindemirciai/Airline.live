@@ -1,6 +1,7 @@
 import {
   createRedis,
   maintainTrackPartitions,
+  readListingDrift,
   referenceStatus,
   type Database,
   type ReferenceOrigin,
@@ -11,6 +12,7 @@ import {
   PROVIDER_LICENSES,
   providerUserAgent,
 } from '@havayolu/providers'
+import { AIRPORT_RING_CONFIG } from '@havayolu/shared'
 import {
   Queue,
   UnrecoverableError,
@@ -364,8 +366,11 @@ export async function startJobs({
           origin: mode.origin,
           log,
           now,
+          readDrift: () => readListingDrift(database.db, AIRPORT_RING_CONFIG),
         })
-        log.info({ result }, 'referans içe aktarımı bitti')
+        // Kayma sayımları kendi satırındadır (`referans verisi kayması`, D-109).
+        const { drift: _drift, ...summary } = result
+        log.info({ result: summary }, 'referans içe aktarımı bitti')
         const failed = Object.entries(result).filter(([, outcome]) => outcome.status === 'failed')
         // Başarısız kaynak varsa iş başarısız sayılır ve BullMQ geri çekilmeyle yeniden dener.
         if (failed.length > 0) {
