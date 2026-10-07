@@ -40,6 +40,11 @@ export const tr = {
     airport: {
       title: '{name} ({iata}/{icao}) canlı hava trafiği ve pistler',
       /**
+       * Canlı veri çekim alanının dışındaki havalimanının başlığı: canlı trafik vaat edilmez (D-106).
+       * Hava durumu da vaat edilmez (her havalimanının METAR'ı yoktur; M6b brief §b, §i).
+       */
+      titleOutside: '{name} ({iata}/{icao}): pistler ve havalimanı bilgileri',
+      /**
        * `{facts}`: aşağıdaki parçalardan veriye göre seçilenler, "; " ile birleşik. `{place}`: Türkiye'de
        * il, Türkiye dışında ülke (M6d).
        */
@@ -767,7 +772,7 @@ export const tr = {
       adsb: 'Uçak konumları uçakların yayınladığı ADS-B sinyallerinden, bazı uçaklarda birden çok alıcının ölçümüyle hesaplanan çok noktalı konumlandırmadan (MLAT) gelir. Sinyalleri yerdeki alıcılardan toplayan {source} ağı tek canlı veri kaynağıdır.',
       /** Önce canlı veri alanı, sonra alıcı kapsaması (D-106); llms.txt bu cümleyi ayrı satırda taşır. */
       coverage:
-        'Canlı uçak verisi şimdilik yalnızca Türkiye ve çevresinden çekilir; bu alanın dışında haritada uçak görünmez. Alanın içinde de kapsama alıcılara bağlıdır: alçak irtifadaki ve yerdeki uçaklar bazı bölgelerde görünmeyebilir.',
+        'Canlı uçak verisi şimdilik yalnızca Türkiye ve çevresinden çekilir; bu alanın dışındaki uçakların çoğu haritada görünmez. Alanın içinde de kapsama alıcılara bağlıdır: alçak irtifadaki ve yerdeki uçaklar bazı bölgelerde görünmeyebilir.',
       /** `{radius}`: birincil istasyonun en sık çekilen çemberi (PRIMARY_EXTRA_RADIUS_NM, D-073). */
       freshness:
         'Hedeflenen veri yaşı: birincil istasyonun {radius} çevresinde yaklaşık 20 sn, diğer izlenen havalimanlarının çevresinde yaklaşık 30 sn, Doğu Türkiye’yi kapsayan veri çekim alanında yaklaşık 90 sn. Haritadaki durum satırı birincil istasyonun çevresindeki gerçekleşen veri yaşını gösterir (bu bilgi yoksa en yeni verinin yaşını); haritada bakılan bölgenin veri yaşı bundan farklı olabilir.',
@@ -780,10 +785,10 @@ export const tr = {
         'Türkiye’de canlı veri çekim alanının dışında kalan havalimanları; çevrelerindeki uçaklar haritada görünmeyebilir:',
       /** `{km}`: açık halkaların sınırı (`ENABLED_AIRPORT_RING`, D-080). */
       abroad:
-        'Havalimanı listesinde şimdilik Türkiye’nin havalimanları ile Türkiye’deki en yakın havalimanına uzaklığı en fazla {km} olan, IATA kodlu büyük ve orta boy havalimanları yer alır.',
+        'Havalimanı listesinde şimdilik Türkiye’nin IATA kodlu havalimanları ile diğer ülkelerin, Türkiye’deki en yakın havalimanına uzaklığı en fazla {km} olan, IATA kodlu büyük ve orta boy havalimanları yer alır.',
       /** Bütün halkalar açıksa (uzaklık sınırı yok). */
       abroadAll:
-        'Havalimanı listesinde Türkiye’nin havalimanları ile diğer ülkelerin IATA kodlu büyük ve orta boy havalimanları yer alır.',
+        'Havalimanı listesinde Türkiye’nin IATA kodlu havalimanları ile diğer ülkelerin IATA kodlu büyük ve orta boy havalimanları yer alır.',
       abroadCoverage:
         'Diğer ülkelerdeki havalimanlarının çoğu canlı veri çekim alanının dışındadır; çevrelerindeki uçaklar haritada görünmeyebilir.',
       primary: 'birincil istasyon',

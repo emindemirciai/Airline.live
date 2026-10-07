@@ -28,6 +28,7 @@ export const en: Messages = {
     },
     airport: {
       title: '{name} ({iata}/{icao}) live air traffic and runways',
+      titleOutside: '{name} ({iata}/{icao}): runways and airport information',
       description: '{name}, {place}: {facts}. {live}',
       descriptionNoFacts: '{name}, {place}. {live}',
       liveCovered: 'See nearby aircraft on the live map; no schedule data.',
@@ -75,7 +76,7 @@ export const en: Messages = {
     foreign: {
       heading: 'Airports in other countries',
       scope:
-        'For now, the list has large and medium airports with an IATA code at most {km} from the nearest airport in Türkiye; some airports are not listed.',
+        'For now, the list includes large and medium airports with an IATA code at most {km} from the nearest airport in Türkiye; some airports are not listed.',
       scopeAll: 'Large and medium airports with an IATA code; some airports are not listed.',
       coverage:
         'Live aircraft data is currently fetched only over Türkiye and the surrounding area: most of these airports are outside that area, so aircraft around them may not appear on the live map. Each airport’s page says so as well.',
@@ -633,16 +634,16 @@ export const en: Messages = {
       heading: 'Method',
       adsb: 'Aircraft positions come from the ADS-B signals that aircraft broadcast and, for some aircraft, from multilateration (MLAT), which computes the position from several receivers’ measurements. The {source} network, which collects these signals from receivers on the ground, is the only live data source.',
       coverage:
-        'Live aircraft data is currently fetched only over Türkiye and the surrounding area; outside it, no aircraft appear on the map. Within it, coverage depends on receivers: aircraft at low altitude or on the ground may be missing in some areas.',
+        'Live aircraft data is currently fetched only over Türkiye and the surrounding area; most aircraft outside it do not appear on the map. Within it, coverage depends on receivers: aircraft at low altitude or on the ground may be missing in some areas.',
       freshness:
         'Target data age: about 20 s within {radius} of the primary station, about 30 s around the other monitored airports and about 90 s in the data fetch area over eastern Türkiye. The status line on the map shows the actual data age around the primary station (or, if that is unavailable, the age of the newest data); the area you are viewing may differ.',
       stations: 'Monitored airports:',
       outside:
         'Airports in Türkiye outside the live data fetch area; aircraft around them may not appear on the map:',
       abroad:
-        'For now, the airport list has Türkiye’s airports and the large and medium airports with an IATA code at most {km} from the nearest airport in Türkiye.',
+        'For now, the airport list includes airports in Türkiye with an IATA code and, in other countries, large and medium airports with an IATA code at most {km} from the nearest airport in Türkiye.',
       abroadAll:
-        'The airport list has Türkiye’s airports and the large and medium airports with an IATA code in other countries.',
+        'The airport list includes airports in Türkiye with an IATA code and large and medium airports with an IATA code in other countries.',
       abroadCoverage:
         'Most airports in other countries are outside the live data fetch area, so aircraft around them may not appear on the map.',
       primary: 'primary station',

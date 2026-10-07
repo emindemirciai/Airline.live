@@ -99,7 +99,7 @@ describe('AboutContent', () => {
       'Havalimanları: listedeki her havalimanının kodları, pistleri ve en yakın havalimanları.',
     )
     expect(tr).toContain(
-      'Havalimanı listesinde şimdilik Türkiye’nin havalimanları ile Türkiye’deki en yakın havalimanına uzaklığı en fazla 2.000 km olan, IATA kodlu büyük ve orta boy havalimanları yer alır. Diğer ülkelerdeki havalimanlarının çoğu canlı veri çekim alanının dışındadır',
+      'Havalimanı listesinde şimdilik Türkiye’nin IATA kodlu havalimanları ile diğer ülkelerin, Türkiye’deki en yakın havalimanına uzaklığı en fazla 2.000 km olan, IATA kodlu büyük ve orta boy havalimanları yer alır. Diğer ülkelerdeki havalimanlarının çoğu canlı veri çekim alanının dışındadır',
     )
     // Kapsama dürüstlüğü (D-106): canlı veri alanı ürün tercihi değil, bugünkü sınır olarak yazılır.
     expect(tr).toContain('Canlı uçak verisi şimdilik yalnızca Türkiye ve çevresinden çekilir')

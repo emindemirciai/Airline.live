@@ -16,15 +16,14 @@ export function airportPageMetadata(o: {
   airport: AirportDetail
   airports: readonly AirportDetail[]
 }): Metadata {
+  // Başlık ve açıklama canlı veri çekim alanına bakar: dışındaki havalimanı canlı trafik ve
+  // çevredeki uçak vaat etmez (D-076, D-106).
+  const covered = isInLiveCoverage(o.airport, liveCoveragePlan(o.airports))
   return pageMetadata({
     locale: o.locale,
     path: airportPath(o.airport.icao),
-    title: airportTitle(o.airport, o.locale),
-    description: airportDescription(
-      o.airport,
-      o.locale,
-      isInLiveCoverage(o.airport, liveCoveragePlan(o.airports)),
-    ),
+    title: airportTitle(o.airport, o.locale, covered),
+    description: airportDescription(o.airport, o.locale, covered),
     // Adı doğrulanmamış, tarifesiz ve istasyon olmayan yeni kayıt: `noindex, follow`; site
     // haritasında da yok (lib/airports.ts → `isIndexable`, D-076, D-084). Askerî hava üsleri
     // listede olmadığı için sayfaları 404'tür (D-107).

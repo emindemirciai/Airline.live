@@ -53,8 +53,8 @@ export interface AirportViewProps {
   app: string
   airport: AirportDetail
   /**
-   * Listelenen bütün havalimanları (Türkiye ve yakın ülkeler): en yakınlar, aynı ildeki diğerleri ve
-   * Türkiye'deki en yakın havalimanı bunlardan hesaplanır.
+   * Listelenen bütün havalimanları (Türkiye ve diğer ülkeler): en yakınlar, aynı ildeki diğerleri ve
+   * canlı veri kapsaması bunlardan hesaplanır.
    */
   airports: readonly AirportDetail[]
   /**

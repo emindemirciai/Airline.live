@@ -10,7 +10,8 @@
 // - /havalimanlari: Türkiye tablosundan sonra "Diğer ülkelerdeki havalimanları" tablosu (442 satır,
 //   ülkeye göre Türkçe sıralı, ülke sütunu; Türkiye'ye uzaklık sütunu yok, D-106); Kahire ve Viyana satırları
 // - /istasyon/HECA (2. halka) ve /istasyon/LOWW (3. halka), iki dilde: ad, ülke, dizine eklenir, yerel
-//   saat havalimanınınki; `?havalimani=HECA` ve `?havalimani=LOWW` haritada o havalimanında açar,
+//   saat havalimanınınki; Viyana'nın başlığı çekim alanının dışında olduğu için canlı trafik vaat etmez
+//   (D-106); `?havalimani=HECA` ve `?havalimani=LOWW` haritada o havalimanında açar,
 //   pencere ülkeyi ve yerel saati gösterir
 // - /istasyon/UUOO (Voronej): "Sivil uçuşlara kapalı olabilir (2022’den beri)" notu, iki dilde (D-090)
 // - /istasyon/LGAV ve /en/istasyon/LGAV: ülke, hava durumu, harita bağlantısı, dizine eklenir,
@@ -22,7 +23,7 @@
 //   sayfada gün doğumu ve batımı, METAR/TAF kaydının girişi yerel saat ve şu anki fark, "Türkiye
 //   saati" notu yok
 import { expect, test, type Locator, type Page } from '@playwright/test'
-import { jsonLdNodes, metaContents, nodesOfType, type JsonLdNode } from '../html'
+import { jsonLdNodes, metaContents, nodesOfType, titles, type JsonLdNode } from '../html'
 import { mapCenter } from '../label-canvas'
 import {
   AIRPORT_COUNT,
@@ -71,6 +72,7 @@ const COPY = {
     ring2Name: RING2_AIRPORT.nameTr,
     ring3Country: RING3_AIRPORT.countryTr,
     ring3Name: RING3_AIRPORT.nameTr,
+    titleOutside: 'pistler ve havalimanı bilgileri',
     closure: CIVIL_CLOSURE_AIRPORT.noteTr,
     kktc: new RegExp(KKTC_AIRPORT.shortTr),
     collator: 'tr-TR',
@@ -95,6 +97,7 @@ const COPY = {
     ring2Name: RING2_AIRPORT.nameEn,
     ring3Country: RING3_AIRPORT.countryEn,
     ring3Name: RING3_AIRPORT.nameEn,
+    titleOutside: 'runways and airport information',
     closure: CIVIL_CLOSURE_AIRPORT.noteEn,
     kktc: new RegExp(`${KKTC_AIRPORT.shortEn}|Turkish Republic of Northern Cyprus`),
     collator: 'en-GB',
@@ -415,6 +418,10 @@ test.describe('havalimanı sayfası', () => {
       const { response, body } = await fetchRaw(request, ring3Path)
       expect(response.status(), ring3Path).toBe(200)
       expect(metaContents(body, 'robots').join(', '), `${ring3Path}: robots`).not.toMatch(/noindex/)
+      // Viyana canlı veri çekim alanının dışındadır: başlık ve og:title canlı trafik vaat etmez (D-106).
+      const title = `${copy.ring3Name} (${RING3_AIRPORT.iata}/${RING3_AIRPORT.icao}): ${copy.titleOutside}`
+      expect(titles(body)[0], `${ring3Path}: <title>`).toBe(`${title} · havayolu`)
+      expect(metaContents(body, 'og:title'), `${ring3Path}: og:title`).toEqual([title])
       const airport = nodesOfType(jsonLdNodes(body), 'Airport')[0]
       expect(airport?.icaoCode).toBe(RING3_AIRPORT.icao)
       const address = isRecord(airport?.address) ? airport.address : {}
