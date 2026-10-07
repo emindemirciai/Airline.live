@@ -4,6 +4,23 @@ import { ourAirportsIcao } from '@havayolu/db'
 import { parseAirports } from '@havayolu/providers'
 import { LiveArgsError } from './args'
 
+/**
+ * Klasör başına bir kez ayrıştırılan fixture satırları (D-109: 5. halkayla 3.624 satır; smoke her
+ * istasyon için, testler her çağrıda yeniden ayrıştırıyordu).
+ */
+const parsedFixtures = new Map<string, ReturnType<typeof parseAirports>['rows']>()
+
+function fixtureAirports(fixturesDir: string): ReturnType<typeof parseAirports>['rows'] {
+  let rows = parsedFixtures.get(fixturesDir)
+  if (rows === undefined) {
+    rows = parseAirports(
+      readFileSync(join(fixturesDir, 'ourairports', 'airports.csv'), 'utf8'),
+    ).rows
+    parsedFixtures.set(fixturesDir, rows)
+  }
+  return rows
+}
+
 export interface StationPoint {
   icao: string
   lat: number
@@ -21,8 +38,7 @@ export function findStationPoint(icao: string, fixturesDir: string): StationPoin
   if (!/^[A-Z]{4}$/.test(code)) {
     throw new LiveArgsError('--station 4 harfli bir ICAO kodu olmalı (ör. LTFM)')
   }
-  const csv = readFileSync(join(fixturesDir, 'ourairports', 'airports.csv'), 'utf8')
-  const row = parseAirports(csv).rows.find((airport) => ourAirportsIcao(airport) === code)
+  const row = fixtureAirports(fixturesDir).find((airport) => ourAirportsIcao(airport) === code)
   if (row === undefined) {
     throw new LiveArgsError(
       `${code} OurAirports fixture'ında yok (tools/fixtures/ourairports/airports.csv)`,

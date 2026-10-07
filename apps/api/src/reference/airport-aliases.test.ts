@@ -33,6 +33,8 @@ async function get(code: string) {
 }
 
 describe('GET /v1/airports/:code ve adres takma adı (D-109)', () => {
+  // Fixture'ı bu dosyada ilk ayrıştıran test: yerelde ~1,2 sn. Süre sınırı yalnız 1 sn'yi aşan
+  // fixture testlerinde açıkça yazılır (D-105, D-109).
   it('4. halka açıkken Semerkant’ın eski kodu UTSS kanonik kaydı (UZSS) verir; kayıt takma adı taşır', async () => {
     expect(ENABLED_AIRPORT_RING).toBe(4)
     for (const code of ['UTSS', 'utss', 'UZSS', 'SKD']) {
@@ -47,7 +49,7 @@ describe('GET /v1/airports/:code ve adres takma adı (D-109)', () => {
     // Takma adı olmayan kayıtta alan yazılmaz.
     const ist = await get('LTFM')
     expect(Object.hasOwn(ist.json<AirportDetail>(), 'identAlias')).toBe(false)
-  })
+  }, 30_000)
 
   it('5. halkanın fixture satırlarıyla: SPIM → SPJC, KPBI → KDJT; WABP takma ad değildir', async () => {
     const lima = await get('SPIM')
