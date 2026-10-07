@@ -7,6 +7,7 @@ import { describe, expect, it } from 'vitest'
 import { fixtureListedAirports } from '../../../lib/test/ourairports-fixture'
 import { toMapAirport, type MapAirport } from '../airport-data'
 import { buildAirportSearch } from './airport-search-index'
+import { submitOutcome, type AircraftLookup, type SubmitOutcome } from './search-box-model'
 
 /** Haritanın listesi: fixture'ın listelenen havalimanları (D-080; askerî üs yok, D-107). */
 const AIRPORTS: MapAirport[] = fixtureListedAirports().flatMap((detail) => {
@@ -117,12 +118,52 @@ describe('havalimanı araması: fixture listesi (D-108)', () => {
     }
   })
 
-  it('"THY" havalimanı bulmaz (havayolu kodu; Sfaks Thyna yalnız 4 harfle); "GAP" bulur', () => {
+  it('3 harfle öneri: "sab" Sabiha Gökçen, "gok" ve "gök" Sabiha Gökçen, "ant" Antalya', () => {
     for (const search of [tr, en]) {
-      expect(search('THY').rows, 'THY').toEqual([])
-      expect(search('thy').rows, 'thy').toEqual([])
-      expect(codes('thyna', search)).toEqual(['SFA'])
+      expect(codes('sab', search), 'sab').toContain('SAW')
+      expect(codes('gok', search), 'gok').toEqual(['SAW'])
+      expect(codes('gök', search), 'gök').toEqual(['SAW'])
+      // "ant": Antalya ve yeri Antalya ya da Antakya olanlar, ek adla Gaziantep ("Antep").
+      expect(codes('ant', search), 'ant').toEqual(['AYT', 'GZT', 'GZP', 'HTY'])
       expect(codes('GAP', search)).toEqual(['GNY'])
+    }
+  })
+
+  it('"THY" (havayolu kodu biçimi) öneride Sfaks Thyna’yı verir (Enter onu açmaz: submitOutcome)', () => {
+    for (const search of [tr, en]) {
+      expect(search('THY').rows.map((row) => [row.code, row.match])).toEqual([['SFA', 'words']])
+      expect(codes('thy', search)).toEqual(['SFA'])
+      expect(codes('thyna', search)).toEqual(['SFA'])
+    }
+  })
+
+  it('Enter (uçak yok): tam kod ya da en az 4 harfle tek eşleşme açılır; "THY" ve "sab" liste', () => {
+    const NO_AIRCRAFT: AircraftLookup = { status: 'ok', kind: 'callsign', results: [] }
+    const enter = (query: string, search = tr): SubmitOutcome =>
+      submitOutcome({
+        query,
+        aircraft: NO_AIRCRAFT,
+        airports: search(query),
+        airportsLoaded: true,
+      })
+    const opened = (outcome: SubmitOutcome) =>
+      outcome.type === 'airport' ? outcome.airport.iata : null
+    const listed = (outcome: SubmitOutcome) =>
+      outcome.type === 'list' ? outcome.airports.map((row) => row.code) : null
+    for (const search of [tr, en]) {
+      for (const query of ['ESB', 'esb', 'LTAC', 'esenboga', 'Esenboğa', 'esenboğa hav']) {
+        expect(opened(enter(query, search)), query).toBe('ESB')
+      }
+      expect(opened(enter('ist', search))).toBe('IST')
+      expect(opened(enter('İST', search))).toBe('IST')
+      expect(opened(enter('thyna', search))).toBe('SFA')
+      expect(opened(enter('gokcen', search))).toBe('SAW')
+      // "THY": öneride Sfaks Thyna var, Enter onu açmaz; liste gösterilir.
+      expect(listed(enter('THY', search))).toEqual(['SFA'])
+      expect(listed(enter('thy', search))).toEqual(['SFA'])
+      expect(listed(enter('sab', search))).toContain('SAW')
+      expect(listed(enter('gok', search))).toEqual(['SAW'])
+      expect(listed(enter('ant', search))).toEqual(['AYT', 'GZT', 'GZP', 'HTY'])
     }
   })
 

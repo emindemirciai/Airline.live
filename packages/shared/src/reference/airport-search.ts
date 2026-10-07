@@ -17,10 +17,11 @@
  *   başı) > sözcükler (her sorgu sözcüğü bir ad, yer ya da kod sözcüğünün başı; "LTF", "ES" gibi kod
  *   önekleri dahil) > ülke (en az 3 harf; sözcükler ülke adlarında da aranır). Bir basamağın içinde
  *   çağıranın sırası korunur.
- * - **Tek başına 3 İngilizce harf** (havayolu ICAO kodu biçimi: "THY", "IRA"; Türkçe klavyenin İ ve
- *   ı'sı dahil) sözcükler ve ülke basamağında yalnız tam sözcüğe uyar ("GAP", "Ben"); kod önekleri
- *   yine önekle ("LTF"). "THY" Sfaks Thyna'yı, "IRA" Irak'ı bulmaz. Türkçe harfli sorgu ("gök")
- *   havayolu kodu olamaz, kural ona uygulanmaz.
+ * - **3 harfli sorgu** da aynı basamaklarla aranır: tam kod önce, sonra adın ya da yerin başı ve
+ *   sözcük başı ("sab" ve "gok" Sabiha Gökçen, "ant" Antalya). Havayolu kodu biçimindeki sorgu
+ *   ("THY") bir sözcük başını da bulabilir (Sfaks Thyna); bu bir öneri listesidir. Enter'da
+ *   havalimanının doğrudan açılması arama kutusunun kuralıdır (`search-box-model.ts`
+ *   `submitOutcome`, D-108): tam kod ya da en az 4 harfle tek eşleşme.
  * - **Rakamlı ya da hex sorgu** (`airportQueryKind` → `code`) yalnız tam kod arar: "TK1985" ya da
  *   "4BB26C" hiçbir havalimanı adına uymaz.
  *
@@ -105,8 +106,6 @@ function searchTokens(value: string): string[] {
 
 const HEX_QUERY = /^~?[0-9a-f]{6}$/i
 const DIGIT = /\p{N}/u
-/** Tek başına üç İngilizce harf: havayolu ICAO kodunun biçimi (sorgunun kendisi, kırpılmış). */
-const DESIGNATOR = /^[a-z]{3}$/i
 
 /**
  * Sorgunun türü:
@@ -145,11 +144,9 @@ interface IndexedAirport<T> {
   icao: string
   /** Her ad ve yerin sözcükleri, `\u0001` ile ayrılmış ve başlanmış. */
   starts: string
-  /** Ad, yer ve kod sözcükleri, boşlukla ayrılmış, başlanmış ve bitirilmiş (tam sözcük de aranır). */
+  /** Ad, yer ve kod sözcükleri, boşlukla ayrılmış ve başlanmış. */
   words: string
-  /** Kodlar (IATA, ICAO; katlanmış), boşlukla ayrılmış ve başlanmış (kod öneki). */
-  codes: string
-  /** Ülke sözcükleri, boşlukla ayrılmış, başlanmış ve bitirilmiş. */
+  /** Ülke sözcükleri, boşlukla ayrılmış ve başlanmış. */
   countryWords: string
 }
 
@@ -195,7 +192,7 @@ export function createAirportSearchIndex<T>(
     const key = countries.join(START)
     let text = countryTexts.get(key)
     if (text === undefined) {
-      text = ` ${unique(countries.flatMap((country) => tokensOf(country))).join(' ')} `
+      text = ` ${unique(countries.flatMap((country) => tokensOf(country))).join(' ')}`
       countryTexts.set(key, text)
     }
     return text
@@ -210,8 +207,7 @@ export function createAirportSearchIndex<T>(
       iata: entry.iata.trim().toUpperCase(),
       icao: entry.icao.trim().toUpperCase(),
       starts: START + phrases.join(START),
-      words: ` ${words.join(' ')} `,
-      codes: ` ${codes.join(' ')}`,
+      words: ` ${words.join(' ')}`,
       countryWords: countryWordsOf(entry.countries),
     }
   })
@@ -272,16 +268,10 @@ function searchQuery<T>(
   const tokens = searchTokens(query)
   const phrase = tokens.join(' ')
   const isCode = key.length >= 3 && key.length <= 4
-  // Tek başına 3 İngilizce harf havayolu ICAO kodu da olabilir ("THY", "IRA"): ad, yer ve ülke
-  // sözcükleri yalnız tam sözcükse uyar ("GAP", "Ben"); kodlar yine önekle ("LTF"). Türkçe
-  // klavyenin İ ve ı'sı uçak aramasındaki gibi I ve i sayılır; başka Türkçe harf ("gök") kod olamaz.
-  const designator = DESIGNATOR.test(query.trim().replace(/İ/g, 'I').replace(/ı/g, 'i'))
   const inWords = (item: IndexedAirport<T>, token: string): boolean =>
-    designator
-      ? item.words.includes(` ${token} `) || item.codes.includes(` ${token}`)
-      : item.words.includes(` ${token}`)
+    item.words.includes(` ${token}`)
   const inCountry = (item: IndexedAirport<T>, token: string): boolean =>
-    item.countryWords.includes(designator ? ` ${token} ` : ` ${token}`)
+    item.countryWords.includes(` ${token}`)
   const countryTier = phrase.replace(/ /g, '').length >= COUNTRY_MIN_LENGTH
   const buckets: Record<AirportSearchMatch, T[]> = { code: [], start: [], words: [], country: [] }
 

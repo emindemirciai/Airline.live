@@ -265,14 +265,43 @@ describe('searchAirportIndex', () => {
     expect(searchAirportIndex(INDEX, 'g y').hits).toEqual([])
   })
 
-  it('tek başına 3 harf (havayolu kodu biçimi): ad, yer ve ülke sözcüğü yalnız tam; kod önekle', () => {
+  it('3 harfli sorgu: tam kod önce, sonra adın başı ve sözcük başı (yazarken öneri)', () => {
     const index = createAirportSearchIndex([
+      entry(
+        'LTFJ',
+        'SAW',
+        ['İstanbul Sabiha Gökçen Uluslararası Havalimanı'],
+        ['İstanbul', 'Pendik'],
+        TR,
+      ),
+      entry(
+        'LTFK',
+        'GKD',
+        ['Gökçeada Havalimanı', 'Gökçeada Airport'],
+        ['Gökçeada', 'Çanakkale'],
+        TR,
+      ),
+      entry('LTAI', 'AYT', ['Antalya Havalimanı', 'Antalya Airport'], ['Antalya'], TR),
+      entry(
+        'LTAJ',
+        'GZT',
+        ['Gaziantep Havalimanı', 'Gaziantep Airport'],
+        ['Gaziantep', 'Antep'],
+        TR,
+      ),
       entry(
         'DTTX',
         'SFA',
         ['Sfaks Thyna Havalimanı', 'Sfax Thyna International Airport'],
         ['Sfaks', 'Sfax'],
         ['Tunus', 'Tunisia'],
+      ),
+      entry(
+        'FATH',
+        'THY',
+        ['Thohoyandou Airport'],
+        ['Thohoyandou'],
+        ['Güney Afrika', 'South Africa'],
       ),
       entry('LTCS', 'GNY', ['Şanlıurfa GAP Havalimanı'], ['Şanlıurfa'], TR),
       entry(
@@ -282,31 +311,40 @@ describe('searchAirportIndex', () => {
         ['Erbil'],
         ['Irak', 'Iraq'],
       ),
-      entry('OIII', 'THR', ['Tahran Mehrabad Havalimanı'], ['Tahran', 'Tehran'], ['İran', 'Iran']),
     ])
     const found = (query: string) => searchAirportIndex(index, query).hits
-    // "THY" (Türk Hava Yolları) Sfaks Thyna'yı, "IRA" (Iran Air) Irak'ı bulmaz.
-    expect(found('THY')).toEqual([])
-    expect(found('thy')).toEqual([])
-    expect(found('IRA')).toEqual([])
-    // Dört harfle sözcük başı yine eşleşir.
-    expect(found('thyn')).toEqual([{ value: 'DTTX', match: 'words' }])
-    expect(found('irak')).toEqual([{ value: 'ORER', match: 'country' }])
-    // Tam sözcük ve kod öneki eşleşir; ülke adı tam ise ülke basamağı.
+    const values = (query: string) => found(query).map((hit) => hit.value)
+    // Adın içindeki bir sözcüğün başı ilk üç harfte bulunur (Türkçe harfli ya da harfsiz).
+    expect(found('sab')).toEqual([{ value: 'LTFJ', match: 'words' }])
+    expect(found('SAB')).toEqual([{ value: 'LTFJ', match: 'words' }])
+    expect(found('gok')).toEqual([
+      { value: 'LTFK', match: 'start' },
+      { value: 'LTFJ', match: 'words' },
+    ])
+    expect(found('gök')).toEqual(found('gok'))
+    // "ant": Antalya adın başı; "Antep" Gaziantep'in yeri.
+    expect(values('ant')).toEqual(['LTAI', 'LTAJ'])
+    expect(found('ant').map((hit) => hit.match)).toEqual(['start', 'start'])
+    // Havayolu kodu biçimi ("THY"): tam kod önce, sözcük başı (Sfaks Thyna) altında. Öneri listesi
+    // içindir; Enter'da Sfaks Thyna açılmaz (search-box-model.ts `submitOutcome`).
+    expect(found('THY')).toEqual([
+      { value: 'FATH', match: 'code' },
+      { value: 'DTTX', match: 'words' },
+    ])
+    expect(found('thy')).toEqual(found('THY'))
     expect(found('GAP')).toEqual([{ value: 'LTCS', match: 'words' }])
-    expect(found('LTC')).toEqual([{ value: 'LTCS', match: 'words' }])
-    expect(found('iran')).toEqual([{ value: 'OIII', match: 'country' }])
-    // Başlangıç ve tam kod basamağı değişmez.
+    expect(found('ira')).toEqual([{ value: 'ORER', match: 'country' }])
+    // Kod öneki, başlangıç ve tam kod basamağı.
+    expect(found('LTF')).toEqual([
+      { value: 'LTFJ', match: 'words' },
+      { value: 'LTFK', match: 'words' },
+    ])
     expect(found('sfa')).toEqual([{ value: 'DTTX', match: 'code' }])
     expect(found('erb')).toEqual([{ value: 'ORER', match: 'start' }])
-    // Çok sözcüklü sorguda kural yok.
-    expect(found('sfax thy')).toEqual([{ value: 'DTTX', match: 'start' }])
-    // Türkçe harfli 3 harf havayolu kodu olamaz: sözcük başı eşleşir. İngilizce harflerle sözcük başı
-    // dördüncü harfte gelir.
-    expect(codes('gök')).toEqual(['LTFJ'])
-    expect(codes('gok')).toEqual([])
-    expect(codes('sab')).toEqual([])
-    expect(codes('sabi')).toEqual(['LTFJ'])
+    // Ana dizinde de: "sab" Sabiha Gökçen'i, "ist" önce tam kodla IST'yi bulur.
+    expect(codes('sab')).toEqual(['LTFJ'])
+    expect(codes('gok')).toEqual(['LTFJ'])
+    expect(searchAirportIndex(INDEX, 'ist').hits[0]).toEqual({ value: 'LTFM', match: 'code' })
   })
 
   it('yarım yazılmış dolgu sözcüğü hiçbir şey bulmazsa sayılmaz', () => {

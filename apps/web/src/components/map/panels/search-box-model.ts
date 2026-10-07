@@ -88,13 +88,28 @@ export function hasDigit(query: string): boolean {
 }
 
 /**
+ * Sorgudaki harf sayısı; rakam, boşluk ve noktalama sayılmaz ("esenboğa" 8, "İst" 3). Katlanmış
+ * sorgunun sayısıdır: katlama aksanı ve büyük harfi kaldırır, harf atmaz.
+ */
+function letterCount(query: string): number {
+  return query.match(LETTER)?.length ?? 0
+}
+
+/**
+ * Enter'da tam kod olmayan tek havalimanı eşleşmesinin doğrudan açılması için sorgudaki en az harf
+ * (D-108). 3 harf havayolu kodu da olabilir ("THY" Sfaks Thyna'nın sözcük başıdır) ya da yazarken
+ * yarım kalmış bir adın başıdır ("sab"); ikisinde de liste gösterilir, kullanıcı seçer.
+ */
+const AIRPORT_OPEN_MIN_LETTERS = 4
+
+/**
  * Havalimanı adı aranabilecek metin mi: rakam yok, hex değil, en az iki harf. Motorun
  * `airportQueryKind` → `text` kuralının ilk paketteki karşılığıdır (dolgu sözcüklerini bilmez);
  * yalnız ad parçası yüklenemediğinde durum metnini seçmek için kullanılır.
  */
 export function isTextQuery(query: string): boolean {
   if (hasDigit(query) || HEX_QUERY.test(query.trim())) return false
-  return (query.match(LETTER)?.length ?? 0) >= 2
+  return letterCount(query) >= 2
 }
 
 /** API'nin kabul ettiği karakterler: İngilizce harf, rakam, boşluk, tire ve `~`. */
@@ -245,8 +260,10 @@ export type SubmitOutcome =
 
 /**
  * Gönderimin kuralları, sırayla (D-108):
- * 1. Tek uçak bulundu ve tam kodla eşleşen havalimanı yok → uçak seçilir.
- * 2. Uçak yok (ya da sorgu uçak olamaz) ve tek havalimanı ya da ilki tam kod → havalimanı açılır.
+ * 1. Tek uçak bulundu ve hiçbir havalimanı eşleşmedi → uçak seçilir.
+ * 2. Uçak yok (ya da sorgu uçak olamaz) ve ilki tam kod (IATA ya da ICAO) ya da tek havalimanı ve
+ *    sorguda en az 4 harf (`AIRPORT_OPEN_MIN_LETTERS`) → havalimanı açılır. "THY" Sfaks Thyna'yı,
+ *    "sab" Sabiha Gökçen'i açmaz: ikisi de 5. kurala gider (tek satırlık liste).
  * 3. Uçak yok ve havalimanı yok → bulunamadı (uçak araması atlandıysa havalimanı metni; değilse
  *    uçak metni, sefer no notu ve rakamsız sorguda havalimanı ipucu; havalimanı metnine ve ipucuna
  *    kapsama cümlesi eklenir). Uçak araması atlandı ve havalimanı listesi yüklenmedi → hata (hiçbir
@@ -262,14 +279,16 @@ export function submitOutcome({
   airportsLoaded,
 }: SubmitInput): SubmitOutcome {
   const [firstAirport] = airports.rows
-  const codeHit = firstAirport?.match === 'code'
-  if (aircraft.status === 'ok' && aircraft.results.length === 1 && !codeHit) {
+  if (aircraft.status === 'ok' && aircraft.results.length === 1 && firstAirport === undefined) {
     const [only] = aircraft.results
     if (only) return { type: 'aircraft', aircraft: only }
   }
   const noAircraft =
     aircraft.status === 'skipped' || (aircraft.status === 'ok' && aircraft.results.length === 0)
-  if (noAircraft && firstAirport && (airports.total === 1 || codeHit)) {
+  const opensAirport =
+    firstAirport?.match === 'code' ||
+    (airports.total === 1 && letterCount(query) >= AIRPORT_OPEN_MIN_LETTERS)
+  if (noAircraft && firstAirport && opensAirport) {
     return { type: 'airport', airport: firstAirport.airport }
   }
   if (noAircraft && airports.rows.length === 0) {
@@ -329,8 +348,8 @@ const joined = (...parts: string[]) => parts.filter((part) => part !== '').join(
  *   öneri yoksa boş; ad parçası yüklenemediyse ve sorgu bir ad olabilirse bunu söyler;
  * - aranıyor, bulunamadı (parçalar sırayla; kapsama cümlesi açık halkanın sınırıyla, sayfanın dilinde),
  *   hata;
- * - sonuç listesi: yalnız uçak, yalnız havalimanı ya da ikisi; uçak araması yapılamadıysa onu söyler;
- *   havalimanı listesi kesildiyse sayı eklenir.
+ * - sonuç listesi: yalnız uçak, yalnız havalimanı (tek havalimanında "açmak için seç") ya da ikisi;
+ *   uçak araması yapılamadıysa onu söyler; havalimanı listesi kesildiyse sayı eklenir.
  */
 export function searchStatusText(
   status: SearchStatus,
@@ -369,7 +388,8 @@ export function searchStatusText(
         return joined(failure, more)
       }
       if (status.airports.length === 0) return messages.pick
-      return joined(status.aircraft.length > 0 ? messages.pickMixed : messages.pickAirports, more)
+      if (status.aircraft.length > 0) return joined(messages.pickMixed, more)
+      return status.airportTotal === 1 ? messages.pickAirport : joined(messages.pickAirports, more)
     }
     case 'failed':
       return status.rateLimited ? messages.rateLimited : messages.error

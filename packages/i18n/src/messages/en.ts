@@ -718,6 +718,7 @@ export const en: Messages = {
       groupAirports: 'Airports',
       groupAircraft: 'Aircraft',
       pickAirports: 'More than one airport matched; pick one.',
+      pickAirport: 'One airport matched; select it to open.',
       pickMixed: 'Aircraft and airports matched; pick one.',
       airportCount: 'Matching airports: {n}.',
       airportCountMore: 'Matching airports: {n}; the first {shown} are listed, narrow your search.',

@@ -23,6 +23,7 @@ const IST = airport('LTFM', 'IST')
 const SAW = airport('LTFJ', 'SAW')
 const AJA = airport('LFKJ', 'AJA')
 const ESB = airport('LTAC', 'ESB')
+const SFA = airport('DTTX', 'SFA')
 /** Savunma süzgecinin denemesi: askerî üs listede olsa da yalnız kodla aramada bulunmaz. */
 const LTBL = airport('LTBL', 'IGL')
 
@@ -64,31 +65,96 @@ const input = (
 ): SubmitInput => ({ query, aircraft: lookup, airports, airportsLoaded })
 
 describe('submitOutcome: gönderimin kuralları (D-108)', () => {
-  it('1: tek uçak, tam kodla eşleşen havalimanı yok → uçak seçilir', () => {
+  it('1: tek uçak ve hiçbir havalimanı eşleşmedi → uçak seçilir', () => {
     expect(submitOutcome(input('HYS001', ok(THY974), NO_AIRPORT_RESULTS))).toEqual({
       type: 'aircraft',
       aircraft: THY974,
     })
-    // Yalnız ad eşleşmesi kuralı bozmaz (bilinen sınır: "anka" ve tek ANKA… çağrı kodu).
-    expect(submitOutcome(input('anka', ok(THY974), result([row(ESB, 'start')])))).toEqual({
+    // Ad parçası yüklenemedi, havalimanı satırı yok: uçak yine seçilir.
+    expect(submitOutcome(input('anka', ok(THY974), result([], 0, true)))).toEqual({
       type: 'aircraft',
       aircraft: THY974,
     })
   })
 
-  it('2: uçak yok ya da aranmadı; tek havalimanı ya da ilki tam kod → havalimanı açılır', () => {
-    expect(submitOutcome(input('esb', ok(), result([row(ESB, 'code')])))).toEqual({
-      type: 'airport',
-      airport: ESB,
-    })
+  it('1: tek uçak ve bir havalimanı eşleşmesi (tam kod ya da ad) → liste, kullanıcı seçer', () => {
+    for (const match of ['code', 'start', 'words', 'country'] as const) {
+      expect(submitOutcome(input('anka', ok(THY974), result([row(ESB, match)]))), match).toEqual({
+        type: 'list',
+        airports: [row(ESB, match)],
+        airportTotal: 1,
+        aircraft: [THY974],
+        aircraftFailure: null,
+      })
+    }
+  })
+
+  it('2: uçak yok ya da aranmadı; ilki tam kod → havalimanı açılır (IATA ya da ICAO)', () => {
+    for (const query of ['ESB', 'esb', 'LTAC', 'ltac']) {
+      expect(submitOutcome(input(query, ok(), result([row(ESB, 'code')]))), query).toEqual({
+        type: 'airport',
+        airport: ESB,
+      })
+    }
+    // "ist": IST tam kod, SAW başlangıç → IST açılır (3 harf olsa da).
+    expect(
+      submitOutcome(input('ist', ok(), result([row(IST, 'code'), row(SAW, 'start')]))),
+    ).toEqual({ type: 'airport', airport: IST })
+    expect(
+      submitOutcome(input('İST', SKIPPED, result([row(IST, 'code'), row(SAW, 'start')], 4))),
+    ).toEqual({ type: 'airport', airport: IST })
+  })
+
+  it('2: tek havalimanı ve en az 4 harf → havalimanı açılır', () => {
     expect(submitOutcome(input('esenboğa', SKIPPED, result([row(ESB, 'start')])))).toEqual({
       type: 'airport',
       airport: ESB,
     })
-    // "ist": IST tam kod, SAW başlangıç → IST açılır.
+    expect(submitOutcome(input('esenboga', ok(), result([row(ESB, 'start')])))).toEqual({
+      type: 'airport',
+      airport: ESB,
+    })
+    // Sınır: 4 harf açar; boşluk, tire ve noktalama sayılmaz.
+    expect(submitOutcome(input('thyn', ok(), result([row(SFA, 'words')])))).toEqual({
+      type: 'airport',
+      airport: SFA,
+    })
+    expect(submitOutcome(input('Ağrı', SKIPPED, result([row(ESB, 'start')])))).toEqual({
+      type: 'airport',
+      airport: ESB,
+    })
+  })
+
+  it('2: 3 harfle tek ad eşleşmesi açılmaz → tek satırlık liste ("THY" Sfaks Thyna değil)', () => {
+    for (const [query, lookup, only] of [
+      ['THY', ok(), SFA],
+      ['thy', ok(), SFA],
+      ['sab', ok(), SAW],
+      ['gök', SKIPPED, SAW],
+      ['s-a.b', ok(), SAW],
+      ['İst', SKIPPED, IST],
+    ] as const) {
+      const airports = result([row(only, 'words')])
+      expect(submitOutcome(input(query, lookup, airports)), query).toEqual({
+        type: 'list',
+        airports: airports.rows,
+        airportTotal: 1,
+        aircraft: [],
+        aircraftFailure: null,
+      })
+    }
+    // "THY" ile uçaklar da bulunduysa: havalimanı satırı ve uçaklar tek listede.
+    expect(submitOutcome(input('THY', ok(THY974, AJA123), result([row(SFA, 'words')])))).toEqual({
+      type: 'list',
+      airports: [row(SFA, 'words')],
+      airportTotal: 1,
+      aircraft: [THY974, AJA123],
+      aircraftFailure: null,
+    })
+    // Birden fazla havalimanı her zaman liste (4 harf ve üstü de).
     expect(
-      submitOutcome(input('ist', ok(), result([row(IST, 'code'), row(SAW, 'start')]))),
-    ).toEqual({ type: 'airport', airport: IST })
+      submitOutcome(input('sabiha', ok(), result([row(SAW, 'words'), row(IST, 'words')]))),
+    ).toEqual(expect.objectContaining({ type: 'list', airportTotal: 2 }))
   })
 
   it('3: hiçbir şey yok → bulunamadı; metnin parçaları', () => {
@@ -306,6 +372,9 @@ describe.each(['tr', 'en'] as const)('searchStatusText (%s)', (locale) => {
   it('sonuç listesi: uçak, havalimanı ya da ikisi; uçak araması yapılamadıysa onu söyler', () => {
     expect(pick([], 0, [THY974, AJA123])).toBe(t.pick)
     expect(pick([row(IST, 'start'), row(SAW, 'start')], 2, [])).toBe(t.pickAirports)
+    // Enter'da açılmayan tek havalimanı ("gok", "THY").
+    expect(pick([row(SFA, 'words')], 1, [])).toBe(t.pickAirport)
+    expect(pick([row(SFA, 'words')], 1, [THY974])).toBe(t.pickMixed)
     expect(pick([row(AJA, 'code')], 1, [AJA123])).toBe(t.pickMixed)
     const eight = Array.from({ length: 8 }, () => row(IST, 'country'))
     expect(pick(eight, 56, [])).toBe(

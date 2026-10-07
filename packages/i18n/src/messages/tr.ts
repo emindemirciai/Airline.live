@@ -866,6 +866,8 @@ export const tr = {
       groupAirports: 'Havalimanları',
       groupAircraft: 'Uçaklar',
       pickAirports: 'Birden fazla havalimanı bulundu; birini seç.',
+      /** Enter'da doğrudan açılmayan tek havalimanı ("gok", "THY"; D-108): kullanıcı seçer. */
+      pickAirport: 'Bir havalimanı bulundu; açmak için seç.',
       pickMixed: 'Uçak ve havalimanı bulundu; birini seç.',
       /** Yazarken (son değişiklikten 600 ms sonra) ekran okuyucuya okunan öneri sayısı. */
       airportCount: 'Eşleşen havalimanı: {n}.',
