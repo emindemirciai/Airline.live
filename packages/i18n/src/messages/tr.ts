@@ -619,11 +619,12 @@ export const tr = {
     },
     localTime: 'Yerel saat {time} ({offset})',
     /**
-     * Saat dilimi bilinmeyen yabancı havalimanı (`airportTimeZone` null; D-080, D-084): saatler
-     * Türkiye saatiyle yazılır ve öyle etiketlenir, yerel saat ile gün doğumu/batımı satırı çizilmez.
+     * Saat dilimi bilinmeyen havalimanı (`airportTimeZone` null ya da tarayıcı dilimi tanımıyor ve
+     * sunucunun fark tablosu yok; D-084, D-106 (c), D-109): saatler UTC ile yazılır ve öyle
+     * etiketlenir, yerel saat ile gün doğumu/batımı satırı çizilmez (D-080'den beri Türkiye saatiydi).
      * Dilimi bilinen havalimanında saatler havalimanının yerel saatidir (`localTime`).
      */
-    turkeyTime: 'Saatler Türkiye saatidir ({offset}); havalimanının yerel saati farklı olabilir.',
+    utcTime: 'Saatler UTC’dir; havalimanının yerel saati farklı olabilir.',
     sunrise: 'Gün doğumu {time}',
     sunset: 'Gün batımı {time}',
     sunNote:
@@ -643,8 +644,8 @@ export const tr = {
       speci: 'SPECI (özel gözlem)',
       station: 'Havalimanının ICAO kodu',
       observedUtc: 'Gözlem zamanı: {utc} UTC (yerel saat {local})',
-      /** Türkiye dışındaki havalimanında (`turkeyTime`). */
-      observedUtcTurkey: 'Gözlem zamanı: {utc} UTC (Türkiye saati {local})',
+      /** Saat dilimi bilinmeyen havalimanında (`utcTime`; D-106 (c)). */
+      observedUtcOnly: 'Gözlem zamanı: {utc} UTC',
       wind: 'Rüzgâr',
       windValue: '{direction} {speed}',
       variableDirection: 'değişken yönlü',
@@ -714,9 +715,9 @@ export const tr = {
       heading: 'METAR/TAF kaydı',
       intro:
         'Son 24 saatte yayımlanan havacılık hava raporları, en yenisi üstte. Saatler yerel saattir; UTC yanında yazılır. METAR rutin gözlem, SPECI hava önemli ölçüde değişince yayımlanan özel gözlem, TAF havalimanı tahminidir.',
-      /** Saat dilimi bilinmeyen yabancı havalimanında (`turkeyTime`). */
-      introAbroad:
-        'Son 24 saatte yayımlanan havacılık hava raporları, en yenisi üstte. Saatler Türkiye saatidir; UTC yanında yazılır. METAR rutin gözlem, SPECI hava önemli ölçüde değişince yayımlanan özel gözlem, TAF havalimanı tahminidir.',
+      /** Saat dilimi bilinmeyen havalimanında (`utcTime`; D-106 (c), D-109). */
+      introUtc:
+        'Son 24 saatte yayımlanan havacılık hava raporları, en yenisi üstte. Saatler UTC’dir; havalimanının yerel saati farklı olabilir. METAR rutin gözlem, SPECI hava önemli ölçüde değişince yayımlanan özel gözlem, TAF havalimanı tahminidir.',
       /**
        * Saat dilimi bilinen yabancı havalimanında (D-084): saatler havalimanının yerel saatidir;
        * `{offset}` şu anki UTC farkı ("UTC+2").

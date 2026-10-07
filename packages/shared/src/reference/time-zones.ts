@@ -27,6 +27,8 @@
  * bölge varsayılanıyla SBTT (America/Manaus).
  */
 
+import { isSupportedTimeZone } from '../weather/time'
+
 /** Tek dilimli ülkeler, ISO 3166-1 alpha-2 → IANA dilimi (`Intl.Locale#getTimeZones()` ile aynı). */
 export const COUNTRY_TIME_ZONES: Readonly<Record<string, string>> = {
   AD: 'Europe/Andorra',
@@ -956,25 +958,7 @@ export const AIRPORT_TIME_ZONES: Readonly<Record<string, string>> = {
   YBHM: 'Australia/Lindeman', // Hamilton Adası, Whitsunday (Brisbane ile aynı farklar)
 }
 
-const supported = new Map<string, boolean>()
-
-/**
- * Çalışma zamanı dilimi tanıyor mu (`Intl.DateTimeFormat`). Eski bir tarayıcı yeni bir dilimi
- * bilmeyebilir (`RangeError`); sonuç dilim başına bir kez hesaplanır.
- */
-export function isSupportedTimeZone(timeZone: string): boolean {
-  let known = supported.get(timeZone)
-  if (known === undefined) {
-    try {
-      new Intl.DateTimeFormat('en-US', { timeZone }).format(0)
-      known = true
-    } catch {
-      known = false
-    }
-    supported.set(timeZone, known)
-  }
-  return known
-}
+export { isSupportedTimeZone }
 
 /** `airportTimeZone`'un okuduğu alanlar (`Airport`, `AirportDetail`, harita kaydı). */
 export interface TimeZoneAirport {

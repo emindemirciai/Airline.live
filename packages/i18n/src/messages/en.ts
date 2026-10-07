@@ -510,7 +510,7 @@ export const en: Messages = {
       onDate: '{date} {time}',
     },
     localTime: 'Local time {time} ({offset})',
-    turkeyTime: 'Times are Türkiye time ({offset}); the airport’s local time may differ.',
+    utcTime: 'Times are in UTC; the airport’s local time may differ.',
     sunrise: 'Sunrise {time}',
     sunset: 'Sunset {time}',
     sunNote:
@@ -528,7 +528,7 @@ export const en: Messages = {
       speci: 'SPECI (special report)',
       station: 'Airport ICAO code',
       observedUtc: 'Observed at {utc} UTC ({local} local time)',
-      observedUtcTurkey: 'Observed at {utc} UTC ({local} Türkiye time)',
+      observedUtcOnly: 'Observed at {utc} UTC',
       wind: 'Wind',
       windValue: '{direction} {speed}',
       variableDirection: 'variable',
@@ -596,8 +596,8 @@ export const en: Messages = {
       heading: 'METAR/TAF log',
       intro:
         'Aviation weather reports issued in the last 24 hours, newest first. Times are local, with UTC alongside. METAR is the routine report, SPECI a special report issued when the weather changes significantly, and TAF the aerodrome forecast.',
-      introAbroad:
-        'Aviation weather reports issued in the last 24 hours, newest first. Times are Türkiye time, with UTC alongside. METAR is the routine report, SPECI a special report issued when the weather changes significantly, and TAF the aerodrome forecast.',
+      introUtc:
+        'Aviation weather reports issued in the last 24 hours, newest first. Times are in UTC; the airport’s local time may differ. METAR is the routine report, SPECI a special report issued when the weather changes significantly, and TAF the aerodrome forecast.',
       introLocal:
         'Aviation weather reports issued in the last 24 hours, newest first. Times are the airport’s local time (currently {offset}), with UTC alongside. METAR is the routine report, SPECI a special report issued when the weather changes significantly, and TAF the aerodrome forecast.',
       caption: '{name}: reports from the last 24 hours',

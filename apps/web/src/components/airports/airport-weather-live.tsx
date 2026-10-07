@@ -2,9 +2,12 @@
 
 import type { WeatherMessages } from '@havayolu/i18n'
 import {
+  hasUtcOffsetTable,
   isSupportedTimeZone,
+  registerUtcOffsetTable,
   type AirportWeather,
   type Locale,
+  type UtcOffsetTable,
   type WeatherHistoryResponse,
 } from '@havayolu/shared'
 import { useEffect, useState } from 'react'
@@ -39,10 +42,15 @@ export interface AirportWeatherLiveProps {
   /** Sunucu çizim anı (epoch ms): hidrasyon aynı saatle çizer, uyuşmazlık olmaz. */
   renderedAt: number
   /**
-   * Havalimanının saat dilimi (IANA, `airportTimeZone`; D-084). null: dilimi bilinmeyen yabancı
-   * havalimanı, saatler "Türkiye saati" etiketiyle (D-080).
+   * Havalimanının saat dilimi (IANA, `airportTimeZone`; D-084). null: dilimi bilinmeyen havalimanı,
+   * saatler UTC etiketiyle (D-106 (c), D-109).
    */
   timeZone: string | null
+  /**
+   * Sunucunun bu dilim için hesapladığı fark tablosu (`utcOffsetTable`, çizim anının ±48 saati;
+   * D-109); dilim yoksa null.
+   */
+  utcOffsets: UtcOffsetTable | null
 }
 
 /**
@@ -56,8 +64,12 @@ export interface AirportWeatherLiveProps {
  *   `generatedAt`'i): yerel saat, gözlem yaşı, eskime sınıfı ve TAF süresi cihaz uyuyup uyansa ya da
  *   cihaz saati yanlış olsa da doğrudur. 30 saniyede bir ve sekme görünür olunca ilerler; sunucu ve
  *   hidrasyon çizim anını kullanır, göreli yaş yalnızca istemcide eklenir.
- * - Saat dilimini sunucu seçer; tarayıcı o dilimi tanımıyorsa (çok eski tarayıcı) saatler Türkiye
- *   saati etiketiyle yazılır, sayfa düşmez.
+ * - Saat dilimini ve farklarını sunucu verir (D-109): ada çizimde sunucunun fark tablosunu kaydeder
+ *   (`registerUtcOffsetTable`), böylece tablonun ±48 saatindeki bütün yerel saatler UTC + farktan
+ *   yazılır. Tarayıcının tz verisi eski olsa da (Britanya Kolumbiyası 2026, Kazakistan 2024) ya da
+ *   dilimi hiç tanımasa da (eski tarayıcıda America/Ciudad_Juarez) sunucu çizimi ve hidrasyon aynı
+ *   metni üretir. Tablonun dışında tarayıcının `Intl`'i kullanılır; dilimi tanımayan tarayıcıda
+ *   tablonun kenar farkı. Dilim yoksa saatler UTC etiketiyle yazılır (D-106 (c)), sayfa düşmez.
  */
 export function AirportWeatherLive({
   locale,
@@ -71,8 +83,14 @@ export function AirportWeatherLive({
   initialHistory,
   renderedAt,
   timeZone,
+  utcOffsets,
 }: AirportWeatherLiveProps) {
-  const zone = timeZone !== null && isSupportedTimeZone(timeZone) ? timeZone : null
+  // Çizimin ilk adımı: sunucunun farkları kayıtlı olmadan hiçbir saat yazılmaz (hidrasyon aynı).
+  if (utcOffsets !== null && utcOffsets.timeZone === timeZone) registerUtcOffsetTable(utcOffsets)
+  const zone =
+    timeZone !== null && (isSupportedTimeZone(timeZone) || hasUtcOffsetTable(timeZone))
+      ? timeZone
+      : null
   const [weather, setWeather] = useState(initialWeather)
   const [history, setHistory] = useState(initialHistory)
   // Sunucu verisinin üretim anları yalnızca ilk açılışta okunur (sonraki çizimler kendi durumunu

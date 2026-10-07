@@ -6,6 +6,7 @@ import {
   messageAt,
   renderWeatherText,
   TURKEY_TIME_ZONE,
+  utcOffsetFromTable,
   utcOffsetLabel,
   visibilityDisplay,
   type Locale,
@@ -187,7 +188,11 @@ export function formatUtcOffset(at: DateLike, timeZone: string = TURKEY_TIME_ZON
 
 const dayMonthFormats = new Map<string, Intl.DateTimeFormat>()
 
-/** Yerel gün ve ay, verilen dilimde (varsayılan Europe/Istanbul): "17 Ocak" / "17 January". */
+/**
+ * Yerel gün ve ay, verilen dilimde (varsayılan Europe/Istanbul): "17 Ocak" / "17 January". Dilimin
+ * sunucu fark tablosu kayıtlıysa (D-109, `registerUtcOffsetTable`) gün UTC + farktan yazılır
+ * (`localTime` gibi; tarayıcının tz verisine bakılmaz).
+ */
 export function formatDayMonth(
   at: DateLike,
   locale: Locale,
@@ -195,6 +200,12 @@ export function formatDayMonth(
 ): string {
   const ms = toMs(at)
   if (!Number.isFinite(ms)) return NO_VALUE
+  const offset = utcOffsetFromTable(timeZone, ms)
+  if (offset !== undefined) return dayMonthFormat(locale, 'UTC').format(ms + offset * 60_000)
+  return dayMonthFormat(locale, timeZone).format(ms)
+}
+
+function dayMonthFormat(locale: Locale, timeZone: string): Intl.DateTimeFormat {
   const key = `${locale}:${timeZone}`
   let formatter = dayMonthFormats.get(key)
   if (!formatter) {
@@ -205,7 +216,7 @@ export function formatDayMonth(
     })
     dayMonthFormats.set(key, formatter)
   }
-  return formatter.format(ms)
+  return formatter
 }
 
 /**
