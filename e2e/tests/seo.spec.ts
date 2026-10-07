@@ -82,16 +82,16 @@ const PUBLIC_PAGES: PublicPage[] = [
   {
     path: '/',
     title: {
-      tr: exactTitle(`Türkiye canlı uçak haritası ve uçuş takibi${SUFFIX}`),
-      en: exactTitle(`Live flight tracker and aircraft map for Türkiye${SUFFIX}`),
+      tr: exactTitle(`Canlı uçuş takibi ve uçak haritası${SUFFIX}`),
+      en: exactTitle(`Live flight tracker and aircraft map${SUFFIX}`),
     },
     jsonLd: ['WebSite', 'Organization'],
   },
   {
     path: '/havalimanlari',
     title: {
-      tr: /^Türkiye['’]deki havalimanları: IATA ve ICAO kodları · havayolu$/,
-      en: exactTitle(`Airports in Türkiye: IATA and ICAO codes${SUFFIX}`),
+      tr: exactTitle(`Havalimanları: IATA ve ICAO kodları, pistler${SUFFIX}`),
+      en: exactTitle(`Airports: IATA and ICAO codes, runways${SUFFIX}`),
     },
     jsonLd: ['CollectionPage', 'ItemList', 'BreadcrumbList'],
   },
@@ -361,7 +361,7 @@ test.describe('kök dosyalar', () => {
     expect(body).toContain('xmlns:xhtml="http://www.w3.org/1999/xhtml"')
     const entries = parseSitemap(body)
 
-    // Havalimanları: Türkiye'nin dizine eklenen 56'sı ve Türkiye dışındaki 1.161'i (1.–4. halka;
+    // Havalimanları: Türkiye'nin dizine eklenen 56'sı ve diğer ülkelerdeki 1.161'i (1.–4. halka;
     // D-080, D-084, D-088, D-090, D-102): (1.217 + 5) × 2 = 2.444 adres (50.000 sınırının çok
     // altında).
     expect(entries).toHaveLength((INDEXABLE_LISTED_AIRPORT_COUNT + STATIC_PUBLIC_PATHS.length) * 2)
@@ -456,7 +456,7 @@ test.describe('kök dosyalar', () => {
     expect(again.body, 'iki istek arasında değişmez').toBe(body)
   })
 
-  test('llms.txt: mutlak bağlantılar, indekslenen her havalimanı için bir satır; Türkiye dışındakiler ayrı', async ({
+  test('llms.txt: mutlak bağlantılar, indekslenen her havalimanı için bir satır; diğer ülkelerdekiler ayrı', async ({
     request,
   }) => {
     const { response, body } = await fetchRaw(request, '/llms.txt')
@@ -492,15 +492,15 @@ test.describe('kök dosyalar', () => {
     expect(icaos.has(RING4_AIRPORT.icao)).toBe(true)
     expect(body).not.toContain(NON_ICAO_AIRPORT.ident)
     expect(body).not.toContain(`(${NON_ICAO_AIRPORT.iata}/`)
-    // Türkiye dışındakiler ayrı bir bölümdedir (D-080): başlık Türkiye listesinden sonra gelir; Atina
+    // Diğer ülkelerdekiler ayrı bir bölümdedir (D-080): başlık Türkiye listesinden sonra gelir; Atina
     // (1. halka), Kahire (2. halka), Viyana (3. halka) ve Londra (4. halka) satırları o bölümdedir.
-    // Başlık 2. halkadan beri "Türkiye dışındaki havalimanları"dır (kullanıcı kararı 2026-10-03,
-    // D-088); kapsam 4. halkadan beri 5.000 km'dir (D-102).
+    // Başlık D-106'dan beri "Diğer ülkelerdeki havalimanları"dır (D-088'de "Türkiye dışındaki");
+    // kapsam 4. halkadan beri 5.000 km'dir (D-102).
     const lines = body.split('\n')
     const foreignHeading = lines.indexOf(
-      '## Türkiye dışındaki havalimanları / Airports outside Türkiye',
+      '## Diğer ülkelerdeki havalimanları / Airports in other countries',
     )
-    expect(foreignHeading, 'Türkiye dışındakiler başlığı').toBeGreaterThan(0)
+    expect(foreignHeading, 'diğer ülkelerdekiler başlığı').toBeGreaterThan(0)
     expect(body).not.toMatch(/[Yy]akın ülke|neighbouring/)
     expect(body).toContain('uzaklığı en fazla 5.000 km olan')
     expect(body).toContain('at most 5,000 km from the nearest airport in Türkiye')

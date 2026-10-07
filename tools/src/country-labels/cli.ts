@@ -60,19 +60,21 @@ function writeFixture(): void {
     for (const rings of parts) for (const ring of rings) points += ring.length / 2
   }
   console.log(
-    `${fileURLToPath(FIXTURE_URL)}: ${Object.keys(fixture.countries).length} countries, ${points} points`,
+    `${fileURLToPath(FIXTURE_URL)}: ${Object.keys(fixture.countries).length} countries (${fixture.farCodes.length} far), ${points} points`,
   )
 }
 
 function writePlacements(): void {
   const started = performance.now()
   const obstacles = new AirportObstacles(mapAirportPins(readOurAirportsFixture()))
-  const { table, details } = computePlacements(
-    decodeFixture(readFixture()),
+  const fixture = readFixture()
+  const { table, areas, details } = computePlacements(
+    decodeFixture(fixture),
     countryLabelText,
     obstacles,
+    fixture,
   )
-  writeFileSync(TABLE_URL, renderPlacementsModule(table, placementParams(obstacles)))
+  writeFileSync(TABLE_URL, renderPlacementsModule(table, areas, placementParams(obstacles)))
   console.log(
     `${fileURLToPath(TABLE_URL)}: ${Math.round(performance.now() - started)} ms (Node ${process.versions.node}, ICU ${process.versions.icu}); ${obstacles.airports.length} airport pins`,
   )

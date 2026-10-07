@@ -311,33 +311,6 @@ export function sameProvinceAirports(
     .sort((a, b) => a.icao.localeCompare(b.icao))
 }
 
-/** Yabancı havalimanına Türkiye'deki en yakın havalimanı ve listedeki kaydı. */
-export interface NearestTurkishAirportView {
-  /** API'nin `nearestTr` kaydı: Türkiye'deki en yakın IATA kodlu havalimanı. */
-  reference: NonNullable<AirportDetail['nearestTr']>
-  /** Listedeki kaydı (sayfası olan havalimanı); listelenmeyen küçük alanda null. */
-  listed: AirportDetail | null
-  /** Uzaklık, km: API'nin `distanceToTrKm`'i (listedeki tabloyla aynı sayı). */
-  distanceKm: number
-}
-
-/**
- * Yabancı havalimanına Türkiye'deki en yakın IATA kodlu havalimanı (D-080). API hesaplar
- * (`nearestTr`, `distanceToTrKm`); bu, listelenmeyen küçük bir alan da olabilir
- * (Gökçeada gibi): o zaman `listed` null'dır ve sayfa bağlantı vermez. Türkiye havalimanında ya da
- * API bu alanları vermediyse null.
- */
-export function nearestTurkishAirport(
-  airport: AirportDetail,
-  all: readonly AirportDetail[],
-): NearestTurkishAirportView | null {
-  const reference = airport.nearestTr
-  if (isTurkish(airport) || reference === null || airport.distanceToTrKm === null) return null
-  const listed =
-    all.find((other) => isTurkish(other) && other.icao === reference.icao.toUpperCase()) ?? null
-  return { reference, listed, distanceKm: airport.distanceToTrKm }
-}
-
 /** Listedeki en yeni veri değişikliği (ISO 8601); liste boşsa null. */
 export function latestDataUpdate(airports: readonly AirportDetail[]): string | null {
   let latest: string | null = null

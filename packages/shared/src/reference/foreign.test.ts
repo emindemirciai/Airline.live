@@ -13,7 +13,7 @@ import {
   airportNameSource,
   airportRing,
   airportRingLimitKm,
-  COUNTRY_CAPITALS,
+  COUNTRY_NAME_OVERRIDES,
   countryLabelText,
   countryName,
   ENABLED_AIRPORT_RING,
@@ -21,7 +21,6 @@ import {
   FOREIGN_AIRPORT_NAMES,
   foreignAirportCity,
   foreignAirportName,
-  HOLE_COUNTRIES,
   isEnabledAirportRing,
   isCanonicalIcao,
   isForeignCandidate,
@@ -36,6 +35,7 @@ import {
   UNLABELLED_COUNTRIES,
 } from './index'
 import { RING4_AIRPORT_CITIES, RING4_AIRPORT_NAMES } from './foreign-airport-names-r4'
+import { COUNTRY_LABEL_PLACEMENTS } from '../map/country-label-placements'
 
 // Commit'li OurAirports alt kümesi (tools/fixtures/README.md): Türkiye'nin bütün kayıtları, birkaç
 // uzak havalimanı, 1.–4. halkanın havalimanları (D-080, D-088, D-090, D-101). Alanlar tırnaklı; `""`
@@ -748,6 +748,30 @@ describe('ülke adları', () => {
     expect(countryName('SK', 'en')).toBe('Slovakia')
   })
 
+  it('countryName: CLDR adı yerine elle tutulan adlar (D-100); havalimanı ülkesi de aynı adla', () => {
+    expect(Object.keys(COUNTRY_NAME_OVERRIDES)).toEqual(['CD', 'CG', 'CI', 'MM', 'SJ'])
+    expect(countryName('CD', 'tr')).toBe('Kongo Demokratik Cumhuriyeti')
+    expect(countryName('CD', 'en')).toBe('Democratic Republic of the Congo')
+    expect(countryName('CG', 'tr')).toBe('Kongo Cumhuriyeti')
+    expect(countryName('CG', 'en')).toBe('Republic of the Congo')
+    expect(countryName('CI', 'tr')).toBe('Fildişi Sahili')
+    // İngilizcede CLDR'ın adı, tipografik kesme işaretiyle (U+2019).
+    expect(countryName('CI', 'en')).toBe('Côte d’Ivoire')
+    expect(countryName('MM', 'tr')).toBe('Myanmar')
+    expect(countryName('MM', 'en')).toBe('Myanmar')
+    expect(countryName('SJ', 'tr')).toBe('Svalbard')
+    expect(countryName(' sj ', 'en')).toBe('Svalbard')
+    // CLDR'ın kendi adları başkent ve ayraçla ayırır (kural bunun için var).
+    const cldr = (code: string, locale: string) =>
+      new Intl.DisplayNames(locale, { type: 'region' }).of(code)
+    expect(cldr('CD', 'tr-TR')).toContain(' - ')
+    expect(cldr('MM', 'en-GB')).toContain('(')
+    expect(airportCountryName({ icao: 'FZAA', country: 'CD' }, 'tr')).toBe(
+      'Kongo Demokratik Cumhuriyeti',
+    )
+    expect(airportCountryName({ icao: 'VYYY', country: 'MM' }, 'en', 'long')).toBe('Myanmar')
+  })
+
   it('countryName: 3. halkanın yeni ülkeleri (D-090)', () => {
     expect(countryName('DE', 'tr')).toBe('Almanya')
     expect(countryName('AT', 'tr')).toBe('Avusturya')
@@ -761,18 +785,23 @@ describe('ülke adları', () => {
     expect(countryName('UZ', 'tr')).toBe('Özbekistan')
   })
 
-  it('countryName: CLDR kısa biçimi yerine istisna tablosu (4. halka, D-102)', () => {
-    // CLDR: "Kongo - Kinşasa" / "Congo - Kinshasa", "Kongo - Brazavil", Türkçede "Côte d’Ivoire".
-    expect(countryName('CD', 'tr')).toBe('Kongo Demokratik Cumhuriyeti')
-    expect(countryName('CD', 'en')).toBe('Democratic Republic of the Congo')
+  it('countryName: 4. halkanın ülkeleri (D-102); iki Kongo ve Fildişi Sahili D-100 tablosundan', () => {
+    // 4. halka Kongo DC (14), Kongo (2) ve Fildişi Sahili (3) havalimanlarını açar; adları
+    // `COUNTRY_NAME_OVERRIDES`'tan gelir (ayrı bir 4. halka tablosu yoktur).
+    const ringFour = (country: string) =>
+      listed.filter((c) => c.ring === 4 && c.country === country)
+    expect(ringFour('CD')).toHaveLength(14)
+    expect(ringFour('CG')).toHaveLength(2)
+    expect(ringFour('CI')).toHaveLength(3)
     expect(countryName(' cg ', 'tr')).toBe('Kongo Cumhuriyeti')
-    expect(countryName('CG', 'en')).toBe('Republic of the Congo')
-    expect(countryName('CI', 'tr')).toBe('Fildişi Sahili')
-    expect(countryName('CI', 'en')).toBe('Côte d’Ivoire')
     expect(countryLabelText('CD', 'tr')).toBe('KONGO DEMOKRATİK CUMHURİYETİ')
-    expect(airportCountryName({ icao: 'FZAA', country: 'CD' }, 'tr')).toBe(
-      'Kongo Demokratik Cumhuriyeti',
-    )
+    for (const { icao, country } of [...ringFour('CD'), ...ringFour('CG'), ...ringFour('CI')]) {
+      for (const locale of ['tr', 'en'] as const) {
+        expect(airportCountryName({ icao, country }, locale), icao).toBe(
+          COUNTRY_NAME_OVERRIDES[country]?.[locale],
+        )
+      }
+    }
     // Öbür 4. halka ülkeleri CLDR adıyla.
     expect(countryName('BJ', 'tr')).toBe('Benin')
     expect(countryName('GB', 'tr')).toBe('Birleşik Krallık')
@@ -811,56 +840,41 @@ describe('ülke adları', () => {
   })
 })
 
-describe('ülke adlarının başkentleri (D-095)', () => {
-  /** Ülkesi listelenen havalimanları: Türkiye'nin IATA kodluları ve açık halkalardakiler. */
-  const listedAirports = [
-    ...turkishRows.map((r) => ({ icao: icaoOf(r), country: TURKEY_COUNTRY, ...position(r) })),
-    ...listed.map(({ icao, country, lat, lon }) => ({ icao, country, lat, lon })),
-  ]
-  const listedCountries = new Set(listedAirports.map((a) => a.country))
-  /**
-   * Adı yazılan ülkeler 3. halkaya kadarki ülkelerdir (D-095, D-099): 4. halkanın 55 yeni ülkesinin
-   * adı bu tabloya eklenmedi, bütün ülkelerin adı ayrı işte gelir (D-100, D-102).
-   */
-  const LABELLED_RING = 3
-  const labelledCountries = new Set([
-    TURKEY_COUNTRY,
-    ...listed.filter((c) => c.ring <= LABELLED_RING).map((c) => c.country),
-  ])
-  /**
-   * Başkenti kendi ülkesinin listelenen havalimanına 60 km'den uzak ülkeler: 4. halkayla (D-102) yok.
-   * 3. halkada 12 ülkeydi (AF, BE, DZ, EE, ES, FR, KZ, NL, OM, SD, SE, UZ); başkentlerinin
-   * havalimanları (Kabil, Brüksel, Cezayir, Tallinn, Madrid, Paris, Astana, Amsterdam, Maskat,
-   * Hartum, Stockholm, Taşkent) 4. halkadadır.
-   */
-  const FAR_CAPITALS: readonly string[] = []
+describe('ülke adlarının kapsamı (D-095, D-100)', () => {
+  /** Adı haritada yazılan ülkeler (üretilen tablo). */
+  const labelled = new Set(Object.keys(COUNTRY_LABEL_PLACEMENTS.tr))
+  /** Listelenen havalimanlarının ülkeleri: Türkiye ve açık halkalar. */
+  const listedCountries = new Set([TURKEY_COUNTRY, ...listed.map((c) => c.country)])
 
-  it('kapsam: 3. halkaya kadar listelenen havalimanı olan ülkeler ve Türkiye, İsrail ve Filistin hariç, artı Ukrayna', () => {
-    expect(listedCountries.size - labelledCountries.size).toBe(55)
-    const expected = new Set([...labelledCountries, ...HOLE_COUNTRIES])
-    for (const code of UNLABELLED_COUNTRIES) expected.delete(code)
-    expect(COUNTRY_CAPITALS.map((c) => c.code)).toEqual([...expected].sort())
+  it('listelenen havalimanı olan her ülkenin adı tabloda; İsrail ve Filistin hariç', () => {
     // İsrail'in listelenen havalimanı vardır (Ben Gurion); adı yazılmaz.
     expect(listedCountries.has('IL')).toBe(true)
-  })
-
-  it('boşluk ülkesinin listelenen havalimanı yoktur', () => {
-    for (const code of HOLE_COUNTRIES) expect(listedCountries.has(code), code).toBe(false)
-  })
-
-  it('başkent kendi ülkesinin listelenen bir havalimanına 60 km içinde; uzak olanlar açıkça listeli', () => {
-    const nearest = new Map<string, number>()
-    for (const capital of COUNTRY_CAPITALS) {
-      if (HOLE_COUNTRIES.includes(capital.code)) continue
-      const own = listedAirports.filter((a) => a.country === capital.code)
-      expect(own.length, capital.code).toBeGreaterThan(0)
-      nearest.set(capital.code, Math.min(...own.map((a) => km(capital, a))))
+    for (const code of listedCountries) {
+      expect(labelled.has(code), code).toBe(!UNLABELLED_COUNTRIES.includes(code))
     }
-    const far = [...nearest].filter(([, distance]) => distance > 60).map(([code]) => code)
-    expect(far.sort()).toEqual(FAR_CAPITALS)
-    expect(Math.max(...nearest.values())).toBeLessThanOrEqual(60)
-    // Tahran Mehrabad'a ve Ankara Etimesgut'a yakındır (e2e ülke adı testi OIII'de açılır).
-    expect(nearest.get('IR')).toBeLessThan(10)
-    expect(nearest.get('TR')).toBeLessThan(20)
+  })
+
+  it('4. halka açık (D-102): listelenebilecek her havalimanının ülkesi de tabloda; tablo 4. halkanın pinleriyle yeniden üretildi', () => {
+    const countries = new Set(candidates.filter((c) => c.listable).map((c) => c.country))
+    expect(listed.filter((c) => c.ring === 4)).toHaveLength(719)
+    for (const code of countries) {
+      if (UNLABELLED_COUNTRIES.includes(code)) continue
+      expect(labelled.has(code), code).toBe(true)
+    }
+  })
+
+  it('havalimanı listelenmeyen ülkeler de yazılır (D-100): Ukrayna, ABD, Brezilya, Avustralya; Hindistan ve Grönland 4. halkayla listelenir (D-102)', () => {
+    // v0.22.5'te (3. halka) Hindistan ve Grönland'ın da listelenen havalimanı yoktu.
+    expect(listedCountries.has('IN')).toBe(true)
+    expect(listedCountries.has('GL')).toBe(true)
+    for (const code of ['UA', 'US', 'BR', 'AU']) expect(listedCountries.has(code), code).toBe(false)
+    for (const code of ['UA', 'US', 'BR', 'AU', 'IN', 'GL']) {
+      for (const locale of ['tr', 'en'] as const) {
+        const row = COUNTRY_LABEL_PLACEMENTS[locale][code]
+        expect(row?.regular, `${code} ${locale}`).not.toBeNull()
+        expect(row?.compact, `${code} ${locale}`).not.toBeNull()
+      }
+    }
+    expect(labelled.size).toBe(244)
   })
 })

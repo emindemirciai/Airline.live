@@ -29,7 +29,7 @@ const AIRPORTS = [
   }),
   // Ad tablosunda olmayan, tarifesiz ve istasyon olmayan yeni kayıt: noindex (D-076, D-084).
   airportFixture({ icao: 'LTZZ', iata: 'YZG', scheduled: false, isoRegion: 'TR-66' }),
-  // Türkiye dışındaki havalimanları (D-080): ayrı bölümde, ülkeye sonra ada göre.
+  // Diğer ülkelerdeki havalimanları (D-080, D-106): ayrı bölümde, ülkeye sonra ada göre.
   airportFixture({
     icao: 'LGAV',
     iata: 'ATH',
@@ -50,8 +50,9 @@ const AIRPORTS = [
     distanceToTrKm: 168,
   }),
 ]
-/** Bölüm başlığı 2. halkadan beri (kullanıcı kararı 2026-10-03, D-088). */
-const FOREIGN_HEADING = '## Türkiye dışındaki havalimanları / Airports outside Türkiye'
+/** Bölüm başlıkları (D-088'deki "Türkiye dışındaki" başlığı D-106 ile değişti). */
+const TURKEY_HEADING = '## Türkiye’deki havalimanları / Airports in Türkiye'
+const FOREIGN_HEADING = '## Diğer ülkelerdeki havalimanları / Airports in other countries'
 const HOST = 'https://havayolu.live'
 
 beforeEach(() => {
@@ -88,6 +89,7 @@ describe('GET /llms.txt', () => {
     expect(headings).toEqual([
       '## Harita / Map',
       '## Havalimanları / Airports',
+      TURKEY_HEADING,
       FOREIGN_HEADING,
       '## Hakkında / About',
       '## Optional',
@@ -132,7 +134,7 @@ describe('GET /llms.txt', () => {
     expect(airportLines[0]).toContain('(ESB/LTAC)')
   })
 
-  it('Türkiye dışındakiler ayrı listede: ülke (Ercan için KKTC), Türkiye’ye uzaklık, pist sayısı', async () => {
+  it('diğer ülkelerdekiler ayrı listede: ülke (Ercan için KKTC) ve pist sayısı (D-106)', async () => {
     const { text } = await llms()
     const lines = text.split('\n')
     const foreign = lines.slice(
@@ -140,17 +142,17 @@ describe('GET /llms.txt', () => {
       lines.indexOf('## Hakkında / About'),
     )
     expect(foreign.filter((l) => l.startsWith('- '))).toEqual([
-      `- [Ercan Havalimanı (ECN/LCEN)](${HOST}/istasyon/LCEN): KKTC; Türkiye’ye uzaklık 168 km; 1 pist; English: [Ercan International Airport](${HOST}/en/istasyon/LCEN)`,
-      `- [Atina Eleftherios Venizelos Havalimanı (ATH/LGAV)](${HOST}/istasyon/LGAV): Yunanistan; Türkiye’ye uzaklık 284 km; 2 pist; English: [Athens Eleftherios Venizelos International Airport](${HOST}/en/istasyon/LGAV)`,
+      `- [Ercan Havalimanı (ECN/LCEN)](${HOST}/istasyon/LCEN): KKTC; 1 pist; English: [Ercan International Airport](${HOST}/en/istasyon/LCEN)`,
+      `- [Atina Eleftherios Venizelos Havalimanı (ATH/LGAV)](${HOST}/istasyon/LGAV): Yunanistan; 2 pist; English: [Athens Eleftherios Venizelos International Airport](${HOST}/en/istasyon/LGAV)`,
     ])
-    // Kapsama dürüstlüğü: Türkiye dışındaki havalimanları 5.000 km'ye kadar listelenir (4. halka,
-    // D-102), canlı uçak verisi Türkiye odaklıdır.
-    expect(text).toContain(
-      'Türkiye dışındaki havalimanları da listelenir: Türkiye’deki en yakın havalimanına uzaklığı en fazla 5.000 km olan',
-    )
+    // Liste kuralı: şimdilik 5.000 km'ye kadar (4. halka, D-102). Kapsama dürüstlüğü (D-106): canlı
+    // veri alanı ayrı satırda yazılır.
+    expect(text).toContain('uzaklığı en fazla 5.000 km olan')
     expect(text).toContain('at most 5,000 km from the nearest airport in Türkiye')
+    expect(text).toContain('Canlı uçak verisi şimdilik yalnızca Türkiye ve çevresinden çekilir')
+    expect(text).toContain('Live aircraft data is currently fetched only over Türkiye')
     expect(text).not.toMatch(/[Yy]akın ülke|neighbouring/)
-    expect(text).toContain('Live aircraft data is focused on Türkiye')
+    expect(text).not.toMatch(/Türkiye’ye uzaklık|odaklı|focused on Türkiye/)
     // Yabancı havalimanı yoksa bölüm yazılmaz.
     getAirports.mockResolvedValue(AIRPORTS.filter((a) => a.country === 'TR'))
     expect((await llms()).text).not.toContain(FOREIGN_HEADING)
@@ -173,7 +175,7 @@ describe('GET /llms.txt', () => {
     ])
     const { text } = await llms()
     expect(text.split('\n')).toContain(
-      `- [Taşkurgan Hongqilafu Havalimanı (HQL/ZWTK)](${HOST}/istasyon/ZWTK): Çin; Türkiye’ye uzaklık 2.719 km; English: [Tashikuergan Hongqilafu Airport](${HOST}/en/istasyon/ZWTK)`,
+      `- [Taşkurgan Hongqilafu Havalimanı (HQL/ZWTK)](${HOST}/istasyon/ZWTK): Çin; English: [Tashikuergan Hongqilafu Airport](${HOST}/en/istasyon/ZWTK)`,
     )
     expect(text).not.toMatch(/\b0 pist/)
     // Pisti olanlar yine sayıyla.

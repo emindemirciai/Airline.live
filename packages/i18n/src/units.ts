@@ -165,7 +165,8 @@ export function formatDistance(
 
 /**
  * Sayı (adet), tam sayıya yuvarlanır ve dilin binlik ayırıcısıyla yazılır: 1161 → "1.161" (en
- * "1,161"). Sayfa metnindeki sayımlar için (`/havalimanlari` girişi ve açıklaması, D-102).
+ * "1,161"). Sayfa metnindeki sayımlar için (`/havalimanlari` girişi ve açıklaması, D-102, D-106;
+ * tek yardımcı, web'in kendi kopyası yoktur).
  */
 export function formatCount(value: number, locale: Locale): string {
   return formatNumber(value, locale, 0, 'negative')
