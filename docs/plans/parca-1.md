@@ -45,7 +45,9 @@ Durumlar: `[ ]` başlamadı, `[~]` sürüyor, `[k]` kod bitti ve kullanıcı do�
 | M6i.1 | 4. halkanın ön koşulları ve veri altyapısı (halka 3'te kalır, 503 listelenen): fixture'a 4. halka, 4 karakterli ICAO kuralı, pist kuralları, kaplama kodları, saat dilimleri; toplu havanın ham biçimi, AWC istek sayısı günlükte, uçuş evresi ızgarası, harita penceresinin tembel yüklenmesi — kullanıcı isteğiyle M7c'nin önüne alındı (2026-10-05; D-101) | `p1/m6i1-ring4-prep` | [k] kod bitti; üretimde doğrulandı (2026-10-06, v0.22.0): `/version` 0.22.0, ham toplu hava (`format=raw`) 502 KB, br ile 60 KB (çözülmüş biçim 1,36 MB, br ile 70 KB); v0.22.0 Release 2026-10-06T00:41:12Z; worker günlüğünde AWC `requests` denetimi bekliyor (ACTIVATION) | #36 |
 | M6i.2 | 4. halka (≤ 5.000 km, 719 havalimanı, 1.217 listelenen; D-107'den önce 1.222): adlar, halkanın açılması, ülke adı yerleşiminin yeniden üretimi, metinler, e2e (D-102) | `p1/m6i2-ring4` | [~] kod bitti (2026-10-06); `main` v0.22.3 ile birleşti (2026-10-07): birim testleri, lint, typecheck yeşil; entegrasyon, e2e ve `ci:full` birleştiricide; sürüm 0.23.0 yayın adımında | — |
 | M7c | Kapsama ölçümü yedek yolu (`coverage:probe`) | `p1/m7c-coverage-probe` | [ ] | — |
-| M6j | 5. halka (dünyanın geri kalanı, ABD dahil); haritada görünür alana göre havalimanı yükleme, AWC toplu dosyası (DUR-SOR) ve adların tembel yüklenmesi burada değerlendirilir (D-101) | `p1/m6j-ring5` | [ ] | — |
+| M6j.1 | 5. halkanın ön koşulları (halka 4'te kalır, 1.217 listelenen): fixture'a 5. halka ve iki dışlama örneği, 308 bölge ve 68 havalimanı saat dilimi kuralı, sunucunun fark tablosu, dilimsiz havalimanında UTC (D-106 (c)), pist ve kaplama kuralları, yurt dışı askerî liste, kodu değişen havalimanının eski kodundan 308, içe aktarım kayması günlüğü, fixture testlerinin süresi (D-109) | `p1/m6j1-ring5-prep` | [~] kod bitti (2026-10-07): birim testleri, lint, typecheck yeşil; entegrasyon, e2e ve `ci:full` birleştiricide; 4. halka birleştikten sonra PR; sürüm 0.24.0 yayın adımında | — |
+| M6j.2 | 5. halkanın ölçeği (halka 4'te kalır): web belleğinde havalimanı listesi, API gövde önbelleği, `include=map`, 180. meridyen, istek üzerine pist uçları, METAR/TAF kaydı yalnız tarayıcıda, paylaşım görseli sınırı, toplu havada `format=raw` zorunlu, AWC ilk çalışma, llms.txt belleği (D-109) | `p1/m6j2-ring5-scale` | [ ] | — |
+| M6j.3 | 5. halka (dünyanın geri kalanı, ABD dahil; 2.026 havalimanı, 3.243 listelenen): adlar, tek ad parçası, arama dilimleri, halkanın açılması, ülke adları, düşük yakınlaştırmada küçük pinler, metinler, e2e (D-109) | `p1/m6j3-ring5` | [ ] | — |
 
 ## M0 — Repo iskeleti ve yerel test ortamı
 **Dizinler:**
@@ -1984,3 +1986,116 @@ Hedef sürüm 0.23.0 (yayın adımında yazılır). Dal `p1/m6i2-ring4`, `main`'
 - `pnpm --filter @havayolu/web build` + `first-load.mjs` (gzip 9), aynı makinede `main` v0.22.3 dışa aktarımına karşı: `/` 1.136.676 → 1.136.669 B (gzip 328.541 → 328.542), `/havalimanlari` 1.015.762 → 1.015.755 B (gzip 285.843 → 285.845), `/istasyon/[icao]` 1.063.763 → 1.063.756 B (gzip 302.350 → 302.352); ad parçası tek (1.–4. halka, Türkiye, aranan ek adlar) 66.260 → 141.612 B (gzip 22.181 → 43.134), hiçbir sayfanın ilk paketinde değil.
 - `pnpm test` → web 930, shared 727, tools 369, worker 294, api 287, providers 135, i18n 100, db 73, geo 36; `pnpm format`, `pnpm lint`, `pnpm typecheck`, `pnpm typecheck:scripts`, `pnpm typecheck:e2e`, `pnpm lint:e2e`, `pnpm check:eol`, `pnpm db:check`, `pnpm changelog:check` → yeşil.
 - Çalıştırılmayanlar: `pnpm test:integration`, `pnpm test:migration-upgrade`, `pnpm test:e2e`, `pnpm ci:full` (birleştiricide).
+
+## M6j.1 — 5. halkanın ön koşulları (halka 4'te kalır)
+Onay: 2026-10-06 kullanıcı: "halkalar peşpeşe gelsin" (D-106'daki yayın sırası: 4. halkadan hemen sonra 5. halka) ve kullanıcının sorusu "TÜM HAVALİMANLARINI ne zaman ekleriz?". Halka sınırları ve her halkanın ayrı sürümde açılması D-080'deki kullanıcı kararıdır. M6j'nin M6j.1, M6j.2 ve M6j.3'e bölünmesi ve aşağıdaki seçimler orkestratör varsayılanıdır (2026-10-07, D-109; itiraz edilebilir).
+
+Hedef sürüm 0.24.0 (yayın adımında yazılır; sürüm, changelog ve README yayın adımındadır). Dal `p1/m6j1-ring5-prep`, `p1/m6i2-ring4`'ün `49f0ac0`'ından açıldı (4. halka açık, 1.217 listelenen, `main` v0.22.3 ile D-107 ve D-108 içinde; worktree `C:/PROJELER/havayolu-ring5a`). 4. halka dalı `main`'i her aldığında bu dal 4. halka dalını merge commit'le alır; PR 4. halka birleştikten sonra `main`'e açılır (D-109, erken PR yok: her PR'da e2e ~15 dk). Karar D-109'dadır. `ENABLED_AIRPORT_RING` 4 kalır: listelenen 1.217 (56 + 1.161), site haritası 2.444, llms.txt 1.217, haritada 1.217 pin, ülke adı yerleşimi ve e2e sayıları aynı. Migration yoktur.
+
+**Neden önce:** fixture'a 5. halkanın satırlarını eklemek fixture'a bağlı testleri değiştirir; saat dilimleri, pist ve kaplama kuralları, askerî liste ve sunucunun fark tablosu halka açılmadan test edilip yayımlanır. Ölçek işi (M6j.2) 4. halkada üretimde denenir; M6j.3 yalnız adları, halkanın açılmasını, metinleri ve e2e'yi taşır (D-109 "Neden üç yayın").
+
+**Kapsam:**
+- **Fixture:** 2026-10-01 kalıcı kopyasından (yeni indirme yok) 2.030 havalimanı ve 3.000 açık pist dosyaların sonuna; `FIXTURE_RINGS_KM = [500, 1000, 2000, 5000, ∞]`; tabana iki dışlama örneği (LFPB, FATH); 3.624 / 4.604 veri satırı. 5. halka satırları araştırmanın ek dosyalarıyla bayt bayt aynı (SHA-256 `784f4711…9e38` / `b569d99d…f6d1`); kalıcı kopya değiştirilmedi, `ring5-append/` kullanıcının isteğe bağlı adımı (ACTIVATION).
+- **Saat dilimleri:** 308 bölge, 68 havalimanı kuralı, 30 ISO eşi; 5. halkanın 2.028 adayı (askerî üç hariç) 225 dilimde; CYPL `America/Coral_Harbour`, SBTT bölge varsayılanı `America/Manaus`, CL-AI `America/Punta_Arenas`; `PF-U-A` adlı istisna; ¹ listesi CYPL, CYAQ, SBTT (izleme CYPN).
+- **Sunucunun fark tablosu:** `utcOffsetTable` (çizim anının ±48 saati, geçiş dakikasıyla), adada `registerUtcOffsetTable`; `localTime` ve i18n'in gün biçimi aralıkta tablodan, dışında `Intl`'den.
+- **Dilimsiz havalimanında UTC (D-106 (c)):** hava durumu, uzman satırı ve METAR/TAF kaydı UTC; i18n `utcTime`, `observedUtcOnly`, `log.introUtc`.
+- **Pist ve kaplama:** boş yinelenen satır genel kuralı (`visibleRunways`, `HIDDEN_RUNWAY_IDS`'in yerine; kapsama raporu da kullanır), silme işareti (`RUNWAY_TOMBSTONE_SURFACE`), ZULA gizli kalır; FAA durum eki ve 15 yeni kaplama kodu.
+- **Yurt dışı askerî liste:** PKWA, PWAK, YBOK `MILITARY_AIRFIELD_ICAOS`'a (shared ve db).
+- **Adres takma adı:** `identAlias` (isteğe bağlı alan), `findAirportDetail` ve `findAirportInRows`, web `resolveAirportCode` 308; `IDENT_ALIAS_EXCLUSIONS` (WABP); OpenAPI.
+- **İçe aktarım kayması:** `readListingDrift`, `canonicalIcaoCollisions` (db); `reference-drift.ts` (worker), `runReferenceImport`'ta `readDrift`; RUNBOOK.
+- **Fixture testlerinin süresi:** dosya başına bir ayrıştırma; 1 sn'yi aşan tek yeni fixture testine açık süre sınırı.
+- **Yapılmayanlar (D-109):** ölçek işi (M6j.2), adlar ve halkanın açılması (M6j.3); ad kuralı test genellemeleri M6j.3'e taşındı (eleştirinin F6c'si); 180. meridyen düzeltmeleri M6j.2'de.
+
+**Dosyalar:**
+- `scripts/make-reference-fixtures.mts`; `tools/fixtures/ourairports/airports.csv`, `runways.csv`, `tools/fixtures/README.md`
+- `packages/shared/src/`:
+  - `reference/time-zones.ts` (kurallar, `isSupportedTimeZone` zaman modülünden), `reference/runway-surface.ts`, `reference/military-airfields.ts`, `reference/airport-detail.ts` (`identAlias`)
+  - `weather/time.ts` (`utcOffsetTable`, `registerUtcOffsetTable`, `hasUtcOffsetTable`, `utcOffsetFromTable`, `isSupportedTimeZone`), `weather/index.ts`
+  - testler `reference/time-zones.test.ts`, `reference/reference.test.ts`, `reference/foreign.test.ts`, `weather/time.test.ts`
+- `packages/i18n/src/weather.ts` (`formatDayMonth` tabloyla), `messages/{tr,en}.ts`
+- `packages/db/src/airports.ts` (`visibleRunways`, `isEmptyRunway`, `RUNWAY_TOMBSTONE_SURFACE`, `MILITARY_AIRFIELD_ICAOS`, `identAlias`, `IDENT_ALIAS_EXCLUSIONS`, `rowMatchesCode`, `findAirportInRows`, `canonicalIcaoCollisions`, `readListingDrift`), `arrival-coverage.ts`; testler `airports.test.ts`, `airports.int.test.ts`
+- `packages/providers/src/reference/reference.test.ts`
+- `apps/api/src/reference/airports.ts` (şema, OpenAPI); testler `airport-aliases.test.ts` (yeni), `airports-cache-size.test.ts`, `airport-details.int.test.ts`; `src/test/ourairports-fixture.ts` (yeni)
+- `apps/worker/src/jobs/reference-drift.ts` (yeni), `reference.ts`, `index.ts`; testler `reference-drift.test.ts` (yeni), `jobs.int.test.ts`
+- `apps/web/src/`: `lib/airports.ts` (`identAlias`, takma ad 308), `components/airports/airport-weather.tsx`, `airport-weather-live.tsx`, `weather-panel.tsx`, `weather-log.tsx`, `weather-expert.ts`, `lib/test/ourairports-fixture.ts`; testler `lib/airports.test.ts`, `components/airports/airport-weather.test.ts`, `airport-weather-hydration.test.ts` (yeni), `components/map/airport-popup-model.test.ts`, `airport-popup.test.ts`
+- `tools/src/live/station.ts`, `tools/src/country-labels/airport-pins.test.ts`
+- `e2e/support.ts` (`IDENT_ALIAS_AIRPORT`, `FOREIGN_MILITARY_AIRFIELDS`), `e2e/tests/foreign-airports.spec.ts`
+- Belgeler: D-109, bu plan, `docs/spec/data-sources.md` (§3 fixture, liste, takma ad, pist ve kaplama, kayma; §5a), `docs/spec/domain.md` (yerel saat, askerî liste, adres takma adı), `docs/RUNBOOK.md` ("İçe aktarım kayması"), `docs/ACTIVATION.md` ("M6j.1 yayın doğrulaması", "Kalıcı kopyaya 5. halka ekleri", ¹ saat dilimleri, "M6j.3 METAR denetimi")
+
+**Kabul komutları:**
+- `cd C:/PROJELER/havayolu-data/ourairports-2026-10-01 && sha256sum -c SHA256SUMS` → beş dosya OK (kullanıcı ekleri eklerse yedi); ekler fixture'dan: `tail -n 2030 tools/fixtures/ourairports/airports.csv | sha256sum` → `784f4711…9e38`, `tail -n 3000 tools/fixtures/ourairports/runways.csv | sha256sum` → `b569d99d…f6d1`
+- `pnpm exec tsx scripts/make-reference-fixtures.mts C:/PROJELER/havayolu-data/ourairports-2026-10-01 <geçici-klasör>` → "airports 439 + rings 75 + 89 + 275 + 716 + 2030, runways 149 + 4455, airlines 5964"; `cmp` ile `tools/fixtures/ourairports/airports.csv` (3.624 satır), `runways.csv` (4.604) ve `vrs/airlines.csv` aynı
+- `pnpm --filter @havayolu/providers test` → 3.624 / 4.604 satır; 5. halka satırları sonda (ZWYN → 5A8 … ZYYK); FATH içe aktarılmaz; uç uzaklığı kuralı yalnız VAAM 610195 ve KPUB 241424
+- `pnpm --filter @havayolu/shared test` → halka 4 açık ve değişmedi; fixture'da 5. halka 2.031 aday, 2.029 kanonik ICAO'lu, askerî liste dışında 2.026; 2.028 aday 225 dilimde, her dilim ülkesinin `Intl` listesinde; kural sayıları 308 / 68 / 30; örnek farklar CYPL [−300, −300], SBTT [−240, −240], SCBA [−180, −180], PADK [−600, −540], YBHI [630, 570], NTMN [−570, −570] (Britanya Kolumbiyası yalnız yaz); her dolu kaplama kodu türe çevrilir, FAA eki; fark tablosu ve kayıt
+- `pnpm --filter @havayolu/db test` → 5. halka açık bağlamla 3.243 (56 + 75 + 89 + 278 + 719 + 2.026); WKK, KHX, LSG, PWAK, YBOK, PKWA, LFPB, FATH yok; boş satır kuralı tablonun 7 satırı + 5. halkanın 13 satırı, silme işareti NZHN 238057 ve 260389; görünür pistler 1.541 + 2.978; pistsiz 6 + 14; 4. halka açıkken 1.217; takma adlar 29 + 23, WABP takma ad değil; web yardımcısının yazımı aynı
+- `pnpm --filter @havayolu/api test` → `GET /v1/airports/UTSS` UZSS (halka 4), `SPIM` SPJC (5. halka fixture satırları), `WABP` ve askerî liste 404; 4. halkanın sayıları değişmedi (önbellek kaydı %67,0)
+- `pnpm --filter @havayolu/web test` → eski kurallı `Intl` taklidinde sunucu HTML'i = ilk istemci çizimi (Vancouver Aralık 2026, Almatı; tanınmayan Ciudad Juárez); UTC yedeği iki dilde; `/istasyon/UTSS` → 308 UZSS (29 takma ad); yardımcı pist kurallarını yansıtır
+- `pnpm --filter @havayolu/worker test` → kayma satırı yedi sayımla; fixture'da açık halka sapmasız, 5. halka açık bağlamla yalnız 2.026 ad eksik
+- `pnpm typecheck`, `pnpm lint`, `pnpm typecheck:scripts`, `pnpm typecheck:e2e`, `pnpm lint:e2e`, `pnpm format`, `pnpm check:eol`, `pnpm db:check`; `pnpm country-labels` → "1217 airport pins", tablo farksız
+- `pnpm build` → `/istasyon/[icao]` ilk yükleme farkı (çıktı kaydı)
+- Birleştiricide: `pnpm test:integration` (db 5. halka açık bağlamla 3.243 ve takma adlar; API 4. halkada 56 + 1.161 ve UTSS; worker kayma satırı 1.217, sapmasız), `pnpm ci:full` yeşil, e2e sayıları değişmez (1.217) ve takma ad 308'i; PR'da CI yeşil
+- **Kullanıcıya bağlı (`[k]`):** `/version`; `/istasyon/UTSS` 308; ertesi gece kayma satırı (ACTIVATION → "M6j.1 yayın doğrulaması")
+
+**Çıktı kaydı (2026-10-07, kod; sürüm, changelog ve README yayın adımındadır):**
+- **Fixture:** kalıcı kopyada `sha256sum -c SHA256SUMS` → beş dosya OK. Üretici `<scratchpad>/m6j1/after` klasörüne: "✓ airports 439 + rings 75 + 89 + 275 + 716 + 2030, runways 149 + 4455, airlines 5964"; üç dosya commit'li fixture'la `cmp` ile aynı. 5. halka satırları: son 2.030 havalimanı satırı SHA-256 `784f4711432731e622253275c6d624308d8b4cd9b23d7a211b9a3d29c9328e38` (492.779 B), son 3.000 pist satırı `b569d99d00e2f8f2b8efe6dedde36ddcf9bc05624d3cea4b29bfbcc56e21f6d1` (467.356 B): araştırmanın ek dosyalarıyla aynı. Fixture SHA-256: `airports.csv` `889a274f0f73c8fac4acbd3582f3657c1d2ca92fbb16796e26d9655ae815305a` (852.185 B), `runways.csv` `49bf6178010c68e61024837dd31525d6c8dadb48083127dfb2089c6fe4b7098e` (717.773 B). Kalıcı kopya değiştirilmedi (`ring5-append/` ACTIVATION'da).
+- **Sayılar (fixture):** 5. halka 2.031 aday → 2.026 listelenebilir (WKK, LSG; PWAK, YBOK, PKWA); 5. halka açık bağlamla 3.243 (yabancı 3.187, 129 ülke, 118'i yeni); 2.028 aday 225 dilimde (araştırmanın çözümüyle, düzeltmeler dahil, fark 0); takma adlar 29 + 23 = 52; görünür pistler 1.541 + 2.978; pistsiz 6 + 14; kayma: halka 4 sıfır, halka 5'te yalnız 2.026 ad.
+- **`pnpm build`** (Next 16.3.6, Turbopack; `route-bundle-stats.json`, gzip 9; aynı makinede `49f0ac0`'ın derlemesine karşı): `/istasyon/[icao]` 951.162 → **942.808 B** (gzip 262.832 → **259.890**, −2.942; ada dilim tablolarını artık taşımaz), `/` 1.024.075 → 1.025.226 B (gzip 289.022 → 289.439, +417), `/havalimanlari` 903.161 → 904.187 B (gzip 246.325 → 246.674, +349). Dilim tabloları (5. halkayla) yalnız tembel parçada: haritanın pencere/panel/arama parçası 161.619 B (gzip 48.697), hiçbir sayfanın ilk paketinde değil.
+- `pnpm test` → web 936, shared 737, tools 369, worker 299, api 290, providers 135, i18n 100, db 82, geo 36 (önce web 930, shared 727, worker 294, api 287, db 73).
+- `pnpm format`, `pnpm lint` (9/9), `pnpm typecheck` (9/9), `pnpm typecheck:scripts`, `pnpm typecheck:e2e`, `pnpm lint:e2e`, `pnpm check:eol`, `pnpm db:check` (boş fark) → yeşil. `pnpm country-labels` → "1217 airport pins", `country-label-placements.ts` farksız.
+- **Test süreleri (yerel, vitest JSON raporu):** 1 sn'yi aşan fixture testleri: API takma ad testinin ilki ~1,2 sn (açık 30 sn sınırı aldı); öbürleri öncekiler (paylaşım görseli 2,7 sn, ülke adı yerleşimi 6,7 sn, Natural Earth 1,2 sn; açık sınırları zaten vardı). 5. halkanın `Intl` testi 0,93 sn, önbellek kaydı testi 0,92 sn (sınır yok).
+- Çalıştırılmayanlar: `pnpm test:integration`, `pnpm test:migration-upgrade`, `pnpm test:e2e`, `pnpm ci:full` (Docker ve 3100/4100/4200/4300; birleştiricide).
+
+## M6j.2 — 5. halkanın ölçeği (halka 4'te kalır)
+Onay: M6j.1 ile aynı (2026-10-06 kullanıcı: "halkalar peşpeşe gelsin"; "TÜM HAVALİMANLARINI ne zaman ekleriz?"). Seçimler orkestratör varsayılanıdır (D-109'daki bölünme; ayrıntılar yayın adımında kendi kararına yazılır).
+
+Hedef sürüm MINOR (yayın adımında). Dal `p1/m6j2-ring5-scale`, M6j.1'in fixture commit'inden (`C:/PROJELER/havayolu-ring5b`); M6j.1'i merge commit'le izler. `ENABLED_AIRPORT_RING` 4 kalır.
+
+**Kapsam (son tasarım §5):**
+1. Web'in havalimanı listesi sunucu belleğinde (`cache: 'no-store'`; 3.600 sn, süre dolunca eski liste hemen, arkada tek yükleme; başarısız yenilemede eski liste, 60 sn sonra yeniden; boş liste 60 sn; hiç yüklenmemişse hata ve 500). React `cache()` kalır.
+2. API gövde önbelleği: `scope=listed` gövdeleri her `cachedReader` yenilemesinde (biçim, kodlama) başına bir kez; brotli q11 zaman uyumsuz zlib'le; soğuk açılışta bugünkü q4 yolu.
+3. `include=map`: pencere alanları + `runways: [{ lengthFt, ends? }]`, uçlar yalnız 1.–3. halkada (4. halkada ~90 KB brotli, bugün 183 KB).
+4. İstek üzerine pist uçları: uçak listesindeki bir uçak uçsuz bir havalimanının evre yarıçapına girince `/v1/airports/<ICAO>` oturumda bir kez.
+5. 180. meridyen: `airportsInView` ve `screenAirports`/pencere izdüşümü boylamı sarar.
+6. METAR/TAF kaydı yalnız tarayıcıda (sunucu çizimi istemez; `WEATHER_HISTORY_REVALIDATE_S` ve RUNBOOK "METAR/TAF kaydı sunucu çiziminde alınamıyor" kalkar).
+7. Paylaşım görseli: PNG önbelleği 256 kayıt; glif katlama (NFD), ağsız test.
+8. Toplu hava: `scope=listed` `format=raw`'sız 400; OpenAPI.
+9. AWC: geri doldurma sınırı yok; 5. halkanın ilk çalışması ~359 istek (≥ 251 sn, dakikada ≤ 86).
+10. llms.txt bellekte, liste yenilenince yeniden kurulur.
+11. Testlerin yeniden tabanı: `weather-raw.test.ts` (≤ 1.250 B/istasyon, 3.241'de < 4,2 MB), `labels.test.ts` notu, `airports-cache-size.test.ts` gövde bütçesi (≤ 3,5 MB).
+
+**Kabul komutları (son tasarım §5):**
+- `pnpm --filter @havayolu/api test` → N istek tek serileştirme ve sıkıştırma (casus), önbellekli bayt = önbelleksiz, sıkıştırma zaman uyumsuz; 5. halka fixture'ında `include=map` ≤ 1,2 MB ham ve ≤ 190 KB brotli, 4. halkada ≤ 95 KB brotli; `format=raw`'sız toplu hava 400; OpenAPI
+- `pnpm --filter @havayolu/web test` → bellek önbelleği (tek yükleme, süre sonrası eski liste hemen, boş liste 60 sn, soğuk hata, `next.revalidate` yok); 180°: 179,5° D ve −179,5°'de z5 kamera NAN, TBU, APW, WLS; istek üzerine uçlar (havalimanı başına bir istek); sunucu çizimi kayıt istemez, ada yükleniyor durumu sonra kaydı gösterir; paylaşım görseli 256 ve ağsız glif testi; llms.txt yenileme başına bir kez; `lazy-chunks.test.ts`
+- `pnpm --filter @havayolu/worker test`, `@havayolu/providers` → 4. halkada METAR 16, TAF 7; 3.241 sentetik istasyonda 41 ve 17; 2.064 yeni istasyonlu ilk çalışma 359 istek, aralık ≥ 700 ms
+- `pnpm build` → `/` ilk yükleme farkı ≤ +512 B; `/istasyon/[icao]` ve `/havalimanlari` farkları
+- M6j.1'in sekiz denetimi; birleştiricide `pnpm test:integration` (`include=map` 4. halkada 56 + 1.161; hava 400; worker 1.217 istasyon), `pnpm ci:full`, PR CI
+- **Kullanıcıya bağlı (`[k]`):** haritanın ilk açılışında havalimanları ~90 KB brotli; istasyon sayfasında kayıt yüklemeden sonra; `scope=listed` `format=raw`'sız 400; `/istasyon/EGLL/opengraph-image`; worker günlüğünde METAR 16, TAF 7
+
+**Çıktı kaydı:** henüz yok.
+
+## M6j.3 — 5. halka açılır (dünyanın geri kalanı, ABD dahil)
+Onay: M6j.1 ile aynı (2026-10-06 kullanıcı: "halkalar peşpeşe gelsin"; "TÜM HAVALİMANLARINI ne zaman ekleriz?"). Adların derlemesi depo dışındadır (`C:/PROJELER/havayolu-data/ring5-names/`; hazırlık, dondurma ve pilot şimdi, ana dalga 4. halka yayındayken); ad yazım soruları S1–S8 varsayılanlarıyla (D-109; S1 M6j.1'de uygulandı).
+
+Hedef sürüm MINOR (yayın adımında). Dal `p1/m6j3-ring5`, M6j.2'nin üstünden. `ENABLED_AIRPORT_RING` 4 → 5; migration yok.
+
+**Kapsam (son tasarım §7):**
+- **Adlar:** `foreign-airport-names-r5.ts` (2.026 kayıt) taslaktan betikle, SHA-256 aynı; birleşik tablolar 3.187 yabancı ad; ad kuralı test genellemeleri (Türkçe şehir adının içindeki İngilizce sözcük, ülke içinde tekil İngilizce ad, 170 karakteri aşan açıklamada önce yükseklik sonra pist uzunluğu düşer); mevcut 1.161 ad ve 4. halkanın açıklamaları bayt bayt aynı.
+- **Tek ad parçası:** 1.–5. halka mevcut tek tembel girişte (`airport-lazy.ts`, D-108; ~55 KB gzip), ilk yükte değil.
+- **Arama (D-108):** `createAirportSearchIndex` `timeRemaining()` dilimleriyle (3.243 sentetikte dilim ≤ 50 ms, tek seferlik kurulumla aynı dizin); `identAlias` tam kod ("SPIM" → Lima); "TRK" önce Tarakan (WAQQ); 941 IATA kodu bir havayolu ICAO'su.
+- **Halka:** 3.243 listelenen, 3.187 yabancı, site haritası 6.496, llms.txt 3.243, hava durumu istasyonu 3.241, açık ülke 231.
+- **Metinler:** `/havalimanlari` açıklaması toplamla ("3.243" / "3,243"); D-106 (b) yeniden değerlendirmesi (iki tablo, Türkiye önce); `listedRadiusKm() === null` metinleri.
+- **Ülke adları:** `pnpm country-labels` 3.243 pinle.
+- **Düşük yakınlaştırmada pinler (U2 varsayılanı):** `icon-size` 3 → 0,30, 4 → 0,45; her pin kalır.
+- **e2e:** KJFK sayfaları ve haritası, `/istasyon/JFK` → 308; `/istasyon/SPIM` → 308 SPJC; 404: LFPB, LBG, FATH, THY, YBOK, WKK, KHX, LSG; site haritası 6.496, llms.txt 3.243.
+
+**Kabul komutları (son tasarım §7):**
+- `check5 --strict` 0 ihlal (`final.jsonl` ve birleşik repo tabloları); taslağın SHA-256'sı repo dosyasınınkiyle aynı
+- `pnpm --filter @havayolu/shared test` → 5. halka açık; 3.187 ad ve şehir; ad kuralları (sapmalar, teklik, şehrin içindeki İngilizce sözcük, 3.243 havalimanında iki dilde SEO 70–170, glifler)
+- `pnpm --filter @havayolu/db test` → 3.243; `pnpm --filter @havayolu/tools test` ve `pnpm country-labels` → "3243 airport pins", tablo sürüklenmesi yok, Tahran ve TÜRKİYE e2e beklentileri değişmez
+- `pnpm --filter @havayolu/web test` → 5. halka pencereleri (New York, Sidney, Honolulu, Santiago, Paskalya Adası); birleşik parça ilk yükte değil; arama dilimleri; `/havalimanlari` bütçesi; llms.txt 3.243
+- `pnpm --filter @havayolu/api test` → M6j.2'nin bütçeleri içinde
+- `pnpm build` → `/`, `/istasyon/[icao]`, `/havalimanlari` farkları ve parça boyu
+- Birleştiricide `pnpm test:integration` (API 56 + 3.187; pistsiz 6 + 14; worker 3.241 istasyon), `pnpm test:e2e`, `pnpm ci:full`, PR CI
+- **Kullanıcıya bağlı (`[k]`):** `scope=listed` 3.243 ± kayma (kayma satırı açıklar), ~70 dk içinde; yerel saatler (KJFK, SBGR, YSSY, PHNL, NZAA, SCIP, PADK ve kışın bir Britanya Kolumbiyası havalimanı); ilk METAR çalışmasında 429 yok; kimliği farklı istasyonların METAR'ı (KDJT dahil; CAJ4, CAT4 havasız); telefonda z3; uyduda ABD, Çin ve Brezilya'da ülke adları; bir hafta sonra veritabanı boyutu; ¹ dilimler (ACTIVATION)
+
+**Çıktı kaydı:** henüz yok.
