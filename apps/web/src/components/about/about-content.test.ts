@@ -93,26 +93,32 @@ describe('AboutContent', () => {
     expect(text(render('tr', STATIONS, null))).not.toContain('çekim alanının dışında kalan')
   })
 
-  it('Türkiye dışındaki havalimanları 2.000 km’ye kadar listelenir; canlı uçak verisi Türkiye odaklıdır (D-080, D-088, D-090)', () => {
+  it('liste kuralı şimdilik 2.000 km; canlı veri alanı açıkça yazılır (D-080, D-090, D-106)', () => {
     const tr = text(render('tr'))
     expect(tr).toContain(
-      'Havalimanları: Türkiye’deki ve Türkiye dışındaki havalimanlarının kodları, pistleri ve en yakın havalimanları.',
+      'Havalimanları: listedeki her havalimanının kodları, pistleri ve en yakın havalimanları.',
     )
     expect(tr).toContain(
-      'Türkiye dışındaki havalimanları da listelenir: Türkiye’deki en yakın havalimanına uzaklığı en fazla 2.000 km olan, IATA kodlu büyük ve orta boy havalimanları. Canlı uçak verisi Türkiye odaklıdır:',
+      'Havalimanı listesinde şimdilik Türkiye’nin IATA kodlu havalimanları ile diğer ülkelerin, Türkiye’deki en yakın havalimanına uzaklığı en fazla 2.000 km olan, IATA kodlu büyük ve orta boy havalimanları yer alır. Diğer ülkelerdeki havalimanlarının çoğu canlı veri çekim alanının dışındadır',
     )
+    // Kapsama dürüstlüğü (D-106): canlı veri alanı ürün tercihi değil, bugünkü sınır olarak yazılır.
+    expect(tr).toContain('Canlı uçak verisi şimdilik yalnızca Türkiye ve çevresinden çekilir')
+    // Birincil istasyon girişte yazılır; site Türkiye ile sınırlanmaz.
+    expect(tr).toContain('İstanbul Havalimanı’nı öncelikli izleyen')
     // OurAirports'un tarifeli sefer bilgisi gösterilmez (D-078, kullanıcı kararı).
     expect(tr).not.toMatch(/tarifeli sefer/i)
-    // 2. halkadan beri "yakın ülkeler" yazılmaz (kullanıcı kararı 2026-10-03, D-088).
-    expect(tr).not.toMatch(/[Yy]akın ülke/)
     const en = text(render('en'))
+    expect(en).toContain('at most 2,000 km from the nearest airport in Türkiye.')
+    expect(en).toContain('for every listed airport.')
     expect(en).toContain(
-      'Airports outside Türkiye are listed too: large and medium airports with an IATA code, at most 2,000 km from the nearest airport in Türkiye.',
+      'Live aircraft data is currently fetched only over Türkiye and the surrounding area',
     )
-    expect(en).toContain('for the airports in Türkiye and outside Türkiye.')
-    expect(en).not.toMatch(/neighbouring/)
-    expect(en).toContain('Live aircraft data is focused on Türkiye')
+    expect(en).toContain('with Istanbul Airport as its top priority')
     expect(en).not.toMatch(/scheduled service/i)
+    // "Türkiye odaklı" (D-106) ve 2. halkadan beri "yakın ülkeler" (D-088) yazılmaz.
+    for (const body of [tr, en]) {
+      expect(body).not.toMatch(/odaklı|focused on Türkiye|[Yy]akın ülke|neighbouring/)
+    }
   })
 
   it('kaynaklar ve lisanslar bağlantılı', () => {

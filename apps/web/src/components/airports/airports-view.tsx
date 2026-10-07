@@ -1,4 +1,4 @@
-import { format, formatDistance, getMessages, NO_VALUE } from '@havayolu/i18n'
+import { format, formatDistance, getMessages } from '@havayolu/i18n'
 import type { AirportDetail, Locale } from '@havayolu/shared'
 import Link from 'next/link'
 // Göreli yollar: vitest `@/` takma adını çözmez ve bu bileşen testte çizilir.
@@ -11,6 +11,7 @@ import {
   airportCountry,
   airportName,
   airportProvince,
+  formatCount,
   formatDataDate,
   formatMeters,
   listedRadiusKm,
@@ -25,14 +26,14 @@ export interface AirportsViewProps {
   locale: Locale
   /** Uygulamanın adı (`APP_NAME`). */
   app: string
-  /** Listelenen havalimanları (Türkiye ve yakın ülkeler, D-080); sıralamayı görünüm yapar. */
+  /** Listelenen havalimanları (Türkiye ve diğer ülkeler, D-080); sıralamayı görünüm yapar. */
   airports: readonly AirportDetail[]
 }
 
 /**
- * Liste sayfasının sayıları (açıklama ve özet cümlesi aynı sayıları kullanır): Türkiye'deki ve yakın
- * ülkelerdeki havalimanları. Tarifeli sefer ve izlenen istasyon bilgisi gösterilmez (M6c, kullanıcı
- * kararı 2026-10-01, D-078).
+ * Liste sayfasının sayıları: Türkiye'deki ve diğer ülkelerdeki havalimanları. Açıklama ve özet cümlesi
+ * ikisinin toplamını tek sayı olarak yazar (D-106). Tarifeli sefer ve izlenen istasyon bilgisi
+ * gösterilmez (M6c, kullanıcı kararı 2026-10-01, D-078).
  */
 export function airportCounts(airports: readonly AirportDetail[]) {
   const { turkey, foreign } = splitByCountry(airports)
@@ -40,7 +41,7 @@ export function airportCounts(airports: readonly AirportDetail[]) {
 }
 
 /**
- * Listenin görünen sırası: önce Türkiye (ile, sonra ada göre), sonra yakın ülkeler (ülkeye, sonra ada
+ * Listenin görünen sırası: önce Türkiye (ile, sonra ada göre), sonra diğer ülkeler (ülkeye, sonra ada
  * göre). Sayfanın JSON-LD `ItemList`'i de bu sırayı kullanır.
  */
 export function listedAirportRows(
@@ -58,11 +59,11 @@ function AirportLink({ airport, locale }: { airport: AirportDetail; locale: Loca
 }
 
 /**
- * Havalimanı listesi (`/havalimanlari`, M6b brief §g; M6d): özet cümlesi, Türkiye tablosu ve yakın
- * ülkelerdeki havalimanlarının ayrı tablosu (D-080). İki tablo da gerçek `<table>`'dır. Türkiye ile,
- * sonra ada göre; yakın ülkeler ülkeye, sonra ada göre sıralıdır (sayfanın dilinin alfabesi). Yakın
- * ülkeler tablosunda Türkiye'deki en yakın havalimanına uzaklık (`distanceToTrKm`) yazılır; canlı
- * uçak verisinin Türkiye odaklı olduğu bölümün başında söylenir (D-076 kapsama dürüstlüğü).
+ * Havalimanı listesi (`/havalimanlari`, M6b brief §g; M6d): özet cümlesi, Türkiye tablosu ve diğer
+ * ülkelerdeki havalimanlarının ayrı tablosu (D-080, D-106). İki tablo da gerçek `<table>`'dır. Türkiye
+ * ile, sonra ada göre; diğer ülkeler ülkeye, sonra ada göre sıralıdır (sayfanın dilinin alfabesi).
+ * Türkiye'ye uzaklık sütunu yoktur (D-106). Bölümün başındaki kapsama notu canlı uçak verisinin
+ * şimdilik yalnızca Türkiye ve çevresinden çekildiğini söyler (D-076 kapsama dürüstlüğü).
  */
 export function AirportsView({ locale, app, airports }: AirportsViewProps) {
   const messages = getMessages(locale)
@@ -82,7 +83,7 @@ export function AirportsView({ locale, app, airports }: AirportsViewProps) {
       ) : (
         <>
           <p className="lead">
-            {counts.foreign > 0 ? format(t.summaryWithForeign, counts) : format(t.summary, counts)}
+            {format(t.summary, { count: formatCount(counts.count + counts.foreign, locale) })}
           </p>
           {turkey.length > 0 ? (
             <section aria-labelledby="airports-turkey" className="airports-section">
@@ -149,7 +150,6 @@ export function AirportsView({ locale, app, airports }: AirportsViewProps) {
                       <th scope="col">{t.columns.country}</th>
                       <th scope="col">{t.columns.iata}</th>
                       <th scope="col">{t.columns.icao}</th>
-                      <th scope="col">{t.columns.distanceToTr}</th>
                       <th scope="col">{t.columns.longestRunway}</th>
                     </tr>
                   </thead>
@@ -164,11 +164,6 @@ export function AirportsView({ locale, app, airports }: AirportsViewProps) {
                           <td>{airportCountry(airport, locale)}</td>
                           <td className="mono">{airport.iata}</td>
                           <td className="mono">{airport.icao}</td>
-                          <td className="num">
-                            {airport.distanceToTrKm === null
-                              ? NO_VALUE
-                              : formatDistance(airport.distanceToTrKm, { locale })}
-                          </td>
                           <td className="num">{formatMeters(longest?.lengthFt ?? null, locale)}</td>
                         </tr>
                       )
@@ -176,7 +171,6 @@ export function AirportsView({ locale, app, airports }: AirportsViewProps) {
                   </tbody>
                 </table>
               </div>
-              <p className="hint">{t.foreign.distanceNote}</p>
               <p className="hint">{t.foreign.names}</p>
             </section>
           ) : null}

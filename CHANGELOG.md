@@ -8,7 +8,29 @@
 
 ---
 
-## v0.22.3 — 2026-10-07
+## v0.22.4 — 2026-10-07
+
+### Türkçe
+**Global bir uçuş takip sitesi**
+
+- Site artık Türkiye’ye özgü bir harita gibi sunulmuyor: başlıklar ve açıklamalar “Canlı uçuş takibi ve uçak haritası” der; İstanbul Havalimanı önceliğimiz olmaya devam ediyor.
+- Canlı uçak verisinin şimdilik Türkiye ve çevresinden çekildiği Hakkında sayfasında ve havalimanı sayfalarında açıkça yazıyor; bu alanın dışındaki havalimanlarının sayfa başlığı bunu belirtir.
+- Havalimanları listesinde Türkiye dışındaki tablo “Diğer ülkelerdeki havalimanları” oldu; yabancı havalimanı sayfalarındaki “Türkiye’deki en yakın havalimanı” satırı ve “Türkiye’ye uzaklık” sütunu kaldırıldı. Yenilikler sayfasındaki yayın saatleri UTC farkıyla yazılır.
+
+Dene: [Hakkında](/hakkinda) · [Havalimanları](/havalimanlari)
+
+### English
+**A global flight tracking site**
+
+- The site is no longer presented as a Türkiye-only map: titles and descriptions now read “Live flight tracker and aircraft map”, with Istanbul Airport still our top priority.
+- The About page and airport pages state plainly that live aircraft data is for now fetched over Türkiye and the surrounding area; airports outside that area say so in their page title.
+- In the airport list the second table is now “Airports in other countries”; the “nearest airport in Türkiye” row and the “distance to Türkiye” column are gone. Release times on What’s new show the UTC offset.
+
+Try it: [About](/hakkinda) · [Airports](/havalimanlari)
+
+---
+
+## v0.22.3 — 2026-10-07 22:24 (UTC+3)
 
 ### Türkçe
 **Haritada havalimanı araması**

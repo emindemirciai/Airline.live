@@ -4,6 +4,7 @@ import { LOCALES, type Locale } from '@havayolu/shared'
 import type { Metadata } from 'next'
 import { appName, getServerEnv } from '../env'
 import { alternatesFor } from '../locale-routing'
+import { siteOgContent, siteOgVersion } from './og-site-content'
 
 /**
  * Sayfa üst verisi (M6b, D-076): kanonik adres, hreflang çiftleri (tr, en, x-default = en), Open
@@ -48,6 +49,17 @@ export const OG_SITE_IMAGE = {
 } as const
 
 /**
+ * Varsayılan paylaşım görselinin adresi, içerikten sürümlü: `/og/site?v=1a2b3c4d` (D-106). Ad, alan
+ * adı ya da kısa tanım değişince adres değişir; Facebook, LinkedIn ve X eski görseli adresinden
+ * tanıyıp göstermeye devam etmez.
+ */
+export function siteOgImagePath(name: string, webHost: string | undefined): string {
+  // Rotanın (app/og/site/route.ts) içeriğiyle aynı ifade: aynı ortamda aynı sürüm.
+  const host = webHost ? siteUrlFrom(webHost).host : null
+  return `${OG_SITE_IMAGE.path}?v=${siteOgVersion(siteOgContent(name, host))}`
+}
+
+/**
  * Dizine eklenecek sayfalar. Sayfa düzeyindeki `robots` kök düzenin değerini tümüyle ezer (üst veri
  * birleştirmesi sığdır), bu yüzden önizleme yönergeleri burada da açıkça yazılır.
  */
@@ -85,7 +97,8 @@ export interface PageMetadataOptions {
 
 export function pageMetadata(o: PageMetadataOptions): Metadata {
   const alternates = alternatesFor(o.locale, o.path)
-  const siteName = appName(getServerEnv())
+  const env = getServerEnv()
+  const siteName = appName(env)
   const openGraph: NonNullable<Metadata['openGraph']> = {
     type: 'website',
     siteName,
@@ -98,7 +111,7 @@ export function pageMetadata(o: PageMetadataOptions): Metadata {
       ? {
           images: [
             {
-              url: OG_SITE_IMAGE.path,
+              url: siteOgImagePath(siteName, env.WEB_HOST),
               width: OG_SITE_IMAGE.width,
               height: OG_SITE_IMAGE.height,
               type: OG_SITE_IMAGE.type,

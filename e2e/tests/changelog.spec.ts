@@ -1,7 +1,7 @@
 // Yenilikler sayfası (D-091): her sürümün yayın tarihi ve saati, Europe/Istanbul, 24 saat. Türkçede
-// "4 Ekim 2026, 20:27 (Türkiye saati)", İngilizcede "4 October 2026, 20:27 (UTC+3)". Saat sunucuda yazılır
-// (`<time datetime>` ISO 8601 UTC); yayın anı henüz yazılmamış çalışan sürüm için web sunucusunun
-// açılış anı gösterilir.
+// "4 Ekim 2026, 20:27 (UTC+3)", İngilizcede "4 October 2026, 20:27 (UTC+3)" (iki dilde UTC farkı,
+// D-106). Saat sunucuda yazılır (`<time datetime>` ISO 8601 UTC); yayın anı henüz yazılmamış çalışan
+// sürüm için web sunucusunun açılış anı gösterilir.
 import { expect, test, type Page } from '@playwright/test'
 import { declineAnalytics, enPath } from '../support'
 
@@ -30,25 +30,25 @@ function istanbulText(iso: string, locale: Locale): string {
     hourCycle: 'h23',
     timeZone: 'Europe/Istanbul',
   }).format(ms)
-  return `${date}, ${time} (${locale === 'tr' ? 'Türkiye saati' : 'UTC+3'})`
+  return `${date}, ${time} (UTC+3)`
 }
 
 test.beforeEach(async ({ context }) => {
   await declineAnalytics(context)
 })
 
-test('Türkçe: geçmiş sürümün yayın tarihi ve saati Türkiye saatiyle', async ({ page }) => {
+test('Türkçe: geçmiş sürümün yayın tarihi ve saati UTC farkıyla', async ({ page }) => {
   await page.goto(CHANGELOG_PATH)
   const v0170 = releaseTimeOf(page, '0.17.0')
   await expect(v0170).toHaveAttribute('datetime', '2026-10-04T17:27:12Z')
-  await expect(v0170).toHaveText('4 Ekim 2026, 20:27 (Türkiye saati)')
+  await expect(v0170).toHaveText('4 Ekim 2026, 20:27 (UTC+3)')
   await expect(card(page, '0.17.0').locator('.release-meta')).toContainText(
-    'Yayın tarihi: 4 Ekim 2026, 20:27 (Türkiye saati)',
+    'Yayın tarihi: 4 Ekim 2026, 20:27 (UTC+3)',
   )
   // UTC'de 1 Ekim 23:17, İstanbul'da 2 Ekim 02:17: gün de İstanbul takvimindedir.
   const v0110 = releaseTimeOf(page, '0.11.0')
   await expect(v0110).toHaveAttribute('datetime', '2026-10-01T23:17:49Z')
-  await expect(v0110).toHaveText('2 Ekim 2026, 02:17 (Türkiye saati)')
+  await expect(v0110).toHaveText('2 Ekim 2026, 02:17 (UTC+3)')
 })
 
 test('İngilizce: yayın tarihi ve saati UTC farkıyla', async ({ page }) => {
