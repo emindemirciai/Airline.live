@@ -37,8 +37,8 @@ Durumlar: `[ ]` başlamadı, `[~]` sürüyor, `[k]` kod bitti ve kullanıcı do�
 | M6e.9 | Ülke adları daha belirgin, boş yerde (yama, v0.21.1; D-099) | `p1/map-country-clear` | [k] kod bitti; üretimde uydu üstünde görünüm denetimi bekliyor (ACTIVATION M6e.9) | #35 |
 | M6e.10 | Askerî üsler haritada gösterilmez; açılış yakınlaştırması masaüstünde 8 (yama; D-103, D-104) | `p1/map-no-military` | [k] kod bitti; üretimde doğrulandı (2026-10-06, v0.22.1): `/version` 0.22.1, Release 2026-10-06T13:34:14Z; görünüm denetimi kullanıcıda (ACTIVATION v0.22.1) | #37 |
 | M6e.13 | Askerî üsler sitenin hiçbir yerinde yok (yama; D-107) | `p1/no-military-site` | [k] kod bitti; üretimde doğrulandı (2026-10-07, v0.22.2): `/version` 0.22.2, `scope=listed` 498 (Türkiye 56, üs 0), `/istasyon/LTBL`, `/istasyon/IGL`, `/en/istasyon/LTAG` 404; Release 2026-10-07T14:31:41Z; tarayıcı denetimi kullanıcıda (ACTIVATION v0.22.2) | #38 |
-| M6e.14 | Haritada havalimanı araması (yama; D-108) | `p1/map-airport-search` | [k] kod bitti (v0.22.3); üretim denetimi bekliyor (ACTIVATION v0.22.3) | — |
-| M6e.12 | Global konumlandırma (yama; D-106) | `p1/map-global-copy` | [~] kod ve gözden geçirme düzeltmeleri bitti, `main` (v0.22.2) birleştirildi (2026-10-07); yayın sırası: havalimanı aramasından (D-108) sonra, 4. halkadan (M6i.2) önce | — |
+| M6e.14 | Haritada havalimanı araması (yama; D-108) | `p1/map-airport-search` | [k] kod bitti; üretimde doğrulandı (2026-10-07, v0.22.3): `/version` 0.22.3, Release 2026-10-07T19:24:54Z; tarayıcıda arama denetimi kullanıcıda (ACTIVATION v0.22.3) | #39 |
+| M6e.12 | Global konumlandırma (yama; D-106) | `p1/map-global-copy` | [k] kod bitti (v0.22.4); üretim denetimi bekliyor (ACTIVATION v0.22.4) | — |
 | M6h | 3. halka (≤ 2.000 km) — kullanıcı isteğiyle M7a'nın önüne alındı (2026-10-04); sivil uçuşa kapalı olabilecek havalimanı notu | `p1/m6h-ring3` | [k] kod bitti; üretimde doğrulandı (2026-10-04, v0.18.0): `scope=listed` 503 (61 + 75 + 89 + 278), Viyana 3. halka 1.149 km, beş Özbek istasyonunun METAR'ı UZxx koduyla, METAR'lı istasyon 463/503, toplu hava 1,34 MB, URKK ve UUOO notu iki dilde; admin Servisler ve worker günlüğü (429 yok) bekliyor (ACTIVATION) | #28 |
 | M7a | Canlı araçlar: `smoke:live`, `record` | `p1/m7a-live-tools` | [k] kod bitti; canlı smoke ve kayıt kullanıcıda (ACTIVATION) | #31 |
 | M7b.1 | İz tablolarına ham `seen_pos` ve `baro_rate` (migration 0006, v0.20.0; D-097) | `p1/m7b1-track-columns` | [x] tamam; üretimde doğrulandı (2026-10-05, v0.20.0): `hy-migrate` 0006'yı uyguladıktan sonra servisler açıldı, `/version` 0.20.0, `/ready` 200; v0.20.0 Release 2026-10-05T07:45:13Z. Ingest yazımı üretimde adsb.lol açılınca görülür (ACTIVATION 2. adım) | #33 |
@@ -1465,6 +1465,12 @@ Sürüm geçici olarak v0.22.3 (dal `p1/map-global-copy`, `main` `7a9309e` = v0.
 - Açıklama uzunlukları: `/havalimanlari` 498 havalimanıyla TR 148, EN 152 (503 ile aynı hane sayısı).
 - `pnpm stats` → 685 dosya, 141.729 satır, 130.432 kod satırı (README'deki sayı yayın adımında güncellenir).
 - e2e, `test:integration`, `ci:local`'in derlemesi ve `ci:full` bu oturumda çalıştırılmadı (Docker ve 3100/4100/4200/4300 kullanılmadı); CI doğrular.
+
+**Çıktı kaydı (2026-10-07, yayın v0.22.4):**
+- `pnpm ci:full` yeşil: birim web 931, shared 724, tools 369, worker 294, api 285, providers 135, i18n 100, db 73, geo 36; entegrasyon db 107, api 31, worker 17, tools 14; `compose:guard` tamam; migration yükseltmesi 8 → 8; e2e 134/134 (4,5 dk).
+- Yerel önizleme (`pnpm dev:replay`): sürüm 0.22.4; `/` "Canlı uçuş takibi ve uçak haritası · havayolu", `/en` "Live flight tracker and aircraft map · havayolu"; açıklama "kapsama alanındaki uçakların…"; `/hakkinda` girişi "İstanbul Havalimanı’nı öncelikli izleyen…"; `/havalimanlari` başlıkları "Türkiye’deki havalimanları" ve "Diğer ülkelerdeki havalimanları", açıklama "498 havalimanının…"; `/istasyon/LOWW` başlığı "…: pistler ve havalimanı bilgileri", "Türkiye’deki en yakın havalimanı" satırı yok; `/istasyon/LTFM` başlığı değişmedi.
+- Kullanım koşullarının yürürlük tarihi 2026-10-07 (yayın günü).
+- `pnpm stats`: 694 dosya, 145.432 satır (kod 133.975).
 
 ## M6h — 3. halka (v0.18.0)
 Onay: 2026-10-04 kullanıcı isteği "sonraki işlerden birine bir halka daha ekle" ve kapalı havalimanı kararı (2022'den beri sivil uçuşa kapalı olduğu hâlde OurAirports'ta tarifeli görünen havalimanları listede kalır, sayfada ve pencerede "Sivil uçuşlara kapalı olabilir (2022’den beri)" notu); diğer seçimler M6h araştırmasının önerileri (orkestratör varsayılanı 2026-10-04)
