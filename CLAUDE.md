@@ -20,7 +20,7 @@ Bu dosya her oturumda otomatik yüklenir; yalnızca her zaman geçerli kurallar�
   Bildirimler uçuş sayfasına gider; uçuş sayfası gelene kadar (Parça 3) `/?hex=` kullanılır.
 
 ## Ürün (özet)
-Türkiye odaklı, herkese açık, ileride ücretli olacak sivil havacılık uçuş takip platformu. Önce web (PWA) gelir, sonra aynı backend'i kullanan Expo iOS/Android uygulaması.
+Global, herkese açık, ileride ücretli olacak sivil havacılık uçuş takip platformu; önceliği İstanbul Havalimanı'dır (kullanıcı kararı 2026-10-06, D-106). Kullanıcıya dönük metinler siteyi Türkiye sitesi gibi sunmaz; canlı uçak verisi şimdilik Türkiye ve çevresinden çekilir ve bu dürüstçe yazılır (dünya geneli canlı veri ayrı kilometre taşıdır, onay ister). Önce web (PWA) gelir, sonra aynı backend'i kullanan Expo iOS/Android uygulaması.
 
 Kullanıcı bir uçuşu (sefer no / çağrı kodu), bir uçağı (tescil / hex) ya da bir istasyonun varış akışını (havayolu/tip filtreli) takip eder. Uçak istasyona yaklaştığında (varsayılan 10 km, havalimanı merkezine göre) ve indiğinde kullanıcı bildirim alır. **Tek uçuş takibi ve istasyon operasyonu eşit önemdedir.**
 
