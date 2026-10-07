@@ -1009,31 +1009,71 @@ body:has(.map-page) .site-footer {
   padding: 0;
 }
 
+/*
+ * Sonuç listesi (D-108, ARIA 1.2 combobox): "Havalimanları" sonra "Uçaklar" grubu. Seçenekler odak
+ * almaz (odak kutuda kalır); klavyedeki etkin seçenek `aria-selected="true"` ile, seçili tablo
+ * satırıyla aynı kehribar zemin ve şeritle gösterilir.
+ */
 .map-search__results {
-  max-height: 240px;
+  max-height: min(360px, 50vh);
   margin: 6px 0 0;
   padding: 4px 0 0;
   overflow-y: auto;
-  list-style: none;
   border-top: 1px solid var(--map-line);
 }
 
-.map-search__result {
-  width: 100%;
-  min-height: 40px;
+.map-search__group-label {
+  padding: 6px 10px 2px;
+  color: var(--map-muted);
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.map-search__option {
+  display: block;
+  min-height: 44px;
   padding: 8px 10px;
-  border: 0;
   border-radius: 6px;
-  background: transparent;
   color: var(--map-ink);
-  font-family: var(--font-data);
   font-size: 0.875rem;
-  text-align: left;
+  overflow-wrap: anywhere;
   cursor: pointer;
 }
 
-.map-search__result:hover {
-  background: var(--map-panel-raised);
+.map-search__option:hover {
+  background: var(--map-panel-hover);
+}
+
+.map-search__option[aria-selected='true'] {
+  background: var(--map-selected-soft);
+  box-shadow: inset 4px 0 0 var(--map-selected-edge);
+}
+
+/* Uçak satırı (sefer no, çağrı kodu, tescil) eski listedeki gibi veri yazısıyla. */
+.map-search__option--aircraft {
+  font-family: var(--font-data);
+}
+
+.map-search__code {
+  font-family: var(--font-data);
+  font-weight: 700;
+}
+
+.map-search__name {
+  margin-left: 0.5em;
+}
+
+.map-search__place {
+  display: block;
+  color: var(--map-muted);
+  font-size: 0.8125rem;
+}
+
+@media (forced-colors: active) {
+  .map-search__option[aria-selected='true'] {
+    outline: 2px solid Highlight;
+    outline-offset: -2px;
+  }
 }
 
 /* Durum şeridi */
@@ -1614,9 +1654,15 @@ body:has(.map-page) .site-footer {
     left: var(--map-gutter);
   }
 
-  /* Arama ipucu 375 px'te de kesilmesin: gönder düğmesinin yan boşluğu daralır, kutu genişler. */
+  /* Arama ipucu 320 px'te de kesilmesin: gönder düğmesinin yan boşluğu daralır, kutu genişler. */
   .map-search__submit {
     padding-inline: 0.6rem;
+  }
+
+  /* Telefonda sonuç listesi kısa kalır: açık klavye ekranın yarısını kaplar (`dvh` yoksa 240 px). */
+  .map-search__results {
+    max-height: 240px;
+    max-height: min(240px, 40dvh);
   }
 
   .live-map__status {

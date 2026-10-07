@@ -689,8 +689,9 @@ export const en: Messages = {
     termsLink: 'Terms',
     siteCreditLabel: '{credit}, what’s new',
     search: {
-      label: 'Search aircraft: flight number, callsign, registration or hex',
-      placeholder: 'Flight no., callsign, reg., hex',
+      label:
+        'Search aircraft or airports: flight number, callsign, registration or hex; airport code, name or city',
+      placeholder: 'Flight, reg., airport',
       submit: 'Search',
       searching: 'Searching…',
       notFound:
@@ -701,6 +702,22 @@ export const en: Messages = {
       flightNumberNote:
         'The flight number is derived from the callsign the aircraft broadcasts. Flights that use an alphanumeric callsign (e.g. THY4KN) cannot be found by flight number; search by callsign or registration.',
       results: 'Search results',
+      groupAirports: 'Airports',
+      groupAircraft: 'Aircraft',
+      pickAirports: 'More than one airport matched; pick one.',
+      pickAirport: 'One airport matched; select it to open.',
+      pickMixed: 'Aircraft and airports matched; pick one.',
+      airportCount: 'Matching airports: {n}.',
+      airportCountMore: 'Matching airports: {n}; the first {shown} are listed, narrow your search.',
+      airportNotFound:
+        'No airport matches this name or code. Type its IATA or ICAO code, name or city.',
+      airportNote: 'For an airport, type its IATA or ICAO code, name or city.',
+      aircraftUnavailable:
+        'Aircraft search is not available right now; airport results are listed.',
+      airportNamesUnavailable:
+        'Airport names could not be loaded; search by airport code or reload the page.',
+      airportCoverage:
+        'Outside Türkiye, only airports at most {km} from the nearest airport in Türkiye are searched.',
     },
     card: {
       close: 'Close',

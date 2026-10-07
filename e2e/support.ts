@@ -384,3 +384,8 @@ export async function expectRedirect(
   expect(`${target.pathname}${target.search}`, `${from}: hedef`).toBe(to)
   return response
 }
+
+/** Canlı haritanın arama kutusu (D-108): ARIA 1.2 combobox, `role="search"` formunun içinde. */
+export function searchInput(page: Page): Locator {
+  return page.getByRole('search').getByRole('combobox')
+}
