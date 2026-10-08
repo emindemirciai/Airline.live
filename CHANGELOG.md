@@ -8,7 +8,73 @@
 
 ---
 
-## v0.22.3 — 2026-10-07
+## v0.23.0 — 2026-10-08
+
+### Türkçe
+**4. halka: 719 havalimanı daha, 5.000 km’ye kadar**
+
+- Listeye 719 havalimanı daha eklendi; artık 1.217 havalimanı var. Londra, Delhi, Ulan Batur, Nairobi, Lagos, Reykjavik ve Novosibirsk gibi 5.000 km’ye kadar olan havalimanlarının sayfası, pistleri, yerel saati ve hava durumu hazır; 55 ülke ilk kez listede.
+- Havalimanı adları ve şehirleri Türkçe ve İngilizce derlendi (Londra Heathrow, Yeni Delhi Indira Gandhi, Ulan Batur Cengiz Han). Haritadaki arama da yeni havalimanlarını bulur: “Londra” Londra’nın altı havalimanını listeler.
+- Canlı uçak verisi şimdilik Türkiye ve çevresinden çekildiği için bu havalimanlarının çoğunun çevresindeki uçaklar haritada görünmez; sayfalarında bu yazar. Çok havalimanı olan Hindistan ve Nijerya’nın adı uzaktan bakınca birkaç havalimanı işaretiyle örtüşebilir.
+
+Dene: [Havalimanları](/havalimanlari) · [Londra Heathrow](/istasyon/EGLL)
+
+### English
+**Ring 4: 719 more airports, up to 5,000 km**
+
+- 719 more airports are listed, 1,217 in total. Airports up to 5,000 km away such as London, Delhi, Ulaanbaatar, Nairobi, Lagos, Reykjavik and Novosibirsk now have their page, runways, local time and weather; 55 countries appear for the first time.
+- Airport names and cities are written in Turkish and English (London Heathrow, New Delhi Indira Gandhi, Ulaanbaatar Chinggis Khaan). The map search finds the new airports too: “London” lists London’s six airports.
+- Live aircraft data is still fetched only over Türkiye and the surrounding area, so aircraft around most of these airports do not appear on the map; their pages say so. With many airports, the INDIA and NIGERIA names can touch a few pins when zoomed far out.
+
+Try it: [Airports](/havalimanlari) · [London Heathrow](/istasyon/EGLL)
+
+---
+
+## v0.22.5 — 2026-10-08 00:01 (UTC+3)
+
+### Türkçe
+**Bütün ülkelerin adları haritada**
+
+- Haritayı uzaklaştırınca artık havalimanı listemizde olmayan ülkelerin adları da yazılır: dünyada 164 ülke ve bölge, her biri kendi sınırının içinde ve havalimanı işaretlerinden uzak bir yerde. Sığmayan çok küçük ada ülkeleri yazılmaz.
+- Bazı ülke adları sadeleşti: Fildişi Sahili, Kongo Demokratik Cumhuriyeti, Kongo Cumhuriyeti ve Myanmar. RUSYA adı Avrupa Rusyası’nda kalır.
+- Ülke adları ilk açılışta indirilmez, gerektiğinde yüklenir; sayfa biraz daha hızlı açılır.
+
+Dene: [Canlı harita](/)
+
+### English
+**Every country named on the map**
+
+- Zoomed out, the map now names countries that have no airport in our list too: 164 countries and territories worldwide, each inside its own borders and away from airport pins. Very small island countries that do not fit are left out.
+- Some country names are simpler: Côte d’Ivoire, Democratic Republic of the Congo, Republic of the Congo and Myanmar. The RUSSIA label stays in European Russia.
+- Country names are no longer part of the first download; they load when needed, so pages open a little faster.
+
+Try it: [Live map](/)
+
+---
+
+## v0.22.4 — 2026-10-07 23:09 (UTC+3)
+
+### Türkçe
+**Global bir uçuş takip sitesi**
+
+- Site artık Türkiye’ye özgü bir harita gibi sunulmuyor: başlıklar ve açıklamalar “Canlı uçuş takibi ve uçak haritası” der; İstanbul Havalimanı önceliğimiz olmaya devam ediyor.
+- Canlı uçak verisinin şimdilik Türkiye ve çevresinden çekildiği Hakkında sayfasında ve havalimanı sayfalarında açıkça yazıyor; bu alanın dışındaki havalimanlarının sayfa başlığı bunu belirtir.
+- Havalimanları listesinde Türkiye dışındaki tablo “Diğer ülkelerdeki havalimanları” oldu; yabancı havalimanı sayfalarındaki “Türkiye’deki en yakın havalimanı” satırı ve “Türkiye’ye uzaklık” sütunu kaldırıldı. Yenilikler sayfasındaki yayın saatleri UTC farkıyla yazılır.
+
+Dene: [Hakkında](/hakkinda) · [Havalimanları](/havalimanlari)
+
+### English
+**A global flight tracking site**
+
+- The site is no longer presented as a Türkiye-only map: titles and descriptions now read “Live flight tracker and aircraft map”, with Istanbul Airport still our top priority.
+- The About page and airport pages state plainly that live aircraft data is for now fetched over Türkiye and the surrounding area; airports outside that area say so in their page title.
+- In the airport list the second table is now “Airports in other countries”; the “nearest airport in Türkiye” row and the “distance to Türkiye” column are gone. Release times on What’s new show the UTC offset.
+
+Try it: [About](/hakkinda) · [Airports](/havalimanlari)
+
+---
+
+## v0.22.3 — 2026-10-07 22:24 (UTC+3)
 
 ### Türkçe
 **Haritada havalimanı araması**

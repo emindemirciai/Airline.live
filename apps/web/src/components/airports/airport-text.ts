@@ -190,9 +190,15 @@ export function longestRunway(airport: AirportDetail): RunwayDetail | null {
   return longest
 }
 
-/** Sayfa başlığı (şablon " · havayolu" ekler): "İstanbul Havalimanı (IST/LTFM) canlı hava trafiği ve pistler". */
-export function airportTitle(airport: AirportDetail, locale: Locale): string {
-  return format(getMessages(locale).seo.airport.title, {
+/**
+ * Sayfa başlığı (şablon " · havayolu" ekler): "İstanbul Havalimanı (IST/LTFM) canlı hava trafiği ve
+ * pistler". Havalimanı canlı veri çekim alanının dışındaysa (`covered` false; lib/airports.ts →
+ * `isInLiveCoverage`, açıklamadaki gibi) canlı trafik vaat etmez: "Viyana Havalimanı (VIE/LOWW):
+ * pistler ve havalimanı bilgileri" (D-106).
+ */
+export function airportTitle(airport: AirportDetail, locale: Locale, covered: boolean): string {
+  const t = getMessages(locale).seo.airport
+  return format(covered ? t.title : t.titleOutside, {
     name: airportName(airport, locale),
     iata: airport.iata,
     icao: airport.icao,

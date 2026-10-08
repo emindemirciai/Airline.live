@@ -1,25 +1,30 @@
 /**
- * Ülke adlarının yerleşim tablosu (D-096, D-099): commit'li `COUNTRY_LABEL_PLACEMENTS` fixture'lardan
- * yeniden hesaplanır (sürüklenme); her yazılan adın görünür kutusu, ilk yakınlaştırmasından z8'e
+ * Ülke adlarının yerleşim tablosu (D-096, D-099, D-100): commit'li `COUNTRY_LABEL_PLACEMENTS` ve
+ * `COUNTRY_LABEL_AREAS_KM2` fixture'lardan yeniden hesaplanır (sürüklenme); her yazılan adın görünür kutusu, ilk yakınlaştırmasından z8'e
  * kadar her yakınlaştırmada kendi ülkesinin içindedir; adlar örtüşmez; çapa kuralı tutar ve
- * TÜRKİYE ile başkentte sabit KIBRIS dışında hiçbir adın altına havalimanı pini ya da kodu (pin
- * başının sağında ya da solunda) girmez (boş yer); e2e'nin beklentileri tabloyla uyuşur.
+ * kalabalık adlar (TÜRKİYE; 4. halkayla HİNDİSTAN ve NİJERYA, D-102) ile başkentte sabit KIBRIS
+ * dışında hiçbir adın altına havalimanı pini ya da kodu (pin başının sağında ya da solunda)
+ * girmez (boş yer); e2e'nin beklentileri tabloyla uyuşur.
  */
 import { readFileSync } from 'node:fs'
 import { distanceKm } from '@havayolu/geo'
 import {
-  COUNTRY_CAPITALS,
+  COUNTRY_AREA_OVERRIDES_KM2,
+  COUNTRY_LABEL_ANCHOR_REGIONS,
+  COUNTRY_LABEL_CAPITAL_ANCHORS,
   COUNTRY_LABEL_FADE_START_ZOOM,
   COUNTRY_LABEL_MAX_ZOOM,
   COUNTRY_LABEL_MIN_ZOOM,
-  COUNTRY_LABEL_PLACEMENT_PARAMS,
-  COUNTRY_LABEL_PLACEMENTS,
   countryLabelLines,
   countryLabelSizeAt,
-  countryLabelTier,
-  type CountryLabelPlacement,
   type Locale,
 } from '@havayolu/shared'
+import {
+  COUNTRY_LABEL_AREAS_KM2,
+  COUNTRY_LABEL_PLACEMENT_PARAMS,
+  COUNTRY_LABEL_PLACEMENTS,
+  type CountryLabelPlacement,
+} from '@havayolu/shared/country-label-placements'
 import { beforeAll, describe, expect, it } from 'vitest'
 import {
   IKA_PIN_Z5,
@@ -44,7 +49,8 @@ import {
   type GlyphBox,
   type LabelLayout,
 } from './label-model'
-import { decodeFixture, readFixture } from './natural-earth'
+import { FAR_SAFETY_KM, SAFETY_KM } from './label-model'
+import { decodeFixture, readFixture, type NaturalEarthFixture } from './natural-earth'
 import {
   CAPITAL_ANCHORED_CODES,
   CLEAR_MAX_DELAY_ZOOMS,
@@ -52,6 +58,7 @@ import {
   CROWDED_MAX_DELAY_ZOOMS,
   namesFromTable,
   PLACEMENT_COMBOS,
+  placementInput,
   placementParams,
   type CountryPlacementDetail,
 } from './placement'
@@ -60,22 +67,28 @@ let result: ReturnType<typeof computePlacements>
 let shapes: Map<string, ProjectedShape>
 let pins: AirportPin[]
 let obstacles: AirportObstacles
+let fixture: NaturalEarthFixture
 
 beforeAll(() => {
-  const geometries = decodeFixture(readFixture())
+  fixture = readFixture()
+  const geometries = decodeFixture(fixture)
   shapes = new Map(
     Object.entries(geometries).map(([code, geometry]) => [code, new ProjectedShape(geometry)]),
   )
   pins = mapAirportPins(readOurAirportsFixture())
   obstacles = new AirportObstacles(pins)
-  result = computePlacements(geometries, namesFromTable(COUNTRY_LABEL_PLACEMENTS), obstacles)
-}, 60_000)
+  result = computePlacements(
+    geometries,
+    namesFromTable(COUNTRY_LABEL_PLACEMENTS),
+    obstacles,
+    fixture,
+  )
+}, 120_000)
 
-const capitalOf = (code: string) => {
-  const capital = COUNTRY_CAPITALS.find((candidate) => candidate.code === code)
-  if (!capital) throw new Error(code)
-  return capital
-}
+/** Ülkenin kademesi ve km payı (tablonun yüzölçümü, fixture'ın uzak ülkeleri). */
+const inputOf = (code: string) => placementInput(code, fixture)
+/** Tahran'ın şehir merkezi (e2e görünümü Mehrabad'dadır). */
+const TEHRAN = { lat: 35.69, lon: 51.39 }
 
 const detailOf = (code: string): CountryPlacementDetail => {
   const detail = result.details.find((candidate) => candidate.code === code)
@@ -117,19 +130,22 @@ function shownLabels(locale: Locale, layout: LabelLayout): Shown[] {
 
 const ALL_SHOWN = PLACEMENT_COMBOS.flatMap(({ locale, layout }) => shownLabels(locale, layout))
 
-const fitterFor = (label: Shown) =>
-  new LabelFitter(
+const fitterFor = (label: Shown) => {
+  const { tier, safetyKm } = inputOf(label.code)
+  return new LabelFitter(
     shapes.get(label.code) as ProjectedShape,
     label.lines,
-    countryLabelTier(capitalOf(label.code)),
+    tier,
     label.layout,
+    safetyKm,
   )
+}
 
 type Box = readonly [x1: number, y1: number, x2: number, y2: number]
 
 /** Görünür kutunun px kutusu (güvenlik payı yok), çapaya göre. */
 function visibleBoxOf(label: Shown, zoom: number) {
-  const tier = countryLabelTier(capitalOf(label.code))
+  const { tier } = inputOf(label.code)
   return visibleBoxPx(
     labelInkBox(label.lines),
     countryLabelSizeAt(tier, label.layout === 'compact', zoom),
@@ -166,8 +182,15 @@ function leftCodeBox(zoom: number): GlyphBox | null {
 function airportHits(label: Shown, zoom: number): string[] {
   const box = worldBoxAt(label.lon, label.lat, visibleBoxOf(label, zoom), zoom)
   const parts = [pinBoxPx(zoom), chipBoxPx(zoom), leftCodeBox(zoom)].filter((part) => part !== null)
+  // Pin ve kodlar noktadan en çok ~60 px uzanır: daha uzaktaki havalimanı kutuya giremez.
+  const reach = 100 / 2 ** zoom
   const hits: string[] = []
   for (const pin of pins) {
+    const x = mercatorX(pin.lon)
+    const y = mercatorY(pin.lat)
+    if (x < box[0] - reach || x > box[2] + reach || y < box[1] - reach || y > box[3] + reach) {
+      continue
+    }
     for (const part of parts) {
       if (worldBoxesOverlap(box, worldBoxAt(pin.lon, pin.lat, part, zoom))) hits.push(pin.icao)
     }
@@ -224,39 +247,90 @@ function visibleCodes(
 
 const ZOOM_EPSILON = 1e-9
 
-describe('yerleşim tablosu (D-096, D-099)', { timeout: 60_000 }, () => {
+/** Hiçbir bileşimde yazılmayan 80 küçük ülke ve ada (D-100). */
+const NEVER = [
+  ...['AD', 'AG', 'AI', 'AS', 'AW', 'AX', 'BB', 'BH', 'BL', 'BM', 'BN', 'BQ', 'BS', 'BV', 'CK'],
+  ...['CV', 'CW', 'DM', 'FK', 'FM', 'FO', 'GD', 'GG', 'GI', 'GM', 'GP', 'GS', 'GU', 'HK', 'HM'],
+  ...['IM', 'IO', 'JE', 'KI', 'KM', 'KN', 'KY', 'LC', 'LI', 'LU', 'MC', 'MF', 'MH', 'MO', 'MP'],
+  ...['MQ', 'MS', 'MT', 'MU', 'MV', 'NC', 'NF', 'NR', 'NU', 'PF', 'PM', 'PN', 'PW', 'RE', 'SB'],
+  ...['SC', 'SG', 'SH', 'SM', 'ST', 'SX', 'TC', 'TF', 'TO', 'TT', 'TV', 'UM', 'VA', 'VC', 'VG'],
+  ...['VI', 'VU', 'WF', 'WS', 'YT'],
+]
+
+describe('yerleşim tablosu (D-096, D-099, D-100)', { timeout: 120_000 }, () => {
   it('sürüklenme: commit’li tablo, commit’li fixture’lar ve adlarından yeniden hesaplananla aynı', () => {
     expect(result.table).toEqual(COUNTRY_LABEL_PLACEMENTS)
+    expect(result.areas).toEqual(COUNTRY_LABEL_AREAS_KM2)
     expect(placementParams(obstacles)).toEqual(COUNTRY_LABEL_PLACEMENT_PARAMS)
     expect(COUNTRY_LABEL_PLACEMENT_PARAMS).toMatchObject({
       naturalEarth: '4.1.0 1:10m',
       worldAtlas: '2.0.2',
+      simplifyKm: 0.5,
+      farSimplifyKm: 1,
+      farFromKm: 5000,
       safetyPx: 3,
       safetyKm: 2,
+      farSafetyKm: 2.5,
       clearMaxDelayZooms: CLEAR_MAX_DELAY_ZOOMS,
       crowdedMaxDelayZooms: CROWDED_MAX_DELAY_ZOOMS,
       airportPins: 1217,
       airportCodeMinZoom: 5,
       airportCodeSides: ['right', 'left'],
       capitalAnchored: ['CY'],
+      anchorRegions: { RU: [-180, -90, 60, 90] },
     })
     expect([CLEAR_MAX_DELAY_ZOOMS, CROWDED_MAX_DELAY_ZOOMS]).toEqual([1.5, 0.25])
     expect(CAPITAL_ANCHORED_CODES).toEqual(['CY'])
   })
 
-  it('hiç sığmayan adlar dört bileşimde de Bahreyn, Lüksemburg ve Malta', () => {
+  it('244 ülkeden 164’ü dört bileşimde de yazılır; hiç sığmayan 80 küçük ülke ve ada (D-095’in 59 ülkesinden yine Bahreyn, Lüksemburg ve Malta)', () => {
+    expect(Object.keys(COUNTRY_LABEL_PLACEMENTS.tr)).toHaveLength(244)
+    expect(NEVER).toHaveLength(80)
     for (const { locale, layout } of PLACEMENT_COMBOS) {
       const never = Object.entries(COUNTRY_LABEL_PLACEMENTS[locale])
         .filter(([, row]) => row[layout] === null)
         .map(([code]) => code)
-      expect(never, `${locale} ${layout}`).toEqual(['BH', 'LU', 'MT'])
-      expect(shownLabels(locale, layout)).toHaveLength(56)
+      expect(never, `${locale} ${layout}`).toEqual(NEVER)
+      expect(shownLabels(locale, layout)).toHaveLength(164)
+    }
+    expect(NEVER.filter((code) => Object.hasOwn(COUNTRY_AREA_OVERRIDES_KM2, code))).toEqual([
+      'BH',
+      'LU',
+      'MT',
+    ])
+  })
+
+  it('havalimanı listelenmeyen ülkeler de yazılır (D-100): ABD, FRANSIZ GUYANASI, Tayvan, Svalbard; 4. halkayla (D-102) HİNDİSTAN, ÇİN, GRÖNLAND, YEMEN, PAKİSTAN ve Batı Sahra’nın da havalimanı listelenir', () => {
+    for (const code of ['IN', 'CN', 'US', 'GL', 'GF', 'XK', 'EH', 'TW', 'SJ', 'YE', 'PK']) {
+      const row = COUNTRY_LABEL_PLACEMENTS.tr[code]
+      expect(row?.regular, code).not.toBeNull()
+      expect(row?.compact, code).not.toBeNull()
+    }
+    // HİNDİSTAN'ın 105 pini (4. halka) arasında boş yer yok: ad kalabalık kuralıyla (D-099) en az
+    // çakışan noktada, Türkçe geniş haritada 3,25'ten (v0.22.5'te 80,4° D, 23,1° K, z3).
+    expect(COUNTRY_LABEL_PLACEMENTS.tr.IN?.regular).toEqual([78, 25.5, 3.25])
+    expect(COUNTRY_LABEL_PLACEMENTS.en.US?.name).toBe('UNITED STATES')
+    expect(COUNTRY_LABEL_PLACEMENTS.tr.US?.name).toBe('AMERİKA BİRLEŞİK DEVLETLERİ')
+  })
+
+  it('çapalar 180° B–180° D arasında (haritanın asıl kopyası); Türkiye’den uzak ülkelerin km payı 2,5', () => {
+    for (const label of ALL_SHOWN) {
+      expect(Math.abs(label.lon), label.code).toBeLessThanOrEqual(180)
+    }
+    expect(COUNTRY_LABEL_PLACEMENTS.tr.FJ?.regular?.[0]).toBe(177.96)
+    expect(inputOf('US').safetyKm).toBe(FAR_SAFETY_KM)
+    expect(inputOf('TR').safetyKm).toBe(SAFETY_KM)
+    expect(inputOf('CN').safetyKm).toBe(SAFETY_KM)
+    for (const code of Object.keys(COUNTRY_LABEL_AREAS_KM2)) {
+      expect(inputOf(code).safetyKm, code).toBe(
+        fixture.farCodes.includes(code) ? FAR_SAFETY_KM : SAFETY_KM,
+      )
     }
   })
 
   it('değerler: ilk yakınlaştırma 0,25 ızgarasında, [kademenin en küçüğü, 7); çapa 0,01°', () => {
     for (const label of ALL_SHOWN) {
-      const tier = countryLabelTier(capitalOf(label.code))
+      const { tier } = inputOf(label.code)
       const where = `${label.code} ${label.locale} ${label.layout}`
       expect(label.fitZoom * 4, where).toBe(Math.round(label.fitZoom * 4))
       expect(label.fitZoom, where).toBeGreaterThanOrEqual(COUNTRY_LABEL_MIN_ZOOM[tier])
@@ -278,12 +352,12 @@ describe('yerleşim tablosu (D-096, D-099)', { timeout: 60_000 }, () => {
         ).toBe(true)
       }
     }
-    expect(checks).toBeGreaterThan(10_000)
+    expect(checks).toBeGreaterThan(30_000)
   })
 
   it('en küçüklük: ilk yakınlaştırma kademenin en küçüğü değilse ad bir adım önce sığmaz', () => {
     for (const label of ALL_SHOWN) {
-      const tier = countryLabelTier(capitalOf(label.code))
+      const { tier } = inputOf(label.code)
       if (label.fitZoom <= COUNTRY_LABEL_MIN_ZOOM[tier]) continue
       expect(
         fitterFor(label).fitsAtZoom(label.lon, label.lat, label.fitZoom - 0.25),
@@ -292,23 +366,31 @@ describe('yerleşim tablosu (D-096, D-099)', { timeout: 60_000 }, () => {
     }
   })
 
-  it('çapa kuralı: ülke başına tek ortak nokta; boş yerde en erkenin ≤ 1,5, boş yer yoksa ≤ 0,25 gerisinde; 54 ülke boş yerde, yalnız TÜRKİYE kalabalıkta, KIBRIS başkentte', () => {
+  it('çapa kuralı: ülke başına tek ortak nokta; boş yerde en erkenin ≤ 1,5, boş yer yoksa ≤ 0,25 gerisinde; 160 ülke boş yerde, TÜRKİYE, HİNDİSTAN ve NİJERYA kalabalıkta (4. halka, D-102), KIBRIS başkentte', () => {
     const byKind = (kind: CountryPlacementDetail['kind']) =>
       result.details.filter((detail) => detail.kind === kind).map((detail) => detail.code)
-    expect(byKind('hidden')).toEqual(['BH', 'LU', 'MT'])
-    expect(byKind('crowded')).toEqual(['TR'])
+    expect(byKind('hidden')).toEqual(NEVER)
+    // 4. halkanın pinleriyle (D-102) HİNDİSTAN (105 havalimanı) ve NİJERYA (24) da kalabalık:
+    // ızgaranın her noktasında kutuya pin ya da kod girer (v0.22.5'te yalnız TÜRKİYE).
+    expect(byKind('crowded')).toEqual(['IN', 'NG', 'TR'])
     expect(byKind('capital')).toEqual(['CY'])
     expect(byKind('per-combination')).toEqual([])
-    expect(byKind('clear')).toHaveLength(54)
+    expect(byKind('clear')).toHaveLength(160)
+    // Izgarasının hiçbir noktası ülkenin içinde olmayan tek ülke Vatikan (kutbu yok).
+    expect(result.details.filter((detail) => detail.pole === null).map((d) => d.code)).toEqual([
+      'VA',
+    ])
     for (const detail of result.details) {
       const anchors = detail.placements.filter(
         (placement): placement is NonNullable<CountryLabelPlacement> => placement !== null,
       )
       const shape = shapes.get(detail.code) as ProjectedShape
-      expect(
-        shape.contains(mercatorX(detail.pole[0]), mercatorY(detail.pole[1])),
-        detail.code,
-      ).toBe(true)
+      if (detail.pole) {
+        expect(
+          shape.contains(mercatorX(detail.pole[0]), mercatorY(detail.pole[1])),
+          detail.code,
+        ).toBe(true)
+      }
       if (detail.kind === 'hidden') {
         expect(anchors, detail.code).toEqual([])
         continue
@@ -328,7 +410,7 @@ describe('yerleşim tablosu (D-096, D-099)', { timeout: 60_000 }, () => {
     }
   })
 
-  it('gecikme: boş yer için ad en çok 1,5 kademe geç belirir (İTALYA); 28 ülkede bir bileşim en erkenden geç', () => {
+  it('gecikme: boş yer için ad en çok 1,5 kademe geç belirir (İTALYA); 66 ülkede bir bileşim en erkenden geç (4. halkanın pinleriyle, D-102)', () => {
     const delays: Record<string, number> = {}
     for (const detail of result.details) {
       const delay = Math.max(
@@ -339,39 +421,80 @@ describe('yerleşim tablosu (D-096, D-099)', { timeout: 60_000 }, () => {
       )
       if (delay > 0) delays[detail.code] = delay
     }
+    // v0.22.5'te (3. halkanın 498 pini) 39 ülkeydi; 4. halkanın 719 pini 27 ülkeyi daha geciktirir
+    // (ETİYOPYA 1,25; BURKİNA FASO 1) ve üçünün gecikmesini artırır (KONGO DC ve BİRLEŞİK KRALLIK
+    // 0,25'ten 1'e, TACİKİSTAN 0,25'ten 0,5'e). İTALYA'nın 1,5'i değişmez.
     expect(delays).toEqual({
       AF: 0.25,
       AT: 0.5,
       BA: 0.75,
+      BD: 0.5,
       BE: 0.75,
+      BF: 1,
       BG: 0.5,
+      BI: 0.5,
+      BJ: 0.25,
+      BT: 0.25,
+      CD: 1,
+      CF: 0.25,
       CH: 0.5,
+      CI: 0.25,
+      CL: 0.25,
+      CU: 0.25,
       CY: 0.5,
       DE: 0.75,
+      DJ: 0.25,
       DK: 0.25,
       EG: 0.5,
+      EH: 0.75,
+      ER: 0.5,
       ES: 0.25,
+      ET: 1.25,
+      FI: 0.5,
+      GA: 0.25,
+      GB: 1,
       GE: 0.75,
+      GH: 0.5,
       GR: 0.5,
       HR: 0.5,
       HU: 0.75,
+      IE: 0.25,
+      IN: 0.25,
       IQ: 0.5,
+      IS: 0.25,
       IT: 1.5,
       JO: 0.25,
+      JP: 0.25,
+      KE: 0.25,
+      KG: 0.25,
       KW: 0.25,
+      LK: 0.25,
+      MA: 0.5,
+      MN: 0.5,
+      MW: 0.25,
+      NA: 0.25,
+      NG: 0.25,
       NL: 0.25,
+      NO: 0.5,
       OM: 0.25,
+      PK: 0.5,
       PL: 0.75,
       RO: 0.75,
       RS: 0.25,
+      RW: 0.25,
       SA: 0.75,
       SK: 0.75,
+      SS: 0.25,
+      TJ: 0.5,
       TR: 0.25,
+      TZ: 0.25,
       UZ: 0.25,
+      YE: 0.25,
+      ZW: 0.25,
     })
   })
 
-  it('boş yer: TÜRKİYE ve KIBRIS dışında hiçbir adın kutusuna, ilk yakınlaştırmasından z7,95’e (0,05 adım), haritadaki bir havalimanının pini ya da kodu (sağda ya da solda) girmez', () => {
+  it('boş yer: kalabalık adlar (TÜRKİYE, HİNDİSTAN, NİJERYA) ve KIBRIS dışında hiçbir adın kutusuna, ilk yakınlaştırmasından z7,95’e (0,05 adım), haritadaki bir havalimanının pini ya da kodu (sağda ya da solda) girmez', () => {
     let checks = 0
     for (const label of ALL_SHOWN) {
       if (detailOf(label.code).kind !== 'clear') continue
@@ -383,10 +506,10 @@ describe('yerleşim tablosu (D-096, D-099)', { timeout: 60_000 }, () => {
         ).toEqual([])
       }
     }
-    expect(checks).toBeGreaterThan(10_000)
+    expect(checks).toBeGreaterThan(30_000)
   })
 
-  it('sol kod: web kodu sağa sığmayınca pin başının soluna koyar; TÜRKİYE ve KIBRIS dışında o kutu da hiçbir adın kutusuna girmez', () => {
+  it('sol kod: web kodu sağa sığmayınca pin başının soluna koyar; kalabalık adlar ve KIBRIS dışında o kutu da hiçbir adın kutusuna girmez', () => {
     let nearby = 0
     for (const label of ALL_SHOWN) {
       if (detailOf(label.code).kind !== 'clear') continue
@@ -419,7 +542,7 @@ describe('yerleşim tablosu (D-096, D-099)', { timeout: 60_000 }, () => {
     expect(nearby).toBeGreaterThan(1_000)
   })
 
-  it('kullanıcının örnekleri: İTALYA ve RUSYA yazıldıkları her yakınlaştırmada pinlerden ve kodlardan uzak', () => {
+  it('kullanıcının örnekleri: İTALYA ve RUSYA yazıldıkları her yakınlaştırmada pinlerden ve kodlardan uzak; RUSYA Urallar’ın batısında, Avrupa Rusyası’nın görsel merkezinde (D-100)', () => {
     for (const code of ['IT', 'RU']) {
       const labels = ALL_SHOWN.filter((label) => label.code === code)
       expect(labels).toHaveLength(4)
@@ -433,18 +556,35 @@ describe('yerleşim tablosu (D-096, D-099)', { timeout: 60_000 }, () => {
       }
       expect(detailOf(code).kind).toBe('clear')
     }
-    // RUSYA Moskova'nın (altında UUWW, UUDD, UUBW) değil Urallar'ın batısında, görsel merkezde;
-    // İTALYA Po ovası (LIMP) yerine Alpler'de (Trentino): Orta İtalya'da Pescara'nın (PSR) sola
-    // geçen kodu adın köşesine değiyordu.
-    expect(COUNTRY_LABEL_PLACEMENTS.tr.RU?.regular).toEqual([57.51, 61.77, 3])
-    expect(detailOf('RU').pole).toEqual([57.51, 61.77])
+    // RUSYA Moskova'nın (altında UUWW, UUDD, UUBW) değil Avrupa Rusyası'nın görsel merkezinde: çapa
+    // bölgesi 60° D'nin batısı (`COUNTRY_LABEL_ANCHOR_REGIONS`, D-100; bütün Rusya'nın görsel
+    // merkezi Orta Sibirya'dadır, 107,73° D, 63,27° K). Kutup bölgenin içinde Rusya'nın sınırına ve
+    // 60° D'ye en uzak nokta: Kirov ile Kostroma arası (46,74° D, 59,04° K; ızgara adımı 0,41°). 4.
+    // halkayla (D-102) Kirov (USKK) pini kutbun kutusuna z3–4,5'te girer: çapa iki ızgara adımı
+    // kuzeye, 59,86° K'ye kayar (v0.22.5'te kutuptaydı); ad yine z3'ten yazılır. Velikiy Ustyug
+    // (ULWU) yeni çapanın kuzeyindedir, kutuya girmez.
+    // İTALYA Po ovası (LIMP) yerine Alpler'de (Trentino): Orta İtalya'da Pescara'nın (PSR) sola geçen
+    // kodu adın köşesine değiyordu.
+    expect(COUNTRY_LABEL_ANCHOR_REGIONS).toEqual({ RU: [-180, -90, 60, 90] })
+    for (const locale of ['tr', 'en'] as const) {
+      for (const layout of ['regular', 'compact'] as const) {
+        const placement = COUNTRY_LABEL_PLACEMENTS[locale].RU?.[layout]
+        expect(placement, `${locale} ${layout}`).toEqual([46.74, 59.86, 3])
+        expect(placement?.[0], `${locale} ${layout}`).toBeLessThan(60)
+      }
+    }
+    expect(detailOf('RU').pole).toEqual([46.74, 59.04])
+    expect(detailOf('RU').latticeStep).toBe(41)
+    // Bölgenin en erkeni bütün Rusya'nınkiyle aynı (z3); ad geç gelmez.
+    expect(detailOf('RU').bestFitZooms).toEqual([3, 3, 3, 3])
     expect(COUNTRY_LABEL_PLACEMENTS.tr.IT?.regular).toEqual([11.4, 46.2, 5.25])
     expect(COUNTRY_LABEL_PLACEMENTS.tr.IT?.compact).toEqual([11.4, 46.2, 5])
   })
 
   it('KIBRIS (D-095, kullanıcının kararı): dört bileşimde Lefkoşa’da; boş yer aranmaz, Ercan (LCEN) pini ve kodu adın kutusunda', () => {
     const detail = detailOf('CY')
-    const lefkosa = capitalOf('CY')
+    const lefkosa = COUNTRY_LABEL_CAPITAL_ANCHORS.CY
+    if (!lefkosa) throw new Error('CY')
     expect([lefkosa.lon, lefkosa.lat]).toEqual([33.36, 35.17])
     expect(detail.kind).toBe('capital')
     expect(detail.placements).toEqual([
@@ -487,12 +627,31 @@ describe('yerleşim tablosu (D-096, D-099)', { timeout: 60_000 }, () => {
     }
   })
 
-  it('görsel merkez: 5 ülkenin adı tam kutupta (TÜRKİYE dahil, D-103); çapanın kutba uzaklığı ortanca 35 km, en çok 810 km (KAZAKİSTAN, 4. halka, D-102)', () => {
-    const distances = result.details
+  it('HİNDİSTAN ve NİJERYA (4. halka, D-102): 105 ve 24 pin arasında boş yer yok, ad en az çakışan noktada; HİNDİSTAN z5,15’ten, NİJERYA z5’ten sonra kutuya pin ve kod girmez', () => {
+    for (const [code, overlaps, clearFrom] of [
+      ['IN', [38, 32, 15, 8], 5.15],
+      ['NG', [15, 15, 12, 18], 5],
+    ] as const) {
+      const detail = detailOf(code)
+      expect(detail.kind, code).toBe('crowded')
+      expect(detail.overlaps, code).toEqual(overlaps)
+      for (const label of ALL_SHOWN.filter((candidate) => candidate.code === code)) {
+        const where = `${code} ${label.locale} ${label.layout}`
+        // İlk yakınlaştırmada kutuda pin var (Türkçe geniş haritada HİNDİSTAN 8, NİJERYA 4).
+        expect(airportHits(label, label.fitZoom).length, where).toBeGreaterThan(0)
+        for (const zoom of zoomSteps(clearFrom, COUNTRY_LABEL_MAX_ZOOM)) {
+          expect(airportHits(label, zoom), `${where} z${zoom}`).toEqual([])
+        }
+      }
+    }
+  })
+
+  it('görsel merkez (4. halkanın pinleriyle, D-102): D-095’in 59 ülkesinden 4’ünün adı tam kutupta (TÜRKİYE dahil, D-103), çapanın kutba uzaklığı ortanca 38 km, en çok 810 km (KAZAKİSTAN); bütün dünyada 23 ülke kutupta, ortanca 52 km, en çok 1.228 km (MALEZYA)', () => {
+    const all = result.details
       .filter((detail) => detail.kind !== 'hidden')
       .map((detail) => {
         const anchor = detail.placements.find((placement) => placement !== null)
-        if (!anchor) throw new Error(detail.code)
+        if (!anchor || !detail.pole) throw new Error(detail.code)
         const km = distanceKm(
           { lon: anchor[0], lat: anchor[1] },
           { lon: detail.pole[0], lat: detail.pole[1] },
@@ -500,15 +659,23 @@ describe('yerleşim tablosu (D-096, D-099)', { timeout: 60_000 }, () => {
         return [detail.code, km] as const
       })
       .sort((a, b) => a[1] - b[1])
+    expect(all).toHaveLength(164)
+    // v0.22.5'te (3. halkanın pinleri) 36 ülke kutuptaydı, ortanca 37 km.
+    expect(all.filter(([, km]) => km === 0)).toHaveLength(23)
+    expect(Math.round(all[Math.floor(all.length / 2)]?.[1] ?? NaN)).toBe(52)
+    // Malezya'da ad Borneo'da (Sarawak) en erken sığar; kutup Malakka Yarımadası'ndadır (Pahang).
+    expect(all.at(-1)?.[0]).toBe('MY')
+    expect(Math.round(all.at(-1)?.[1] ?? NaN)).toBe(1228)
+    const distances = all.filter(([code]) => Object.hasOwn(COUNTRY_AREA_OVERRIDES_KM2, code))
     expect(distances).toHaveLength(56)
+    // RUSYA kutbundan kuzeye kaydı (Kirov pini, D-102).
     expect(distances.filter(([, km]) => km === 0).map(([code]) => code)).toEqual([
       'AT',
       'CZ',
-      'RU',
       'TR',
       'UA',
     ])
-    expect(Math.round(distances[Math.floor(distances.length / 2)]?.[1] ?? NaN)).toBe(35)
+    expect(Math.round(distances[Math.floor(distances.length / 2)]?.[1] ?? NaN)).toBe(38)
     const [farthest, km] = distances.at(-1) ?? ['', NaN]
     expect([farthest, Math.round(km)]).toEqual(['KZ', 810])
   })
@@ -545,6 +712,34 @@ describe('yerleşim tablosu (D-096, D-099)', { timeout: 60_000 }, () => {
         expect(overlaps(worldBox(label, zoom), crimea), `${label.code} z${zoom}`).toBe(false)
       }
     }
+  })
+
+  it('Batı Sahra (D-100): FAS adının kutusu hiçbir yakınlaştırmada 27°40′ K’nin güneyine, BATI SAHRA’nınki kuzeyine girmez', () => {
+    // Natural Earth 4.1.0 Fas'ı Berm'e kadar çizer; fixture iki ülkeyi 27°40′ K'de yeniden böler.
+    const line = 27 + 40 / 60
+    const westernSahara = (zoom: number): Box => {
+      const scale = 2 ** zoom
+      return [
+        mercatorX(-17.2) * scale,
+        mercatorY(line) * scale,
+        mercatorX(-8.67) * scale,
+        mercatorY(20.7) * scale,
+      ]
+    }
+    const labels = ALL_SHOWN.filter((candidate) => ['MA', 'EH'].includes(candidate.code))
+    expect(labels).toHaveLength(8)
+    for (const label of labels) {
+      for (let zoom = label.fitZoom; zoom < COUNTRY_LABEL_MAX_ZOOM; zoom += 0.25) {
+        const box = worldBox(label, zoom)
+        const where = `${label.code} ${label.locale} ${label.layout} z${zoom}`
+        if (label.code === 'MA') expect(overlaps(box, westernSahara(zoom)), where).toBe(false)
+        else expect(box[1], where).toBeGreaterThanOrEqual(mercatorY(line) * 2 ** zoom)
+      }
+    }
+    // 4. halkayla (D-102) Batı Sahra'nın üç ve Fas'ın havalimanları pin olur: BATI SAHRA güneye, FAS
+    // kuzeydoğuya kayar (v0.22.5'te -10,98° 26,91° z4 ve -5,46° 32,76° z3,5).
+    expect(COUNTRY_LABEL_PLACEMENTS.tr.EH?.regular).toEqual([-14.76, 22.05, 4.5])
+    expect(COUNTRY_LABEL_PLACEMENTS.tr.MA?.regular).toEqual([-4.68, 33.41, 3.5])
   })
 })
 
@@ -590,11 +785,12 @@ describe('e2e beklentileri (e2e/country-label-expectations.ts)', { timeout: 60_0
       for (const name of hidden)
         expect(labelOf(name).fitZoom, `${name} ${key}`).toBeGreaterThan(zoom)
     }
-    // Katmanın kesirli `minzoom`'u tarayıcıda: ÖZBEKİSTAN (4,5) z4'te, AFGANİSTAN, SURİYE (3,75) ve
-    // TÜRKİYE (3,25) z3'te çapaları tuvalin içindeyken yazılmaz (kovaları o karoda hazırdır); son üçü
-    // bir kademe önce (z4) yazılır.
+    // Katmanın kesirli `minzoom`'u tarayıcıda: ÖZBEKİSTAN (4,5) ve PAKİSTAN (4,75; 4. halkayla 19
+    // havalimanı listelenir, D-102) z4'te, AFGANİSTAN, SURİYE (3,75) ve TÜRKİYE (3,25) z3'te
+    // çapaları tuvalin içindeyken yazılmaz (kovaları o karoda hazırdır); son üçü bir kademe önce (z4)
+    // yazılır.
     const fractional = [
-      ['z4', 4, ['ÖZBEKİSTAN']],
+      ['z4', 4, ['ÖZBEKİSTAN', 'PAKİSTAN']],
       ['z3', 3, ['AFGANİSTAN', 'SURİYE', 'TÜRKİYE']],
     ] as const
     for (const [key, zoom, names] of fractional) {
@@ -615,7 +811,7 @@ describe('e2e beklentileri (e2e/country-label-expectations.ts)', { timeout: 60_0
     const [lon, lat, fitZoom] = placement
     // Boş yer kuralı (D-099): İRAN Dest-i Kevir'de, Tahran'ın 428 km doğu-güneydoğusunda, z3'ten.
     expect([lon, lat, fitZoom]).toEqual([55.6, 34, 3])
-    expect(Math.round(distanceKm({ lon, lat }, capitalOf('IR')))).toBe(428)
+    expect(Math.round(distanceKm({ lon, lat }, TEHRAN))).toBe(428)
     const oiii = airport('OIII')
     const anchor = screenOffset(lon, lat, oiii, 5)
     const size = countryLabelSizeAt(1, false, 5)

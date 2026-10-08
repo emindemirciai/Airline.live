@@ -2,20 +2,16 @@ import 'server-only'
 import { ImageResponse } from 'next/og'
 import { BrandMark, OG_COLORS, OG_SIZE } from './og'
 import { OG_FONT_STACK, ogFonts } from './og-fonts'
+import type { SiteOgContent } from './og-site-content'
+
+export type { SiteOgContent } from './og-site-content'
 
 /**
  * Sitenin varsayılan paylaşım görseli (1200×630): marka, iki dilde kısa tanım ve alan adı. Metinler
- * `packages/i18n` → `seo.ogTagline`'dan gelir. Yazı tipleri yerel Overpass'tır (og-fonts.ts); dış
- * istek yapılmaz.
+ * `packages/i18n` → `seo.ogTagline`'dan gelir (`siteOgContent`, og-site-content.ts). Yazı tipleri
+ * yerel Overpass'tır (og-fonts.ts); dış istek yapılmaz. Tasarım değişirse
+ * `SITE_OG_DESIGN_REVISION` bir artırılır (paylaşım adresinin sürümü, D-106).
  */
-export interface SiteOgContent {
-  name: string
-  /** WEB_HOST (ör. havayolu.live); yerelde tanımlı değilse gösterilmez. */
-  host: string | null
-  taglineTr: string
-  taglineEn: string
-}
-
 export function SiteOgImage({ name, host, taglineTr, taglineEn }: SiteOgContent) {
   return (
     <div

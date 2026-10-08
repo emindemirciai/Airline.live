@@ -405,13 +405,22 @@ export function sitePath(url: string | undefined, what: string): string {
   return `${parsed.pathname}${parsed.search}`
 }
 
-/** Yönlendirmeleri izlemeden alınan yanıt ve gövdesi. İlk istekte next dev sayfayı derleyebilir. */
+/**
+ * Yönlendirmeleri izlemeden alınan yanıt ve gövdesi. İlk istekte next dev sayfayı derleyebilir.
+ * Her istek yeni bağlantıyla gider (`Connection: close`): Node sunucusu boştaki keep-alive
+ * bağlantısını 5 sn sonra kapatır; iki istek arasında uzun denetim yapan test (site haritası,
+ * 2.444 adres) aynı soketi yeniden kullanınca istek `ECONNRESET` ile düşüyordu.
+ */
 export async function fetchRaw(
   request: APIRequestContext,
   path: string,
   headers: Record<string, string> = {},
 ): Promise<{ response: APIResponse; body: string }> {
-  const response = await request.get(path, { headers, maxRedirects: 0, timeout: 60_000 })
+  const response = await request.get(path, {
+    headers: { connection: 'close', ...headers },
+    maxRedirects: 0,
+    timeout: 60_000,
+  })
   return { response, body: await response.text() }
 }
 

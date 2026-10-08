@@ -280,8 +280,9 @@ test.describe('tarayıcıda', () => {
     }
   })
 
-  test('Ankara (Etimesgut) iki dilde adlanır (D-084); Atina’nın en yakını İzmir Adnan Menderes, askerî üs değil (D-107)', async ({
+  test('Ankara (Etimesgut) iki dilde adlanır (D-084); Atina’da Türkiye’ye göre satır yok (D-106), API’deki en yakını İzmir Adnan Menderes (D-107)', async ({
     page,
+    request,
   }) => {
     // Önceden iki dilde OurAirports adıyla yazılıyordu ("Etimesgut Air Base").
     for (const { icao: code, iata: codeIata, tr, en } of RENAMED_AIRPORTS) {
@@ -309,29 +310,22 @@ test.describe('tarayıcıda', () => {
         )
       }
     }
-    // v0.22.1'e kadar Atina, Sakız ve Kalamata'nın satırı Çiğli Hava Üssü'nü gösteriyordu (275 km).
-    for (const [path, label, link, name] of [
-      [
-        `/istasyon/${RING1_AIRPORT.icao}`,
-        'Türkiye’deki en yakın havalimanı',
-        '/istasyon/LTBJ',
-        'İzmir Adnan Menderes Havalimanı (ADB)',
-      ],
-      [
-        enPath(`/istasyon/${RING1_AIRPORT.icao}`),
-        'Nearest airport in Türkiye',
-        '/en/istasyon/LTBJ',
-        'Izmir Adnan Menderes Airport (ADB)',
-      ],
+    // Atina (LGAV) sayfasında Türkiye'ye göre satır yoktur (D-106); v0.22.1'e kadar Çiğli Hava Üssü'nü
+    // (275 km), v0.22.2'de İzmir Adnan Menderes'i (284 km) gösteriyordu.
+    for (const [path, label] of [
+      [`/istasyon/${RING1_AIRPORT.icao}`, 'Türkiye’deki en yakın havalimanı'],
+      [enPath(`/istasyon/${RING1_AIRPORT.icao}`), 'Nearest airport in Türkiye'],
     ] as const) {
       await page.goto(path)
-      const fact = page
-        .locator('main dt', { hasText: label })
-        .locator('xpath=following-sibling::dd[1]')
-      await expect(fact.locator(`a[href="${link}"]`), path).toHaveText(name)
-      await expect(fact, path).toContainText(/\b284 km\b/)
+      await expect(page.locator('main dt', { hasText: label }), path).toHaveCount(0)
       await expect(page.locator('main'), path).not.toContainText(/Hava Üssü|Air Base|Airbase/)
     }
+    // API alanı değişmez ve askerî üs değildir (D-107): İzmir Adnan Menderes, 284 km.
+    const athens = (await (
+      await request.get(`${API_URL}/v1/airports/${RING1_AIRPORT.icao}`)
+    ).json()) as { nearestTr: { icao: string } | null; distanceToTrKm: number | null }
+    expect(athens.nearestTr?.icao).toBe('LTBJ')
+    expect(athens.distanceToTrKm).toBe(284)
   })
 
   test('askerî hava üsleri hiçbir yerde yok (D-107): liste, sayfa, en yakınlar, API', async ({

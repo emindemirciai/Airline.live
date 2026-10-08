@@ -43,7 +43,7 @@ export interface AboutContentProps {
   stations: readonly MonitoredStation[] | null
   /**
    * Canlı veri çekim alanının dışında kalan Türkiye havalimanları (kapsama planı, `isInLiveCoverage`),
-   * veriden. Yakın ülkelerdeki havalimanları burada sayılmaz; onlar için ayrı cümle vardır (D-080).
+   * veriden. Diğer ülkelerdeki havalimanları burada sayılmaz; onlar için ayrı cümle vardır (D-080).
    * API'ye ulaşılamazsa null.
    */
   outside: readonly AirportLink[] | null
@@ -64,8 +64,9 @@ function SourceLink({ href, children }: { href: string; children: ReactNode }) {
  * §1 ve D-073), veri kaynakları ve lisanslar (data-sources.md §1, §3, §4, §5, §6, §6a; ATTRIBUTION.md;
  * hava durumu D-078) ve
  * uçak gizliliği (D-071, CLAUDE.md → Gizlilik; engel listesi apps/api/src/admin/blocklist.ts).
- * Yakın ülkelerdeki havalimanlarının listelendiği ve canlı uçak verisinin Türkiye odaklı olduğu
- * yöntem bölümünde yazılır; uzaklık sınırı açık halkalardandır (`listedRadiusKm`, D-080).
+ * Canlı uçak verisinin şimdilik yalnızca Türkiye ve çevresinden çekildiği yöntem bölümünün kapsama
+ * cümlesindedir (`method.coverage`, D-106); diğer ülkelerdeki havalimanlarının listelendiği ayrı
+ * cümledir, uzaklık sınırı açık halkalardandır (`listedRadiusKm`, D-080).
  * Uydurma bilgi yoktur; sayılar bu belgelerdendir. İstasyon listesi ve çekim alanı dışındaki
  * havalimanları veriden gelir; birincil çemberin yarıçapı kapsama planındandır (packages/geo). Durum
  * satırının gösterdiği yaş: components/map/panels/status-strip.tsx → `dataAgeSeconds`.

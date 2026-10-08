@@ -213,6 +213,16 @@ describe('toMapAirport', () => {
       { lengthFt: null, ends: [] },
     ])
   })
+
+  it('adres takma adı (D-109) aramada tam kod için tutulur; yoksa ya da bozuksa alan yazılmaz', () => {
+    expect(toMapAirport({ ...ATH_DETAIL, identAlias: 'UTSS' })?.identAlias).toBe('UTSS')
+    expect(toMapAirport(ATH_DETAIL)).not.toHaveProperty('identAlias')
+    for (const identAlias of ['utss', 'UTS', 'UTSSX', 42, null]) {
+      const airport = toMapAirport({ ...ATH_DETAIL, identAlias })
+      expect(airport?.icao, String(identAlias)).toBe('LGAV')
+      expect(airport, String(identAlias)).not.toHaveProperty('identAlias')
+    }
+  })
 })
 
 describe('runwaySummary', () => {

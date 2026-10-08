@@ -6,6 +6,7 @@ import { fetchApiStatus } from '@/lib/api-status'
 import { getServerEnv } from '@/lib/env'
 import { getLocale } from '@/lib/locale'
 import { pageMetadata } from '@/lib/seo/metadata'
+import { formatCheckedAt } from '@/lib/status-time'
 
 /** Operasyonel ve sık değişen içerik: `noindex, follow`, site haritasında yok (kullanıcı kararı, D-076). */
 export async function generateMetadata(): Promise<Metadata> {
@@ -27,11 +28,8 @@ export default async function StatusPage() {
   const env = getServerEnv()
   const api = await fetchApiStatus(env.API_INTERNAL_URL)
   const progress = roadmapProgress()
-  const checkedAt = new Intl.DateTimeFormat(locale === 'tr' ? 'tr-TR' : 'en-GB', {
-    dateStyle: 'short',
-    timeStyle: 'medium',
-    timeZone: 'Europe/Istanbul',
-  }).format(new Date(api.checkedAt))
+  // Kontrol zamanı UTC'dir ve etiketlidir: "6.10.2026 14:20:00 UTC" (D-106).
+  const checkedAt = formatCheckedAt(api.checkedAt, locale)
 
   return (
     <article className="page">

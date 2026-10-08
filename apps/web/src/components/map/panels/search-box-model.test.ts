@@ -469,4 +469,19 @@ describe('codeOnlyAirportSearch: ad parçası yüklenemezse yalnız tam kod', ()
       expect(search(query), query).toMatchObject({ rows: [], total: 0, degraded: true })
     }
   })
+
+  it('adres takma adı (D-109) tam kod olarak bulunur; ICAO ve IATA önce gelir', () => {
+    const samarkand = { ...airport('UZSS', 'SKD'), identAlias: 'UTSS' } as MapAirport
+    // Kod hem bir havalimanının ICAO'su hem başkasının takma adıysa ICAO kazanır (API'nin kuralı).
+    const clash = { ...airport('LTFJ', 'XXX'), identAlias: 'LTAC' } as MapAirport
+    const withAlias = codeOnlyAirportSearch([IST, ESB, samarkand, clash], 'tr')
+    for (const query of ['UTSS', 'utss', 'UZSS', 'skd']) {
+      expect(
+        withAlias(query).rows.map((r) => [r.airport.icao, r.match]),
+        query,
+      ).toEqual([['UZSS', 'code']])
+    }
+    expect(withAlias('LTAC').rows.map((r) => r.airport.icao)).toEqual(['LTAC'])
+    expect(withAlias('UTS').rows).toEqual([])
+  })
 })

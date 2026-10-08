@@ -76,16 +76,19 @@ function airportCodeKey(query: string): string {
 
 /**
  * Ad parçası yüklenemezse (`withImportFallback`) kullanılan arama: yalnız tam IATA ya da ICAO kodu
- * ("ist", "LTFM"). Askerî hava üsleri aranmaz (`mapShownAirports`). Satırda ad ve yer yoktur; sonuç
- * `degraded` işaretlidir (durum satırı adların yüklenemediğini söyler). Yalnız tam kod döndüğü için
- * harf sayısı sorgunun kendisinindir (tam kod Enter'da harf sayısına bakılmadan açılır).
+ * ("ist", "LTFM") ya da adres takma adı (D-109, "UTSS"; motor gibi ICAO ve IATA önce). Askerî hava
+ * üsleri aranmaz (`mapShownAirports`). Satırda ad ve yer yoktur; sonuç `degraded` işaretlidir (durum
+ * satırı adların yüklenemediğini söyler). Yalnız tam kod döndüğü için harf sayısı sorgunun
+ * kendisinindir (tam kod Enter'da harf sayısına bakılmadan açılır).
  */
 export const codeOnlyAirportSearch: AirportSearchBuilder = (airports) => {
   const shown = mapShownAirports(airports)
+  const byCode = (key: string): MapAirport | undefined =>
+    findAirportByCode(shown, key) ?? shown.find((a) => a.identAlias === key)
   return (query) => {
     const key = airportCodeKey(query)
     const queryLetters = letterCount(key)
-    const airport = key.length >= 3 && key.length <= 4 ? findAirportByCode(shown, key) : undefined
+    const airport = key.length >= 3 && key.length <= 4 ? byCode(key) : undefined
     if (airport === undefined) return { rows: [], total: 0, queryLetters, degraded: true }
     const row: AirportSearchRow = {
       airport,

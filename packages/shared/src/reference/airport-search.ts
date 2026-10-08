@@ -13,10 +13,10 @@
  *   "… Havaliman"): yazarken liste kapanmaz, sonuç sözcük bitince aynıdır.
  * - **Yalnız sözcük başı:** sorgunun her sözcüğü bir sözcüğün başına uymalıdır; sözcük ortası hiçbir
  *   zaman eşleşmez ("port" "Airport"u, "ist" "Priştine"yi bulmaz).
- * - **Basamaklar**, iyiden kötüye: tam kod (IATA ya da ICAO) > başlangıç (sorgu bir adın ya da yerin
- *   başı) > sözcükler (her sorgu sözcüğü bir ad, yer ya da kod sözcüğünün başı; "LTF", "ES" gibi kod
- *   önekleri dahil) > ülke (en az 3 harf; sözcükler ülke adlarında da aranır). Bir basamağın içinde
- *   çağıranın sırası korunur.
+ * - **Basamaklar**, iyiden kötüye: tam kod (IATA, ICAO ya da adres takma adı) > başlangıç (sorgu
+ *   bir adın ya da yerin başı) > sözcükler (her sorgu sözcüğü bir ad, yer ya da kod sözcüğünün başı;
+ *   "LTF", "ES" gibi kod önekleri dahil) > ülke (en az 3 harf; sözcükler ülke adlarında da aranır).
+ *   Bir basamağın içinde çağıranın sırası korunur.
  * - **Tam kod** yalnız İngilizce harf ve rakamdan oluşan 3–4 karakterlik sorgudur (kırpılır, boşluk
  *   atılır, Türkçe klavyenin İ ve ı harfleri I ve i olur: "İST" IST'dir). Başka bir harf kod
  *   olamaz: "küt" Kutaisi'nin KUT kodu değil, Kütahya'nın (Zafer) ve Kutaisi'nin adının başıdır.
@@ -29,6 +29,9 @@
  *   dolgu sözcüğü sayılmaz ("THY airport" ve "THY h" 3 harftir).
  * - **Rakamlı ya da hex sorgu** (`airportQueryKind` → `code`) yalnız tam kod arar: "TK1985" ya da
  *   "4BB26C" hiçbir havalimanı adına uymaz.
+ * - **Adres takma adı** (`alias`, D-109: kodu değişen havalimanının OurAirports kimliğinde kalan eski
+ *   dört karakterli kodu, ör. Semerkant'ın UTSS'si) yalnız tam kod olarak bulunur; sözcük başı ya da
+ *   önek olarak aranmaz.
  *
  * Sorgu hiçbir zaman düzenli ifadeye çevrilmez; karşılaştırma `includes` iledir.
  */
@@ -134,6 +137,11 @@ export interface AirportSearchEntry<T> {
   /** IATA kodu; yoksa boş metin. */
   iata: string
   icao: string
+  /**
+   * Adres takma adı (D-109, `identAlias`): kodu değişen havalimanının eski kodu; yalnız tam kodla
+   * bulunur. Takma adı olmayan havalimanında alan yoktur.
+   */
+  alias?: string
   /** Adlar (iki dilde görünen ad, resmî ad, kaynak adı). */
   names: readonly string[]
   /** Yerler (il, şehir, yerleşim; iki dilde). */
@@ -147,6 +155,8 @@ interface IndexedAirport<T> {
   value: T
   iata: string
   icao: string
+  /** Adres takma adı, büyük harf; yoksa boş metin. */
+  alias: string
   /** Her ad ve yerin sözcükleri, `\u0001` ile ayrılmış ve başlanmış. */
   starts: string
   /** Ad, yer ve kod sözcükleri, boşlukla ayrılmış ve başlanmış. */
@@ -211,6 +221,7 @@ export function createAirportSearchIndex<T>(
       value: entry.value,
       iata: entry.iata.trim().toUpperCase(),
       icao: entry.icao.trim().toUpperCase(),
+      alias: (entry.alias ?? '').trim().toUpperCase(),
       starts: START + phrases.join(START),
       words: ` ${words.join(' ')}`,
       countryWords: countryWordsOf(entry.countries),
@@ -316,7 +327,7 @@ function searchQuery<T>(
 
   const items = (INDEX_ITEMS.get(index) ?? []) as readonly IndexedAirport<T>[]
   for (const item of items) {
-    if (key !== null && (key === item.iata || key === item.icao)) {
+    if (key !== null && (key === item.iata || key === item.icao || key === item.alias)) {
       buckets.code.push(item.value)
       continue
     }
