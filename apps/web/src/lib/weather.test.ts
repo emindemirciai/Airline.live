@@ -7,8 +7,8 @@ import {
   fixtureStations,
   fixtureWeather,
 } from './test/weather-fixture'
+import { createMemoryCache } from './memory-cache'
 import {
-  createMemoryCache,
   parseWeatherBulk,
   parseWeatherHistory,
   stationWeather,

@@ -13,6 +13,7 @@ import { z } from 'zod'
 import { WEATHER_LOG_HOURS } from '../components/airports/weather-client'
 import { AIRPORTS_SCOPE } from './airports'
 import { getServerEnv } from './env'
+import { createMemoryCache } from './memory-cache'
 
 /**
  * Havalimanı sayfalarının hava durumu verisi (Parça 1 M6c, D-078; M6h ölçek düzeltmesi, D-090). Sayfa
@@ -156,58 +157,6 @@ async function fetchJson(url: string, init: RequestInit): Promise<unknown> {
   })
   if (!response.ok) throw new Error(`weather request failed: HTTP ${response.status}`)
   return response.json()
-}
-
-export interface MemoryCacheOptions<T> {
-  /** Değeri getirir; hata fırlatırsa istek başarısız sayılır. */
-  load: () => Promise<T>
-  /** Taze sayılma süresi, ms. */
-  ttlMs: number
-  /** Başarısız istekten sonra yeniden deneme için en kısa süre, ms. */
-  retryMs: number
-  /** Yenileme başarısızken eldeki değerin en çok kullanılacağı yaş, ms. */
-  maxStaleMs: number
-  /** Saat, epoch ms (testte sahte saat). */
-  now?: () => number
-}
-
-/**
- * Süreç belleğinde tek değerlik önbellek: değer `ttlMs` boyunca taze kalır; süresi dolunca ilk
- * çağrı yeniler ve aynı anda gelen çağrılar süren tek isteği bekler (tek uçuş). Yenileme başarısızsa
- * değer `maxStaleMs` yaşına kadar verilir, daha eskiyse null; `retryMs` dolmadan yeniden istek atılmaz.
- * Hiçbir zaman fırlatmaz. Bellek: en çok bir değer (yenilenirken kısa süre iki).
- */
-export function createMemoryCache<T>({
-  load,
-  ttlMs,
-  retryMs,
-  maxStaleMs,
-  now = Date.now,
-}: MemoryCacheOptions<T>): () => Promise<T | null> {
-  let stored: { value: T; at: number } | null = null
-  let failedAt: number | null = null
-  let pending: Promise<void> | null = null
-  const usable = (): T | null =>
-    stored !== null && now() - stored.at <= maxStaleMs ? stored.value : null
-  return async () => {
-    if (stored !== null && now() - stored.at < ttlMs) return stored.value
-    if (failedAt !== null && now() - failedAt < retryMs) return usable()
-    pending ??= load()
-      .then(
-        (value) => {
-          stored = { value, at: now() }
-          failedAt = null
-        },
-        () => {
-          failedAt = now()
-        },
-      )
-      .finally(() => {
-        pending = null
-      })
-    await pending
-    return usable()
-  }
 }
 
 async function loadWeatherBulk(): Promise<WeatherBulk> {
