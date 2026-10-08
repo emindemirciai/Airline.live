@@ -8,11 +8,16 @@
 // Türkiye dışı adaylar halka halka: önce 1., sonra 2., 3., 4. ve 5. halka (açık pistleriyle; D-080,
 // D-088, D-090, D-101, D-109);
 // havayollarının tamamı.
+// Ayrıca adres takma adının dışlama listesini (`IDENT_ALIAS_EXCLUSIONS`, D-109) tam dosyayla sayar
+// (`identAliasExclusionCensus`); sayım koddaki listeden farklıysa çıkış kodu 1'dir (fixture yine
+// yazılır; liste `packages/db/src/airports.ts`'te ve web test yardımcısında güncellenir).
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { IDENT_ALIAS_EXCLUSIONS, identAliasExclusionCensus } from '../packages/db/src/airports.ts'
 import { distanceKm } from '../packages/geo/src/index.ts'
 import { parseCsv } from '../packages/providers/src/reference/csv.ts'
+import { isImportedAirport } from '../packages/providers/src/reference/ourairports.ts'
 
 /**
  * Türkiye dışından testlerde kullanılabilecek birkaç büyük havalimanı ve iki dışlama örneği
@@ -137,3 +142,29 @@ writeFileSync(join(vrs, 'airlines.csv'), toCsv(airlines))
 console.log(
   `✓ airports ${baseAirports.length} + rings ${rings.map((ring) => ring.length).join(' + ')}, runways ${baseRunways.length} + ${ringRunways.length}, airlines ${airlines.length - 1}`,
 )
+
+const value = (row: string[], index: number) => row[index]?.trim() ?? ''
+const optional = (row: string[], index: number) => value(row, index) || null
+const icaoCodeCol = col(airportHeader, 'icao_code')
+const gpsCodeCol = col(airportHeader, 'gps_code')
+const exclusions = identAliasExclusionCensus(
+  airports.map((row) => ({
+    ident: value(row, identCol),
+    icaoCode: optional(row, icaoCodeCol),
+    gpsCode: optional(row, gpsCodeCol),
+    imported: isImportedAirport({
+      type: value(row, typeCol),
+      scheduledService: value(row, scheduledCol) === 'yes',
+      isoCountry: value(row, countryCol),
+      iataCode: optional(row, iataCol),
+    }),
+  })),
+)
+if (exclusions.join(',') === IDENT_ALIAS_EXCLUSIONS.join(',')) {
+  console.log(`✓ ident alias exclusions ${exclusions.join(', ')}`)
+} else {
+  console.error(
+    `✗ IDENT_ALIAS_EXCLUSIONS differs from the census: code ${IDENT_ALIAS_EXCLUSIONS.join(', ')}, census ${exclusions.join(', ')}`,
+  )
+  process.exitCode = 1
+}

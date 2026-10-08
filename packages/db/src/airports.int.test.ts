@@ -173,15 +173,17 @@ describe('listAirportsWithIata', () => {
     expect(list.map((a) => a.icao)).not.toContain('LTAE')
 
     // Başka ülke: kayıt halkasını ve Türkiye'ye uzaklığını taşır (halka süzgeci yok; Birleşik
-    // Krallık'ın fixture'daki 40 havalimanı 4. halkada, 2.000–5.000 km; D-101).
+    // Krallık'ın fixture'daki 40 havalimanı 4. halkada, 2.000–5.000 km; D-101; ABD'nin 502
+    // havalimanı 5. halkada, D-109).
     const gb = await listAirportsWithIata(database.db, 'GB', RINGS)
     expect(gb).toHaveLength(40)
     expect(gb.every((a) => a.country === 'GB' && a.ring === 4)).toBe(true)
     expect(gb.find((a) => a.iata === 'LHR')).toMatchObject({ icao: 'EGLL', ring: 4 })
     expect(gb.find((a) => a.iata === 'LHR')?.distanceToTrKm).toBeGreaterThan(2000)
-    expect((await listAirportsWithIata(database.db, 'US', RINGS)).map((a) => a.iata)).toEqual([
-      'JFK',
-    ])
+    const us = await listAirportsWithIata(database.db, 'US', RINGS)
+    expect(us).toHaveLength(502)
+    expect(us.every((a) => a.country === 'US' && a.ring === 5)).toBe(true)
+    expect(us.find((a) => a.iata === 'JFK')).toMatchObject({ icao: 'KJFK', ring: 5 })
     expect(await listAirportsWithIata(database.db, 'ZZ', RINGS)).toEqual([])
   })
 
@@ -471,6 +473,56 @@ describe('listListedAirports (D-080)', () => {
     expect(await findAirportDetail(database.db, 'PWAK', RINGS)).toBeNull()
     const details = await listListedAirportDetails(database.db, { ...RINGS, enabledRing: 5 })
     expect(details.filter((a) => a.identAlias !== undefined)).toHaveLength(52)
+  })
+
+  it('takma ad denetimi listede ve tek havalimanı ucunda aynı satırlarla (D-109): başka satırın ICAO’su olan kimlik takma ad değildir', async () => {
+    await database.db.insert(airports).values([
+      // Türkiye'deki uzaklık referansı (X 1. halkada).
+      extra(900_101, { iataCode: 'TRX', icaoCode: 'LTXX' }),
+      // X: yurt dışı aday; kimliği ABCD, ICAO'su WXYZ.
+      extra(900_102, {
+        ident: 'ABCD',
+        type: 'large_airport',
+        scheduledService: true,
+        isoCountry: 'SY',
+        isoRegion: 'SY-HL',
+        latitudeDeg: 36.5,
+        longitudeDeg: 37,
+        icaoCode: 'WXYZ',
+        gpsCode: 'WXYZ',
+        iataCode: 'XYZ',
+      }),
+      // Y: küçük tarifeli havalimanı, ICAO'su ABCD; aday değildir, listede görünmez.
+      extra(900_103, {
+        ident: 'SY-0001',
+        scheduledService: true,
+        isoCountry: 'SY',
+        isoRegion: 'SY-HL',
+        latitudeDeg: 36.6,
+        longitudeDeg: 37.1,
+        icaoCode: 'ABCD',
+        iataCode: 'QQQ',
+      }),
+    ])
+    const listed = await listListedAirportDetails(database.db, RINGS)
+    const x = listed.find((a) => a.icao === 'WXYZ')
+    expect(x).toMatchObject({ icao: 'WXYZ', ring: 1 })
+    expect(Object.hasOwn(x ?? {}, 'identAlias')).toBe(false)
+    expect(listed.map((a) => a.icao)).not.toContain('ABCD')
+    expect(await findAirportDetail(database.db, 'ABCD', RINGS)).toMatchObject({
+      icao: 'ABCD',
+      iata: 'QQQ',
+    })
+    for (const code of ['WXYZ', 'xyz']) {
+      const found = await findAirportDetail(database.db, code, RINGS)
+      expect(found?.icao, code).toBe('WXYZ')
+      expect(Object.hasOwn(found ?? {}, 'identAlias'), code).toBe(false)
+    }
+    const syria = await listAirportDetails(database.db, 'SY', RINGS)
+    expect(syria.map((a) => [a.icao, a.identAlias ?? null])).toEqual([
+      ['ABCD', null],
+      ['WXYZ', null],
+    ])
   })
 
   it('uzaklık referansı küçük alanlar olmadan (M6d öncesi süzgeç) 1. halka daralır: 56 + 72', async () => {

@@ -200,7 +200,7 @@ const icaoOf = (row: Row) =>
  * Adres takma adı olamayacak kimlikler (`@havayolu/db` `IDENT_ALIAS_EXCLUSIONS`, D-109;
  * `packages/db/src/airports.test.ts` iki listeyi karşılaştırır).
  */
-const IDENT_ALIAS_EXCLUSIONS = ['WABP']
+const IDENT_ALIAS_EXCLUSIONS = ['WABP', 'WIOD', 'WRLB']
 
 let knownIcaos: ReadonlySet<string> | undefined
 

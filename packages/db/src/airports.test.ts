@@ -6,6 +6,7 @@ import {
   greatCircleKm,
   IDENT_ALIAS_EXCLUSIONS,
   identAlias,
+  identAliasExclusionCensus,
   isEmptyRunway,
   isHiddenRunway,
   MILITARY_AIRFIELD_ICAOS,
@@ -592,10 +593,93 @@ describe('adres takma adı (D-109)', () => {
     // İskenderiye: kaynak düzeltmesiyle kanonik ICAO ident'tir (HEBA).
     expect(identAlias({ ident: 'HEBA', icaoCode: 'HEAX', gpsCode: 'HEAX' }, none)).toBeNull()
     // Başka bir satırın kanonik ICAO'su olan kimlik takma ad değildir: eldeki satırlardan ya da
-    // veritabanında olmayan satırlardan (WABP, Burumeso ID-0394).
+    // veritabanında olmayan satırlardan (WABP Burumeso ID-0394, WIOD Singkawang ID-0290, WRLB
+    // Dagai ID-0041).
     expect(identAlias(uzss, new Set(['UTSS']))).toBeNull()
-    expect(IDENT_ALIAS_EXCLUSIONS).toEqual(['WABP'])
+    expect(IDENT_ALIAS_EXCLUSIONS).toEqual(['WABP', 'WIOD', 'WRLB'])
     expect(identAlias({ ident: 'WABP', icaoCode: 'WAYY', gpsCode: 'WAYY' }, none)).toBeNull()
+    expect(identAlias({ ident: 'WIOD', icaoCode: 'WIKT', gpsCode: 'WIKT' }, none)).toBeNull()
+    expect(identAlias({ ident: 'WRLB', icaoCode: 'WAQJ', gpsCode: 'WAQJ' }, none)).toBeNull()
+  })
+
+  it('identAliasExclusionCensus: içe aktarılan satırın kimliği başka bir satırın kanonik ICAO’suysa', () => {
+    // 2026-10-01'in üç örneği, eş satırları içe aktarılmaz (kanonik ICAO: icao_code, gps_code).
+    expect(
+      identAliasExclusionCensus([
+        { ident: 'WRLB', icaoCode: 'WAQJ', gpsCode: 'WAQJ', imported: true },
+        { ident: 'ID-0041', icaoCode: null, gpsCode: 'WRLB', imported: false },
+        { ident: 'WABP', icaoCode: 'WAYY', gpsCode: 'WAYY', imported: true },
+        { ident: 'ID-0394', icaoCode: 'WABP', gpsCode: 'WABP', imported: false },
+        { ident: 'WIOD', icaoCode: 'WIKT', gpsCode: 'WIKT', imported: true },
+        { ident: 'ID-0290', icaoCode: 'WIOD', gpsCode: 'WIOD', imported: false },
+        // Takma ad (çakışmasız), kimliği kanonik ICAO olan satır ve içe aktarılmayan satır sayılmaz.
+        { ident: 'UTSS', icaoCode: 'UZSS', gpsCode: 'UZSS', imported: true },
+        { ident: 'LTFM', icaoCode: 'LTFM', gpsCode: 'LTFM', imported: true },
+        { ident: 'XXAA', icaoCode: 'XXBB', gpsCode: null, imported: false },
+        { ident: 'XX-1', icaoCode: 'XXAA', gpsCode: null, imported: true },
+      ]),
+    ).toEqual(['WABP', 'WIOD', 'WRLB'])
+    // Eş satır içe aktarılsa da sayılır (listede durması zararsız); kimlik kendi ICAO'suysa sayılmaz.
+    expect(
+      identAliasExclusionCensus([
+        { ident: 'ABCD', icaoCode: 'WXYZ', gpsCode: null, imported: true },
+        { ident: 'QQ-1', icaoCode: 'ABCD', gpsCode: null, imported: true },
+      ]),
+    ).toEqual(['ABCD'])
+    expect(
+      identAliasExclusionCensus([
+        { ident: 'HEBA', icaoCode: 'HEAX', gpsCode: 'HEAX', imported: true },
+      ]),
+    ).toEqual([])
+  })
+
+  it('liste ve tek havalimanı aynı satırlarla denetler: başka satırın ICAO’su olan kimlik hiçbir yolda takma ad değil', async () => {
+    // X: yurt dışı aday, kimliği ABCD, ICAO'su WXYZ. Y: küçük tarifeli havalimanı, ICAO'su ABCD
+    // (aday değil; liste onu göstermez ama veritabanının takma ad denetimi onu görür).
+    const x = detailRow({
+      id: 1,
+      ident: 'ABCD',
+      icaoCode: 'WXYZ',
+      gpsCode: 'WXYZ',
+      iataCode: 'XYZ',
+      isoCountry: 'GR',
+      latitudeDeg: 37.9,
+      longitudeDeg: 23.9,
+    })
+    const y = detailRow({
+      id: 2,
+      ident: 'GR-0001',
+      type: 'small_airport',
+      icaoCode: 'ABCD',
+      gpsCode: 'ABCD',
+      iataCode: 'QQQ',
+      isoCountry: 'GR',
+      latitudeDeg: 38.1,
+      longitudeDeg: 24.1,
+    })
+    const rows = [x, y]
+    const listedX = withDetails(rows, [], []).find((a) => a.icao === 'WXYZ')
+    expect(listedX?.icao).toBe('WXYZ')
+    expect(Object.hasOwn(listedX ?? {}, 'identAlias')).toBe(false)
+    expect(await findAirportInRows(rows, [], [], 'ABCD', CONTEXT)).toMatchObject({ icao: 'ABCD' })
+    for (const code of ['WXYZ', 'xyz']) {
+      const found = await findAirportInRows(rows, [], [], code, CONTEXT)
+      expect(found?.icao, code).toBe('WXYZ')
+      expect(Object.hasOwn(found ?? {}, 'identAlias'), code).toBe(false)
+    }
+    // Y tarifesizse (`listedFilter`'e girmez, veritabanında da denetlenmez) iki yol da takma adı
+    // verir; böyle bir eş satırı `IDENT_ALIAS_EXCLUSIONS` tutar.
+    const unscheduled = [x, { ...y, scheduledService: false }]
+    expect(withDetails(unscheduled, [], []).find((a) => a.icao === 'WXYZ')).toMatchObject({
+      identAlias: 'ABCD',
+    })
+    expect(await findAirportInRows(unscheduled, [], [], 'ABCD', CONTEXT)).toMatchObject({
+      icao: 'WXYZ',
+      identAlias: 'ABCD',
+    })
+    expect(await findAirportInRows(unscheduled, [], [], 'WXYZ', CONTEXT)).toMatchObject({
+      identAlias: 'ABCD',
+    })
   })
 
   it('rowMatchesCode: ICAO, GPS kodu, ident ya da IATA; kırpılır ve büyük harfe çevrilir', () => {

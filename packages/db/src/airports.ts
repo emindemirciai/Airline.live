@@ -176,12 +176,19 @@ export function ourAirportsIcao(
 
 /**
  * Adres takma adı olamayacak kimlikler (D-109): OurAirports'ta başka bir satırın kanonik ICAO'su
- * olan, ama o satır içe aktarılmadığı için veritabanında bulunmayan kodlar. 2026-10-01 indirmesinin
- * tam dosyasında (her türden satır) tek örnek: WABP, Timika'nın (WAYY) eski kimliği ve Burumeso
- * pistinin (ID-0394; küçük, tarifesiz, içe aktarılmaz) ICAO'su. Böyle bir kod hiçbir havalimanına
- * yönlenmez.
+ * olan, ama o satır veritabanının takma ad denetimine (`listedFilter`'in satırları) girmediği için
+ * dinamik denetimin görmediği kodlar. Liste sayım kuralıyla üretilir (`identAliasExclusionCensus`;
+ * fixture üreticisi kalıcı kopyanın tam dosyasıyla sayar ve bu listeyle karşılaştırır). 2026-10-01
+ * indirmesinin tam dosyasında (her türden satır) üç örnek:
+ * - WABP: Timika'nın (WAYY) kimliği, Burumeso pistinin (ID-0394; küçük, tarifesiz) ICAO'su;
+ * - WIOD: Tanjung Pandan'ın (WIKT) kimliği, Singkawang'ın (ID-0290; küçük, tarifesiz) `icao_code`'u;
+ * - WRLB: Long Bawan'ın (WAQJ) kimliği, Dagai'nin (ID-0041; küçük, tarifesiz) `gps_code`'u.
+ *
+ * Üç eş satır da içe aktarılmaz. Tanjung Pandan ve Long Bawan küçük tarifeli havalimanlarıdır:
+ * sayfaları yoktur, ama API ve ülke listeleri kodu öbür havalimanına yönlendirirdi. Böyle bir kod
+ * hiçbir havalimanına yönlenmez.
  */
-export const IDENT_ALIAS_EXCLUSIONS: readonly string[] = ['WABP']
+export const IDENT_ALIAS_EXCLUSIONS: readonly string[] = ['WABP', 'WIOD', 'WRLB']
 
 /** Adres takma adı biçimi: dört harf ya da rakam (kanonik ICAO'nun biçimi). */
 const IDENT_ALIAS = /^[A-Z0-9]{4}$/
@@ -208,6 +215,35 @@ export function identAlias(
 const canonicalIcaos = (
   rows: readonly Pick<AirportSourceRow, 'ident' | 'icaoCode' | 'gpsCode'>[],
 ) => new Set(rows.map(ourAirportsIcao))
+
+/** `identAliasExclusionCensus`'un satırı: kimlik alanları ve satırın içe aktarılıp aktarılmadığı. */
+export interface IdentAliasCensusRow extends Pick<
+  AirportSourceRow,
+  'ident' | 'icaoCode' | 'gpsCode'
+> {
+  /** Satır içe aktarılıyor mu (`@havayolu/providers` `isImportedAirport`). */
+  imported: boolean
+}
+
+/**
+ * `IDENT_ALIAS_EXCLUSIONS`'ın sayım kuralı (D-109), OurAirports'un tam dosyasıyla (her türden
+ * satır): içe aktarılan satırlardan dört karakterli kimliği kanonik ICAO'sundan farklı olup başka
+ * bir satırın kanonik ICAO'su olanların kimlikleri, sıralı ve tekil. Öbür satır veritabanında olsa
+ * da sayılır (dinamik denetim onu zaten görür; listede durması zararsızdır).
+ */
+export function identAliasExclusionCensus(rows: readonly IdentAliasCensusRow[]): string[] {
+  // Satırın kendi kanonik ICAO'su kimliğinden farklıdır; kümede kimliği taşıyan başka satırdır.
+  const known = canonicalIcaos(rows)
+  const found = new Set<string>()
+  for (const row of rows) {
+    if (!row.imported) continue
+    const ident = row.ident.trim().toUpperCase()
+    if (IDENT_ALIAS.test(ident) && ident !== ourAirportsIcao(row) && known.has(ident)) {
+      found.add(ident)
+    }
+  }
+  return [...found].sort()
+}
 
 /**
  * Görünen ad: kırpılmış, art arda boşluklar teke inmiş (D-088; Bacău'nun OurAirports adında
@@ -499,6 +535,32 @@ const listedFilter = (...conditions: SQL[]): SQL =>
     ),
     ...conditions,
   ) as SQL
+
+/**
+ * `listedFilter`'in bellekteki eşi: bellekteki ikizler (`toAirportDetails`, `findAirportInRows`)
+ * takma ad denetiminde veritabanıyla aynı satırları görür.
+ */
+const passesListedFilter = (
+  row: Pick<AirportSourceRow, 'type' | 'iataCode' | 'scheduledService'>,
+): boolean =>
+  isListedType(row.type) &&
+  row.iataCode !== null &&
+  (row.type === 'large_airport' || row.type === 'medium_airport' || row.scheduledService)
+
+/**
+ * Takma ad denetiminin kanonik ICAO'ları (D-109): `listedFilter`'in bütün satırları, her ülkeden.
+ * Tek havalimanı ucunun kümesiyle aynı kuraldır: `rowsMatching` de `listedFilter`'dir ve bir
+ * satırın kanonik ICAO'su kendi ICAO, GPS ya da ident alanı olduğu için o kodla eşleşen satırlar
+ * arasındadır. Böylece liste (`scope=listed`; web'in 308'i buna bakar) ile `GET /v1/airports/<kod>`
+ * aynı takma adları verir. ~5.300 satırın üç kısa sütunu; liste API'de 10 dk önbelleklidir.
+ */
+async function readKnownIcaos(db: PostgresJsDatabase): Promise<ReadonlySet<string>> {
+  const rows = await db
+    .select({ ident: airports.ident, icaoCode: airports.icaoCode, gpsCode: airports.gpsCode })
+    .from(airports)
+    .where(listedFilter())
+  return canonicalIcaos(rows)
+}
 
 /**
  * Yurt dışı adayları (SQL ön süzgeci): `isForeignCandidateRow`'un koşulları; kanonik ICAO'nun
@@ -833,7 +895,8 @@ function runwayDetail(row: RunwaySourceRow): RunwayDetailRecord {
 /**
  * Saf kısım: liste kuralıyla (`toListedAirports`) seçilen havalimanlarına pistleri, istasyon
  * ayarlarını ve veri tarihini ekler. Sıra listeyle aynıdır (IATA, eşitse ICAO). Halka ve uzaklık
- * `context`'ten hesaplanır.
+ * `context`'ten hesaplanır. Takma ad denetimi verilen satırların `listedFilter`'e girenleriyle
+ * yapılır (`readKnownIcaos`'un eşi).
  */
 export function toAirportDetails(
   airportRows: readonly AirportDetailSourceRow[],
@@ -845,7 +908,7 @@ export function toAirportDetails(
     listedEntries(airportRows, context),
     runwayRows,
     stationRows,
-    canonicalIcaos(airportRows),
+    canonicalIcaos(airportRows.filter(passesListedFilter)),
   )
 }
 
@@ -969,26 +1032,24 @@ async function readDetails(
 
 /**
  * Bir ülkenin IATA kodlu havalimanları pistleri, istasyon ayarları ve veri tarihiyle
- * (`GET /v1/airports?include=runways`). Liste ve sıra `listAirportsWithIata` ile aynıdır.
+ * (`GET /v1/airports?include=runways`). Liste ve sıra `listAirportsWithIata` ile aynıdır; takma ad
+ * denetimi her ülkenin satırlarıyla yapılır (`readKnownIcaos`).
  */
 export async function listAirportDetails(
   db: PostgresJsDatabase,
   country: string,
   rings: Pick<AirportRingConfig, 'ringsKm'>,
 ): Promise<AirportDetailRecord[]> {
-  const [rows, turkey] = await Promise.all([
+  const [rows, turkey, knownIcaos] = await Promise.all([
     db
       .select(detailAirportColumns)
       .from(airports)
       .where(listedFilter(eq(airports.isoCountry, country)))
       .orderBy(asc(airports.id)),
     readTurkishReferencePoints(db),
+    readKnownIcaos(db),
   ])
-  return readDetails(
-    db,
-    listedEntries(rows, { turkey, ringsKm: rings.ringsKm }),
-    canonicalIcaos(rows),
-  )
+  return readDetails(db, listedEntries(rows, { turkey, ringsKm: rings.ringsKm }), knownIcaos)
 }
 
 /** İçe aktarım kayması ölçümünün veritabanı girdisi (D-109; worker'ın günlük satırı). */
@@ -1008,13 +1069,16 @@ export async function readListingDrift(
   db: PostgresJsDatabase,
   rings: AirportRingConfig,
 ): Promise<ListingDriftInput> {
-  const { rows, turkey } = await readListedRows(db, async (where) =>
-    db.select(detailAirportColumns).from(airports).where(where).orderBy(asc(airports.id)),
-  )
+  const [{ rows, turkey }, knownIcaos] = await Promise.all([
+    readListedRows(db, async (where) =>
+      db.select(detailAirportColumns).from(airports).where(where).orderBy(asc(airports.id)),
+    ),
+    readKnownIcaos(db),
+  ])
   const airportsWithRunways = await readDetails(
     db,
     listedSelection(rows, { turkey, ringsKm: rings.ringsKm, enabledRing: rings.enabledRing }),
-    canonicalIcaos(rows),
+    knownIcaos,
   )
   return { airports: airportsWithRunways, icaoCollisions: canonicalIcaoCollisions(rows) }
 }
@@ -1027,13 +1091,16 @@ export async function listListedAirportDetails(
   db: PostgresJsDatabase,
   rings: AirportRingConfig,
 ): Promise<AirportDetailRecord[]> {
-  const { rows, turkey } = await readListedRows(db, async (where) =>
-    db.select(detailAirportColumns).from(airports).where(where).orderBy(asc(airports.id)),
-  )
+  const [{ rows, turkey }, knownIcaos] = await Promise.all([
+    readListedRows(db, async (where) =>
+      db.select(detailAirportColumns).from(airports).where(where).orderBy(asc(airports.id)),
+    ),
+    readKnownIcaos(db),
+  ])
   return readDetails(
     db,
     listedSelection(rows, { turkey, ringsKm: rings.ringsKm, enabledRing: rings.enabledRing }),
-    canonicalIcaos(rows),
+    knownIcaos,
   )
 }
 
@@ -1072,8 +1139,26 @@ export function rowMatchesCode(
 /** Tek havalimanı aramasının sonucu: gösterilen kayıt ve takma ad denetiminin satırları. */
 interface FoundAirport<R extends AirportSourceRow> {
   entry: ListedEntry<R>
-  /** Kanonik ICAO'yla eşleşen satırlar (`identAlias` çakışma denetimi). */
+  /** Kaydın kimliğiyle eşleşen satırlar (`identAlias` çakışma denetimi, `aliasCheckRows`). */
   rows: readonly R[]
+}
+
+/**
+ * Kaydın takma ad denetiminin satırları: kimliğiyle eşleşen satırlar. Kanonik ICAO'su o kimlik olan
+ * her satır bunların arasındadır (satırın kanonik ICAO'su kendi alanlarından biridir). Böylece
+ * kaydın `identAlias` alanı, kod hangi yoldan (ICAO, IATA, takma ad) bulunmuş olursa olsun, takma
+ * adın aramasıyla ve listenin kümesiyle (`readKnownIcaos`) aynıdır. Kimlik takma ad biçiminde
+ * değilse ya da kanonik ICAO'ysa takma ad yoktur, satır okunmaz.
+ */
+async function aliasCheckRows<R extends AirportSourceRow>(
+  row: R,
+  wanted: string,
+  matching: readonly R[],
+  rowsFor: (code: string) => Promise<readonly R[]> | readonly R[],
+): Promise<readonly R[]> {
+  const ident = row.ident.trim().toUpperCase()
+  if (!IDENT_ALIAS.test(ident) || ident === ourAirportsIcao(row)) return []
+  return ident === wanted ? matching : rowsFor(ident)
 }
 
 /**
@@ -1092,7 +1177,9 @@ async function findAirport<R extends AirportSourceRow>(
   const matching = await rowsFor(wanted)
   const candidates = listedEntries(matching, context)
   const byIcao = candidates.find((entry) => entry.airport.icao === wanted)
-  if (byIcao !== undefined) return { entry: byIcao, rows: matching }
+  if (byIcao !== undefined) {
+    return { entry: byIcao, rows: await aliasCheckRows(byIcao.row, wanted, matching, rowsFor) }
+  }
   const byIata = candidates.find((entry) => entry.airport.iata === wanted)
   const known = canonicalIcaos(matching)
   const byAlias =
@@ -1109,19 +1196,20 @@ async function findAirport<R extends AirportSourceRow>(
   if (shown === undefined) return null
   if (byIata !== undefined && shown.airport.iata !== wanted) return null
   if (byAlias !== undefined && shown.row.id !== byAlias.row.id) return null
-  return { entry: shown, rows: shownRows }
+  return { entry: shown, rows: await aliasCheckRows(shown.row, wanted, matching, rowsFor) }
 }
 
 /**
- * Tek havalimanı, ICAO (4 karakter) ya da IATA (3 harf) koduyla; büyük/küçük harf fark etmez
- * (`GET /v1/airports/:code`). Önce ICAO eşleşmesi aranır; IATA eşleşmesi, liste kuralına göre o
- * ICAO'da gösterilen kayıtsa döner. Böylece bu uç yalnızca ülke listelerinde (`listAirportsWithIata`)
- * görünen havalimanlarını, listedeki kanonik ICAO ile verir. Halka süzgeci uygulanmaz: her ülkenin
- * IATA kodlu havalimanı bulunur ve halkasını taşır (sayfalar listelenen havalimanlarıyla sınırlıdır).
- * ICAO ve IATA eşleşmesi yoksa adres takma adı aranır (D-109, `identAlias`): kodu değişen
- * havalimanının OurAirports kimliğindeki eski kod (UTSS → UZSS, SPIM → SPJC); başka bir satırın
- * kanonik ICAO'su olan kimlik (WABP) takma ad değildir. Askerî hava alanları (D-107, D-109) hiçbir
- * kodla bulunmaz. Eşleşme yoksa null.
+ * Tek havalimanı, ICAO (4 karakter), IATA (3 harf) ya da adres takma adıyla; büyük/küçük harf fark
+ * etmez (`GET /v1/airports/:code`; hava durumu uçları da kodu bununla çözer). Önce ICAO eşleşmesi
+ * aranır; IATA eşleşmesi, liste kuralına göre o ICAO'da gösterilen kayıtsa döner. Böylece bu uç
+ * yalnızca ülke listelerinde (`listAirportsWithIata`) görünen havalimanlarını, listedeki kanonik
+ * ICAO ile verir. Halka süzgeci uygulanmaz: her ülkenin IATA kodlu havalimanı bulunur ve halkasını
+ * taşır (sayfalar listelenen havalimanlarıyla sınırlıdır). ICAO ve IATA eşleşmesi yoksa adres takma
+ * adı aranır (D-109, `identAlias`): kodu değişen havalimanının OurAirports kimliğindeki eski kod
+ * (UTSS → UZSS, SPIM → SPJC); başka bir satırın kanonik ICAO'su olan kimlik (veritabanındaysa
+ * dinamik denetimle, değilse `IDENT_ALIAS_EXCLUSIONS`: WABP, WIOD, WRLB) takma ad değildir. Askerî
+ * hava alanları (D-107, D-109) hiçbir kodla bulunmaz. Eşleşme yoksa null.
  */
 export async function findAirportDetail(
   db: PostgresJsDatabase,
@@ -1147,7 +1235,8 @@ export async function findAirportDetail(
 
 /**
  * `findAirportDetail`'ın bellekteki eşi (testler ve fixture ölçümleri): satırlar veritabanındaki
- * gibi kimlik sırasıyla verilir; pistler ve istasyonlar `toAirportDetails`'taki gibi eklenir.
+ * gibi kimlik sırasıyla verilir ve `rowsMatching` gibi `listedFilter`'le süzülür; pistler ve
+ * istasyonlar `toAirportDetails`'taki gibi eklenir.
  */
 export async function findAirportInRows(
   airportRows: readonly AirportDetailSourceRow[],
@@ -1158,7 +1247,7 @@ export async function findAirportInRows(
 ): Promise<AirportDetailRecord | null> {
   const found = await findAirport(
     code,
-    (wanted) => airportRows.filter((row) => rowMatchesCode(row, wanted)),
+    (wanted) => airportRows.filter((row) => passesListedFilter(row) && rowMatchesCode(row, wanted)),
     context,
   )
   if (found === null) return null
