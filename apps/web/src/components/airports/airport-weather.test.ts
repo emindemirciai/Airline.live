@@ -587,6 +587,25 @@ describe('WeatherPanel: Türkiye dışındaki havalimanı (D-080, D-084)', () =>
     expect(text(panel(fixtureWeather('LTFM')))).toContain('Yerel saat 16:00 (UTC+3)')
   })
 
+  it('dilimi bilinmeyen uzak boylamlı havalimanı: gündüz/gece simgesi güneşin gününden (D-109)', () => {
+    // Honolulu'nun yerinde: 02:00Z yerelde öğleden sonra, 10:00Z gece yarısı. UTC takvimiyle
+    // öğleden sonra gece simgesi çıkardı.
+    const phnl = { lat: 21.32, lon: -157.92 }
+    const icon = (observedAt: string) => {
+      const now = Date.parse(observedAt) + 10 * 60_000
+      const weather: AirportWeather = {
+        icao: 'PHNL',
+        generatedAt: new Date(now).toISOString(),
+        metar: metarFromRaw('PHNL 150200Z 06010KT 9999 FEW030 28/18 Q1015', observedAt),
+        tafs: [],
+      }
+      const html = panel(weather, { now, at: phnl, timeZone: null })
+      return /<svg class="weather-icon" data-icon="([a-z_]+)"/.exec(html)?.[1]
+    }
+    expect(icon('2026-07-15T02:00:00Z')).toBe('fair')
+    expect(icon('2026-07-15T10:00:00Z')).toBe('fair_night')
+  })
+
   it('kayıt: dilim biliniyorsa havalimanının yerel saati ve farkı (UTC yanında), bilinmiyorsa UTC', () => {
     const athens = text(log(fixtureHistory('LGAV'), 'tr', 'Europe/Athens'))
     expect(athens).toContain(

@@ -12,6 +12,7 @@ import {
 import {
   iconCategory,
   isDaytime,
+  meanSolarDate,
   metarAgeClass,
   summarizeMetar,
   summarizeTaf,
@@ -361,8 +362,11 @@ export function WeatherPanel({
   const age: MetarAgeClass = metar ? metarAgeClass(metar.observedAt, now) : 'none'
   // API yalnızca süresi dolmamış TAF'ları verir; açık sekmede süresi dolanlar burada düşer.
   const tafs = weather ? weather.tafs.filter((taf) => Date.parse(taf.validTo) > now) : []
-  const sun = sunTimes(lat, lon, metar?.observedAt ?? now, zone)
-  const isDay = isDaytime(metar?.observedAt ?? now, sun)
+  const observed = metar?.observedAt ?? now
+  // Dilimsiz havalimanında UTC takvimi uzak boylamlarda günü kaydırır; gündüz/gece simgesi güneşin
+  // kendi gününden (`meanSolarDate`, D-109). Dilim biliniyorsa yerel gün.
+  const sun = sunTimes(lat, lon, utcOnly ? meanSolarDate(observed, lon) : observed, zone)
+  const isDay = isDaytime(observed, sun)
 
   return (
     <section aria-labelledby="airport-weather" className="airport-weather" data-age={age}>

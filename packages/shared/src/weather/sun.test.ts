@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { isDaytime, sunTimes } from './sun'
+import { isDaytime, meanSolarDate, sunTimes } from './sun'
 import { localTime } from './time'
 
 /**
@@ -58,5 +58,32 @@ describe('sunTimes (NOAA)', () => {
     expect(isDaytime(new Date(rise.getTime() - 1), sun)).toBe(false)
     expect(isDaytime(new Date(set.getTime() - 1), sun)).toBe(true)
     expect(isDaytime(set, sun)).toBe(false)
+  })
+  it('meanSolarDate: dilimi bilinmeyen havalimanında gündüz/gece güneşin gününden (D-109)', () => {
+    // Honolulu (PHNL), 2026-07-15 02:00 UTC = yerel 16:00: UTC takvimi ertesi günün doğuşunu verir.
+    const phnl = { lat: 21.32, lon: -157.92 }
+    const afternoon = new Date('2026-07-15T02:00:00Z')
+    expect(meanSolarDate(afternoon, phnl.lon)).toEqual({ year: 2026, month: 7, day: 14 })
+    expect(isDaytime(afternoon, sunTimes(phnl.lat, phnl.lon, afternoon, 'UTC'))).toBe(false)
+    expect(
+      isDaytime(afternoon, sunTimes(phnl.lat, phnl.lon, meanSolarDate(afternoon, phnl.lon))),
+    ).toBe(true)
+    expect(isDaytime(afternoon, sunTimes(phnl.lat, phnl.lon, afternoon, 'Pacific/Honolulu'))).toBe(
+      true,
+    )
+    // Sidney (YSSY), 2026-01-15 21:00 UTC = yerel 16 Ocak 08:00: ayna durumu.
+    const yssy = { lat: -33.95, lon: 151.18 }
+    const morning = new Date('2026-01-15T21:00:00Z')
+    expect(meanSolarDate(morning, yssy.lon)).toEqual({ year: 2026, month: 1, day: 16 })
+    expect(isDaytime(morning, sunTimes(yssy.lat, yssy.lon, morning, 'UTC'))).toBe(false)
+    expect(isDaytime(morning, sunTimes(yssy.lat, yssy.lon, meanSolarDate(morning, yssy.lon)))).toBe(
+      true,
+    )
+    // Gece de gece kalır; sıfır boylamda UTC günüdür.
+    const night = new Date('2026-07-15T10:00:00Z')
+    expect(isDaytime(night, sunTimes(phnl.lat, phnl.lon, meanSolarDate(night, phnl.lon)))).toBe(
+      false,
+    )
+    expect(meanSolarDate('2026-07-15T23:59:00Z', 0)).toEqual({ year: 2026, month: 7, day: 15 })
   })
 })
