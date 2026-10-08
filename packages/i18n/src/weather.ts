@@ -26,7 +26,9 @@ import { NBSP, NO_VALUE } from './units'
  * - Sayılar `Intl.NumberFormat` ile: tr 'tr-TR' (1.070 m; 1,5 km), en 'en-GB'. Basınçta binlik ayırıcı
  *   yoktur ("1009 hPa"). Eksi işareti U+2212'dir. Bilinmeyen değer "—".
  * - Saatler havalimanının saat diliminde (`WeatherTextOptions.timeZone`, IANA; varsayılan
- *   Europe/Istanbul), 24 saat ("15:50"); ofset koda gömülmez, yaz saati dahil `Intl` hesaplar (D-084).
+ *   Europe/Istanbul), 24 saat ("15:50"); ofset koda gömülmez: dilimin sunucu fark tablosu
+ *   kayıtlıysa (`registerUtcOffsetTable`, D-109) tablonun aralığında ondan, değilse yaz saati dahil
+ *   `Intl`'den gelir (D-084).
  * - Saat okunmaz: zamana bağlı her işlev `now` (epoch ms) alır.
  */
 
@@ -38,7 +40,8 @@ export interface WeatherTextOptions {
   t: WeatherMessages
   /**
    * Saatlerin yazıldığı saat dilimi (IANA): havalimanının dilimi (`airportTimeZone`). Verilmezse
-   * Europe/Istanbul (Türkiye; dilimi bilinmeyen yabancı havalimanında "Türkiye saati" etiketiyle).
+   * Europe/Istanbul. Dilimi bilinmeyen havalimanında bileşenler 'UTC' verir ve saatler `utcTime`
+   * notuyla etiketlenir (D-106 (c), D-109; önce "Türkiye saati"ydi, D-080).
    */
   timeZone?: string
 }

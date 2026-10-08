@@ -330,8 +330,9 @@ export const REGION_TIME_ZONES: Readonly<Record<string, string>> = {
   'AU-WA': 'Australia/Perth',
   // Brezilya (5. halka): 27 federal birim, zone.tab açıklamalarıyla. Fernando de Noronha
   // (SBFN) ve batı Pará (SBSN, SBIH, SBTB) havalimanı kuralıyla; Tabatinga (SBTT) Amazonas'ın
-  // varsayılanıdır (America/Manaus, UTC−4; tzdb onu UTC−5 kalan batı Amazonas kasabaları arasında
-  // saymaz).
+  // varsayılanıdır (America/Manaus, UTC−4; ¹: tzdb 2021a Tabatinga'yı doğu-batı ayrım çizgisinin
+  // ucu olarak anar, iki listede de saymaz; batı listesi eksiktir, 2013 yasası 13 belediye der;
+  // çevrimdışı kanıt iki yöne de yetmez, çizgi üstündeki nokta için bölge varsayılanı seçildi).
   'BR-AC': 'America/Rio_Branco',
   'BR-AL': 'America/Maceio',
   'BR-AM': 'America/Manaus',
