@@ -560,8 +560,9 @@ describe('yerleşim tablosu (D-096, D-099, D-100)', { timeout: 120_000 }, () => 
     // bölgesi 60° D'nin batısı (`COUNTRY_LABEL_ANCHOR_REGIONS`, D-100; bütün Rusya'nın görsel
     // merkezi Orta Sibirya'dadır, 107,73° D, 63,27° K). Kutup bölgenin içinde Rusya'nın sınırına ve
     // 60° D'ye en uzak nokta: Kirov ile Kostroma arası (46,74° D, 59,04° K; ızgara adımı 0,41°). 4.
-    // halkayla (D-102) Kirov (USKK) ve Velikiy Ustyug (ULWU) pinleri kutbun kutusuna girer: çapa iki
-    // ızgara adımı kuzeye, 59,86° K'ye kayar (v0.22.5'te kutuptaydı); ad yine z3'ten yazılır.
+    // halkayla (D-102) Kirov (USKK) pini kutbun kutusuna z3–4,5'te girer: çapa iki ızgara adımı
+    // kuzeye, 59,86° K'ye kayar (v0.22.5'te kutuptaydı); ad yine z3'ten yazılır. Velikiy Ustyug
+    // (ULWU) yeni çapanın kuzeyindedir, kutuya girmez.
     // İTALYA Po ovası (LIMP) yerine Alpler'de (Trentino): Orta İtalya'da Pescara'nın (PSR) sola geçen
     // kodu adın köşesine değiyordu.
     expect(COUNTRY_LABEL_ANCHOR_REGIONS).toEqual({ RU: [-180, -90, 60, 90] })
@@ -667,7 +668,7 @@ describe('yerleşim tablosu (D-096, D-099, D-100)', { timeout: 120_000 }, () => 
     expect(Math.round(all.at(-1)?.[1] ?? NaN)).toBe(1228)
     const distances = all.filter(([code]) => Object.hasOwn(COUNTRY_AREA_OVERRIDES_KM2, code))
     expect(distances).toHaveLength(56)
-    // RUSYA kutbundan kuzeye kaydı (Kirov ve Velikiy Ustyug pinleri, D-102).
+    // RUSYA kutbundan kuzeye kaydı (Kirov pini, D-102).
     expect(distances.filter(([, km]) => km === 0).map(([code]) => code)).toEqual([
       'AT',
       'CZ',
