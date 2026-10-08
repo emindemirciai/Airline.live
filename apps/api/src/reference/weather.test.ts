@@ -1,15 +1,15 @@
 import { readFileSync } from 'node:fs'
-import { createRequire } from 'node:module'
 import {
   AirportWeatherSchema,
   WeatherBulkResponseSchema,
   WeatherHistoryResponseSchema,
   type AirportWeather,
+  type WeatherBulkRawResponse,
   type WeatherBulkResponse,
   type WeatherHistoryResponse,
 } from '@havayolu/shared'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { testApp } from '../test/helpers'
+import { fastifyAjv, testApp } from '../test/helpers'
 import { AIRPORT_ERRORS, AIRPORTS_CACHE_MS, AIRPORTS_EMPTY_CACHE_MS } from './airports'
 import { CACHE_RETRY_MS } from './cache'
 import {
@@ -361,24 +361,45 @@ describe('GET /v1/weather', () => {
 })
 
 describe('GET /v1/weather?scope=listed (D-080)', () => {
-  it('listelenen havalimanları liste sırasıyla; ülke okuyucusuna gidilmez; ayrı önbellek', async () => {
+  it('listelenen havalimanları liste sırasıyla (ham biçim); ülke okuyucusuna gidilmez; ayrı önbellek', async () => {
     const weather = readers(allRecords)
     const { get } = await setup(weather)
-    const res = await get('/v1/weather?scope=listed')
+    const res = await get('/v1/weather?scope=listed&format=raw')
     expect(res.statusCode).toBe(200)
     expect(res.headers['cache-control']).toBe(WEATHER_CACHE_CONTROL)
-    const body = res.json() as WeatherBulkResponse
+    const body = res.json() as WeatherBulkRawResponse
     expect(body.stations.map((s) => s.icao)).toEqual(['LGAV', 'LTBA', 'LTFM'])
     // Raporu olmayan yurt dışı havalimanı: metar null, tafs boş.
     expect(body.stations[0]).toMatchObject({ icao: 'LGAV', metar: null, tafs: [] })
     expect(body.stations[2]?.metar?.raw).toBe(ltfmMetar.rawText)
     expect(weather.listedStations).toHaveBeenCalledTimes(1)
     expect(weather.stations).not.toHaveBeenCalled()
-    await get('/v1/weather?scope=listed')
+    await get('/v1/weather?scope=listed&format=raw')
     expect(weather.listedStations).toHaveBeenCalledTimes(1)
     await get('/v1/weather')
     expect(weather.stations).toHaveBeenCalledWith('TR')
     expect(weather.listedStations).toHaveBeenCalledTimes(1)
+  })
+
+  it('scope=listed yalnız format=raw ile (D-111): biçimsiz ya da tam biçim 400 format_required; okuyucuya gidilmez; ülke iki biçimi de verir', async () => {
+    const weather = readers(allRecords)
+    const { get } = await setup(weather)
+    for (const query of ['scope=listed', 'scope=listed&format=full']) {
+      const res = await get(`/v1/weather?${query}`)
+      expect(res.statusCode, query).toBe(400)
+      expect(res.headers['cache-control'], query).toBe('no-store')
+      expect(res.json(), query).toEqual(WEATHER_ERRORS.rawRequired)
+    }
+    expect(weather.listedStations).not.toHaveBeenCalled()
+    expect(weather.latest).not.toHaveBeenCalled()
+    // Biçim ve kapsam hataları önce gelir.
+    expect((await get('/v1/weather?scope=listed&format=RAW')).json()).toEqual(
+      WEATHER_ERRORS.badFormat,
+    )
+    expect((await get('/v1/weather?scope=all')).json()).toEqual(AIRPORT_ERRORS.badScope)
+    for (const query of ['country=TR', 'country=TR&format=full', 'country=TR&format=raw']) {
+      expect((await get(`/v1/weather?${query}`)).statusCode, query).toBe(200)
+    }
   })
 
   it('country ile scope birlikte 400 scope_conflict; bilinmeyen scope 400 bad_scope', async () => {
@@ -402,13 +423,15 @@ describe('GET /v1/weather?scope=listed (D-080)', () => {
 
   it('liste okuyucusu yoksa scope=listed 503; ülke isteği etkilenmez', async () => {
     const { get } = await setup({ listedStations: null })
-    const res = await get('/v1/weather?scope=listed')
+    const res = await get('/v1/weather?scope=listed&format=raw')
     expect(res.statusCode).toBe(503)
     expect(res.json()).toEqual(WEATHER_ERRORS.unavailable)
     expect((await get('/v1/weather?country=TR')).statusCode).toBe(200)
   })
 
   /**
+   * Tam biçimin istasyon başına bütçeleri. D-111'den beri tam biçim yalnız ülke isteğindedir
+   * (`scope=listed` yalnız ham biçimle); ölçüm bu yüzden ülke okuyucusuyla yapılır.
    * 503 havalimanı (61 Türkiye, 1. halkada 75, 2. halkada 89, 3. halkada 278; D-090). 2. halkada
    * (225) web sunucusu toplu yanıtı Next veri önbelleğinde tutuyordu (öğe sınırı 2 MiB, gövde base64
    * saklandığı için ham gövdede ~1,57 MB) ve harita pencere açılınca istiyordu; bütçe o yüzden 1,8
@@ -444,16 +467,16 @@ describe('GET /v1/weather?scope=listed (D-080)', () => {
       ),
     }
     const weather = readers(records)
-    weather.listedStations.mockResolvedValue(icaos.map((icao) => ({ icao })))
+    weather.stations.mockResolvedValue(icaos.map((icao) => ({ icao })))
     return weather
   }
 
-  it('503 havalimanı (1.–3. halka), METAR ve üç geçerli TAF: eski TAF düşer, istasyon başına ≤ 7 KB', async () => {
+  it('tam biçim, 503 havalimanı, METAR ve üç geçerli TAF: eski TAF düşer, istasyon başına ≤ 7 KB', async () => {
     // Her istasyonda TAF yayım saatlerindeki durum: yürürlükteki TAF, henüz başlamamış yenisi ve
     // yerini ikisine bırakmış eskisi. Eskisi yanıta girmez.
     const weather = heavyListed(503, [ltfmTaf, ltfmNextTaf, ltfmOldTaf])
     const { get } = await setup(weather)
-    const res = await get('/v1/weather?scope=listed')
+    const res = await get('/v1/weather?country=TR')
     const body = res.json() as WeatherBulkResponse
     expect(body.stations).toHaveLength(503)
     expect(body.stations.every((s) => s.metar !== null)).toBe(true)
@@ -471,9 +494,9 @@ describe('GET /v1/weather?scope=listed (D-080)', () => {
     expect(weather.latest).toHaveBeenCalledTimes(1)
   })
 
-  it('503 havalimanı, METAR ve yürürlükte tek TAF (olağan durum): istasyon başına ≤ 4,6 KB', async () => {
+  it('tam biçim, 503 havalimanı, METAR ve yürürlükte tek TAF (olağan durum): istasyon başına ≤ 4,6 KB', async () => {
     const { get } = await setup(heavyListed(503, [ltfmTaf, ltfmOldTaf]))
-    const res = await get('/v1/weather?scope=listed')
+    const res = await get('/v1/weather?country=TR')
     const body = res.json() as WeatherBulkResponse
     expect(body.stations).toHaveLength(503)
     expect(body.stations.every((s) => s.tafs.length === 1)).toBe(true)
@@ -484,7 +507,7 @@ describe('GET /v1/weather?scope=listed (D-080)', () => {
   it("yürürlükteki TAF: toplu yanıt ve tek havalimanı aynı TAF'ları verir; kayıtta hepsi kalır", async () => {
     const weather = readers({ metars: [ltfmMetar], tafs: [ltfmOldTaf, ltfmTaf, ltfmNextTaf] })
     const { get } = await setup(weather)
-    const bulk = (await get('/v1/weather?scope=listed')).json() as WeatherBulkResponse
+    const bulk = (await get('/v1/weather?country=TR')).json() as WeatherBulkResponse
     const one = (await get('/v1/airports/LTFM/weather')).json() as AirportWeather
     const issued = ['2026-01-15T12:40:00.000Z', '2026-01-15T10:40:00.000Z']
     expect(bulk.stations.find((s) => s.icao === 'LTFM')?.tafs.map((t) => t.issuedAt)).toEqual(
@@ -945,26 +968,6 @@ describe('OpenAPI', () => {
 // ---------------------------------------------------------------------------------------------
 // Yayımlanan OpenAPI şeması gerçek yanıtları kabul eder (Ajv ile gidiş-dönüş).
 
-type Validate = ((data: unknown) => boolean) & { errors?: unknown }
-interface AjvLike {
-  compile(schema: object): Validate
-}
-
-/**
- * Ajv ve ajv-formats, Fastify'ın kendi doğrulayıcısının (@fastify/ajv-compiler) bağımlılıklarıdır;
- * pakete yeni bağımlılık eklenmez, aynı kurulumdan çözülür.
- */
-function fastifyAjv(): AjvLike {
-  const fromApi = createRequire(import.meta.url)
-  const fromFastify = createRequire(fromApi.resolve('fastify'))
-  const fromCompiler = createRequire(fromFastify.resolve('@fastify/ajv-compiler'))
-  const Ajv = (fromCompiler('ajv') as { default: new (options: object) => AjvLike }).default
-  const addFormats = (fromCompiler('ajv-formats') as { default: (ajv: AjvLike) => void }).default
-  const ajv = new Ajv({ strict: false, allErrors: true })
-  addFormats(ajv)
-  return ajv
-}
-
 const weatherFixture = (file: string): unknown[] =>
   JSON.parse(
     readFileSync(new URL(`../../../../tools/fixtures/weather/${file}`, import.meta.url), 'utf8'),
@@ -1041,7 +1044,6 @@ describe('OpenAPI gidiş-dönüş', () => {
     }
     const cases: [string, string][] = [
       ['/v1/weather', '/v1/weather?country=TR'],
-      ['/v1/weather', '/v1/weather?scope=listed'],
       ['/v1/weather', '/v1/weather?scope=listed&format=raw'],
       ['/v1/weather', '/v1/weather?country=TR&format=raw'],
       ...icaos.map((icao): [string, string] => [

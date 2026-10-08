@@ -1,6 +1,13 @@
-import type { Airport, AirportDetail } from '@havayolu/shared'
+import zlib from 'node:zlib'
+import {
+  toAirportMapEntry,
+  type Airport,
+  type AirportDetail,
+  type ListedAirportMapResponse,
+} from '@havayolu/shared'
+import type { FastifyInstance } from 'fastify'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { testApp } from '../test/helpers'
+import { fastifyAjv, testApp } from '../test/helpers'
 import {
   AIRPORT_ERRORS,
   AIRPORTS_CACHE_CONTROL,
@@ -10,6 +17,13 @@ import {
   AIRPORTS_RETRY_MS,
   airportSelection,
 } from './airports'
+import {
+  CACHE_BUILD_RETRY_MS,
+  compressBody,
+  preferredEncoding,
+  type BodyEncoding,
+  type CompressBody,
+} from './body-cache'
 
 const ist: Airport = {
   icao: 'LTFM',
@@ -232,6 +246,7 @@ async function setupDetails(options: {
   listed?: (() => Promise<Airport[]>) | null
   listedDetails?: (() => Promise<AirportDetail[]>) | null
   cacheMaxEntries?: number
+  compressBody?: CompressBody
 }) {
   const { app } = await testApp({
     deps: {
@@ -243,6 +258,7 @@ async function setupDetails(options: {
         find: options.find,
         now: () => clock,
         cacheMaxEntries: options.cacheMaxEntries,
+        compressBody: options.compressBody,
       },
     },
   })
@@ -562,5 +578,293 @@ describe('airportSelection', () => {
     expect(airportSelection(undefined, ['listed'])).toEqual({ error: AIRPORT_ERRORS.badScope })
     expect(airportSelection('tr', undefined)).toEqual({ error: AIRPORT_ERRORS.badCountry })
     expect(airportSelection(['TR'], undefined)).toEqual({ error: AIRPORT_ERRORS.badCountry })
+  })
+})
+
+// ---------------------------------------------------------------------------------------------
+// Harita kaydı (`include=map`) ve `scope=listed` hazır gövdeleri (D-111).
+
+/** 4. halkadaki Londra: uçsuz harita kaydı. */
+const lhrDetail: AirportDetail = {
+  ...istDetail,
+  icao: 'EGLL',
+  iata: 'LHR',
+  name: 'London Heathrow Airport',
+  city: 'London',
+  lat: 51.4706,
+  lon: -0.461941,
+  elevationFt: 83,
+  country: 'GB',
+  ring: 4,
+  distanceToTrKm: 2489,
+  nearestTr: { icao: 'LTBU', iata: 'TEQ', name: 'Tekirdağ Çorlu Airport' },
+  isoRegion: 'GB-ENG',
+  municipality: 'London',
+  station: null,
+}
+/** Adres takma adlı kayıt (D-109). */
+const uzssDetail: AirportDetail = {
+  ...athDetail,
+  icao: 'UZSS',
+  iata: 'SKD',
+  name: 'Samarkand International Airport',
+  country: 'UZ',
+  ring: 4,
+  distanceToTrKm: 2600,
+  isoRegion: 'UZ-SA',
+  identAlias: 'UTSS',
+}
+
+/** Başlıklı istek. */
+const inject = (app: FastifyInstance, url: string, headers: Record<string, string> = {}) =>
+  app.inject({ method: 'GET', url, headers })
+
+/** Yanıt gövdesi, kodlaması açılarak. */
+function decode(res: { headers: Record<string, unknown>; rawPayload: Buffer }): string {
+  const encoding = res.headers['content-encoding']
+  if (encoding === 'br') return zlib.brotliDecompressSync(res.rawPayload).toString('utf8')
+  if (encoding === 'gzip') return zlib.gunzipSync(res.rawPayload).toString('utf8')
+  return res.rawPayload.toString('utf8')
+}
+
+/** Gövde önbelleğinin `then` kaydı bir sonraki turda yazılır. */
+const nextTurn = () => new Promise((resolve) => setImmediate(resolve))
+
+describe('GET /v1/airports?include=map (D-111)', () => {
+  it('pencerenin alanları ve pist uzunlukları; uçlar yalnız 1.–3. halkada; takma ad', async () => {
+    const listedDetails = vi.fn(async () => [athDetail, istDetail, lhrDetail, uzssDetail])
+    const { get } = await setupDetails({ listedDetails })
+    const res = await get('/v1/airports?scope=listed&include=map')
+    expect(res.statusCode).toBe(200)
+    expect(res.headers['content-type']).toBe('application/json; charset=utf-8')
+    expect(res.headers['cache-control']).toBe(AIRPORTS_CACHE_CONTROL)
+    const body = res.json<ListedAirportMapResponse>()
+    expect(body).toEqual({
+      scope: 'listed',
+      airports: [athDetail, istDetail, lhrDetail, uzssDetail].map(toAirportMapEntry),
+    })
+    const [, istMap, lhrMap, uzssMap] = body.airports
+    // İstanbul (0. halka): uçlar ad, yön ve eşikle; kaydırılmış eşik mesafesi gelmez.
+    expect(istMap?.runways).toEqual([
+      {
+        lengthFt: 12_303,
+        ends: [
+          { ident: '16L', trueBearingDeg: 180.1, thresholdLat: 41.29, thresholdLon: 28.72 },
+          { ident: '34R', trueBearingDeg: 0.1, thresholdLat: 41.26, thresholdLon: 28.72 },
+        ],
+      },
+    ])
+    // Londra (4. halka): yalnız uzunluk; sayfaların alanları gelmez.
+    expect(lhrMap?.runways).toEqual([{ lengthFt: 12_303 }])
+    for (const field of ['nearestTr', 'station', 'dataUpdatedAt']) {
+      expect(lhrMap, field).not.toHaveProperty(field)
+    }
+    expect(uzssMap?.identAlias).toBe('UTSS')
+    expect(istMap).not.toHaveProperty('identAlias')
+    // Pistli liste aynı okuyucudan, aynı önbellekten.
+    const detailed = await get('/v1/airports?scope=listed&include=runways')
+    expect(detailed.json<{ airports: unknown[] }>().airports).toEqual([
+      athDetail,
+      istDetail,
+      lhrDetail,
+      uzssDetail,
+    ])
+    expect(listedDetails).toHaveBeenCalledTimes(1)
+    // Ülke isteği de harita kaydını verir.
+    const country = await setupDetails({ details: async () => [istDetail] })
+    expect((await country.get('/v1/airports?country=TR&include=map')).json()).toEqual({
+      country: 'TR',
+      airports: [toAirportMapEntry(istDetail)],
+    })
+  })
+
+  it('OpenAPI: include=map belgelenir; pistli ve harita listeleri /openapi.json şemasıyla doğrulanır', async () => {
+    const { get } = await setupDetails({
+      listedDetails: async () => [athDetail, istDetail, lhrDetail, uzssDetail],
+    })
+    const spec = (await get('/openapi.json')).json<{
+      paths: Record<
+        string,
+        {
+          get?: {
+            parameters?: { name: string; schema?: { enum?: string[] } }[]
+            responses?: Record<string, { content?: Record<string, { schema?: object }> }>
+          }
+        }
+      >
+    }>()
+    const list = spec.paths['/v1/airports']?.get
+    expect(list?.parameters?.find((p) => p.name === 'include')?.schema?.enum).toEqual([
+      'runways',
+      'map',
+    ])
+    const schema = list?.responses?.['200']?.content?.['application/json']?.schema
+    expect(schema).toBeDefined()
+    const validate = fastifyAjv().compile(schema ?? {})
+    for (const include of ['runways', 'map']) {
+      const body = (await get(`/v1/airports?scope=listed&include=${include}`)).json<unknown>()
+      expect(validate(body) ? null : validate.errors, include).toBeNull()
+    }
+  })
+
+  it('bilinmeyen include 400; okuyucu yoksa 503', async () => {
+    const { get } = await setupDetails({})
+    expect((await get('/v1/airports?scope=listed&include=MAP')).json()).toEqual(
+      AIRPORT_ERRORS.badInclude,
+    )
+    expect((await get('/v1/airports?scope=listed&include=map')).statusCode).toBe(503)
+    expect((await get('/v1/airports?country=TR&include=map')).statusCode).toBe(503)
+  })
+})
+
+describe('scope=listed hazır gövdeler (D-111)', () => {
+  /** `name` okuması sayılır: serileştirici her kayıtta okur; okuma sayısı serileştirmeyle artar. */
+  function counted(detail: AirportDetail) {
+    const reads = { count: 0 }
+    const copy = { ...detail }
+    Object.defineProperty(copy, 'name', {
+      enumerable: true,
+      get() {
+        reads.count += 1
+        return detail.name
+      },
+    })
+    return { airport: copy, reads }
+  }
+
+  it('N istek: gövde bir kez serileştirilir ve kodlama başına bir kez sıkıştırılır; baytlar önbelleksiz yoldakiyle aynı', async () => {
+    const { airport, reads } = counted(istDetail)
+    const builds: Promise<Buffer>[] = []
+    const compress = vi.fn((encoding: BodyEncoding, body: Buffer) => {
+      const built = compressBody(encoding, body)
+      builds.push(built)
+      return built
+    })
+    const syncBrotli = vi.spyOn(zlib, 'brotliCompressSync')
+    const { app } = await setupDetails({
+      listedDetails: async () => [athDetail, airport],
+      compressBody: compress,
+    })
+    const url = '/v1/airports?scope=listed&include=runways'
+    try {
+      // Soğuk açılış: gövde hazır değilken eklenti istek anında sıkıştırır (brotli 4).
+      const cold = await inject(app, url, { 'accept-encoding': 'gzip, deflate, br' })
+      expect(cold.statusCode).toBe(200)
+      expect(cold.headers['content-encoding']).toBe('br')
+      const identity = (await inject(app, url)).body
+      expect(decode(cold)).toBe(identity)
+      const [brBody, gzipBody] = await Promise.all(builds)
+      await nextTurn()
+      expect(compress.mock.calls.map(([encoding]) => encoding)).toEqual(['br', 'gzip'])
+      const readsAfterFirst = reads.count
+      expect(readsAfterFirst).toBeGreaterThan(0)
+      syncBrotli.mockClear()
+
+      for (let i = 0; i < 20; i++) {
+        const res = await inject(app, url, { 'accept-encoding': 'gzip, deflate, br' })
+        expect(res.headers['content-encoding']).toBe('br')
+        expect(res.headers.vary).toMatch(/accept-encoding/)
+        expect(res.headers['content-type']).toBe('application/json; charset=utf-8')
+        expect(res.headers['cache-control']).toBe(AIRPORTS_CACHE_CONTROL)
+        expect(Buffer.compare(res.rawPayload, brBody ?? Buffer.alloc(0))).toBe(0)
+        expect(decode(res)).toBe(identity)
+      }
+      const gzip = await inject(app, url, { 'accept-encoding': 'gzip' })
+      expect(gzip.headers['content-encoding']).toBe('gzip')
+      expect(Buffer.compare(gzip.rawPayload, gzipBody ?? Buffer.alloc(0))).toBe(0)
+      expect(decode(gzip)).toBe(identity)
+      // `x-no-compression` (eklentideki gibi) ya da kodlamasız istekte gövde olduğu gibi gider.
+      const plain = await inject(app, url, { 'accept-encoding': 'br', 'x-no-compression': '1' })
+      expect(plain.headers['content-encoding']).toBeUndefined()
+      expect(plain.body).toBe(identity)
+      // Serileştirme ve sıkıştırma tekrarlanmaz; istek anında brotli yok.
+      expect(reads.count).toBe(readsAfterFirst)
+      expect(compress).toHaveBeenCalledTimes(2)
+      expect(syncBrotli).not.toHaveBeenCalled()
+    } finally {
+      syncBrotli.mockRestore()
+    }
+  })
+
+  it('sıkıştırma zaman uyumsuzdur: sürerken istekler beklemez; okuyucu yenilenince önceki gövdeler sunulur, aynı metin yeniden sıkıştırılmaz', async () => {
+    let release: () => void = () => undefined
+    const gate = new Promise<void>((resolve) => {
+      release = resolve
+    })
+    const compress = vi.fn(async (encoding: BodyEncoding, body: Buffer) => {
+      await gate
+      return compressBody(encoding, body)
+    })
+    let list: Airport[] = [ath]
+    const { app } = await setupDetails({ listed: async () => list, compressBody: compress })
+    const url = '/v1/airports?scope=listed'
+    const br = () => inject(app, url, { 'accept-encoding': 'br' })
+    // Sıkıştırma beklerken yanıt gelir (eklentinin istek anındaki yolu).
+    const cold = await br()
+    expect(cold.statusCode).toBe(200)
+    expect(JSON.parse(decode(cold))).toEqual({ scope: 'listed', airports: [ath] })
+    expect(compress).toHaveBeenCalledTimes(2)
+    release()
+    const first = (await compress.mock.results[0]?.value) as Buffer
+    await nextTurn()
+    expect(Buffer.compare((await br()).rawPayload, first)).toBe(0)
+
+    // Okuyucu yenilendi, veri aynı: yeni değer, aynı metin; sıkıştırma tekrarlanmaz.
+    clock += AIRPORTS_CACHE_MS
+    expect(Buffer.compare((await br()).rawPayload, first)).toBe(0)
+    expect(compress).toHaveBeenCalledTimes(2)
+
+    // Veri değişti: yenisi kurulurken önceki sıkıştırılmış gövde sunulur; düz gövde hemen yenidir.
+    list = [ath, ist]
+    clock += AIRPORTS_CACHE_MS
+    let finish: () => void = () => undefined
+    const pending = new Promise<void>((resolve) => {
+      finish = resolve
+    })
+    compress.mockImplementation(async (encoding, body) => {
+      await pending
+      return compressBody(encoding, body)
+    })
+    expect(Buffer.compare((await br()).rawPayload, first)).toBe(0)
+    expect((await inject(app, url)).json()).toEqual({ scope: 'listed', airports: [ath, ist] })
+    expect(compress).toHaveBeenCalledTimes(4)
+    finish()
+    const second = (await compress.mock.results[2]?.value) as Buffer
+    await nextTurn()
+    const fresh = await br()
+    expect(Buffer.compare(fresh.rawPayload, second)).toBe(0)
+    expect(JSON.parse(decode(fresh))).toEqual({ scope: 'listed', airports: [ath, ist] })
+  })
+
+  it('sıkıştırma başarısızsa istek etkilenmez (soğuk yol); 1 dk sonra yeniden denenir', async () => {
+    const compress = vi.fn<CompressBody>(async () => {
+      throw new Error('zlib failed')
+    })
+    const { app } = await setupDetails({ listed: async () => [ath], compressBody: compress })
+    const url = '/v1/airports?scope=listed'
+    const res = await inject(app, url, { 'accept-encoding': 'br' })
+    expect(res.statusCode).toBe(200)
+    expect(JSON.parse(decode(res))).toEqual({ scope: 'listed', airports: [ath] })
+    await nextTurn()
+    await inject(app, url, { 'accept-encoding': 'br' })
+    expect(compress).toHaveBeenCalledTimes(2)
+    clock += CACHE_BUILD_RETRY_MS
+    compress.mockImplementation(compressBody)
+    await inject(app, url, { 'accept-encoding': 'br' })
+    expect(compress).toHaveBeenCalledTimes(4)
+  })
+
+  it('kodlama seçimi eklentininki gibi: en yüksek q, eşitse brotli; * ve x-gzip gzip; q=0 reddeder', () => {
+    expect(preferredEncoding(undefined)).toBeNull()
+    expect(preferredEncoding('')).toBeNull()
+    expect(preferredEncoding('identity')).toBeNull()
+    expect(preferredEncoding('gzip, deflate, br')).toBe('br')
+    expect(preferredEncoding('br;q=0.5, gzip')).toBe('gzip')
+    expect(preferredEncoding('BR')).toBe('br')
+    expect(preferredEncoding('x-gzip')).toBe('gzip')
+    expect(preferredEncoding('*')).toBe('gzip')
+    expect(preferredEncoding('br;q=0, gzip;q=0')).toBeNull()
+    expect(preferredEncoding('deflate')).toBeNull()
+    expect(preferredEncoding(['gzip', 'br'])).toBe('br')
   })
 })

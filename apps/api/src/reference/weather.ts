@@ -154,6 +154,16 @@ export const WEATHER_ERRORS = {
     error: 'bad_format',
     message: `format ${WEATHER_BULK_FORMATS.join(' ya da ')} olmalı (varsayılan full).`,
   },
+  /**
+   * `scope=listed` yalnız ham biçimle (D-111): listelenen bütün havalimanlarının çözümlenmiş toplu
+   * yanıtı 4. halkada ~4,4 MB, 5. halkada ~15,8 MB'tır ve önbellek her dolduğunda olay döngüsünü
+   * ~0,5 sn tutardı. Web ham biçimi ister; tam biçim ülke isteğinde (`country=XX`) kalır.
+   */
+  rawRequired: {
+    error: 'format_required',
+    message:
+      'scope=listed yalnızca format=raw ile istenebilir; çözümlenmiş biçim için country kullanın.',
+  },
 } as const
 
 /** Toplu yanıtın biçimi; verilmezse `full`, geçersizse null (400 bad_format). */
@@ -399,7 +409,8 @@ interface CachedHistory {
  * Hava durumu uçları (aviationweather.gov METAR/TAF; worker yazar, API okurken çözümler):
  * - `GET /v1/weather?country=TR` ya da `?scope=listed` (D-080): listedeki her havalimanı için güncel
  *   hava. `format=raw` (D-101) raporları çözümlemeden verir; web sunucusu bunu ister ve yalnız
- *   çizdiği havalimanını çözümler (`toAirportWeather`).
+ *   çizdiği havalimanını çözümler (`toAirportWeather`). `scope=listed` yalnız ham biçimledir
+ *   (D-111; tam biçim 400).
  * - `GET /v1/airports/:code/weather`: tek havalimanı (tarayıcı yenilemesi, API ve mobil).
  * - `GET /v1/airports/:code/weather/history?hours=24`: METAR/SPECI/TAF kaydı, en yeni önce.
  * Yanıtlar 60 sn süreç içinde tutulur; veritabanı okunamazsa eldeki kopya, o da yoksa 503.
@@ -640,7 +651,7 @@ export function registerWeatherRoutes(
         tags: ['weather'],
         summary: 'Ülkenin ya da listelenen havalimanlarının güncel havası (METAR/TAF)',
         description:
-          "Listedeki her havalimanı için bir kayıt, liste sırasıyla; raporu olmayan havalimanında metar null. Varsayılan biçim (full) çözümlenmiştir ve tafs yalnız yürürlükteki TAF'lardır: kalan geçerliliği daha yeni TAF'larca kapsanan eski TAF'lar METAR/TAF kaydındadır. format=raw hiçbir raporu çözümlemez: en yeni METAR/SPECI ve süresi dolmamış bütün TAF'lar ham metin ve zamanlarıyla gelir (yürürlük seçimi okuyandadır). Kaynak: aviationweather.gov (NOAA Aviation Weather Center); resmî brifing yerine geçmez.",
+          "Listedeki her havalimanı için bir kayıt, liste sırasıyla; raporu olmayan havalimanında metar null. Varsayılan biçim (full) çözümlenmiştir ve tafs yalnız yürürlükteki TAF'lardır: kalan geçerliliği daha yeni TAF'larca kapsanan eski TAF'lar METAR/TAF kaydındadır. format=raw hiçbir raporu çözümlemez: en yeni METAR/SPECI ve süresi dolmamış bütün TAF'lar ham metin ve zamanlarıyla gelir (yürürlük seçimi okuyandadır). scope=listed yalnız format=raw ile istenir (yoksa 400 format_required); country isteği iki biçimi de verir. Kaynak: aviationweather.gov (NOAA Aviation Weather Center); resmî brifing yerine geçmez.",
         querystring: {
           type: 'object',
           properties: {
@@ -649,7 +660,7 @@ export function registerWeatherRoutes(
               type: 'string',
               enum: [...WEATHER_BULK_FORMATS],
               description:
-                'full (varsayılan): çözümlenmiş raporlar. raw: yalnız ham metin ve kayıt zamanları (istasyon başına ~0,9 KB)',
+                'full (varsayılan): çözümlenmiş raporlar (yalnız country isteğinde). raw: yalnız ham metin ve kayıt zamanları (istasyon başına ~0,9 KB); scope=listed için zorunlu',
             },
           },
         },
@@ -681,6 +692,9 @@ export function registerWeatherRoutes(
           400,
           'scope' in selection ? AIRPORT_ERRORS.badScope : AIRPORT_ERRORS.badCountry,
         )
+      }
+      if ('scope' in selection && bulkFormat !== 'raw') {
+        return fail(reply, 400, WEATHER_ERRORS.rawRequired)
       }
       const key = 'scope' in selection ? LISTED_KEY : selection.country
       if (bulkStations(key) === null) return fail(reply, 503, WEATHER_ERRORS.unavailable)

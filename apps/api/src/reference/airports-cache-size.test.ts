@@ -1,3 +1,4 @@
+import zlib from 'node:zlib'
 import {
   SEED_STATIONS,
   selectListedAirports,
@@ -8,30 +9,32 @@ import { AIRPORT_RING_CONFIG, ENABLED_AIRPORT_RING, type AirportDetail } from '@
 import { afterEach, describe, expect, it } from 'vitest'
 import { testApp } from '../test/helpers'
 import { apiFixture } from '../test/ourairports-fixture'
+import { compressBody, type BodyEncoding } from './body-cache'
 
 /**
- * Next veri önbelleğinin sınırı (D-101, D-102): web havalimanı sayfaları listeyi
- * `GET /v1/airports?scope=listed&include=runways` ile ister ve yanıtı Next'in veri önbelleğinde
- * 1 saat tutar (`apps/web/src/lib/airports.ts`, `next: { revalidate }`). Next 16.3 önbellek kaydını
- * `{ kind, data: { headers, body: <gövdenin base64'ü>, status, url }, revalidate }` olarak
- * JSON'a yazar ve `JSON.stringify(kayıt).length` 2 MiB'ı aşarsa kaydı yazmaz (üretimde uyarı,
- * geliştirmede hata: `next/dist/server/lib/incremental-cache/index.js`). Gövde sıkıştırılmamış
- * hâliyle saklanır (fetch br/gzip'i açar); base64 onu 4/3 büyütür.
+ * Listelenen havalimanlarının gövde bütçeleri (D-111; önce Next veri önbelleğinin 2 MiB öğe sınırı,
+ * D-101, D-102). Web listeyi artık kendi belleğinde tutar (`apps/web/src/lib/airports.ts`, D-111):
+ * Next'in öğe sınırı (5. halkada kayıt 3.967.890 karakter, sınırın %189'u) yoktur. Bu yüzden
+ * bütçe gövdenin kendisidir: web her saat ve her açılışta pistli listeyi bir kez indirip ayrıştırır;
+ * harita her açılışta `include=map` gövdesini indirir.
  *
- * Halkaya göre büyüyen tek önbellekli yanıt budur: toplu hava web belleğindedir (`no-store`), METAR/TAF
- * kaydı tek istasyonluktur. Test, commit'li OurAirports fixture'ından (2026-10-01 kopyası) açık
- * halkanın bütün listesini (4. halkada 1.217 havalimanı) üretimdeki gibi kurar (içe aktarım
- * çözümleyicisi, liste kuralı, ayrıntı kaydı, API'nin serileştiricisi) ve kaydın sınırın %85'inin
- * altında kaldığını denetler. 5. halkada (3.243 havalimanı) bu sınır kırılır (D-101); 5. halkanın ölçek işi
- * M6j.2'dedir (D-109).
+ * Test, commit'li OurAirports fixture'ından (2026-10-01 kopyası) listeyi üretimdeki gibi kurar (içe
+ * aktarım çözümleyicisi, liste kuralı, ayrıntı kaydı, API'nin serileştiricisi ve gövde önbelleği)
+ * ve açık halkada (4) ve 5. halka açık bağlamla ölçer. Brotli boyutları önbellekli gövdenindir
+ * (kalite 11, D-111); istek anındaki brotli 4 daha büyüktür.
  */
-const NEXT_FETCH_CACHE_LIMIT = 2 * 1024 * 1024
-/** Güvenlik payı: kayıt sınırın en çok %85'i. */
-const BUDGET = 0.85 * NEXT_FETCH_CACHE_LIMIT
 
-function fixtureDetails(stationsForAll: boolean): AirportDetail[] {
+/** Pistli listenin (sayfalar) gövde bütçesi: 5. halkada ölçülen 2.968.051 B'a pay. */
+const RUNWAYS_BODY_BUDGET = 3_500_000
+/** Haritanın listesi (`include=map`): 5. halkada ölçülen 1.159.557 B ham, 185.611 B brotli. */
+const MAP_BODY_BUDGET_RING5 = 1_200_000
+const MAP_BROTLI_BUDGET_RING5 = 190_000
+/** 4. halkada ölçülen 89.683 B brotli (önceki harita isteği, pistli liste brotli 4 ile ~183 KB). */
+const MAP_BROTLI_BUDGET_RING4 = 95_000
+
+function fixtureDetails(enabledRing: number, stationsForAll = false): AirportDetail[] {
   const { airportRows, runwayRows, context: rings } = apiFixture()
-  const context = { ...rings, enabledRing: AIRPORT_RING_CONFIG.enabledRing }
+  const context = { ...rings, enabledRing }
   const listed = new Set(selectListedAirports(airportRows, context).map((a) => a.icao))
   const icaos = stationsForAll ? [...listed] : SEED_STATIONS.map((s) => s.icao)
   const stations: StationSourceRow[] = icaos.map((icao) => ({
@@ -51,56 +54,79 @@ afterEach(async () => {
   await Promise.all(apps.splice(0).map((app) => app.close()))
 })
 
-/** API'nin gerçek yanıtı ve Next'in yazacağı önbellek kaydının uzunluğu. */
-async function cacheEntry(details: AirportDetail[]) {
+/**
+ * Gövdenin sıkıştırılmamış uzunluğu ve (istenirse) önbellekli brotli uzunluğu. Testin sıkıştırıcısı
+ * yalnız istenen brotli'yi gerçekten kurar, öbür gövdeleri olduğu gibi döndürür (5. halkanın pistli
+ * listesinin brotli 11'i ~5 sn sürerdi).
+ */
+async function measure(details: AirportDetail[], include: 'runways' | 'map', brotli: boolean) {
+  const builds: Promise<Buffer>[] = []
+  const compress = (encoding: BodyEncoding, body: Buffer) => {
+    const built = brotli && encoding === 'br' ? compressBody(encoding, body) : Promise.resolve(body)
+    builds.push(built)
+    return built
+  }
   const { app } = await testApp({
-    deps: { airports: { list: null, listedDetails: async () => details } },
+    deps: {
+      airports: { list: null, listedDetails: async () => details, compressBody: compress },
+    },
   })
   apps.push(app)
-  const url = 'http://api:4000/v1/airports?scope=listed&include=runways'
-  const res = await app.inject({ method: 'GET', url: '/v1/airports?scope=listed&include=runways' })
+  const url = `/v1/airports?scope=listed&include=${include}`
+  const res = await app.inject({ method: 'GET', url })
   expect(res.statusCode).toBe(200)
   const body = Buffer.from(res.rawPayload)
-  const entry = {
-    kind: 'FETCH',
-    data: {
-      headers: Object.fromEntries(
-        Object.entries(res.headers).map(([name, value]) => [name, String(value)]),
-      ),
-      body: body.toString('base64'),
-      status: res.statusCode,
-      url,
-    },
-    revalidate: 3600,
+  let brotliBytes: number | null = null
+  if (brotli) {
+    await Promise.all(builds)
+    await new Promise((resolve) => setImmediate(resolve))
+    const encoded = await app.inject({ method: 'GET', url, headers: { 'accept-encoding': 'br' } })
+    expect(encoded.headers['content-encoding']).toBe('br')
+    expect(zlib.brotliDecompressSync(encoded.rawPayload).equals(body)).toBe(true)
+    brotliBytes = encoded.rawPayload.length
   }
   return {
     bytes: body.length,
-    airports: res.json().airports.length,
-    item: JSON.stringify(entry).length,
+    airports: res.json<{ airports: unknown[] }>().airports.length,
+    brotliBytes,
   }
 }
 
-describe('Next veri önbelleği sınırı: havalimanı listesi (D-102)', () => {
-  it('açık halkanın bütün listesi (4. halka, 1.217 havalimanı) kaydı 2 MiB sınırının %85’inin altında', async () => {
+describe('gövde bütçeleri: listelenen havalimanları (D-111)', () => {
+  // Fixture'ı bu dosyada ilk ayrıştıran test (yerelde ~1 sn): açık süre sınırı (D-105, D-109).
+  it('pistli liste: 4. halkada 1.217 havalimanı; 5. halka açık bağlamla 3.243 havalimanı ≤ 3,5 MB', async () => {
     expect(ENABLED_AIRPORT_RING).toBe(4)
-    const { bytes, airports, item } = await cacheEntry(fixtureDetails(false))
-    expect(airports).toBe(1217)
-    // Ölçüm (2026-10-07, fixture; askerî üssüz liste, D-107; 29 havalimanının adres takma adıyla,
-    // D-109): gövde 1.053.068 B, kayıt ~1.405.205 karakter (sınırın %67,0'ı; takma adsız 1.052.488 B
-    // ve 1.404.433; üslerle 1.222 havalimanında 1.056.369 B ve 1.409.605; 3. halkada 498
-    // havalimanıyla gövde ~0,45 MB).
-    expect(item).toBeGreaterThan((bytes * 4) / 3)
-    expect(item).toBeLessThan(BUDGET)
-    expect(bytes / airports).toBeLessThan(1000)
+    expect(AIRPORT_RING_CONFIG.enabledRing).toBe(4)
+    const ring4 = await measure(fixtureDetails(4), 'runways', false)
+    expect(ring4.airports).toBe(1217)
+    // Ölçüm (2026-10-08, fixture): 1.053.068 B (D-109'un takma adlarıyla; 3. halkada ~0,45 MB).
+    expect(ring4.bytes / ring4.airports).toBeLessThan(1000)
+    const ring5 = await measure(fixtureDetails(5), 'runways', false)
+    expect(ring5.airports).toBe(3243)
+    // Ölçüm: 2.968.051 B (ABD ve Kanada havalimanlarının pistleri çok; KORD kaydı 3,3 KB).
+    expect(ring5.bytes).toBeLessThanOrEqual(RUNWAYS_BODY_BUDGET)
+    expect(ring5.bytes).toBeGreaterThan(ring4.bytes * 2)
+  }, 30_000)
+
+  it('en kötü durum: her havalimanı istasyon kaydı taşısa da 5. halkada pistli liste ≤ 3,5 MB', async () => {
+    const worst = await measure(fixtureDetails(5, true), 'runways', false)
+    // Ölçüm: 3.116.999 B.
+    expect(worst.airports).toBe(3243)
+    expect(worst.bytes).toBeLessThanOrEqual(RUNWAYS_BODY_BUDGET)
   })
 
-  it('en kötü durum: her havalimanı istasyon kaydı taşısa da kayıt sınırın %85’inin altında', async () => {
-    const real = await cacheEntry(fixtureDetails(false))
-    const worst = await cacheEntry(fixtureDetails(true))
-    expect(worst.airports).toBe(1217)
-    expect(worst.bytes).toBeGreaterThan(real.bytes)
-    // Ölçüm: gövde 1.108.820 B, kayıt ~1.479.540 karakter (%70,5; takma adsız 1.108.240 B; üslerle
-    // 1.112.351 B, %70,8).
-    expect(worst.item).toBeLessThan(BUDGET)
-  })
+  // Brotli 11 (iş parçacığında) 1,16 MB'ta yerelde ~2 sn: açık süre sınırı (D-105).
+  it('haritanın listesi (include=map): 5. halkada ≤ 1,2 MB ham ve ≤ 190 KB brotli; 4. halkada ≤ 95 KB brotli', async () => {
+    const ring4 = await measure(fixtureDetails(4), 'map', true)
+    expect(ring4.airports).toBe(1217)
+    // Ölçüm (2026-10-08): 525.947 B ham, 89.683 B brotli 11; 5. halkada 1.159.557 ve 185.611 B.
+    expect(ring4.brotliBytes).toBeLessThanOrEqual(MAP_BROTLI_BUDGET_RING4)
+    const ring5 = await measure(fixtureDetails(5), 'map', true)
+    expect(ring5.airports).toBe(3243)
+    expect(ring5.bytes).toBeLessThanOrEqual(MAP_BODY_BUDGET_RING5)
+    expect(ring5.brotliBytes).toBeLessThanOrEqual(MAP_BROTLI_BUDGET_RING5)
+    // Pistli listenin yarısından küçük (uçlar yalnız 1.–3. halkada; sayfaların alanları yok).
+    const runways = await measure(fixtureDetails(5), 'runways', false)
+    expect(ring5.bytes).toBeLessThan(runways.bytes / 2)
+  }, 60_000)
 })
