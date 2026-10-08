@@ -82,6 +82,17 @@ function byProvinceThenName(a: AirportDetail, b: AirportDetail): number {
   )
 }
 
+/**
+ * Pist sayısı notu; görünür pisti olmayan havalimanında not yazılmaz ("0 pist" yanlış olurdu: veri
+ * yalnız kullanılabilir pist satırı olmadığını söyler). Sayfa açıklaması da aynı kuralla yazar
+ * (`airportDescription`, D-101).
+ */
+function runwayNote(airport: AirportDetail, messages: Messages): string | null {
+  return airport.runways.length > 0
+    ? format(messages.seo.airport.runwaysCount, { count: airport.runways.length })
+    : null
+}
+
 export function buildLlmsTxt(input: LlmsInput): string {
   const tr = getMessages('tr')
   const en = getMessages('en')
@@ -95,10 +106,9 @@ export function buildLlmsTxt(input: LlmsInput): string {
   const airportLines = turkey.toSorted(byProvinceThenName).map((airport) => {
     const path = airportPath(airport.icao)
     const name = `${airportDisplayName(airport, 'tr')} (${airport.iata}/${airport.icao.toUpperCase()})`
-    const notes = [
-      provinceName(airport.isoRegion, 'tr'),
-      format(tr.seo.airport.runwaysCount, { count: airport.runways.length }),
-    ].filter((note): note is string => Boolean(note))
+    const notes = [provinceName(airport.isoRegion, 'tr'), runwayNote(airport, tr)].filter(
+      (note): note is string => Boolean(note),
+    )
     const english = `${tr.nav.switchTo}: ${link(airportDisplayName(airport, 'en'), url('en', path))}`
     return `- ${link(name, url('tr', path))}: ${[...notes, english].join('; ')}`
   })
@@ -106,10 +116,9 @@ export function buildLlmsTxt(input: LlmsInput): string {
   const foreignLines = sortByCountry(foreign, 'tr').map((airport) => {
     const path = airportPath(airport.icao)
     const name = `${airportDisplayName(airport, 'tr')} (${airport.iata}/${airport.icao.toUpperCase()})`
-    const notes = [
-      airportCountry(airport, 'tr'),
-      format(tr.seo.airport.runwaysCount, { count: airport.runways.length }),
-    ]
+    const notes = [airportCountry(airport, 'tr'), runwayNote(airport, tr)].filter(
+      (note): note is string => Boolean(note),
+    )
     const english = `${tr.nav.switchTo}: ${link(airportDisplayName(airport, 'en'), url('en', path))}`
     return `- ${link(name, url('tr', path))}: ${[...notes, english].join('; ')}`
   })

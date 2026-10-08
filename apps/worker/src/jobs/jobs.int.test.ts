@@ -105,10 +105,10 @@ describe('bakım işleri (gerçek PostgreSQL + Redis, BullMQ)', () => {
 
       // Hava durumu açılışta, referans içe aktarımından sonra fixture'dan (zamanı kaydırılarak)
       // yazılır: 20 istasyon (14 Türkiye, 6 1. halka), raporu olmayan LTBQ yok; LTFM'nin 3 günlük
-      // geçmişi. İstasyon listesi listelenen havalimanlarıdır (Türkiye, 1.–3. halka: 56 + 75 + 89 +
-      // 278 = 498; D-080, D-088, D-090; askerî hava üsleri yok, D-107). İskenderiye OurAirports'taki
-      // HEAX koduyla değil HEBA ile, Özbekistan'ın istasyonları OurAirports kimliği (UTxx) değil
-      // ICAO'suyla (UZxx) istenir.
+      // geçmişi. İstasyon listesi listelenen havalimanlarıdır (Türkiye, 1.–4. halka: 56 + 75 + 89 +
+      // 278 + 719 = 1.217; D-080, D-088, D-090, D-102; askerî hava üsleri yok, D-107). İskenderiye
+      // OurAirports'taki HEAX koduyla değil HEBA ile, Özbekistan'ın istasyonları OurAirports kimliği
+      // (UTxx) değil ICAO'suyla (UZxx) istenir.
       await waitFor(async () => {
         const weather = await weatherStatus(database.sql, new Date())
         return Boolean(weather.metar?.checkedAt) && Boolean(weather.taf?.checkedAt)
@@ -117,7 +117,7 @@ describe('bakım işleri (gerçek PostgreSQL + Redis, BullMQ)', () => {
       expect(weather.metar).toMatchObject({ origin: 'fixture', lastError: null, skippedCount: 0 })
       expect(weather.taf).toMatchObject({ origin: 'fixture', lastError: null })
       const listed = await databaseWeatherStore(database).stations()
-      expect(listed).toHaveLength(498)
+      expect(listed).toHaveLength(1217)
       for (const icao of ['LTAG', 'LTAH', 'LTBG', 'LTBI', 'LTBL'])
         expect(listed).not.toContain(icao)
       expect(listed).toEqual(
@@ -127,6 +127,10 @@ describe('bakım işleri (gerçek PostgreSQL + Redis, BullMQ)', () => {
       expect(listed).not.toContain('HEAX')
       expect(listed).toEqual(expect.arrayContaining(['LOWW', 'EDDF', 'OMDB', 'UUEE', 'UZSS']))
       expect(listed).not.toContain('UTSS')
+      // 4. halka (D-102); dört karakterli ICAO'su olmayan Kihihi (UG-0002) istasyon değildir.
+      expect(listed).toEqual(expect.arrayContaining(['EGLL', 'LFPG', 'VIDP', 'ZMCK', 'ZWWW']))
+      expect(listed).not.toContain('UG-0002')
+      expect(listed).not.toContain('KJFK')
       expect(weather.metar?.stationCount).toBe(listed.length)
       expect(weather.taf?.stationCount).toBe(listed.length)
       const stations = await database.sql<{ station_icao: string; n: number }[]>`

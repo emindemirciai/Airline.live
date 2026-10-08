@@ -145,10 +145,10 @@ describe('GET /llms.txt', () => {
       `- [Ercan Havalimanı (ECN/LCEN)](${HOST}/istasyon/LCEN): KKTC; 1 pist; English: [Ercan International Airport](${HOST}/en/istasyon/LCEN)`,
       `- [Atina Eleftherios Venizelos Havalimanı (ATH/LGAV)](${HOST}/istasyon/LGAV): Yunanistan; 2 pist; English: [Athens Eleftherios Venizelos International Airport](${HOST}/en/istasyon/LGAV)`,
     ])
-    // Liste kuralı: şimdilik 2.000 km'ye kadar (3. halka, D-090). Kapsama dürüstlüğü (D-106): canlı
+    // Liste kuralı: şimdilik 5.000 km'ye kadar (4. halka, D-102). Kapsama dürüstlüğü (D-106): canlı
     // veri alanı ayrı satırda yazılır.
-    expect(text).toContain('uzaklığı en fazla 2.000 km olan')
-    expect(text).toContain('at most 2,000 km from the nearest airport in Türkiye')
+    expect(text).toContain('uzaklığı en fazla 5.000 km olan')
+    expect(text).toContain('at most 5,000 km from the nearest airport in Türkiye')
     expect(text).toContain('Canlı uçak verisi şimdilik yalnızca Türkiye ve çevresinden çekilir')
     expect(text).toContain('Live aircraft data is currently fetched only over Türkiye')
     expect(text).not.toMatch(/[Yy]akın ülke|neighbouring/)
@@ -156,6 +156,30 @@ describe('GET /llms.txt', () => {
     // Yabancı havalimanı yoksa bölüm yazılmaz.
     getAirports.mockResolvedValue(AIRPORTS.filter((a) => a.country === 'TR'))
     expect((await llms()).text).not.toContain(FOREIGN_HEADING)
+  })
+
+  it('görünür pisti olmayan havalimanında pist notu yazılmaz ("0 pist" yok; D-101, D-102)', async () => {
+    // Taşkurgan'ın (ZWTK) kaynakta karşı ucu eksik tek pist satırı var: görünür pisti yoktur.
+    getAirports.mockResolvedValue([
+      ...AIRPORTS,
+      airportFixture({
+        icao: 'ZWTK',
+        iata: 'HQL',
+        name: 'Tashikuergan Hongqilafu Airport',
+        country: 'CN',
+        isoRegion: 'CN-65',
+        ring: 4,
+        distanceToTrKm: 2719,
+        runways: [],
+      }),
+    ])
+    const { text } = await llms()
+    expect(text.split('\n')).toContain(
+      `- [Taşkurgan Hongqilafu Havalimanı (HQL/ZWTK)](${HOST}/istasyon/ZWTK): Çin; English: [Tashikuergan Hongqilafu Airport](${HOST}/en/istasyon/ZWTK)`,
+    )
+    expect(text).not.toMatch(/\b0 pist/)
+    // Pisti olanlar yine sayıyla.
+    expect(text).toContain('; 2 pist; ')
   })
 
   it('kodun doğrulamadığı "her hesaplanan değer tahmini etiketlidir" iddiasını taşımaz', async () => {

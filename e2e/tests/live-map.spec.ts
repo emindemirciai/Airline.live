@@ -715,10 +715,11 @@ test.describe('ülke adları (D-095, D-096, D-099, D-100)', () => {
     await expect(popup).toBeHidden()
 
     // Bir kademe daha uzaklaşınca (z4) AFGANİSTAN, SURİYE (3,75) ve TÜRKİYE (3,25) görünüme girer;
-    // ÖZBEKİSTAN'ın ve PAKİSTAN'ın (4,5) çapası tuvalin içindedir ama yazılmaz. Bir kademe daha (z3):
-    // ilk yakınlaştırması 3'ten büyük kesirli adlar (AFGANİSTAN, SURİYE, TÜRKİYE) kaybolur, İRAN kalır;
-    // listelenen havalimanı olmayan HİNDİSTAN ve ÇAD yazılır (D-100: bütün ülkelerin adı). Kovaları
-    // z3 ve z4 karosunda hazırdır: katmanın kesirli `minzoom`'u tarayıcıda.
+    // ÖZBEKİSTAN'ın (4,5) ve PAKİSTAN'ın (4,75) çapası tuvalin içindedir ama yazılmaz. Bir kademe daha
+    // (z3): ilk yakınlaştırması 3'ten büyük kesirli adlar (AFGANİSTAN, SURİYE, TÜRKİYE ve 4. halkanın
+    // pinleri arasında kalabalık kuralıyla 3,25'ten yazılan HİNDİSTAN, D-102) kaybolur, İRAN kalır;
+    // ÇAD yazılır (D-100: bütün ülkelerin adı). Kovaları z3 ve z4 karosunda hazırdır: katmanın
+    // kesirli `minzoom`'u tarayıcıda.
     for (const key of ['z4', 'z3'] as const) {
       await zoomOut(page, 1)
       const { shown: expected, hidden: absent } = TEHRAN_COUNTRY_LABELS[key]

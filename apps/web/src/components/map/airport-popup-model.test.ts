@@ -159,13 +159,13 @@ describe('havalimanı bilgileri', () => {
     expect(popupTimeZone(JFK)).toBeNull()
   })
 
-  it('listelenen her havalimanının penceresinde yer ve saat dilimi vardır (3. halka dahil, D-090)', () => {
-    // API kaydı haritanın okuyucusundan geçer (`toMapAirport`): sayfadaki listeyle aynı 498 kayıt
+  it('listelenen her havalimanının penceresinde yer ve saat dilimi vardır (4. halka dahil, D-090, D-102)', () => {
+    // API kaydı haritanın okuyucusundan geçer (`toMapAirport`): sayfadaki listeyle aynı 1.217 kayıt
     // (askerî üsler yok, D-107).
     const listed = fixtureListedAirports().map((airport) => toMapAirport(airport))
     expect(listed.filter((airport) => airport === null)).toEqual([])
     const map = new Map(listed.flatMap((airport) => (airport ? [[airport.icao, airport]] : [])))
-    expect(map.size).toBe(498)
+    expect(map.size).toBe(1217)
     for (const airport of map.values()) {
       expect(airportPlace(airport, 'tr'), airport.icao).not.toBeNull()
       expect(airportPlace(airport, 'en'), airport.icao).not.toBeNull()
@@ -207,11 +207,18 @@ describe('havalimanı bilgileri', () => {
       ['LEPA', 'Europe/Madrid'],
       ['OAHR', 'Asia/Kabul'],
       ['OMDB', 'Asia/Dubai'],
+      // 4. halka (D-101, D-102): Londra, Delhi, Ulan Batur, Novosibirsk, Urumçi (Pekin saati).
+      ['EGLL', 'Europe/London'],
+      ['VIDP', 'Asia/Calcutta'],
+      ['ZMCK', 'Asia/Ulaanbaatar'],
+      ['UNNT', 'Asia/Novosibirsk'],
+      ['ZWWW', 'Asia/Shanghai'],
     ] as const) {
       expect(popupTimeZone(of(icao)), icao).toBe(zone)
     }
     expect(airportPlace(of('LOWW'), 'tr')).toBe('Avusturya')
     expect(airportPlace(of('LOWW'), 'en')).toBe('Austria')
+    expect(airportPlace(of('EGLL'), 'tr')).toBe('Birleşik Krallık')
   })
 
   it('sivil uçuşlara kapalı olabilecek havalimanında not; diğerlerinde yok (D-090)', () => {

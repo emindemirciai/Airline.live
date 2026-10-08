@@ -753,14 +753,16 @@ describe('fixture: listelenen her havalimanının dilimi var', () => {
         ),
       )
       .filter((r) => airportRing(distanceToTurkey(r)) <= ENABLED_AIRPORT_RING)
-    // M6h'den beri 1., 2. ve 3. halka açık: 75 + 89 + 278 (D-088, D-090); her biri beklenen
-    // tablodadır.
-    expect(listed).toHaveLength(442)
+    // M6i.2'den beri 1.–4. halka açık: 75 + 89 + 278 + 719 (D-088, D-090, D-102); 1.–3. halka
+    // `expected` tablosunda, 4. halka `RING_FOUR_ZONES`'tadır.
+    expect(listed).toHaveLength(1161)
     for (const r of listed) {
       const airport = fixtureAirport(r)
       const zone = airportTimeZone(airport)
       expect(zone, airport.icao).not.toBeNull()
-      expect(zone, airport.icao).toBe(expectedByIcao.get(airport.icao)?.zone)
+      expect(zone, airport.icao).toBe(
+        expectedByIcao.get(airport.icao)?.zone ?? ringFourZone(airport.icao),
+      )
     }
   })
 })
@@ -768,7 +770,8 @@ describe('fixture: listelenen her havalimanının dilimi var', () => {
 /**
  * 4. halkanın 720 adayı (D-080 kuralı, ICAO koşulu olmadan; UG-0002 dahil, D-101), dilime göre:
  * M6i araştırmasının önerisi (`Intl.Locale#getTimeZones()` ve tzdb ülke tablosu; Node 24.16, ICU
- * 78.3, tzdata 2026b). Halka henüz kapalıdır; tablo halka açılmadan önce her adayın dilimini sabitler.
+ * 78.3, tzdata 2026b). Tablo halka açılmadan önce (M6i.1) her adayın dilimini sabitledi; halka
+ * M6i.2'de açıldı (D-102).
  */
 const RING_FOUR_ZONES: Readonly<Record<string, readonly string[]>> = {
   'Africa/Abidjan': ['DIAP DIBK DIKO'],
@@ -969,7 +972,14 @@ const KAZAKHSTAN_ISO_REGIONS = [
   'KZ-79',
 ] as const
 
-describe('4. halka saat dilimleri (D-101; halka henüz kapalı)', () => {
+/** 4. halka adayının beklenen dilimi (`RING_FOUR_ZONES`); tabloda yoksa undefined. */
+function ringFourZone(icao: string): string | undefined {
+  return Object.entries(RING_FOUR_ZONES).find(([, chunks]) =>
+    chunks.some((chunk) => chunk.split(' ').includes(icao)),
+  )?.[0]
+}
+
+describe("4. halka saat dilimleri (D-101; halka M6i.2'de açıldı, D-102)", () => {
   const ringFour = rows
     .filter((r) => r.get('iso_country') !== 'TR')
     .filter((r) =>

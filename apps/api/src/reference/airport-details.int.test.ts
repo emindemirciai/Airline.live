@@ -17,9 +17,11 @@ import { bearingDifference, distanceKm, initialBearing, type LatLon } from '@hav
 import { parseAirports, parseRunways, type RunwayRow } from '@havayolu/providers'
 import {
   AIRPORT_RING_CONFIG,
+  AIRPORT_RINGS_KM,
   airportCountryName,
   airportName,
   countryName,
+  ENABLED_AIRPORT_RING,
   foreignAirportName,
   isForeignCandidate,
   isMilitaryAirfield,
@@ -97,12 +99,13 @@ const arps = new Map<number, LatLon>(
 const runwayRows = parseRunways(fixture('ourairports/runways.csv'), arps).rows
 
 /**
- * Açık halkaların (1.–3., ≤ 2.000 km; D-090) beklenen ICAO'ları, içe aktarılan satırlardan
- * (veritabanından bağımsız hesap). ICAO kaynak düzeltmeleriyle (İskenderiye HEAX → HEBA); aday
- * kuralı dört karakterli kanonik ICAO'yu da ister (D-101). Askerî hava üsleri uzaklık referansı
- * değildir (D-107).
+ * Açık halkaların (M6i.2'den beri 1.–4., ≤ 5.000 km; D-102) beklenen ICAO'ları, içe aktarılan
+ * satırlardan (veritabanından bağımsız hesap). ICAO kaynak düzeltmeleriyle (İskenderiye HEAX →
+ * HEBA); aday kuralı dört karakterli kanonik ICAO'yu da ister (D-101). Askerî hava üsleri uzaklık
+ * referansı değildir (D-107).
  */
 function expectedListedForeign(): string[] {
+  const limitKm = AIRPORT_RINGS_KM[ENABLED_AIRPORT_RING - 1] ?? 0
   const iata = (row: (typeof airportRows)[number]) => row.iataCode?.trim().toUpperCase() ?? ''
   const listable = ['large_airport', 'medium_airport', 'small_airport']
   const turkey = airportRows
@@ -116,7 +119,7 @@ function expectedListedForeign(): string[] {
         isForeignCandidate(r.type, r.scheduledService, r.iataCode, ourAirportsIcao(r)),
     )
     .filter((r) =>
-      turkey.some((tr) => distanceKm({ lat: r.latitudeDeg, lon: r.longitudeDeg }, tr) <= 2000),
+      turkey.some((tr) => distanceKm({ lat: r.latitudeDeg, lon: r.longitudeDeg }, tr) <= limitKm),
     )
     .map((r) => ourAirportsIcao(r))
     .sort()
@@ -278,7 +281,7 @@ describe('havalimanı ayrıntıları (gerçek PostgreSQL, OurAirports fixture)',
     }
   })
 
-  it('scope=listed&include=runways: 56 Türkiye + 1.–3. halka; yurt dışı adları, ülkeleri, pistleri', async () => {
+  it('scope=listed&include=runways: 56 Türkiye + 1.–4. halka (1.161); yurt dışı adları, ülkeleri, pistleri', async () => {
     const instance = await app()
     try {
       const res = await instance.inject({
@@ -293,12 +296,13 @@ describe('havalimanı ayrıntıları (gerçek PostgreSQL, OurAirports fixture)',
       const foreign = body.airports.filter((a) => a.country !== 'TR')
       expect(turkish).toHaveLength(56)
       // Beklenen küme içe aktarılan satırlardan bağımsız hesaplanır (halka analizinin kuralı,
-      // @havayolu/geo): uzaklık referansı Türkiye'nin içe aktarılmış IATA kodlu alanlarıdır. Bugünkü
-      // süzgeçle 1. halka 72; Türkiye'nin IATA kodlu tarifesiz küçük alanları da (Gökçeada …) içe
-      // aktarılırsa Priştine, Preveze ve Niş de girer: 75 (D-080; packages/db airports.int.test.ts
-      // iki durumu ayrı sınar). 3. halkayla (D-090) 434 ya da 442 (2. halkada 161 ya da 164).
+      // @havayolu/geo): uzaklık referansı Türkiye'nin içe aktarılmış IATA kodlu alanlarıdır.
+      // Türkiye'nin IATA kodlu tarifesiz küçük alanları (Gökçeada …) referans olmasa 1. halka 72,
+      // olsa 75'ti (Priştine, Preveze, Niş; D-080; packages/db airports.int.test.ts iki durumu ayrı
+      // sınar); 3. halkada 434 ya da 442. 4. halkada (D-102) iki durum aynı 1.161'i verir: 2.000
+      // km'de ayrılan sekiz havalimanı 5.000 km'nin içindedir.
       expect(foreign.map((a) => a.icao).sort()).toEqual(expectedListedForeign())
-      expect([434, 442]).toContain(foreign.length)
+      expect(foreign).toHaveLength(1161)
       expect(body.airports).toHaveLength(56 + foreign.length)
       // Değişmez kural (D-101): listelenen her havalimanının dört karakterli ICAO'su vardır (sayfa
       // yolu, hava durumu istasyonu). Fixture'ın 4. halkasındaki Kihihi (UG-0002, KHX) bu yüzden
@@ -310,27 +314,41 @@ describe('havalimanı ayrıntıları (gerçek PostgreSQL, OurAirports fixture)',
       ).json() as { scope: string; airports: { icao: string }[] }
       expect(plain.airports.map((a) => a.icao)).toEqual(body.airports.map((a) => a.icao))
 
-      const ringLimitKm: Record<number, number> = { 1: 500, 2: 1000, 3: 2000 }
+      const ringLimitKm: Record<number, number> = { 1: 500, 2: 1000, 3: 2000, 4: 5000 }
+      const unknownSurfaces: string[] = []
       for (const airport of foreign) {
-        expect([1, 2, 3], airport.icao).toContain(airport.ring)
+        expect([1, 2, 3, 4], airport.icao).toContain(airport.ring)
         expect(airport.distanceToTrKm, airport.icao).toBeLessThanOrEqual(
           ringLimitKm[airport.ring] ?? 0,
         )
         if (airport.ring === 3) expect(airport.distanceToTrKm, airport.icao).toBeGreaterThan(1000)
+        if (airport.ring === 4) expect(airport.distanceToTrKm, airport.icao).toBeGreaterThan(2000)
         expect(airport.scheduled, airport.icao).toBe(true)
         expect(foreignAirportName(airport.icao), airport.icao).toBeDefined()
         expect(countryName(airport.country, 'tr'), airport.icao).not.toBe(airport.country)
         expect(Number.isNaN(Date.parse(airport.dataUpdatedAt)), airport.icao).toBe(false)
         for (const runway of airport.runways) {
-          if (runway.surface !== null) {
-            expect(runwaySurfaceKey(runway.surface), `${airport.icao} ${runway.surface}`).not.toBe(
-              'unknown',
-            )
+          if (runway.surface === null) continue
+          // Kaynakta "UNK" (bilinmiyor) yazan pistler kodu tanınmış sayılır; başka kod tanınır.
+          if (runwaySurfaceKey(runway.surface) === 'unknown') {
+            expect(runway.surface, airport.icao).toBe('UNK')
+            unknownSurfaces.push(airport.icao)
           }
         }
       }
-      // Laçın'ın (UBLC) OurAirports'ta açık pisti yoktur; diğerlerinin hepsinde vardır.
-      expect(foreign.filter((a) => a.runways.length === 0).map((a) => a.icao)).toEqual(['UBLC'])
+      // 4. halkanın görünür UNK pistleri (D-101; gizli boş satırlar sayılmaz).
+      expect(unknownSurfaces.sort()).toEqual(
+        ['BGKK', 'HKML', 'HKML', 'ZMAH', 'ZMAT', 'ZMBN', 'ZMUL', 'ZUNZ'].sort(),
+      )
+      // Görünür pisti olmayan listelenen yurt dışı havalimanları (D-101): Laçın (UBLC; 1.–3. halkada
+      // tek), 4. halkada Zagora (GMAZ; pist satırı yok), Amderma (ULDD), Moradabad (VIMB),
+      // Visakhapatnam'ın yeni havalimanı (VOVI) ve Taşkurgan (ZWTK; tek satırının karşı ucu yok).
+      expect(
+        foreign
+          .filter((a) => a.runways.length === 0)
+          .map((a) => a.icao)
+          .sort(),
+      ).toEqual(['GMAZ', 'UBLC', 'ULDD', 'VIMB', 'VOVI', 'ZWTK'])
       expect(foreign.every((a) => a.station === null)).toBe(true)
       // Kaynak düzeltmeleri (D-088): İskenderiye HEBA (OurAirports icao_code HEAX); Taba ve Cluj'un
       // yinelenen boş pist satırı gösterilmez; Bacău'nun adındaki çift boşluk teke iner.
@@ -358,12 +376,26 @@ describe('havalimanı ayrıntıları (gerçek PostgreSQL, OurAirports fixture)',
         ring: 3,
         distanceToTrKm: 1149,
       })
-      for (const icao of ['EGLL', 'LFPG', 'EHAM', 'LEMD', 'KJFK']) {
+      // 4. halka (D-102): Londra, Paris, Amsterdam ve Madrid listede; New York 5. halkada, Kihihi
+      // (UG-0002, KHX) dört karakterli ICAO'suz.
+      for (const icao of ['EGLL', 'LFPG', 'EHAM', 'LEMD']) {
+        expect(
+          body.airports.find((a) => a.icao === icao),
+          icao,
+        ).toMatchObject({ ring: 4 })
+      }
+      expect(body.airports.find((a) => a.icao === 'EGLL')).toMatchObject({
+        iata: 'LHR',
+        country: 'GB',
+        isoRegion: 'GB-ENG',
+      })
+      for (const icao of ['KJFK', 'UG-0002']) {
         expect(
           body.airports.map((a) => a.icao),
           icao,
         ).not.toContain(icao)
       }
+      expect(body.airports.map((a) => a.iata)).not.toContain('KHX')
       // Ben Gurion 500,44 km: yanıtta 500 km, halkası 2.
       expect(body.airports.find((a) => a.icao === 'LLBG')).toMatchObject({
         ring: 2,
@@ -410,10 +442,16 @@ describe('havalimanı ayrıntıları (gerçek PostgreSQL, OurAirports fixture)',
       }
       const heax = await instance.inject({ method: 'GET', url: '/v1/airports/HEAX' })
       expect(heax.statusCode).toBe(404)
-      // Halka süzgeci yok: listede olmayan Londra bulunur ve halkasını taşır.
+      // 4. halkadaki Londra listede (D-102): kaydı liste kaydıyla aynı.
       const lhr = await instance.inject({ method: 'GET', url: '/v1/airports/LHR' })
       expect(lhr.statusCode).toBe(200)
+      expect(lhr.json()).toEqual(listed.find((a) => a.icao === 'EGLL'))
       expect(lhr.json()).toMatchObject({ icao: 'EGLL', country: 'GB', ring: 4 })
+      // Halka süzgeci yok: listede olmayan New York (5. halka) bulunur ve halkasını taşır.
+      const jfk = await instance.inject({ method: 'GET', url: '/v1/airports/JFK' })
+      expect(jfk.statusCode).toBe(200)
+      expect(jfk.json()).toMatchObject({ icao: 'KJFK', country: 'US', ring: 5 })
+      expect(listed.map((a) => a.icao)).not.toContain('KJFK')
     } finally {
       await instance.close()
     }

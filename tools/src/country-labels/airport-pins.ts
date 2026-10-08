@@ -7,18 +7,18 @@
  *   OurAirports fixture'ına (2026-10-01 kopyası, tools/fixtures/README.md) uygulanır: içe aktarım
  *   süzgeci (`@havayolu/providers` `parseAirports`), kimlik sırası, Türkiye'deki uzaklık
  *   referansları ve halka seçimi (`@havayolu/db` `turkishReferencePoints`, `selectListedAirports`,
- *   `AIRPORT_RING_CONFIG`). Fixture Türkiye'nin bütün satırlarını ve açık halkaların (1.–3.) bütün
- *   yurt dışı adaylarını taşır: liste, üretimin kuralının bu kopyaya uygulanmış hâlidir (498 = 56 +
- *   75 + 89 + 278; askerî hava üsleri listelenmez, D-107; `listedAirportPins`). Üretim
+ *   `AIRPORT_RING_CONFIG`). Fixture Türkiye'nin bütün satırlarını ve açık halkaların (1.–4.) bütün
+ *   yurt dışı adaylarını taşır: liste, üretimin kuralının bu kopyaya uygulanmış hâlidir (1.217 = 56
+ *   + 75 + 89 + 278 + 719; askerî hava üsleri listelenmez, D-107; `listedAirportPins`). Üretim
  *   OurAirports'u her gece yeniden içe aktarır (`reference-import`); tarifeli sefer, tür, IATA kodu
  *   ya da konum değişirse üretimin listesi fixture'dan ayrılabilir. Bunu hiçbir test yakalamaz:
  *   kullanıcı iki listeyi elle karşılaştırır (ACTIVATION "Ülke adlarının engelleri"), ayrılık varsa
- *   fixture onayla tazelenir ve tablo yeniden üretilir. Halka açılınca (M6i) de fixture genişler
- *   ve tablo yeniden üretilir (airport-pins.test.ts açık halkayı denetler).
+ *   fixture onayla tazelenir ve tablo yeniden üretilir. Halka açılınca da fixture genişler ve tablo
+ *   yeniden üretilir (M6i.2, D-102) (airport-pins.test.ts açık halkayı denetler).
  * - **Haritadaki pinler** (`mapAirportPins`): liste, web haritasının savunma süzgecinden
  *   (`@havayolu/shared` `mapShownAirports`, D-103) geçerek. D-107'den beri liste askerî hava üssü
- *   taşımadığı için süzgeç bir şey çıkarmaz; engeller listenin kendisidir: 498 havalimanı (Türkiye
- *   56).
+ *   taşımadığı için süzgeç bir şey çıkarmaz; engeller listenin kendisidir: 1.217 havalimanı
+ *   (Türkiye 56).
  * - **Pin:** bitmap kutusu (airport-pin.ts): 24 × 32 görünüm kutusu + her yana 3 birim pay; katman
  *   alt kenarı noktaya bağlar ve `icon-offset` ile 3 birim aşağı kaydırır (`AIRPORT_LAYER`; ofset
  *   `icon-size` ile çarpılır). Ucu noktadadır; kutu noktaya göre [−15s, +15s] × [−35s, +3s] px, s
@@ -81,7 +81,7 @@ export const AIRPORT_CHIP_WIDTH = Math.ceil(
 export interface AirportPin {
   icao: string
   iata: string
-  /** Türkiye 0, yurt dışı açık halka (1–3). */
+  /** Türkiye 0, yurt dışı açık halka (1–4). */
   ring: number
   lat: number
   lon: number

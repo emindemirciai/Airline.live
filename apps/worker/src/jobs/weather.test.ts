@@ -432,18 +432,19 @@ describe('runWeatherMetar', () => {
     expect(hours).toEqual([AWC_METAR_MAX_HOURS])
   })
 
-  it('Türkiye + 1.–3. halka (503 istasyon): yayından sonra 278 yeni istasyon 24 saatle, sonra yedi olağan istek', async () => {
-    // 503 istasyon × 2 saatte 4 METAR/SPECI = 2.012 kayıt; tek istek 400 sınırına takılırdı (D-080,
-    // D-088, D-090). Yayın anında kaydı olan 225 istasyon (Türkiye, 1. ve 2. halka) olağan 2 saatle
-    // (80 + 80 + 65), 3. halkanın 278 istasyonu ayrı isteklerle 24 saatle istenir (6'şarlı 47 istek:
-    // 46 × 6 + 2); ilk çalışma 50 istektir.
-    const stations = Array.from({ length: 503 }, (_, i) => {
+  it('Türkiye + 1.–4. halka (1.217 istasyon): yayından sonra 719 yeni istasyon 24 saatle (ilk çalışma 127 istek), sonra 16 olağan istek', async () => {
+    // 1.217 istasyon × 2 saatte 4 METAR/SPECI = 4.868 kayıt; tek istek 400 sınırına takılırdı (D-080,
+    // D-102). Yayın anında kaydı olan 498 istasyon (Türkiye, 1.–3. halka; askerî üsler yok, D-107)
+    // olağan 2 saatle (80 × 6 + 18), 4. halkanın 719 istasyonu ayrı isteklerle 24 saatle istenir
+    // (6'şarlı 120 istek: 119 × 6 + 5); ilk çalışma 127 istektir (3. halkanın yayınında 225 + 278
+    // istasyonla 3 + 47 = 50 istekti).
+    const stations = Array.from({ length: 1217 }, (_, i) => {
       const letter = (n: number) => String.fromCharCode(65 + (Math.floor(i / 26 ** n) % 26))
-      return `X${letter(1)}${letter(0)}A`
+      return `X${letter(2)}${letter(1)}${letter(0)}`
     })
     const { store, calls } = fakeStore({
       stations,
-      stored: stations.slice(0, 225),
+      stored: stations.slice(0, 498),
       source: { checkedAt: new Date(FIXTURE_NOW.getTime() - 5 * 60_000) },
     })
     const backfilled = new Set<string>()
@@ -471,8 +472,8 @@ describe('runWeatherMetar', () => {
         headers: { 'content-type': 'application/json' },
       })
     }) as typeof globalThis.fetch
-    // İstekler arası en kısa aralık (D-090) providers testinde sahte saatle denetlenir; burada 57
-    // istek gerçek saatte ~40 sn beklerdi.
+    // İstekler arası en kısa aralık (D-090) providers testinde sahte saatle denetlenir; burada 143
+    // istek gerçek saatte ~100 sn beklerdi.
     const client = createAviationWeatherClient({
       userAgent: 'havayolu/0.12.0 (+https://havayolu.live)',
       fetch,
@@ -490,40 +491,38 @@ describe('runWeatherMetar', () => {
       })
     const result = await run()
     expect(requests.map((u) => u.searchParams.get('hours'))).toEqual([
-      '2',
-      '2',
-      '2',
-      ...Array.from({ length: 47 }, () => String(AWC_METAR_MAX_HOURS)),
+      ...Array.from({ length: 7 }, () => '2'),
+      ...Array.from({ length: 120 }, () => String(AWC_METAR_MAX_HOURS)),
     ])
     expect(requests.map((u) => u.searchParams.get('ids')?.split(',').length)).toEqual([
-      80,
-      80,
-      65,
-      ...Array.from({ length: 46 }, () => 6),
-      2,
+      ...Array.from({ length: 6 }, () => 80),
+      18,
+      ...Array.from({ length: 119 }, () => 6),
+      5,
     ])
-    expect(requests).toHaveLength(50)
+    expect(requests).toHaveLength(127)
     expect(80 * 4).toBeLessThan(AWC_MAX_ENTRIES)
     expect(result).toMatchObject({
       status: 200,
-      stations: 503,
-      reports: 503 * 4,
-      stationsWithReport: 503,
+      stations: 1217,
+      reports: 1217 * 4,
+      stationsWithReport: 1217,
       truncated: false,
-      // Çalışma sonucu (ve günlüğü) istek sayısını taşır (D-101): olağan 3 + doldurma 47.
-      requests: 50,
+      // Çalışma sonucu (ve günlüğü) istek sayısını taşır (D-101): olağan 7 + doldurma 120.
+      requests: 127,
     })
-    expect(calls.metars[0]).toHaveLength(503 * 4)
+    expect(calls.metars[0]).toHaveLength(1217 * 4)
     expect(calls.metars[0]?.[0]?.rawText).toBe('XAAA 151250Z 00000KT 9999 Q1010')
 
-    // Sonraki çalışmada bütün istasyonlar olağan geriye bakışla: yedi istek (80 × 6 + 23).
+    // Sonraki çalışmada bütün istasyonlar olağan geriye bakışla: 16 istek (80 × 15 + 17).
     requests.length = 0
-    expect(await run()).toMatchObject({ status: 200, stations: 503, requests: 7 })
+    expect(await run()).toMatchObject({ status: 200, stations: 1217, requests: 16 })
     expect(requests.map((u) => u.searchParams.get('hours'))).toEqual(
-      Array.from({ length: 7 }, () => '2'),
+      Array.from({ length: 16 }, () => '2'),
     )
     expect(requests.map((u) => u.searchParams.get('ids')?.split(',').length)).toEqual([
-      80, 80, 80, 80, 80, 80, 23,
+      ...Array.from({ length: 15 }, () => 80),
+      17,
     ])
   })
 
@@ -787,10 +786,10 @@ describe('runWeatherTaf ve runWeatherPrune', () => {
     ])
   })
 
-  it('TAF: 503 istasyon üç istek (200 + 200 + 103); sonuç istek sayısını taşır (D-101)', async () => {
-    const stations = Array.from({ length: 503 }, (_, i) => {
+  it('TAF: 1.217 istasyon yedi istek (200 × 6 + 17); sonuç istek sayısını taşır (D-101, D-102)', async () => {
+    const stations = Array.from({ length: 1217 }, (_, i) => {
       const letter = (n: number) => String.fromCharCode(65 + (Math.floor(i / 26 ** n) % 26))
-      return `X${letter(1)}${letter(0)}A`
+      return `X${letter(2)}${letter(1)}${letter(0)}`
     })
     const { store } = fakeStore({ stations })
     const sizes: number[] = []
@@ -811,8 +810,9 @@ describe('runWeatherTaf ve runWeatherPrune', () => {
       log,
       now: () => FIXTURE_NOW,
     })
-    expect(sizes).toEqual([200, 200, 103])
-    expect(result).toMatchObject({ status: 200, stations: 503, reports: 0, requests: 3 })
+    // 3. halkada (498 istasyon) üç istekti (200 + 200 + 98).
+    expect(sizes).toEqual([200, 200, 200, 200, 200, 200, 17])
+    expect(result).toMatchObject({ status: 200, stations: 1217, reports: 0, requests: 7 })
   })
 
   it('400 kayıt sınırı uyarısı istek sayısıyla yazılır', async () => {

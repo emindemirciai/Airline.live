@@ -1,4 +1,4 @@
-import { format, formatDistance, getMessages } from '@havayolu/i18n'
+import { format, formatCount, formatDistance, getMessages } from '@havayolu/i18n'
 import type { AirportDetail, Locale } from '@havayolu/shared'
 import Link from 'next/link'
 // Göreli yollar: vitest `@/` takma adını çözmez ve bu bileşen testte çizilir.
@@ -11,7 +11,6 @@ import {
   airportCountry,
   airportName,
   airportProvince,
-  formatCount,
   formatDataDate,
   formatMeters,
   listedRadiusKm,

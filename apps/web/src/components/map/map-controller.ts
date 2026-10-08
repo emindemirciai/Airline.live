@@ -185,7 +185,7 @@ export const NO_INSETS: Readonly<MapInsets> = Object.freeze({ bottom: 0, left: 0
 /**
  * Havalimanı kodlarının çizim girdisi: görünümdeki havalimanları ekran konumlarıyla. Kod yazılmayacaksa
  * (yakınlaştırma `AIRPORT_LABEL_MIN_ZOOM`'un altında ya da ayar Gizle) hiçbir havalimanı izdüşürülmez:
- * her karede bütün liste (4. halkada ~1.222 havalimanı) boşuna izdüşürülürdü (D-101). Uçak
+ * her karede bütün liste (4. halkada 1.217 havalimanı) boşuna izdüşürülürdü (D-101). Uçak
  * etiketleri bundan etkilenmez.
  */
 export function screenAirports(

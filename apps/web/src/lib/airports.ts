@@ -22,10 +22,17 @@ export { isTurkish } from '../components/airports/airport-text'
  * - İstemci başlıkları (X-Forwarded-For, CF-Connecting-IP) **iletilmez**: Next önbellek anahtarı
  *   istek başlıklarını içerir (next/dist/server/lib/incremental-cache → generateCacheKey); iletilse
  *   önbellek ziyaretçi başına bölünürdü.
- * - Boyut (3. halka, D-090): 503 havalimanı (ölçüm; D-107'den beri 498) ve pistleri ~0,45 MB
- *   (base64 ~0,6 MB); Next veri önbelleğinin 2 MiB öğe sınırının altındadır. Gövdenin denetimi
- *   (`parseAirportsBody`) sayfa çizimi başına ~6 ms'dir (Node, ölçüm). Görünür alana göre yükleme
- *   4. halkadadır (M6i).
+ * - Boyut (4. halka, D-102): 1.217 havalimanı ve pistleri 1,05 MB; Next'in önbellek kaydı (gövde
+ *   base64) 1,40 MB, 2 MiB öğe sınırının %67'si (geliştirmede sınır aşılırsa hata, üretimde
+ *   önbelleksiz istek). API'nin `airports-cache-size.test.ts` testi kaydın sınırın %85'inin altında
+ *   kaldığını fixture'dan denetler; 5. halkada sınır kırılır (D-101).
+ * - Ayrıştırma önbellek kaydı başına bir kez: Next her çizimde kaydın gövdesini yeniden verir;
+ *   gövdenin JSON'u ve denetimi (`parseAirportsBody`) 4. halkada çizim başına ~12 ms'dir (JSON ~6,
+ *   zod ~5; 3. halkada ~5). Ayrıştırılan liste pencere başına bellekte tutulur ve gelen gövde
+ *   bir öncekiyle aynı metinse yeniden kullanılır (~2 ms: base64 çözme ve metin karşılaştırması;
+ *   D-102). Kayıt yenilenip gövde değişince yeniden ayrıştırılır; Next'in önbellek davranışı
+ *   (süre, etiket, hatada eski kayıt) değişmez. Dönen dizi istekler arasında paylaşılır, salt
+ *   okunurdur (`readonly`).
  * - İstek başına tek çağrı: React `cache()`.
  * - Next yalnızca 200 yanıtı önbelleğe alır; API ulaşılamazsa sayfa 500 verir (yumuşak 404 değil),
  *   önbellekte eski kopya varsa o sunulur.
@@ -130,18 +137,29 @@ export function parseAirportsBody(body: unknown): AirportDetail[] {
 export const AIRPORTS_CACHE_WINDOW_HEADER = 'x-hy-cache-window'
 
 /**
+ * Önbellek penceresi başına son ayrıştırılan liste ve gövdesi: Next'in veri önbelleği aynı gövdeyi
+ * verdikçe JSON ve zod yeniden çalışmaz (D-102).
+ */
+const parsedByWindow = new Map<number, { text: string; airports: readonly AirportDetail[] }>()
+
+/**
  * Önbellekli liste isteği. Next veri önbelleğinin anahtarı `revalidate` süresini içermez, istek
  * başlıklarını içerir (`incremental-cache/index.js` → `generateCacheKey`). Pencere bu yüzden bir
  * başlıkla anahtara girer: saatlik ve dakikalık kayıtlar birbirini ezmez.
  */
-async function fetchAirports(url: string, revalidateS: number): Promise<AirportDetail[]> {
+async function fetchAirports(url: string, revalidateS: number): Promise<readonly AirportDetail[]> {
   const response = await fetch(url, {
     next: { revalidate: revalidateS, tags: [AIRPORTS_CACHE_TAG] },
     headers: { accept: 'application/json', [AIRPORTS_CACHE_WINDOW_HEADER]: String(revalidateS) },
     signal: AbortSignal.timeout(AIRPORTS_TIMEOUT_MS),
   })
   if (!response.ok) throw new Error(`airports request failed: HTTP ${response.status}`)
-  return parseAirportsBody(await response.json())
+  const text = await response.text()
+  const memo = parsedByWindow.get(revalidateS)
+  if (memo?.text === text) return memo.airports
+  const airports: readonly AirportDetail[] = parseAirportsBody(JSON.parse(text) as unknown)
+  parsedByWindow.set(revalidateS, { text, airports })
+  return airports
 }
 
 /**
@@ -149,7 +167,7 @@ async function fetchAirports(url: string, revalidateS: number): Promise<AirportD
  * kayıttaki liste boşsa (ilk kurulumda içe aktarım bitmeden alınmış) dakikalık kayda bakılır;
  * önbelleksiz istek atılmaz. Saatlik kayıt süresi dolunca kendiliğinden dolu listeyle yenilenir.
  */
-export const getAirports = cache(async (): Promise<AirportDetail[]> => {
+export const getAirports = cache(async (): Promise<readonly AirportDetail[]> => {
   const url = airportsUrl(getServerEnv().API_INTERNAL_URL)
   const cached = await fetchAirports(url, AIRPORTS_REVALIDATE_S)
   if (cached.length > 0) return cached

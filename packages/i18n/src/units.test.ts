@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   DEFAULT_UNIT_SYSTEM,
   formatAltitude,
+  formatCount,
   formatDistance,
   formatFlightNumber,
   formatSpeed,
@@ -124,6 +125,19 @@ describe('formatVerticalRate', () => {
     expect(formatVerticalRate(0.5, aviation)).toBe('+1 ft/dk')
     expect(formatVerticalRate(-0.5, aviation)).toBe(`${MINUS}1 ft/dk`)
     expect(formatAltitude(-2.5, aviation)).toBe(`${MINUS}3 ft`)
+  })
+})
+
+describe('formatCount', () => {
+  it('binlik ayırıcıyla tam sayı: tr nokta, en virgül (D-102, D-106)', () => {
+    expect(formatCount(1161, 'tr')).toBe('1.161')
+    expect(formatCount(1161, 'en')).toBe('1,161')
+    expect(formatCount(1217, 'tr')).toBe('1.217')
+    expect(formatCount(1217, 'en')).toBe('1,217')
+    expect(formatCount(503, 'en')).toBe('503')
+    expect(formatCount(61, 'tr')).toBe('61')
+    expect(formatCount(0, 'en')).toBe('0')
+    expect(formatCount(1221.6, 'tr')).toBe('1.222')
   })
 })
 

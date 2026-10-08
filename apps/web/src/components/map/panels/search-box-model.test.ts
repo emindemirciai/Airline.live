@@ -387,9 +387,9 @@ describe.each(['tr', 'en'] as const)('searchStatusText (%s)', (locale) => {
       expect(coverage).toBe(t.airportNotFound)
     } else {
       expect(coverage).toBe(
-        `${t.airportNotFound} ${t.airportCoverage.replace('{km}', locale === 'tr' ? '2.000 km' : '2,000 km')}`,
+        `${t.airportNotFound} ${t.airportCoverage.replace('{km}', locale === 'tr' ? '5.000 km' : '5,000 km')}`,
       )
-      expect(km).toBe(2000)
+      expect(km).toBe(5000)
     }
   })
 

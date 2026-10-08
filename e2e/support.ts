@@ -46,23 +46,29 @@ export const AIRPORT_COUNT = 56
 export const INDEXABLE_AIRPORT_COUNT = 56
 
 /**
- * Türkiye dışındaki listelenen havalimanları (M6d, D-080; M6g, D-088; M6h, D-090): 1.–3. halka,
- * yani IATA kodlu en yakın Türkiye havalimanına en çok 2.000 km olan, OurAirports'ta tarifeli seferi
- * kayıtlı büyük ve orta boy havalimanları. Fixture'a 2026-10-01 indirmesinden eklenen 75 + 89 + 275
- * havalimanı ve fixture'ın uzak örneklerinden 3. halkadaki Frankfurt, Dubai ve Doha Hamad bu
- * kuraldadır ve hepsi dizine eklenir. Fixture'ın diğer uzak havalimanları (EGLL, LFPG, EHAM, LEMD,
- * KJFK) listelenmez.
+ * Türkiye dışındaki listelenen havalimanları (M6d, D-080; M6g, D-088; M6h, D-090; M6i.2, D-102):
+ * 1.–4. halka, yani IATA kodlu en yakın Türkiye havalimanına en çok 5.000 km olan, OurAirports'ta
+ * tarifeli seferi kayıtlı, dört karakterli ICAO'su olan büyük ve orta boy havalimanları. Fixture'a
+ * 2026-10-01 indirmesinden eklenen 75 + 89 + 275 + 716 havalimanı ve fixture'ın uzak örneklerinden
+ * 3. halkadaki Frankfurt, Dubai ve Doha Hamad ile 4. halkadaki Londra Heathrow, Paris Charles de
+ * Gaulle, Amsterdam ve Madrid bu kuraldadır ve hepsi dizine eklenir. New York JFK (5. halka) ve
+ * dört karakterli ICAO'su olmayan Kihihi (UG-0002, IATA KHX; D-101) listelenmez.
  */
 export const RING1_AIRPORT_COUNT = 75
 export const RING2_AIRPORT_COUNT = 89
 export const RING3_AIRPORT_COUNT = 278
-export const FOREIGN_AIRPORT_COUNT = RING1_AIRPORT_COUNT + RING2_AIRPORT_COUNT + RING3_AIRPORT_COUNT
-/** `GET /v1/airports?scope=listed`: 56 Türkiye + 442 Türkiye dışı = 498 (D-107'den önce 503). */
+export const RING4_AIRPORT_COUNT = 719
+export const FOREIGN_AIRPORT_COUNT =
+  RING1_AIRPORT_COUNT + RING2_AIRPORT_COUNT + RING3_AIRPORT_COUNT + RING4_AIRPORT_COUNT
+/**
+ * `GET /v1/airports?scope=listed`: 56 Türkiye + 1.161 Türkiye dışı = 1.217 (D-107'den önce 61
+ * Türkiye, 1.222).
+ */
 export const LISTED_AIRPORT_COUNT = AIRPORT_COUNT + FOREIGN_AIRPORT_COUNT
-/** Dizine eklenen havalimanı sayfaları: Türkiye'nin 56'sı ve Türkiye dışındakilerin hepsi (498). */
+/** Dizine eklenen havalimanı sayfaları: Türkiye'nin 56'sı ve Türkiye dışındakilerin hepsi (1.217). */
 export const INDEXABLE_LISTED_AIRPORT_COUNT = INDEXABLE_AIRPORT_COUNT + FOREIGN_AIRPORT_COUNT
 /** Halkaların üst sınırları, km (`AIRPORT_RINGS_KM`; D-080). */
-export const RING_LIMITS_KM = { 1: 500, 2: 1000, 3: 2000 } as const
+export const RING_LIMITS_KM = { 1: 500, 2: 1000, 3: 2000, 4: 5000 } as const
 
 /**
  * 1. halkadan örnek havalimanı: Atina (en yakın Türkiye havalimanı İzmir Adnan Menderes, 284 km;
@@ -128,10 +134,32 @@ export const CIVIL_CLOSURE_AIRPORT = {
 /** Hava durumu fixture'ı elle yazılmış 1. halka havalimanları (M6d). */
 export const RING1_WEATHER_AIRPORTS = ['LGAV', 'LCLK', 'LCEN', 'UGTB', 'LBSF', 'LGTS'] as const
 /**
- * Referans fixture'ında olan ama listelenmeyen uzak havalimanı (Londra Heathrow; Türkiye'ye
- * ~2.375 km, 4. halka): sayfası 404'tür.
+ * 4. halkadan örnek havalimanı (D-102): Londra Heathrow (Türkiye'deki en yakın IATA kodlu alan
+ * listelenmeyen Gökçeada, ~2.375 km). OurAirports ülkesi GB; saat dilimi Europe/London (yazın
+ * UTC+1, kışın UTC). 4. halkada uzaklık 2.000 km'den büyüktür (en yakını Barselona, 2.003 km).
  */
-export const UNLISTED_FOREIGN_AIRPORT = { icao: 'EGLL', iata: 'LHR' } as const
+export const RING4_AIRPORT = {
+  icao: 'EGLL',
+  iata: 'LHR',
+  country: 'GB',
+  countryTr: 'Birleşik Krallık',
+  countryEn: 'United Kingdom',
+  nameTr: 'Londra Heathrow Havalimanı',
+  nameEn: 'London Heathrow Airport',
+  timeZone: 'Europe/London',
+} as const
+/**
+ * Referans fixture'ında olan ama listelenmeyen uzak havalimanı (New York JFK; 5. halka): sayfası
+ * 404'tür.
+ */
+export const UNLISTED_FOREIGN_AIRPORT = { icao: 'KJFK', iata: 'JFK' } as const
+/**
+ * 4. halkada olup dört karakterli kanonik ICAO'su olmadığı için listelenmeyen havalimanı (D-101):
+ * Kihihi'nin Savannah pisti, OurAirports kimliği UG-0002, IATA KHX. `/istasyon/KHX` yönlendirmeden
+ * 404'tür (`/istasyon/UG-0002`'ye 308 olmaz); liste, toplu hava, site haritası ve llms.txt onu
+ * taşımaz.
+ */
+export const NON_ICAO_AIRPORT = { ident: 'UG-0002', iata: 'KHX' } as const
 /** Sitemap'teki havalimanı dışı sayfalar; her birinin `/en` ikizi de vardır (D-076). */
 export const STATIC_PUBLIC_PATHS = [
   '/',
@@ -359,13 +387,22 @@ export function sitePath(url: string | undefined, what: string): string {
   return `${parsed.pathname}${parsed.search}`
 }
 
-/** Yönlendirmeleri izlemeden alınan yanıt ve gövdesi. İlk istekte next dev sayfayı derleyebilir. */
+/**
+ * Yönlendirmeleri izlemeden alınan yanıt ve gövdesi. İlk istekte next dev sayfayı derleyebilir.
+ * Her istek yeni bağlantıyla gider (`Connection: close`): Node sunucusu boştaki keep-alive
+ * bağlantısını 5 sn sonra kapatır; iki istek arasında uzun denetim yapan test (site haritası,
+ * 2.444 adres) aynı soketi yeniden kullanınca istek `ECONNRESET` ile düşüyordu.
+ */
 export async function fetchRaw(
   request: APIRequestContext,
   path: string,
   headers: Record<string, string> = {},
 ): Promise<{ response: APIResponse; body: string }> {
-  const response = await request.get(path, { headers, maxRedirects: 0, timeout: 60_000 })
+  const response = await request.get(path, {
+    headers: { connection: 'close', ...headers },
+    maxRedirects: 0,
+    timeout: 60_000,
+  })
   return { response, body: await response.text() }
 }
 
