@@ -11,7 +11,9 @@ import type { Logger } from 'pino'
  * denetlenen kurallardan sapmalarını sayan tek günlük satırı. 5. halka içe aktarımın canlı veriden
  * kayabileceği alanı 2,67 katına çıkarır; kuralların (saat dilimi, kaplama kodu, ad tablosu) eksik
  * kaldığı yer bu satırda görünür, kullanıcıya dönük bir şey değişmez (dilimsiz havalimanı UTC'yle,
- * tanınmayan kaplama "bilinmiyor"la, adsız havalimanı OurAirports adıyla gösterilir).
+ * tanınmayan kaplama "bilinmiyor"la, adsız havalimanı OurAirports adıyla gösterilir). Tek istisna:
+ * çok dilimli bir ülkede yeni listelenen havalimanı bölge varsayılanıyla yanlış dilim alabilir;
+ * `withoutTimeZone` onu saymaz, tek işareti `withoutCuratedName`'dir (RUNBOOK "İçe aktarım kayması").
  */
 
 /** Örnek listelerinin en çok uzunluğu (günlük satırı kısa kalır). */
