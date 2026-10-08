@@ -1,10 +1,10 @@
 /**
- * Haritada ülke adları (D-095, D-096, D-099, D-100, D-103). Kullanıcı kararı 2026-10-05: tasarım
- * tuvalinde A · "Sessiz büyük harf", "Saydam olsun"; sonra "Ülke isimlerini ülke sınırları dışına
- * taşırma. 2 kelime ise alt alta yaz."; sonra "boyut iyi fakat az biraz daha belirgin olsun ülke
- * isimleri. boşlukta bir yerde yazsa da olur."; sonra "havalimanı olmayan ülke isimlerini
- * eklemiyorsun." Ad sayfanın dilinde büyük harfle yazılır; işaret noktası yoktur. Ad boyu ülkenin
- * yüzölçümü kademesindendir (`COUNTRY_LABEL_AREAS_KM2`, `countryLabelTier`).
+ * Haritada ülke adları (D-095, D-096, D-099, D-100, D-102, D-103). Kullanıcı kararı 2026-10-05:
+ * tasarım tuvalinde A · "Sessiz büyük harf", "Saydam olsun"; sonra "Ülke isimlerini ülke
+ * sınırları dışına taşırma. 2 kelime ise alt alta yaz."; sonra "boyut iyi fakat az biraz daha
+ * belirgin olsun ülke isimleri. boşlukta bir yerde yazsa da olur."; sonra "havalimanı olmayan
+ * ülke isimlerini eklemiyorsun." Ad sayfanın dilinde büyük harfle yazılır; işaret noktası yoktur.
+ * Ad boyu ülkenin yüzölçümü kademesindendir (`COUNTRY_LABEL_AREAS_KM2`, `countryLabelTier`).
  *
  * - **Bütün ülkeler (D-100):** Natural Earth 4.1.0'ın ISO 3166-1 kodlu bütün birimleri (deniz aşırı
  *   bölgeler kendi kodlarıyla), havalimanı olsun olmasın; İsrail, Filistin (D-095) ve Antarktika
@@ -16,10 +16,11 @@
  *   yakınlaştırmada sığmayan küçük ülkenin (Bahreyn, Lüksemburg, Malta gibi) adı yazılmaz.
  * - **Boş yerde (D-099):** ad, havalimanı pinlerinin ve kodlarının olmadığı bir yerdedir: üreticinin
  *   modeline göre kutusuna yazıldığı hiçbir yakınlaştırmada pin ya da kod girmez (boş yer için en
- *   çok 1,5 kademe geç belirir); boş yer yoksa (yalnızca Türkiye) en az çakışan yerdedir ve geç
- *   gelmez. Eşitlikte en erken sığan, sonra ülkenin görsel merkezine en yakın yer seçilir; başkent
- *   rol oynamaz. İstisna KIBRIS'tır: kullanıcı kararıyla Lefkoşa'da yazılır (D-095), Ercan pini adın
- *   üstündedir. Model, pini ve kodun pin başının sağındaki ve solundaki kutusunu commit'li
+ *   çok 1,5 kademe geç belirir); boş yer yoksa (Türkiye; 4. halkayla Hindistan ve Nijerya, D-102)
+ *   en az çakışan yerdedir ve en çok 0,25 kademe geç belirir. Eşitlikte en erken sığan, sonra
+ *   ülkenin görsel merkezine en yakın yer seçilir; başkent rol oynamaz. İstisna KIBRIS'tır:
+ *   kullanıcı kararıyla Lefkoşa'da yazılır (D-095), Ercan pini adın üstündedir. Model, pini ve
+ *   kodun pin başının sağındaki ve solundaki kutusunu commit'li
  *   OurAirports fixture'ının (2026-10-01) haritada pini çizilen havalimanları (listelenenler,
  *   askerî hava üsleri hariç: `mapShownAirports`, D-103) için sayar. Haritada kod
  *   pinin üstüne ya da altına geçerse ya da OurAirports'un gece yenilenmesiyle yeni bir havalimanı

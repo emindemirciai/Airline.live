@@ -12,8 +12,35 @@ import type { ChangelogEntry } from './types'
  */
 export const CHANGELOG: readonly ChangelogEntry[] = [
   {
+    version: '0.23.0',
+    date: '2026-10-08',
+    title: {
+      tr: '4. halka: 719 havalimanı daha, 5.000 km’ye kadar',
+      en: 'Ring 4: 719 more airports, up to 5,000 km',
+    },
+    items: [
+      {
+        tr: 'Listeye 719 havalimanı daha eklendi; artık 1.217 havalimanı var. Londra, Delhi, Ulan Batur, Nairobi, Lagos, Reykjavik ve Novosibirsk gibi 5.000 km’ye kadar olan havalimanlarının sayfası, pistleri, yerel saati ve hava durumu hazır; 55 ülke ilk kez listede.',
+        en: '719 more airports are listed, 1,217 in total. Airports up to 5,000 km away such as London, Delhi, Ulaanbaatar, Nairobi, Lagos, Reykjavik and Novosibirsk now have their page, runways, local time and weather; 55 countries appear for the first time.',
+      },
+      {
+        tr: 'Havalimanı adları ve şehirleri Türkçe ve İngilizce derlendi (Londra Heathrow, Yeni Delhi Indira Gandhi, Ulan Batur Cengiz Han). Haritadaki arama da yeni havalimanlarını bulur: “Londra” Londra’nın altı havalimanını listeler.',
+        en: 'Airport names and cities are written in Turkish and English (London Heathrow, New Delhi Indira Gandhi, Ulaanbaatar Chinggis Khaan). The map search finds the new airports too: “London” lists London’s six airports.',
+      },
+      {
+        tr: 'Canlı uçak verisi şimdilik Türkiye ve çevresinden çekildiği için bu havalimanlarının çoğunun çevresindeki uçaklar haritada görünmez; sayfalarında bu yazar. Çok havalimanı olan Hindistan ve Nijerya’nın adı uzaktan bakınca birkaç havalimanı işaretiyle örtüşebilir.',
+        en: 'Live aircraft data is still fetched only over Türkiye and the surrounding area, so aircraft around most of these airports do not appear on the map; their pages say so. With many airports, the INDIA and NIGERIA names can touch a few pins when zoomed far out.',
+      },
+    ],
+    tryLinks: [
+      { path: '/havalimanlari', label: { tr: 'Havalimanları', en: 'Airports' } },
+      { path: '/istasyon/EGLL', label: { tr: 'Londra Heathrow', en: 'London Heathrow' } },
+    ],
+  },
+  {
     version: '0.22.5',
-    date: '2026-10-07',
+    date: '2026-10-08',
+    releasedAt: '2026-10-07T21:01:27Z',
     title: {
       tr: 'Bütün ülkelerin adları haritada',
       en: 'Every country named on the map',

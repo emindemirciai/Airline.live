@@ -1,6 +1,6 @@
 /**
  * Uçuş evresinin havalimanı araması için 1°'lik enlem-boylam ızgarası (D-101). Uçak örneği başına
- * bütün havalimanlarını taramak 4. halkada (~1.222 havalimanı) 500 uçakta tam güncellemeyi ~25 ms'ye
+ * bütün havalimanlarını taramak 4. halkada (1.217 havalimanı) 500 uçakta tam güncellemeyi ~25 ms'ye
  * çıkarıyordu; ızgara aynı sonucu ~4 ms'de verir (`flight-phase-grid.test.ts`: doğrusal taramayla
  * özellik testi).
  *

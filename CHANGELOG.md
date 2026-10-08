@@ -8,7 +8,29 @@
 
 ---
 
-## v0.22.5 — 2026-10-07
+## v0.23.0 — 2026-10-08
+
+### Türkçe
+**4. halka: 719 havalimanı daha, 5.000 km’ye kadar**
+
+- Listeye 719 havalimanı daha eklendi; artık 1.217 havalimanı var. Londra, Delhi, Ulan Batur, Nairobi, Lagos, Reykjavik ve Novosibirsk gibi 5.000 km’ye kadar olan havalimanlarının sayfası, pistleri, yerel saati ve hava durumu hazır; 55 ülke ilk kez listede.
+- Havalimanı adları ve şehirleri Türkçe ve İngilizce derlendi (Londra Heathrow, Yeni Delhi Indira Gandhi, Ulan Batur Cengiz Han). Haritadaki arama da yeni havalimanlarını bulur: “Londra” Londra’nın altı havalimanını listeler.
+- Canlı uçak verisi şimdilik Türkiye ve çevresinden çekildiği için bu havalimanlarının çoğunun çevresindeki uçaklar haritada görünmez; sayfalarında bu yazar. Çok havalimanı olan Hindistan ve Nijerya’nın adı uzaktan bakınca birkaç havalimanı işaretiyle örtüşebilir.
+
+Dene: [Havalimanları](/havalimanlari) · [Londra Heathrow](/istasyon/EGLL)
+
+### English
+**Ring 4: 719 more airports, up to 5,000 km**
+
+- 719 more airports are listed, 1,217 in total. Airports up to 5,000 km away such as London, Delhi, Ulaanbaatar, Nairobi, Lagos, Reykjavik and Novosibirsk now have their page, runways, local time and weather; 55 countries appear for the first time.
+- Airport names and cities are written in Turkish and English (London Heathrow, New Delhi Indira Gandhi, Ulaanbaatar Chinggis Khaan). The map search finds the new airports too: “London” lists London’s six airports.
+- Live aircraft data is still fetched only over Türkiye and the surrounding area, so aircraft around most of these airports do not appear on the map; their pages say so. With many airports, the INDIA and NIGERIA names can touch a few pins when zoomed far out.
+
+Try it: [Airports](/havalimanlari) · [London Heathrow](/istasyon/EGLL)
+
+---
+
+## v0.22.5 — 2026-10-08 00:01 (UTC+3)
 
 ### Türkçe
 **Bütün ülkelerin adları haritada**

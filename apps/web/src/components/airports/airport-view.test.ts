@@ -1,4 +1,4 @@
-import { getMessages } from '@havayolu/i18n'
+import { format, formatCount, getMessages } from '@havayolu/i18n'
 import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it, vi } from 'vitest'
@@ -8,16 +8,16 @@ import {
   fixtureListedAirports,
   fixtureTurkishAirports,
 } from '../../lib/test/ourairports-fixture'
-import { airportCountry, airportDescription, formatCount } from './airport-text'
+import { airportCountry, airportDescription } from './airport-text'
 import { AirportView } from './airport-view'
 import { civilClosureNote } from './civil-closure'
-import { AirportsView } from './airports-view'
+import { airportCounts, AirportsView } from './airports-view'
 
 // `lib/airports` sunucu modülüdür; testte sunucu modülü olarak yüklenir.
 vi.mock('server-only', () => ({}))
 
 const AIRPORTS = fixtureTurkishAirports()
-/** Listelenen havalimanları: Türkiye ile 1. ve 2. halkanın yabancı havalimanları (D-080, D-088). */
+/** Listelenen havalimanları: Türkiye ile 1.–4. halkanın yabancı havalimanları (D-080, D-088, D-102). */
 const LISTED = fixtureListedAirports()
 const FOREIGN = LISTED.filter((a) => a.country !== 'TR')
 const byIcao = (icao: string) => {
@@ -468,7 +468,7 @@ describe('AirportView: diğer ülkelerdeki havalimanı (D-080, D-106)', () => {
     expect(closed.map((a) => a.icao).sort()).toEqual(['URKG', 'URKK', 'URWI', 'UUOO'])
   })
 
-  it('4. halka (halka henüz kapalı, D-101): görünür pisti olmayan beş havalimanı pistsiz çizilir', () => {
+  it('4. halka (D-101, D-102): görünür pisti olmayan beş havalimanı pistsiz çizilir', () => {
     for (const icao of ['GMAZ', 'VIMB', 'ULDD', 'VOVI', 'ZWTK']) {
       const airport = fixtureForeignAirport(icao)
       expect(airport.ring, icao).toBe(4)
@@ -556,6 +556,26 @@ describe('AirportsView', () => {
     return renderToStaticMarkup(createElement(AirportsView, { locale, app: 'havayolu', airports }))
   }
 
+  it('liste sayfasının açıklaması 4. halkayla da 70–170 karakter (1.217 = 56 + 1.161; D-102, D-106, D-107)', () => {
+    const counts = airportCounts(LISTED)
+    expect(counts).toEqual({ count: 56, foreign: 1161 })
+    // Açıklama ve özet tek toplam sayı yazar, dilin binlik ayırıcısıyla (D-106).
+    const grouped = { tr: '1.217', en: '1,217' } as const
+    const lengths = { tr: 150, en: 154 } as const
+    for (const locale of ['tr', 'en'] as const) {
+      const count = formatCount(counts.count + counts.foreign, locale)
+      expect(count, locale).toBe(grouped[locale])
+      const description = format(getMessages(locale).seo.airports.description, { count })
+      expect(description, locale).toContain(grouped[locale])
+      expect(description, locale).not.toContain('1217')
+      expect(description.length, `${locale}: ${description}`).toBe(lengths[locale])
+      expect(description.length, `${locale}: ${description}`).toBeGreaterThanOrEqual(70)
+      expect(description.length, `${locale}: ${description}`).toBeLessThanOrEqual(170)
+      const lead = format(getMessages(locale).airports.summary, { count })
+      expect(renderList(locale, LISTED)).toContain(`<p class="lead">${lead}</p>`)
+    }
+  })
+
   it('bütün havalimanları gerçek bir tabloda, il adına göre sıralı', () => {
     const html = renderList('tr')
     expect(html).toContain('<h1>Havalimanları</h1>')
@@ -632,7 +652,7 @@ describe('AirportsView', () => {
     expect(LISTED).toHaveLength(56 + FOREIGN.length)
     expect(body).toContain(`Listede ${formatCount(LISTED.length, 'tr')} havalimanı var;`)
     expect(body).toContain(
-      'Türkiye’deki en yakın havalimanına uzaklığı en fazla 2.000 km olan, IATA kodlu büyük ve orta boy havalimanları yer alır; bazı havalimanları listelenmez.',
+      'Türkiye’deki en yakın havalimanına uzaklığı en fazla 5.000 km olan, IATA kodlu büyük ve orta boy havalimanları yer alır; bazı havalimanları listelenmez.',
     )
     // OurAirports'un tarifeli sefer bilgisi gösterilmez (D-078, kullanıcı kararı).
     expect(body).not.toMatch(/tarifeli sefer|tarifesiz/i)
@@ -667,7 +687,7 @@ describe('AirportsView', () => {
     expect(countries[0]).toBe('Afghanistan')
     expect(text(html)).toContain(`The list has ${formatCount(LISTED.length, 'en')} airports;`)
     expect(text(html)).not.toContain('Distance to Türkiye')
-    expect(text(html)).toContain('at most 2,000 km from the nearest airport in Türkiye')
+    expect(text(html)).toContain('at most 5,000 km from the nearest airport in Türkiye')
     expect(text(html)).not.toMatch(/neighbouring/)
   })
 

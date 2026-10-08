@@ -3,7 +3,7 @@ import type { Locale, LocalizedText } from '../locale'
 /**
  * Ülke adları (D-080). ISO 3166-1 alpha-2 kodunun adı `Intl.DisplayNames` (`type: 'region'`) ile
  * sayfanın dilinde yazılır: GR → "Yunanistan" / "Greece". Kod tablosu tutulmaz; ad tarayıcının ve
- * Node'un CLDR verisinden gelir. Üç ayrım vardır:
+ * Node'un CLDR verisinden gelir. Dört ayrım vardır:
  * - XK (Kosova) ISO 3166-1'de kullanıcı tanımlı bir koddur; `Intl` adını bilmiyorsa (kodu geri
  *   verirse) "Kosova" / "Kosovo" yazılır.
  * - Ercan (LCEN): OurAirports ülkesi CY'dir; kullanıcı kararıyla (2026-10-02) KKTC olarak
@@ -16,7 +16,7 @@ import type { Locale, LocalizedText } from '../locale'
  * - Birkaç ülkenin CLDR adı yerine elle tutulan ad yazılır (`COUNTRY_NAME_OVERRIDES`, D-100):
  *   CLDR'ın ayırt edici biçimleri ("Kongo - Kinşasa", "Myanmar (Burma)") ve Türkçe CLDR'ın Fransızca
  *   adı ("Côte d’Ivoire"). Kural ülkeye bağlıdır: havalimanı sayfası, pencere, liste ve haritadaki ad
- *   aynıdır.
+ *   aynıdır; 4. halkanın (D-102) iki Kongo ve Fildişi Sahili havalimanları da bu adları taşır.
  */
 
 const INTL_LOCALE: Record<Locale, string> = { tr: 'tr-TR', en: 'en-GB' }

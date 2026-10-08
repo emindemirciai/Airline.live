@@ -1,4 +1,4 @@
-// Ülke adlarının e2e beklentileri (D-096, D-099, D-100). Değerler commit'li yerleşim tablosundan
+// Ülke adlarının e2e beklentileri (D-096, D-099, D-100, D-102). Değerler commit'li yerleşim tablosundan
 // (`COUNTRY_LABEL_PLACEMENTS`) ve kutu modelinden gelir; tools/src/country-labels/placement.test.ts
 // onları yeniden hesaplar, tablo ya da model değişince orada kırılır. Görünüm: Tahran Mehrabad
 // (OIII) ortada, Türkçe, geniş harita (1280 px), havalimanı kodları gizli.
@@ -7,9 +7,11 @@
  * `shown`: ilk sığma yakınlaştırması en çok z olan ve çapası tuvalin içinde (kenardan en az 40 px)
  * kalan adlar; MapLibre hepsini yerleştirir. `hidden`: ilk sığma yakınlaştırması z'den büyük
  * adlar; katmanları o yakınlaştırmada çizilmez, nerede olurlarsa olsunlar listede yoktur. Kesirli
- * `minzoom`: z4'teki ÖZBEKİSTAN ve PAKİSTAN (4,5) ile z3'teki AFGANİSTAN, SURİYE (3,75) ve TÜRKİYE
- * (3,25) çapaları tuvalin içindeyken yalnızca katmanın kesirli `minzoom`'uyla gizlenir; son üçü z4'te
- * yazılır. Listelenen havalimanı olmayan ülkeler de yazılır (D-100): z3'te HİNDİSTAN ve ÇAD.
+ * `minzoom`: z4'teki ÖZBEKİSTAN (4,5) ve PAKİSTAN (4,75) ile z3'teki AFGANİSTAN, SURİYE (3,75),
+ * TÜRKİYE ve HİNDİSTAN (3,25) çapaları tuvalin içindeyken yalnızca katmanın kesirli `minzoom`'uyla
+ * gizlenir; ilk üçü z4'te yazılır (HİNDİSTAN'ın çapası z4'te tuvalin dışındadır). 4. halkayla
+ * (D-102) HİNDİSTAN'ın 105 pini arasında boş yer kalmaz: ad kalabalık kuralıyla 3,25'ten yazılır
+ * (v0.22.5'te z3'te görünürdü). ÇAD z3'te yazılır (D-100; 4. halkayla N'Djamena listelenir).
  */
 export const TEHRAN_COUNTRY_LABELS = {
   z5: {
@@ -28,8 +30,8 @@ export const TEHRAN_COUNTRY_LABELS = {
     hidden: ['ÖZBEKİSTAN', 'PAKİSTAN', 'GÜRCİSTAN', 'AZERBAYCAN', 'ERMENİSTAN'],
   },
   z3: {
-    shown: ['İRAN', 'KAZAKİSTAN', 'LİBYA', 'HİNDİSTAN', 'ÇAD'],
-    hidden: ['AFGANİSTAN', 'SURİYE', 'TÜRKİYE', 'IRAK', 'TÜRKMENİSTAN'],
+    shown: ['İRAN', 'KAZAKİSTAN', 'LİBYA', 'ÇAD'],
+    hidden: ['AFGANİSTAN', 'SURİYE', 'TÜRKİYE', 'HİNDİSTAN', 'IRAK', 'TÜRKMENİSTAN'],
   },
 } as const
 

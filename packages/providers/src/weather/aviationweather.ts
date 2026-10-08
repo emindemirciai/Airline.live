@@ -19,8 +19,9 @@ import {
  *   sınırının altında kalacak kadar istasyon (2 saatte 80). Yanıt yine de sınıra ulaşırsa grup ikiye
  *   bölünüp yeniden istenir (en fazla 2 düzey).
  * - İki isteğin başlangıcı arasında en az `AWC_MIN_REQUEST_INTERVAL_MS` geçer (D-090): AWC'nin
- *   sınırı dakikada 100 istektir, 3. halkayla 498 istasyonun (D-107) ilk 24 saatlik doldurması tek
- *   çalışmada ~50 istektir ve beklemesiz atılsa bir dakikaya sığabilirdi (429 → 10 dk engel).
+ *   sınırı dakikada 100 istektir; 4. halkanın yayınından sonraki ilk çalışma ~127, 1.217 istasyonun
+ *   bütün 24 saatlik doldurması 203 istektir (D-102, D-107) ve beklemesiz atılsa bir dakikada 100'ü
+ *   aşardı (429 → 10 dk engel).
  * - Durum kodu JSON ayrıştırmadan önce denetlenir: 204 veri yok (gövde yok), 400 bizim hatamız,
  *   403 erişim engeli, 429 hız sınırı (Retry-After varsa okunur), 5xx sunucu hatası.
  * - Yönlendirme izlenmez, yanıt boyutu sınırlıdır, içerik türü JSON olmalıdır.
@@ -42,21 +43,24 @@ export const AWC_METAR_MAX_HOURS = 24
 /**
  * Saat ve istasyon başına beklenen en çok METAR/SPECI (yarım saatte bir rapor + SPECI payı).
  * İstasyonlar, bir istek 400 kayıt sınırının altında kalacak küçüklükte gruplara bölünür: 2 saatlik
- * olağan istekte grup 80 istasyondur (Türkiye ve 1.–3. halka, 498 istasyon: yedi istek,
- * 80 × 6 + 18; D-090, D-107), 24 saatlik doldurmada 6 istasyon.
+ * olağan istekte grup 80 istasyondur (Türkiye ve 1.–4. halka, 1.217 istasyon: 16 istek, 80 × 15 +
+ * 17; D-102, D-107; 3. halkada 498 istasyon yedi istekti), 24 saatlik doldurmada 6 istasyon.
  */
 export const AWC_METAR_PER_STATION_HOUR = 2.5
 /**
  * Bir istekteki en fazla istasyon (URL ~1.000 karakter); daha uzun liste birkaç isteğe bölünür. TAF
- * bu gruplarla istenir: 498 istasyonda üç istek (200 + 200 + 98; D-090, D-107).
+ * bu gruplarla istenir: 1.217 istasyonda yedi istek (200 × 6 + 17; D-102, D-107; 3. halkada 498
+ * istasyonda üç istek).
  */
 export const AWC_MAX_IDS = 200
 /**
  * İki isteğin başlangıcı arasındaki en kısa süre, ms (D-090). 700 ms ile herhangi bir 60 saniyede en
- * çok 86 istek başlar; AWC'nin sınırı dakikada 100'dür. Olağan çalışma (METAR 7, TAF 3 istek) ~5 sn
- * uzar; yayından sonraki ilk METAR çalışması (yeni 278 istasyonun 24 saati 47 istek + olağan 3) en
- * az ~35 sn sürer. Sınır istemci örneği başınadır; worker'da tek örnek METAR ve TAF işlerini sırayla
- * çalıştırır (`concurrency: 1`), aynı anda başlayan çağrılar da sıraya girer.
+ * çok 86 istek başlar; AWC'nin sınırı dakikada 100'dür. Olağan çalışma (1.217 istasyonda METAR 16,
+ * TAF 7 istek; D-102, D-107) ~11 ve ~4 sn uzar; 4. halkanın yayınından sonraki ilk METAR çalışması
+ * (yeni 719 istasyonun 24 saati 120 istek + kaydı olan 498 istasyonun olağan 7 isteği) en az ~88 sn,
+ * bütün listenin 24 saatlik doldurması (203 istek) ~141 sn sürer. Sınır istemci örneği başınadır;
+ * worker'da tek örnek METAR ve TAF işlerini sırayla çalıştırır (`concurrency: 1`), aynı anda
+ * başlayan çağrılar da sıraya girer.
  */
 export const AWC_MIN_REQUEST_INTERVAL_MS = 700
 export const AWC_REQUEST_TIMEOUT_MS = 15_000

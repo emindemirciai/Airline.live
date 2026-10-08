@@ -27,7 +27,7 @@ const airportsFixture = fileURLToPath(
 )
 
 /**
- * 1. halka açık (M6d'nin ayarı; bugünkü `@havayolu/shared` `AIRPORT_RING_CONFIG` 3. halkadır, D-090).
+ * 1. halka açık (M6d'nin ayarı; bugünkü `@havayolu/shared` `AIRPORT_RING_CONFIG` 4. halkadır, D-102).
  * Testler 1. halkayı sabit tutar; 2., 3. ve 4. halka ayrı durumlarda (`enabledRing: 2`, `3`, `4`)
  * denetlenir.
  */
@@ -413,7 +413,7 @@ describe('listListedAirports (D-080)', () => {
     expect(vienna).toMatchObject({ icao: 'LOWW', ring: 3, nearestTr: { icao: 'LTFK' } })
   })
 
-  it('4. halka açık (D-101, uygulamada henüz kapalı): 56 + 75 + 89 + 278 + 719 = 1.217; Kihihi (UG-0002) dört karakterli ICAO kuralıyla dışarıda', async () => {
+  it('4. halka açık (D-101; uygulamada M6i.2’den beri açık, D-102): 56 + 75 + 89 + 278 + 719 = 1.217; Kihihi (UG-0002) dört karakterli ICAO kuralıyla dışarıda', async () => {
     await database.db.insert(airports).values(readFixture())
     const list = await listListedAirports(database.db, { ...RINGS, enabledRing: 4 })
     expect(list).toHaveLength(1217)
@@ -439,7 +439,7 @@ describe('listListedAirports (D-080)', () => {
     expect(uganda.find((a) => a.iata === 'KHX')).toMatchObject({ icao: 'UG-0002', ring: 4 })
     const details = await listListedAirportDetails(database.db, { ...RINGS, enabledRing: 4 })
     expect(details.map((a) => a.icao)).toEqual(list.map((a) => a.icao))
-    // Bugünkü açık halka (3) değişmez.
+    // 3. halkanın listesi (D-107'den sonra 498) 4. halka açılınca değişmez.
     const ringThree = await listListedAirports(database.db, { ...RINGS, enabledRing: 3 })
     expect(ringThree).toHaveLength(498)
     expect(list.filter((a) => a.ring <= 3).map((a) => a.icao)).toEqual(ringThree.map((a) => a.icao))

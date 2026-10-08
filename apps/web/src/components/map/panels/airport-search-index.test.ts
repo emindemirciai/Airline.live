@@ -9,7 +9,10 @@ import { toMapAirport, type MapAirport } from '../airport-data'
 import { buildAirportSearch } from './airport-search-index'
 import { submitOutcome, type AircraftLookup, type SubmitOutcome } from './search-box-model'
 
-/** Haritanın listesi: fixture'ın listelenen havalimanları (D-080; askerî üs yok, D-107). */
+/**
+ * Haritanın listesi: fixture'ın listelenen havalimanları (D-080; askerî üs yok, D-107), 4. halka açık
+ * (D-102): 56 Türkiye + 1.161 yurt dışı. Arama 4. halkanın adlarını da kapsar.
+ */
 const AIRPORTS: MapAirport[] = fixtureListedAirports().flatMap((detail) => {
   const airport = toMapAirport(detail)
   return airport ? [airport] : []
@@ -23,7 +26,7 @@ const codes = (query: string, search = tr) => search(query).rows.map((row) => ro
 
 describe('havalimanı araması: fixture listesi (D-108)', () => {
   it("liste fixture'ın listelenen havalimanlarıdır", () => {
-    expect(AIRPORTS.length).toBe(498)
+    expect(AIRPORTS.length).toBe(1217)
   })
 
   it('"ist": önce tam kodla IST, sonra İstanbul havalimanları', () => {
@@ -155,7 +158,8 @@ describe('havalimanı araması: fixture listesi (D-108)', () => {
 
   it('yalnız aranan adlar: "Sabiha Gökçen" adın başıdır, "Cappadocia" Kapadokya', () => {
     for (const search of [tr, en]) {
-      // Bütün adları "İstanbul" ile başlar; ek adla başlangıç basamağında, yabancı "Sa…"ların önünde.
+      // Bütün adları "İstanbul" ile başlar; ek adla başlangıç basamağında, yabancı "Sa…"ların önünde
+      // (4. halkada Sabetta, SBT; D-102).
       expect(
         search('sab').rows.map((row) => [row.code, row.match]),
         'sab',
@@ -163,6 +167,7 @@ describe('havalimanı araması: fixture listesi (D-108)', () => {
         ['SAW', 'start'],
         ['AFZ', 'start'],
         ['SEB', 'start'],
+        ['SBT', 'start'],
       ])
       expect(codes('sa', search)[0], 'sa').toBe('SAW')
       expect(codes('sabiha', search), 'sabiha').toEqual(['SAW'])
@@ -183,12 +188,14 @@ describe('havalimanı araması: fixture listesi (D-108)', () => {
 
   it('Türkçe harfli sorgu tam kod değildir: "küt" Kütahya (Zafer) ve Kutaisi, KUT kodu değil', () => {
     for (const search of [tr, en]) {
+      // 4. halkada sözcük başıyla Ust-Kut (UKX; D-102).
       expect(
         search('küt').rows.map((row) => [row.code, row.match]),
         'küt',
       ).toEqual([
         ['KZR', 'start'],
         ['KUT', 'start'],
+        ['UKX', 'words'],
       ])
       expect(search('kut').rows[0], 'kut').toMatchObject({ code: 'KUT', match: 'code' })
       // "buş" Batum'u (BUS), "haş" Hail'i (HAS) tam kodla bulmaz.
@@ -214,8 +221,9 @@ describe('havalimanı araması: fixture listesi (D-108)', () => {
       expect(codes('sab', search)[0], 'sab').toBe('SAW')
       expect(codes('gok', search), 'gok').toEqual(['SAW'])
       expect(codes('gök', search), 'gök').toEqual(['SAW'])
-      // "ant": Antalya ve yeri Antalya ya da Antakya olanlar, ek adla Gaziantep ("Antep").
-      expect(codes('ant', search), 'ant').toEqual(['AYT', 'GZT', 'GZP', 'HTY'])
+      // "ant": Antalya ve yeri Antalya ya da Antakya olanlar, ek adla Gaziantep ("Antep"); 4. halkada
+      // Pointe-Noire Antonio Agostinho-Neto (PNR) ve Anvers (ANR; İngilizce adı Antwerp, D-102).
+      expect(codes('ant', search), 'ant').toEqual(['AYT', 'GZT', 'GZP', 'HTY', 'PNR', 'ANR'])
       expect(codes('GAP', search)).toEqual(['GNY'])
     }
   })
@@ -269,18 +277,28 @@ describe('havalimanı araması: fixture listesi (D-108)', () => {
       }
       // Ülke adıyla tek eşleşme açılmaz: "Turkish Air(lines)" yazılırken Ercan (KKTC'nin İngilizce
       // uzun adı "Turkish Republic of Northern Cyprus").
-      for (const query of ['turkish', 'turkish air', 'turkish a', 'turkis', 'KKTC']) {
+      for (const query of ['turkish', 'turkish air', 'turkish a', 'KKTC']) {
         expect(
           search(query).rows.map((row) => row.match),
           query,
         ).toEqual(['country'])
         expect(listed(enter(query, search)), query).toEqual(['ECN'])
       }
+      // "turkis" 4. halkada Türkistan Hazret Sultan'ı (HSA; yeri Türkistan) da bulur (D-102).
+      expect(search('turkis').rows.map((row) => [row.code, row.match])).toEqual([
+        ['HSA', 'start'],
+        ['ECN', 'country'],
+      ])
+      expect(listed(enter('turkis', search))).toEqual(['HSA', 'ECN'])
       // Türkçe harfli 3 harf tam kod değildir: "küt" Kutaisi'yi (KUT) açmaz.
-      expect(listed(enter('küt', search))).toEqual(['KZR', 'KUT'])
-      expect(listed(enter('sab', search))).toEqual(['SAW', 'AFZ', 'SEB'])
+      expect(listed(enter('küt', search))).toEqual(['KZR', 'KUT', 'UKX'])
+      expect(listed(enter('sab', search))).toEqual(['SAW', 'AFZ', 'SEB', 'SBT'])
       expect(listed(enter('gok', search))).toEqual(['SAW'])
-      expect(listed(enter('ant', search))).toEqual(['AYT', 'GZT', 'GZP', 'HTY'])
+      expect(listed(enter('ant', search))).toEqual(['AYT', 'GZT', 'GZP', 'HTY', 'PNR', 'ANR'])
+      // 4. halka (D-102): "Londra" Londra'nın altı havalimanını listeler, "Delhi" tek eşleşmedir.
+      expect(listed(enter('Londra', search))).toEqual(['LGW', 'STN', 'LHR', 'LTN', 'SEN', 'LCY'])
+      expect(listed(enter('London', search))).toEqual(['LGW', 'STN', 'LHR', 'LTN', 'SEN', 'LCY'])
+      expect(opened(enter('Delhi', search))).toBe('DEL')
     }
   })
 
