@@ -25,8 +25,9 @@
 // - harita: `?havalimani=LGAV` Atina'da açar; pin ve "Havalimanları" listesi pencereyi açar; pencere
 //   il yerine ülkeyi gösterir; pencerenin havası tek havalimanı isteğiyle gelir (D-090)
 // - yerel saat (M6f, D-084): pencerede ve sayfada Atina'nın saati UTC farkıyla ("23:05 (UTC+2)");
-//   sayfada gün doğumu ve batımı, METAR/TAF kaydının girişi yerel saat ve şu anki fark, "Türkiye
-//   saati" notu yok
+//   sayfada gün doğumu ve batımı, METAR/TAF kaydının girişi yerel saat ve şu anki fark, satırlarda
+//   UTC saati yanında; dilimi bilinmeyen havalimanının UTC yedeği ("Saatler UTC’dir", D-106 (c),
+//   D-109) hava durumunda da kayıtta da yok
 import { expect, test, type Locator, type Page } from '@playwright/test'
 import { jsonLdNodes, metaContents, nodesOfType, titles, type JsonLdNode } from '../html'
 import { mapCenter } from '../label-canvas'
@@ -97,7 +98,8 @@ const COPY = {
     localTime: 'Yerel saat',
     sunrise: /Gün doğumu \d{2}:\d{2}/,
     sunset: /Gün batımı \d{2}:\d{2}/,
-    turkeyTime: 'Türkiye saati',
+    /** Saat dilimi bilinmeyen havalimanının yedeği (`weather.utcTime`, `log.introUtc`; D-109). */
+    utcFallback: 'Saatler UTC’dir',
     log: 'METAR/TAF kaydı',
     logLocal: /Saatler havalimanının yerel saatidir \(şu an UTC\+[23]\); UTC yanında yazılır\./,
   },
@@ -124,7 +126,7 @@ const COPY = {
     localTime: 'Local time',
     sunrise: /Sunrise \d{2}:\d{2}/,
     sunset: /Sunset \d{2}:\d{2}/,
-    turkeyTime: 'Türkiye time',
+    utcFallback: 'Times are in UTC',
     log: 'METAR/TAF log',
     logLocal: /Times are the airport’s local time \(currently UTC\+[23]\), with UTC alongside\./,
   },
@@ -372,17 +374,21 @@ test.describe('havalimanı sayfası', () => {
       const weather = main.getByRole('region', { name: copy.weather, exact: true })
       await expect(weather).toBeVisible()
       await expect(row(weather, copy.wind)).toContainText(copy.speedUnit)
-      // Yerel saat Atina'nındır, UTC farkıyla (D-084); gün doğumu ve batımı yazılır, "Türkiye
-      // saati" notu yoktur.
+      // Yerel saat Atina'nındır, UTC farkıyla (D-084); gün doğumu ve batımı yazılır. Dilimi
+      // bilinmeyen havalimanının UTC yedeği ("Saatler UTC’dir"; D-106 (c), D-109) gösterilmez.
       const sun = weather.locator('.weather-sun')
       await expect(sun).toContainText(copy.sunrise)
       await expect(sun).toContainText(copy.sunset)
       await expectLocalClock(sun.locator('li').first(), `${copy.localTime} `, loadedFrom)
-      await expect(weather).not.toContainText(copy.turkeyTime)
-      // METAR/TAF kaydı da havalimanının yerel saatini ve şu anki farkını söyler.
+      await expect(weather).not.toContainText(copy.utcFallback)
+      // METAR/TAF kaydı da havalimanının yerel saatini ve şu anki farkını söyler; satırın UTC saati
+      // yanında yazılır (yalnız UTC yedeğinde düşer, weather-log.tsx).
       const log = main.getByRole('region', { name: copy.log, exact: true })
       await expect(log).toContainText(copy.logLocal)
-      await expect(log).not.toContainText(copy.turkeyTime)
+      await expect(log).not.toContainText(copy.utcFallback)
+      const logUtc = log.locator('.weather-log-utc').first()
+      await expect(logUtc).toBeVisible()
+      await expect(logUtc).toHaveText(/^\d{2}:\d{2} UTC$/)
       const mapHref = locale === 'tr' ? `/?havalimani=${icao}` : `/en?havalimani=${icao}`
       await expect(main.locator(`a[href="${mapHref}"]`)).toBeVisible()
     })
