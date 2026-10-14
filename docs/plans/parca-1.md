@@ -47,6 +47,7 @@ Durumlar: `[ ]` başlamadı, `[~]` sürüyor, `[k]` kod bitti ve kullanıcı do�
 | M6i.1 | 4. halkanın ön koşulları ve veri altyapısı (halka 3'te kalır, 503 listelenen): fixture'a 4. halka, 4 karakterli ICAO kuralı, pist kuralları, kaplama kodları, saat dilimleri; toplu havanın ham biçimi, AWC istek sayısı günlükte, uçuş evresi ızgarası, harita penceresinin tembel yüklenmesi — kullanıcı isteğiyle M7c'nin önüne alındı (2026-10-05; D-101) | `p1/m6i1-ring4-prep` | [k] kod bitti; üretimde doğrulandı (2026-10-06, v0.22.0): `/version` 0.22.0, ham toplu hava (`format=raw`) 502 KB, br ile 60 KB (çözülmüş biçim 1,36 MB, br ile 70 KB); v0.22.0 Release 2026-10-06T00:41:12Z; worker günlüğünde AWC `requests` denetimi bekliyor (ACTIVATION) | #36 |
 | M6i.2 | 4. halka (≤ 5.000 km, 719 havalimanı, 1.217 listelenen; D-107'den önce 1.222): adlar, halkanın açılması, ülke adı yerleşiminin yeniden üretimi, metinler, e2e (D-102) | `p1/m6i2-ring4` | [k] kod bitti; üretimde doğrulandı (2026-10-08, v0.23.0): `/version` 0.23.0, `scope=listed` 1.217, `/istasyon/EGLL` ve `/istasyon/VIDP` 200, `/istasyon/KHX` 404; Release 2026-10-08T02:24:22Z; METAR istek sayısı ve sayfa denetimleri kullanıcıda (ACTIVATION M6i.2) | #42 |
 | M6j.1 | 5. halkanın ön koşulları (halka 4'te kalır, 1.217 listelenen): fixture'a 5. halka ve iki dışlama örneği, 308 bölge ve 68 havalimanı saat dilimi kuralı, sunucunun fark tablosu, dilimsiz havalimanında UTC (D-106 (c)), pist ve kaplama kuralları, yurt dışı askerî liste, kodu değişen havalimanının eski kodundan 308, içe aktarım kayması günlüğü, fixture testlerinin süresi (D-109) | `p1/m6j1-ring5-prep` | [k] kod bitti (v0.24.0); üretim denetimi bekliyor (ACTIVATION M6j.1) | — |
+| M6i.3 | Savaş nedeniyle kapalı havalimanları: 23 havalimanı listeye girer (1.240), 35 havalimanında not, Krasnodar, Gelencik, Elista'nın notu kalkar (yama; D-110) | `p1/map-war-closures` | [~] kod ve yerel kontroller bitti (2026-10-15); yayın adımı (sürüm, Yenilikler, README, PR, CI) bekliyor | — |
 | M6j.2 | 5. halkanın ölçeği (halka 4'te kalır): web belleğinde havalimanı listesi, API gövde önbelleği, `include=map`, 180. meridyen, istek üzerine pist uçları, METAR/TAF kaydı yalnız tarayıcıda, paylaşım görseli sınırı, toplu havada `format=raw` zorunlu, AWC ilk çalışma, llms.txt belleği (D-109) | `p1/m6j2-ring5-scale` | [ ] | — |
 | M6j.3 | 5. halka (dünyanın geri kalanı, ABD dahil; 2.026 havalimanı, 3.243 listelenen): adlar, tek ad parçası, arama dilimleri, halkanın açılması, ülke adları, düşük yakınlaştırmada küçük pinler, metinler, e2e (D-109) | `p1/m6j3-ring5` | [ ] | — |
 | M7c | Kapsama ölçümü yedek yolu (`coverage:probe`) | `p1/m7c-coverage-probe` | [ ] | — |
@@ -2202,6 +2203,47 @@ Hedef sürüm 0.24.0 (yayın adımında yazılır; sürüm, changelog ve README 
 - `pnpm ci:full` yeşil: birim web 949, shared 743, tools 383, worker 303, api 290, providers 135, i18n 101, db 84, geo 36; entegrasyon db 109, api 31, worker 18, tools 14; `compose:guard` tamam; migration yükseltmesi 8 → 8; e2e 139/139 (5,8 dk). Yerel veritabanında OurAirports doğrulayıcıları sıfırlandı (fixture'a 5. halka satırları girdi).
 - Yerel önizleme: sürüm 0.24.0; `/istasyon/UTSS` ve `/en/istasyon/utss` yönlendirir, son adres `/istasyon/UZSS` ("Semerkant Havalimanı (SKD/UZSS): pistler ve havalimanı bilgileri"); `/istasyon/WIOD` 404; arama kutusunda "UTSS" → "SKD Semerkant Havalimanı · Semerkant, Özbekistan · UZSS".
 - `pnpm stats`: 704 dosya, 154.381 satır (kod 142.385).
+
+## M6i.3 — Savaş nedeniyle kapalı havalimanları (yama)
+Onay: 2026-10-08 kullanıcı: "normal şartlarda açık ama savaş nedeniyle kapalı olan örneğin ukraynadaki limanları, da ekle. ve not düş". Ölçüt, not türleri, metinler, adlar ve öbür seçimler orkestratör varsayılanıdır (2026-10-15; sayım ve dört bölge araştırması; itiraz edilebilir). Açık sorular D-110'da (S1–S7).
+
+Sürüm birleştirmede `origin/main`'deki ilk boş PATCH (v0.24.1; M6j.2 önce birleşirse v0.25.1). Dal `p1/map-war-closures` (`C:/PROJELER/havayolu-war`), 29d415d'den; işe başlarken `origin/main` (e9d97de, v0.24.0) ileri sarılarak alındı (`git merge --ff-only`). Karar D-110'dadır. Halka 4 açık kalır.
+
+**Kapsam:**
+- Kapanış tablosu 35 kayıt (`certainty`), tarifesiz kayıtlar aday (shared `isForeignCandidate`, db `isForeignCandidateRow`, `foreignCandidateFilter`, `CIVIL_FLIGHT_CLOSURE_ICAOS`); Krasnodar, Gelencik, Elista silinir.
+- Not iki türde; sayfa, harita penceresi, havalimanı listesi, arama sonucu başlığı ve açıklaması, llms.txt. Eklenenler dizine eklenir.
+- 23 havalimanının Türkçe ve İngilizce adı ve şehri; 33 bölge ve 1 havalimanı saat dilimi kuralı.
+- Fixture'a kapanış bloğu (23 havalimanı, 28 pist); ülke adı yerleşimi yeniden üretilir.
+- Sürüm, `entries.ts`, `CHANGELOG.md` ve README yayın adımındadır.
+
+**Dosyalar:**
+- `packages/shared/src/reference/civil-closures.ts`, `airport-rings.ts`, `foreign-airport-names.ts`, `foreign-airport-names-r4.ts`, `time-zones.ts`; testler `civil-closures.test.ts`, `foreign.test.ts`, `time-zones.test.ts`, `reference.test.ts`, `names.test.ts`, `map/country-labels.test.ts` (`index.ts` `export *` ile `CivilFlightClosureCertainty`'yi zaten dışa aktarır)
+- `packages/shared/src/map/country-label-placements.ts` (üretilir)
+- `packages/db/src/airports.ts` (+ `airports.test.ts`, `airports.int.test.ts`); `packages/providers/src/reference/reference.test.ts`; `apps/api/src/reference/rings.test.ts`, `airport-details.int.test.ts`, `airports-cache-size.test.ts`, `src/test/ourairports-fixture.ts` (yorum)
+- `packages/i18n/src/messages/tr.ts`, `en.ts`, `i18n.test.ts`
+- `apps/web/src/components/airports/civil-closure.ts`, `airport-view.tsx`, `airports-view.tsx`, `airport-text.ts`; `apps/web/src/components/map/airport-popup-model.ts`, `airport-data.ts`, `labels.ts` (yorum); `apps/web/src/lib/airports.ts`, `lib/seo/llms.ts`; `apps/web/src/app/globals.css`; testler `airport-view.test.ts`, `airport-text.test.ts`, `airport-popup.test.ts`, `airport-popup-model.test.ts`, `labels.test.ts`, `airport-search-index.test.ts`, `lib/airports.test.ts`, `structured-data-env.test.ts`
+- `apps/worker/src/jobs/jobs.int.test.ts`, `reference-drift.test.ts` (sayılar)
+- `scripts/make-reference-fixtures.mts`; `tools/fixtures/ourairports/airports.csv`, `runways.csv` (üretilir); `tools/src/country-labels/airport-pins.ts`, `airport-pins.test.ts`, `placement.test.ts`, `cli.ts`, `tools/src/live/station.ts` (yorum)
+- `e2e/support.ts`, `e2e/tests/foreign-airports.spec.ts`, `seo.spec.ts`, `app.setup.ts`
+- Belgeler: D-110 (D-090, D-102, D-109 işaret satırları), `docs/spec/data-sources.md`, `docs/spec/domain.md`, `docs/RUNBOOK.md` ("Savaş kapanışları tablosu"), `docs/ACTIVATION.md`, `docs/REFERENCES.md` ("Savaş kapanışları (D-110)"), `tools/README.md`, `tools/fixtures/README.md`, `docs/research/2026-10-08-savas-kapanislari/`
+
+**Kabul komutları:**
+- `pnpm exec tsx scripts/make-reference-fixtures.mts C:/PROJELER/havayolu-data/ourairports-2026-10-01 <scratch>` → "airports 439 + rings 75 + 89 + 275 + 716 + 2030 + closures 23, runways 149 + 4455 + 28, airlines 5964"; üç dosya commit'liyle bayt bayt aynı; son 23 ve 28 satırın SHA-256'sı D-110'daki
+- `pnpm country-labels` → tablo commit'liyle aynı (yeniden üretilmiş hâliyle); `pnpm exec tsx tools/src/country-labels/cli.ts airports | wc -l` → 1240
+- `pnpm format`, `pnpm lint`, `pnpm typecheck`, `pnpm test`, `pnpm typecheck:e2e`, `pnpm lint:e2e`, `pnpm typecheck:scripts`, `pnpm check:eol`, `pnpm db:check` → yeşil
+- `pnpm --filter @havayolu/web build` + `first-load.mjs` → `/` ilk yükleme gzip artışı ≤ 1.024 B
+- `pnpm ci:full` (entegrasyon ve e2e) → CI'da; PR'da `checks`, `test-integration` ve `e2e` yeşil
+- **Kullanıcıya bağlı (`[k]`):** yayından sonra ACTIVATION → "M6i.3 yayın doğrulaması"; açık sorular S1–S7.
+
+**Çıktı kaydı (2026-10-15, kod; sürüm, Yenilikler, CHANGELOG ve README yayın adımındadır):**
+- **Dal:** `git fetch origin` ve `git merge --ff-only origin/main` → `e9d97de` (v0.24.0); dalın kendi commit'i yoktu.
+- **Fixture:** üretici kalıcı kopyadan önce geçici klasöre, sonra `tools/fixtures`'a: "✓ airports 439 + rings 75 + 89 + 275 + 716 + 2030 + closures 23, runways 149 + 4455 + 28, airlines 5964" ve "✓ ident alias exclusions WABP, WIOD, WRLB". `airports.csv` SHA-256 `954788d3…a00a54` (3.648 satır, başlıkla), `runways.csv` `e8268745…5062de` (4.633 satır); ilk 3.625 ve 4.605 satır commit'li dosyalarla `cmp` ile aynı; `tail -n 23` → `29582f1e…a04624`, `tail -n 28` → `5700479c…62f6d9`; `vrs/airlines.csv` aynı. 5. halka blokları yerinde: `head -n 3625 | tail -n 2030` → `784f4711…9e38`, `head -n 4605 | tail -n 3000` → `b569d99d…f6d1`.
+- **Sayılar (fixture):** listelenen 1.240 (56 + 77 + 104 + 283 + 720; yurt dışı 1.184, 114 ülke; Ukrayna ilk kez); kapanış tablosunun 35 kaydının hepsi listede, 23'ü OurAirports'ta tarifesiz (halkalarda 2 + 15 + 5 + 1); 5. halka açık bağlamla 3.266 (yabancı 3.210); görünür pistler 1.–4. halkada 1.568 (Simferopol'ün uzunluksuz 01/19'u boş yineleme kuralıyla gizli; 260413); z5'te 2560×1440 görünümde 931 havalimanı (önce 909); API önbellek kaydı gövde 1.072.446 B, kayıt %68,2 (en kötü %71,8).
+- `pnpm country-labels` → "1240 airport pins"; yalnız `airportPins` 1.217 → 1.240 değişti, yerleşimler aynı (UKRAYNA, RUSYA, KONGO DC dahil; 160 boş yerde, 3 kalabalıkta). `cli.ts airports | wc -l` → 1240 (16'sı `UK`).
+- `pnpm turbo run test --force` → web 952, shared 751, tools 383, worker 303, api 291, providers 135, i18n 101, db 85, geo 36 (v0.24.0: web 949, shared 743, api 290, db 84; yeni testler: kapanış tablosu, aday kuralı, Ukrayna adları ve dilimleri, liste notu, başlık ve açıklama).
+- `pnpm format`, `pnpm lint` (9/9), `pnpm typecheck` (9/9), `pnpm typecheck:scripts`, `pnpm typecheck:e2e`, `pnpm lint:e2e`, `pnpm check:eol`, `pnpm db:check` (boş fark) → yeşil.
+- `pnpm --filter @havayolu/web build` (Next 16.3.6, Turbopack) + `first-load.mjs` (gzip 9): `/` 16 dosya **1.133.272 B** (gzip **328.675**), `/havalimanlari` 1.008.415 B (gzip 284.155), `/istasyon/[icao]` 1.050.401 B (gzip 298.946). v0.24.0'ın birleştirme ölçümüne göre (`/` 1.133.272 B, gzip 328.676; `/havalimanlari` 1.008.415 B, gzip 284.155; `/istasyon/[icao]` 1.050.401 B) ilk yüklemede fark yok (`/` gzip −1 B): aday kuralı sunucudadır, kapanış tablosu harita penceresinin ve aramanın tembel ad parçasındadır (tabloyla birlikte).
+- Çalıştırılmayanlar: `pnpm test:integration`, `pnpm test:migration-upgrade`, `pnpm test:e2e`, `pnpm ci:full` (Docker ve 3100/4100/4200/4300; CI'da). Entegrasyon ve e2e beklentileri yazıldı: db 1. halka 133 / 2. halka 237 / 3. halka 520 / 4. halka 1.240 / 5. halka açık bağlamla 3.266; API `scope=listed` 1.184 yurt dışı, `/v1/airports/UKBB` ve `/KBP` aynı kayıt; worker istasyon listesi 1.240 ve kayma satırı 1.240; e2e `/istasyon/UKBB` (iki dil), HSFS, URKK, `/istasyon/kbp` 308, liste notu 35, Odessa penceresi, site haritası 2.490 adres, llms.txt satırı.
 
 ## M6j.2 — 5. halkanın ölçeği (halka 4'te kalır)
 Onay: M6j.1 ile aynı (2026-10-06 kullanıcı: "halkalar peşpeşe gelsin"; "TÜM HAVALİMANLARINI ne zaman ekleriz?"). Seçimler orkestratör varsayılanıdır (D-109'daki bölünme; ayrıntılar yayın adımında kendi kararına yazılır).
