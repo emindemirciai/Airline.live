@@ -13,7 +13,7 @@ import {
 import { useEffect, useState } from 'react'
 import { useWallNow } from '../../lib/use-now'
 import { WallClock } from '../../lib/wall-clock'
-import { initialWeatherAt, WeatherRefresher } from './weather-client'
+import { initialWeatherAt, WeatherRefresher } from './weather-refresh'
 import { WeatherLog } from './weather-log'
 import { WeatherPanel } from './weather-panel'
 
@@ -55,7 +55,7 @@ export interface AirportWeatherLiveProps {
  *   tazeler. Sunucunun güncel havası 2 dakikadan yeniyse açılıştaki istek yalnız kaydı alır.
  *   Başarısız istekte eldeki veri korunur (ilk kayıt isteği başarısızsa bölüm "alınamıyor" der), en
  *   erken 1 dakika sonra yeniden denenir. Ayrılınca süren istek kesilir. Döngü
- *   `WeatherRefresher`'dadır (weather-client.ts); ada yalnız görünürlüğü denetler.
+ *   `WeatherRefresher`'dadır (weather-refresh.ts); ada yalnız görünürlüğü denetler.
  * - "Şimdi" sunucu saatine bağlı duvar saatidir (`WallClock`: çizim anı ve yanıtların
  *   `generatedAt`'i): yerel saat, gözlem yaşı, eskime sınıfı ve TAF süresi cihaz uyuyup uyansa ya da
  *   cihaz saati yanlış olsa da doğrudur. 30 saniyede bir ve sekme görünür olunca ilerler; sunucu ve

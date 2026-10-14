@@ -16,7 +16,7 @@ import {
   metarFromRaw,
 } from '../../lib/test/weather-fixture'
 import { AirportWeatherLive } from './airport-weather-live'
-import { WeatherRefresher } from './weather-client'
+import { WeatherRefresher } from './weather-refresh'
 import { expertWind } from './weather-expert'
 import { WeatherLog } from './weather-log'
 import { WeatherPanel } from './weather-panel'

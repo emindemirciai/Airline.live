@@ -643,7 +643,7 @@ describe('FlightPhaseTracker: istek üzerine pist uçları (D-111)', () => {
   it('uçsuz havalimanının 35 km’sindeki uçak bildirilir; uçlar gelince pist etiketi çıkar', () => {
     const phases = tracker([withoutEnds, LTFJ])
     const missing = vi.fn()
-    phases.subscribeMissingEnds(missing)
+    phases.setMissingEndsHandler(missing)
     // Uçlar yokken durum merkeze göre tahmin edilir: İnişte, pist adı yok.
     const before = run(phases, [final(1_000, 5)])
     expect(before[0]).toMatchObject({ phase: 'landing', runway: null })
@@ -661,7 +661,7 @@ describe('FlightPhaseTracker: istek üzerine pist uçları (D-111)', () => {
   it('yalnız havadaki ve 35 km içindeki uçak; uçları listede olan havalimanı hiç bildirilmez', () => {
     const phases = tracker([withoutEnds, LTFJ])
     const missing = vi.fn()
-    phases.subscribeMissingEnds(missing)
+    phases.setMissingEndsHandler(missing)
     // Yerdeki uçak ve 40 km'deki uçak bildirmez (SAW'ın pistleri boş dizi: uçsuz değil, uçları yok).
     phases.observe([
       sample(fromIst(90, 1), { hex: 'aaa001', gnd: true, t: 1_000 }),
@@ -671,23 +671,23 @@ describe('FlightPhaseTracker: istek üzerine pist uçları (D-111)', () => {
     expect(missing).not.toHaveBeenCalled()
     phases.observe([sample(fromIst(0, 30), { hex: 'aaa002', alt: 9_000, t: 2_000 })])
     expect(missing.mock.calls).toEqual([['LTFM']])
-    // Uçları listede olan havalimanı (1.–3. halka) için abone hiç çağrılmaz.
+    // Uçları listede olan havalimanı (1.–3. halka) için bildirim hiç gitmez.
     const listed = tracker()
     const none = vi.fn()
-    listed.subscribeMissingEnds(none)
+    listed.setMissingEndsHandler(none)
     run(listed, [final(1_000, 5)])
     expect(none).not.toHaveBeenCalled()
   })
 
-  it('getirilen uçlar liste yeniden verilince korunur; abonelik kaldırılınca bildirim gitmez', () => {
+  it('getirilen uçlar liste yeniden verilince korunur; bildirim kaldırılınca gitmez', () => {
     const phases = tracker([withoutEnds])
     phases.setRunwayEnds('LTFM', LTFM.runways)
     phases.setAirports([{ ...withoutEnds }])
     expect(run(phases, [final(1_000, 5)])[0]).toMatchObject({ phase: 'landing', runway: '35L' })
     const other = tracker([withoutEnds])
     const missing = vi.fn()
-    const unsubscribe = other.subscribeMissingEnds(missing)
-    unsubscribe()
+    other.setMissingEndsHandler(missing)
+    other.setMissingEndsHandler(null)
     run(other, [final(1_000, 5)])
     expect(missing).not.toHaveBeenCalled()
   })

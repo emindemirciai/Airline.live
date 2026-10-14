@@ -6,13 +6,15 @@ import {
   airportWeatherUrl,
   fetchAirportWeather,
   fetchWeatherHistory,
+} from './weather-client'
+import {
   initialWeatherAt,
   WEATHER_REFRESH_MS,
-  WEATHER_STALE_ON_MOUNT_MS,
   WEATHER_RETRY_MS,
+  WEATHER_STALE_ON_MOUNT_MS,
   weatherRefreshDue,
   WeatherRefresher,
-} from './weather-client'
+} from './weather-refresh'
 
 afterEach(() => {
   vi.unstubAllGlobals()

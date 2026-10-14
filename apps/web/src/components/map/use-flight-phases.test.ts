@@ -3,7 +3,7 @@ import type { PublicAircraft } from '@havayolu/shared'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { FlightPhaseTracker, type PhaseRunwayInput } from '../../lib/map/flight-phase'
 import { fetchAirportRunways, toMapAirport } from './airport-data'
-import { RunwayEndsLoader } from './use-flight-phases'
+import { createRunwayEndsLoader } from './use-flight-phases'
 
 const RUNWAYS: readonly PhaseRunwayInput[] = [
   {
@@ -17,14 +17,14 @@ const RUNWAYS: readonly PhaseRunwayInput[] = [
 /** Bekleyen sözleri bitirir. */
 const settle = () => new Promise((resolve) => setTimeout(resolve, 0))
 
-describe('RunwayEndsLoader: istek üzerine pist uçları (D-111)', () => {
+describe('createRunwayEndsLoader: istek üzerine pist uçları (D-111)', () => {
   it('havalimanı başına oturumda bir istek; gelen uçlar izleyiciye verilir', async () => {
     const fetchRunways = vi.fn(
       async (_icao: string, _signal: AbortSignal): Promise<readonly PhaseRunwayInput[] | null> =>
         RUNWAYS,
     )
     const apply = vi.fn()
-    const loader = new RunwayEndsLoader(fetchRunways, apply)
+    const loader = createRunwayEndsLoader(fetchRunways, apply)
     // İzleyici yarıçaptaki her örnekte bildirir; istek havalimanı başına bir kez gider.
     for (let i = 0; i < 5; i++) loader.request('KJFK')
     loader.request('KLGA')
@@ -43,7 +43,7 @@ describe('RunwayEndsLoader: istek üzerine pist uçları (D-111)', () => {
       .mockResolvedValueOnce(null)
       .mockRejectedValueOnce(new Error('network'))
     const apply = vi.fn()
-    const loader = new RunwayEndsLoader(fetchRunways, apply)
+    const loader = createRunwayEndsLoader(fetchRunways, apply)
     loader.request('KJFK')
     loader.request('KBOS')
     await settle()
@@ -65,7 +65,7 @@ describe('RunwayEndsLoader: istek üzerine pist uçları (D-111)', () => {
         }),
     )
     const apply = vi.fn()
-    const loader = new RunwayEndsLoader(fetchRunways, apply)
+    const loader = createRunwayEndsLoader(fetchRunways, apply)
     loader.request('KJFK')
     loader.destroy()
     expect(signals[0]?.aborted).toBe(true)
@@ -153,11 +153,11 @@ describe('istek üzerine uçlar: izleyici, yükleyici ve tek havalimanı ucu bir
     const listed = toMapAirport({ ...DETAIL, runways: [{ lengthFt: 12079 }] })
     expect(listed?.runways).toEqual([{ lengthFt: 12079 }])
     const tracker = new FlightPhaseTracker()
-    const loader = new RunwayEndsLoader(
+    const loader = createRunwayEndsLoader(
       (icao, signal) => fetchAirportRunways('http://localhost:4100', icao, signal),
       (icao, runways) => tracker.setRunwayEnds(icao, runways),
     )
-    tracker.subscribeMissingEnds((icao) => loader.request(icao))
+    tracker.setMissingEndsHandler(loader.request)
     tracker.setAirports(listed ? [listed] : [])
     tracker.observe([final(1_000, 6)])
     expect(tracker.get('4bb26c')).toMatchObject({ phase: 'landing', runway: null })
