@@ -12,7 +12,8 @@
  * Kural yoksa (çok dilimli ülkede kuralı yazılmamış bölge) null döner: dilim tahmin edilmez,
  * arayüz saatleri UTC ile yazıp öyle etiketler (D-106 (c), D-109; önce Türkiye saatiydi, D-080).
  * 5. halkanın adayları halka açılmadan kural taşır (D-109: 308 bölge ve 68 havalimanı kuralı, 30
- * ISO eşi; askerî listedeki üç alan hariç 2.028 aday, 225 dilim); birim testi listelenen her
+ * ISO eşi; askerî listedeki üç alan hariç 2.028 aday, 225 dilim). Savaş nedeniyle kapalı 1.–4.
+ * halka havalimanları (D-110) 33 bölge ve bir havalimanı kuralı ekledi; birim testi listelenen her
  * havalimanının bir dilimi olduğunu denetler. Gece içe aktarımı OurAirports'tan yeni bir bölge kodu
  * getirirse worker'ın içe aktarım günlüğü dilimsiz listelenen havalimanlarını sayar (D-109).
  *
@@ -254,7 +255,8 @@ export const COUNTRY_TIME_ZONES: Readonly<Record<string, string>> = {
 /**
  * Çok dilimli ülkelerde bölge (ISO 3166-2, OurAirports `iso_region`) → dilim. Halkaların
  * gerektirdiği bölgeler (3. halka 49 kural ekledi, D-090; 4. halka 93, D-101; 5. halka 308 kural
- * ve 30 ISO eşi, D-109; 5. halkanın ülkeleri satırların üstündeki açıklamalardadır):
+ * ve 30 ISO eşi, D-109; savaş nedeniyle kapalı havalimanları 33, D-110; 5. halkanın ülkeleri
+ * satırların üstündeki açıklamalardadır):
  * - Rusya: Kuzey Kafkasya, Krasnodar, Rostov ve Kalmukya Moskova saatidir; Volgograd kendi
  *   dilimidir (Moskova kuralları); Astrahan UTC+4'tür. 3. halkada Moskova şehri ve bölgesi,
  *   Voronej, Penza, Mordovya, Nijniy Novgorod, İvanovo, Tataristan, Çuvaşistan, Yaroslavl, Kostroma,
@@ -265,7 +267,15 @@ export const COUNTRY_TIME_ZONES: Readonly<Record<string, string>> = {
  *   ve Batı Sibirya'nın kuzeyi (Perm, Sverdlovsk, Çelyabinsk, Kurgan, Tümen, Hantı-Mansi, Yamalo-
  *   Nenets) Asia/Yekaterinburg (UTC+5); Omsk Asia/Omsk (UTC+6); Novosibirsk, Tomsk, Altay Krayı
  *   (Barnaul), Kemerovo (Novokuznetsk) ve Krasnoyarsk, Hakasya, Tuva kendi dilimleri (UTC+7);
- *   İrkutsk ve Buryatya Asia/Irkutsk (UTC+8).
+ *   İrkutsk ve Buryatya Asia/Irkutsk (UTC+8). Savaş nedeniyle kapalı havalimanlarının bölgeleri
+ *   (D-110): Belgorod, Bryansk, Kursk ve Lipetsk Moskova saatidir.
+ * - Ukrayna (D-110): tzdb `zone.tab`'a göre Kırım (UA-43) ve Sivastopol (UA-40)
+ *   Europe/Simferopol (bütün yıl UTC+3), öbür bölgeler Kiev saati (UTC+2, yazın UTC+3). Ad
+ *   `Intl`'in yazımıdır: Europe/Kiev (tzdb'de Europe/Kyiv; ICU `resolvedOptions()` onu Europe/Kiev
+ *   verir). İşgal altındaki bölgeler tzdb'de Europe/Kyiv'dedir; oralarda listelenen havalimanı yok.
+ *   Ülkenin 27 ISO kodunun hepsi ve OurAirports'un Rivne kodu (UA-19; ISO UA-56) yazılıdır;
+ *   OurAirports kodu değiştirirse dilim kaybolmaz. Harkiv'in OurAirports bölgesi "atanmamış"tır
+ *   (UA-U-A): havalimanı kuralı (UKHH).
  * - Kazakistan: 2024-03-01'den beri bütün ülke UTC+5'tir; tzdb dilimleri ayrı tutar. Mangistav
  *   (Aktav), 3. halkada Atırav, Batı Kazakistan (Oral), Aktöbe, Kızılorda ve Baykonur
  *   (Asia/Qyzylorda; Baykonur Rusya'ya kiralıdır ama OurAirports ve ISO'da Kazakistan'dır). 4.
@@ -285,7 +295,7 @@ export const COUNTRY_TIME_ZONES: Readonly<Record<string, string>> = {
  *   (MN-046); Govi-Altay (MN-065) dahil öbür bölgeler Asia/Ulaanbaatar (UTC+8), tzdb
  *   `zone1970.tab`'ın bugünkü yorumu.
  * - Kongo Demokratik Cumhuriyeti (4. halka): batı Africa/Kinshasa (UTC+1), doğu Africa/Lubumbashi
- *   (UTC+2; Goma, Bukavu, Kisangani).
+ *   (UTC+2; Goma, Bukavu, Kisangani; Güney Kivu CD-SK Bukavu'yla eklendi, D-110).
  * - Portekiz (4. halka): anakara Europe/Lisbon, Azorlar Atlantic/Azores, Madeira Atlantic/Madeira.
  * - Almanya (Europe/Berlin ve Büsingen; Büsingen'de havalimanı yok), İspanya (Kanarya
  *   Atlantic/Canary, Ceuta ve Melilla Africa/Ceuta, öbür bölgeler Europe/Madrid) ve Özbekistan
@@ -390,6 +400,7 @@ export const REGION_TIME_ZONES: Readonly<Record<string, string>> = {
   'CD-MA': 'Africa/Lubumbashi',
   'CD-NK': 'Africa/Lubumbashi',
   'CD-NU': 'Africa/Kinshasa',
+  'CD-SK': 'Africa/Lubumbashi',
   'CD-SU': 'Africa/Kinshasa',
   'CD-TA': 'Africa/Lubumbashi',
   'CD-TO': 'Africa/Lubumbashi',
@@ -737,6 +748,8 @@ export const REGION_TIME_ZONES: Readonly<Record<string, string>> = {
   'RU-ARK': 'Europe/Moscow',
   'RU-AST': 'Europe/Astrakhan',
   'RU-BA': 'Asia/Yekaterinburg',
+  'RU-BEL': 'Europe/Moscow',
+  'RU-BRY': 'Europe/Moscow',
   'RU-BU': 'Asia/Irkutsk',
   'RU-CE': 'Europe/Moscow',
   'RU-CHE': 'Asia/Yekaterinburg',
@@ -761,7 +774,9 @@ export const REGION_TIME_ZONES: Readonly<Record<string, string>> = {
   'RU-KO': 'Europe/Moscow',
   'RU-KOS': 'Europe/Moscow',
   'RU-KR': 'Europe/Moscow',
+  'RU-KRS': 'Europe/Moscow',
   'RU-KYA': 'Asia/Krasnoyarsk',
+  'RU-LIP': 'Europe/Moscow',
   'RU-MAG': 'Asia/Magadan',
   'RU-MO': 'Europe/Moscow',
   'RU-MOS': 'Europe/Moscow',
@@ -797,6 +812,36 @@ export const REGION_TIME_ZONES: Readonly<Record<string, string>> = {
   'RU-YAN': 'Asia/Yekaterinburg',
   'RU-YAR': 'Europe/Moscow',
   'RU-ZAB': 'Asia/Chita',
+  // Ukrayna (D-110): tzdb zone.tab; Kırım ve Sivastopol Europe/Simferopol, öbürleri Europe/Kiev
+  // (Intl yazımı; tzdb Europe/Kyiv).
+  'UA-05': 'Europe/Kiev',
+  'UA-07': 'Europe/Kiev',
+  'UA-09': 'Europe/Kiev',
+  'UA-12': 'Europe/Kiev',
+  'UA-14': 'Europe/Kiev',
+  'UA-18': 'Europe/Kiev',
+  'UA-19': 'Europe/Kiev', // OurAirports: Rivne (ISO UA-56)
+  'UA-21': 'Europe/Kiev',
+  'UA-23': 'Europe/Kiev',
+  'UA-26': 'Europe/Kiev',
+  'UA-30': 'Europe/Kiev',
+  'UA-32': 'Europe/Kiev',
+  'UA-35': 'Europe/Kiev',
+  'UA-40': 'Europe/Simferopol', // Sivastopol
+  'UA-43': 'Europe/Simferopol', // Kırım
+  'UA-46': 'Europe/Kiev',
+  'UA-48': 'Europe/Kiev',
+  'UA-51': 'Europe/Kiev',
+  'UA-53': 'Europe/Kiev',
+  'UA-56': 'Europe/Kiev',
+  'UA-59': 'Europe/Kiev',
+  'UA-61': 'Europe/Kiev',
+  'UA-63': 'Europe/Kiev',
+  'UA-65': 'Europe/Kiev',
+  'UA-68': 'Europe/Kiev',
+  'UA-71': 'Europe/Kiev',
+  'UA-74': 'Europe/Kiev',
+  'UA-77': 'Europe/Kiev',
   // ABD (5. halka): 50 eyalet ve DC, eyaletin tzdb "çoğu yer" dilimiyle. Bölgeyi bölen 21
   // havalimanı (Florida Panhandle, Kuzey Idaho, Indiana, Kentucky, Michigan, Nebraska, Dakota,
   // Tennessee, El Paso, Adak) havalimanı kuralıyla. Arizona America/Phoenix (Navajo Ulusu'nda
@@ -876,6 +921,7 @@ export const REGION_TIME_ZONES: Readonly<Record<string, string>> = {
  * - Grönland (4. halka, D-101): iki havalimanı aynı bölgede (GL-SE, Sermersooq) ama farklı dilimde.
  *   Constable Pynt (BGCO, Ittoqqortoormiit) America/Scoresbysund; Kulusuk (BGKK) Nuuk saati,
  *   ICU yazımıyla America/Godthab (tzdb America/Nuuk). İkisi de 2024'ten beri UTC−2, yazın UTC−1.
+ * - Harkiv (UKHH, D-110): OurAirports bölgesi "atanmamış" (UA-U-A); Kiev saati.
  * - 5. halka (D-109; 68 kural): bölgesi farklı farkları olan dilimlere bölünen 54 havalimanı (ABD
  *   21, Kanada 20, Meksika 5, Saha 6, Brezilya 1, Avustralya 1; satır açıklamaları), OurAirports
  *   bölgesi dilim sınırından kaba 6 havalimanı (Paskalya, Chatham, Nuuk, Markiz ikisi, Gambier) ve
@@ -955,6 +1001,7 @@ export const AIRPORT_TIME_ZONES: Readonly<Record<string, string>> = {
   UESS: 'Asia/Srednekolymsk', // Çerski (Aşağı Kolıma): UTC+11
   UESU: 'Asia/Srednekolymsk', // Zıryanka (Yukarı Kolıma): UTC+11
   UGSS: 'Europe/Moscow',
+  UKHH: 'Europe/Kiev', // Harkiv; OurAirports bölgesi UA-U-A
   YBHI: 'Australia/Broken_Hill', // Broken Hill (Yancowinna): Güney Avustralya saati
   YBHM: 'Australia/Lindeman', // Hamilton Adası, Whitsunday (Brisbane ile aynı farklar)
 }

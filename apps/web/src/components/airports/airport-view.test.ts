@@ -453,19 +453,52 @@ describe('AirportView: diğer ülkelerdeki havalimanı (D-080, D-106)', () => {
     expect(en).toContain('<a class="button" href="/en?havalimani=LOWW">Open on the live map</a>')
   })
 
-  it('sivil uçuşlara kapalı olabilecek havalimanı: başlığın altında not, iki dilde (D-090)', () => {
-    // Listelenen dördü: Krasnodar, Gelencik (1. halka), Elista (2. halka), Voronej (3. halka).
-    for (const icao of ['URKK', 'URKG', 'URWI', 'UUOO']) {
+  it('savaş nedeniyle kapalı havalimanı: başlığın altında not, iki dilde, iki türde (D-110)', () => {
+    // Kesin: Voronej (zaten listedeydi), Kiev Borispil ve Odessa (tarifesiz, kapanış tablosuyla).
+    for (const icao of ['UUOO', 'UKBB', 'UKOO']) {
       const html = renderAirport(icao, 'tr', LISTED)
       expect(html, icao).toMatch(
-        /<p class="airport-location">[^<]+<\/p><p class="civil-closure" role="note">Sivil uçuşlara kapalı olabilir \(2022’den beri\)<\/p><\/header>/,
+        /<p class="airport-location">[^<]+<\/p><p class="civil-closure" role="note">Savaş nedeniyle sivil uçuşlara kapalı \(2022’den beri\)<\/p><\/header>/,
       )
       expect(renderAirport(icao, 'en', LISTED), icao).toContain(
-        '<p class="civil-closure" role="note">May be closed to civil flights (since 2022)</p>',
+        '<p class="civil-closure" role="note">Closed to civil flights because of the war (since 2022)</p>',
       )
     }
-    const closed = LISTED.filter((a) => civilClosureNote(a.icao, 'tr', '{since}') !== null)
-    expect(closed.map((a) => a.icao).sort()).toEqual(['URKG', 'URKK', 'URWI', 'UUOO'])
+    // Belirsiz: El Faşir (2023), Aksum (2026).
+    expect(renderAirport('HSFS', 'tr', LISTED)).toContain(
+      '<p class="civil-closure" role="note">Savaş nedeniyle sivil uçuşlara kapalı olabilir (2023’ten beri)</p>',
+    )
+    expect(renderAirport('HAAX', 'en', LISTED)).toContain(
+      '<p class="civil-closure" role="note">May be closed to civil flights because of the war (since 2026)</p>',
+    )
+    // Yeniden açılanlar (Krasnodar, Gelencik, Elista) ve Mekele not göstermez.
+    for (const icao of ['URKK', 'URKG', 'URWI', 'HAMK']) {
+      expect(renderAirport(icao, 'tr', LISTED), icao).not.toContain('civil-closure')
+    }
+    const templates = { confirmed: 'c {since}', possible: 'p {since}' }
+    const closed = LISTED.filter((a) => civilClosureNote(a.icao, 'tr', templates) !== null)
+    expect(closed).toHaveLength(35)
+    expect(
+      closed.filter((a) => civilClosureNote(a.icao, 'en', templates)?.startsWith('p ')),
+    ).toHaveLength(8)
+    expect(civilClosureNote('OYTZ', 'tr', templates)).toBe('c 2015’ten')
+  })
+
+  it('Kiev Borispil (UKBB): Ukrayna sayfası, yer, yerel saat ve pistler (D-110)', () => {
+    const kbp = byIcao('UKBB')
+    expect(kbp.scheduled).toBe(false)
+    expect(kbp.ring).toBe(2)
+    const html = renderAirport('UKBB', 'tr', LISTED)
+    expect(html).toMatch(
+      /<h1>Kiev Borispil Havalimanı <span class="airport-codes">\(KBP\/UKBB\)<\/span><\/h1>/,
+    )
+    expect(html).toContain('<p class="airport-location">Kiev, Ukrayna</p>')
+    const en = renderAirport('UKBB', 'en', LISTED)
+    expect(en).toMatch(
+      /<h1>Boryspil International Airport <span class="airport-codes">\(KBP\/UKBB\)<\/span><\/h1>/,
+    )
+    expect(en).toContain('<p class="airport-location">Kyiv, Ukraine</p>')
+    expect(text(html)).toContain('Havalimanında 2 pist var')
   })
 
   it('4. halka (D-101, D-102): görünür pisti olmayan beş havalimanı pistsiz çizilir', () => {
@@ -556,24 +589,41 @@ describe('AirportsView', () => {
     return renderToStaticMarkup(createElement(AirportsView, { locale, app: 'havayolu', airports }))
   }
 
-  it('liste sayfasının açıklaması 4. halkayla da 70–170 karakter (1.217 = 56 + 1.161; D-102, D-106, D-107)', () => {
+  it('liste sayfasının açıklaması 4. halkayla da 70–170 karakter (1.240 = 56 + 1.184; D-102, D-106, D-107, D-110)', () => {
     const counts = airportCounts(LISTED)
-    expect(counts).toEqual({ count: 56, foreign: 1161 })
+    expect(counts).toEqual({ count: 56, foreign: 1184 })
     // Açıklama ve özet tek toplam sayı yazar, dilin binlik ayırıcısıyla (D-106).
-    const grouped = { tr: '1.217', en: '1,217' } as const
+    const grouped = { tr: '1.240', en: '1,240' } as const
     const lengths = { tr: 150, en: 154 } as const
     for (const locale of ['tr', 'en'] as const) {
       const count = formatCount(counts.count + counts.foreign, locale)
       expect(count, locale).toBe(grouped[locale])
       const description = format(getMessages(locale).seo.airports.description, { count })
       expect(description, locale).toContain(grouped[locale])
-      expect(description, locale).not.toContain('1217')
+      expect(description, locale).not.toContain('1240')
       expect(description.length, `${locale}: ${description}`).toBe(lengths[locale])
       expect(description.length, `${locale}: ${description}`).toBeGreaterThanOrEqual(70)
       expect(description.length, `${locale}: ${description}`).toBeLessThanOrEqual(170)
       const lead = format(getMessages(locale).airports.summary, { count })
       expect(renderList(locale, LISTED)).toContain(`<p class="lead">${lead}</p>`)
     }
+  })
+
+  it('savaş nedeniyle kapalı havalimanı (D-110): yurt dışı tablosunda adın altında not; 35 satır', () => {
+    const html = renderList('tr', LISTED)
+    expect(html.match(/<span class="airports-closure">/g)).toHaveLength(35)
+    expect(html).toContain(
+      '<th scope="row"><a href="/istasyon/UKBB">Kiev Borispil Havalimanı</a><span class="airports-closure">Savaş nedeniyle sivil uçuşlara kapalı (2022’den beri)</span></th>',
+    )
+    expect(html).toContain(
+      '<span class="airports-closure">Savaş nedeniyle sivil uçuşlara kapalı olabilir (2023’ten beri)</span>',
+    )
+    const en = renderList('en', LISTED)
+    expect(en).toContain(
+      '<th scope="row"><a href="/en/istasyon/UKBB">Boryspil International Airport</a><span class="airports-closure">Closed to civil flights because of the war (since 2022)</span></th>',
+    )
+    // Türkiye tablosunda not yok (kapanış tablosunda Türkiye havalimanı yoktur).
+    expect(renderList('tr', AIRPORTS)).not.toContain('airports-closure')
   })
 
   it('bütün havalimanları gerçek bir tabloda, il adına göre sıralı', () => {

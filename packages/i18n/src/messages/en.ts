@@ -91,7 +91,8 @@ export const en: Messages = {
     country: 'Türkiye',
     location: '{province}, Türkiye',
     locationAbroad: '{city}, {country}',
-    civilClosure: 'May be closed to civil flights (since {since})',
+    civilClosure: 'Closed to civil flights because of the war (since {since})',
+    civilClosurePossible: 'May be closed to civil flights because of the war (since {since})',
     lead: {
       runwaysOne: 'The airport has a single runway, {designator}, {length} long.',
       runwaysMany: 'The airport has {count} runways; the longest is {designator} at {length}.',
@@ -834,7 +835,8 @@ export const en: Messages = {
       observed: 'Observed {time}',
       loading: 'Loading weather…',
       unavailable: 'Weather is unavailable right now.',
-      civilClosure: 'May be closed to civil flights (since {since})',
+      civilClosure: 'Closed to civil flights because of the war (since {since})',
+      civilClosurePossible: 'May be closed to civil flights because of the war (since {since})',
       openAirportPage: 'Airport page →',
       close: 'Close',
       loadFailed:

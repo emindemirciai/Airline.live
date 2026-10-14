@@ -40,7 +40,7 @@ import {
   runwayDesignator,
 } from './airport-text'
 import { Breadcrumbs } from './breadcrumbs'
-import { civilClosureNote } from './civil-closure'
+import { civilClosureNote, civilClosureTemplates } from './civil-closure'
 import { airportCrumbs } from './crumbs'
 import { AVIATION_WEATHER_URL } from './weather-links'
 
@@ -135,8 +135,8 @@ export function AirportView({ locale, app, airport, airports, weather }: Airport
   const nameSource = airportNameSource(airport.icao)
   const covered = isInLiveCoverage(airport, liveCoveragePlan(airports))
   const district = airportLocality(airport, locale)
-  // Sivil uçuşlara kapalı olabilecek havalimanı (D-090): başlığın altında görünür not.
-  const closure = civilClosureNote(airport.icao, locale, t.civilClosure)
+  // Savaş nedeniyle kapalı havalimanı (D-110; D-090): başlığın altında görünür not.
+  const closure = civilClosureNote(airport.icao, locale, civilClosureTemplates(t))
 
   const runwaySentence =
     count === 1 && longest

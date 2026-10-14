@@ -74,11 +74,11 @@ function listingDrift(enabledRing: number) {
 const zero = { count: 0, examples: [] }
 
 describe('referans verisi kayması (D-109)', () => {
-  it('fixture, açık halka (4): 1.217 listelenen, sapma yok', () => {
+  it('fixture, açık halka (4): 1.240 listelenen (savaş kapanışlarıyla, D-110), sapma yok', () => {
     expect(AIRPORT_RING_CONFIG.enabledRing).toBe(4)
     const drift = referenceDrift(listingDrift(4))
     expect(drift).toEqual({
-      listed: 1217,
+      listed: 1240,
       withoutTimeZone: zero,
       unknownSurfaces: zero,
       duplicateIata: zero,
@@ -89,9 +89,9 @@ describe('referans verisi kayması (D-109)', () => {
     expect(hasDrift(drift)).toBe(false)
   })
 
-  it('fixture, 5. halka açık bağlamla: 3.243; adları M6j.3 getirir, öbür sapmalar yok', () => {
+  it('fixture, 5. halka açık bağlamla: 3.266 (D-110); adları M6j.3 getirir, öbür sapmalar yok', () => {
     const drift = referenceDrift(listingDrift(5))
-    expect(drift.listed).toBe(3243)
+    expect(drift.listed).toBe(3266)
     // Saat dilimi, kaplama, IATA ve ICAO kuralları 5. halkada da tam (M6j.1).
     for (const key of [
       'withoutTimeZone',

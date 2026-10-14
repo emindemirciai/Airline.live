@@ -20,6 +20,7 @@ import {
   AIRPORT_RINGS_KM,
   airportCountryName,
   airportName,
+  civilFlightClosure,
   countryName,
   ENABLED_AIRPORT_RING,
   foreignAirportName,
@@ -281,7 +282,7 @@ describe('havalimanı ayrıntıları (gerçek PostgreSQL, OurAirports fixture)',
     }
   })
 
-  it('scope=listed&include=runways: 56 Türkiye + 1.–4. halka (1.161); yurt dışı adları, ülkeleri, pistleri', async () => {
+  it('scope=listed&include=runways: 56 Türkiye + 1.–4. halka (1.184, savaş kapanışlarıyla; D-110); yurt dışı adları, ülkeleri, pistleri', async () => {
     const instance = await app()
     try {
       const res = await instance.inject({
@@ -300,9 +301,11 @@ describe('havalimanı ayrıntıları (gerçek PostgreSQL, OurAirports fixture)',
       // Türkiye'nin IATA kodlu tarifesiz küçük alanları (Gökçeada …) referans olmasa 1. halka 72,
       // olsa 75'ti (Priştine, Preveze, Niş; D-080; packages/db airports.int.test.ts iki durumu ayrı
       // sınar); 3. halkada 434 ya da 442. 4. halkada (D-102) iki durum aynı 1.161'i verir: 2.000
-      // km'de ayrılan sekiz havalimanı 5.000 km'nin içindedir.
+      // km'de ayrılan sekiz havalimanı 5.000 km'nin içindedir. Kapanış tablosunun OurAirports'ta
+      // tarifesiz 23 havalimanıyla 1.184 (D-110; SQL ön süzgeci onları da getirir).
       expect(foreign.map((a) => a.icao).sort()).toEqual(expectedListedForeign())
-      expect(foreign).toHaveLength(1161)
+      expect(foreign).toHaveLength(1184)
+      expect(foreign.filter((a) => !a.scheduled)).toHaveLength(23)
       expect(body.airports).toHaveLength(56 + foreign.length)
       // Değişmez kural (D-101): listelenen her havalimanının dört karakterli ICAO'su vardır (sayfa
       // yolu, hava durumu istasyonu). Fixture'ın 4. halkasındaki Kihihi (UG-0002, KHX) bu yüzden
@@ -323,7 +326,11 @@ describe('havalimanı ayrıntıları (gerçek PostgreSQL, OurAirports fixture)',
         )
         if (airport.ring === 3) expect(airport.distanceToTrKm, airport.icao).toBeGreaterThan(1000)
         if (airport.ring === 4) expect(airport.distanceToTrKm, airport.icao).toBeGreaterThan(2000)
-        expect(airport.scheduled, airport.icao).toBe(true)
+        // `scheduled` OurAirports değeridir: savaş nedeniyle kapalı havalimanında false (D-110).
+        expect(
+          airport.scheduled || civilFlightClosure(airport.icao) !== undefined,
+          airport.icao,
+        ).toBe(true)
         expect(foreignAirportName(airport.icao), airport.icao).toBeDefined()
         expect(countryName(airport.country, 'tr'), airport.icao).not.toBe(airport.country)
         expect(Number.isNaN(Date.parse(airport.dataUpdatedAt)), airport.icao).toBe(false)
@@ -442,6 +449,15 @@ describe('havalimanı ayrıntıları (gerçek PostgreSQL, OurAirports fixture)',
       }
       const heax = await instance.inject({ method: 'GET', url: '/v1/airports/HEAX' })
       expect(heax.statusCode).toBe(404)
+      // Savaş nedeniyle kapalı Kiev Borispil (D-110): OurAirports'ta tarifesiz, listede; ICAO ve IATA
+      // aynı kaydı verir.
+      const ukbb = listed.find((a) => a.icao === 'UKBB')
+      expect(ukbb).toMatchObject({ iata: 'KBP', country: 'UA', ring: 2, scheduled: false })
+      for (const code of ['UKBB', 'ukbb', 'KBP', 'kbp']) {
+        const res = await instance.inject({ method: 'GET', url: `/v1/airports/${code}` })
+        expect(res.statusCode, code).toBe(200)
+        expect(res.json(), code).toEqual(ukbb)
+      }
       // 4. halkadaki Londra listede (D-102): kaydı liste kaydıyla aynı.
       const lhr = await instance.inject({ method: 'GET', url: '/v1/airports/LHR' })
       expect(lhr.statusCode).toBe(200)

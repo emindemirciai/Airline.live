@@ -160,17 +160,73 @@ describe('i18n', () => {
     expect(formatSinceYear(2022, 'en')).toBe('2022')
     expect(() => formatSinceYear(0, 'tr')).toThrow(RangeError)
     expect(() => formatSinceYear(2022.5, 'en')).toThrow(RangeError)
-    // Kullanıcının kararlaştırdığı metin (2026-10-04, D-090).
+    // Savaş kapanışı notları (D-110; D-090'ın "Sivil uçuşlara kapalı olabilir" metni kalktı):
+    // kesin ve belirsiz tür, kapanış tablosunun yılları. Pencere sayfanın metinlerini kullanır.
     const tr = getMessages('tr')
     const en = getMessages('en')
-    expect(format(tr.airport.civilClosure, { since: formatSinceYear(2022, 'tr') })).toBe(
-      'Sivil uçuşlara kapalı olabilir (2022’den beri)',
-    )
-    expect(format(en.airport.civilClosure, { since: formatSinceYear(2022, 'en') })).toBe(
-      'May be closed to civil flights (since 2022)',
-    )
-    expect(tr.map.airportPopup.civilClosure).toBe(tr.airport.civilClosure)
-    expect(en.map.airportPopup.civilClosure).toBe(en.airport.civilClosure)
+    const note = (template: string, year: number, locale: 'tr' | 'en') =>
+      format(template, { since: formatSinceYear(year, locale) })
+    const confirmed: [number, string, string][] = [
+      [
+        2015,
+        'Savaş nedeniyle sivil uçuşlara kapalı (2015’ten beri)',
+        'Closed to civil flights because of the war (since 2015)',
+      ],
+      [
+        2022,
+        'Savaş nedeniyle sivil uçuşlara kapalı (2022’den beri)',
+        'Closed to civil flights because of the war (since 2022)',
+      ],
+      [
+        2024,
+        'Savaş nedeniyle sivil uçuşlara kapalı (2024’ten beri)',
+        'Closed to civil flights because of the war (since 2024)',
+      ],
+      [
+        2025,
+        'Savaş nedeniyle sivil uçuşlara kapalı (2025’ten beri)',
+        'Closed to civil flights because of the war (since 2025)',
+      ],
+    ]
+    for (const [year, trText, enText] of confirmed) {
+      expect(note(tr.airport.civilClosure, year, 'tr')).toBe(trText)
+      expect(note(en.airport.civilClosure, year, 'en')).toBe(enText)
+    }
+    const possible: [number, string, string][] = [
+      [
+        2023,
+        'Savaş nedeniyle sivil uçuşlara kapalı olabilir (2023’ten beri)',
+        'May be closed to civil flights because of the war (since 2023)',
+      ],
+      [
+        2024,
+        'Savaş nedeniyle sivil uçuşlara kapalı olabilir (2024’ten beri)',
+        'May be closed to civil flights because of the war (since 2024)',
+      ],
+      [
+        2025,
+        'Savaş nedeniyle sivil uçuşlara kapalı olabilir (2025’ten beri)',
+        'May be closed to civil flights because of the war (since 2025)',
+      ],
+      [
+        2026,
+        'Savaş nedeniyle sivil uçuşlara kapalı olabilir (2026’dan beri)',
+        'May be closed to civil flights because of the war (since 2026)',
+      ],
+    ]
+    for (const [year, trText, enText] of possible) {
+      expect(note(tr.airport.civilClosurePossible, year, 'tr')).toBe(trText)
+      expect(note(en.airport.civilClosurePossible, year, 'en')).toBe(enText)
+    }
+    // Açık sorular S1 ve S2 kabul edilirse (Mariupol 2014, Bamenda 2019) ek doğru çıkar.
+    expect(formatSinceYear(2014, 'tr')).toBe('2014’ten')
+    expect(formatSinceYear(2019, 'tr')).toBe('2019’dan')
+    for (const messages of [tr, en]) {
+      expect(messages.map.airportPopup.civilClosure).toBe(messages.airport.civilClosure)
+      expect(messages.map.airportPopup.civilClosurePossible).toBe(
+        messages.airport.civilClosurePossible,
+      )
+    }
   })
 
   it('yayın anı: İstanbul saatiyle gün, 24 saatlik saat ve UTC farkı (D-091, D-106)', () => {

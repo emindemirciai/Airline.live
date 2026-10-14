@@ -8,6 +8,8 @@ import {
   ENABLED_AIRPORT_RING,
   FOREIGN_AIRPORT_NAMES,
   isForeignCandidate,
+  isMilitaryAirfield,
+  isScheduledIataAirport,
   ourAirportsIcao,
 } from './index'
 
@@ -50,9 +52,14 @@ const references = rows
   .filter((r) => r.get('iso_country') === 'TR')
   .filter((r) => ['large_airport', 'medium_airport', 'small_airport'].includes(r.get('type') ?? ''))
   .filter((r) => /^[A-Z]{3}$/.test((r.get('iata_code') ?? '').trim().toUpperCase()))
+  .filter((r) => !isMilitaryAirfield(icaoOf(r)))
   .map(position)
-/** Açık halkalardaki yabancı havalimanları (liste kuralı, D-080, D-101). */
-const listedForeign = rows
+const ringOf = (r: Map<string, string>) => {
+  const here = position(r)
+  return airportRing(Math.min(...references.map((tr) => km(here, tr))))
+}
+/** Açık halkalardaki yabancı havalimanları (liste kuralı, D-080, D-101, D-110). */
+const listedRows = rows
   .filter((r) => r.get('iso_country') !== 'TR')
   .filter((r) =>
     isForeignCandidate(
@@ -62,49 +69,131 @@ const listedForeign = rows
       icaoOf(r),
     ),
   )
-  .filter((r) => {
-    const here = position(r)
-    return airportRing(Math.min(...references.map((tr) => km(here, tr)))) <= ENABLED_AIRPORT_RING
-  })
-  .map(icaoOf)
+  .filter((r) => ringOf(r) <= ENABLED_AIRPORT_RING)
+const listedForeign = listedRows.map(icaoOf)
 
-describe('CIVIL_FLIGHT_CLOSURES (kullanıcı kararı 2026-10-04, D-090)', () => {
-  it("Rosaviatsiya'nın 2022-02-24 kısıtlamasındaki on Rusya havalimanı; Simferopol yok", () => {
-    expect(Object.keys(CIVIL_FLIGHT_CLOSURES).sort()).toEqual(
-      ['URKA', 'URKG', 'URKK', 'URRP', 'URWI', 'UUBP', 'UUOB', 'UUOK', 'UUOL', 'UUOO'].sort(),
-    )
+/** Kesin kayıtlar (D-110 → "Not türü"): 23'ü 2022'den beri Ukrayna ve Rusya, dördü öbür yıllar. */
+const CONFIRMED = [
+  ...['UKBB', 'UKDD', 'UKDE', 'UKDR', 'UKFF', 'UKHH', 'UKKK', 'UKLI', 'UKLL', 'UKLN', 'UKLR'],
+  ...['UKLU', 'UKOH', 'UKON', 'UKOO', 'UKWW', 'URKA', 'URRP', 'UUBP', 'UUOB', 'UUOK', 'UUOL'],
+  ...['UUOO', 'FZMA', 'FZNA', 'OSLK', 'OYTZ'],
+]
+/** Belirsiz kayıtlar: haber ve dolaylı kanıt, açılışı yakın ya da denetimi yeni el değiştiren. */
+const POSSIBLE = ['GAGO', 'GAMB', 'HAAX', 'HSFS', 'HSNN', 'HSOB', 'OSKL', 'OYSN']
+/** OurAirports'ta tarifesiz, kapanış tablosuyla listeye giren 23 havalimanı (D-110). */
+const UNSCHEDULED = [
+  ...['FZMA', 'UKBB', 'UKDD', 'UKDE', 'UKDR', 'UKFF', 'UKHH', 'UKKK', 'UKLI', 'UKLL', 'UKLN'],
+  ...['UKLR', 'UKLU', 'UKOH', 'UKON', 'UKOO', 'UKWW', 'URKA', 'URRP', 'UUBP', 'UUOB', 'UUOK'],
+  'UUOL',
+]
+
+describe('CIVIL_FLIGHT_CLOSURES (savaş nedeniyle kapalı havalimanları, D-110; D-090)', () => {
+  it('35 kayıt, ICAO sırasıyla; tarih biçimi ve aralığı', () => {
+    const codes = Object.keys(CIVIL_FLIGHT_CLOSURES)
+    expect(codes).toHaveLength(35)
+    expect(codes).toEqual(codes.toSorted())
+    expect(codes.toSorted()).toEqual([...CONFIRMED, ...POSSIBLE].sort())
     for (const [icao, closure] of Object.entries(CIVIL_FLIGHT_CLOSURES)) {
       expect(icao).toMatch(/^[A-Z]{4}$/)
-      expect(closure.since, icao).toBe('2022-02-24')
+      expect(closure.since, icao).toMatch(/^\d{4}-\d{2}(-\d{2})?$/)
       expect(Number.isNaN(Date.parse(closure.since)), icao).toBe(false)
+      const year = Number(closure.since.slice(0, 4))
+      expect(year, icao).toBeGreaterThanOrEqual(2015)
+      expect(year, icao).toBeLessThanOrEqual(2026)
     }
-    expect(civilFlightClosure('UKFF')).toBeUndefined()
-    expect(civilFlightClosure('URFF')).toBeUndefined()
+    expect(civilFlightClosure('UKBB')).toEqual({ since: '2022-02-24', certainty: 'confirmed' })
+    expect(civilFlightClosure('OYTZ')).toEqual({ since: '2015-10', certainty: 'confirmed' })
+    expect(civilFlightClosure('FZNA')?.since).toBe('2025-01-27')
+    expect(civilFlightClosure('FZMA')?.since).toBe('2025-02-14')
+    expect(civilFlightClosure('OSLK')?.since).toBe('2024-12-08')
+    expect(civilFlightClosure('OSKL')).toEqual({ since: '2024-12-08', certainty: 'possible' })
+    expect(civilFlightClosure('OYSN')?.since).toBe('2025-05-28')
+    for (const icao of ['HSFS', 'HSNN', 'HSOB']) {
+      expect(civilFlightClosure(icao)?.since, icao).toBe('2023-04-15')
+    }
+    expect(civilFlightClosure('HAAX')?.since).toBe('2026-09-23')
+    for (const icao of ['GAGO', 'GAMB']) {
+      expect(civilFlightClosure(icao)?.since, icao).toBe('2026-04-28')
+    }
   })
 
-  it('listede olanlar: Krasnodar, Gelencik (1. halka), Elista (2. halka), Voronej (3. halka)', () => {
+  it('not türü: 27 kesin, 8 belirsiz', () => {
+    const by = (certainty: string) =>
+      Object.entries(CIVIL_FLIGHT_CLOSURES)
+        .filter(([, closure]) => closure.certainty === certainty)
+        .map(([icao]) => icao)
+        .sort()
+    expect(by('confirmed')).toEqual(CONFIRMED.toSorted())
+    expect(by('possible')).toEqual(POSSIBLE.toSorted())
+    expect(CONFIRMED).toHaveLength(27)
+    expect(POSSIBLE).toHaveLength(8)
+    // Ukrayna ve Rusya'nın 23 kaydı 2022-02-24'ten beri kesin.
+    for (const icao of CONFIRMED.filter((code) => /^U[KRU]/.test(code))) {
+      expect(civilFlightClosure(icao), icao).toEqual({
+        since: '2022-02-24',
+        certainty: 'confirmed',
+      })
+    }
+  })
+
+  it("fixture: 35 kaydın hepsi açık halkada listelenir; 23'ü OurAirports'ta tarifesizdir", () => {
     const listedClosed = listedForeign.filter((icao) => civilFlightClosure(icao) !== undefined)
-    expect(listedClosed.sort()).toEqual(['URKG', 'URKK', 'URWI', 'UUOO'])
-    // Hepsinin küratörlü adı vardır (sayfa ve pencere notu adın yanında gösterir).
-    for (const icao of listedClosed) {
-      expect(Object.hasOwn(FOREIGN_AIRPORT_NAMES, icao), icao).toBe(true)
+    expect(listedClosed.toSorted()).toEqual(Object.keys(CIVIL_FLIGHT_CLOSURES).sort())
+    const unscheduled = listedRows
+      .filter((r) => civilFlightClosure(icaoOf(r)) !== undefined)
+      .filter((r) => r.get('scheduled_service') !== 'yes')
+      .map(icaoOf)
+      .sort()
+    expect(unscheduled).toEqual(UNSCHEDULED)
+    // Tarifesizler halka analizinin adayı değildir (OurAirports bayrağı); liste kuralı onları alır.
+    for (const r of listedRows.filter((row) => UNSCHEDULED.includes(icaoOf(row)))) {
+      expect(
+        isScheduledIataAirport(r.get('type') ?? '', false, r.get('iata_code')),
+        icaoOf(r),
+      ).toBe(false)
+      expect(isScheduledIataAirport(r.get('type') ?? '', true, r.get('iata_code')), icaoOf(r)).toBe(
+        true,
+      )
     }
-    // 2026-10-01 indirmesinde tarifesiz olan altısı fixture'da yoktur (aday değil, listelenmez).
-    const fixtureIcaos = new Set(rows.map(icaoOf))
-    for (const icao of ['URKA', 'URRP', 'UUBP', 'UUOB', 'UUOK', 'UUOL']) {
-      expect(fixtureIcaos.has(icao), icao).toBe(false)
-    }
+    // Halka dağılımı: 1. halkada 2, 2. halkada 15, 3. halkada 5, 4. halkada 1 (Bukavu).
+    const rings = listedRows
+      .filter((r) => UNSCHEDULED.includes(icaoOf(r)))
+      .map(ringOf)
+      .reduce<Record<number, number>>((acc, ring) => ({ ...acc, [ring]: (acc[ring] ?? 0) + 1 }), {})
+    expect(rings).toEqual({ 1: 2, 2: 15, 3: 5, 4: 1 })
   })
 
-  it('Türkiye havalimanı tabloda değildir; kod kırpılır ve büyük harfe çevrilir', () => {
+  it('yeniden açılanlar tabloda yok ama listede: Krasnodar, Gelencik, Elista; Mekele', () => {
+    for (const icao of ['URKK', 'URKG', 'URWI', 'HAMK']) {
+      expect(civilFlightClosure(icao), icao).toBeUndefined()
+      expect(listedForeign, icao).toContain(icao)
+    }
+    // Kırım'daki Simferopol tablodadır (Ukrayna NOTAM'ı ve Rosaviatsiya kısıtlaması).
+    expect(civilFlightClosure('UKFF')?.certainty).toBe('confirmed')
+  })
+
+  it('Türkiye havalimanı yok; her kaydın küratörlü adı var; kod kırpılır, prototip anahtarı kayıt değil', () => {
     for (const icao of Object.keys(CIVIL_FLIGHT_CLOSURES)) {
       expect(Object.hasOwn(AIRPORT_NAMES, icao), icao).toBe(false)
+      expect(Object.hasOwn(FOREIGN_AIRPORT_NAMES, icao), icao).toBe(true)
+      expect(isMilitaryAirfield(icao), icao).toBe(false)
     }
-    expect(civilFlightClosure(' uuoo ')).toEqual({ since: '2022-02-24' })
+    expect(civilFlightClosure(' uuoo ')).toEqual({ since: '2022-02-24', certainty: 'confirmed' })
     expect(civilFlightClosure('UUEE')).toBeUndefined()
     expect(civilFlightClosure('LTFM')).toBeUndefined()
     expect(civilFlightClosure('')).toBeUndefined()
     expect(civilFlightClosure('toString')).toBeUndefined()
     expect(civilFlightClosure('__proto__')).toBeUndefined()
+  })
+
+  it('aday kuralı: tablodaki tarifesiz havalimanı adaydır; öbür koşullar geçerli', () => {
+    expect(isForeignCandidate('large_airport', false, 'KBP', 'UKBB')).toBe(true)
+    expect(isForeignCandidate('medium_airport', false, 'kbp', ' ukbb ')).toBe(true)
+    expect(isForeignCandidate('large_airport', false, 'ATH', 'LGAV')).toBe(false)
+    for (const type of ['small_airport', 'heliport', 'closed']) {
+      expect(isForeignCandidate(type, false, 'KBP', 'UKBB'), type).toBe(false)
+    }
+    expect(isForeignCandidate('large_airport', false, null, 'UKBB')).toBe(false)
+    expect(isForeignCandidate('large_airport', false, 'KBP', null)).toBe(false)
   })
 })

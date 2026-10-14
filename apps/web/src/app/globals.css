@@ -1811,10 +1811,20 @@ body:has(.map-page) .site-footer {
 }
 
 /*
- * Sivil uçuşlara kapalı olabilecek havalimanı (D-090): sayfada başlığın altında, harita penceresinde
+ * Savaş nedeniyle kapalı havalimanı (D-110; D-090): sayfada başlığın altında, harita penceresinde
  * yer satırının altında. Kehribar zemin ve uyarı yazısı (`#fef3c7` / `--warn`, 6,37:1; hava durumu
- * vurgusuyla aynı takım, D-083); kenar çizgisi yüksek karşıtlık kipinde de görünür.
+ * vurgusuyla aynı takım, D-083); kenar çizgisi yüksek karşıtlık kipinde de görünür. Havalimanı
+ * listesinde (`.airports-closure`) adın altında küçük, zeminsiz uyarı yazısı (`--warn` tablonun
+ * beyaz zemininde 7,09:1).
  */
+.airports-closure {
+  display: block;
+  margin-top: 0.15rem;
+  color: var(--warn);
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
 .civil-closure {
   margin: -0.5rem 0 1rem;
   padding: 0.35rem 0.75rem;

@@ -31,7 +31,7 @@ import {
   type AirportMetar,
   type Locale,
 } from '@havayolu/shared'
-import { civilClosureNote } from '../airports/civil-closure'
+import { civilClosureNote, civilClosureTemplates } from '../airports/civil-closure'
 import { phenomenonRows, plainRow, type WeatherRow } from '../airports/weather-rows'
 import { runwaySummary, type MapAirport } from './airport-data'
 import type { AirportWeatherState } from './use-airport-weather'
@@ -106,8 +106,8 @@ export interface AirportFacts {
    */
   rows: WeatherRow[]
   /**
-   * "Sivil uçuşlara kapalı olabilir (2022’den beri)" (kullanıcı kararı 2026-10-04, D-090;
-   * `civilClosureNote`); listede olmayan havalimanında null.
+   * "Savaş nedeniyle sivil uçuşlara kapalı (2022’den beri)" ya da "… kapalı olabilir (…)" (D-110;
+   * D-090; `civilClosureNote`); kapanış tablosunda olmayan havalimanında null.
    */
   closure: string | null
 }
@@ -124,8 +124,8 @@ export function formatLocalTime(ms: number, timeZone: string, t: PopupMessages):
 
 /**
  * Pencerenin üst bilgileri: ad, rakım, pist özeti; saat dilimi biliniyorsa (`popupTimeZone`) yerel
- * saat ve UTC farkı (her havalimanında aynı biçim); sivil uçuşlara kapalı olabilecek havalimanında
- * not (D-090). Gün doğumu ve batımı pencerede yazılmaz,
+ * saat ve UTC farkı (her havalimanında aynı biçim); savaş nedeniyle kapalı havalimanında not (D-110,
+ * D-090). Gün doğumu ve batımı pencerede yazılmaz,
  * havalimanı sayfasındadır (kullanıcı kararı 2026-10-02). Hava durumu ayrıdır (`popupWeatherView`).
  */
 export function airportFacts(
@@ -147,7 +147,7 @@ export function airportFacts(
     name,
     label: format(t.label, { name }),
     rows,
-    closure: civilClosureNote(airport.icao, locale, t.civilClosure),
+    closure: civilClosureNote(airport.icao, locale, civilClosureTemplates(t)),
   }
 }
 

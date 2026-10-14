@@ -5,23 +5,25 @@ import { RING4_AIRPORT_CITIES, RING4_AIRPORT_NAMES } from './foreign-airport-nam
 type LocalizedTable = Readonly<Record<string, LocalizedText>>
 
 /**
- * 1.–3. halkanın Türkçe ve İngilizce görünen adları (D-080): 1. halkanın (≤ 500 km) 75, 2.
- * halkanın (≤ 1.000 km, D-088) 89 ve 3. halkanın (≤ 2.000 km, D-090) 278 havalimanı, toplam 442,
- * ICAO koduna göre sıralı (anahtar listedeki kanonik ICAO'dur: Süleymaniye'nin
- * OurAirports kimliği ORSU, ICAO'su ORSJ; İskenderiye'nin OurAirports `icao_code`'u HEAX, uygulamadaki
- * kodu HEBA, `OURAIRPORTS_ICAO_CORRECTIONS`; Özbekistan'ın beş havalimanında OurAirports kimliği
- * UTxx, ICAO'su UZxx; Kızıldeniz'in kimliği "RSI", ICAO'su OERS).
+ * 1.–3. halkanın Türkçe ve İngilizce görünen adları (D-080): 1. halkanın (≤ 500 km) 77, 2.
+ * halkanın (≤ 1.000 km, D-088) 104 ve 3. halkanın (≤ 2.000 km, D-090) 283 havalimanı, toplam 464
+ * (savaş nedeniyle kapalı 22 havalimanıyla, D-110), ICAO koduna göre sıralı (anahtar listedeki
+ * kanonik ICAO'dur: Süleymaniye'nin OurAirports kimliği ORSU, ICAO'su ORSJ; İskenderiye'nin
+ * OurAirports `icao_code`'u HEAX, uygulamadaki kodu HEBA, `OURAIRPORTS_ICAO_CORRECTIONS`;
+ * Özbekistan'ın beş havalimanında OurAirports kimliği UTxx, ICAO'su UZxx; Kızıldeniz'in kimliği
+ * "RSI", ICAO'su OERS).
  *
  * Kaynak: İngilizce ad OurAirports adıdır (kamu malı; indirme 2026-10-01T23:03Z), API'nin ad
  * temizliğinden geçmiş olarak (`@havayolu/db` `cleanAirportName`): art arda boşluklar teke iner
  * (Bacău'nun kaynaktaki adında "International  Airport") ve tek başına duran küçük harfli "airport"
  * "Airport" olur (3. halkada dokuz Fransız havalimanı: "Bastia-Poretta International airport",
- * "Aurillac airport"; D-090). Askerî üs eki yazılmaz, havalimanının kendi İngilizce adı kalır: Bağdat
- * ("/ New Al Muthana Air Base"), Podgorica ("/ Podgorica Golubovci Airbase") ve Cuxhaven ("/ Nordholz
- * Naval Airbase"). Adın sonundaki Arapça yazım da yazılmaz (Guemar, D-090). Eski ad da kural gereği
- * kalır (Kefalonya "Kefallinia Airport"). EuroAirport Basel-Mulhouse-Freiburg'un İngilizce adında
- * ayrı bir "Airport" sözcüğü yoktur; ad olduğu gibi kalır. Türkçe ad havayolu'nun derlemesidir
- * (kullanıcı kararı 2026-10-01, D-080), kuralları:
+ * "Aurillac airport"; D-090). Kaynaktaki "[CLOSED]" eki yazılmaz (Mykolaiv, D-110): durumu kapanış
+ * notu söyler (`CIVIL_FLIGHT_CLOSURES`). Askerî üs eki yazılmaz, havalimanının kendi İngilizce adı
+ * kalır: Bağdat ("/ New Al Muthana Air Base"), Podgorica ("/ Podgorica Golubovci Airbase") ve
+ * Cuxhaven ("/ Nordholz Naval Airbase"). Adın sonundaki Arapça yazım da yazılmaz (Guemar, D-090).
+ * Eski ad da kural gereği kalır (Kefalonya "Kefallinia Airport"). EuroAirport
+ * Basel-Mulhouse-Freiburg'un İngilizce adında ayrı bir "Airport" sözcüğü yoktur; ad olduğu gibi
+ * kalır. Türkçe ad havayolu'nun derlemesidir (kullanıcı kararı 2026-10-01, D-080), kuralları:
  * - Şehir ya da ada adı Türkçede bugün kullanılan yerleşik biçimiyle (exonym) yazılır: Atina,
  *   Selanik, Sofya, Filibe, Burgaz, Üsküp, Ohri, Priştine, Niş, Bükreş, Köstence, Krayova, Tiflis,
  *   Batum, Sohum, Erivan, Gümrü, Nahçıvan, Gence, Tebriz, Urmiye, Erdebil, Bağdat, Erbil, Kerkük,
@@ -35,7 +37,8 @@ type LocalizedTable = Readonly<Record<string, LocalizedText>>
  *   Nijniy Novgorod, Çeboksarı, İjevsk, Aşkabat, Semerkant, Buhara, Ürgenç, Kızılorda, Aktöbe, Atırav,
  *   Riyad, Cidde, Medine, Taif, Dammam, Abu Dabi, Şarika, Füceyre, Bahreyn, Doha, Meşhed, Şiraz,
  *   Kirman, Yezd, Bender Abbas, Trablus, Tunus, Sfaks, Cerbe, Annabe, Konstantin, Cicel, Luksor,
- *   Asvan, Hurgada, Ebu Simbel.
+ *   Asvan, Hurgada, Ebu Simbel; Ukrayna'da (D-110) Kiev (T.C. Kiev Büyükelçiliği; İngilizcede Kyiv),
+ *   Odessa (T.C. Odessa Başkonsolosluğu; İngilizcede Odesa), Zaporijya, Herson.
  *   Yalnız tarihte kalan biçimler kullanılmaz (D-088): Iași (Yaş değil), Timișoara (Temeşvar değil),
  *   Catania (Katanya değil), Pécs (Peçuy değil). Yerleşik Türkçe biçim yoksa yerel ad Türkçe
  *   harflerle ya da özgün yazımıyla kalır (Kalamata, Skiathos, Santorini, Volos, Kurayyat, Sekaka,
@@ -58,9 +61,19 @@ type LocalizedTable = Readonly<Record<string, LocalizedText>>
  *   Kopernik (Wrocław), Korkut Ata (Kızılorda), Hace Abdullah Ensari (Herat), Papa II. Jean Paul
  *   (Krakov), Catullus (Verona), Assisili Francesco (Perugia).
  * - "International", "National", "Domestic", "Island" gibi nitelemeler Türkçe adda yazılmaz; ad
- *   "Havalimanı" ile biter. Tartışmalı bölgelerde (Sohum) yalnızca şehir adı kullanılır.
+ *   "Havalimanı" ile biter. Tartışmalı bölgelerde (Sohum; Kırım'da Simferopol, D-110) yalnızca
+ *   şehir adı kullanılır.
+ * - Ukrayna (D-110): 4. halkanın dondurulmuş Kiril kuralı Ukrayna'ya genişler; kaynak OurAirports'un
+ *   yazımıdır (Ukrayna'nın resmî Latin harf çevirisi): kh → h, zh → j, ch → ç, sh → ş, shch → şç;
+ *   и (y) → i, sondaki -yi (-ий) → -iy, ї → yi; ünsüzden sonra ia, iu, ie → ya, yu, ye; sözcük
+ *   başında I → İ (Harkiv, Ujhorod, Çernivtsi, Mikolayiv, Kriviy Rih, Vinnitsya, İvano-Frankivsk).
+ *   Yerleşik Türkçe exonym kuralın önündedir (Kiev, Odessa, Zaporijya, Herson); iki Türkçe biçim
+ *   yarışıyorsa (Harkov/Harkiv) kural uygulanır. Hizmet verdiği şehir adın önüne eklenir (Kiev
+ *   Borispil; yerleşim Boryspil), semt eki atılır (Kiev Igor Sikorsky, "(Zhuliany)"; Vinnitsya,
+ *   "/Gavyryshivka"); Rusya'da yerleşim adı ve yerel şehir adı korunur (Anapa Vityazevo,
+ *   Rostov-na-Donu Platov), yön niteleyicisi atılır (Kursk, "East"; İvanovo emsali).
  *
- * 4. halkanın 719 adı ayrı dosyadadır (`foreign-airport-names-r4.ts`, D-102); oradaki başlık bu
+ * 4. halkanın 720 adı ayrı dosyadadır (`foreign-airport-names-r4.ts`, D-102); oradaki başlık bu
  * kurallara 4. halkanın eklediklerini yazar.
  */
 const RING1_3_AIRPORT_NAMES: LocalizedTable = {
@@ -559,6 +572,25 @@ const RING1_3_AIRPORT_NAMES: LocalizedTable = {
   },
   UGSS: { tr: 'Sohum Havalimanı', en: 'Vladislav Ardzinba Sukhum International Airport' },
   UGTB: { tr: 'Tiflis Havalimanı', en: 'Tbilisi International Airport' },
+  UKBB: { tr: 'Kiev Borispil Havalimanı', en: 'Boryspil International Airport' },
+  UKDD: { tr: 'Dnipro Havalimanı', en: 'Dnipro International Airport' },
+  UKDE: { tr: 'Zaporijya Havalimanı', en: 'Zaporizhzhia International Airport' },
+  UKDR: { tr: 'Kriviy Rih Havalimanı', en: 'Kryvyi Rih International Airport' },
+  UKFF: { tr: 'Simferopol Havalimanı', en: 'Simferopol International Airport' },
+  UKHH: { tr: 'Harkiv Havalimanı', en: 'Kharkiv International Airport' },
+  UKKK: {
+    tr: 'Kiev Igor Sikorsky Havalimanı',
+    en: 'Igor Sikorsky Kyiv International Airport (Zhuliany)',
+  },
+  UKLI: { tr: 'İvano-Frankivsk Havalimanı', en: 'Ivano-Frankivsk International Airport' },
+  UKLL: { tr: 'Lviv Havalimanı', en: 'Lviv International Airport' },
+  UKLN: { tr: 'Çernivtsi Havalimanı', en: 'Chernivtsi International Airport' },
+  UKLR: { tr: 'Rivne Havalimanı', en: 'Rivne International Airport' },
+  UKLU: { tr: 'Ujhorod Havalimanı', en: 'Uzhhorod International Airport' },
+  UKOH: { tr: 'Herson Havalimanı', en: 'Kherson International Airport' },
+  UKON: { tr: 'Mikolayiv Havalimanı', en: 'Mykolaiv International Airport' },
+  UKOO: { tr: 'Odessa Havalimanı', en: 'Odesa International Airport' },
+  UKWW: { tr: 'Vinnitsya Havalimanı', en: 'Vinnytsia/Gavyryshivka International Airport' },
   ULOO: { tr: 'Pskov Prenses Olga Havalimanı', en: 'Princess Olga Pskov International Airport' },
   ULWC: { tr: 'Çerepovets Havalimanı', en: 'Cherepovets Airport' },
   UMBB: { tr: 'Brest Havalimanı', en: 'Brest International Airport' },
@@ -566,6 +598,7 @@ const RING1_3_AIRPORT_NAMES: LocalizedTable = {
   UMKK: { tr: 'Kaliningrad Hrabrovo Havalimanı', en: 'Khrabrovo Airport' },
   UMMS: { tr: 'Minsk Havalimanı', en: 'Minsk National Airport' },
   UMOO: { tr: 'Mogilev Havalimanı', en: 'Mogilev Airport' },
+  URKA: { tr: 'Anapa Vityazevo Havalimanı', en: 'Anapa Vityazevo Airport' },
   URKG: { tr: 'Gelencik Havalimanı', en: 'Gelendzhik Airport' },
   URKK: { tr: 'Krasnodar Paşkovski Havalimanı', en: 'Krasnodar Pashkovsky International Airport' },
   URMG: {
@@ -578,6 +611,7 @@ const RING1_3_AIRPORT_NAMES: LocalizedTable = {
   URMO: { tr: 'Vladikavkaz Beslan Havalimanı', en: 'Vladikavkaz Beslan International Airport' },
   URMS: { tr: 'Magas Havalimanı', en: 'Magas Airport' },
   URMT: { tr: 'Stavropol Şpakovskoye Havalimanı', en: 'Stavropol Shpakovskoye Airport' },
+  URRP: { tr: 'Rostov-na-Donu Platov Havalimanı', en: 'Platov International Airport' },
   URSS: { tr: 'Soçi Havalimanı', en: 'Sochi International Airport' },
   URWA: {
     tr: 'Astrahan Narimanovo Boris Kustodiyev Havalimanı',
@@ -595,6 +629,7 @@ const RING1_3_AIRPORT_NAMES: LocalizedTable = {
   UTAV: { tr: 'Türkmenabat Havalimanı', en: 'Türkmenabat International Airport' },
   UUBA: { tr: 'Kostroma Sokerkino Havalimanı', en: 'Kostroma Sokerkino Airport' },
   UUBI: { tr: 'İvanovo Havalimanı', en: 'Ivanovo South Airport' },
+  UUBP: { tr: 'Bryansk Havalimanı', en: 'Bryansk International Airport' },
   UUBW: { tr: 'Moskova Jukovski Havalimanı', en: 'Zhukovsky International Airport' },
   UUDD: { tr: 'Moskova Domodedovo Havalimanı', en: 'Domodedovo International Airport' },
   UUDL: {
@@ -602,6 +637,9 @@ const RING1_3_AIRPORT_NAMES: LocalizedTable = {
     en: 'Golden Ring Yaroslavl International Airport',
   },
   UUEE: { tr: 'Moskova Şeremetyevo Havalimanı', en: 'Sheremetyevo International Airport' },
+  UUOB: { tr: 'Belgorod Havalimanı', en: 'Belgorod International Airport' },
+  UUOK: { tr: 'Kursk Havalimanı', en: 'Kursk East Airport' },
+  UUOL: { tr: 'Lipetsk Havalimanı', en: 'Lipetsk Airport' },
   UUOO: { tr: 'Voronej Havalimanı', en: 'Voronezh International Airport' },
   UUWW: { tr: 'Moskova Vnukovo Havalimanı', en: 'Vnukovo International Airport' },
   UWGG: {
@@ -631,9 +669,10 @@ const RING1_3_AIRPORT_NAMES: LocalizedTable = {
 
 /**
  * Türkiye dışındaki listelenen havalimanlarının (D-080) Türkçe ve İngilizce görünen adları: 1.–3.
- * halkanın 442'si (yukarıda) ve 4. halkanın (≤ 5.000 km, D-102) 719'u (`RING4_AIRPORT_NAMES`),
- * toplam 1.161; anahtar kanonik ICAO'dur. Dört karakterli ICAO'su olmayan Kihihi (UG-0002, IATA
- * KHX) listede olmadığı için tabloda da yoktur (D-101).
+ * halkanın 464'ü (yukarıda) ve 4. halkanın (≤ 5.000 km, D-102) 720'si (`RING4_AIRPORT_NAMES`),
+ * toplam 1.184 (savaş nedeniyle kapalı 23 havalimanıyla, D-110); anahtar kanonik ICAO'dur. Dört
+ * karakterli ICAO'su olmayan Kihihi (UG-0002, IATA KHX) listede olmadığı için tabloda da yoktur
+ * (D-101).
  *
  * Tabloda olmayan yurt dışı havalimanı (sonraki halkalar) `translatedAirportName` kuralıyla
  * Türkçeleştirilir ("International Airport" → "Uluslararası Havalimanı", "Airport" → "Havalimanı").
@@ -1069,6 +1108,22 @@ const RING1_3_AIRPORT_CITIES: LocalizedTable = {
   UGSB: { tr: 'Batum', en: 'Batumi' },
   UGSS: { tr: 'Sohum', en: 'Sukhumi' },
   UGTB: { tr: 'Tiflis', en: 'Tbilisi' },
+  UKBB: { tr: 'Kiev', en: 'Kyiv' },
+  UKDD: { tr: 'Dnipro', en: 'Dnipro' },
+  UKDE: { tr: 'Zaporijya', en: 'Zaporizhzhia' },
+  UKDR: { tr: 'Kriviy Rih', en: 'Kryvyi Rih' },
+  UKFF: { tr: 'Simferopol', en: 'Simferopol' },
+  UKHH: { tr: 'Harkiv', en: 'Kharkiv' },
+  UKKK: { tr: 'Kiev', en: 'Kyiv' },
+  UKLI: { tr: 'İvano-Frankivsk', en: 'Ivano-Frankivsk' },
+  UKLL: { tr: 'Lviv', en: 'Lviv' },
+  UKLN: { tr: 'Çernivtsi', en: 'Chernivtsi' },
+  UKLR: { tr: 'Rivne', en: 'Rivne' },
+  UKLU: { tr: 'Ujhorod', en: 'Uzhhorod' },
+  UKOH: { tr: 'Herson', en: 'Kherson' },
+  UKON: { tr: 'Mikolayiv', en: 'Mykolaiv' },
+  UKOO: { tr: 'Odessa', en: 'Odesa' },
+  UKWW: { tr: 'Vinnitsya', en: 'Vinnytsia' },
   ULOO: { tr: 'Pskov', en: 'Pskov' },
   ULWC: { tr: 'Çerepovets', en: 'Cherepovets' },
   UMBB: { tr: 'Brest', en: 'Brest' },
@@ -1076,6 +1131,7 @@ const RING1_3_AIRPORT_CITIES: LocalizedTable = {
   UMKK: { tr: 'Kaliningrad', en: 'Kaliningrad' },
   UMMS: { tr: 'Minsk', en: 'Minsk' },
   UMOO: { tr: 'Mogilev', en: 'Mogilev' },
+  URKA: { tr: 'Anapa', en: 'Anapa' },
   URKG: { tr: 'Gelencik', en: 'Gelendzhik' },
   URKK: { tr: 'Krasnodar', en: 'Krasnodar' },
   URMG: { tr: 'Grozni', en: 'Grozny' },
@@ -1085,6 +1141,7 @@ const RING1_3_AIRPORT_CITIES: LocalizedTable = {
   URMO: { tr: 'Vladikavkaz', en: 'Vladikavkaz' },
   URMS: { tr: 'Magas', en: 'Magas' },
   URMT: { tr: 'Stavropol', en: 'Stavropol' },
+  URRP: { tr: 'Rostov-na-Donu', en: 'Rostov-on-Don' },
   URSS: { tr: 'Soçi', en: 'Sochi' },
   URWA: { tr: 'Astrahan', en: 'Astrakhan' },
   URWI: { tr: 'Elista', en: 'Elista' },
@@ -1099,10 +1156,14 @@ const RING1_3_AIRPORT_CITIES: LocalizedTable = {
   UTAV: { tr: 'Türkmenabat', en: 'Türkmenabat' },
   UUBA: { tr: 'Kostroma', en: 'Kostroma' },
   UUBI: { tr: 'İvanovo', en: 'Ivanovo' },
+  UUBP: { tr: 'Bryansk', en: 'Bryansk' },
   UUBW: { tr: 'Moskova', en: 'Moscow' },
   UUDD: { tr: 'Moskova', en: 'Moscow' },
   UUDL: { tr: 'Yaroslavl', en: 'Yaroslavl' },
   UUEE: { tr: 'Moskova', en: 'Moscow' },
+  UUOB: { tr: 'Belgorod', en: 'Belgorod' },
+  UUOK: { tr: 'Kursk', en: 'Kursk' },
+  UUOL: { tr: 'Lipetsk', en: 'Lipetsk' },
   UUOO: { tr: 'Voronej', en: 'Voronezh' },
   UUWW: { tr: 'Moskova', en: 'Moscow' },
   UWGG: { tr: 'Nijniy Novgorod', en: 'Nizhny Novgorod' },
@@ -1128,7 +1189,7 @@ const RING1_3_AIRPORT_CITIES: LocalizedTable = {
 }
 
 /**
- * `FOREIGN_AIRPORT_NAMES`'teki 1.161 havalimanının hizmet verdiği şehir, iki dilde: 1.–3. halka
+ * `FOREIGN_AIRPORT_NAMES`'teki 1.184 havalimanının hizmet verdiği şehir, iki dilde: 1.–3. halka
  * (yukarıda) ve 4. halka (`RING4_AIRPORT_CITIES`, D-102). Birleşik tablo da `#__PURE__` işaretli
  * kurulur (D-101).
  */

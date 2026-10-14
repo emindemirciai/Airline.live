@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import {
+  CIVIL_FLIGHT_CLOSURE_ICAOS,
   cleanAirportName,
   findAirportInRows,
   greatCircleKm,
@@ -548,6 +549,57 @@ describe('yurt dışı kayıtları', () => {
     expect(toListedAirports(rows, EQUATOR).map((a) => a.icao)).toContain('UG-0002')
   })
 
+  it('selectListedAirports: savaş nedeniyle kapalı havalimanı tarifesiz de adaydır (D-110)', () => {
+    const rows = [
+      foreign({
+        id: 1,
+        ident: 'UKBB',
+        icaoCode: 'UKBB',
+        gpsCode: 'UKBB',
+        iataCode: 'KBP',
+        scheduledService: false,
+      }),
+      // GPS yedeği; küçük harf ve boşluk kanonik koda düzelir.
+      foreign({
+        id: 2,
+        ident: 'UA-0001',
+        icaoCode: null,
+        gpsCode: ' ukll ',
+        iataCode: 'LWO',
+        type: 'medium_airport',
+        scheduledService: false,
+      }),
+      // Tabloda olmayan tarifesiz orta havalimanı aday değildir (Poltava: kapanışın nedeni savaş değil).
+      foreign({
+        id: 3,
+        ident: 'UKHP',
+        icaoCode: 'UKHP',
+        iataCode: 'PLV',
+        type: 'medium_airport',
+        scheduledService: false,
+      }),
+      // Tabloda olsa da küçük alan ve IATA kodu olmayan satır aday değildir.
+      foreign({
+        id: 4,
+        ident: 'UKOO',
+        icaoCode: 'UKOO',
+        iataCode: 'ODS',
+        type: 'small_airport',
+        scheduledService: false,
+      }),
+      foreign({ id: 5, ident: 'UKKK', icaoCode: 'UKKK', iataCode: null, scheduledService: false }),
+    ]
+    const selected = selectListedAirports(rows, { ...EQUATOR, enabledRing: 5 })
+    expect(selected.map((a) => a.icao).sort()).toEqual(['UKBB', 'UKLL'])
+    // `scheduled` OurAirports değeridir (API sözleşmesi değişmez, D-090): uçuş evresi kullanmaz.
+    expect(selected.every((a) => !a.scheduled)).toBe(true)
+    // Halka süzgeci geçerlidir.
+    expect(selectListedAirports(rows, { ...EQUATOR, enabledRing: 0 })).toEqual([])
+    // Tablo shared'in `CIVIL_FLIGHT_CLOSURES` anahtarlarıdır (apps/api rings.test.ts eşitliği denetler).
+    expect(CIVIL_FLIGHT_CLOSURE_ICAOS).toHaveLength(35)
+    expect(CIVIL_FLIGHT_CLOSURE_ICAOS).toEqual(CIVIL_FLIGHT_CLOSURE_ICAOS.toSorted())
+  })
+
   it('toAirportDetails: yurt dışı kaydı ülke, halka, uzaklık ve uzaklığın ölçüldüğü Türkiye havalimanını taşır', () => {
     const [detail] = toAirportDetails(
       [
@@ -1075,8 +1127,8 @@ const fixtureDetails = toAirportDetails(fixtureAirports, fixtureRunways, [], fix
 describe('fixture: 4. halka açıkken liste ve pistler (D-101; uygulamada M6i.2’den beri açık, D-102)', () => {
   const context: ListingContext = { ...fixtureContext, enabledRing: 4 }
 
-  it('56 + 75 + 89 + 278 + 719 = 1.217; askerî üsler (D-107) ve UG-0002 (KHX) listede yok, her ICAO dört karakter', () => {
-    expect(listedRing4).toHaveLength(1217)
+  it('56 + 77 + 104 + 283 + 720 = 1.240 (savaş nedeniyle kapalı 23 havalimanıyla, D-110); askerî üsler (D-107) ve UG-0002 (KHX) listede yok, her ICAO dört karakter', () => {
+    expect(listedRing4).toHaveLength(1240)
     expect(listedRing4.filter((a) => a.country === 'TR')).toHaveLength(56)
     for (const icao of MILITARY_AIRFIELD_ICAOS) {
       expect(
@@ -1099,22 +1151,28 @@ describe('fixture: 4. halka açıkken liste ve pistler (D-101; uygulamada M6i.2�
     expect(context.turkey).toHaveLength(61)
     expect(context.turkey.filter((r) => MILITARY_AIRFIELD_ICAOS.includes(r.icao))).toEqual([])
     const foreign = listedRing4.filter((a) => a.country !== 'TR')
-    expect(foreign).toHaveLength(1161)
+    expect(foreign).toHaveLength(1184)
     expect([1, 2, 3, 4].map((ring) => foreign.filter((a) => a.ring === ring).length)).toEqual([
-      75, 89, 278, 719,
+      77, 104, 283, 720,
     ])
+    // OurAirports'ta tarifesiz 23 havalimanı kapanış tablosuyla listededir (D-110).
+    const unscheduled = foreign.filter((a) => !a.scheduled).map((a) => a.icao)
+    expect(unscheduled).toHaveLength(23)
+    for (const icao of unscheduled) expect(CIVIL_FLIGHT_CLOSURE_ICAOS, icao).toContain(icao)
+    expect(foreign.filter((a) => CIVIL_FLIGHT_CLOSURE_ICAOS.includes(a.icao))).toHaveLength(35)
     for (const airport of listedRing4) expect(airport.icao).toMatch(/^[A-Z0-9]{4}$/)
     expect(listedRing4.map((a) => a.icao)).not.toContain('UG-0002')
     expect(listedRing4.map((a) => a.iata)).not.toContain('KHX')
-    // ICAO koşulu olmasa 720 aday olurdu: KHX 4. halkadadır ve ülke listesinde görünür.
+    // ICAO koşulu olmasa KHX de aday olurdu: 4. halkadadır ve ülke listesinde görünür.
     const uganda = toListedAirports(
       fixtureAirports.filter((a) => a.isoCountry === 'UG'),
       context,
     )
     expect(uganda.find((a) => a.iata === 'KHX')).toMatchObject({ icao: 'UG-0002', ring: 4 })
     expect(listedRing4.filter((a) => a.country === 'UG')).toHaveLength(4)
-    // Açık halka 3'te liste 498'di (M6h–M6i.1, D-090; D-107'den önce 503).
-    expect(selectListedAirports(fixtureAirports, { ...context, enabledRing: 3 })).toHaveLength(498)
+    // Açık halka 3'te liste 498'di (M6h–M6i.1, D-090; D-107'den önce 503); kapanış tablosunun 1.–3.
+    // halkadaki 22 tarifesiz kaydıyla 520 olurdu (D-110).
+    expect(selectListedAirports(fixtureAirports, { ...context, enabledRing: 3 })).toHaveLength(520)
   })
 
   it('üsler uzaklık referansından çıkınca halka üyeliği değişmez; en yakın Türkiye havalimanı yalnız dört yerde Çiğli yerine sivil alan olur (D-107)', () => {
@@ -1165,7 +1223,7 @@ describe('fixture: 4. halka açıkken liste ve pistler (D-101; uygulamada M6i.2�
 
   it('görünür pisti olmayan listelenen havalimanları boş pist listesiyle gelir (GMAZ, ULDD, VIMB, VOVI, ZWTK ve UBLC)', () => {
     const details = fixtureDetails.filter((a) => a.ring <= 4)
-    expect(details).toHaveLength(1217)
+    expect(details).toHaveLength(1240)
     const withoutRunways = details.filter((a) => a.runways.length === 0).map((a) => a.icao)
     expect(withoutRunways.sort()).toEqual(['GMAZ', 'UBLC', 'ULDD', 'VIMB', 'VOVI', 'ZWTK'])
     for (const icao of withoutRunways) {
@@ -1177,12 +1235,12 @@ describe('fixture: 4. halka açıkken liste ve pistler (D-101; uygulamada M6i.2�
 })
 
 describe('fixture: 5. halka açık bağlamla (D-109; uygulamada halka 4)', () => {
-  it('56 + 75 + 89 + 278 + 719 + 2.026 = 3.243; dışlananlar listede yok', () => {
-    expect(listedRing5).toHaveLength(3243)
+  it("56 + 77 + 104 + 283 + 720 + 2.026 = 3.266 (D-110'dan önce 3.243); dışlananlar listede yok", () => {
+    expect(listedRing5).toHaveLength(3266)
     expect(
       [0, 1, 2, 3, 4, 5].map((ring) => listedRing5.filter((a) => a.ring === ring).length),
-    ).toEqual([56, 75, 89, 278, 719, 2026])
-    expect(listedRing5.filter((a) => a.country !== 'TR')).toHaveLength(3187)
+    ).toEqual([56, 77, 104, 283, 720, 2026])
+    expect(listedRing5.filter((a) => a.country !== 'TR')).toHaveLength(3210)
     // Dört karakterli ICAO kuralı (D-101: Aleknagik 5A8/WKK, Kihihi UG-0002/KHX, Leshan
     // CN-0249/LSG), askerî liste (D-109: Wake PWAK/AWK, Oakey YBOK/OKY, Kwajalein PKWA/KWA) ve aday
     // olmayan iki dışlama örneği (Paris-Le Bourget LFPB/LBG tarifesiz; Thohoyandou FATH/THY küçük,
@@ -1211,7 +1269,7 @@ describe('fixture: 5. halka açık bağlamla (D-109; uygulamada halka 4)', () =>
     expect(marshall.map((a) => a.icao)).not.toContain('PKWA')
   })
 
-  it('boş yinelenen satır kuralı tablodaki yedi satırı ve 5. halkanın 13 satırını tutar; silme işareti NZHN 238057 ve 260389', () => {
+  it("boş yinelenen satır kuralı tablodaki yedi satırı, 5. halkanın 13 satırını ve Simferopol'ünkünü tutar; silme işareti NZHN 238057 ve 260389", () => {
     const measured = new Set(
       fixtureRunways
         .filter((r) => !isHiddenRunway(r) && r.lengthFt !== null)
@@ -1224,13 +1282,18 @@ describe('fixture: 5. halka açık bağlamla (D-109; uygulamada halka 4)', () =>
       .map((r) => r.id)
     // D-088, D-090, D-101'in kimlik tablosu (Bujumbura, Hassi Messaoud, Taba, Beauvais, Cluj, Linz,
     // Voronej) ve 5. halkanın 13 satırı (SKBS, SKMZ, SKAS, SKRH, SKSV, RJNO, NZGS, NZHN 260389 (silme
-    // işareti de), NZKK, NZRO, NZWK, RCKU, WAJO).
+    // işareti de), NZKK, NZRO, NZWK, RCKU, WAJO); kapanış bloğunda Simferopol'ün uzunluksuz 01/19'u
+    // (UKFF 260413, 01L/19R'nin yinelemesi; D-110).
     const table = [260310, 260338, 260339, 260344, 260408, 504922, 608245]
     const ringFive = [260326, 260329, 260332, 260333, 260334, 260378, 260388, 260389]
     const ringFiveRest = [260391, 260398, 260402, 260411, 327756]
+    const closures = [260413]
     expect(emptyDuplicates.sort((x, y) => x - y)).toEqual(
-      [...table, ...ringFive, ...ringFiveRest].sort((x, y) => x - y),
+      [...table, ...ringFive, ...ringFiveRest, ...closures].sort((x, y) => x - y),
     )
+    expect(fixtureDetails.find((a) => a.icao === 'UKFF')?.runways.map((r) => r.id)).toEqual([
+      239635,
+    ])
     const tombstones = fixtureRunways
       .filter((r) => RUNWAY_TOMBSTONE_SURFACE.test(r.surface ?? ''))
       .map((r) => r.id)
@@ -1252,12 +1315,12 @@ describe('fixture: 5. halka açık bağlamla (D-109; uygulamada halka 4)', () =>
     expect(runwayIds('NZHN')?.sort((a, b) => a - b)).toEqual([238058, 238059, 238060])
   })
 
-  it('görünür pistler: 1.–4. halka 1.541, 5. halka 2.978; pistsiz 6 + 14 havalimanı', () => {
+  it('görünür pistler: 1.–4. halka 1.568 (savaş kapanışlarının 27 pistiyle, D-110), 5. halka 2.978; pistsiz 6 + 14 havalimanı', () => {
     const visible = (rings: readonly number[]) =>
       fixtureDetails
         .filter((a) => rings.includes(a.ring))
         .reduce((total, airport) => total + airport.runways.length, 0)
-    expect(visible([0, 1, 2, 3, 4])).toBe(1541)
+    expect(visible([0, 1, 2, 3, 4])).toBe(1568)
     expect(visible([5])).toBe(2978)
     const withoutRunways = (ring: (r: number) => boolean) =>
       fixtureDetails

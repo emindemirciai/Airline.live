@@ -20,9 +20,9 @@ import { apiFixture } from '../test/ourairports-fixture'
  *
  * Halkaya göre büyüyen tek önbellekli yanıt budur: toplu hava web belleğindedir (`no-store`), METAR/TAF
  * kaydı tek istasyonluktur. Test, commit'li OurAirports fixture'ından (2026-10-01 kopyası) açık
- * halkanın bütün listesini (4. halkada 1.217 havalimanı) üretimdeki gibi kurar (içe aktarım
+ * halkanın bütün listesini (4. halkada 1.240 havalimanı, D-110) üretimdeki gibi kurar (içe aktarım
  * çözümleyicisi, liste kuralı, ayrıntı kaydı, API'nin serileştiricisi) ve kaydın sınırın %85'inin
- * altında kaldığını denetler. 5. halkada (3.243 havalimanı) bu sınır kırılır (D-101); 5. halkanın ölçek işi
+ * altında kaldığını denetler. 5. halkada (3.266 havalimanı) bu sınır kırılır (D-101); 5. halkanın ölçek işi
  * M6j.2'dedir (D-109).
  */
 const NEXT_FETCH_CACHE_LIMIT = 2 * 1024 * 1024
@@ -81,14 +81,15 @@ async function cacheEntry(details: AirportDetail[]) {
 }
 
 describe('Next veri önbelleği sınırı: havalimanı listesi (D-102)', () => {
-  it('açık halkanın bütün listesi (4. halka, 1.217 havalimanı) kaydı 2 MiB sınırının %85’inin altında', async () => {
+  it('açık halkanın bütün listesi (4. halka, 1.240 havalimanı) kaydı 2 MiB sınırının %85’inin altında', async () => {
     expect(ENABLED_AIRPORT_RING).toBe(4)
     const { bytes, airports, item } = await cacheEntry(fixtureDetails(false))
-    expect(airports).toBe(1217)
-    // Ölçüm (2026-10-07, fixture; askerî üssüz liste, D-107; 29 havalimanının adres takma adıyla,
-    // D-109): gövde 1.053.068 B, kayıt ~1.405.205 karakter (sınırın %67,0'ı; takma adsız 1.052.488 B
-    // ve 1.404.433; üslerle 1.222 havalimanında 1.056.369 B ve 1.409.605; 3. halkada 498
-    // havalimanıyla gövde ~0,45 MB).
+    expect(airports).toBe(1240)
+    // Ölçüm (2026-10-15, fixture; savaş nedeniyle kapalı 23 havalimanıyla, D-110): gövde
+    // 1.072.446 B, kayıt ~1.431.041 karakter (sınırın %68,2'si). Önce (2026-10-07; askerî üssüz,
+    // D-107; 29 adres takma adıyla, D-109; 1.217 havalimanı) 1.053.068 B ve 1.405.205 (%67,0;
+    // takma adsız 1.052.488 B ve 1.404.433; üslerle 1.222 havalimanında 1.056.369 B ve 1.409.605;
+    // 3. halkada 498 havalimanıyla gövde ~0,45 MB).
     expect(item).toBeGreaterThan((bytes * 4) / 3)
     expect(item).toBeLessThan(BUDGET)
     expect(bytes / airports).toBeLessThan(1000)
@@ -97,10 +98,10 @@ describe('Next veri önbelleği sınırı: havalimanı listesi (D-102)', () => {
   it('en kötü durum: her havalimanı istasyon kaydı taşısa da kayıt sınırın %85’inin altında', async () => {
     const real = await cacheEntry(fixtureDetails(false))
     const worst = await cacheEntry(fixtureDetails(true))
-    expect(worst.airports).toBe(1217)
+    expect(worst.airports).toBe(1240)
     expect(worst.bytes).toBeGreaterThan(real.bytes)
-    // Ölçüm: gövde 1.108.820 B, kayıt ~1.479.540 karakter (%70,5; takma adsız 1.108.240 B; üslerle
-    // 1.112.351 B, %70,8).
+    // Ölçüm (D-110): gövde 1.129.256 B, kayıt ~1.506.789 karakter (%71,8). Önce 1.108.820 B ve
+    // ~1.479.540 (%70,5; takma adsız 1.108.240 B; üslerle 1.112.351 B, %70,8).
     expect(worst.item).toBeLessThan(BUDGET)
   })
 })
