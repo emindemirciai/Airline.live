@@ -7,7 +7,9 @@
 // - API: `scope=listed` (56 + 75 + 89 + 278 + 719; askerî üsler yok, D-107), halka ve uzaklık
 //   alanları (1. halka ≤ 500 km, 2. halka 500–1.000 km, sınırdaki Ben Gurion 500; 3. halka
 //   1.000–2.000 km; 4. halka 2.000–5.000 km), Kihihi (UG-0002, KHX) ve New York JFK yok, `country`
-//   ile birlikte 400; tek havalimanı ve hava durumu yabancı havalimanını da çözer
+//   ile birlikte 400; tek havalimanı ve hava durumu yabancı havalimanını da çözer; haritanın kaydı
+//   (`include=map`, M6j.2, D-111) aynı listeyi verir, pist uçları yalnız 1.–3. halkada, takma ad
+//   `identAlias`'ta; toplu hava `scope=listed` yalnız `format=raw` ile (yoksa 400)
 // - /havalimanlari: Türkiye tablosundan sonra "Diğer ülkelerdeki havalimanları" tablosu (1.161 satır,
 //   ülkeye göre Türkçe sıralı, ülke sütunu; Türkiye'ye uzaklık sütunu yok, D-106); Kahire, Viyana ve
 //   Londra satırları
@@ -138,7 +140,8 @@ interface ListedAirport {
   country?: unknown
   ring?: unknown
   distanceToTrKm?: unknown
-  runways?: unknown[]
+  identAlias?: unknown
+  runways?: { lengthFt?: unknown; ends?: unknown[] }[]
 }
 
 function isRecord(value: unknown): value is JsonLdNode {
@@ -158,7 +161,11 @@ test.describe('API', () => {
   test('scope=listed: 56 Türkiye + 1.161 Türkiye dışı havalimanı (75 + 89 + 278 + 719); halka ve uzaklık; 5. halka ve ICAO’suz havalimanı yok', async ({
     request,
   }) => {
-    for (const path of ['/v1/airports?scope=listed', '/v1/airports?scope=listed&include=runways']) {
+    for (const path of [
+      '/v1/airports?scope=listed',
+      '/v1/airports?scope=listed&include=runways',
+      '/v1/airports?scope=listed&include=map',
+    ]) {
       const response = await request.get(`${API_URL}${path}`)
       expect(response.status(), path).toBe(200)
       const airports = ((await response.json()) as { airports?: ListedAirport[] }).airports ?? []
@@ -231,6 +238,23 @@ test.describe('API', () => {
       expect(airports.some((airport) => airport.icao === CIVIL_CLOSURE_AIRPORT.icao)).toBe(true)
       expect(airports.some((airport) => airport.icao === UNLISTED_FOREIGN_AIRPORT.icao)).toBe(false)
       if (path.includes('include=runways')) expect(athens?.runways?.length ?? 0).toBeGreaterThan(0)
+      if (path.includes('include=map')) {
+        // Haritanın kaydı (D-111): pist uzunlukları her halkada, uçlar yalnız 1.–3. halkada (canlı
+        // veri kapsaması); 4. halkanın uçları uçak yaklaşınca tek havalimanı ucundan istenir.
+        expect(athens?.runways?.length ?? 0).toBeGreaterThan(0)
+        expect(athens?.runways?.every((runway) => Array.isArray(runway.ends))).toBe(true)
+        const ring4 = airports.find((airport) => airport.icao === RING4_AIRPORT.icao)
+        expect(ring4?.runways?.length ?? 0).toBeGreaterThan(0)
+        expect(ring4?.runways?.some((runway) => 'ends' in runway)).toBe(false)
+        for (const airport of airports) {
+          const withEnds = (airport.runways ?? []).some((runway) => 'ends' in runway)
+          if (withEnds) expect([0, 1, 2, 3], String(airport.icao)).toContain(airport.ring)
+        }
+        // Arama takma adı tam kod olarak bulur (D-109): kayıt takma adı taşır.
+        expect(
+          airports.find((airport) => airport.icao === IDENT_ALIAS_AIRPORT.icao)?.identAlias,
+        ).toBe(IDENT_ALIAS_AIRPORT.alias)
+      }
     }
 
     // Geriye uyumluluk: varsayılan yine Türkiye'dir; `country` ile `scope` birlikte verilemez.
@@ -259,10 +283,16 @@ test.describe('API', () => {
     expect(String(body.metar?.raw)).toContain(icao)
   })
 
-  test('toplu hava: scope=listed bütün listelenen havalimanları (1.217); 1. halka fixture istasyonlarında METAR; ICAO’suz havalimanı yok', async ({
+  test('toplu hava: scope=listed bütün listelenen havalimanları (1.217), yalnız ham biçimde; 1. halka fixture istasyonlarında METAR; ICAO’suz havalimanı yok', async ({
     request,
   }) => {
-    const response = await request.get(`${API_URL}/v1/weather?scope=listed`)
+    // Çözümlenmiş toplu yanıt yalnız ülke isteğindedir (D-111): scope=listed format=raw ister.
+    for (const query of ['scope=listed', 'scope=listed&format=full']) {
+      const full = await request.get(`${API_URL}/v1/weather?${query}`, { failOnStatusCode: false })
+      expect(full.status(), query).toBe(400)
+      expect(((await full.json()) as { error?: unknown }).error, query).toBe('format_required')
+    }
+    const response = await request.get(`${API_URL}/v1/weather?scope=listed&format=raw`)
     expect(response.status()).toBe(200)
     const stations =
       (
