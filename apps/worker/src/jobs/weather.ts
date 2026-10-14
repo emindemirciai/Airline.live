@@ -43,7 +43,11 @@ import type { Logger } from 'pino'
  * dakikada ~86).
  * Yayından sonraki ilk METAR çalışmasında listeye yeni giren istasyonlar 24 saatle istenir
  * (`fetchMetars`; 4. halkanın 719 istasyonu 6'şarlı 120 istek, kaydı olan 498 istasyonun olağan 7
- * isteğiyle birlikte 127 istek, aralıkla en az ~88 sn). Son 24 saatte METAR'ı saklanmamış eski
+ * isteğiyle birlikte 127 istek, aralıkla en az ~88 sn; 5. halkada 3.241 istasyonla 344 doldurma +
+ * 15 olağan = 359 istek, ~251 sn, dakikada en çok 86). Doldurmanın sınırı yoktur (D-111): sınır,
+ * denetlenen istasyonları `backfilled`'e yazdığı için kalanları hiç doldurmazdı. Çalışma 5 dk'yı
+ * aşarsa sonraki METAR işi bekler (kuyruk tek eşzamanlı, zamanlayıcı başına tek sıradaki iş);
+ * kararlı durumda 41 METAR ve 17 TAF isteğidir. Son 24 saatte METAR'ı saklanmamış eski
  * istasyonlar da her worker açılışında bir kez 24 saatle istenir (`backfilled` süreç belleğindedir).
  * Her farklı rapor saklanır (geçmiş), 30 gün sonra silinir.
  * - 429: istek atılmaz, `blocked_until = şimdi + max(Retry-After, 10 dk)`; iş yeniden denenmez.
