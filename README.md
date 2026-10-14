@@ -1,4 +1,4 @@
-# havayolu
+# Airline.live
 
 **[Türkçe](#türkçe) · [English](#english)**
 
@@ -10,7 +10,7 @@
 
 Herkese açık, uluslararası sivil havacılık uçuş takip platformu; birincil istasyonu İstanbul Havalimanı (IST). Canlı harita, uçuş, uçak ve istasyon takibi sunar. Uçak istasyona yaklaşınca (varsayılan 10 km) ve indiğinde bildirim gönderir. Canlı uçak verisi şimdilik Türkiye ve çevresinden çekilir; dünya geneli canlı veri sonraki bir kilometre taşıdır. Önce web (PWA) gelir, ardından iOS ve Android uygulaması (Expo).
 
-> **havayolu** · [havayolu.live](https://havayolu.live) — yönetim: `admin.havayolu.live`, API: `api.havayolu.live`, analiz: `analiz.havayolu.live` (yayında, 2026-09-27).
+> **Airline.live** · [airline.live](https://airline.live) — yönetim: `admin.airline.live`, API: `api.airline.live`, analiz: `analiz.airline.live`. Önceki alan adının bütün adresleri kalıcı yönlendirmeyle (308) aynı yola gider (D-112; geçiş adımları [ACTIVATION](docs/ACTIVATION.md)'da).
 
 > **Bilinen sınır:** Kendi ADS-B alıcımız olmadığı için İstanbul Havalimanı'nda iniş anı çoğunlukla doğrudan görülmez. İniş bildirimi çoğu uçuşta "muhtemelen indi (tahmini saat)" olarak ve son sinyalden 1–1,5 dk sonra gelir. Bazı uçuşlarda yalnızca "iniş verisi alınamadı" denebilir.
 
@@ -20,9 +20,9 @@ Herkese açık, uluslararası sivil havacılık uçuş takip platformu; birincil
 | Yol haritası, veri kaynakları, mimari | ✅ Hazır ve doğrulandı |
 | Yerel test ortamı, Durum ve Yenilikler sayfaları | ✅ Parça 1 · M0 |
 | Bütün servisler, yönetim paneli (Servisler ekranı), onaylı analiz | ✅ Parça 1 · M1a |
-| Marka ve alan adı: havayolu · havayolu.live (DNS kayıtları girildi) | ✅ v0.3.1 |
+| Marka ve alan adı: Airline.live · airline.live; önceki alan adından kalıcı yönlendirme (D-112) | 🟡 v0.25.0 (Dokploy geçişi [ACTIVATION](docs/ACTIVATION.md) adımlarında) |
 | Güvenlik sertleştirmesi (ziyaretçi başına giriş sınırı, Redis kesintisine dayanıklılık) | ✅ v0.3.2 |
-| Canlı yayın: havayolu.live, api., admin. (Dokploy, Let's Encrypt) | ✅ 2026-09-27 |
+| Canlı yayın: web, api., admin. (Dokploy, Let's Encrypt) | ✅ 2026-09-27 |
 | Otomatik yayın hattı (GitHub Actions → GHCR → Dokploy), doğrulama ve geri alma | ✅ Parça 1 · M1b, sunucu kurulumu sürüyor ([rehber](docs/DEPLOY_DOKPLOY.md)) |
 | Veritabanı: havalimanı, pist (eşikler dahil) ve havayolu verisi, günlük güncelleme, iz tabloları ve bakım işleri | ✅ Parça 1 · M2 |
 | Canlı veri sağlayıcıları (ADSB.lol, kendi alıcı), veri temizliği ve gizlilik kuralları | ✅ Parça 1 · M3 |
@@ -106,10 +106,10 @@ Git'te 704 dosya, **154.381 satır**. Bunun 142.385 satırı kod (TypeScript, TS
 | diğer (kök, deploy, .claude, .github) | 10.603 |
 
 ### Lisans, veri ve atıflar
-- Kod [MIT lisansı](LICENSE) ile lisanslanmıştır: © 2026 [emindemirciai](https://github.com/emindemirciai). Kodun tüm kopyaları ya da önemli bölümleri telif bildirimini ve lisans metnini içermek zorundadır; bunlar olmadan kopyalamak ya da dağıtmak lisans ve telif hakkı ihlalidir. **havayolu** adı ve logosu MIT kapsamında değildir, hakları saklıdır. Aynı bildirim sitenin sayfa kaynağında da yer alır.
+- Kod [MIT lisansı](LICENSE) ile lisanslanmıştır: © 2026 [emindemirciai](https://github.com/emindemirciai). Kodun tüm kopyaları ya da önemli bölümleri telif bildirimini ve lisans metnini içermek zorundadır; bunlar olmadan kopyalamak ya da dağıtmak lisans ve telif hakkı ihlalidir. **Airline.live** adı ve logosu MIT kapsamında değildir, hakları saklıdır. Aynı bildirim sitenin sayfa kaynağında da yer alır.
 - Canlı uçuş verisi [ADSB.lol](https://adsb.lol)'den gelir ve [ODbL 1.0](https://opendatacommons.org/licenses/odbl/1-0/) lisansına tabidir.
 - Harita: uydu görüntüsü Powered by Esri (Esri, Vantor, Earthstar Geographics, and the GIS User Community), kullanımı Esri koşullarına tabidir; vektör harita OpenFreeMap © OpenMapTiles, veriler © OpenStreetMap katkıcıları.
-- Sitenin [kullanım koşulları](https://havayolu.live/kullanim-kosullari) geçici metindir. Bütün atıflar ve lisanslar: [ATTRIBUTION.md](ATTRIBUTION.md).
+- Sitenin [kullanım koşulları](https://airline.live/kullanim-kosullari) geçici metindir. Bütün atıflar ve lisanslar: [ATTRIBUTION.md](ATTRIBUTION.md).
 - Havalimanları OurAirports'tan (kamu malı), havayolu ve rota verisi VRS standing-data'dan (CC0), hava durumu NOAA Aviation Weather Center'dan gelir.
 - Ziyaretçi analizi, onayla yüklenen kendi uygulamamız [Siteni Analiz Et](https://github.com/emindemirciai/Analyze.Your.Site-Siteni-Analiz-Et-) (MIT) ile yapılır.
 
@@ -119,7 +119,7 @@ Git'te 704 dosya, **154.381 satır**. Bunun 142.385 satırı kod (TypeScript, TS
 
 A public, international civil aviation flight tracker with Istanbul Airport (IST) as its primary station. It offers a live map and lets you follow flights, aircraft and stations. You get an alert when an aircraft approaches a station (10 km by default) and when it lands. Live aircraft data is currently fetched over Türkiye and the surrounding area only; worldwide live data is a later milestone. The web app (PWA) comes first, then iOS and Android apps (Expo).
 
-> **havayolu** · [havayolu.live](https://havayolu.live) — admin: `admin.havayolu.live`, API: `api.havayolu.live`, analytics: `analiz.havayolu.live` (live since 2026-09-27).
+> **Airline.live** · [airline.live](https://airline.live) — admin: `admin.airline.live`, API: `api.airline.live`, analytics: `analiz.airline.live`. Every address on the previous domain redirects permanently (308) to the same path (D-112; switch steps in [ACTIVATION](docs/ACTIVATION.md)).
 
 > **Known limitation:** Without our own ADS-B receiver, the moment of touchdown at Istanbul Airport is usually not observed directly. For most flights the landing alert says "probably landed (estimated time)" and arrives 1–1.5 minutes after the last signal. For some flights it can only say "landing data unavailable".
 
@@ -129,9 +129,9 @@ A public, international civil aviation flight tracker with Istanbul Airport (IST
 | Roadmap, data sources, architecture | ✅ Done and verified |
 | Local test environment, Status and What's new pages | ✅ Part 1 · M0 |
 | All services, admin panel (Services screen), consent-based analytics | ✅ Part 1 · M1a |
-| Brand and domain: havayolu · havayolu.live (DNS records added) | ✅ v0.3.1 |
+| Brand and domain: Airline.live · airline.live; permanent redirect from the previous domain (D-112) | 🟡 v0.25.0 (Dokploy switch in the [ACTIVATION](docs/ACTIVATION.md) steps) |
 | Security hardening (per-visitor sign-in limit, resilience to Redis outages) | ✅ v0.3.2 |
-| Live: havayolu.live, api., admin. (Dokploy, Let's Encrypt) | ✅ 2026-09-27 |
+| Live: web, api., admin. (Dokploy, Let's Encrypt) | ✅ 2026-09-27 |
 | Automatic release pipeline (GitHub Actions → GHCR → Dokploy), verification and rollback | ✅ Part 1 · M1b, server setup in progress ([guide](docs/DEPLOY_DOKPLOY.md)) |
 | Database: airport, runway (thresholds included) and airline data, daily updates, track tables and maintenance jobs | ✅ Part 1 · M2 |
 | Live data providers (ADSB.lol, own receiver), data cleaning and privacy rules | ✅ Part 1 · M3 |
@@ -200,9 +200,9 @@ Then open `http://localhost:3100/` (live map), `/havalimanlari`, `/istasyon/LTFM
 704 files and **154,381 lines** in git: 142,385 lines of code (TypeScript, TSX, CSS, JS) and 8,463 lines of documentation. The lockfile, `docs/research/` and generated data (fixture CSV and JSON files, drizzle schema snapshots) are excluded. Run `pnpm stats` for current numbers.
 
 ### License, data and attribution
-- Code is licensed under the [MIT License](LICENSE): © 2026 [emindemirciai](https://github.com/emindemirciai). All copies or substantial portions of the code must include the copyright notice and license text; copying or distributing without them infringes the license and the copyright. The **havayolu** name and logo are not covered by the MIT License; rights reserved. The same notice appears in the page source of the site.
+- Code is licensed under the [MIT License](LICENSE): © 2026 [emindemirciai](https://github.com/emindemirciai). All copies or substantial portions of the code must include the copyright notice and license text; copying or distributing without them infringes the license and the copyright. The **Airline.live** name and logo are not covered by the MIT License; rights reserved. The same notice appears in the page source of the site.
 - Live flight data comes from [ADSB.lol](https://adsb.lol) and is subject to [ODbL 1.0](https://opendatacommons.org/licenses/odbl/1-0/).
 - Map: satellite imagery Powered by Esri (Esri, Vantor, Earthstar Geographics, and the GIS User Community), subject to Esri's terms; vector map OpenFreeMap © OpenMapTiles, data © OpenStreetMap contributors.
-- The site's [terms of use](https://havayolu.live/kullanim-kosullari) are an interim text. All attributions and licences: [ATTRIBUTION.md](ATTRIBUTION.md).
+- The site's [terms of use](https://airline.live/kullanim-kosullari) are an interim text. All attributions and licences: [ATTRIBUTION.md](ATTRIBUTION.md).
 - Airports come from OurAirports (public domain), airlines and routes from VRS standing-data (CC0), weather from NOAA Aviation Weather Center.
 - Visitor analytics use our own app, [Siteni Analiz Et](https://github.com/emindemirciai/Analyze.Your.Site-Siteni-Analiz-Et-) (MIT), loaded only with consent.

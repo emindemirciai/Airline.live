@@ -8,7 +8,7 @@
 **Ne olur:** 401/403 kısıtlama değil politika ya da yapılandırma hatasıdır. Worker devreyi kalıcı açar ve süreç yeniden başlayana kadar adsb.lol'e istek atmaz (D-073). Harita son veriyi 120 sn tutar, sonra boşalır.
 
 1. **Duyuruyu kontrol et:** https://status.adsb.lol ve https://github.com/adsblol/api. Anahtar zorunluluğu mu geldi, yoksa User-Agent'ımız mı reddediliyor?
-2. **User-Agent:** Dokploy Environment'ta `CONTACT_EMAIL` dolu mu? User-Agent `havayolu/<sürüm> (+https://havayolu.live; <e-posta>)` biçiminde gider. Boş ya da `node` UA 403 alır.
+2. **User-Agent:** Dokploy Environment'ta `CONTACT_EMAIL` dolu mu? User-Agent `Airline.live/<sürüm> (+https://airline.live; <CONTACT_EMAIL>)` biçiminde gider (`APP_NAME` ve `WEB_HOST`'tan; D-112). Boş ya da `node` UA 403 alır.
 3. **Anahtar istendiyse:**
    - adsb.lol anahtarı besleyicilere verir (kendi alıcımız yok, D-006). Seçenekler: alıcı kurup beslemek ya da info@adsb.lol'e yazmak.
    - Anahtar alınınca Dokploy'a `ADSBLOL_API_KEY` ve istenen başlık adıyla `ADSBLOL_API_KEY_HEADER` girilir.
@@ -31,7 +31,7 @@ Başka bir canlı kaynağa geçmek DUR-SOR'dur (lisans kaydı, data-sources.md).
 2. **Tek taraflı kısıtlama:** Genel kesinti yoksa sorun VPS IP'sine özgü olabilir. Başka bir ağdan tek istekle denenir:
 
    ```bash
-   curl -s -o /dev/null -w '%{http_code}' -A 'havayolu/test (+https://havayolu.live)' https://api.adsb.lol/v2/point/41.27/28.73/5
+   curl -s -o /dev/null -w '%{http_code}' -A 'Airline.live/test (+https://airline.live)' https://api.adsb.lol/v2/point/41.27/28.73/5
    ```
 
    Bu canlı bir istektir; yalnızca kullanıcı çalıştırır.
@@ -51,12 +51,12 @@ Başka bir canlı kaynağa geçmek DUR-SOR'dur (lisans kaydı, data-sources.md).
 **Kontrol:**
 1. https://aviationweather.gov/data/api/ ve https://aviationweather.gov/data/feed/changelog.json: yeni bir kısıt, parametre değişikliği ya da duyuru var mı? Belgelenmemiş parametreler 400 döner (v4.26).
 2. Sıklık: worker olağan durumda saatte ~220 istek atar (4. halkayla 1.217 istasyon, D-102, D-107; 3. halkada 498 istasyonla ~96): METAR 5 dk'da bir 16 istek (saatte 192), TAF 15 dk'da bir 7 istek (saatte 28); iki isteğin başlangıcı arasında en az 700 ms vardır (herhangi bir dakikada en çok 86 istek); sınır dakikada 100'dür. Sayılar istasyon kümesiyle değişir; güncel hâli data-sources.md §5 → "İstek düzenimiz"dedir. **Gerçek sayı günlüktedir** (D-101): hy-worker-bg'nin `hava durumu güncellendi` satırının `result.requests` alanı o çalışmada AWC'ye atılan istek sayısıdır (gruplar, 400 kayıt sınırındaki bölünmeler ve 24 saatlik doldurma dahil; `job` METAR için `weather-metar`, TAF için `weather-taf`). Olağan değer METAR 16, TAF 7'dir (3. halkada 7 ve 3). TAF'ta 7'den büyük değer grupların 400 kayıt sınırında bölündüğünü gösterir (grup başına en çok 7 istek); sıklaşırsa TAF grubu 200'den 100'e indirilir (D-090). Yeni halka yayınından ya da worker yeniden başlatmasından sonraki ilk METAR çalışması daha büyüktür: son 24 saatte METAR'ı saklanmamış her istasyon 6'şarlı gruplarla 24 saat istenir. 4. halkanın yayınında 719 yeni istasyon 120 istek, kaydı olan eski istasyonlar olağan gruplarla (498'in hepsinin kaydı varsa 7 istek): ilk çalışma 127; üretimde 3. halkanın 503 istasyonundan ~40'ının METAR'ı yoktur (M6h doğrulaması: METAR'lı 463/503), onlar da istenir ve ilk çalışma ~133 olur (6 + 127; 3. halkanın yayınında 50). Sonraki her worker açılışında METAR'ı olmayan istasyonlar yine bir kez istenir. Yeni rapor yazılmayan çalışma yalnız `debug` düzeyinde (`hava durumu kontrol edildi`) yazılır, üretim günlüğünde görünmez. `hava durumu: yanıt 400 kayıt sınırında` uyarısı da `requests` taşır. 429 sürüyorsa aynı IP'den başka bir uygulamanın AWC'ye istek atıp atmadığına bak (sunucu başka projelerle paylaşılır).
-3. User-Agent: `havayolu/<sürüm> (+https://havayolu.live; <CONTACT_EMAIL>)` biçiminde gider. AWC özel User-Agent önerir.
+3. User-Agent: `Airline.live/<sürüm> (+https://airline.live; <CONTACT_EMAIL>)` biçiminde gider. AWC özel User-Agent önerir.
 4. **Engel kalkmıyorsa:** NWS yönergesi engellenen kullanıcının sdm@noaa.gov'a yazmasıdır. Bu e-postayı kullanıcı gönderir; içerik: uygulamanın tanımı, istek sıklığı (olağan durumda saatte ~220 istek: 1.217 istasyon, METAR 5 dk'da bir 16 istekte, TAF 15 dk'da bir 7 istekte; kesintiden sonra bir kez 24 saatlik doldurma, 203 istek; iki istek arasında en az 700 ms), User-Agent ve VPS IP'si. Göndermeden önce sayıları data-sources.md §5'le karşılaştır.
 5. Tek istekle elle deneme canlı bir istektir; yalnızca kullanıcı çalıştırır:
 
    ```bash
-   curl -s -o /dev/null -w '%{http_code}' -A 'havayolu/test (+https://havayolu.live)' 'https://aviationweather.gov/api/data/metar?ids=LTFM&format=json'
+   curl -s -o /dev/null -w '%{http_code}' -A 'Airline.live/test (+https://airline.live)' 'https://aviationweather.gov/api/data/metar?ids=LTFM&format=json'
    ```
 
 Toplu önbellek dosyalarına (`/data/cache/…`) ya da başka bir hava durumu kaynağına geçmek DUR-SOR'dur (lisans kaydı, data-sources.md §5; önbellek XML'inde basınç inHg'dir).

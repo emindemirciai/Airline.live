@@ -8,17 +8,17 @@ Kurulum bitene kadar CI yeşil kalır: imajlar derlenir, yayın adımı "YAYINLA
 - DNS kayıtları yayılmış olmalı. Her biri `72.62.53.122` döndürmeli:
 
   ```bash
-  nslookup havayolu.live 1.1.1.1
+  nslookup airline.live 1.1.1.1
   ```
 
-  Aynısını `api.havayolu.live`, `admin.havayolu.live`, `analiz.havayolu.live` ve `www.havayolu.live` için de dene.
+  Aynısını `api.airline.live`, `admin.airline.live`, `analiz.airline.live` ve `www.airline.live` için de dene. Önceki alan adının kayıtları (`havayolu.live`, `www`, `api`, `admin`, `analiz`) da yerinde kalır: kalıcı yönlendirmeler (D-112) onlarla çalışır.
 - VPS'e SSH erişimin ve Dokploy paneline yönetici girişin olmalı.
 
 ## 1. Dokploy sürümü ve güvenlik
 1. **Sürüm:** Panelde Settings → Web Server'da sürüm en az **v0.30.7** olmalı. Eskiyse güncelle; eski sürümlerde komut enjeksiyonu açıkları var.
 2. **Panel alan adı:** Panel HTTPS bir alan adında açılmalı. `http://IP:3000` kullanılmaz.
    - Zaten bir alan adı varsa onu kullan.
-   - Yoksa DNS'e örneğin `panel.havayolu.live` için A kaydı ekle ve Settings → Web Server → Domain'e gir.
+   - Yoksa DNS'e örneğin `panel.airline.live` için A kaydı ekle ve Settings → Web Server → Domain'e gir.
    - Bu adres GitHub'daki `DOKPLOY_URL` olacak (yalnızca API tetiği için).
    - **Panel adresini sonradan değiştirirsen** Dokploy'un GitHub App'lerinin bildirim adresi eski adreste kalır. Dokploy eski adresin yönlendirmesini kaldırdığı için bildirimler Traefik'ten 404 alır ve Autodeploy sessizce durur (2026-09-27'de yaşandı, D-070). Her uygulamada GitHub → Settings → Developer settings → GitHub Apps → uygulama → General → Webhook URL alanını `https://<yeni panel adresi>/api/deploy/github` yap. Sonra Advanced → Recent Deliveries'ten son push'u Redeliver ile dene; yanıt 200 olmalı. Aynı Dokploy'daki diğer projelerin uygulamaları da etkilenir.
 3. **Let's Encrypt e-postası:** Settings → Web Server'da gir. Varsayılan `test@localhost.com`'dur, değiştir.
@@ -63,7 +63,7 @@ Kurulum bitene kadar CI yeşil kalır: imajlar derlenir, yayın adımı "YAYINLA
 
 ## 2. Bellek
 - `docker stats --no-stream` ile mevcut kullanımı gör.
-- havayolu'nun bellek üst sınırlarının toplamı ~2,6 GB. Boşta ölçülen kullanım ~290 MB (yerel üretim denemesi).
+- Bu projenin (Dokploy'da `havayolu` Compose uygulaması) bellek üst sınırlarının toplamı ~2,6 GB. Boşta ölçülen kullanım ~290 MB (yerel üretim denemesi).
 - Analiz uygulaması ~150–250 MB ekler.
 - Boş bellek 3 GB'ın altındaysa 2 GB swap ve `vm.overcommit_memory=1` ayarlarını değerlendir. Bu ayar bütün projeleri etkiler (ACTIVATION'daki satır).
 
@@ -113,10 +113,19 @@ Compose servisinin Domains sekmesinde her satır için HTTPS açık, sertifika L
 
 | Servis | Alan adı | Port |
 |---|---|---|
-| `hy-web` | `havayolu.live` | 3000 |
-| `hy-web` | `www.havayolu.live` (uygulama köke 308 ile yönlendirir) | 3000 |
-| `hy-web` | `admin.havayolu.live` | 3000 |
-| `hy-api` | `api.havayolu.live` | 4000 |
+| `hy-web` | `airline.live` | 3000 |
+| `hy-web` | `www.airline.live` (uygulama köke 308 ile yönlendirir) | 3000 |
+| `hy-web` | `admin.airline.live` | 3000 |
+| `hy-api` | `api.airline.live` | **4000** |
+
+**Eski alan adları (D-112, kalıcı yönlendirme):** önceki alan adının dört adresi aynı servislerde, HTTPS ve Let's Encrypt sertifikasıyla bağlı kalır; silinmez. Uygulama env'deki `LEGACY_*_HOSTS` listeleriyle her isteği aynı yol ve sorguyla 308 ile yeni adrese gönderir (liste boşken eski adresler bugünkü gibi sunulur). Traefik sertifikaları yalnızca bağlı alan adları için yeniler; alan adı kaldırılırsa eski bağlantılar sertifika hatası alır.
+
+| Servis | Alan adı | Port | Yönlendiği adres |
+|---|---|---|---|
+| `hy-web` | `havayolu.live` | 3000 | `https://airline.live` + aynı yol (`LEGACY_WEB_HOSTS`) |
+| `hy-web` | `www.havayolu.live` | 3000 | `https://airline.live` + aynı yol, tek adımda (`LEGACY_WEB_HOSTS`) |
+| `hy-web` | `admin.havayolu.live` | 3000 | `https://admin.airline.live` + aynı yol (`LEGACY_ADMIN_HOSTS`) |
+| `hy-api` | `api.havayolu.live` | 4000 | `https://api.airline.live` + aynı yol (`LEGACY_API_HOSTS`; WebSocket el sıkışması 308 alır, eski sekme yenilenince yeni adrese bağlanır) |
 
 Şimdi Dokploy'dan deploy etme: ilk yayın 10. adımdadır ve alan adlarını da o uygular. Sonrasında alan adı değişiklikleri Dokploy'da Deploy ile ya da `deploy.yml`'yi `dry_run=false` ile yeniden çalıştırarak uygulanır.
 
@@ -125,9 +134,9 @@ Compose servisinin Domains sekmesinde her satır için HTTPS açık, sertifika L
    - kaynak `emindemirciai/Analyze.Your.Site-Siteni-Analiz-Et-`, dal `main`
    - compose dosyası o reponun `docker-compose.yml`'si
 2. **Environment:** `deploy/analiz.env.example` bloğu.
-3. **Domain:** servis `analyze` → `analiz.havayolu.live`, port 3000, HTTPS.
+3. **Domain:** servis `analyze` → `analiz.airline.live`, port 3000, HTTPS. Önceki `analiz.havayolu.live` alan adı aynı serviste kalabilir (yönlendirmesi bu reponun dışındadır, analiz uygulamasının işidir).
 4. **Not:** Bu uygulama kendi modelinde sunucuda derlenir. Derleme sırasında kısa bir CPU/RAM artışı olur.
-5. **Giriş:** havayolu API'si ayakta olmalı; analiz paneline girişi o doğrular.
+5. **Giriş:** Airline.live API'si ayakta olmalı; analiz paneline girişi o doğrular (`ANALYZE_AUTH_API_URL` doğrudan `https://api.airline.live` olmalı: çapraz alan yönlendirmesinde `Authorization` başlığı düşer).
 
 ## 8. Dokploy API anahtarı (isteğe bağlı; yalnızca `DEPLOY_TRIGGER=api`)
 Varsayılan yayın yolu dal tetiğidir (D-070) ve Dokploy API anahtarı gerektirmez. Bu bölüm ve §9'daki üç secret yalnızca Autodeploy kapatılıp yayının Dokploy API'siyle tetiklenmesi istenirse gerekir; o durumda panelin HTTPS adresi de şarttır (§1).
@@ -146,11 +155,11 @@ Varsayılan yayın yolu dal tetiğidir (D-070) ve Dokploy API anahtarı gerektir
 Dal tetiğinde (varsayılan) yalnızca şu variables gerekir; secret gerekmez:
 
 ```bash
-gh variable set WEB_URL --repo emindemirciai/havayolu --body https://havayolu.live
+gh variable set WEB_URL --repo emindemirciai/havayolu --body https://airline.live
 ```
 
 ```bash
-gh variable set API_URL --repo emindemirciai/havayolu --body https://api.havayolu.live
+gh variable set API_URL --repo emindemirciai/havayolu --body https://api.airline.live
 ```
 
 ```bash
@@ -198,12 +207,22 @@ Bundan sonra her birleşen PR aynı yolu kendiliğinden izler.
 - **API sürümü:** Yeni `gitSha` görünmeli:
 
   ```bash
-  curl https://api.havayolu.live/version
+  curl https://api.airline.live/version
   ```
 
-- **Web:** https://havayolu.live/durum sayfasında API "Çalışıyor" görünmeli, sürüm doğru olmalı.
-- **Yönetim:** https://admin.havayolu.live açılmalı; `ADMIN_EMAIL` ve kurulum anahtarıyla giriş yap, Servisler panelinde bütün servisler "Çalışıyor" olmalı.
-- **Analiz:** https://analiz.havayolu.live/login açılmalı ve aynı yönetici hesabıyla girilmeli. `https://analiz.havayolu.live/api/health` 200 dönmeli.
+- **Web:** https://airline.live/durum sayfasında API "Çalışıyor" görünmeli, sürüm doğru olmalı.
+- **Yönetim:** https://admin.airline.live açılmalı; `ADMIN_EMAIL` ve kurulum anahtarıyla giriş yap, Servisler panelinde bütün servisler "Çalışıyor" olmalı.
+- **Analiz:** https://analiz.airline.live/login açılmalı ve aynı yönetici hesabıyla girilmeli. `https://analiz.airline.live/api/health` 200 dönmeli.
+- **Eski alan adları (D-112, `LEGACY_*_HOSTS` girildikten sonra):** her biri `308` ve aynı yol ile sorguyu taşıyan `location` döndürmeli:
+
+  ```bash
+  curl -sI "https://havayolu.live/en/havalimanlari?x=1" | grep -iE "^(HTTP|location)"
+  curl -sI "https://www.havayolu.live/istasyon/LTFM" | grep -iE "^(HTTP|location)"
+  curl -sI "https://admin.havayolu.live/admin" | grep -iE "^(HTTP|location)"
+  curl -sI "https://api.havayolu.live/version?x=1" | grep -iE "^(HTTP|location)"
+  ```
+
+  Beklenen `location` değerleri: `https://airline.live/en/havalimanlari?x=1`, `https://airline.live/istasyon/LTFM`, `https://admin.airline.live/admin`, `https://api.airline.live/version?x=1`.
 
 ## 12. Bilmen gerekenler
 - **Kesinti:** Yayın sırasında birkaç saniyelik kesinti olur. Compose yayını sıfır kesintili değildir.
@@ -229,4 +248,4 @@ Bundan sonra her birleşen PR aynı yolu kendiliğinden izler.
 
     3. `docker volume rm <appName>_hy_pgdata` ile sil, Environment'taki parolayı düzelt ve yeniden deploy et.
   - Bu işlem veritabanındaki her şeyi siler; veri varsa önce bana sor.
-- **İzleme:** Kendi kurduğun Dokploy'da geçmiş metrik ve uyarı yok. Dış bir uptime kontrolü, örneğin UptimeRobot, dakikada bir `https://havayolu.live` ve `https://api.havayolu.live/ready` adreslerine bakmalı (ACTIVATION).
+- **İzleme:** Kendi kurduğun Dokploy'da geçmiş metrik ve uyarı yok. Dış bir uptime kontrolü, örneğin UptimeRobot, dakikada bir `https://airline.live` ve `https://api.airline.live/ready` adreslerine bakmalı (ACTIVATION).

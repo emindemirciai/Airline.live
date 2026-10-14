@@ -33,7 +33,7 @@ Sunucu: Hostinger **KVM 2** (2 vCPU, 8 GB RAM, 100 GB NVMe). Üzerinde Dokploy �
   - `docker-compose.dev.yml` altyapıyı sağlar: PostGIS, iki Redis, Mailpit, MinIO; yerel portları CLAUDE.md'dekilerdir. Uygulamalar yerelde `pnpm dev` ile çalışır.
 - **Adlar ve ağ:**
   - Servis adları `hy-` önekiyle projeye özgüdür; paylaşılan `dokploy-network`'te ad çakışması olmaz.
-  - **Traefik etiketi yazılmaz, `dokploy-network` tanımlanmaz.** Domain'ler Dokploy arayüzünden eklenir (`hy-web` → `WEB_HOST` port 3000, `hy-api` → `API_HOST` port 4000); etiketleri Dokploy ekler.
+  - **Traefik etiketi yazılmaz, `dokploy-network` tanımlanmaz.** Domain'ler Dokploy arayüzünden eklenir (`hy-web` → `WEB_HOST` ve `ADMIN_HOST` port 3000, `hy-api` → `API_HOST` port 4000); etiketleri Dokploy ekler. Eski alan adları (D-112: `LEGACY_WEB_HOSTS` ve `LEGACY_ADMIN_HOSTS` → `hy-web`, `LEGACY_API_HOSTS` → `hy-api`) aynı servislerde ve sertifikalı kalır; uygulama onları 308 ile yeni host'a yönlendirir.
   - `ports` yerine `expose` kullanılır. Postgres ve Redis dışarı port açmaz.
 - **Env:**
   - Her uygulama servisi `env_file: [{path: .env, required: false}]` kullanır; eksik değişkeni zod açılışta yakalar. Böylece CI'daki `docker compose config` `.env` olmadan çalışır.
