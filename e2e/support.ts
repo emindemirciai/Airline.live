@@ -48,24 +48,26 @@ export const INDEXABLE_AIRPORT_COUNT = 56
 /**
  * Türkiye dışındaki listelenen havalimanları (M6d, D-080; M6g, D-088; M6h, D-090; M6i.2, D-102):
  * 1.–4. halka, yani IATA kodlu en yakın Türkiye havalimanına en çok 5.000 km olan, OurAirports'ta
- * tarifeli seferi kayıtlı, dört karakterli ICAO'su olan büyük ve orta boy havalimanları. Fixture'a
- * 2026-10-01 indirmesinden eklenen 75 + 89 + 275 + 716 havalimanı ve fixture'ın uzak örneklerinden
- * 3. halkadaki Frankfurt, Dubai ve Doha Hamad ile 4. halkadaki Londra Heathrow, Paris Charles de
- * Gaulle, Amsterdam ve Madrid bu kuraldadır ve hepsi dizine eklenir. New York JFK (5. halka) ve
- * dört karakterli ICAO'su olmayan Kihihi (UG-0002, IATA KHX; D-101) listelenmez.
+ * tarifeli seferi kayıtlı ya da savaş nedeniyle kapalı (kapanış tablosu, D-110), dört karakterli
+ * ICAO'su olan büyük ve orta boy havalimanları. Fixture'a 2026-10-01 indirmesinden eklenen 75 + 89
+ * + 275 + 716 havalimanı, kapanış bloğunun 23 tarifesiz havalimanı (1. halkada 2, 2. halkada 15, 3.
+ * halkada 5, 4. halkada 1) ve fixture'ın uzak örneklerinden 3. halkadaki Frankfurt, Dubai ve Doha
+ * Hamad ile 4. halkadaki Londra Heathrow, Paris Charles de Gaulle, Amsterdam ve Madrid bu
+ * kuraldadır ve hepsi dizine eklenir. New York JFK (5. halka) ve dört karakterli ICAO'su olmayan
+ * Kihihi (UG-0002, IATA KHX; D-101) listelenmez.
  */
-export const RING1_AIRPORT_COUNT = 75
-export const RING2_AIRPORT_COUNT = 89
-export const RING3_AIRPORT_COUNT = 278
-export const RING4_AIRPORT_COUNT = 719
+export const RING1_AIRPORT_COUNT = 77
+export const RING2_AIRPORT_COUNT = 104
+export const RING3_AIRPORT_COUNT = 283
+export const RING4_AIRPORT_COUNT = 720
 export const FOREIGN_AIRPORT_COUNT =
   RING1_AIRPORT_COUNT + RING2_AIRPORT_COUNT + RING3_AIRPORT_COUNT + RING4_AIRPORT_COUNT
 /**
- * `GET /v1/airports?scope=listed`: 56 Türkiye + 1.161 Türkiye dışı = 1.217 (D-107'den önce 61
- * Türkiye, 1.222).
+ * `GET /v1/airports?scope=listed`: 56 Türkiye + 1.184 Türkiye dışı = 1.240 (D-110'dan önce 1.217;
+ * D-107'den önce 61 Türkiye, 1.222).
  */
 export const LISTED_AIRPORT_COUNT = AIRPORT_COUNT + FOREIGN_AIRPORT_COUNT
-/** Dizine eklenen havalimanı sayfaları: Türkiye'nin 56'sı ve Türkiye dışındakilerin hepsi (1.217). */
+/** Dizine eklenen havalimanı sayfaları: Türkiye'nin 56'sı ve Türkiye dışındakilerin hepsi (1.240). */
 export const INDEXABLE_LISTED_AIRPORT_COUNT = INDEXABLE_AIRPORT_COUNT + FOREIGN_AIRPORT_COUNT
 /** Halkaların üst sınırları, km (`AIRPORT_RINGS_KM`; D-080). */
 export const RING_LIMITS_KM = { 1: 500, 2: 1000, 3: 2000, 4: 5000 } as const
@@ -122,15 +124,42 @@ export const RING3_AIRPORT = {
   timeZone: 'Europe/Vienna',
 } as const
 /**
- * Sivil uçuşlara kapalı olabilecek listelenen havalimanı (kullanıcı kararı 2026-10-04, D-090):
- * Voronej (3. halka). Sayfası ve haritadaki penceresi notu gösterir; listede kalır, dizine eklenir.
+ * Savaş nedeniyle kapalı, OurAirports'ta tarifeli görünen listelenen havalimanı (D-110; ilk not
+ * D-090): Voronej (3. halka). Sayfası ve haritadaki penceresi kesin notu gösterir; listede kalır,
+ * dizine eklenir.
  */
 export const CIVIL_CLOSURE_AIRPORT = {
   icao: 'UUOO',
   iata: 'VOZ',
-  noteTr: 'Sivil uçuşlara kapalı olabilir (2022’den beri)',
-  noteEn: 'May be closed to civil flights (since 2022)',
+  noteTr: 'Savaş nedeniyle sivil uçuşlara kapalı (2022’den beri)',
+  noteEn: 'Closed to civil flights because of the war (since 2022)',
 } as const
+/**
+ * Savaş nedeniyle kapalı, OurAirports'ta tarifesiz havalimanı (D-110): Kiev Borispil (2. halka).
+ * Kapanış tablosuyla listelenir ve dizine eklenir; başlığı canlı trafik vaat etmez. Saat dilimi
+ * Europe/Kiev (Intl yazımı; yazın UTC+3, kışın UTC+2). Hava durumu fixture'ında raporu yok.
+ */
+export const WAR_CLOSURE_AIRPORT = {
+  icao: 'UKBB',
+  iata: 'KBP',
+  nameTr: 'Kiev Borispil Havalimanı',
+  nameEn: 'Boryspil International Airport',
+  locationTr: 'Kiev, Ukrayna',
+  locationEn: 'Kyiv, Ukraine',
+  timeZone: 'Europe/Kiev',
+} as const
+/** Belirsiz notlu havalimanı (D-110): El Faşir (Sudan, 4. halka). */
+export const POSSIBLE_CLOSURE_AIRPORT = {
+  icao: 'HSFS',
+  noteTr: 'Savaş nedeniyle sivil uçuşlara kapalı olabilir (2023’ten beri)',
+  noteEn: 'May be closed to civil flights because of the war (since 2023)',
+} as const
+/** Kapanış tablosundan silinen, yeniden açılan havalimanı (D-110): Krasnodar (1. halka), notsuz. */
+export const REOPENED_AIRPORT = { icao: 'URKK' } as const
+/** Haritada notu denetlenen savaş kapanışı (D-110): Odessa (2. halka; OurAirports'ta tarifesiz). */
+export const MAP_CLOSURE_AIRPORT = { icao: 'UKOO', iata: 'ODS' } as const
+/** Kapanış tablosunun kayıt sayısı (`CIVIL_FLIGHT_CLOSURES`, D-110): liste notu bu kadar satırda. */
+export const CIVIL_CLOSURE_COUNT = 35
 /** Hava durumu fixture'ı elle yazılmış 1. halka havalimanları (M6d). */
 export const RING1_WEATHER_AIRPORTS = ['LGAV', 'LCLK', 'LCEN', 'UGTB', 'LBSF', 'LGTS'] as const
 /**
@@ -409,7 +438,7 @@ export function sitePath(url: string | undefined, what: string): string {
  * Yönlendirmeleri izlemeden alınan yanıt ve gövdesi. İlk istekte next dev sayfayı derleyebilir.
  * Her istek yeni bağlantıyla gider (`Connection: close`): Node sunucusu boştaki keep-alive
  * bağlantısını 5 sn sonra kapatır; iki istek arasında uzun denetim yapan test (site haritası,
- * 2.444 adres) aynı soketi yeniden kullanınca istek `ECONNRESET` ile düşüyordu.
+ * 2.490 adres) aynı soketi yeniden kullanınca istek `ECONNRESET` ile düşüyordu.
  */
 export async function fetchRaw(
   request: APIRequestContext,
