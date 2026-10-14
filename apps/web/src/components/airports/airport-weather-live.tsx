@@ -13,12 +13,7 @@ import {
 import { useEffect, useState } from 'react'
 import { useWallNow } from '../../lib/use-now'
 import { WallClock } from '../../lib/wall-clock'
-import {
-  fetchAirportWeather,
-  fetchWeatherHistory,
-  initialSuccessAt,
-  weatherRefreshDue,
-} from './weather-client'
+import { initialWeatherAt, WeatherRefresher } from './weather-client'
 import { WeatherLog } from './weather-log'
 import { WeatherPanel } from './weather-panel'
 
@@ -36,9 +31,8 @@ export interface AirportWeatherLiveProps {
   lon: number
   /** Tarayıcının bağlandığı API adresi (`config.apiBaseUrl`, D-075). */
   apiBaseUrl: string
-  /** Sunucu çiziminin verisi; null: API'ye ulaşılamadı. */
+  /** Sunucu çiziminin güncel havası; null: API'ye ulaşılamadı. METAR/TAF kaydı tarayıcıdan gelir. */
   initialWeather: AirportWeather | null
-  initialHistory: WeatherHistoryResponse | null
   /** Sunucu çizim anı (epoch ms): hidrasyon aynı saatle çizer, uyuşmazlık olmaz. */
   renderedAt: number
   /**
@@ -56,10 +50,12 @@ export interface AirportWeatherLiveProps {
 /**
  * Hava durumu ve METAR/TAF kaydının istemci adası (M6c, brief §5):
  *
- * - Sunucu verisinin (güncel hava ve kayıt; ayrı önbelleklerden gelir) biri 2 dakikadan eskiyse
- *   (Next önbelleği eski kopya sunabilir) açılışta yeniler; sonra sekme görünürken 5 dakikada bir.
- *   Başarısız istekte eldeki veri korunur, en erken 1 dakika sonra yeniden denenir. Ayrılınca süren
- *   istek kesilir.
+ * - METAR/TAF kaydı yalnız tarayıcıdan gelir (D-111): ada açılışta ister (sunucu çizimi ve ilk
+ *   istemci çizimi "yükleniyor" der), sonra sekme görünürken 5 dakikada bir güncel havayla birlikte
+ *   tazeler. Sunucunun güncel havası 2 dakikadan yeniyse açılıştaki istek yalnız kaydı alır.
+ *   Başarısız istekte eldeki veri korunur (ilk kayıt isteği başarısızsa bölüm "alınamıyor" der), en
+ *   erken 1 dakika sonra yeniden denenir. Ayrılınca süren istek kesilir. Döngü
+ *   `WeatherRefresher`'dadır (weather-client.ts); ada yalnız görünürlüğü denetler.
  * - "Şimdi" sunucu saatine bağlı duvar saatidir (`WallClock`: çizim anı ve yanıtların
  *   `generatedAt`'i): yerel saat, gözlem yaşı, eskime sınıfı ve TAF süresi cihaz uyuyup uyansa ya da
  *   cihaz saati yanlış olsa da doğrudur. 30 saniyede bir ve sekme görünür olunca ilerler; sunucu ve
@@ -80,7 +76,6 @@ export function AirportWeatherLive({
   lon,
   apiBaseUrl,
   initialWeather,
-  initialHistory,
   renderedAt,
   timeZone,
   utcOffsets,
@@ -92,52 +87,36 @@ export function AirportWeatherLive({
       ? timeZone
       : null
   const [weather, setWeather] = useState(initialWeather)
-  const [history, setHistory] = useState(initialHistory)
-  // Sunucu verisinin üretim anları yalnızca ilk açılışta okunur (sonraki çizimler kendi durumunu
+  const [history, setHistory] = useState<WeatherHistoryResponse | null>(null)
+  const [historyLoading, setHistoryLoading] = useState(true)
+  // Sunucu verisinin üretim anı yalnızca ilk açılışta okunur (sonraki çizimler kendi durumunu
   // kullanır). Saat sunucunun çizim anına bağlanır.
-  const [initial] = useState(() => ({
-    weatherGeneratedAt: initialWeather?.generatedAt ?? null,
-    historyGeneratedAt: initialHistory?.generatedAt ?? null,
-  }))
+  const [initial] = useState(() => ({ weatherGeneratedAt: initialWeather?.generatedAt ?? null }))
   const [clock] = useState(() => new WallClock(renderedAt))
   const clientNow = useWallNow(clock, CLOCK_STEP_MS)
   const now = clientNow ?? renderedAt
 
   useEffect(() => {
-    let controller: AbortController | null = null
-    let lastFailureAt: number | null = null
-    // Taze sunucu verisi (ikisi de) bir başarılı istek sayılır; eski ya da eksik veri hemen yenilenir.
-    let lastSuccessAt = initialSuccessAt({
-      ...initial,
-      serverNow: clock.now(),
-      localNow: Date.now(),
-    })
-
-    const refresh = async () => {
-      controller?.abort()
-      const current = new AbortController()
-      controller = current
-      try {
-        const [nextWeather, nextHistory] = await Promise.all([
-          fetchAirportWeather(apiBaseUrl, icao, current.signal),
-          fetchWeatherHistory(apiBaseUrl, icao, current.signal),
-        ])
-        if (current.signal.aborted) return
+    const refresher = new WeatherRefresher({
+      apiBaseUrl,
+      icao,
+      freshWeatherAt: initialWeatherAt({
+        ...initial,
+        serverNow: clock.now(),
+        localNow: Date.now(),
+      }),
+      apply: ({ weather: nextWeather, history: nextHistory }) => {
         for (const next of [nextWeather, nextHistory]) {
           if (next) clock.observe(Date.parse(next.generatedAt))
         }
         if (nextWeather) setWeather(nextWeather)
         if (nextHistory) setHistory(nextHistory)
-        if (nextWeather && nextHistory) lastSuccessAt = Date.now()
-        else lastFailureAt = Date.now()
-      } catch {
-        if (!current.signal.aborted) lastFailureAt = Date.now()
-      }
-    }
+        setHistoryLoading(false)
+      },
+    })
 
     const check = () => {
-      if (document.visibilityState !== 'visible') return
-      if (weatherRefreshDue(Date.now(), lastSuccessAt, lastFailureAt)) void refresh()
+      if (document.visibilityState === 'visible') void refresher.check()
     }
 
     check()
@@ -146,7 +125,7 @@ export function AirportWeatherLive({
     return () => {
       clearInterval(timer)
       document.removeEventListener('visibilitychange', check)
-      controller?.abort()
+      refresher.destroy()
     }
   }, [apiBaseUrl, icao, initial, clock])
 
@@ -168,6 +147,7 @@ export function AirportWeatherLive({
         icao={icao}
         name={name}
         history={history}
+        loading={historyLoading}
         now={now}
         apiBaseUrl={apiBaseUrl}
         timeZone={zone}

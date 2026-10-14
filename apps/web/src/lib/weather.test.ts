@@ -1,8 +1,8 @@
+import { readFileSync } from 'node:fs'
 import { inForceTafs } from '@havayolu/shared'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   FIXTURE_NOW,
-  fixtureHistory,
   fixtureRawWeather,
   fixtureStations,
   fixtureWeather,
@@ -10,15 +10,11 @@ import {
 import { createMemoryCache } from './memory-cache'
 import {
   parseWeatherBulk,
-  parseWeatherHistory,
   stationWeather,
   WEATHER_BULK_MAX_STALE_MS,
   WEATHER_BULK_RETRY_MS,
   WEATHER_BULK_TTL_MS,
-  WEATHER_CACHE_TAG,
-  WEATHER_HISTORY_REVALIDATE_S,
   weatherBulkUrl,
-  weatherHistoryUrl,
 } from './weather'
 
 vi.mock('server-only', () => ({}))
@@ -50,12 +46,9 @@ const json =
     new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } })
 
 describe('adresler', () => {
-  it('toplu hava durumu (ham biçim, D-101) ve 24 saatlik kayıt, API iç adresinden', () => {
+  it('toplu hava durumu (ham biçim, D-101), API iç adresinden', () => {
     expect(weatherBulkUrl('http://api.internal:4000')).toBe(
       'http://api.internal:4000/v1/weather?scope=listed&format=raw',
-    )
-    expect(weatherHistoryUrl('http://api.internal:4000', 'LTFM')).toBe(
-      'http://api.internal:4000/v1/airports/LTFM/weather/history?hours=24',
     )
   })
 })
@@ -75,11 +68,6 @@ describe('yanıt denetimi', () => {
     expect(parsed?.stations.get('LTFM')?.metar?.raw).toMatch(/^LTFM 151250Z/)
     expect(parseWeatherBulk({ stations: 'yok' })).toBeNull()
     expect(parseWeatherBulk(null)).toBeNull()
-  })
-
-  it('kayıt yanıtı şemaya uymazsa null', () => {
-    expect(parseWeatherHistory(fixtureHistory('LTFM'))?.entries.length).toBeGreaterThan(48)
-    expect(parseWeatherHistory({ icao: 'LTFM', entries: 'yok' })).toBeNull()
   })
 })
 
@@ -238,21 +226,30 @@ describe('getWeather', () => {
   })
 })
 
-describe('getWeatherHistory', () => {
-  it('30 dk önbellek (D-102; 3. halkada 15 dk, D-090); geçersiz kodda istek atılmaz; hata null', async () => {
-    const { getWeatherHistory } = await freshWeatherModule()
-    expect(WEATHER_HISTORY_REVALIDATE_S).toBe(1800)
-    // 1.217 istasyonun hepsi önbellek süresi içinde gezilirse dakikada ortalama ~41 istek: web
-    // konteynerinin bu rotadaki kovası (dakikada 60) aşılmaz.
-    expect(Math.ceil(1_217 / (WEATHER_HISTORY_REVALIDATE_S / 60))).toBeLessThan(60)
-    const calls = stubFetch(json(fixtureHistory('LTFM')))
-    expect((await getWeatherHistory('LTFM'))?.icao).toBe('LTFM')
-    expect(calls[0]?.init.next).toEqual({ revalidate: 1800, tags: [WEATHER_CACHE_TAG] })
-    expect(await getWeatherHistory('ltfm')).toBeNull()
-    expect(await getWeatherHistory('../x')).toBeNull()
-    expect(calls).toHaveLength(1)
-    stubFetch(json({ error: 'not found' }, 404))
-    expect(await getWeatherHistory('LTFM')).toBeNull()
+describe('getAirportWeatherPage: METAR/TAF kaydı yalnız tarayıcıda (D-111)', () => {
+  it('sunucu çizimi yalnız toplu hava durumunu ister, kayıt istemez', async () => {
+    vi.stubEnv('API_INTERNAL_URL', 'http://api.internal:4000')
+    const calls = stubFetch(json(BULK))
+    const { getAirportWeatherPage } = await freshWeatherModule()
+    const before = Date.now()
+    const page = await getAirportWeatherPage()
+    expect(page.bulk?.stations.size).toBe(2)
+    expect(page.renderedAt).toBeGreaterThanOrEqual(before)
+    expect(Object.keys(page).sort()).toEqual(['bulk', 'renderedAt'])
+    // İkinci havalimanının çizimi de kayıt istemez; toplu yanıt bellektedir.
+    await getAirportWeatherPage()
+    expect(calls.map((call) => call.url)).toEqual([
+      'http://api.internal:4000/v1/weather?scope=listed&format=raw',
+    ])
+    expect(calls.some((call) => call.url.includes('/weather/history'))).toBe(false)
+  })
+
+  it('kaydın sunucu yolu ve Next veri önbelleği kalktı', () => {
+    const source = readFileSync(new URL('./weather.ts', import.meta.url), 'utf8')
+    const code = source.replace(/\/\*[\s\S]*?\*\/|\/\/.*$/gm, '')
+    expect(code).not.toContain('/weather/history')
+    expect(code).not.toContain('revalidate')
+    expect(code).not.toContain('WEATHER_HISTORY_REVALIDATE_S')
   })
 })
 

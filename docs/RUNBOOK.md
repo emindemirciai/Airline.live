@@ -61,16 +61,6 @@ Başka bir canlı kaynağa geçmek DUR-SOR'dur (lisans kaydı, data-sources.md).
 
 Toplu önbellek dosyalarına (`/data/cache/…`) ya da başka bir hava durumu kaynağına geçmek DUR-SOR'dur (lisans kaydı, data-sources.md §5; önbellek XML'inde basınç inHg'dir).
 
-## METAR/TAF kaydı sunucu çiziminde alınamıyor (web → API 429)
-**Belirti:** istasyon sayfasının sunucu çiziminde (JavaScript'siz tarayıcı, arama motoru önizlemesi) "METAR/TAF kaydı" bölümü "şu an alınamıyor" der; API günlüğünde web konteynerinin IP'sinden `/v1/airports/<ICAO>/weather/history` isteklerine 429 döner. Ziyaretçi genelde etkilenmez: ada kaydı açılışta tarayıcıdan, ziyaretçinin kendi kovasıyla yeniden ister.
-
-**Neden:** web kaydı sunucuda ister ve Next veri önbelleğinde 30 dk tutar (D-102; 3. halkada 15 dk, D-090). Bütün çağrılar web konteynerinin tek IP'sinden gelir ve bu rotanın sınırı dakikada 60'tır (kova rota başınadır; toplu hava ve liste ayrı kovalardadır). 1.217 istasyonun sayfaları önbellek süresinde gezilirse ortalama ~41 istek/dk eder; yayından hemen sonra önbellek boştur (`.next/cache` kalıcı değil) ve hızlı bir tarama dakikada 60'ı aşabilir. Next 429'u önbelleğe almaz, eldeki kaydı silmez: önbelleği dolu sayfalar etkilenmez.
-
-**Kontrol:**
-1. 429 yalnız yayından sonraki ilk dakikalarda mı? Öyleyse önbellek dolunca kendiliğinden geçer; bir şey yapılmaz.
-2. Sürüyorsa (saatlerce, önbellek doluyken): API günlüğünde bu rotadaki 429'ların sıklığına bak. Listelenen istasyon sayısı arttıysa (yeni halka) ortalama hesabı yeniden yapılır: istasyon sayısı ÷ (`WEATHER_HISTORY_REVALIDATE_S` / 60) dakikada 60'ın altında kalmalı (`apps/web/src/lib/weather.test.ts` 1.217 için denetler).
-3. Kalıcı çözüm kodda: kaydın ilk çizimden sonra yalnız tarayıcıdan yüklenmesi (D-101'in önerisi; 5. halka seçeneği) ya da önbellek süresini uzatmak. İkisi de yayınla gelir; Dokploy'da env ile değiştirilen bir ayar yoktur. API'nin hız sınırını web için gevşetmek DECISIONS kaydı ister.
-
 ## İçe aktarım kayması (`referans verisi kayması`, D-109)
 **Belirti:** hy-worker-bg günlüğünde gece OurAirports içe aktarımından sonra `referans verisi kayması` satırı **warn** düzeyinde. Satır her içe aktarımdan sonra (yeni veri ya da "değişmedi") bir kez yazılır; sapma yoksa info düzeyindedir. İçe aktarım başarısızsa satır yazılmaz; okuma başarısızsa yalnız `referans verisi kayması ölçülemedi` uyarısı vardır, içe aktarım etkilenmez.
 

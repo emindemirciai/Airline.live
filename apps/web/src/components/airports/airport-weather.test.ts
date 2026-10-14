@@ -8,7 +8,7 @@ import {
 } from '@havayolu/shared'
 import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import {
   FIXTURE_NOW,
   fixtureHistory,
@@ -16,6 +16,7 @@ import {
   metarFromRaw,
 } from '../../lib/test/weather-fixture'
 import { AirportWeatherLive } from './airport-weather-live'
+import { WeatherRefresher } from './weather-client'
 import { expertWind } from './weather-expert'
 import { WeatherLog } from './weather-log'
 import { WeatherPanel } from './weather-panel'
@@ -693,12 +694,30 @@ describe('WeatherLog: METAR/TAF kaydı', () => {
     expect(html).not.toMatch(/\{\w+\}|undefined|NaN/)
   })
 
-  it('İngilizce, boş ve alınamayan kayıt', () => {
+  it('İngilizce, boş, yükleniyor ve alınamayan kayıt', () => {
     const en = text(log(fixtureHistory('LTFM'), 'en'))
     expect(en).toContain('METAR/TAF log')
     expect(en).toContain('Forecast for')
     expect(text(log(fixtureHistory('LTBQ')))).toContain('Son 24 saatte kayıtlı rapor yok.')
     expect(text(log(null))).toContain('Rapor kaydı şu an alınamıyor.')
+    // Kayıt yalnız tarayıcıdan gelir (D-111): ilk istek bitene kadar "yükleniyor".
+    const loading = (locale: Locale) =>
+      renderToStaticMarkup(
+        createElement(WeatherLog, {
+          locale,
+          t: getMessages(locale).weather,
+          icao: 'LTFM',
+          name: 'İstanbul Havalimanı',
+          history: null,
+          loading: true,
+          now: FIXTURE_NOW,
+          apiBaseUrl: API,
+        }),
+      )
+    expect(text(loading('tr'))).toContain('Rapor kaydı yükleniyor…')
+    expect(text(loading('tr'))).not.toContain('alınamıyor')
+    expect(text(loading('en'))).toContain('Loading the report log…')
+    expect(loading('tr')).not.toContain('<table')
   })
 
   it('önbellekten gelen eski kayıtta 24 saatten eski satır gösterilmez (pencere şimdiye göre)', () => {
@@ -733,8 +752,53 @@ describe('WeatherLog: METAR/TAF kaydı', () => {
   })
 })
 
+describe('ada akışı: kayıt önce yükleniyor, sonra tarayıcının isteğiyle (D-111)', () => {
+  it('ilk istek bitene kadar "yükleniyor", sonra tablo; güncel hava tazeyse yalnız kayıt istenir', async () => {
+    // Adanın durumu (airport-weather-live.tsx): kayıt null ve yükleniyor; `apply` ikisini günceller.
+    let history: WeatherHistoryResponse | null = null
+    let loading = true
+    const view = () =>
+      renderToStaticMarkup(
+        createElement(WeatherLog, {
+          locale: 'tr',
+          t: getMessages('tr').weather,
+          icao: 'LTFM',
+          name: 'İstanbul Havalimanı',
+          history,
+          loading,
+          now: FIXTURE_NOW,
+          apiBaseUrl: API,
+        }),
+      )
+    const fetchWeather = vi.fn(async () => fixtureWeather('LTFM'))
+    const fetchHistory = vi.fn(async () => fixtureHistory('LTFM'))
+    const refresher = new WeatherRefresher({
+      apiBaseUrl: API,
+      icao: 'LTFM',
+      freshWeatherAt: FIXTURE_NOW,
+      apply: (result) => {
+        if (result.history) history = result.history
+        loading = false
+      },
+      fetchWeather,
+      fetchHistory,
+      now: () => FIXTURE_NOW,
+    })
+    expect(text(view())).toContain('Rapor kaydı yükleniyor…')
+    expect(view()).not.toContain('<table')
+    await refresher.check()
+    expect(fetchWeather).not.toHaveBeenCalled()
+    expect(fetchHistory).toHaveBeenCalledTimes(1)
+    const html = view()
+    expect(html).toContain('<table')
+    expect(html).toContain('weather-log-time')
+    expect(text(html)).not.toContain('yükleniyor')
+    refresher.destroy()
+  })
+})
+
 describe('AirportWeatherLive (sunucu çizimi)', () => {
-  it('iki bölümü çizer; göreli yaş ve kopyala düğmesi hidrasyondan sonra gelir', () => {
+  it('iki bölümü çizer; kayıt "yükleniyor" (D-111); göreli yaş ve kopyala düğmesi hidrasyondan sonra gelir', () => {
     const html = renderToStaticMarkup(
       createElement(AirportWeatherLive, {
         locale: 'tr',
@@ -744,7 +808,6 @@ describe('AirportWeatherLive (sunucu çizimi)', () => {
         ...LTFM,
         apiBaseUrl: API,
         initialWeather: fixtureWeather('LTFM'),
-        initialHistory: fixtureHistory('LTFM'),
         renderedAt: FIXTURE_NOW,
         timeZone: 'Europe/Istanbul',
         utcOffsets: utcOffsetTable('Europe/Istanbul', FIXTURE_NOW),
@@ -753,6 +816,9 @@ describe('AirportWeatherLive (sunucu çizimi)', () => {
     expect(html).toContain('id="airport-weather"')
     expect(html).toContain('id="airport-weather-log"')
     expect(text(html)).toContain('Gözlem 15:50')
+    // Kayıt sunucu çiziminde yoktur: ada açılışta tarayıcıdan ister.
+    expect(text(html)).toContain('Rapor kaydı yükleniyor…')
+    expect(html).not.toContain('weather-log-time')
     expect(text(html)).not.toContain('dakika önce')
     expect(html).not.toContain('<button')
   })
@@ -769,7 +835,6 @@ describe('AirportWeatherLive (sunucu çizimi)', () => {
             ...LGAV,
             apiBaseUrl: API,
             initialWeather: fixtureWeather('LGAV'),
-            initialHistory: fixtureHistory('LGAV'),
             renderedAt: FIXTURE_NOW,
             timeZone,
             utcOffsets: null,

@@ -26,11 +26,11 @@ import {
  * yerel saat ve UTC, tür (METAR, SPECI, TAF), sade özet ve ham metin. Gerçek `<table>`; dar ekranda
  * kendi kutusunda kayar. Saf görünüm: sunucuda ve adada aynı biçimde çizilir. Yerel saat
  * havalimanının saat dilimindedir (D-084); her satırın yanında UTC yazdığı için yaz saati geçişinde
- * de an açıktır.
+ * de an açıktır. Kayıt yalnız tarayıcıdan gelir (D-111): sunucu çizimi ve ilk istek bitene kadar
+ * bölüm "yükleniyor" der.
  *
- * Pencere `now`'a (sunucu saatine bağlı duvar saati) göre yeniden süzülür: önbellekten gelen eski bir
- * kayıt yanıtı "son 24 saat" başlığı altında 24 saatten eski satır göstermez; ada eski kaydı
- * açılışta yeniler (airport-weather-live.tsx).
+ * Pencere `now`'a (sunucu saatine bağlı duvar saati) göre yeniden süzülür: eski bir kayıt yanıtı
+ * "son 24 saat" başlığı altında 24 saatten eski satır göstermez.
  */
 export interface WeatherLogProps {
   locale: Locale
@@ -38,8 +38,10 @@ export interface WeatherLogProps {
   icao: string
   /** Havalimanının görünen adı (tablo başlığı). */
   name: string
-  /** null: kayıt alınamadı. */
+  /** null: kayıt yok (`loading` değilse alınamadı). */
   history: WeatherHistoryResponse | null
+  /** Kaydın ilk isteği sürüyor (sunucu çizimi de böyledir, D-111). */
+  loading?: boolean
   now: number
   /** Eski kayıt bağlantısı için API'nin genel adresi (`config.apiBaseUrl`). */
   apiBaseUrl: string
@@ -87,6 +89,7 @@ export function WeatherLog({
   icao,
   name,
   history,
+  loading = false,
   now,
   apiBaseUrl,
   timeZone = TURKEY_TIME_ZONE,
@@ -112,7 +115,7 @@ export function WeatherLog({
       <h2 id="airport-weather-log">{l.heading}</h2>
       <p className="weather-note">{intro}</p>
       {history === null ? (
-        <p>{l.unavailable}</p>
+        <p>{loading ? l.loading : l.unavailable}</p>
       ) : entries.length === 0 ? (
         <p>{l.empty}</p>
       ) : (

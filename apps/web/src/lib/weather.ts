@@ -2,22 +2,19 @@ import 'server-only'
 import {
   RawAirportWeatherSchema,
   toAirportWeather,
-  WeatherHistoryResponseSchema,
   type AirportWeather,
   type RawAirportWeather,
-  type WeatherHistoryResponse,
 } from '@havayolu/shared'
 import { cache } from 'react'
 import { z } from 'zod'
 // Göreli yol: vitest `@/` takma adını çözmez; bu modül testte yüklenir.
-import { WEATHER_LOG_HOURS } from '../components/airports/weather-client'
 import { AIRPORTS_SCOPE } from './airports'
 import { getServerEnv } from './env'
 import { createMemoryCache } from './memory-cache'
 
 /**
  * Havalimanı sayfalarının hava durumu verisi (Parça 1 M6c, D-078; M6h ölçek düzeltmesi, D-090). Sayfa
- * sunucuda iki kaynak okur:
+ * sunucuda tek kaynak okur:
  *
  * - Toplu güncel hava durumu, **ham biçimde**: `GET /v1/weather?scope=listed&format=raw`
  *   (listelenen havalimanları: Türkiye ve Türkiye dışındakiler, D-080; ham biçim D-101). API hiçbir
@@ -31,17 +28,13 @@ import { createMemoryCache } from './memory-cache'
  *   gider (aynı anda gelen çizimler süren tek isteği paylaşır), gövde dakikada bir kez ayrıştırılır;
  *   çözülen istasyonlar o yanıtla birlikte bellekte kalır (aynı dakikadaki ikinci çizim yeniden
  *   çözmez). Web tek süreçtir; birden çok kopya çalışırsa her biri dakikada bir istek atar.
- * - METAR/TAF kaydı: `GET /v1/airports/<ICAO>/weather/history?hours=24`, Next veri önbelleği 30 dk
- *   (havalimanı başına ~70 KB). 4. halkada 1.217 istasyonun sayfalarının hepsi gezilse ortalama
- *   dakikada ~41 istek eder; web konteynerinin bu rotadaki kovası dakikada 60'tır (kova rota
- *   başınadır; toplu istek ve liste ayrı kovalardadır). 15 dk'lık önbellekle ~81/dk olurdu (D-102;
- *   3. halkada 498 sayfayla 15 dk ~33/dk, 5 dk ~100/dk, D-090, D-107). ~41 bir ortalamadır, tavan
- *   değil: soğuk önbellekte (her yayından sonra) hızlı bir tarama yine dakikada 60'ı aşabilir; o
- *   sayfalar sunucu çiziminde kayıtsız gelir, ada kaydı tarayıcıdan alır. Next süresi dolan kaydı
- *   sunar ve arkada yeniler; 200 olmayan yanıtı (429) önbelleğe almaz, eldeki kaydı silmez. Açık
- *   sekmedeki ada kaydı tarayıcıdan (ziyaretçinin kendi hız sınırı kovasıyla) 5 dakikada bir
- *   tazeler; sunucu verisi 2 dakikadan eskiyse ada açılışta yeniler (`weather-client.ts`):
- *   ziyaretçi 30 dk'lık önbelleği görmez. METAR en sık 5 dakikada bir gelir.
+ *
+ * METAR/TAF kaydını (`/v1/airports/<ICAO>/weather/history`) sunucu istemez (D-111): ada onu açılışta
+ * tarayıcıdan, ziyaretçinin kendi hız sınırı kovasıyla alır ve 5 dakikada bir tazeler
+ * (airport-weather-live.tsx). Önce web kaydı sunucuda ister ve Next veri önbelleğinde 30 dk tutardı
+ * (D-102): 5. halkada 3.241 istasyonla tam bir tarama web konteynerinin bu rotadaki kovasını
+ * (dakikada 60) aşar ve kayıtlar (istasyon başına ~70 KB) konteynerin diskinde birikirdi.
+ * JavaScript'siz ziyaretçi kaydı görmez; güncel METAR ve TAF sunucu çiziminde vardır.
  *
  * Hiçbir hata sayfaya taşınmaz: API ulaşılamazsa, yanıt bozuksa ya da süre dolarsa `null` döner ve
  * sayfa "Hava durumu şu an alınamıyor" der; sayfa hava durumu yüzünden 500 vermez. API ulaşılamazken
@@ -56,13 +49,6 @@ export const WEATHER_BULK_TTL_MS = 60_000
 export const WEATHER_BULK_RETRY_MS = 15_000
 /** API'ye ulaşılamazken eldeki toplu yanıtın en çok kullanılacağı yaş, ms. */
 export const WEATHER_BULK_MAX_STALE_MS = 10 * 60_000
-/**
- * METAR/TAF kaydının Next veri önbelleği süresi, saniye (3. halkada 300 → 900, D-090; 4. halkada
- * 1.800, D-102: bütün sayfalar gezilse de ortalama, rotanın dakikada 60'lık kovasının altında kalır).
- */
-export const WEATHER_HISTORY_REVALIDATE_S = 1800
-/** `revalidateTag` ile elle tazelemek için önbellek etiketi (METAR/TAF kaydı). */
-export const WEATHER_CACHE_TAG = 'weather'
 /** Hava durumu ikincil bilgidir: sayfa onu en fazla bu kadar bekler. */
 export const WEATHER_TIMEOUT_MS = 4000
 
@@ -85,16 +71,6 @@ export function weatherBulkUrl(apiInternalUrl: string): string {
   const url = new URL('/v1/weather', apiInternalUrl)
   url.searchParams.set('scope', AIRPORTS_SCOPE)
   url.searchParams.set('format', 'raw')
-  return url.toString()
-}
-
-export function weatherHistoryUrl(
-  apiInternalUrl: string,
-  icao: string,
-  hours = WEATHER_LOG_HOURS,
-): string {
-  const url = new URL(`/v1/airports/${encodeURIComponent(icao)}/weather/history`, apiInternalUrl)
-  url.searchParams.set('hours', String(hours))
   return url.toString()
 }
 
@@ -143,12 +119,6 @@ export function stationWeather(bulk: WeatherBulk | null, icao: string): AirportW
   return weather
 }
 
-/** Kayıt yanıtını denetler; bozuksa null. */
-export function parseWeatherHistory(body: unknown): WeatherHistoryResponse | null {
-  const parsed = WeatherHistoryResponseSchema.safeParse(body)
-  return parsed.success ? parsed.data : null
-}
-
 async function fetchJson(url: string, init: RequestInit): Promise<unknown> {
   const response = await fetch(url, {
     ...init,
@@ -182,29 +152,14 @@ export const getWeather = cache((): Promise<WeatherBulk | null> => weatherBulkCa
 /** Havalimanı sayfasının hava durumu verisi ve çizim anı. */
 export interface AirportWeatherPageData {
   bulk: WeatherBulk | null
-  history: WeatherHistoryResponse | null
   /** Sunucu çizim anı (epoch ms); ada hidrasyonda aynı saati kullanır. */
   renderedAt: number
 }
 
-/** Toplu hava durumu ve havalimanının kaydı, paralel; hiçbiri fırlatmaz. */
-export async function getAirportWeatherPage(icao: string): Promise<AirportWeatherPageData> {
-  const [bulk, history] = await Promise.all([getWeather(), getWeatherHistory(icao)])
-  return { bulk, history, renderedAt: Date.now() }
+/**
+ * Toplu hava durumu ve çizim anı; fırlatmaz. METAR/TAF kaydı istenmez: ada onu tarayıcıdan alır
+ * (D-111).
+ */
+export async function getAirportWeatherPage(): Promise<AirportWeatherPageData> {
+  return { bulk: await getWeather(), renderedAt: Date.now() }
 }
-
-/** Bir havalimanının son 24 saatlik METAR/TAF kaydı; hata olursa null (fırlatmaz). */
-export const getWeatherHistory = cache(
-  async (icao: string): Promise<WeatherHistoryResponse | null> => {
-    if (!ICAO.test(icao)) return null
-    try {
-      return parseWeatherHistory(
-        await fetchJson(weatherHistoryUrl(getServerEnv().API_INTERNAL_URL, icao), {
-          next: { revalidate: WEATHER_HISTORY_REVALIDATE_S, tags: [WEATHER_CACHE_TAG] },
-        }),
-      )
-    } catch {
-      return null
-    }
-  },
-)
