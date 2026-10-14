@@ -1,6 +1,14 @@
 import { existsSync } from 'node:fs'
 import { dirname, join } from 'node:path'
-import { withoutEnvPlaceholders } from '@havayolu/shared'
+import {
+  DEFAULT_APP_NAME,
+  hostMatches,
+  isLegacyHostEntry,
+  normalizeHost,
+  PUBLIC_HOST,
+  splitHostList,
+  withoutEnvPlaceholders,
+} from '@havayolu/shared'
 import { z } from 'zod'
 import { isCidr } from './net/client-ip'
 
@@ -17,6 +25,19 @@ const splitCsv = (value: unknown) =>
     : []
 const csv = z.preprocess(splitCsv, z.array(z.string()))
 
+/** Eski API alan adları (D-112): web'deki `LEGACY_*_HOSTS` ile aynı biçim ve kurallar. */
+const legacyHostList = z.preprocess(
+  splitHostList,
+  z.array(
+    z
+      .string()
+      .refine(
+        isLegacyHostEntry,
+        'şemasız ve yolsuz tam alan adı olmalı (ör. api.old.example); IP adresi ve tek parçalı ad (localhost, hy-api) olamaz',
+      ),
+  ),
+)
+
 const EnvSchema = z.object({
   APP_ENV: z.enum(['development', 'test', 'production']).default('development'),
   API_LISTEN_HOST: z.string().min(1).default('0.0.0.0'),
@@ -25,6 +46,11 @@ const EnvSchema = z.object({
   // İmaja build sırasında gömülür ve Dokploy'a girilmez; boş gelirse açılışı engellemez, 'dev' olur.
   GIT_SHA: z.preprocess(emptyToUndefined, z.string().min(1).default('dev')),
   BUILD_TIME: optionalString,
+  // Marka adı (D-112): OpenAPI başlığı ve /version yanıtı. Web ve worker'la aynı env satırı.
+  APP_NAME: z.preprocess(
+    emptyToUndefined,
+    z.string().trim().min(1).max(64).default(DEFAULT_APP_NAME),
+  ),
 
   DATABASE_URL: optionalUrl,
   REDIS_QUEUE_URL: optionalUrl,
@@ -32,6 +58,20 @@ const EnvSchema = z.object({
 
   WEB_HOST: optionalString,
   ADMIN_HOST: optionalString,
+  // API'nin genel host'u (şemasız; web'in tarayıcıya verdiği adresle aynı satır). Yalnızca eski API
+  // alan adlarının yönlendirme hedefidir.
+  API_HOST: z.preprocess(
+    emptyToUndefined,
+    z
+      .string()
+      .trim()
+      .toLowerCase()
+      .regex(PUBLIC_HOST, 'şemasız host olmalı (ör. api.airline.live ya da localhost:4100)')
+      .optional(),
+  ),
+  // Eski API alan adları (D-112): bu host'lara gelen her istek 308 ile https://<API_HOST>'a gider
+  // (yol ve sorgu korunur; WebSocket el sıkışması da 308 alır ve kapanır). Boşsa yönlendirme yok.
+  LEGACY_API_HOSTS: legacyHostList,
   WEB_INTERNAL_URL: z.preprocess(emptyToUndefined, z.url().default('http://localhost:3100')),
   ANALYZE_URL: optionalUrl,
   EXPECTED_WORKERS: z.preprocess(
@@ -118,10 +158,31 @@ export function parseEnv(source: NodeJS.ProcessEnv): Env {
       )
     }
   }
+  issues.push(...legacyApiHostIssues(data))
   if (issues.length > 0) throw new EnvError(issues)
   const fallbackPort =
     data.APP_ENV === 'production' ? DEFAULT_API_PORT.production : DEFAULT_API_PORT.local
   return { ...data, ...adminSettings(data), API_PORT: data.API_PORT ?? fallbackPort }
+}
+
+/**
+ * Eski API host listesi hedefi (API_HOST) ister ve yeni host'ları (API_HOST, WEB_HOST, ADMIN_HOST)
+ * kapsayamaz: aksi hâlde yönlendirme döngüye girer ya da canlı bir host'u kapatırdı.
+ */
+function legacyApiHostIssues(data: ParsedEnv): string[] {
+  if (data.LEGACY_API_HOSTS.length === 0) return []
+  if (!data.API_HOST) {
+    return ["LEGACY_API_HOSTS: API_HOST tanımlı olmalı (eski host'lar ona yönlenir)"]
+  }
+  const current = [data.API_HOST, data.WEB_HOST, data.ADMIN_HOST]
+    .map((host) => normalizeHost(host))
+    .filter(Boolean)
+  return data.LEGACY_API_HOSTS.flatMap((entry) => {
+    const covered = current.find((host) => hostMatches(entry, host))
+    return covered
+      ? [`LEGACY_API_HOSTS: ${entry} yeni host'u (${covered}) kapsıyor; yönlendirme döngüye girer`]
+      : []
+  })
 }
 
 /**

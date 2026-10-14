@@ -71,7 +71,7 @@ async function closedPort(): Promise<string> {
 const identity = {
   appName: 'havayolu',
   version: '0.6.0',
-  webHost: 'havayolu.live',
+  webHost: 'airline.live',
   contactEmail: 'iletisim@example.test',
   dataUsageMode: 'commercial' as const,
   now: () => FIXTURE_NOW,
@@ -86,13 +86,13 @@ const json = (body: Buffer | string): Reply => ({
 describe('providerUserAgent', () => {
   it('data-sources.md biçimi: site adresi ve iletişim; yerelde mailto', () => {
     expect(providerUserAgent(identity)).toBe(
-      'havayolu/0.6.0 (+https://havayolu.live; iletisim@example.test)',
+      'havayolu/0.6.0 (+https://airline.live; iletisim@example.test)',
     )
     expect(providerUserAgent({ ...identity, webHost: '' })).toBe(
       'havayolu/0.6.0 (+mailto:iletisim@example.test)',
     )
     expect(providerUserAgent({ ...identity, contactEmail: null })).toBe(
-      'havayolu/0.6.0 (+https://havayolu.live)',
+      'havayolu/0.6.0 (+https://airline.live)',
     )
   })
 })
@@ -110,7 +110,7 @@ describe('adsb.lol istemcisi', () => {
     expect(result.aircraft.length).toBeGreaterThan(0)
     expect(server.seen[0]?.path).toBe('/v2/point/41.2749/28.7321/40')
     expect(server.seen[0]?.headers).toMatchObject({
-      'user-agent': 'havayolu/0.6.0 (+https://havayolu.live; iletisim@example.test)',
+      'user-agent': 'havayolu/0.6.0 (+https://airline.live; iletisim@example.test)',
       'accept-encoding': 'gzip',
       'api-auth': 'anahtar-degeri',
     })

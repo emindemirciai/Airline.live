@@ -837,7 +837,7 @@ export const tr = {
     /** Atıf satırındaki kullanım koşulları bağlantısı (E204 §3.1c.5, D-075). */
     termsLink: 'Koşullar',
     /**
-     * Atıf şeridinin başındaki site künyesinin ("havayolu v0.16.1") erişilebilir adı; bağlantı
+     * Atıf şeridinin başındaki site künyesinin ("Airline.live v0.16.1") erişilebilir adı; bağlantı
      * Yenilikler sayfasına gider (D-089). `{credit}` görünen metindir ve adın başında kalır (WCAG 2.5.3).
      */
     siteCreditLabel: '{credit}, yenilikler',
@@ -1361,7 +1361,7 @@ export const tr = {
   },
   /** Sayfa kaynağında (Sayfa kaynağını görüntüle) görünen bildirim; ekranda gösterilmez. */
   legal: {
-    owner: '{app} · © {year} {owner} ({ownerUrl}) · Kaynak kodu: {repoUrl}',
+    owner: '{app} · © {year} {owner} ({ownerUrl})',
     license:
       'Bu yazılımın kodu MIT lisansıyla lisanslanmıştır. Kodun tüm kopyaları ya da önemli bölümleri telif bildirimini ve MIT lisans metnini (LICENSE) içermek zorundadır.',
     violation:

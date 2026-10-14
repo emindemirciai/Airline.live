@@ -18,7 +18,7 @@ vi.mock('server-only', () => ({}))
 beforeEach(() => {
   vi.stubEnv('APP_ENV', 'test')
   vi.stubEnv('APP_NAME', 'havayolu')
-  vi.stubEnv('WEB_HOST', 'havayolu.live')
+  vi.stubEnv('WEB_HOST', 'airline.live')
 })
 
 afterEach(() => {
@@ -27,8 +27,8 @@ afterEach(() => {
 
 describe('siteUrlFrom / siteUrl', () => {
   it('genel host https, yerel host http ile kök adres olur', () => {
-    expect(siteUrlFrom('havayolu.live').toString()).toBe('https://havayolu.live/')
-    expect(siteUrlFrom(' HavaYolu.Live ').toString()).toBe('https://havayolu.live/')
+    expect(siteUrlFrom('airline.live').toString()).toBe('https://airline.live/')
+    expect(siteUrlFrom(' AirLine.Live ').toString()).toBe('https://airline.live/')
     expect(siteUrlFrom('localhost:3100').toString()).toBe('http://localhost:3100/')
     expect(siteUrlFrom('127.0.0.1:3100').toString()).toBe('http://127.0.0.1:3100/')
     expect(siteUrlFrom('[::1]:3100').toString()).toBe('http://[::1]:3100/')
@@ -45,11 +45,11 @@ describe('siteUrlFrom / siteUrl', () => {
   })
 
   it('siteUrl çalışma zamanında WEB_HOST okur; absoluteUrl yolu ona ekler', () => {
-    expect(siteUrl().toString()).toBe('https://havayolu.live/')
-    expect(absoluteUrl('/istasyon/LTFM')).toBe('https://havayolu.live/istasyon/LTFM')
-    expect(absoluteUrl('/en')).toBe('https://havayolu.live/en')
-    vi.stubEnv('WEB_HOST', 'staging.havayolu.live')
-    expect(absoluteUrl('/')).toBe('https://staging.havayolu.live/')
+    expect(siteUrl().toString()).toBe('https://airline.live/')
+    expect(absoluteUrl('/istasyon/LTFM')).toBe('https://airline.live/istasyon/LTFM')
+    expect(absoluteUrl('/en')).toBe('https://airline.live/en')
+    vi.stubEnv('WEB_HOST', 'staging.airline.live')
+    expect(absoluteUrl('/')).toBe('https://staging.airline.live/')
   })
 })
 
@@ -119,16 +119,16 @@ describe('pageMetadata', () => {
     const m = pageMetadata({ locale: 'en', path: '/', title: 'x', description: 'x' })
     const images = m.openGraph?.images
     const url = Array.isArray(images) && typeof images[0] === 'object' ? images[0] : undefined
-    const expected = `${OG_SITE_IMAGE.path}?v=${siteOgVersion(siteOgContent('havayolu', 'havayolu.live'))}`
+    const expected = `${OG_SITE_IMAGE.path}?v=${siteOgVersion(siteOgContent('havayolu', 'airline.live'))}`
     expect(url).toMatchObject({ url: expected })
-    expect(siteOgImagePath('havayolu', 'havayolu.live')).toBe(expected)
+    expect(siteOgImagePath('havayolu', 'airline.live')).toBe(expected)
     // İki dil aynı görseli kullanır.
     expect(
       pageMetadata({ locale: 'tr', path: '/', title: 'x', description: 'x' }).openGraph,
     ).toMatchObject({ images: [{ url: expected }] })
     // Ad ya da alan adı değişince adres değişir; WEB_HOST yoksa alan adı yazılmaz.
-    expect(siteOgImagePath('başka', 'havayolu.live')).not.toBe(expected)
-    expect(siteOgImagePath('havayolu', 'staging.havayolu.live')).not.toBe(expected)
+    expect(siteOgImagePath('başka', 'airline.live')).not.toBe(expected)
+    expect(siteOgImagePath('havayolu', 'staging.airline.live')).not.toBe(expected)
     expect(siteOgImagePath('havayolu', undefined)).toBe(
       `${OG_SITE_IMAGE.path}?v=${siteOgVersion(siteOgContent('havayolu', null))}`,
     )

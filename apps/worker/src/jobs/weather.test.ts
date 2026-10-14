@@ -475,7 +475,7 @@ describe('runWeatherMetar', () => {
     // İstekler arası en kısa aralık (D-090) providers testinde sahte saatle denetlenir; burada 143
     // istek gerçek saatte ~100 sn beklerdi.
     const client = createAviationWeatherClient({
-      userAgent: 'havayolu/0.12.0 (+https://havayolu.live)',
+      userAgent: 'havayolu/0.12.0 (+https://airline.live)',
       fetch,
       now: () => FIXTURE_NOW.getTime(),
       minIntervalMs: 0,
@@ -798,7 +798,7 @@ describe('runWeatherTaf ve runWeatherPrune', () => {
       return new Response('[]', { status: 200, headers: { 'content-type': 'application/json' } })
     }) as typeof globalThis.fetch
     const client = createAviationWeatherClient({
-      userAgent: 'havayolu/0.21.0 (+https://havayolu.live)',
+      userAgent: 'havayolu/0.21.0 (+https://airline.live)',
       fetch,
       now: () => FIXTURE_NOW.getTime(),
       minIntervalMs: 0,

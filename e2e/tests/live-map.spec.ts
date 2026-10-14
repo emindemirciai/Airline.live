@@ -25,6 +25,8 @@ import {
   aircraftRow,
   aircraftTable,
   airportListCodes,
+  APP_NAME,
+  APP_NAME_PATTERN,
   APPROACH_AIRCRAFT,
   countryLabels,
   declineAnalytics,
@@ -86,10 +88,10 @@ test('harita IST/LTFM merkezli açılır, atıflar görünür, replay uçağı t
     'https://adsb.lol',
   )
   await expect(attribution.getByRole('link', { name: 'ODbL' })).toBeVisible()
-  // Şerit sitenin kendi künyesiyle başlar (D-089): "havayolu v<sürüm>", sürüm alt bilgidekiyle ve
+  // Şerit sitenin kendi künyesiyle başlar (D-089): "Airline.live v<sürüm>", sürüm alt bilgidekiyle ve
   // /api/version'dakiyle aynıdır; bağlantı Yenilikler sayfasına gider. Zorunlu atıflar yerinde kalır.
   const { version } = (await (await request.get('/api/version')).json()) as { version: string }
-  const credit = `havayolu v${version}`
+  const credit = `${APP_NAME} v${version}`
   await expect(attribution).toHaveText(
     new RegExp(`^${credit.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')} \\| `),
   )
@@ -805,7 +807,9 @@ test.describe('telefon genişliği', () => {
     const attribution = page.locator('.maplibregl-ctrl-attrib')
     await expect(attribution).toBeVisible()
     // Künye şeridin başında; zorunlu atıflar ve Koşullar ekranın içinde kalır (D-089).
-    await expect(attribution).toHaveText(/^havayolu v\d+\.\d+\.\d+\S* \| Canlı uçuş verisi:/)
+    await expect(attribution).toHaveText(
+      new RegExp(`^${APP_NAME_PATTERN} v\\d+\\.\\d+\\.\\d+\\S* \\| Canlı uçuş verisi:`),
+    )
     for (const name of ['ADSB.lol', 'ODbL 1.0', 'Koşullar']) {
       await expect(attribution.getByRole('link', { name, exact: true })).toBeInViewport({
         ratio: 1,
@@ -844,10 +848,14 @@ test.describe('telefon genişliği', () => {
   }) => {
     await openMap(page, '/en')
     const attribution = page.locator('.maplibregl-ctrl-attrib')
-    await expect(attribution).toHaveText(/^havayolu v\d+\.\d+\.\d+\S* \| Live flight data:/)
+    await expect(attribution).toHaveText(
+      new RegExp(`^${APP_NAME_PATTERN} v\\d+\\.\\d+\\.\\d+\\S* \\| Live flight data:`),
+    )
     await expect(attribution).toContainText('Live flight data: ADSB.lol — ODbL 1.0 · Terms')
     const creditLink = attribution.getByRole('link').first()
-    await expect(creditLink).toHaveAccessibleName(/^havayolu v\d+\.\d+\.\d+\S*, what’s new$/)
+    await expect(creditLink).toHaveAccessibleName(
+      new RegExp(`^${APP_NAME_PATTERN} v\\d+\\.\\d+\\.\\d+\\S*, what’s new$`),
+    )
     await expect(creditLink).toHaveAttribute('href', '/en/yenilikler')
     await expect(creditLink).toBeInViewport({ ratio: 1 })
     for (const name of ['ADSB.lol', 'ODbL 1.0', 'Terms']) {

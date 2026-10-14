@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:1.7
-# havayolu API imajı. Derleme bağlamı: repo kökü (docker build -f apps/api/Dockerfile .).
+# Airline.live API imajı. Derleme bağlamı: repo kökü (docker build -f apps/api/Dockerfile .).
 FROM node:24-slim AS base
 ENV CI=true
 RUN npm install -g pnpm@12.6.0 turbo@2.11.3 && npm cache clean --force

@@ -53,9 +53,9 @@ export interface DataAttribution {
 }
 
 export interface MapConfig {
-  /** REST kökü (`https://api.havayolu.live`); tarayıcı API'ye doğrudan bağlanır. */
+  /** REST kökü (`https://api.airline.live`); tarayıcı API'ye doğrudan bağlanır. */
   apiBaseUrl: string
-  /** Canlı veri WebSocket'i (`wss://api.havayolu.live/v1/ws`). */
+  /** Canlı veri WebSocket'i (`wss://api.airline.live/v1/ws`). */
   wsUrl: string
   basemap: Basemap
   /** Canlı veri atfı: haritada her zaman görünür (data-sources.md §1). */

@@ -1,6 +1,7 @@
 export * from './arrival-coverage'
 export * from './env'
 export * from './errors'
+export * from './hosts'
 export * from './live'
 export * from './locale'
 export * from './map'

@@ -410,8 +410,8 @@ export const CHANGELOG: readonly ChangelogEntry[] = [
         en: 'The list page heading is now “Airports outside Türkiye”. Alexandria’s wrong code in the source data is corrected (HEBA), and empty duplicate runway rows are hidden.',
       },
       {
-        tr: 'Haritanın alt köşesindeki atıf şeridi artık “havayolu” ve sitenin sürümüyle başlıyor; tıklayınca Yenilikler açılır. Uydu görüntüsü (Esri) ve canlı uçuş verisi (ADSB.lol) atıfları lisans gereği yerinde kalıyor.',
-        en: 'The attribution strip at the bottom of the map now starts with “havayolu” and the site version, linking to What’s new. The satellite imagery (Esri) and live flight data (ADSB.lol) credits stay, as their licences require.',
+        tr: 'Haritanın alt köşesindeki atıf şeridi artık sitenin adı ve sürümüyle başlıyor; tıklayınca Yenilikler açılır. Uydu görüntüsü (Esri) ve canlı uçuş verisi (ADSB.lol) atıfları lisans gereği yerinde kalıyor.',
+        en: 'The attribution strip at the bottom of the map now starts with the site name and version, linking to What’s new. The satellite imagery (Esri) and live flight data (ADSB.lol) credits stay, as their licences require.',
       },
       {
         tr: 'Havalimanı sayfasının uzman bölümünde yalnızca yürürlükteki TAF tahminleri gösterilir; eskileri METAR/TAF kaydında kalır.',
@@ -479,8 +479,8 @@ export const CHANGELOG: readonly ChangelogEntry[] = [
     },
     items: [
       {
-        tr: 'havayolu’nun yeni logosu: turkuaz halkanın içinden 45° açıyla geçen, yukarıdan görünen çift motorlu bir yolcu uçağı. Sitenin başlığında, tarayıcı sekmesinde, telefona eklenen uygulama simgesinde ve paylaşım görsellerinde aynı logo var; küçük boyutlarda turkuaz daire içinde beyaz uçak olarak sadeleşir.',
-        en: 'havayolu has a new logo: a top-down twin-engine airliner flying at 45° through the turquoise ring. The same logo appears in the site header, the browser tab, the app icon on your phone and share images; at small sizes it simplifies to a white plane in a turquoise disc.',
+        tr: 'Sitenin yeni logosu: turkuaz halkanın içinden 45° açıyla geçen, yukarıdan görünen çift motorlu bir yolcu uçağı. Sitenin başlığında, tarayıcı sekmesinde, telefona eklenen uygulama simgesinde ve paylaşım görsellerinde aynı logo var; küçük boyutlarda turkuaz daire içinde beyaz uçak olarak sadeleşir.',
+        en: 'The site has a new logo: a top-down twin-engine airliner flying at 45° through the turquoise ring. The same logo appears in the site header, the browser tab, the app icon on your phone and share images; at small sizes it simplifies to a white plane in a turquoise disc.',
       },
     ],
     tryLinks: [{ path: '/', label: { tr: 'Ana sayfa', en: 'Home' } }],
@@ -912,12 +912,12 @@ export const CHANGELOG: readonly ChangelogEntry[] = [
         en: 'Storage for flight tracks is ready: the 30-second track will be kept for 7 days and the full-resolution track for 30 days. Expired days are deleted automatically every night.',
       },
       {
-        tr: 'Yönetim panelindeki Servisler sayfası (admin.havayolu.live) artık referans verisinin ve iz tablolarının durumunu da gösteriyor.',
-        en: 'The Services page in the admin panel (admin.havayolu.live) now also shows the status of the reference data and the track tables.',
+        tr: 'Yönetim panelindeki Servisler sayfası artık referans verisinin ve iz tablolarının durumunu da gösteriyor.',
+        en: 'The Services page in the admin panel now also shows the status of the reference data and the track tables.',
       },
       {
-        tr: 'Yönetim panelinin adresi (admin.havayolu.live) doğrudan açıldığında hata veriyordu; artık giriş sayfasına yönlendiriyor.',
-        en: 'Opening the admin panel address (admin.havayolu.live) directly showed an error; it now redirects to the sign-in page.',
+        tr: 'Yönetim panelinin adresi doğrudan açıldığında hata veriyordu; artık giriş sayfasına yönlendiriyor.',
+        en: 'Opening the admin panel address directly showed an error; it now redirects to the sign-in page.',
       },
       {
         tr: 'Her sürüm artık GitHub’daki Releases bölümünde de sürüm notlarıyla yayımlanıyor; önceki sürümler de eklendi.',
@@ -943,8 +943,8 @@ export const CHANGELOG: readonly ChangelogEntry[] = [
         en: 'If something goes wrong, the previous version can be restored with a single command; data is kept.',
       },
       {
-        tr: 'Sunucu kurulum rehberi hazır. Kurulum tamamlanınca havayolu.live yayına açılacak.',
-        en: 'The server setup guide is ready. havayolu.live goes live once the setup is done.',
+        tr: 'Sunucu kurulum rehberi hazır. Kurulum tamamlanınca site yayına açılacak.',
+        en: 'The server setup guide is ready. The site goes live once the setup is done.',
       },
     ],
   },
@@ -970,8 +970,8 @@ export const CHANGELOG: readonly ChangelogEntry[] = [
         en: 'The language switch now works in the admin panel.',
       },
       {
-        tr: 'Kaynak kodu herkese açık ve MIT lisanslı. Sayfa kaynağında sahiplik ve lisans bildirimi yer alıyor; havayolu adı ve logosu lisans kapsamı dışında, hakları saklı.',
-        en: 'The source code is public under the MIT License. The page source carries an ownership and license notice; the havayolu name and logo are outside the license, rights reserved.',
+        tr: 'Kaynak kodu herkese açık ve MIT lisanslı. Sayfa kaynağında sahiplik ve lisans bildirimi yer alıyor; sitenin adı ve logosu lisans kapsamı dışında, hakları saklı.',
+        en: 'The source code is public under the MIT License. The page source carries an ownership and license notice; the site’s name and logo are outside the license, rights reserved.',
       },
     ],
   },
@@ -980,17 +980,17 @@ export const CHANGELOG: readonly ChangelogEntry[] = [
     date: '2026-09-25',
     releasedAt: '2026-09-25T18:19:09Z',
     title: {
-      tr: 'Yeni adımız havayolu, adresimiz havayolu.live',
-      en: 'Our new name is havayolu, at havayolu.live',
+      tr: 'Sitenin adı ve adresi belirlendi',
+      en: 'The site’s name and address are set',
     },
     items: [
       {
-        tr: 'Uygulamanın adı havayolu oldu. Web sitesi havayolu.live, yönetim paneli admin.havayolu.live, sunucu api.havayolu.live, analiz paneli analiz.havayolu.live adresinde yayına alınacak.',
-        en: 'The app is now called havayolu. The website will go live at havayolu.live, the admin panel at admin.havayolu.live, the server at api.havayolu.live and the analytics panel at analiz.havayolu.live.',
+        tr: 'Uygulamanın adı ve alan adı belirlendi. Web sitesi, yönetim paneli, sunucu ve analiz paneli bu alan adının altında yayına alınacak.',
+        en: 'The app’s name and domain are set. The website, the admin panel, the server and the analytics panel will go live under this domain.',
       },
       {
-        tr: 'www.havayolu.live adresine gelen ziyaretçiler otomatik olarak havayolu.live adresine yönlendirilir.',
-        en: 'Visitors to www.havayolu.live are redirected to havayolu.live automatically.',
+        tr: 'Adresin www ile başlayan biçimine gelen ziyaretçiler otomatik olarak sitenin ana adresine yönlendirilir.',
+        en: 'Visitors to the www address are redirected to the site’s main address automatically.',
       },
     ],
   },

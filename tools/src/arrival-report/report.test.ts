@@ -180,7 +180,7 @@ describe('runCoverageReport', () => {
     const run = await runCoverageReport(
       config(root, {
         source: {
-          DATABASE_URL: 'postgres://u:gizli@db.havayolu.live:5432/app',
+          DATABASE_URL: 'postgres://u:gizli@db.airline.live:5432/app',
           APP_ENV: 'production',
         },
       }),

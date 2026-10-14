@@ -17,7 +17,7 @@ beforeEach(() => {
   getAirports.mockResolvedValue(fixtureTurkishAirports())
   vi.stubEnv('APP_ENV', 'test')
   vi.stubEnv('APP_NAME', 'havayolu')
-  vi.stubEnv('WEB_HOST', 'havayolu.live')
+  vi.stubEnv('WEB_HOST', 'airline.live')
 })
 
 afterEach(() => {
@@ -33,7 +33,7 @@ describe('/istasyon/<ICAO>/opengraph-image', () => {
   it('1200×630 PNG ve sabit üst veri', () => {
     expect(size).toEqual({ width: 1200, height: 630 })
     expect(contentType).toBe('image/png')
-    expect(alt).toBe('havayolu')
+    expect(alt).toBe('Airline.live')
   })
 
   it('bilinen havalimanı: önce connection(), sonra PNG; ağa çıkılmaz', async () => {

@@ -13,6 +13,7 @@
 import { defineConfig, devices } from '@playwright/test'
 import {
   API_HOST,
+  APP_NAME,
   E2E_ADMIN,
   E2E_ANALYZE_SITE_ID,
   E2E_ANALYZE_URL,
@@ -79,6 +80,12 @@ export default defineConfig({
       WEB_HOST,
       API_HOST,
       ADMIN_HOST: '',
+      // Marka adı ve eski alan adları (D-112): kullanıcının .env'i başlıkları, künyeyi ve
+      // yönlendirmeleri değiştirmesin diye sabitlenir; eski host listeleri boştur (yönlendirme yok).
+      APP_NAME,
+      LEGACY_WEB_HOSTS: '',
+      LEGACY_ADMIN_HOSTS: '',
+      LEGACY_API_HOSTS: '',
       // Onay bandı testi: analiz adresi yerel ve sahtedir; script isteği test içinde yanıtlanır.
       ANALYZE_URL: E2E_ANALYZE_URL,
       ANALYZE_SITE_ID: E2E_ANALYZE_SITE_ID,

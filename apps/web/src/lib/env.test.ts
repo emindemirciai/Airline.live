@@ -36,7 +36,7 @@ describe('getServerEnv — harita alanları', () => {
 
   it('üretim değerlerini okur; sonuç resolveMapConfig girdisine uyar', () => {
     withEnv({
-      API_HOST: 'api.havayolu.live',
+      API_HOST: 'api.airline.live',
       MAP_STYLE_URL: 'https://tiles.openfreemap.org/styles/liberty',
       MAP_STYLE_URL_DARK: 'https://tiles.openfreemap.org/styles/dark',
       EXTERNAL_PROVIDERS_DISABLED: 'false',
@@ -44,7 +44,7 @@ describe('getServerEnv — harita alanları', () => {
     })
     const env = getServerEnv()
     const input: MapEnvInput = env
-    expect(input.API_HOST).toBe('api.havayolu.live')
+    expect(input.API_HOST).toBe('api.airline.live')
     expect(input.MAP_STYLE_URL_DARK).toBe('https://tiles.openfreemap.org/styles/dark')
     expect(input.EXTERNAL_PROVIDERS_DISABLED).toBe(false)
     expect(input.ESRI_API_KEY).toBe('test-only-not-a-key_1.2~3+4/5=')
@@ -60,7 +60,7 @@ describe('getServerEnv — harita alanları', () => {
   })
 
   it('localhost, IP ve IPv6 host biçimlerini kabul eder', () => {
-    for (const host of ['localhost:4100', '127.0.0.1:4100', '[::1]:4100', 'api.havayolu.live']) {
+    for (const host of ['localhost:4100', '127.0.0.1:4100', '[::1]:4100', 'api.airline.live']) {
       withEnv({ API_HOST: host })
       expect(getServerEnv().API_HOST).toBe(host)
     }
@@ -68,8 +68,8 @@ describe('getServerEnv — harita alanları', () => {
 
   it('hatalı değerlerde açıklayıcı hata verir', () => {
     const bad: Partial<Record<(typeof MAP_KEYS)[number], string>>[] = [
-      { API_HOST: 'https://api.havayolu.live' },
-      { API_HOST: 'api.havayolu.live/v1' },
+      { API_HOST: 'https://api.airline.live' },
+      { API_HOST: 'api.airline.live/v1' },
       { MAP_STYLE_URL: '//evil.example/style.json' },
       { MAP_STYLE_URL: 'styles/dark' },
       { MAP_STYLE_URL_DARK: 'javascript:alert(1)' },
@@ -109,8 +109,8 @@ describe('getServerEnv — site alanları', () => {
   it('WEB_HOST geliştirmede isteğe bağlıdır; kırpılıp küçük harfe çevrilir', () => {
     withSiteEnv({ APP_ENV: 'development' })
     expect(getServerEnv().WEB_HOST).toBeUndefined()
-    withSiteEnv({ APP_ENV: 'test', WEB_HOST: ' HavaYolu.live ' })
-    expect(getServerEnv().WEB_HOST).toBe('havayolu.live')
+    withSiteEnv({ APP_ENV: 'test', WEB_HOST: ' AirLine.live ' })
+    expect(getServerEnv().WEB_HOST).toBe('airline.live')
     withSiteEnv({ WEB_HOST: 'localhost:3100' })
     expect(getServerEnv().WEB_HOST).toBe('localhost:3100')
   })
@@ -120,12 +120,12 @@ describe('getServerEnv — site alanları', () => {
     expect(() => getServerEnv()).toThrow(/WEB_HOST: üretimde zorunlu/)
     withSiteEnv({ APP_ENV: 'production', WEB_HOST: '#kullanıcı yazar#' })
     expect(() => getServerEnv()).toThrow(/WEB_HOST/)
-    withSiteEnv({ APP_ENV: 'production', WEB_HOST: 'havayolu.live' })
-    expect(getServerEnv().WEB_HOST).toBe('havayolu.live')
+    withSiteEnv({ APP_ENV: 'production', WEB_HOST: 'airline.live' })
+    expect(getServerEnv().WEB_HOST).toBe('airline.live')
   })
 
   it('WEB_HOST şemasız bir host olmalıdır', () => {
-    for (const host of ['https://havayolu.live', 'havayolu.live/en', 'havayolu live']) {
+    for (const host of ['https://airline.live', 'airline.live/en', 'havayolu live']) {
       withSiteEnv({ WEB_HOST: host })
       expect(() => getServerEnv(), host).toThrow(/Web ortam değişkenleri hatalı: WEB_HOST/)
     }
@@ -158,5 +158,84 @@ describe('getServerEnv — site alanları', () => {
     }
     withSiteEnv({ YANDEX_VERIFICATION: 'x/y' })
     expect(() => getServerEnv()).toThrow(/YANDEX_VERIFICATION/)
+  })
+})
+
+describe('getServerEnv — eski alan adları (D-112)', () => {
+  const LEGACY_KEYS = [
+    'WEB_HOST',
+    'ADMIN_HOST',
+    'API_HOST',
+    'LEGACY_WEB_HOSTS',
+    'LEGACY_ADMIN_HOSTS',
+  ] as const
+  const PRODUCTION = {
+    WEB_HOST: 'airline.live',
+    ADMIN_HOST: 'admin.airline.live',
+    API_HOST: 'api.airline.live',
+  }
+
+  function withLegacyEnv(values: Partial<Record<(typeof LEGACY_KEYS)[number], string>>) {
+    withSiteEnv({})
+    for (const key of LEGACY_KEYS) vi.stubEnv(key, values[key] ?? '')
+  }
+
+  it('boşsa iki liste de boştur (yerel geliştirme ve geçişten önceki üretim)', () => {
+    withLegacyEnv({})
+    const env = getServerEnv()
+    expect(env.LEGACY_WEB_HOSTS).toEqual([])
+    expect(env.LEGACY_ADMIN_HOSTS).toEqual([])
+    withLegacyEnv({ LEGACY_WEB_HOSTS: '#boş bırak#', LEGACY_ADMIN_HOSTS: ' , ' })
+    expect(getServerEnv().LEGACY_WEB_HOSTS).toEqual([])
+    expect(getServerEnv().LEGACY_ADMIN_HOSTS).toEqual([])
+  })
+
+  it('listeleri kırpar, küçük harfe çevirir, tekilleştirir', () => {
+    withLegacyEnv({
+      ...PRODUCTION,
+      LEGACY_WEB_HOSTS: ' Havayolu.Live , www.havayolu.live, havayolu.live ',
+      LEGACY_ADMIN_HOSTS: 'ADMIN.havayolu.live',
+    })
+    const env = getServerEnv()
+    expect(env.LEGACY_WEB_HOSTS).toEqual(['havayolu.live', 'www.havayolu.live'])
+    expect(env.LEGACY_ADMIN_HOSTS).toEqual(['admin.havayolu.live'])
+  })
+
+  it('geçersiz girdiyi reddeder: şema, yol, IP ve tek parçalı ad', () => {
+    for (const value of [
+      'https://havayolu.live',
+      'havayolu.live/en',
+      '127.0.0.1',
+      'localhost',
+      'hy-web',
+    ]) {
+      withLegacyEnv({ ...PRODUCTION, LEGACY_WEB_HOSTS: value })
+      expect(() => getServerEnv(), value).toThrow(/LEGACY_WEB_HOSTS/)
+    }
+  })
+
+  it('hedefsiz liste reddedilir', () => {
+    withLegacyEnv({ LEGACY_WEB_HOSTS: 'havayolu.live' })
+    expect(() => getServerEnv()).toThrow(/LEGACY_WEB_HOSTS: WEB_HOST tanımlı olmalı/)
+    withLegacyEnv({ WEB_HOST: 'airline.live', LEGACY_ADMIN_HOSTS: 'admin.havayolu.live' })
+    expect(() => getServerEnv()).toThrow(/LEGACY_ADMIN_HOSTS: ADMIN_HOST tanımlı olmalı/)
+  })
+
+  it('yeni host’ları kapsayan ya da iki listede birden olan girdi reddedilir (döngü)', () => {
+    for (const value of [
+      'airline.live',
+      'www.airline.live',
+      'admin.airline.live',
+      'api.airline.live',
+    ]) {
+      withLegacyEnv({ ...PRODUCTION, LEGACY_WEB_HOSTS: value })
+      expect(() => getServerEnv(), value).toThrow(/yönlendirme döngüye girer/)
+    }
+    withLegacyEnv({
+      ...PRODUCTION,
+      LEGACY_WEB_HOSTS: 'havayolu.live',
+      LEGACY_ADMIN_HOSTS: 'havayolu.live',
+    })
+    expect(() => getServerEnv()).toThrow(/iki listede birden/)
   })
 })

@@ -57,6 +57,15 @@ describe('env', () => {
     expect(() => parseEnv({ WORKER_SERVICE_NAME: 'Worker RT' })).toThrow()
   })
 
+  it('APP_NAME User-Agent ürün adıdır: varsayılan Airline.live, boşluklu ad reddedilir (D-112)', () => {
+    expect(parseEnv({}).APP_NAME).toBe('Airline.live')
+    expect(parseEnv({ APP_NAME: '  ' }).APP_NAME).toBe('Airline.live')
+    expect(parseEnv({ APP_NAME: ' Deneme.site ' }).APP_NAME).toBe('Deneme.site')
+    for (const name of ['Airline Live', 'Airline/live', 'Airline;live', 'Hava(yolu)', 'Çağrı']) {
+      expect(() => parseEnv({ APP_NAME: name }), name).toThrow(/APP_NAME: User-Agent ürün adı olur/)
+    }
+  })
+
   it('ingest varsayılanları', () => {
     const parsed = parseEnv({})
     expect(parsed.ADSBLOL_RPS).toBe(0.1)

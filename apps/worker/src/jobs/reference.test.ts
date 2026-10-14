@@ -32,7 +32,7 @@ function stubFetch(respond: (call: Call) => Response) {
 }
 
 describe('httpFetcher', () => {
-  const userAgentValue = 'havayolu/0.5.0 (+https://havayolu.live)'
+  const userAgentValue = 'Airline.live/0.5.0 (+https://airline.live)'
 
   it('tanımlayıcı User-Agent gönderir; ETag ve Last-Modified döner', async () => {
     const { fetch, calls } = stubFetch(
@@ -136,13 +136,13 @@ describe('referenceMode ve User-Agent', () => {
   })
 
   it('User-Agent ürün adı, sürüm ve site adresini taşır; e-posta yalnızca env verilirse', () => {
-    expect(userAgent(env({ WEB_HOST: 'havayolu.live' }), '0.5.0')).toBe(
-      'havayolu/0.5.0 (+https://havayolu.live)',
+    expect(userAgent(env({ WEB_HOST: 'airline.live' }), '0.5.0')).toBe(
+      'Airline.live/0.5.0 (+https://airline.live)',
     )
-    expect(userAgent(env({}), '0.5.0')).toBe('havayolu/0.5.0')
+    expect(userAgent(env({}), '0.5.0')).toBe('Airline.live/0.5.0')
     expect(
-      userAgent(env({ WEB_HOST: 'havayolu.live', CONTACT_EMAIL: 'iletisim@example.com' }), '1'),
-    ).toBe('havayolu/1 (+https://havayolu.live; iletisim@example.com)')
+      userAgent(env({ WEB_HOST: 'airline.live', CONTACT_EMAIL: 'iletisim@example.com' }), '1'),
+    ).toBe('Airline.live/1 (+https://airline.live; iletisim@example.com)')
   })
 
   it('zamanlayıcılar UTC; bakım işleri günde bir kez, hava durumu 5 ve 15 dakikada bir', () => {

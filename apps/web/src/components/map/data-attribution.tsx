@@ -9,7 +9,7 @@ export interface DataAttributionNoticeProps {
   termsLabel: string
   /** Kullanım koşullarının sayfanın dilindeki adresi (`localePath(locale, TERMS_PATH)`). */
   termsHref: string
-  /** Satırın başındaki site künyesi ("havayolu v0.16.1", D-089). */
+  /** Satırın başındaki site künyesi ("Airline.live v0.16.1", D-089). */
   siteCredit: SiteCredit
 }
 

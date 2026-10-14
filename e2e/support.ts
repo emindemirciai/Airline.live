@@ -16,6 +16,14 @@ export const WEB_HOST = new URL(WEB_URL).host
 export const API_HOST = new URL(API_URL).host
 
 /**
+ * Web, API ve worker'ın marka adı (`APP_NAME`, D-112). playwright.config.ts sunucu ortamına bunu
+ * yazar; kullanıcının .env'indeki değer sonuçları değiştirmez.
+ */
+export const APP_NAME = 'Airline.live'
+/** `APP_NAME` düzenli ifade içinde (noktası kaçışlı). */
+export const APP_NAME_PATTERN = APP_NAME.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+
+/**
  * `pnpm dev:replay`'in `cruise` senaryosundaki ilk seyir uçağı (IST ↔ ESB, ~450 kt):
  * tools/src/scenarios/cruise.ts → `syntheticIdentity(1)`.
  */

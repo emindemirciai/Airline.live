@@ -19,7 +19,7 @@ describe('sistem uç noktaları', () => {
     const res = await app.inject({ method: 'GET', url: '/version' })
     expect(res.statusCode).toBe(200)
     expect(res.json()).toMatchObject({
-      app: 'havayolu',
+      app: 'Airline.live',
       version: CHANGELOG[0]?.version,
       gitSha: 'abc1234',
       env: 'test',
@@ -328,11 +328,129 @@ describe('env', () => {
 
   it("CORS yalnızca web ve admin host'larına izin verir", () => {
     expect(
-      allowedOrigins(testEnv({ WEB_HOST: 'havayolu.live', ADMIN_HOST: 'admin.havayolu.live' })),
-    ).toEqual(['https://havayolu.live', 'https://admin.havayolu.live'])
+      allowedOrigins(testEnv({ WEB_HOST: 'airline.live', ADMIN_HOST: 'admin.airline.live' })),
+    ).toEqual(['https://airline.live', 'https://admin.airline.live'])
     expect(allowedOrigins(testEnv({ WEB_HOST: 'localhost:3100' }))).toEqual([
       'http://localhost:3100',
     ])
     expect(allowedOrigins(testEnv())).toEqual([])
+  })
+})
+
+describe('marka ve eski alan adları (D-112)', () => {
+  const LEGACY = {
+    WEB_HOST: 'airline.live',
+    ADMIN_HOST: 'admin.airline.live',
+    API_HOST: 'api.airline.live',
+    LEGACY_API_HOSTS: 'api.havayolu.live',
+  }
+
+  it('OpenAPI başlığı ve /version marka adını APP_NAME’den alır (varsayılan Airline.live)', async () => {
+    const spec = (await app.inject({ method: 'GET', url: '/openapi.json' })).json() as {
+      info: { title: string }
+    }
+    expect(spec.info.title).toBe('Airline.live API')
+
+    const { app: named } = await testApp({ env: { APP_NAME: ' Deneme.site ' } })
+    const renamed = (await named.inject({ method: 'GET', url: '/openapi.json' })).json() as {
+      info: { title: string }
+    }
+    expect(renamed.info.title).toBe('Deneme.site API')
+    expect((await named.inject({ method: 'GET', url: '/version' })).json()).toMatchObject({
+      app: 'Deneme.site',
+    })
+    await named.close()
+  })
+
+  it('eski API host’una gelen her istek yol ve sorguyla 308 alır: GET, POST, OPTIONS, 404', async () => {
+    const { app: legacy } = await testApp({ env: LEGACY })
+    const cases = [
+      { method: 'GET', url: '/version?x=1&y=%20z', host: 'api.havayolu.live' },
+      { method: 'GET', url: '/v1/live?bbox=25,35,45,43', host: 'API.HAVAYOLU.LIVE:443' },
+      { method: 'POST', url: '/api/auth/login', host: 'api.havayolu.live' },
+      { method: 'OPTIONS', url: '/v1/live', host: 'api.havayolu.live' },
+      { method: 'GET', url: '/yok', host: 'api.havayolu.live.' },
+      { method: 'GET', url: '/ready', host: 'api.havayolu.live' },
+    ] as const
+    for (const { method, url, host } of cases) {
+      const res = await legacy.inject({
+        method,
+        url,
+        headers: { host, origin: 'https://havayolu.live' },
+        ...(method === 'POST' ? { payload: { email: 'a@b.co', password: 'x' } } : {}),
+      })
+      expect(res.statusCode, `${method} ${host}${url}`).toBe(308)
+      expect(res.headers.location, `${method} ${host}${url}`).toBe(`https://api.airline.live${url}`)
+      // Eski origin CORS'a eklenmez: yönlendirme yanıtı izin başlığı taşımaz.
+      expect(res.headers['access-control-allow-origin']).toBeUndefined()
+    }
+    await legacy.close()
+  })
+
+  it('yeni host, iç host ve bilinmeyen host bugünkü gibi yanıt alır', async () => {
+    const { app: legacy } = await testApp({ env: LEGACY })
+    for (const host of ['api.airline.live', 'hy-api:4000', '127.0.0.1:4000', 'other.example']) {
+      const res = await legacy.inject({ method: 'GET', url: '/health', headers: { host } })
+      expect(res.statusCode, host).toBe(200)
+      expect(res.headers.location, host).toBeUndefined()
+    }
+    await legacy.close()
+  })
+
+  it('X-Forwarded-Host yalnızca güvenilen vekilden gelince okunur', async () => {
+    const forwarded = { host: 'hy-api:4000', 'x-forwarded-host': 'api.havayolu.live' }
+    const { app: trusted } = await testApp({
+      env: { ...LEGACY, TRUSTED_PROXY_CIDRS: '127.0.0.1/32' },
+    })
+    const viaProxy = await trusted.inject({ method: 'GET', url: '/health', headers: forwarded })
+    expect(viaProxy.statusCode).toBe(308)
+    expect(viaProxy.headers.location).toBe('https://api.airline.live/health')
+    await trusted.close()
+
+    const { app: direct } = await testApp({ env: LEGACY })
+    const res = await direct.inject({ method: 'GET', url: '/health', headers: forwarded })
+    expect(res.statusCode).toBe(200)
+    await direct.close()
+  })
+
+  it('WebSocket el sıkışması eski host’ta düz 308 yanıtıyla reddedilir (101 yok)', async () => {
+    const { app: legacy } = await testApp({ env: LEGACY })
+    await legacy.ready()
+    await expect(
+      legacy.injectWS('/v1/ws?x=1', { headers: { host: 'api.havayolu.live' } }),
+    ).rejects.toThrow(/Unexpected server response: 308/)
+    await legacy.close()
+  })
+
+  it('liste boşsa eski host da normal yanıt alır (geçişten önceki durum)', async () => {
+    const res = await app.inject({
+      method: 'GET',
+      url: '/health',
+      headers: { host: 'api.havayolu.live' },
+    })
+    expect(res.statusCode).toBe(200)
+  })
+
+  it('env: liste kırpılır ve küçük harfe çevrilir; hedefsiz, döngülü ve geçersiz liste reddedilir', () => {
+    expect(
+      parseEnv({ API_HOST: 'API.airline.live', LEGACY_API_HOSTS: ' Api.Havayolu.Live ,' }),
+    ).toMatchObject({ API_HOST: 'api.airline.live', LEGACY_API_HOSTS: ['api.havayolu.live'] })
+    expect(parseEnv({}).LEGACY_API_HOSTS).toEqual([])
+    expect(parseEnv({ LEGACY_API_HOSTS: '#boş bırak#' }).LEGACY_API_HOSTS).toEqual([])
+    expect(() => parseEnv({ LEGACY_API_HOSTS: 'api.havayolu.live' })).toThrow(
+      /LEGACY_API_HOSTS: API_HOST tanımlı olmalı/,
+    )
+    for (const entry of ['api.airline.live', 'airline.live', 'admin.airline.live']) {
+      expect(() => parseEnv({ ...LEGACY, LEGACY_API_HOSTS: entry }), entry).toThrow(
+        /yönlendirme döngüye girer/,
+      )
+    }
+    for (const entry of ['hy-api', 'localhost:4100', '127.0.0.1', 'https://api.havayolu.live']) {
+      expect(() => parseEnv({ ...LEGACY, LEGACY_API_HOSTS: entry }), entry).toThrow(
+        /LEGACY_API_HOSTS/,
+      )
+    }
+    expect(() => parseEnv({ API_HOST: 'https://api.airline.live' })).toThrow(/API_HOST/)
+    expect(parseEnv({ APP_NAME: '' }).APP_NAME).toBe('Airline.live')
   })
 })
