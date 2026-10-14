@@ -1,11 +1,12 @@
 import { readFileSync } from 'node:fs'
-import { mapShownAirports } from '@havayolu/shared'
+import { mapShownAirports, toAirportMapEntry, type AirportDetail } from '@havayolu/shared'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { ApiError } from '../../lib/live/api'
 import {
   AIRPORT_LIST_LIMIT,
   airportLinkCenter,
   airportsInView,
+  fetchAirportRunways,
   fetchMapAirports,
   mapAirportsUrl,
   runwaySummary,
@@ -14,8 +15,8 @@ import {
 } from './airport-data'
 
 /**
- * `GET /v1/airports?scope=listed&include=runways` kaydı (AirportDetail + listelenme alanları, D-080),
- * kısaltılmış pist uçlarıyla.
+ * `GET /v1/airports/<kod>` (ya da `?scope=listed&include=runways`) kaydı (AirportDetail + listelenme
+ * alanları, D-080), kısaltılmış pist uçlarıyla.
  */
 const IST_DETAIL = {
   icao: 'LTFM',
@@ -137,11 +138,13 @@ describe('toMapAirport', () => {
     ])
   })
 
-  it('pist ucu hoşgörüyle okunur: uç yoksa boş liste; yönü ya da eşiği bozuk uç atlanır', () => {
+  it('pist ucu hoşgörüyle okunur: uç alanı yoksa alan yazılmaz (D-111), dizi değilse boş liste; yönü ya da eşiği bozuk uç atlanır', () => {
     const end = { ident: '35L', trueBearingDeg: 359.1, thresholdLat: 41.26, thresholdLon: 28.72 }
     const runways = (ends: unknown) =>
       toMapAirport({ ...IST_DETAIL, runways: [{ lengthFt: 13451, ends }] })?.runways
-    expect(runways(undefined)).toEqual([{ lengthFt: 13451, ends: [] }])
+    // Haritanın listesi 4. halkadan itibaren uçları taşımaz: alan yok, uçlar istek üzerine gelir.
+    expect(runways(undefined)).toEqual([{ lengthFt: 13451 }])
+    expect(runways(undefined)?.[0]).not.toHaveProperty('ends')
     expect(runways(null)).toEqual([{ lengthFt: 13451, ends: [] }])
     expect(
       runways([
@@ -208,10 +211,49 @@ describe('toMapAirport', () => {
 
   it('sıfır ya da eksi pist uzunluğu bilinmiyor sayılır, kayıt düşmez', () => {
     const airport = toMapAirport({ ...IST_DETAIL, runways: [{ lengthFt: 0 }, { lengthFt: -5 }] })
-    expect(airport?.runways).toEqual([
-      { lengthFt: null, ends: [] },
-      { lengthFt: null, ends: [] },
+    expect(airport?.runways).toEqual([{ lengthFt: null }, { lengthFt: null }])
+  })
+
+  it('haritanın kaydı (include=map, D-111): ortak `toAirportMapEntry` çıktısı okunur; uçlar yalnız 1.–3. halkada', () => {
+    const end = (ident: string, trueBearingDeg: number) => ({
+      ident,
+      trueBearingDeg,
+      displacedThresholdFt: null,
+      thresholdLat: 41.26,
+      thresholdLon: 28.72,
+    })
+    const detail = (ring: number): AirportDetail => ({
+      ...(IST_DETAIL as unknown as AirportDetail),
+      identAlias: 'LTXX',
+      nearestTr: null,
+      runways: [
+        {
+          id: 7,
+          lengthFt: 13451,
+          widthFt: 197,
+          surface: 'ASP',
+          lighted: true,
+          ends: [end('35L', 359.1), end('17R', 179.1)],
+        },
+      ],
+      ring,
+    })
+    const wire = (ring: number): unknown =>
+      JSON.parse(JSON.stringify(toAirportMapEntry(detail(ring))))
+    const near = toMapAirport(wire(3))
+    expect(near).toMatchObject({ icao: 'LTFM', ring: 3, identAlias: 'LTXX', isoRegion: 'TR-34' })
+    expect(near?.runways).toEqual([
+      {
+        lengthFt: 13451,
+        ends: [
+          { ident: '35L', trueBearingDeg: 359.1, lat: 41.26, lon: 28.72 },
+          { ident: '17R', trueBearingDeg: 179.1, lat: 41.26, lon: 28.72 },
+        ],
+      },
     ])
+    const far = toMapAirport(wire(4))
+    expect(far).toMatchObject({ icao: 'LTFM', ring: 4, municipality: 'Arnavutköy' })
+    expect(far?.runways).toEqual([{ lengthFt: 13451 }])
   })
 
   it('adres takma adı (D-109) aramada tam kod için tutulur; yoksa ya da bozuksa alan yazılmaz', () => {
@@ -247,10 +289,11 @@ describe('fetchMapAirports', () => {
     expect(airports.map((airport) => airport.icao)).toEqual(['LTFM', 'LGAV'])
     expect(fetchMock).toHaveBeenCalledTimes(1)
     const [url, init] = fetchMock.mock.calls[0] ?? []
-    expect(String(url)).toBe('http://localhost:4100/v1/airports?scope=listed&include=runways')
+    // Haritanın kaydı (D-111): pencerenin alanları ve pist uzunlukları, uçlar 1.–3. halkada.
+    expect(String(url)).toBe('http://localhost:4100/v1/airports?scope=listed&include=map')
     expect(init?.signal).toBe(controller.signal)
     expect(String(mapAirportsUrl('https://api.havayolu.live'))).toBe(
-      'https://api.havayolu.live/v1/airports?scope=listed&include=runways',
+      'https://api.havayolu.live/v1/airports?scope=listed&include=map',
     )
   })
 
@@ -272,6 +315,55 @@ describe('fetchMapAirports', () => {
     await expect(fetchMapAirports('http://localhost:4100')).rejects.toBeInstanceOf(ApiError)
     mockFetch(200, [IST_DETAIL])
     await expect(fetchMapAirports('http://localhost:4100')).rejects.toBeInstanceOf(ApiError)
+  })
+})
+
+describe('fetchAirportRunways (istek üzerine pist uçları, D-111)', () => {
+  it('tek havalimanı ucundan pistleri uçlarıyla alır', async () => {
+    const end = { ident: '04L', trueBearingDeg: 31, thresholdLat: 40.62, thresholdLon: -73.79 }
+    const fetchMock = mockFetch(200, {
+      ...ATH_DETAIL,
+      icao: 'KJFK',
+      iata: 'JFK',
+      country: 'US',
+      ring: 5,
+      isoRegion: 'US-NY',
+      runways: [{ id: 9, lengthFt: 12079, ends: [end, { ...end, ident: '22R' }] }],
+    })
+    const controller = new AbortController()
+    const runways = await fetchAirportRunways('http://localhost:4100', 'KJFK', controller.signal)
+    expect(runways).toEqual([
+      {
+        lengthFt: 12079,
+        ends: [
+          { ident: '04L', trueBearingDeg: 31, lat: 40.62, lon: -73.79 },
+          { ident: '22R', trueBearingDeg: 31, lat: 40.62, lon: -73.79 },
+        ],
+      },
+    ])
+    const [url, init] = fetchMock.mock.calls[0] ?? []
+    expect(String(url)).toBe('http://localhost:4100/v1/airports/KJFK')
+    expect(init?.signal).toBe(controller.signal)
+  })
+
+  it('başarısız, bozuk ya da başka havalimanının yanıtı null; kesilen istek fırlatır', async () => {
+    mockFetch(404, { error: 'airport_not_found' })
+    expect(await fetchAirportRunways('http://localhost:4100', 'KJFK')).toBeNull()
+    mockFetch(200, '<html>')
+    expect(await fetchAirportRunways('http://localhost:4100', 'KJFK')).toBeNull()
+    mockFetch(200, ATH_DETAIL)
+    expect(await fetchAirportRunways('http://localhost:4100', 'KJFK')).toBeNull()
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => {
+        throw new DOMException('aborted', 'AbortError')
+      }),
+    )
+    const controller = new AbortController()
+    controller.abort()
+    await expect(
+      fetchAirportRunways('http://localhost:4100', 'KJFK', controller.signal),
+    ).rejects.toThrow('aborted')
   })
 })
 
@@ -342,6 +434,51 @@ describe('airportsInView (Havalimanları listesi, klavye yolu)', () => {
     expect(airportsInView(many, viewport)).toHaveLength(AIRPORT_LIST_LIMIT)
     expect(airportsInView(many, viewport, 3)).toHaveLength(3)
     expect(airportsInView([], viewport)).toEqual([])
+  })
+
+  it('180. meridyen (D-111): 179,5° D ve −179,5°’de z5 kamera Fiji, Tonga, Samoa ve Wallis’i listeler', () => {
+    // MapLibre'nin sınırları sarılmamıştır: 1280×800 görünüm, z5'te dünya 512 × 2^5 px; batı ve doğu
+    // kameranın ortasından ±640 px (±14,06°). 179,5° D'de doğu sınırı 193,56°'dir, −179,5°'de batı
+    // sınırı −193,56°.
+    const pacific = [
+      airport('NAN', -17.755, 177.443),
+      airport('TBU', -21.241, -175.15),
+      airport('APW', -13.83, -172.008),
+      airport('WLS', -13.238, -176.199),
+      airport('IST', 41.275, 28.752),
+    ]
+    const halfSpan = (640 / (512 * 2 ** 5)) * 360
+    const view = (centerLon: number) => ({
+      bounds: {
+        minLon: centerLon - halfSpan,
+        minLat: -26,
+        maxLon: centerLon + halfSpan,
+        maxLat: -8,
+      },
+      center: { lat: -17, lon: centerLon },
+    })
+    // Uzaklık kameranın dünya kopyasında ölçülür (Tonga 179,5° D'den 5,35° doğuda, 354,65° batıda değil).
+    expect(airportsInView(pacific, view(179.5)).map((a) => a.iata)).toEqual([
+      'NAN',
+      'WLS',
+      'TBU',
+      'APW',
+    ])
+    expect(airportsInView(pacific, view(-179.5)).map((a) => a.iata)).toEqual([
+      'NAN',
+      'WLS',
+      'TBU',
+      'APW',
+    ])
+    // Sınırın dışındaki boylam (−165°, 179,5° D'den 15,5° doğuda) listelenmez.
+    expect(airportsInView([airport('XXX', -17, -165)], view(179.5))).toEqual([])
+    // Dünyanın tamamını kapsayan görünüm her boylamı alır.
+    expect(
+      airportsInView(pacific, {
+        bounds: { minLon: -300, minLat: -85, maxLon: 300, maxLat: 85 },
+        center: { lat: 0, lon: 0 },
+      }),
+    ).toHaveLength(5)
   })
 })
 
@@ -431,7 +568,7 @@ describe('askerî hava üsleri haritada yok (D-103, D-107)', () => {
     expect(source).toContain('const list = mapShownAirports(loaded)')
     expect(source).toContain('setAirports(list)')
     expect(source).toContain('airportLinkCenter(list, code)')
-    expect(source).toContain('useFlightPhases(store, airports)')
+    expect(source).toContain('useFlightPhases(store, airports, config.apiBaseUrl)')
     expect(source).not.toContain('shownAirports')
   })
 })

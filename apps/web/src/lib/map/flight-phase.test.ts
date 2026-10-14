@@ -632,3 +632,63 @@ describe('FlightPhaseTracker: havalimanı seçimi (D-085)', () => {
     expect(arrivalAirports(istDownwind)).toEqual(['LTFM'])
   })
 })
+
+describe('FlightPhaseTracker: istek üzerine pist uçları (D-111)', () => {
+  // Haritanın listesi (`include=map`) uçları yalnız 1.–3. halkada taşır: 4. halkadan itibaren
+  // pistlerin `ends` alanı yoktur. LTFM'yi uçsuz bir havalimanı gibi kullanır (JFK yerine).
+  const withoutEnds: PhaseAirportInput = { ...LTFM, runways: [{}, {}] }
+  const final = (t: number, km: number) =>
+    sample(onFinal(km), { alt: 325 + km * 180, vr: -700, trk: B35L, t })
+
+  it('uçsuz havalimanının 35 km’sindeki uçak bildirilir; uçlar gelince pist etiketi çıkar', () => {
+    const phases = tracker([withoutEnds, LTFJ])
+    const missing = vi.fn()
+    phases.subscribeMissingEnds(missing)
+    // Uçlar yokken durum merkeze göre tahmin edilir: İnişte, pist adı yok.
+    const before = run(phases, [final(1_000, 5)])
+    expect(before[0]).toMatchObject({ phase: 'landing', runway: null })
+    expect(missing).toHaveBeenCalledWith('LTFM')
+    // Uçlar tek havalimanı ucundan gelir: sonraki örnekte pist 35L.
+    phases.setRunwayEnds('LTFM', LTFM.runways)
+    const after = run(phases, [final(2_000, 4)])
+    expect(after[0]).toMatchObject({ phase: 'landing', runway: '35L' })
+    // Uçları gelen havalimanı bir daha bildirilmez.
+    missing.mockClear()
+    run(phases, [final(3_000, 3)])
+    expect(missing).not.toHaveBeenCalled()
+  })
+
+  it('yalnız havadaki ve 35 km içindeki uçak; uçları listede olan havalimanı hiç bildirilmez', () => {
+    const phases = tracker([withoutEnds, LTFJ])
+    const missing = vi.fn()
+    phases.subscribeMissingEnds(missing)
+    // Yerdeki uçak ve 40 km'deki uçak bildirmez (SAW'ın pistleri boş dizi: uçsuz değil, uçları yok).
+    phases.observe([
+      sample(fromIst(90, 1), { hex: 'aaa001', gnd: true, t: 1_000 }),
+      sample(fromIst(0, 40), { hex: 'aaa002', alt: 9_000, t: 1_000 }),
+      sample(fromSaw(0, 5), { hex: 'aaa003', alt: 2_000, t: 1_000 }),
+    ])
+    expect(missing).not.toHaveBeenCalled()
+    phases.observe([sample(fromIst(0, 30), { hex: 'aaa002', alt: 9_000, t: 2_000 })])
+    expect(missing.mock.calls).toEqual([['LTFM']])
+    // Uçları listede olan havalimanı (1.–3. halka) için abone hiç çağrılmaz.
+    const listed = tracker()
+    const none = vi.fn()
+    listed.subscribeMissingEnds(none)
+    run(listed, [final(1_000, 5)])
+    expect(none).not.toHaveBeenCalled()
+  })
+
+  it('getirilen uçlar liste yeniden verilince korunur; abonelik kaldırılınca bildirim gitmez', () => {
+    const phases = tracker([withoutEnds])
+    phases.setRunwayEnds('LTFM', LTFM.runways)
+    phases.setAirports([{ ...withoutEnds }])
+    expect(run(phases, [final(1_000, 5)])[0]).toMatchObject({ phase: 'landing', runway: '35L' })
+    const other = tracker([withoutEnds])
+    const missing = vi.fn()
+    const unsubscribe = other.subscribeMissingEnds(missing)
+    unsubscribe()
+    run(other, [final(1_000, 5)])
+    expect(missing).not.toHaveBeenCalled()
+  })
+})

@@ -428,6 +428,10 @@ describe('listelenen havalimanları z5’te (4. halka, 1.217 havalimanı; D-090,
   // görünümdekilere yapılır (`screenAirports`). 3. halkada 2560×1440 görünüm bütün listeyi (498)
   // kapsıyordu; 4. halka İzlanda'dan Moğolistan'a uzanır, aynı görünüm Türkiye'nin çevresindeki en
   // yoğun bölgeyi (Avrupa, Orta Doğu, Kuzey Afrika) taşır.
+  // Not (D-111): bu testin dünyası 256 px'tir (`world` aşağıda); MapLibre'nin dünyası z0'da 512 px'tir.
+  // Buradaki "z5" ölçek olarak MapLibre'nin z4'üdür ve aynı görünüm MapLibre z5'tekinin yaklaşık dört
+  // katı alanı kapsar: sayılar üst sınırdır. Bu kurulumla 5. halkanın en yoğun görünümü 1.022
+  // havalimanıdır (4. halkada 949); MapLibre z5'te 2560×1440'ta 488 havalimanı, 466 kod, ~0,5 ms.
   const ZOOM = AIRPORT_LABEL_MIN_ZOOM
   const VIEW = { width: 2560, height: 1440 }
   /** 2560×1440 görünümdeki havalimanları (1.217 listelenenden). */

@@ -57,7 +57,13 @@ import {
   type BasemapStep,
   type MapStyle,
 } from './basemap'
-import { initialZoom, PRIMARY_AIRPORT_VIEW, SELECT_MIN_ZOOM, type MapViewport } from './camera'
+import {
+  initialZoom,
+  nearestWorldLon,
+  PRIMARY_AIRPORT_VIEW,
+  SELECT_MIN_ZOOM,
+  type MapViewport,
+} from './camera'
 import { CountryLabelOverlay, isCompactMap } from './country-labels'
 import {
   renderAircraftIcons,
@@ -186,7 +192,9 @@ export const NO_INSETS: Readonly<MapInsets> = Object.freeze({ bottom: 0, left: 0
  * Havalimanı kodlarının çizim girdisi: görünümdeki havalimanları ekran konumlarıyla. Kod yazılmayacaksa
  * (yakınlaştırma `AIRPORT_LABEL_MIN_ZOOM`'un altında ya da ayar Gizle) hiçbir havalimanı izdüşürülmez:
  * her karede bütün liste (4. halkada 1.217 havalimanı) boşuna izdüşürülürdü (D-101). Uçak
- * etiketleri bundan etkilenmez.
+ * etiketleri bundan etkilenmez. Boylam kameranın ortasına en yakın dünya kopyasına sarılır
+ * (`nearestWorldLon`, D-111): 180. meridyenin öbür yanındaki havalimanının kodu da pininin yanında
+ * çizilir.
  */
 export function screenAirports(
   project: (lngLat: [number, number]) => { x: number; y: number },
@@ -194,11 +202,12 @@ export function screenAirports(
   zoom: number,
   settings: Pick<LabelSettings, 'airports'>,
   inView: (x: number, y: number) => boolean,
+  centerLon: number,
 ): ScreenAirport[] {
   if (!airportChipsEnabled(zoom, settings)) return []
   const screen: ScreenAirport[] = []
   for (const airport of airports) {
-    const { x, y } = project([airport.lon, airport.lat])
+    const { x, y } = project([nearestWorldLon(airport.lon, centerLon), airport.lat])
     if (inView(x, y)) screen.push({ airport, x, y })
   }
   return screen
@@ -896,7 +905,8 @@ export class MapController {
     const tracked = this.tracked
     const map = this.map
     if (!tracked || !map) return
-    const { x, y } = map.project([tracked.lon, tracked.lat])
+    // Pencerenin dayanağı da kameranın dünya kopyasında (180. meridyen, D-111).
+    const { x, y } = map.project([nearestWorldLon(tracked.lon, map.getCenter().lng), tracked.lat])
     const last = tracked.last
     if (
       last &&
@@ -948,6 +958,7 @@ export class MapController {
       zoom,
       settings,
       inView,
+      map.getCenter().lng,
     )
     // İz yalnızca kodların engelidir: kod yazılmayacaksa (Gizle, uzak görünüm) hesaplanmaz.
     const trail =
