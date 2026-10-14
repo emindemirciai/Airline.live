@@ -3,14 +3,15 @@ import { ImageResponse } from 'next/og'
 // Göreli yollar: vitest `@/` takma adını çözmez ve görsel testte çizilir.
 import { BrandMark, OG_COLORS, OG_SIZE } from '../../lib/seo/og'
 import { OG_FONT_STACK, ogFonts } from '../../lib/seo/og-fonts'
+import { foldOgText } from '../../lib/seo/og-glyphs'
 import { airportLocation, airportName } from './airport-text'
 
 /**
  * Havalimanı sayfasının paylaşım görseli (1200×630, M6b brief §c). Dilden bağımsızdır: kodlar,
  * Türkçe ad, il (yakın ülkelerde yerleşim ve ülke) ve alan adı. Görsel iç yoldan
  * (`/istasyon/<ICAO>/opengraph-image`) sunulur, TR ve EN sayfaları aynı görseli kullanır. Yazı
- * tipleri yereldir (og-fonts.ts); görseldeki metinlerde bu yazı tiplerinin kapsamadığı karakter
- * (emoji, ok, ₺) yoktur, dış istek yapılmaz.
+ * tipleri yereldir (og-fonts.ts); görseldeki her metin yazı tiplerinin harflerine indirilir
+ * (`foldOgText`, D-111: "Phú Quốc" → "Phú Quoc", Arapça ek düşer), Satori dış istek yapmaz.
  */
 export interface AirportOgContent {
   app: string
@@ -21,18 +22,21 @@ export interface AirportOgContent {
   location: string
 }
 
-/** Görselin metinleri, veriden (Türkçe ad ve yer satırı: il ya da yakın ülkelerde yerleşim ve ülke). */
+/**
+ * Görselin metinleri, veriden (Türkçe ad ve yer satırı: il ya da yurt dışında yerleşim ve ülke);
+ * hepsi yazı tiplerinin harflerine indirilir (`foldOgText`, D-111).
+ */
 export function airportOgContent(
   airport: AirportDetail,
   app: string,
   host: string | null,
 ): AirportOgContent {
   return {
-    app,
-    host,
-    codes: `${airport.iata} · ${airport.icao}`,
-    name: airportName(airport, 'tr'),
-    location: airportLocation(airport, 'tr'),
+    app: foldOgText(app),
+    host: host === null ? null : foldOgText(host),
+    codes: foldOgText(`${airport.iata} · ${airport.icao}`),
+    name: foldOgText(airportName(airport, 'tr')),
+    location: foldOgText(airportLocation(airport, 'tr')),
   }
 }
 

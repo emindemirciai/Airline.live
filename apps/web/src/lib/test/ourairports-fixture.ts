@@ -316,6 +316,15 @@ export function fixtureForeignAirport(icao: string): AirportDetail {
   return candidateDetail(candidate)
 }
 
+/**
+ * Fixture'daki bütün yabancı adaylar (halkası açık olsun olmasın, 1.–5. halka; askerî liste ve dört
+ * karakterli olmayan kanonik ICAO hariç), API'deki kayıtlarıyla: 5. halka açılmadan metin ve glif
+ * denetimleri için (D-111).
+ */
+export function fixtureForeignCandidates(): AirportDetail[] {
+  return foreignCandidates().map(candidateDetail)
+}
+
 interface ForeignCandidate {
   row: Row
   ring: number
