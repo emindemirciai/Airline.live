@@ -6,6 +6,7 @@ import {
   messageAt,
   renderWeatherText,
   TURKEY_TIME_ZONE,
+  utcOffsetFromTable,
   utcOffsetLabel,
   visibilityDisplay,
   type Locale,
@@ -25,7 +26,9 @@ import { NBSP, NO_VALUE } from './units'
  * - Sayılar `Intl.NumberFormat` ile: tr 'tr-TR' (1.070 m; 1,5 km), en 'en-GB'. Basınçta binlik ayırıcı
  *   yoktur ("1009 hPa"). Eksi işareti U+2212'dir. Bilinmeyen değer "—".
  * - Saatler havalimanının saat diliminde (`WeatherTextOptions.timeZone`, IANA; varsayılan
- *   Europe/Istanbul), 24 saat ("15:50"); ofset koda gömülmez, yaz saati dahil `Intl` hesaplar (D-084).
+ *   Europe/Istanbul), 24 saat ("15:50"); ofset koda gömülmez: dilimin sunucu fark tablosu
+ *   kayıtlıysa (`registerUtcOffsetTable`, D-109) tablonun aralığında ondan, değilse yaz saati dahil
+ *   `Intl`'den gelir (D-084).
  * - Saat okunmaz: zamana bağlı her işlev `now` (epoch ms) alır.
  */
 
@@ -37,7 +40,8 @@ export interface WeatherTextOptions {
   t: WeatherMessages
   /**
    * Saatlerin yazıldığı saat dilimi (IANA): havalimanının dilimi (`airportTimeZone`). Verilmezse
-   * Europe/Istanbul (Türkiye; dilimi bilinmeyen yabancı havalimanında "Türkiye saati" etiketiyle).
+   * Europe/Istanbul. Dilimi bilinmeyen havalimanında bileşenler 'UTC' verir ve saatler `utcTime`
+   * notuyla etiketlenir (D-106 (c), D-109; önce "Türkiye saati"ydi, D-080).
    */
   timeZone?: string
 }
@@ -187,7 +191,11 @@ export function formatUtcOffset(at: DateLike, timeZone: string = TURKEY_TIME_ZON
 
 const dayMonthFormats = new Map<string, Intl.DateTimeFormat>()
 
-/** Yerel gün ve ay, verilen dilimde (varsayılan Europe/Istanbul): "17 Ocak" / "17 January". */
+/**
+ * Yerel gün ve ay, verilen dilimde (varsayılan Europe/Istanbul): "17 Ocak" / "17 January". Dilimin
+ * sunucu fark tablosu kayıtlıysa (D-109, `registerUtcOffsetTable`) gün UTC + farktan yazılır
+ * (`localTime` gibi; tarayıcının tz verisine bakılmaz).
+ */
 export function formatDayMonth(
   at: DateLike,
   locale: Locale,
@@ -195,6 +203,12 @@ export function formatDayMonth(
 ): string {
   const ms = toMs(at)
   if (!Number.isFinite(ms)) return NO_VALUE
+  const offset = utcOffsetFromTable(timeZone, ms)
+  if (offset !== undefined) return dayMonthFormat(locale, 'UTC').format(ms + offset * 60_000)
+  return dayMonthFormat(locale, timeZone).format(ms)
+}
+
+function dayMonthFormat(locale: Locale, timeZone: string): Intl.DateTimeFormat {
   const key = `${locale}:${timeZone}`
   let formatter = dayMonthFormats.get(key)
   if (!formatter) {
@@ -205,7 +219,7 @@ export function formatDayMonth(
     })
     dayMonthFormats.set(key, formatter)
   }
-  return formatter.format(ms)
+  return formatter
 }
 
 /**

@@ -2,11 +2,17 @@ import { describe, expect, it } from 'vitest'
 import { metarAgeClass, metarAgeMinutes } from './age'
 import { compassKey, compassKey8 } from './compass'
 import {
+  hasUtcOffsetTable,
+  isSupportedTimeZone,
   localDayDifference,
   localTime,
+  registerUtcOffsetTable,
   resolveDayTime,
   resolveHourMinuteAfter,
+  UTC_OFFSET_TABLE_HOURS,
+  utcOffsetFromTable,
   utcOffsetLabel,
+  utcOffsetTable,
 } from './time'
 
 describe('resolveDayTime', () => {
@@ -137,5 +143,75 @@ describe('gözlem yaşı', () => {
     expect(metarAgeClass(null, now)).toBe('none')
     expect(metarAgeClass(undefined, now)).toBe('none')
     expect(metarAgeClass('bad', now)).toBe('none')
+  })
+})
+
+describe('sunucunun fark tablosu (D-109)', () => {
+  const HOUR = 3_600_000
+
+  it('çizim anının saat başından ±48 saat; saat başı taranır, geçiş dakikasıyla', () => {
+    expect(UTC_OFFSET_TABLE_HOURS).toBe(48)
+    const at = Date.parse('2026-03-29T00:30:00Z')
+    const table = utcOffsetTable('Europe/Berlin', at)
+    expect(table.timeZone).toBe('Europe/Berlin')
+    expect(table.fromMs).toBe(Date.parse('2026-03-27T00:00:00Z'))
+    expect(table.toMs).toBe(Date.parse('2026-03-31T00:00:00Z'))
+    // Berlin 29 Mart 2026 01:00 UTC'de yaz saatine geçer.
+    expect(table.segments).toEqual([
+      { fromMs: table.fromMs, offsetMinutes: 60 },
+      { fromMs: Date.parse('2026-03-29T01:00:00Z'), offsetMinutes: 120 },
+    ])
+    // Yarım saatlik geçiş (Lord Howe, 30 dakikalık yaz saati) dakikasıyla bulunur.
+    const lordHowe = utcOffsetTable('Australia/Lord_Howe', Date.parse('2026-04-04T12:00:00Z'))
+    expect(lordHowe.segments.map((s) => s.offsetMinutes)).toEqual([660, 630])
+    expect(lordHowe.segments[1]?.fromMs).toBe(Date.parse('2026-04-04T15:00:00Z'))
+    expect(() => utcOffsetTable('Europe/Berlin', Number.NaN)).toThrow(RangeError)
+  })
+
+  it('kayıtlı tablo aralıkta Intl yerine kullanılır; aralık dışında Intl; dilim tanınmıyorsa kenar', () => {
+    const at = Date.parse('2026-07-01T12:00:00Z')
+    // Taklit tablo: gerçek farktan (UTC+3) ayrı, sabit UTC+5 (yalnız test için).
+    const zone = 'Europe/Kiev'
+    expect(hasUtcOffsetTable(zone)).toBe(false)
+    registerUtcOffsetTable({
+      timeZone: zone,
+      fromMs: at - 48 * HOUR,
+      toMs: at + 48 * HOUR,
+      segments: [{ fromMs: at - 48 * HOUR, offsetMinutes: 300 }],
+    })
+    expect(hasUtcOffsetTable(zone)).toBe(true)
+    expect(localTime(at, zone)).toMatchObject({ hhmm: '17:00', utcOffsetMinutes: 300 })
+    expect(utcOffsetFromTable(zone, at)).toBe(300)
+    // Aralığın dışında çalışma zamanı dilimi tanır: Intl (UTC+3).
+    expect(localTime(at + 72 * HOUR, zone).utcOffsetMinutes).toBe(180)
+    expect(utcOffsetFromTable(zone, at + 72 * HOUR)).toBeUndefined()
+    // Tanınmayan dilim: aralıkta tablo, dışında en yakın kenar.
+    const unknown = 'Mars/Olympus_Mons'
+    expect(isSupportedTimeZone(unknown)).toBe(false)
+    expect(() => localTime(at, unknown)).toThrow(RangeError)
+    registerUtcOffsetTable({
+      timeZone: unknown,
+      fromMs: at,
+      toMs: at + HOUR,
+      segments: [
+        { fromMs: at, offsetMinutes: -60 },
+        { fromMs: at + 30 * 60_000, offsetMinutes: -120 },
+      ],
+    })
+    expect(localTime(at, unknown).hhmm).toBe('11:00')
+    expect(localTime(at + 45 * 60_000, unknown).hhmm).toBe('10:45')
+    expect(localTime(at - 10 * HOUR, unknown).utcOffsetMinutes).toBe(-60)
+    expect(localTime(at + 10 * HOUR, unknown).utcOffsetMinutes).toBe(-120)
+    expect(utcOffsetFromTable(unknown, at + 10 * HOUR)).toBe(-120)
+  })
+
+  it('tablodan gelen bileşenler Intl ile aynı (gün, ay, yıl ve gün değişimi dahil)', () => {
+    const at = Date.parse('2026-12-31T23:30:00Z')
+    const table = utcOffsetTable('Asia/Tokyo', at)
+    const intl = localTime(at, 'Asia/Tokyo')
+    registerUtcOffsetTable(table)
+    expect(localTime(at, 'Asia/Tokyo')).toEqual(intl)
+    expect(localTime(at, 'Asia/Tokyo').dateKey).toBe('2027-01-01')
+    expect(localDayDifference(at - 10 * HOUR, at, 'Asia/Tokyo')).toBe(1)
   })
 })

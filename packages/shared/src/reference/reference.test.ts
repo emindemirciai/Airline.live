@@ -206,24 +206,46 @@ describe('AIRPORT_NAMES', () => {
     }
   })
 
-  it("askerî hava üsleri (D-103, D-107): tam olarak fixture'daki IATA kodlu Türkiye satırlarından ad tablosunda olmayan beşi; Etimesgut ve yurt dışındaki ortak sivil-askerî havalimanları sivil", () => {
+  it("askerî hava üsleri (D-103, D-107): Türkiye'de tam olarak fixture'daki IATA kodlu Türkiye satırlarından ad tablosunda olmayan beşi; Etimesgut ve yurt dışındaki ortak sivil-askerî havalimanları sivil", () => {
     const unnamed = listedIcaos.filter((icao) => !Object.hasOwn(AIRPORT_NAMES, icao)).sort()
-    expect(MILITARY_AIRFIELD_ICAOS).toEqual(['LTAG', 'LTAH', 'LTBG', 'LTBI', 'LTBL'])
-    expect(MILITARY_AIRFIELD_ICAOS).toEqual(unnamed)
+    const turkish = MILITARY_AIRFIELD_ICAOS.filter((icao) => icao.startsWith('LT'))
+    expect(turkish).toEqual(['LTAG', 'LTAH', 'LTBG', 'LTBI', 'LTBL'])
+    expect(turkish).toEqual(unnamed)
     for (const icao of MILITARY_AIRFIELD_ICAOS) {
       expect(isMilitaryAirfield(icao), icao).toBe(true)
       expect(isMilitaryAirfield(` ${icao.toLowerCase()} `), icao).toBe(true)
     }
     // Sivil: tablonun 56 kaydı (Ankara (Etimesgut) dahil, kullanıcı kararı 2026-10-03), tarifeli
     // sivil seferi olan ortak sivil-askerî havalimanları (Bağdat ORBI, Podgorica LYPG,
-    // Cuxhaven/Nordholz ETMN; 4. halkanın EKKA, VIAG, DNPM ve ZURK'u) ve tabloda olmayan kodlar.
+    // Cuxhaven/Nordholz ETMN; 4. halkanın EKKA, VIAG, DNPM ve ZURK'u; 5. halkanın Ascension FHAW ve
+    // MidAmerica KBLV'si, D-103, D-109) ve tabloda olmayan kodlar.
     const civil = Object.keys(AIRPORT_NAMES)
     expect(civil).toHaveLength(56)
-    for (const icao of [...civil, 'ORBI', 'LYPG', 'ETMN', 'EKKA', 'VIAG', 'DNPM', 'ZURK', 'ZZZZ'])
+    const shared = ['ORBI', 'LYPG', 'ETMN', 'EKKA', 'VIAG', 'DNPM', 'ZURK', 'FHAW', 'KBLV']
+    for (const icao of [...civil, ...shared, 'ZZZZ'])
       expect(isMilitaryAirfield(icao), icao).toBe(false)
     expect(isMilitaryAirfield('LTAD')).toBe(false)
     expect(isMilitaryAirfield('__proto__')).toBe(false)
     expect(isMilitaryAirfield('')).toBe(false)
+  })
+
+  it("yurt dışı askerî liste (D-109): adı yalnız askerî üç alan fixture'da 5. halka adayıdır", () => {
+    const foreign = MILITARY_AIRFIELD_ICAOS.filter((icao) => !icao.startsWith('LT'))
+    expect(foreign).toEqual(['PKWA', 'PWAK', 'YBOK'])
+    // OurAirports üçünü tarifeli orta havalimanı diye kaydeder (D-080 adayı); adları askerîdir.
+    const rows = foreign.map((icao) => airportRows.find((r) => r.get('ident') === icao))
+    expect(
+      rows.map((r) => [r?.get('type'), r?.get('scheduled_service'), r?.get('iata_code')]),
+    ).toEqual([
+      ['medium_airport', 'yes', 'KWA'],
+      ['medium_airport', 'yes', 'AWK'],
+      ['medium_airport', 'yes', 'OKY'],
+    ])
+    expect(rows.map((r) => r?.get('name'))).toEqual([
+      'Bucholz Army Air Field',
+      'Wake Island Airfield',
+      'Oakey Army Aviation Centre',
+    ])
   })
 
   it('mapShownAirports (D-103): askerî üsleri çıkarır, öbürlerini sırasıyla ve aynı nesneyle tutar', () => {
@@ -255,21 +277,33 @@ describe('AIRPORT_NAMES', () => {
 describe('runwaySurfaceKey', () => {
   it("fixture'daki her dolu kaplama kodu bilinen bir türe çevrilir (OurAirports'un UNK kodu hariç)", () => {
     const surfaces = new Set(runwayRows.map((r) => r.get('surface') ?? ''))
+    // OurAirports düzenleyicisinin silme işareti kaplama değildir; satırı sunucu gizler (Hamilton
+    // NZHN'nin "Delete duplicate" ve "Delete" satırları; `@havayolu/db` `RUNWAY_TOMBSTONE_SURFACE`,
+    // D-109).
+    const tombstones = [...surfaces].filter((surface) => /^\s*delete/i.test(surface)).sort()
+    expect(tombstones).toEqual(['Delete', 'Delete duplicate'])
     for (const surface of surfaces) {
       // UNK sözlükte "bilinmiyor"dur (aşağıda).
-      if (surface.trim() === '' || surface === 'UNK') continue
+      if (surface.trim() === '' || surface === 'UNK' || tombstones.includes(surface)) continue
       expect(runwaySurfaceKey(surface), surface).not.toBe('unknown')
     }
     const unk = runwayRows
       .filter((r) => r.get('surface') === 'UNK')
       .map((r) => `${r.get('id')} ${r.get('airport_ident')}`)
     // Gösterilmeyen yinelenen boş satırlar: Taba 04/22, Cluj 08/26 (D-088); Hassi Messaoud 01/19,
-    // Bujumbura 02/20, Beauvais 13R/31L ve 2 ft'lik Pamplona 03/21 (D-101). Gösterilen ama kaplaması
-    // bilinmeyen 4. halka pistleri: Kulusuk, Malindi'nin ikisi, Moğolistan'ın dördü, Nyingchi.
+    // Bujumbura 02/20, Beauvais 13R/31L ve 2 ft'lik Pamplona 03/21 (D-101); 5. halkada Kolombiya'nın
+    // beşi, Kushiro (RJNO), Yeni Zelanda'nın dördü ve Chiayi (RCKU) (D-109). Gösterilen ama kaplaması
+    // bilinmeyen pistler: 4. halkada Kulusuk, Malindi'nin ikisi, Moğolistan'ın dördü, Nyingchi; 5.
+    // halkada Riberalta, Puerto Jiménez, Narsarsuaq, Paramaribo Zorg en Hoop, Huambo ve
+    // Paraparaumu.
     expect(unk.sort()).toEqual([
-      ...['259670 ZUNZ', '260075 BGKK', '260115 HKML', '260116 HKML', '260134 ZMAT'],
-      ...['260135 ZMAH', '260137 ZMBN', '260141 ZMUL', '260310 HBBA', '260338 DAUH'],
-      ...['260339 HETB', '260341 LEPP', '260344 LFOB', '260408 LRCL'],
+      ...['259639 SLRI', '259670 ZUNZ', '259687 MRPJ', '260073 BGAA', '260075 BGKK'],
+      ...['260115 HKML', '260116 HKML', '260134 ZMAT', '260135 ZMAH', '260137 ZMBN'],
+      ...['260141 ZMUL', '260274 SURV', '260303 FNHU', '260310 HBBA', '260326 SKBS'],
+      ...['260329 SKMZ', '260332 SKAS', '260333 SKRH', '260334 SKSV', '260338 DAUH'],
+      ...['260339 HETB', '260341 LEPP', '260344 LFOB', '260378 RJNO', '260388 NZGS'],
+      ...['260391 NZKK', '260395 NZPM', '260398 NZRO', '260402 NZWK', '260408 LRCL'],
+      '260411 RCKU',
     ])
   })
 
@@ -306,6 +340,54 @@ describe('runwaySurfaceKey', () => {
     for (const code of ['SAN', 'Sand', 'sand']) expect(runwaySurfaceKey(code), code).toBe('sand')
     for (const code of ['', '  ', 'UNK', 'MOON', 'constructor', null, undefined]) {
       expect(runwaySurfaceKey(code), String(code)).toBe('unknown')
+    }
+  })
+
+  it('5. halkanın kodları ve FAA durum eki (D-109)', () => {
+    // FAA'nın durum eki (-E mükemmel, -G iyi, -F orta, -P kötü) atılıp yeniden aranır.
+    const suffixed = {
+      'ASPH-G': 'asphalt',
+      'ASPH-F': 'asphalt',
+      'CONC-G': 'concrete',
+      'CONC-E': 'concrete',
+      'CONC-F': 'concrete',
+      'GRAVEL-P': 'gravel',
+      'GRAVEL-G': 'gravel',
+      'GRVL-G': 'gravel',
+      'GRVL-DIRT-G': 'gravel',
+      'GRVL-DIRT-F': 'gravel',
+      'WATER-E': 'water',
+      ' asph-g ': 'asphalt',
+    } as const
+    for (const [code, key] of Object.entries(suffixed))
+      expect(runwaySurfaceKey(code), code).toBe(key)
+    // Ek tek harf ve tanınan bir koda dönmüyorsa kod tanınmaz; ek atılmadan tanınan kod değişmez.
+    for (const code of ['MOON-G', 'ASPH-X', 'ASPH-GG', 'UNK-G', '-G']) {
+      expect(runwaySurfaceKey(code), code).toBe('unknown')
+    }
+    expect(runwaySurfaceKey('ASPH-CONC')).toBe('mixed')
+    const table = {
+      'Grassed black clay': 'grass',
+      GRVL: 'gravel',
+      'SAND/GRAVEL': 'gravel',
+      'CRUSHED ROCK': 'gravel',
+      'TREATED GRAVEL': 'gravel',
+      'GRVL-DIRT': 'gravel',
+      'ASP/CONC': 'mixed',
+      COP: 'mixed',
+      'Concrete-Grooved': 'concrete',
+      'concrete/grooved': 'concrete',
+      Cement: 'concrete',
+      CEM: 'concrete',
+      'asphalt concrete': 'asphalt',
+      'ASPH 71/F/C/X/T': 'asphalt',
+      CLA: 'dirt',
+    } as const
+    expect(Object.keys(table)).toHaveLength(15)
+    for (const [code, key] of Object.entries(table)) expect(runwaySurfaceKey(code), code).toBe(key)
+    // Silme işareti kaplama değildir (satırı sunucu gizler).
+    for (const code of ['DELETE', 'Delete duplicate']) {
+      expect(runwaySurfaceKey(code), code).toBe('unknown')
     }
   })
 

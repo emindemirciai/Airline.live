@@ -39,8 +39,10 @@ import {
 } from './airport-pins'
 import { mercatorX, mercatorY, WORLD_SIZE } from './geometry'
 
-const PINS = listedAirportPins(readOurAirportsFixture())
-const MAP_PINS = mapAirportPins(readOurAirportsFixture())
+// Fixture bir kez okunur (D-109).
+const FIXTURE = readOurAirportsFixture()
+const PINS = listedAirportPins(FIXTURE)
+const MAP_PINS = mapAirportPins(FIXTURE)
 
 /** Web'in paketleri ve kaynağı (apps/web; ağ yok). */
 const webRequire = createRequire(new URL('../../../apps/web/package.json', import.meta.url))

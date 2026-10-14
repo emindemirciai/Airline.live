@@ -219,6 +219,45 @@ describe('resolveAirportCode', () => {
       expect(resolveAirportCode(code, fixtureListedAirports())).toEqual({ kind: 'not_found' })
     },
   )
+
+  it('adres takma adı (D-109): kodu değişen havalimanının eski kodu kanonik ICAO adresine 308', () => {
+    const listed = fixtureListedAirports()
+    // Özbekistan'ın havalimanları OurAirports kimliğinde eski UTxx kodunu taşır (3. ve 4. halka).
+    for (const [code, icao] of [
+      ['UTSS', 'UZSS'],
+      ['utss', 'UZSS'],
+      ['UTTT', 'UZTT'],
+      ['LELO', 'LERJ'],
+      ['VA1G', 'VERW'],
+    ] as const) {
+      expect(resolveAirportCode(code, listed), code).toEqual({ kind: 'redirect', icao })
+    }
+    // 1.–4. halkada 29 takma ad; her biri listelenen bir havalimanınındır ve hiçbir listelenen
+    // havalimanının ICAO'su değildir.
+    const aliased = listed.filter((airport) => airport.identAlias !== undefined)
+    expect(aliased).toHaveLength(29)
+    const icaos = new Set(listed.map((airport) => airport.icao))
+    for (const airport of aliased) {
+      expect(icaos.has(airport.identAlias ?? ''), airport.icao).toBe(false)
+      expect(resolveAirportCode(airport.identAlias ?? '', listed)).toEqual({
+        kind: 'redirect',
+        icao: airport.icao,
+      })
+    }
+    // Listelenmeyen havalimanının takma adı yönlenmez (5. halka kapalı: Lima SPIM → SPJC, Palm
+    // Beach KPBI → KDJT); başka bir satırın ICAO'su olan kimlik takma ad değildir (WABP).
+    for (const code of ['SPIM', 'KPBI', 'WABP']) {
+      expect(resolveAirportCode(code, listed), code).toEqual({ kind: 'not_found' })
+    }
+  })
+
+  it('ICAO takma addan önce gelir; takma ad yalnız dört karakterli koddadır', () => {
+    const uzss = { ...LTFM, icao: 'UZSS', iata: 'SKD', identAlias: 'UTSS' }
+    const other = { ...LTFM, icao: 'UTSS', iata: 'XXX' }
+    expect(resolveAirportCode('UTSS', [uzss, other])).toEqual({ kind: 'found', airport: other })
+    expect(resolveAirportCode('UTSS', [uzss])).toEqual({ kind: 'redirect', icao: 'UZSS' })
+    expect(resolveAirportCode('UTS', [uzss])).toEqual({ kind: 'not_found' })
+  })
 })
 
 describe('isIndexable ve isMonitoredStation', () => {

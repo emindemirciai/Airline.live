@@ -302,6 +302,36 @@ describe('havalimanı araması: fixture listesi (D-108)', () => {
     }
   })
 
+  it('adres takma adı (D-109) tam koddur: "UTSS" Semerkant (UZSS), Enter açar; her takma ad bulunur', () => {
+    const NO_AIRCRAFT: AircraftLookup = { status: 'ok', kind: 'callsign', results: [] }
+    const aliased = AIRPORTS.filter((a) => a.identAlias !== undefined)
+    // 1.–4. halkanın takma adları (D-109: 29; 5. halkayla 23 daha).
+    expect(aliased).toHaveLength(29)
+    expect(aliased.find((a) => a.icao === 'UZSS')?.identAlias).toBe('UTSS')
+    for (const search of [tr, en]) {
+      for (const query of ['UTSS', 'utss']) {
+        expect(
+          search(query).rows.map((row) => [row.code, row.match]),
+          query,
+        ).toEqual([['SKD', 'code']])
+        const outcome = submitOutcome({
+          query,
+          aircraft: NO_AIRCRAFT,
+          airports: search(query),
+          airportsLoaded: true,
+        })
+        expect(outcome.type === 'airport' ? outcome.airport.icao : null, query).toBe('UZSS')
+      }
+      // Takma adın öneki bir şey bulmaz; tam kod olarak her takma ad kendi havalimanını bulur.
+      expect(codes('UTS', search)).toEqual([])
+      for (const a of aliased) {
+        const rows = search(a.identAlias ?? '').rows
+        expect(rows[0]?.airport.icao, a.identAlias).toBe(a.icao)
+        expect(rows[0]?.match, a.identAlias).toBe('code')
+      }
+    }
+  })
+
   it('yarım yazılmış dolgu sözcüğü listeyi boşaltmaz', () => {
     const full = tr('antalya havalimanı').rows.map((row) => row.code)
     expect(full).toContain('AYT')

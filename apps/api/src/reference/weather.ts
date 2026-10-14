@@ -626,7 +626,7 @@ export function registerWeatherRoutes(
         type: 'string',
         pattern: AIRPORT_CODE.source,
         description:
-          'ICAO (4 karakter) ya da IATA (3 harf) kodu; büyük/küçük harf fark etmez. Yanıttaki icao kanonik koddur',
+          'ICAO (4 karakter), IATA (3 harf) ya da adres takma adı (kodu değişen havalimanının eski kodu, ör. UTSS → UZSS); büyük/küçük harf fark etmez. Yanıttaki icao kanonik koddur',
       },
     },
   } as const

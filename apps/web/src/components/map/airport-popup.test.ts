@@ -485,15 +485,16 @@ describe('AirportPopup', () => {
     const local = text(render('tr', weatherState(raw, 'OIII'), false, tehran))
     expect(local).toContain('Yerel saat 16:30 (UTC+3:30)')
     expect(local).toContain('Gözlem 16:20, 10 dakika önce')
-    // Kuralı olmayan çok dilimli ülke (ABD): yerel saat satırı yok, gözlem UTC.
+    // Kuralı olmayan bölge (ABD'de OurAirports'un "atanmamış" kodu; D-109'dan beri New York'un
+    // kuralı var): yerel saat satırı yok, gözlem UTC.
     const unknown: MapAirport = {
       ...ATH,
-      icao: 'KJFK',
-      iata: 'JFK',
+      icao: 'KXXX',
+      iata: 'XXX',
       country: 'US',
-      isoRegion: 'US-NY',
+      isoRegion: 'US-U-A',
     }
-    const utc = text(render('tr', weatherState(raw, 'KJFK'), false, unknown))
+    const utc = text(render('tr', weatherState(raw, 'KXXX'), false, unknown))
     expect(utc).not.toContain('Yerel saat')
     expect(utc).toContain('Gözlem 12:50 UTC, 10 dakika önce')
   })

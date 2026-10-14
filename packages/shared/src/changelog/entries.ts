@@ -12,8 +12,37 @@ import type { ChangelogEntry } from './types'
  */
 export const CHANGELOG: readonly ChangelogEntry[] = [
   {
+    version: '0.24.0',
+    date: '2026-10-08',
+    title: {
+      tr: '5. halkaya hazırlık: saat dilimleri ve eski kodlar',
+      en: 'Getting ready for ring 5: time zones and old codes',
+    },
+    items: [
+      {
+        tr: 'Kodu değişmiş havalimanlarının eski adresleri artık doğru sayfaya gider: örneğin /istasyon/UTSS Semerkant’ın sayfasını açar. Haritadaki arama da eski kodları tanır.',
+        en: 'Old addresses of airports whose code changed now lead to the right page: for example /istasyon/UTSS opens Samarkand’s page. The map search recognises old codes too.',
+      },
+      {
+        tr: 'Havalimanı sayfalarındaki yerel saat ve UTC farkı artık sunucudan gelir; eski tarayıcılarda da doğru görünür. Saat dilimi bilinmeyen bir havalimanında saatler UTC olarak yazılır.',
+        en: 'Local time and UTC offset on airport pages now come from the server, so they are right on older browsers too. Where an airport’s time zone is unknown, times are shown in UTC.',
+      },
+      {
+        tr: 'Dünyanın geri kalanındaki yaklaşık 2.000 havalimanının pist, kaplama ve saat dilimi verisi hazırlandı; haritada henüz bir değişiklik yok.',
+        en: 'Runway, surface and time-zone data for about 2,000 airports in the rest of the world is ready; nothing changes on the map yet.',
+      },
+    ],
+    tryLinks: [
+      {
+        path: '/istasyon/UTSS',
+        label: { tr: 'Eski kodla Semerkant', en: 'Samarkand by its old code' },
+      },
+    ],
+  },
+  {
     version: '0.23.0',
     date: '2026-10-08',
+    releasedAt: '2026-10-08T02:24:22Z',
     title: {
       tr: '4. halka: 719 havalimanı daha, 5.000 km’ye kadar',
       en: 'Ring 4: 719 more airports, up to 5,000 km',

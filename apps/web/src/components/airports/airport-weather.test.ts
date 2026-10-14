@@ -1,5 +1,6 @@
 import { getMessages, weatherText } from '@havayolu/i18n'
 import {
+  utcOffsetTable,
   windText,
   type AirportWeather,
   type Locale,
@@ -569,22 +570,43 @@ describe('WeatherPanel: Türkiye dışındaki havalimanı (D-080, D-084)', () =>
     expect(text(panel(null, { timeZone: 'Asia/Tbilisi' }))).toContain('Yerel saat 17:00 (UTC+4)')
   })
 
-  it('dilimi bilinmeyen havalimanı: saatler Türkiye saati diye etiketlenir; yerel saat ve gün doğumu/batımı yazılmaz', () => {
+  it('dilimi bilinmeyen havalimanı: saatler UTC diye etiketlenir; yerel saat ve gün doğumu/batımı yazılmaz (D-106 (c), D-109)', () => {
     const html = panel(fixtureWeather('LGAV'), { timeZone: null })
     const body = text(html)
-    expect(body).toContain(
-      'Saatler Türkiye saatidir (UTC+3); havalimanının yerel saati farklı olabilir.',
-    )
-    expect(body).not.toMatch(/[Yy]erel saat \d|Gün doğumu|Gün batımı/)
-    expect(body).toMatch(/Gözlem zamanı: \d{2}:\d{2} UTC \(Türkiye saati \d{2}:\d{2}\)/)
+    expect(body).toContain('Saatler UTC’dir; havalimanının yerel saati farklı olabilir.')
+    expect(body).not.toMatch(/[Yy]erel saat \d|Gün doğumu|Gün batımı|Türkiye saati/)
+    // Gözlem 12:50Z: sade görünüm de uzman satırı da UTC yazar.
+    expect(body).toContain('Gözlem 12:50')
+    expect(body).toContain('Gözlem zamanı: 12:50 UTC')
+    expect(body).not.toMatch(/Gözlem zamanı: 12:50 UTC \(/)
     const en = text(panel(fixtureWeather('LGAV'), { locale: 'en', timeZone: null }))
-    expect(en).toContain('Times are Türkiye time (UTC+3); the airport’s local time may differ.')
-    expect(en).not.toMatch(/Local time|local time\)|Sunrise|Sunset/)
+    expect(en).toContain('Times are in UTC; the airport’s local time may differ.')
+    expect(en).toContain('Observed at 12:50 UTC')
+    expect(en).not.toMatch(/Local time|local time\)|Sunrise|Sunset|Türkiye time/)
     // Türkiye'deki havalimanında değişmez.
     expect(text(panel(fixtureWeather('LTFM')))).toContain('Yerel saat 16:00 (UTC+3)')
   })
 
-  it('kayıt: dilim biliniyorsa havalimanının yerel saati ve farkı, bilinmiyorsa Türkiye saati; UTC yanında', () => {
+  it('dilimi bilinmeyen uzak boylamlı havalimanı: gündüz/gece simgesi güneşin gününden (D-109)', () => {
+    // Honolulu'nun yerinde: 02:00Z yerelde öğleden sonra, 10:00Z gece yarısı. UTC takvimiyle
+    // öğleden sonra gece simgesi çıkardı.
+    const phnl = { lat: 21.32, lon: -157.92 }
+    const icon = (observedAt: string) => {
+      const now = Date.parse(observedAt) + 10 * 60_000
+      const weather: AirportWeather = {
+        icao: 'PHNL',
+        generatedAt: new Date(now).toISOString(),
+        metar: metarFromRaw('PHNL 150200Z 06010KT 9999 FEW030 28/18 Q1015', observedAt),
+        tafs: [],
+      }
+      const html = panel(weather, { now, at: phnl, timeZone: null })
+      return /<svg class="weather-icon" data-icon="([a-z_]+)"/.exec(html)?.[1]
+    }
+    expect(icon('2026-07-15T02:00:00Z')).toBe('fair')
+    expect(icon('2026-07-15T10:00:00Z')).toBe('fair_night')
+  })
+
+  it('kayıt: dilim biliniyorsa havalimanının yerel saati ve farkı (UTC yanında), bilinmiyorsa UTC', () => {
     const athens = text(log(fixtureHistory('LGAV'), 'tr', 'Europe/Athens'))
     expect(athens).toContain(
       'Saatler havalimanının yerel saatidir (şu an UTC+2); UTC yanında yazılır.',
@@ -594,11 +616,13 @@ describe('WeatherPanel: Türkiye dışındaki havalimanı (D-080, D-084)', () =>
     expect(text(log(fixtureHistory('LGAV'), 'en', 'Europe/Athens'))).toContain(
       'Times are the airport’s local time (currently UTC+2), with UTC alongside.',
     )
-    expect(text(log(fixtureHistory('LTFM'), 'tr', null))).toContain(
-      'Saatler Türkiye saatidir; UTC yanında yazılır.',
-    )
-    expect(text(log(fixtureHistory('LTFM'), 'en', null))).toContain(
-      'Times are Türkiye time, with UTC alongside.',
+    // Dilimi bilinmeyen havalimanı (D-106 (c), D-109): saatler UTC; satırın yanında ayrı UTC saati yok.
+    const utc = text(log(fixtureHistory('LGAV'), 'tr', null))
+    expect(utc).toContain('Saatler UTC’dir; havalimanının yerel saati farklı olabilir.')
+    expect(utc).toMatch(/12:50 METAR/)
+    expect(utc).not.toMatch(/12:50 12:50 UTC|Türkiye saati/)
+    expect(text(log(fixtureHistory('LGAV'), 'en', null))).toContain(
+      'Times are in UTC; the airport’s local time may differ.',
     )
     // Türkiye'de değişmez.
     expect(text(log(fixtureHistory('LTFM')))).toContain('Saatler yerel saattir')
@@ -723,6 +747,7 @@ describe('AirportWeatherLive (sunucu çizimi)', () => {
         initialHistory: fixtureHistory('LTFM'),
         renderedAt: FIXTURE_NOW,
         timeZone: 'Europe/Istanbul',
+        utcOffsets: utcOffsetTable('Europe/Istanbul', FIXTURE_NOW),
       }),
     )
     expect(html).toContain('id="airport-weather"')
@@ -732,7 +757,7 @@ describe('AirportWeatherLive (sunucu çizimi)', () => {
     expect(html).not.toContain('<button')
   })
 
-  it('havalimanının dilimiyle çizer; tarayıcının tanımadığı dilimde Türkiye saatine düşer (D-084)', () => {
+  it('havalimanının dilimiyle çizer; dilim yoksa ya da tarayıcı tanımıyor ve tablo yoksa UTC (D-084, D-109)', () => {
     const render = (timeZone: string | null) =>
       text(
         renderToStaticMarkup(
@@ -747,6 +772,7 @@ describe('AirportWeatherLive (sunucu çizimi)', () => {
             initialHistory: fixtureHistory('LGAV'),
             renderedAt: FIXTURE_NOW,
             timeZone,
+            utcOffsets: null,
           }),
         ),
       )
@@ -756,9 +782,9 @@ describe('AirportWeatherLive (sunucu çizimi)', () => {
     expect(athens).toContain('Saatler havalimanının yerel saatidir (şu an UTC+2)')
     for (const unknown of ['Mars/Olympus_Mons', null]) {
       const fallback = render(unknown)
-      expect(fallback).toContain('Gözlem 15:50')
-      expect(fallback).toContain('Saatler Türkiye saatidir (UTC+3)')
-      expect(fallback).not.toMatch(/Yerel saat \d/)
+      expect(fallback).toContain('Gözlem 12:50')
+      expect(fallback).toContain('Saatler UTC’dir; havalimanının yerel saati farklı olabilir.')
+      expect(fallback).not.toMatch(/Yerel saat \d|Türkiye saati/)
     }
   })
 })
