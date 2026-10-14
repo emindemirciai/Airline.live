@@ -452,6 +452,15 @@ describe('havalimanı ayrıntıları (gerçek PostgreSQL, OurAirports fixture)',
       expect(jfk.statusCode).toBe(200)
       expect(jfk.json()).toMatchObject({ icao: 'KJFK', country: 'US', ring: 5 })
       expect(listed.map((a) => a.icao)).not.toContain('KJFK')
+      // Adres takma adı (D-109): Semerkant'ın eski kodu kanonik kaydı verir; liste kaydı da takma
+      // adı taşır. WABP (Timika'nın kimliği, başka satırın ICAO'su) takma ad değildir.
+      const utss = await instance.inject({ method: 'GET', url: '/v1/airports/UTSS' })
+      expect(utss.statusCode).toBe(200)
+      expect(utss.json()).toEqual(listed.find((a) => a.icao === 'UZSS'))
+      expect(utss.json()).toMatchObject({ icao: 'UZSS', identAlias: 'UTSS' })
+      expect(listed.filter((a) => a.identAlias !== undefined)).toHaveLength(29)
+      const wabp = await instance.inject({ method: 'GET', url: '/v1/airports/WABP' })
+      expect(wabp.statusCode).toBe(404)
     } finally {
       await instance.close()
     }

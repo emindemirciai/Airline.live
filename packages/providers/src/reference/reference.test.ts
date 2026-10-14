@@ -32,19 +32,33 @@ const RUNWAYS_HEADER =
 describe('OurAirports airports', () => {
   it('fixture eksiksiz ayrışır; tohum istasyonları ve ARP bilgileri vardır', () => {
     expect(airports.skipped).toEqual([])
-    // Fixture bütün TR alanlarını (429), sekiz uzak havalimanını, 1. halkanın 75, 2. halkanın 89,
-    // 3. halkanın 275 ve 4. halkanın 716 yeni havalimanını (D-080, D-088, D-090, D-101) içerir;
-    // filtre büyük/orta ve tarifeli olanları ve Türkiye'nin IATA kodlu 5 küçük alanını (yurt dışı
-    // havalimanlarının uzaklık referansı, D-080) tutar.
+    // Fixture bütün TR alanlarını (429), sekiz uzak havalimanını, iki dışlama örneğini (LFPB, FATH;
+    // D-109), 1. halkanın 75, 2. halkanın 89, 3. halkanın 275, 4. halkanın 716 ve 5. halkanın 2.030
+    // yeni havalimanını (D-080, D-088, D-090, D-101, D-109) içerir; filtre büyük/orta ve tarifeli
+    // olanları ve Türkiye'nin IATA kodlu 5 küçük alanını (yurt dışı havalimanlarının uzaklık
+    // referansı, D-080) tutar. Thohoyandou (FATH) küçük ve tarifesizdir: içe aktarılmaz.
     const all = parseAirports(fixture('ourairports/airports.csv'), () => true)
     expect(all.skipped).toEqual([])
-    expect(all.rows.length).toBe(1592)
+    expect(all.rows.length).toBe(3624)
     expect(all.rows.filter((a) => a.isoCountry === 'TR')).toHaveLength(429)
-    expect(airports.rows.length + airports.ignored).toBe(1592)
-    // 4. halkanın satırları önceki satırların ardından, kaynak sırasıyla gelir: 3. halkanın sonuncusu
-    // Samara (UWWW), 4. halkanın ilki Neerlerit Inaat (Grönland), sonuncusu Yining (ZWYN).
-    expect(all.rows.slice(875, 877).map((a) => a.ident)).toEqual(['UWWW', 'BGCO'])
-    expect(all.rows.at(-1)?.ident).toBe('ZWYN')
+    expect(airports.rows.length + airports.ignored).toBe(3624)
+    // Halkaların satırları önceki satırların ardından, kaynak sırasıyla gelir: 3. halkanın sonuncusu
+    // Samara (UWWW), 4. halkanın ilki Neerlerit Inaat (Grönland), sonuncusu Yining (ZWYN); 5.
+    // halkanın ilki Aleknagik (5A8, WKK), sonuncusu Yingkou (ZYYK).
+    expect(all.rows.slice(877, 879).map((a) => a.ident)).toEqual(['UWWW', 'BGCO'])
+    expect(all.rows.slice(1593, 1595).map((a) => a.ident)).toEqual(['ZWYN', '5A8'])
+    expect(all.rows.at(-1)?.ident).toBe('ZYYK')
+    expect(all.rows.find((a) => a.ident === 'FATH')).toMatchObject({
+      type: 'small_airport',
+      scheduledService: false,
+      iataCode: 'THY',
+    })
+    expect(airports.rows.some((a) => a.ident === 'FATH')).toBe(false)
+    expect(airports.rows.find((a) => a.ident === 'LFPB')).toMatchObject({
+      type: 'large_airport',
+      scheduledService: false,
+      iataCode: 'LBG',
+    })
     expect(airports.rows.find((a) => a.ident === 'LGAV')).toMatchObject({
       iataCode: 'ATH',
       isoCountry: 'GR',
@@ -122,6 +136,8 @@ describe('OurAirports airports', () => {
 describe('OurAirports runways ve pist eşikleri (M2 kabulü)', () => {
   it('fixture ayrışır; içe aktarılmayan havalimanının pisti ve kapalı pist filtre dışıdır', () => {
     expect(runways.skipped).toEqual([])
+    // 4.604 veri satırı: taban (149; LFPB'nin üç pisti dahil) ve 1.–5. halkanın açık pistleri (4.455).
+    expect(runways.rows.length + runways.ignored).toBe(4604)
     const ltfm = airports.rows.find((a) => a.ident === 'LTFM')?.id
     const other = parseRunways(
       [
@@ -184,8 +200,9 @@ describe('OurAirports runways ve pist eşikleri (M2 kabulü)', () => {
     // Ham uç koordinatları kayıtta olduğu gibi kalır.
     expect(vaam?.le.longitudeDeg).toBe(77.01274)
     expect(vaam?.he.longitudeDeg).toBe(77.72992)
-    // Kural fixture'ın açık pistlerinde yalnız bu satırı etkiler: geri kalan her iki uçlu pistte
-    // uçlar uzunluğun iki katını ya da 1 km'yi aşmaz.
+    // Kural fixture'ın açık pistlerinde yalnız bu satırı ve 5. halkada Pueblo'nun (KPUB) 241424
+    // 08L/26R satırını (4.690 ft, uçlar 3,14 km arayla) etkiler: geri kalan her iki uçlu pistte uçlar
+    // uzunluğun iki katını ya da 1 km'yi aşmaz.
     const affected = runways.rows
       .filter((r) => {
         const le = r.le.latitudeDeg !== null && r.le.longitudeDeg !== null
@@ -193,7 +210,7 @@ describe('OurAirports runways ve pist eşikleri (M2 kabulü)', () => {
         return le && he && endsAreTooFarApart(rawEnd(r.le), rawEnd(r.he), r.lengthFt)
       })
       .map((r) => r.id)
-    expect(affected).toEqual([610195])
+    expect(affected).toEqual([610195, 241424])
   })
 
   it('uç uzaklığı kuralının sınırları web test yardımcısındakiyle aynı (D-101)', () => {

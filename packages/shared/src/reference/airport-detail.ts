@@ -70,6 +70,12 @@ export interface AirportDetail extends Airport {
   isoRegion: string
   /** OurAirports `municipality`: çoğu zaman ilçe (Gaziemir, Tarsus); `city` ile aynı değer. */
   municipality: string | null
+  /**
+   * Adres takma adı (D-109): kodu değişen havalimanının OurAirports kimliğindeki eski dört karakterli
+   * kod (Özbekistan UTSS → UZSS, Lima SPIM → SPJC). `/istasyon/<takma ad>` kanonik adrese 308 ile
+   * gider; `GET /v1/airports/<takma ad>` kanonik kaydı verir. Takma adı yoksa alan yoktur.
+   */
+  identAlias?: string
   /** İzlenen istasyon değilse null. */
   station: AirportStationInfo | null
   /**

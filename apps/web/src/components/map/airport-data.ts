@@ -56,6 +56,11 @@ export interface MapAirport extends Airport {
   isoRegion: string
   /** OurAirports `municipality`; yalnızca temiz biçimdeyse gösterilir (`airportDistrict`). */
   municipality: string | null
+  /**
+   * Adres takma adı (D-109): kodu değişen havalimanının eski dört karakterli kodu (UTSS → UZSS);
+   * arama onu tam kod olarak bulur (D-108). Takma ad yoksa ya da biçimi bozuksa alan yoktur.
+   */
+  identAlias?: string
   runways: readonly MapRunway[]
 }
 
@@ -89,6 +94,7 @@ function runwayEndsOf(ends: unknown): MapRunwayEnd[] {
 }
 
 const COUNTRY_CODE = /^[A-Z]{2}$/
+const ALIAS_CODE = /^[A-Z0-9]{4}$/
 const TURKEY = 'TR'
 
 /**
@@ -123,7 +129,7 @@ function distanceOf(distance: unknown): number | null | undefined {
 export function toMapAirport(value: unknown): MapAirport | null {
   if (!isAirport(value)) return null
   const detail = value as Airport & Record<string, unknown>
-  const { isoRegion, municipality, runways } = detail
+  const { isoRegion, municipality, runways, identAlias } = detail
   if (typeof isoRegion !== 'string') return null
   const country = countryOf(detail.country, isoRegion)
   if (country === null) return null
@@ -157,6 +163,8 @@ export function toMapAirport(value: unknown): MapAirport | null {
     distanceToTrKm,
     isoRegion,
     municipality,
+    // Bozuk takma ad kaydı düşürmez; yalnız alan yazılmaz.
+    ...(typeof identAlias === 'string' && ALIAS_CODE.test(identAlias) ? { identAlias } : {}),
     runways: parsed,
   }
 }

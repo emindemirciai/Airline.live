@@ -12,6 +12,7 @@ import {
 import {
   iconCategory,
   isDaytime,
+  meanSolarDate,
   metarAgeClass,
   summarizeMetar,
   summarizeTaf,
@@ -45,9 +46,10 @@ import { phenomenonRows, plainRow, type WeatherRow } from './weather-rows'
  *
  * Saat dilimi (D-084): bütün saatler (gözlem, tahmin, TAF yayımı, gün doğumu ve batımı) havalimanının
  * yerel saatidir (`timeZone`, `airportTimeZone`); "Yerel saat 23:05 (UTC+2)" satırı farkı söyler,
- * "yarın" havalimanının takvimine göredir. Dilimi bilinmeyen yabancı havalimanında (`timeZone`
- * null, D-080) saatler Türkiye saatiyle yazılır ve öyle etiketlenir; "Yerel saat" ile gün
- * doğumu/batımı satırı çizilmez, başka bir ülkenin saati Türkiye saatiyle "yerel" diye gösterilmez.
+ * "yarın" havalimanının takvimine göredir. Dilimi bilinmeyen havalimanında (`timeZone` null)
+ * saatler UTC ile yazılır ve öyle etiketlenir (D-106 (c), D-109; D-080'den beri Türkiye saatiydi);
+ * "Yerel saat" ile gün doğumu/batımı satırı çizilmez, UTC "yerel" diye gösterilmez. Adanın verdiği
+ * dilimin farkları sunucunun tablosundan gelir (D-109, `registerUtcOffsetTable`).
  */
 export interface WeatherPanelProps {
   locale: Locale
@@ -60,8 +62,8 @@ export interface WeatherPanelProps {
   /** İstemci saati çalışıyor: göreli yaş yazılır. */
   live: boolean
   /**
-   * Havalimanının saat dilimi (IANA; varsayılan Europe/Istanbul). null: dilimi bilinmeyen yabancı
-   * havalimanı; saatler "Türkiye saati" etiketiyle, yerel saat satırı yok.
+   * Havalimanının saat dilimi (IANA; varsayılan Europe/Istanbul). null: dilimi bilinmeyen havalimanı;
+   * saatler UTC etiketiyle, yerel saat satırı yok.
    */
   timeZone?: string | null
 }
@@ -242,14 +244,14 @@ function Expert({
   tafs,
   options,
   now,
-  turkeyTime,
+  utcOnly,
 }: {
   metar: AirportMetar | null
   tafs: readonly AirportTaf[]
   options: WeatherTextOptions
   now: number
-  /** Dilimi bilinmeyen yabancı havalimanı: saatler Türkiye saati diye anlatılır. */
-  turkeyTime: boolean
+  /** Dilimi bilinmeyen havalimanı: saatler UTC'dir (D-106 (c), D-109). */
+  utcOnly: boolean
 }) {
   const { t } = options
   const e = t.expert
@@ -273,7 +275,7 @@ function Expert({
                 </tr>
               </thead>
               <tbody>
-                {metarCodeRows(metar, options, { turkeyTime }).map((row, index) => (
+                {metarCodeRows(metar, options, { utcOnly }).map((row, index) => (
                   <tr key={`${row.code}-${index}`}>
                     <th scope="row" className="mono">
                       {row.code}
@@ -337,7 +339,7 @@ function Expert({
         )
       })}
       {tafs.length > 0 ? <p className="weather-note">{e.noTemperature}</p> : null}
-      {turkeyTime ? null : <p className="weather-note">{t.sunNote}</p>}
+      {utcOnly ? null : <p className="weather-note">{t.sunNote}</p>}
     </details>
   )
 }
@@ -352,16 +354,19 @@ export function WeatherPanel({
   live,
   timeZone = TURKEY_TIME_ZONE,
 }: WeatherPanelProps) {
-  // Dilimi bilinmeyen yabancı havalimanında saatler Türkiye saatiyle (etiketli) yazılır.
-  const turkeyTime = timeZone === null
-  const zone = timeZone ?? TURKEY_TIME_ZONE
+  // Dilimi bilinmeyen havalimanında saatler UTC ile (etiketli) yazılır (D-106 (c), D-109).
+  const utcOnly = timeZone === null
+  const zone = timeZone ?? 'UTC'
   const options: WeatherTextOptions = { locale, t, timeZone: zone }
   const metar = weather?.metar ?? null
   const age: MetarAgeClass = metar ? metarAgeClass(metar.observedAt, now) : 'none'
   // API yalnızca süresi dolmamış TAF'ları verir; açık sekmede süresi dolanlar burada düşer.
   const tafs = weather ? weather.tafs.filter((taf) => Date.parse(taf.validTo) > now) : []
-  const sun = sunTimes(lat, lon, metar?.observedAt ?? now, zone)
-  const isDay = isDaytime(metar?.observedAt ?? now, sun)
+  const observed = metar?.observedAt ?? now
+  // Dilimsiz havalimanında UTC takvimi uzak boylamlarda günü kaydırır; gündüz/gece simgesi güneşin
+  // kendi gününden (`meanSolarDate`, D-109). Dilim biliniyorsa yerel gün.
+  const sun = sunTimes(lat, lon, utcOnly ? meanSolarDate(observed, lon) : observed, zone)
+  const isDay = isDaytime(observed, sun)
 
   return (
     <section aria-labelledby="airport-weather" className="airport-weather" data-age={age}>
@@ -385,10 +390,8 @@ export function WeatherPanel({
           <Forecast tafs={tafs} options={options} now={now} />
         </>
       )}
-      {turkeyTime ? (
-        <p className="weather-note weather-time-note">
-          {format(t.turkeyTime, { offset: formatUtcOffset(now, zone) })}
-        </p>
+      {utcOnly ? (
+        <p className="weather-note weather-time-note">{t.utcTime}</p>
       ) : (
         <Sun lat={lat} lon={lon} now={now} options={options} />
       )}
@@ -398,7 +401,7 @@ export function WeatherPanel({
           tafs={tafs}
           options={options}
           now={now}
-          turkeyTime={turkeyTime}
+          utcOnly={utcOnly}
         />
       ) : null}
     </section>

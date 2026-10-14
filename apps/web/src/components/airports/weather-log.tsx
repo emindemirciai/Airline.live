@@ -44,8 +44,8 @@ export interface WeatherLogProps {
   /** Eski kayıt bağlantısı için API'nin genel adresi (`config.apiBaseUrl`). */
   apiBaseUrl: string
   /**
-   * Havalimanının saat dilimi (IANA; varsayılan Europe/Istanbul). null: dilimi bilinmeyen yabancı
-   * havalimanı, saatler "Türkiye saati" diye anlatılır (D-080).
+   * Havalimanının saat dilimi (IANA; varsayılan Europe/Istanbul). null: dilimi bilinmeyen
+   * havalimanı, saatler UTC'dir (D-106 (c), D-109; önce Türkiye saatiydi, D-080).
    */
   timeZone?: string | null
 }
@@ -91,13 +91,16 @@ export function WeatherLog({
   apiBaseUrl,
   timeZone = TURKEY_TIME_ZONE,
 }: WeatherLogProps) {
-  const options: WeatherTextOptions = { locale, t, timeZone: timeZone ?? TURKEY_TIME_ZONE }
+  // Dilimi bilinmeyen havalimanında saatler UTC'dir (D-106 (c), D-109): satırın yanındaki ayrı UTC
+  // saati yazılmaz.
+  const utcOnly = timeZone === null
+  const options: WeatherTextOptions = { locale, t, timeZone: timeZone ?? 'UTC' }
   const l = t.log
   // Türkiye: "Saatler yerel saattir"; dilimi bilinen yabancı havalimanı: havalimanının yerel saati ve
-  // şu anki farkı; dilimi bilinmeyen: "Saatler Türkiye saatidir".
+  // şu anki farkı; dilimi bilinmeyen: "Saatler UTC'dir".
   const intro =
     timeZone === null
-      ? l.introAbroad
+      ? l.introUtc
       : timeZone === TURKEY_TIME_ZONE
         ? l.intro
         : format(l.introLocal, { offset: formatUtcOffset(now, timeZone) })
@@ -136,9 +139,11 @@ export function WeatherLog({
                 <tr key={`${entry.kind}-${entry.time}-${index}`} data-kind={entry.kind}>
                   <th scope="row" className="weather-log-time">
                     <time dateTime={entry.time}>{formatDayTime(entry.time, now, options)}</time>
-                    <span className="weather-log-utc">
-                      {format(l.utc, { time: formatUtcClock(entry.time) })}
-                    </span>
+                    {utcOnly ? null : (
+                      <span className="weather-log-utc">
+                        {format(l.utc, { time: formatUtcClock(entry.time) })}
+                      </span>
+                    )}
                   </th>
                   <td>
                     <span className={`weather-type is-${entry.kind.toLowerCase()}`}>

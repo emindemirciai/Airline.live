@@ -26,6 +26,12 @@ import {
 } from '@havayolu/providers'
 import { errorMessage } from '@havayolu/shared'
 import type { Logger } from 'pino'
+import {
+  logReferenceDrift,
+  referenceDrift,
+  type DriftInput,
+  type ReferenceDrift,
+} from './reference-drift'
 
 /**
  * Referans verisi içe aktarımı (data-sources.md §3–4): OurAirports havalimanı + pist ve VRS
@@ -145,6 +151,12 @@ export interface ReferenceImportDeps {
   origin: ReferenceOrigin
   log: Logger
   now?: () => Date
+  /**
+   * İçe aktarımdan sonra listenin kayma ölçümü için okuma (D-109; `@havayolu/db`
+   * `readListingDrift`). Verilirse OurAirports içe aktarımı başarısız olmadıkça (yeni veri ya da
+   * değişmedi) bir günlük satırı yazılır; okuma hatası içe aktarımı başarısız saymaz.
+   */
+  readDrift?: () => Promise<DriftInput>
 }
 
 export interface SourceOutcome {
@@ -157,6 +169,8 @@ export interface SourceOutcome {
 export interface ReferenceImportResult {
   ourairports: SourceOutcome
   airlines: SourceOutcome
+  /** Listenin kayma sayımları (D-109); ölçülmediyse yok. */
+  drift?: ReferenceDrift
 }
 
 /** Hata metni: Drizzle'ın sorgu iletisi yerine asıl PostgreSQL sebebi (packages/shared). */
@@ -334,12 +348,32 @@ async function importAirlines(deps: ReferenceImportDeps, now: Date): Promise<Sou
   }
 }
 
-/** İki kaynak birbirinden bağımsızdır; biri başarısız olursa diğeri yine içe aktarılır. */
+/**
+ * Listenin kayma sayımları ve günlük satırı (D-109, `reference-drift.ts`). Okuma başarısızsa
+ * uyarı yazılır ve sayım yoktur (içe aktarım sonucu değişmez).
+ */
+async function measureDrift(deps: ReferenceImportDeps): Promise<ReferenceDrift | undefined> {
+  if (!deps.readDrift) return undefined
+  try {
+    const drift = referenceDrift(await deps.readDrift())
+    logReferenceDrift(deps.log, drift)
+    return drift
+  } catch (error) {
+    deps.log.warn({ err: error }, 'referans verisi kayması ölçülemedi')
+    return undefined
+  }
+}
+
+/**
+ * İki kaynak birbirinden bağımsızdır; biri başarısız olursa diğeri yine içe aktarılır. OurAirports
+ * içe aktarımı başarısız olmadıysa listenin kayması ölçülür (`readDrift`, D-109).
+ */
 export async function runReferenceImport(
   deps: ReferenceImportDeps,
 ): Promise<ReferenceImportResult> {
   const now = (deps.now ?? (() => new Date()))()
   const ourairports = await importOurAirports(deps, now)
   const airlines = await importAirlines(deps, now)
-  return { ourairports, airlines }
+  const drift = ourairports.status === 'failed' ? undefined : await measureDrift(deps)
+  return drift === undefined ? { ourairports, airlines } : { ourairports, airlines, drift }
 }

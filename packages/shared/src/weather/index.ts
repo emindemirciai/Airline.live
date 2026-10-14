@@ -52,13 +52,20 @@ export * from './summary'
 export * from './sun'
 export { decodeTaf, type DecodeTafOptions } from './taf'
 export {
+  hasUtcOffsetTable,
   localDayDifference,
   localTime,
+  registerUtcOffsetTable,
   resolveDayTime,
   TURKEY_TIME_ZONE,
+  UTC_OFFSET_TABLE_HOURS,
+  utcOffsetFromTable,
   utcOffsetLabel,
+  utcOffsetTable,
   type DateInput,
   type LocalTime,
+  type UtcOffsetSegment,
+  type UtcOffsetTable,
 } from './time'
 export {
   toAirportMetar,

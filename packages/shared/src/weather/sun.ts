@@ -145,6 +145,16 @@ export function sunTimes(
 }
 
 /**
+ * Boylamın ortalama güneş saatine göre takvim günü (UTC + boylam/15 saat). Saat dilimi bilinmeyen
+ * havalimanının gündüz/gece hesabı için (D-109): UTC takvimi uzak boylamlarda (|boylam| > ~90°)
+ * günün bir kısmında komşu günü verir ve gündüz gece sayılırdı; güneşin günü dilim gerektirmez.
+ */
+export function meanSolarDate(at: DateInput, lon: number): CalendarDate {
+  const solar = new Date(toDate(at).getTime() + (lon / 15) * 3_600_000)
+  return { year: solar.getUTCFullYear(), month: solar.getUTCMonth() + 1, day: solar.getUTCDate() }
+}
+
+/**
  * An gündüz mü (gün doğumu ≤ an < gün batımı). Kutup gününde true, gecesinde false. Simgenin
  * gece biçimi ve harita penceresi için.
  */

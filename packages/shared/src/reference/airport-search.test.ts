@@ -495,6 +495,24 @@ describe('searchAirportIndex', () => {
     expect(many.size).toBe(12)
   })
 
+  it('adres takma adı (D-109) yalnız tam kodla bulunur: önek ya da sözcük başı değil', () => {
+    const samarkand = {
+      ...entry('UZSS', 'SKD', ['Semerkant Havalimanı'], ['Semerkant']),
+      alias: 'utss',
+    }
+    const index = createAirportSearchIndex([samarkand, entry('LTFM', 'IST', ['İstanbul'])])
+    for (const query of ['UTSS', 'utss', ' utss ', 'UZSS', 'skd']) {
+      expect(searchAirportIndex(index, query).hits, query).toEqual([
+        { value: 'UZSS', match: 'code' },
+      ])
+    }
+    // Takma adın öneki ve sözcük başı hiçbir şey bulmaz (ICAO'nun öneki "UZS" bulur).
+    expect(searchAirportIndex(index, 'UTS').hits).toEqual([])
+    expect(searchAirportIndex(index, 'UZS').hits).toEqual([{ value: 'UZSS', match: 'words' }])
+    // Takma adı olmayan kayıt boş takma adla eşleşmez.
+    expect(searchAirportIndex(index, 'ist').hits).toEqual([{ value: 'LTFM', match: 'code' }])
+  })
+
   it('IATA kodu boş kayıt boş sorguyla ya da kodla eşleşmez', () => {
     const index = createAirportSearchIndex([entry('XNOI', '', ['Lonely Field'])])
     expect(searchAirportIndex(index, 'xnoi').hits).toEqual([{ value: 'XNOI', match: 'code' }])

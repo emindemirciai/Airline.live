@@ -33,6 +33,8 @@ import type { AirportSearch, AirportSearchRow } from './search-box-model'
  * - **Sıra** (bir eşleşme basamağının içinde): İstanbul Havalimanı (LTFM), Türkiye, tarifeli sefer,
  *   büyüklük (büyük, orta, küçük), Türkiye'ye uzaklık, görünen ad (sayfanın dilinin alfabesiyle),
  *   ICAO.
+ * - **Adres takma adı** (`identAlias`, D-109: kodu değişen havalimanının eski kodu, ör. Semerkant'ın
+ *   UTSS'si) tam kod olarak bulunur; önek ya da sözcük olarak aranmaz.
  * - **Askerî hava üsleri** aranmaz (`mapShownAirports`; D-103, D-107): liste zaten üssüzdür, süzgeç
  *   savunma amaçlıdır.
  * - Dizin (havalimanı listesi, dil) başına bir kez kurulur ve saklanır; satırın metinleri ilk
@@ -116,6 +118,7 @@ function searchEntries(
     value: a,
     iata: a.iata,
     icao: a.icao,
+    ...(a.identAlias === undefined ? {} : { alias: a.identAlias }),
     names: nonEmpty([
       airportDisplayName(a, 'tr'),
       airportDisplayName(a, 'en'),

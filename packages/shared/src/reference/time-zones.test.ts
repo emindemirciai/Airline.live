@@ -8,6 +8,7 @@ import {
   COUNTRY_TIME_ZONES,
   ENABLED_AIRPORT_RING,
   isForeignCandidate,
+  isMilitaryAirfield,
   isScheduledIataAirport,
   isSupportedTimeZone,
   ourAirportsIcao,
@@ -510,7 +511,11 @@ describe('saat dilimi tabloları', () => {
     expect(COUNTRY_TIME_ZONES.TR).toBe('Europe/Istanbul')
     expect(COUNTRY_TIME_ZONES.XK).toBe('Europe/Belgrade')
     for (const code of Object.keys(COUNTRY_TIME_ZONES)) expect(code).toMatch(/^[A-Z]{2}$/)
-    for (const code of Object.keys(REGION_TIME_ZONES)) expect(code).toMatch(/^[A-Z]{2}-[A-Z0-9]+$/)
+    // Tek istisna Fransız Polinezyası'dır (D-109): OurAirports bütün ülkeye ISO'da olmayan tek bir
+    // "atanmamış" kod verir (PF-U-A).
+    const regionKeys = Object.keys(REGION_TIME_ZONES)
+    expect(regionKeys.filter((code) => !/^[A-Z]{2}-[A-Z0-9]+$/.test(code))).toEqual(['PF-U-A'])
+    for (const code of regionKeys) expect(code).toMatch(/^[A-Z]{2}-([A-Z0-9]+|U-A)$/)
     for (const code of Object.keys(AIRPORT_TIME_ZONES)) expect(code).toMatch(/^[A-Z0-9]{4}$/)
   })
 
@@ -607,15 +612,22 @@ describe('airportTimeZone', () => {
   })
 
   it('kuralı olmayan çok dilimli ülke, bilinmeyen ülke ve boş kod null', () => {
-    // Rusya'nın kuralı yazılmamış bölgesi (Habarovsk, 5. halka), bölgesiz Almanya (Büsingen
-    // ikinci dilimdir), Özbekistan'ın Taşkent şehri kodu (OurAirports Taşkent'i UZ-TO'ya yazar), ABD,
-    // Kıbrıs'ın havalimanı kuralı olmayan bir alanı, Ukrayna (iki dilim), Grönland'ın havalimanı
-    // kuralı olmayan alanı, bilinmeyen kod.
-    expect(airportTimeZone({ icao: 'UHHH', country: 'RU', isoRegion: 'RU-KHA' })).toBeNull()
+    // Rusya'nın kuralı yazılmamış bölgesi (Leningrad oblastı; 5. halkayla Habarovsk ve New York'un
+    // kuralı var, D-109), bölgesiz Almanya (Büsingen ikinci dilimdir), Özbekistan'ın Taşkent şehri
+    // kodu (OurAirports Taşkent'i UZ-TO'ya yazar), ABD'de OurAirports'un "atanmamış" kodu, Kıbrıs'ın
+    // havalimanı kuralı olmayan bir alanı, Ukrayna (iki dilim), Grönland'ın kuralı olmayan bölgesi,
+    // bilinmeyen kod.
+    expect(airportTimeZone({ icao: 'ULLX', country: 'RU', isoRegion: 'RU-LEN' })).toBeNull()
     expect(airportTimeZone({ icao: 'BGSF', country: 'GL', isoRegion: 'GL-QE' })).toBeNull()
     expect(airportTimeZone({ icao: 'EDDF', country: 'DE' })).toBeNull()
     expect(airportTimeZone({ icao: 'UTTT', country: 'UZ', isoRegion: 'UZ-TK' })).toBeNull()
-    expect(airportTimeZone({ icao: 'KJFK', country: 'US', isoRegion: 'US-NY' })).toBeNull()
+    expect(airportTimeZone({ icao: 'KXXX', country: 'US', isoRegion: 'US-U-A' })).toBeNull()
+    expect(airportTimeZone({ icao: 'UHHH', country: 'RU', isoRegion: 'RU-KHA' })).toBe(
+      'Asia/Vladivostok',
+    )
+    expect(airportTimeZone({ icao: 'KJFK', country: 'US', isoRegion: 'US-NY' })).toBe(
+      'America/New_York',
+    )
     expect(airportTimeZone({ icao: 'LCRA', country: 'CY', isoRegion: 'CY-06' })).toBeNull()
     expect(airportTimeZone({ icao: 'UKBB', country: 'UA', isoRegion: 'UA-32' })).toBeNull()
     expect(airportTimeZone({ icao: 'XXXX', country: 'ZZ', isoRegion: 'ZZ-1' })).toBeNull()
@@ -946,6 +958,14 @@ const REGION_CODE_ALIASES: Readonly<Record<string, string>> = {
   'KZ-YUZ': 'KZ-61',
   'KZ-ZAP': 'KZ-27',
   'KZ-ZHA': 'KZ-31',
+  // 5. halka (D-109): Çin'in öbür 27 ili, Meksiko şehri, Santa Elena, Highland Papua.
+  ...{ 'CN-11': 'CN-BJ', 'CN-12': 'CN-TJ', 'CN-13': 'CN-HE', 'CN-14': 'CN-SX', 'CN-15': 'CN-NM' },
+  ...{ 'CN-21': 'CN-LN', 'CN-22': 'CN-JL', 'CN-23': 'CN-HL', 'CN-31': 'CN-SH', 'CN-32': 'CN-JS' },
+  ...{ 'CN-33': 'CN-ZJ', 'CN-34': 'CN-AH', 'CN-35': 'CN-FJ', 'CN-36': 'CN-JX', 'CN-37': 'CN-SD' },
+  ...{ 'CN-41': 'CN-HA', 'CN-42': 'CN-HB', 'CN-43': 'CN-HN', 'CN-44': 'CN-GD', 'CN-45': 'CN-GX' },
+  ...{ 'CN-46': 'CN-HI', 'CN-50': 'CN-CQ', 'CN-51': 'CN-SC', 'CN-52': 'CN-GZ', 'CN-53': 'CN-YN' },
+  ...{ 'CN-61': 'CN-SN', 'CN-64': 'CN-NX' },
+  ...{ 'EC-25': 'EC-SE', 'ID-PP': 'ID-PE', 'MX-DIF': 'MX-CMX' },
 }
 
 /** ISO 3166-2:KZ: 17 bölge ve 3 şehir (Astana 71, Almatı 75, Şımkent 79); 2022 bölgeleri 10, 33, 62. */
@@ -1058,14 +1078,10 @@ describe("4. halka saat dilimleri (D-101; halka M6i.2'de açıldı, D-102)", () 
       RU: 24,
       UZ: 6,
     })
-    expect(Object.keys(AIRPORT_TIME_ZONES).sort()).toEqual([
-      'BGCO',
-      'BGKK',
-      'LCEN',
-      'LCLK',
-      'LCPH',
-      'UGSS',
-    ])
+    // 1.–4. halkanın altı havalimanı kuralı (5. halkanın 68'i aşağıda, D-109).
+    expect(Object.keys(AIRPORT_TIME_ZONES)).toEqual(
+      expect.arrayContaining(['BGCO', 'BGKK', 'LCEN', 'LCLK', 'LCPH', 'UGSS']),
+    )
     // Grönland'ın iki havalimanı aynı bölgede (GL-SE), farklı dilimde: bölge kuralı yazılamaz.
     expect(Object.hasOwn(REGION_TIME_ZONES, 'GL-SE')).toBe(false)
     expect(
@@ -1144,9 +1160,10 @@ describe("4. halka saat dilimleri (D-101; halka M6i.2'de açıldı, D-102)", () 
     }
   })
 
-  it('çok dilimli ülkelerdeki fixture adaylarının (1.–4. halka) hepsinin dilimi var', () => {
-    // Bölgesi kuralsız kalan aday dilimsiz görünürdü ("Türkiye saati"); fixture yeniden üretilince
-    // OurAirports'un yeni bir bölge kodunu bu test yakalar.
+  it('çok dilimli ülkelerdeki fixture adaylarının (1.–5. halka) hepsinin dilimi var', () => {
+    // Bölgesi kuralsız kalan aday dilimsiz görünürdü (saatler UTC ile, D-109); fixture yeniden
+    // üretilince OurAirports'un yeni bir bölge kodunu bu test yakalar. Askerî listedeki üç alanın
+    // ikisi (PWAK, PKWA) listelenmediği için kuralsızdır (D-109).
     const missing = rows
       .filter((r) => r.get('iso_country') !== 'TR')
       .filter((r) =>
@@ -1156,8 +1173,8 @@ describe("4. halka saat dilimleri (D-101; halka M6i.2'de açıldı, D-102)", () 
           r.get('iata_code'),
         ),
       )
-      .filter((r) => airportRing(distanceToTurkey(r)) <= 4)
       .map(fixtureAirport)
+      .filter((airport) => !isMilitaryAirfield(airport.icao))
       .filter((airport) => airportTimeZone(airport) === null)
       .map((airport) => `${airport.icao} ${airport.isoRegion}`)
     expect(missing).toEqual([])
@@ -1194,5 +1211,563 @@ describe("4. halka saat dilimleri (D-101; halka M6i.2'de açıldı, D-102)", () 
     expect(offsets('BGKK'), 'Kulusuk').toEqual([-120, -60])
     expect(offsets('EGLL'), 'Londra').toEqual([0, 60])
     expect(offsets('GEML'), 'Melilla').toEqual([60, 120])
+  })
+})
+
+/**
+ * 5. halkanın 2.031 adayından askerî listedeki üçü (PWAK, YBOK, PKWA; D-109) çıkınca kalan 2.028
+ * aday (D-080 kuralı, ICAO koşulu olmadan; WKK 5A8 ve LSG CN-0249 dahil), dilime göre: M6j
+ * araştırmasının önerisi (`Intl.Locale#getTimeZones()`, tzdb `zone.tab` açıklamaları ve diskteki
+ * tzdb kaynakları; Node 24.16, ICU 78.3, tzdata 2026b) ve son tasarımın üç düzeltmesi: Pickle Lake
+ * (CYPL) America/Coral_Harbour, Tabatinga (SBTT) bölge varsayılanı America/Manaus, Aysén (CL-AI)
+ * America/Punta_Arenas. Tablo halka açılmadan önce (M6j.1) her adayın dilimini sabitler.
+ */
+const RING_FIVE_ZONES: Readonly<Record<string, readonly string[]>> = {
+  'Africa/Abidjan': ['DISP'],
+  'Africa/Banjul': ['GBYD'],
+  'Africa/Bissau': ['GGOV'],
+  'Africa/Blantyre': ['FWCL FWKI'],
+  'Africa/Conakry': ['GUCY'],
+  'Africa/Dakar': ['GOBD GOGG GOGS'],
+  'Africa/Dar_es_Salaam': ['HTGW HTMT'],
+  'Africa/Freetown': ['GFLL'],
+  'Africa/Gaborone': ['FBKE FBMN FBPM FBSK'],
+  'Africa/Harare': ['FVFA FVJN FVKB FVRG'],
+  'Africa/Johannesburg': [
+    'FABL FACT FAEL FAGG FAHS FAKM FAKN FALA FALE FAMG FAMM FAMU FAOR FAPE FAPH',
+    'FAPM FAPP FARB FASS FASZ FAUP FAUT',
+  ],
+  'Africa/Luanda': ['FNBC FNBJ FNCA FNCT FNGI FNHU FNLU FNMA FNME FNMO FNNG FNSO FNUB'],
+  'Africa/Lubumbashi': ['FZQA FZQM'],
+  'Africa/Lusaka': ['FLHN FLKK FLMF FLSK'],
+  'Africa/Maputo': ['FQBR FQCH FQIN FQLC FQMA FQNC FQNP FQPB FQQL FQTT FQVL'],
+  'Africa/Maseru': ['FXMM'],
+  'Africa/Mbabane': ['FDSK'],
+  'Africa/Monrovia': ['GLMR GLRB'],
+  'Africa/Windhoek': ['FYKM FYLZ FYOA FYOG FYRU FYWB FYWE FYWH'],
+  'America/Adak': ['PADK'],
+  'America/Anchorage': [
+    '5A8 PABA PABE PABR PACD PACV PADE PADL PADQ PADU PAEM PAEN PAFA PAFM PAGA',
+    'PAGK PAGM PAGS PAHC PAHL PAHN PAHO PAII PAIK PAIL PAIM PAJN PAKN PAKP PAKT',
+    'PAKW PALU PAMC PAMR PAMY PANC PANI PANV PAOM PAOR PAOT PAPB PAPG PAPH PAPM',
+    'PAQT PARC PARY PASA PASC PASD PASI PASN PATQ PAUN PAVD PAWG PAWI PAYA PFYU',
+    'PPIZ',
+  ],
+  'America/Anguilla': ['TQPF'],
+  'America/Antigua': ['TAPA TAPB'],
+  'America/Araguaina': ['SBPJ SWGN'],
+  'America/Argentina/La_Rioja': ['SANL'],
+  'America/Argentina/Rio_Gallegos': ['SAVH SAWC SAWD SAWG SAWP'],
+  'America/Argentina/Salta': ['SASA SAVV SAZN SAZR SAZS SAZY'],
+  'America/Argentina/San_Juan': ['SANU'],
+  'America/Argentina/San_Luis': ['SAOU'],
+  'America/Argentina/Tucuman': ['SANT'],
+  'America/Argentina/Ushuaia': ['SAWE SAWH'],
+  'America/Aruba': ['TNCA'],
+  'America/Asuncion': ['SGAS SGEN SGES'],
+  'America/Bahia': ['SBIL SBPS SBSV SBUF SBVC'],
+  'America/Barbados': ['TBPB'],
+  'America/Belem': ['SBBE SBCJ SBHT SBMA SBMQ SBTU'],
+  'America/Belize': ['MZBE MZBZ MZCK MZCP MZCZ MZPB MZPL MZSP'],
+  'America/Blanc-Sablon': ['CYBX CYIF'],
+  'America/Boa_Vista': ['SBBV'],
+  'America/Bogota': [
+    'SKAR SKAS SKBG SKBO SKBQ SKBS SKBU SKCC SKCG SKCL SKCO SKCZ SKEJ SKFL SKGP',
+    'SKIB SKIP SKLC SKLT SKMD SKMR SKMU SKMZ SKNV SKPC SKPD SKPE SKPP SKPS SKPV',
+    'SKRG SKRH SKSJ SKSM SKSP SKSV SKTM SKUC SKUI SKVP SKVV SKYP',
+  ],
+  'America/Boise': ['KBOI KIDA KMYL KPIH KSMN KSUN KTWF'],
+  'America/Buenos_Aires': ['SABE SAEZ SAZB SAZL SAZM SAZO'],
+  'America/Cambridge_Bay': ['CYCB'],
+  'America/Campo_Grande': ['SBCG SBCR SBPP'],
+  'America/Cancun': ['MMCM MMCZ MMTL MMUN'],
+  'America/Caracas': [
+    'SVBC SVBI SVBM SVCN SVCP SVCR SVCU SVJC SVMC SVMG SVMI SVMT SVPR SVSA SVSE',
+    'SVSO SVST SVVA SVVG SVVL',
+  ],
+  'America/Catamarca': ['SANC SAVC SAVE SAVT SAVY'],
+  'America/Cayenne': ['SOCA SOOA SOOM'],
+  'America/Cayman': ['MWCB MWCR'],
+  'America/Chicago': [
+    'KABI KABR KACT KAEX KALO KAMA KATW KATY KAUS KBBG KBHM KBIS KBLV KBMI KBNA',
+    'KBPT KBRD KBRL KBRO KBTR KCGI KCID KCLL KCMI KCOU KCRP KCWA KDAL KDBQ KDDC',
+    'KDEC KDFW KDHN KDLH KDSM KDTS KDVL KEAR KEAU KECP KELD KEVV KFAR KFOD KFSD',
+    'KFSM KFTW KGCK KGFK KGGG KGLH KGPT KGRB KGRI KGRK KGTR KGYY KHIB KHOT KHOU',
+    'KHRL KHRO KHSV KHYS KIAH KICT KINL KIRK KJAN KJBR KJLN KJMS KLAW KLBB KLBF',
+    'KLBL KLCH KLFT KLIT KLNK KLRD KLSE KMAF KMCI KMCK KMCW KMDW KMEI KMEM KMFE',
+    'KMGC KMGM KMHK KMKE KMKL KMLI KMLU KMOB KMOT KMSL KMSN KMSP KMSY KMWA KMWL',
+    'KOKC KOMA KORD KOWB KPAH KPIA KPIB KPIR KPNS KRFD KRHI KRST KSAT KSGF KSHV',
+    'KSJT KSLN KSPI KSPS KSTC KSTL KSUX KSWO KTBN KTUL KTUP KTVF KTXK KTYR KUIN',
+    'KVCT KVPS KXNA KXWA',
+  ],
+  'America/Chihuahua': ['MMCU'],
+  'America/Ciudad_Juarez': ['MMCS'],
+  'America/Coral_Harbour': ['CYPL CYZS'],
+  'America/Cordoba': ['SAAP SAAR SAAV SACO SANE SANR SARC SARE SARF SARI SARP'],
+  'America/Costa_Rica': ['MRAN MRGF MRLB MRLM MRNS MROC MRPJ MRPV MRQP'],
+  'America/Cuiaba': ['SBAT SBCY SBRD'],
+  'America/Curacao': ['TNCC'],
+  'America/Dawson': ['CYDA'],
+  'America/Dawson_Creek': ['CYXJ'],
+  'America/Denver': [
+    'KABQ KAIA KALS KASE KBFF KBIL KBJC KBTM KBZN KCDC KCDR KCEZ KCNM KCNY KCOD',
+    'KCOS KCPR KCVN KCYS KDEN KDIK KDRO KEGE KELP KGCC KGDV KGGW KGJT KGPI KGTF',
+    'KGUC KGUP KHDN KHLN KHOB KHVR KJAC KLAR KLRU KMSO KMTJ KOGD KOLF KPUB KPVU',
+    'KRAP KRIW KRKS KROW KSAF KSDY KSGU KSHR KSKX KSLC KSVC KTEX KVEL KWYS',
+  ],
+  'America/Detroit': ['KAPN KAZO KCIU KCMX KDTW KESC KFNT KGRR KLAN KMBS KMKG KPLN KSAW KTVC'],
+  'America/Dominica': ['TDCF TDPD'],
+  'America/Edmonton': [
+    'CYBF CYEG CYFS CYHY CYLL CYMM CYOJ CYPE CYPY CYQL CYQU CYSM CYVQ CYXC CYXH',
+    'CYYC CYZF CYZU',
+  ],
+  'America/El_Salvador': ['MSLP MSSS'],
+  'America/Fort_Nelson': ['CYYE'],
+  'America/Fortaleza': ['SBFZ SBIZ SBJE SBJP SBKG SBMS SBPB SBSG SBSL SBTE'],
+  'America/Glace_Bay': ['CYQY'],
+  'America/Godthab': ['BGAA BGGH BGJN BGQO BGQQ BGSF BGSS'],
+  'America/Goose_Bay': ['CYWK CYYR'],
+  'America/Grand_Turk': ['MBGT MBNC MBPV MBSC'],
+  'America/Grenada': ['TGPY'],
+  'America/Guadeloupe': ['TFFM TFFR'],
+  'America/Guatemala': ['MGGT MGMM MGPB MGRT'],
+  'America/Guayaquil': ['SECO SECU SEGU SELT SEMC SEMT SEQM SERO SESA SETN SETU'],
+  'America/Guyana': ['SYCJ SYEC SYKA SYLT'],
+  'America/Halifax': ['CYGR CYHZ CYYG'],
+  'America/Havana': ['MUBA MUBY MUCC MUCF MUCL MUCM MUCU MUHA MUHG MUMZ MUNG MUSC MUTD MUVR MUVT'],
+  'America/Hermosillo': ['MMCN MMGM MMHO'],
+  'America/Indianapolis': ['KFWA KIND KLAF KSBN'],
+  'America/Inuvik': ['CYEV'],
+  'America/Iqaluit': ['CYFB CYUX'],
+  'America/Jamaica': ['MKBS MKJP MKJS MKTP'],
+  'America/Jujuy': ['SASJ'],
+  'America/Kralendijk': ['TNCB TNCE TNCS'],
+  'America/La_Paz': ['SLAL SLCB SLCO SLET SLGM SLLP SLOR SLPS SLRI SLTJ SLTR SLUY SLVR'],
+  'America/Lima': [
+    'SPCL SPEO SPHI SPHO SPJC SPJE SPJJ SPJL SPJR SPLO SPME SPMS SPNC SPPY SPQT',
+    'SPQU SPRU SPST SPTN SPTU SPUR SPYL SPZA SPZO',
+  ],
+  'America/Los_Angeles': [
+    'KACV KALW KBFI KBFL KBIH KBLI KBUR KBVU KCCR KCEC KCRQ KEAT KEKO KEUG KFAT',
+    'KFHR KGEG KHHR KIPL KLAS KLAX KLGB KLWS KMCE KMFR KMMH KMRY KOAK KOLM KONT',
+    'KORS KOTH KPAE KPDT KPDX KPSC KPSP KPUW KRDD KRDM KRNO KSAN KSBA KSBD KSBP',
+    'KSCK KSEA KSFO KSJC KSLE KSMF KSMX KSNA KSQL KSTS KTIW KTRK KYKM',
+  ],
+  'America/Louisville': ['KSDF'],
+  'America/Lower_Princes': ['TNCM'],
+  'America/Maceio': ['SBAR SBMO'],
+  'America/Managua': ['MNBL MNMG MNPC'],
+  'America/Manaus': ['SBEG SBMY SBTF SBTT SBUA'],
+  'America/Marigot': ['TFFG'],
+  'America/Martinique': ['TFFF'],
+  'America/Matamoros': ['MMMA MMNL MMPG MMRX'],
+  'America/Mazatlan': ['MMCL MMEP MMLM MMLP MMLT MMMZ MMSD MMSL'],
+  'America/Mendoza': ['SAME SAMR'],
+  'America/Menominee': ['KIMT'],
+  'America/Merida': ['MMCE MMCP MMMD'],
+  'America/Mexico_City': [
+    'MMAA MMAS MMBT MMGL MMIA MMIT MMLO MMMM MMMT MMMX MMOX MMPA MMPB MMPN MMPR',
+    'MMPS MMQT MMSM MMSP MMTG MMTO MMTP MMVA MMVR MMZC MMZH MMZO',
+  ],
+  'America/Miquelon': ['LFVP'],
+  'America/Moncton': ['CYFC CYQM CYSJ CZBF'],
+  'America/Monterrey': ['MMCV MMDO MMIO MMMY MMTC MMTM'],
+  'America/Montevideo': ['SULS SUMU SURV'],
+  'America/Montserrat': ['TRPG'],
+  'America/Nassau': [
+    'MYAF MYAK MYAM MYAN MYAP MYAT MYBC MYBS MYCA MYCB MYCI MYEF MYEH MYEM MYER',
+    'MYGF MYIG MYLD MYLS MYMM MYNN MYSM',
+  ],
+  'America/New_York': [
+    'KABE KABY KACK KACY KAGS KALB KAOO KART KATL KAUG KAVL KAVP KBDL KBED KBFD',
+    'KBGM KBGR KBHB KBKW KBOS KBQK KBTV KBUF KBWI KCAE KCAK KCHA KCHO KCHS KCKB',
+    'KCLE KCLT KCMH KCRW KCSG KCVG KDAB KDAY KDCA KDJT KDOV KDUJ KELM KERI KEWB',
+    'KEWN KEWR KEYW KFAY KFLL KFLO KGNV KGSO KGSP KHGR KHPN KHTS KHVN KHXD KHYA',
+    'KIAD KIAG KILG KILM KIPT KISP KITH KJAX KJFK KJQF KJST KLAL KLBE KLCK KLEB',
+    'KLEX KLGA KLNS KLUK KLWB KLYH KMCN KMCO KMDT KMGW KMHT KMIA KMLB KMSS KMYR',
+    'KOAJ KOGS KOPF KORF KORH KOXB KPBG KPDK KPGD KPGV KPHF KPHL KPIE KPIT KPKB',
+    'KPQI KPSM KPVD KPWM KRDU KRIC KRKD KROA KROC KRSW KRUT KSAV KSBY KSFB KSGJ',
+    'KSHD KSLK KSRQ KSWF KSYR KTEB KTLH KTOL KTPA KTRI KTTN KTYS KUNV KUUU KVLD',
+    'KVRB KWST',
+  ],
+  'America/Noronha': ['SBFN'],
+  'America/Panama': ['MPBO MPCE MPCH MPDA MPEJ MPMG MPTO'],
+  'America/Paramaribo': ['SMJP'],
+  'America/Phoenix': ['KFLG KGCN KHII KIWA KNYL KPGA KPHX KPRC KSOW KTUS'],
+  'America/Port-au-Prince': ['MTCA MTCH MTJE MTPP'],
+  'America/Port_of_Spain': ['TTCP TTPP'],
+  'America/Porto_Velho': ['SBPV SBVH'],
+  'America/Puerto_Rico': ['TJBQ TJCP TJIG TJMZ TJPS TJRV TJSJ TJVQ'],
+  'America/Punta_Arenas': ['SCBA SCCI SCNT'],
+  'America/Rankin_Inlet': ['CYBK CYRT'],
+  'America/Recife': ['SBPL SBRF'],
+  'America/Regina': ['CYNL CYPA CYQR CYSF CYVC CYXE'],
+  'America/Resolute': ['CYRB'],
+  'America/Rio_Branco': ['SBCZ SBRB'],
+  'America/Santarem': ['SBIH SBSN SBTB'],
+  'America/Santiago': ['SCAR SCAT SCCF SCDA SCEL SCES SCFA SCIE SCJO SCQP SCSE SCTE SCVD'],
+  'America/Santo_Domingo': ['MDBH MDCY MDJB MDLR MDPC MDPP MDSD MDST'],
+  'America/Sao_Paulo': [
+    'SBAE SBAQ SBAU SBAX SBBR SBCA SBCF SBCH SBCP SBCT SBCX SBDN SBFI SBFL SBGL',
+    'SBGO SBGR SBGV SBIP SBJF SBJV SBKP SBLJ SBLO SBMG SBMK SBML SBNF SBNM SBPA',
+    'SBPF SBPG SBPK SBRJ SBRP SBSJ SBSM SBSP SBSR SBUG SBUL SBUR SBVT SBZM',
+  ],
+  'America/St_Barthelemy': ['TFFJ'],
+  'America/St_Johns': ['CYAY CYDF CYQX CYYT'],
+  'America/St_Kitts': ['TKPK TKPN'],
+  'America/St_Lucia': ['TLPC TLPL'],
+  'America/St_Thomas': ['TIST TISX'],
+  'America/St_Vincent': ['TVSA TVSB TVSC TVSM TVSU'],
+  'America/Tegucigalpa': ['MHLC MHLM MHNJ MHPR MHRO MHTG'],
+  'America/Tijuana': ['MMML MMTJ'],
+  'America/Toronto': [
+    'CYAM CYBC CYBG CYGL CYGP CYGV CYGW CYHM CYHU CYKF CYKL CYLS CYMO CYMT CYMX',
+    'CYNA CYND CYOW CYPN CYPQ CYPX CYQA CYQB CYQG CYQN CYQT CYRJ CYRO CYSB CYSN',
+    'CYTS CYTZ CYUL CYUY CYVB CYVO CYVP CYVV CYXU CYYB CYYY CYYZ CYZV',
+  ],
+  'America/Tortola': ['TUPJ TUPW'],
+  'America/Vancouver': [
+    'CAJ4 CAT4 CBBC CYAZ CYBD CYBL CYCD CYCG CYKA CYLW CYPR CYPW CYPZ CYQQ CYQZ',
+    'CYVR CYWL CYXS CYXT CYXX CYYD CYYF CYYJ CYZP CYZT CZMT',
+  ],
+  'America/Whitehorse': ['CYQH CYXY'],
+  'America/Winnipeg': ['CYAG CYAQ CYBR CYDN CYIV CYQD CYQK CYRL CYTH CYWG CYXL CYYL CYYQ CZSJ'],
+  'Asia/Anadyr': ['UHMA UHMK UHMP'],
+  'Asia/Bangkok': [
+    'VTBD VTBO VTBS VTBU VTCC VTCH VTCL VTCN VTCT VTPB VTPH VTPM VTPO VTPP VTSB',
+    'VTSC VTSE VTSF VTSG VTSM VTSP VTSR VTSS VTST VTUD VTUI VTUJ VTUK VTUL VTUO',
+    'VTUU VTUV VTUW',
+  ],
+  'Asia/Brunei': ['WBSB'],
+  'Asia/Calcutta': ['VOPB'],
+  'Asia/Chita': ['UIAA'],
+  'Asia/Colombo': ['VCCB VCCK VCRI'],
+  'Asia/Dili': ['WPDB WPDL WPEC WPOC'],
+  'Asia/Hong_Kong': ['VHHH'],
+  'Asia/Jakarta': [
+    'WAHH WAHI WAHL WAHQ WAHS WARA WARD WARR WIBB WIBD WICA WICC WIDD WIDN WIDO',
+    'WIEE WIGG WIHH WIII WIKK WILL WIMB WIMM WIMS WIMU WIPP WIPQ WITC WITK WITT',
+  ],
+  'Asia/Jayapura': [
+    'WABB WAEE WAJJ WAJO WAKK WAKT WAPF WAPN WAPP WASF WASK WASS WAUU WAVV WAYB',
+    'WAYY',
+  ],
+  'Asia/Kamchatka': ['UHPP'],
+  'Asia/Kuala_Lumpur': ['WMBT WMKA WMKC WMKD WMKI WMKJ WMKK WMKL WMKM WMKN WMKP WMSA'],
+  'Asia/Kuching': ['WBGB WBGG WBGJ WBGK WBGM WBGR WBGS WBGZ WBKD WBKK WBKL WBKS WBKW WBMU'],
+  'Asia/Macau': ['VMMC'],
+  'Asia/Magadan': ['UHMM'],
+  'Asia/Makassar': [
+    'WAAA WADB WADD WADL WAFB WAFF WALL WALS WAMH WAMM WAON WAOO WAQQ WAQT WATT',
+    'WAWD WAWP',
+  ],
+  'Asia/Manila': [
+    'RPLB RPLC RPLI RPLK RPLL RPMC RPMD RPME RPMG RPMH RPMJ RPMN RPMO RPMP RPMR',
+    'RPMS RPMY RPMZ RPSP RPUH RPUN RPUO RPUT RPUV RPUY RPVA RPVB RPVC RPVD RPVE',
+    'RPVF RPVI RPVJ RPVK RPVM RPVP RPVR RPVU RPVV',
+  ],
+  'Asia/Phnom_Penh': ['VDBG VDDS VDSA VDSV VDTI'],
+  'Asia/Pontianak': ['WAGG WIOG WIOK WIOO WIOP WIOS'],
+  'Asia/Pyongyang': ['ZKHM ZKPY ZKSD ZKWS'],
+  'Asia/Rangoon': [
+    'VYDW VYHH VYKG VYKP VYKT VYLK VYLS VYMD VYME VYMK VYMS VYNT VYPT VYSW VYTD',
+    'VYTL VYYY',
+  ],
+  'Asia/Saigon': [
+    'VVBM VVCI VVCM VVCR VVCS VVCT VVDB VVDH VVDL VVDN VVNB VVPB VVPC VVPK VVPQ',
+    'VVRG VVTH VVTS VVVD VVVH',
+  ],
+  'Asia/Sakhalin': ['UHSS'],
+  'Asia/Seoul': ['RKJB RKJJ RKJK RKJY RKNW RKNY RKPC RKPK RKPS RKPU RKSI RKSS RKTH RKTN RKTU'],
+  'Asia/Shanghai': [
+    'CN-0249 ZBAA ZBAD ZBAL ZBCD ZBCF ZBDH ZBDS ZBDT ZBER ZBES ZBHD ZBHH ZBHZ ZBLA',
+    'ZBLF ZBLL ZBMZ ZBOW ZBSG ZBSJ ZBTJ ZBTL ZBUC ZBUH ZBXH ZBYC ZBYN ZBYZ ZBZJ',
+    'ZBZL ZGBH ZGBS ZGCD ZGCJ ZGCZ ZGDY ZGFS ZGGG ZGHA ZGHC ZGHZ ZGKL ZGLG ZGNN',
+    'ZGOW ZGSD ZGSG ZGSY ZGSZ ZGWZ ZGYL ZGYY ZGZH ZGZJ ZHCC ZHEC ZHES ZHHH ZHJZ',
+    'ZHLY ZHSN ZHSY ZHXF ZHXY ZHYC ZJHK ZJQH ZJSY ZLGY ZLHZ ZLIC ZLLL ZLLN ZLQY',
+    'ZLTS ZLXH ZLXN ZLXY ZLYA ZLYL ZLZW ZPBS ZPCW ZPDL ZPDQ ZPJH ZPJM ZPLC ZPLJ',
+    'ZPMS ZPNL ZPPP ZPTC ZPZT ZSAM ZSAQ ZSBA ZSCG ZSCN ZSDY ZSFY ZSFZ ZSGS ZSHC',
+    'ZSHZ ZSJD ZSJG ZSJN ZSJU ZSJX ZSLG ZSLO ZSLQ ZSLY ZSNB ZSNJ ZSNT ZSOF ZSPD',
+    'ZSQD ZSQZ ZSRZ ZSSH ZSSM ZSSR ZSSS ZSTX ZSWA ZSWF ZSWH ZSWX ZSWY ZSWZ ZSXZ',
+    'ZSYA ZSYC ZSYN ZSYT ZSYW ZSZS ZUAS ZUBJ ZUBZ ZUCK ZUDA ZUDC ZUGU ZUGY ZUJZ',
+    'ZUKD ZUKJ ZULA ZULZ ZUMT ZUMY ZUNP ZUPS ZUQJ ZUTF ZUTR ZUUU ZUWL ZUXC ZUYB',
+    'ZUYI ZUZH ZUZY ZYAS ZYBA ZYBS ZYCC ZYCY ZYDD ZYDU ZYFY ZYHB ZYHE ZYJD ZYJM',
+    'ZYJS ZYJX ZYJZ ZYLD ZYMD ZYMH ZYQQ ZYSQ ZYTL ZYTN ZYTX ZYYJ ZYYK',
+  ],
+  'Asia/Singapore': ['WSSL WSSS'],
+  'Asia/Srednekolymsk': ['UEMA UESK UESO UESS UESU'],
+  'Asia/Taipei': ['RCBS RCFG RCFN RCKH RCKU RCLY RCMQ RCMT RCNN RCQC RCSS RCTP RCYU'],
+  'Asia/Tokyo': [
+    'RJAA RJAF RJAH RJBB RJBD RJBE RJBT RJCB RJCC RJCH RJCK RJCM RJCN RJCO RJCW',
+    'RJDA RJDB RJDC RJDT RJEB RJEC RJEO RJER RJFC RJFE RJFF RJFG RJFK RJFM RJFO',
+    'RJFR RJFS RJFT RJFU RJGG RJKA RJKB RJKI RJKN RJNA RJNK RJNO RJNS RJNT RJNW',
+    'RJOA RJOB RJOC RJOH RJOI RJOK RJOM RJOO RJOR RJOS RJOT RJOW RJSA RJSC RJSD',
+    'RJSF RJSI RJSK RJSM RJSN RJSR RJSS RJSY RJTH RJTO RJTQ RJTT ROAH ROIG ROKJ',
+    'ROMD ROMY RORK RORS RORT RORY ROYN',
+  ],
+  'Asia/Ulaanbaatar': ['ZMCD'],
+  'Asia/Ust-Nera': ['UEMT'],
+  'Asia/Vientiane': ['VLBK VLLB VLPS VLVT'],
+  'Asia/Vladivostok': ['UHHH UHKK UHNN UHOO UHWW'],
+  'Asia/Yakutsk': ['UEEE UELL UEMO UENW UERL UERP UERR UERS UEST UEVV UHBB'],
+  'Atlantic/Bermuda': ['TXKF'],
+  'Atlantic/Cape_Verde': ['GVAC GVBA GVMA GVNP GVSN GVSV'],
+  'Atlantic/St_Helena': ['FHAW FHSH'],
+  'Atlantic/Stanley': ['EGYP'],
+  'Australia/Adelaide': ['YCBP YCDU YKSC YMTG YPAD YPAG YPLC YWHA'],
+  'Australia/Brisbane': [
+    'YBAR YBBN YBCG YBCK YBCS YBCV YBDV YBIE YBMA YBMK YBOU YBPN YBRK YBSU YBTL',
+    'YBUD YBWP YBWW YCCY YCKN YCMU YCOE YEML YGLA YHBA YHID YKOW YLHR YLRE YMRB',
+    'YNTN YQLP YROM YTGM YTNG YWDH YWTN',
+  ],
+  'Australia/Broken_Hill': ['YBHI'],
+  'Australia/Darwin': ['YAYE YBAS YELD YGTE YMGD YPDN YPGV YSNK YTNK'],
+  'Australia/Hobart': ['YDPO YKII YMHB YMLT YWYY'],
+  'Australia/Lindeman': ['YBHM'],
+  'Australia/Melbourne': ['YHOT YMAV YMEN YMIA YMMB YMML YPOD'],
+  'Australia/Perth': [
+    'YABA YBRM YCAR YESP YFTZ YGEL YLEO YLST YMEK YMOG YNWN YPBO YPKA YPKG YPKU',
+    'YPLM YPPD YPPH YSHK YWLU',
+  ],
+  'Australia/Sydney': [
+    'YARM YBKE YBNA YBTH YCBA YCFS YCNM YCOM YGTH YLIS YLRD YMAY YMER YMOR YMRY',
+    'YNAR YNBR YPKS YPMQ YSCB YSDU YSSY YSTW YSWG YWLG YWLM',
+  ],
+  'Indian/Antananarivo': ['FMMI FMMS FMMT FMMV FMNA FMNM FMNN FMNQ FMNR FMNS FMSD FMSM FMST'],
+  'Indian/Christmas': ['YPXM'],
+  'Indian/Cocos': ['YPCC'],
+  'Indian/Comoro': ['FMCH FMCV'],
+  'Indian/Maldives': ['VRMG VRMT'],
+  'Indian/Mauritius': ['FIMP FIMR'],
+  'Indian/Mayotte': ['FMCZ'],
+  'Indian/Reunion': ['FMEE FMEP'],
+  'Pacific/Apia': ['NSFA'],
+  'Pacific/Auckland': [
+    'NZAA NZAP NZCH NZDN NZGS NZHK NZHN NZKK NZKT NZNP NZNR NZNS NZNV NZPM NZQN',
+    'NZRO NZTG NZTU NZWB NZWF NZWK NZWN NZWR NZWS NZWU',
+  ],
+  'Pacific/Bougainville': ['AYBK'],
+  'Pacific/Chatham': ['NZCI'],
+  'Pacific/Easter': ['SCIP'],
+  'Pacific/Efate': ['NVSS NVVV NVVW'],
+  'Pacific/Fiji': ['NFFN NFNA NFNL'],
+  'Pacific/Funafuti': ['NGFU'],
+  'Pacific/Galapagos': ['SEGS'],
+  'Pacific/Gambier': ['NTGJ'],
+  'Pacific/Guadalcanal': ['AGGH AGGM'],
+  'Pacific/Guam': ['PGUM'],
+  'Pacific/Honolulu': ['PHHN PHJH PHKO PHLI PHMK PHMU PHNL PHNY PHOG PHTO'],
+  'Pacific/Kiritimati': ['PLCH'],
+  'Pacific/Kosrae': ['PTSA'],
+  'Pacific/Majuro': ['PKMJ'],
+  'Pacific/Marquesas': ['NTMD NTMN'],
+  'Pacific/Nauru': ['ANYN'],
+  'Pacific/Niue': ['NIUE'],
+  'Pacific/Norfolk': ['YSNF'],
+  'Pacific/Noumea': ['NWWA NWWD NWWE NWWL NWWM NWWR NWWU NWWV NWWW'],
+  'Pacific/Pago_Pago': ['NSTU'],
+  'Pacific/Palau': ['PTRO'],
+  'Pacific/Ponape': ['PTPN'],
+  'Pacific/Port_Moresby': [
+    'AYBA AYBM AYCH AYDU AYGA AYGN AYGR AYHK AYKM AYKV AYMD AYMH AYMN AYMO AYNZ',
+    'AYPY AYTK AYVN AYWD AYWK',
+  ],
+  'Pacific/Rarotonga': ['NCRG'],
+  'Pacific/Saipan': ['PGRO PGSN PGWT'],
+  'Pacific/Tahiti': [
+    'NTAA NTAR NTAT NTGA NTGB NTGC NTGF NTGI NTGK NTGM NTGT NTGU NTGV NTHE NTKR',
+    'NTTB NTTG NTTH NTTM NTTO NTTP NTTR',
+  ],
+  'Pacific/Tarawa': ['NGTA'],
+  'Pacific/Tongatapu': ['NFTF NFTL NFTV'],
+  'Pacific/Truk': ['PTKK PTYA'],
+  'Pacific/Wallis': ['NLWW'],
+}
+
+/** 5. halkanın yeni bölge kuralları ülke başına (ISO eşleri hariç; D-109). */
+const RING_FIVE_REGION_RULES = {
+  AR: 24,
+  AU: 8,
+  BR: 27,
+  CA: 13,
+  CD: 2,
+  CL: 13,
+  CN: 27,
+  EC: 12,
+  FM: 4,
+  GL: 4,
+  ID: 34,
+  KI: 2,
+  MH: 1,
+  MN: 1,
+  MX: 29,
+  MY: 12,
+  NZ: 15,
+  PF: 1,
+  PG: 19,
+  RU: 9,
+  US: 51,
+}
+
+describe('5. halka saat dilimleri (D-109; halka kapalı, M6j.1)', () => {
+  const ringFive = rows
+    .filter((r) => r.get('iso_country') !== 'TR')
+    .filter((r) =>
+      isScheduledIataAirport(
+        r.get('type') ?? '',
+        r.get('scheduled_service') === 'yes',
+        r.get('iata_code'),
+      ),
+    )
+    .filter((r) => airportRing(distanceToTurkey(r)) === 5)
+  const kept = ringFive.filter((r) => !isMilitaryAirfield(icaoOf(r)))
+  const expectedZone = new Map(
+    Object.entries(RING_FIVE_ZONES).flatMap(([zone, chunks]) =>
+      chunks.flatMap((chunk) => chunk.split(' ')).map((icao) => [icao, zone] as const),
+    ),
+  )
+  const zoneOf = (icao: string) => {
+    const row = kept.find((r) => icaoOf(r) === icao)
+    expect(row, icao).toBeDefined()
+    return row ? (airportTimeZone(fixtureAirport(row)) ?? '') : ''
+  }
+
+  it("fixture'daki 2.031 adaydan askerî listedeki üçü hariç 2.028'i beklenen dilimde (225 dilim)", () => {
+    expect(ringFive).toHaveLength(2031)
+    expect(
+      ringFive
+        .map(icaoOf)
+        .filter((icao) => isMilitaryAirfield(icao))
+        .sort(),
+    ).toEqual(['PKWA', 'PWAK', 'YBOK'])
+    expect(kept).toHaveLength(2028)
+    expect(expectedZone.size).toBe(2028)
+    expect(Object.keys(RING_FIVE_ZONES)).toHaveLength(225)
+    for (const r of kept) {
+      const airport = fixtureAirport(r)
+      expect(airportTimeZone(airport), `${airport.icao} ${airport.isoRegion}`).toBe(
+        expectedZone.get(airport.icao),
+      )
+    }
+  })
+
+  it.runIf(hasRuntimeZones)(
+    'her adayın dilimini ICU tanır ve dilim o ülkenin Intl listesindedir',
+    () => {
+      for (const r of kept) {
+        const airport = fixtureAirport(r)
+        const zone = airportTimeZone(airport) ?? ''
+        expect(isSupportedTimeZone(zone), airport.icao).toBe(true)
+        expect(runtimeZones(airport.country), airport.icao).toContain(zone)
+      }
+      // Pickle Lake'in dilimi ICU'nun Kanada listesindedir (tzdb America/Atikokan); Aysén'de
+      // America/Coyhaique yerine Punta_Arenas seçildi (aynı farklar, eski ICU da tanır).
+      expect(runtimeZones('CA')).toContain('America/Coral_Harbour')
+      expect([...expectedZone.values()]).not.toContain('America/Coyhaique')
+      expect([...expectedZone.values()]).not.toContain('America/Eirunepe')
+    },
+  )
+
+  it('308 bölge ve 68 havalimanı kuralı, 30 ISO eşi; her çok dilimli bölgenin kuralı var', () => {
+    const regionRules = Object.keys(REGION_TIME_ZONES)
+    const ringFiveRegions = [
+      ...new Set(
+        kept
+          .map((r) => r.get('iso_region') ?? '')
+          .filter((region) => !Object.hasOwn(COUNTRY_TIME_ZONES, region.split('-')[0] ?? '')),
+      ),
+    ].filter((region) => region !== 'GL-SE')
+    expect(ringFiveRegions.filter((region) => !regionRules.includes(region))).toEqual([])
+    // 4. halkanın kurallarından 5. halkada da kullanılanlar (Gansu, Qinghai) çıkınca 308 yeni kural.
+    const added = ringFiveRegions.filter((region) => !['CN-62', 'CN-63'].includes(region))
+    expect(added).toHaveLength(308)
+    const byCountry = Object.fromEntries(
+      [...new Set(added.map((code) => code.split('-')[0] ?? ''))]
+        .sort()
+        .map((country) => [country, added.filter((code) => code.startsWith(`${country}-`)).length]),
+    )
+    expect(byCountry).toEqual(RING_FIVE_REGION_RULES)
+    // ISO eşleri (OurAirports kodu ↔ ISO 3166-2) 30: Çin 27, Meksika, Ekvador, Endonezya.
+    const ringFiveAliases = Object.keys(REGION_CODE_ALIASES).filter((code) => added.includes(code))
+    expect(ringFiveAliases).toHaveLength(30)
+    // Toplam: 4. halkaya kadar 181 anahtar, 5. halkada 308 + 30.
+    expect(regionRules).toHaveLength(181 + 308 + 30)
+    // Havalimanı kuralları: 4. halkaya kadar 6, 5. halkada 68 (54 bölünen bölge, 6 kaba bölge,
+    // tzdb'ye sadık 8).
+    expect(Object.keys(AIRPORT_TIME_ZONES)).toHaveLength(74)
+    const keptIcaos = new Set(kept.map(icaoOf))
+    const ringFiveAirportRules = Object.keys(AIRPORT_TIME_ZONES).filter((icao) =>
+      keptIcaos.has(icao),
+    )
+    expect(ringFiveAirportRules).toHaveLength(68)
+    // Kaldırılanlar: Tabatinga bölge varsayılanında; askerî alanlar (Wake, Kwajalein) kuralsız.
+    for (const icao of ['SBTT', 'PWAK', 'PKWA', 'YBOK']) {
+      expect(Object.hasOwn(AIRPORT_TIME_ZONES, icao), icao).toBe(false)
+    }
+    for (const region of ['UM-79', 'MH-KWA']) {
+      expect(Object.hasOwn(REGION_TIME_ZONES, region), region).toBe(false)
+    }
+    expect(REGION_TIME_ZONES['PF-U-A']).toBe('Pacific/Tahiti')
+    expect(REGION_TIME_ZONES['CL-AI']).toBe('America/Punta_Arenas')
+  })
+
+  it('örnek UTC farkları (kış ve yaz 2026; Britanya Kolumbiyası yalnız yaz)', () => {
+    const winter = '2026-01-15T12:00:00Z'
+    const summer = '2026-07-15T12:00:00Z'
+    const offsets = (icao: string) => [offset(winter, zoneOf(icao)), offset(summer, zoneOf(icao))]
+    // Orta güvenli kurallar ve düzeltmeler (¹; ACTIVATION).
+    expect(offsets('CYPL'), 'Pickle Lake').toEqual([-300, -300])
+    expect(offsets('SBTT'), 'Tabatinga').toEqual([-240, -240])
+    expect(offsets('SCBA'), 'Balmaceda (Aysén)').toEqual([-180, -180])
+    expect(offsets('CYAQ'), 'Kasabonika').toEqual([-360, -300])
+    // Yaz saati uygulamayanlar.
+    expect(offsets('PHNL'), 'Honolulu').toEqual([-600, -600])
+    expect(offsets('KPHX'), 'Phoenix').toEqual([-420, -420])
+    expect(offsets('CYQR'), 'Regina').toEqual([-360, -360])
+    expect(offsets('CYZS'), 'Coral Harbour').toEqual([-300, -300])
+    expect(offsets('CYBX'), 'Blanc-Sablon').toEqual([-240, -240])
+    expect(offsets('YBBN'), 'Brisbane').toEqual([600, 600])
+    expect(offsets('YPDN'), 'Darwin').toEqual([570, 570])
+    expect(offsets('YPPH'), 'Perth').toEqual([480, 480])
+    expect(offsets('SBFN'), 'Fernando de Noronha').toEqual([-120, -120])
+    expect(offsets('SBEG'), 'Manaus').toEqual([-240, -240])
+    expect(offsets('SBGR'), 'São Paulo').toEqual([-180, -180])
+    expect(offsets('MMMX'), 'México').toEqual([-360, -360])
+    expect(offsets('MMUN'), 'Cancún').toEqual([-300, -300])
+    expect(offsets('SEGS'), 'Galápagos').toEqual([-360, -360])
+    expect(offsets('SAEZ'), 'Buenos Aires').toEqual([-180, -180])
+    expect(offsets('UHHH'), 'Habarovsk').toEqual([600, 600])
+    expect(offsets('UEMT'), 'Ust-Nera').toEqual([600, 600])
+    expect(offsets('UESS'), 'Çerski').toEqual([660, 660])
+    expect(offsets('UHMA'), 'Anadır').toEqual([720, 720])
+    expect(offsets('WIII'), 'Cakarta').toEqual([420, 420])
+    expect(offsets('WAJJ'), 'Jayapura').toEqual([540, 540])
+    expect(offsets('NTMN'), 'Hiva Oa').toEqual([-570, -570])
+    expect(offsets('NTGJ'), 'Gambier').toEqual([-540, -540])
+    expect(offsets('PLCH'), 'Kiritimati').toEqual([840, 840])
+    expect(offsets('AYBK'), 'Buka').toEqual([660, 660])
+    // Yaz saati uygulayanlar.
+    expect(offsets('PADK'), 'Adak').toEqual([-600, -540])
+    expect(offsets('PANC'), 'Anchorage').toEqual([-540, -480])
+    expect(offsets('KELP'), 'El Paso').toEqual([-420, -360])
+    expect(offsets('KPNS'), 'Pensacola').toEqual([-360, -300])
+    expect(offsets('KEVV'), 'Evansville').toEqual([-360, -300])
+    expect(offsets('KIND'), 'Indianapolis').toEqual([-300, -240])
+    expect(offsets('KJFK'), 'New York').toEqual([-300, -240])
+    expect(offsets('CYYT'), 'St Johns').toEqual([-210, -150])
+    expect(offsets('CYYR'), 'Goose Bay').toEqual([-240, -180])
+    expect(offsets('YBHI'), 'Broken Hill').toEqual([630, 570])
+    expect(offsets('YSSY'), 'Sidney').toEqual([660, 600])
+    expect(offsets('NZCI'), 'Chatham').toEqual([825, 765])
+    expect(offsets('SCEL'), 'Santiago').toEqual([-180, -240])
+    expect(offsets('SCIP'), 'Paskalya Adası').toEqual([-300, -360])
+    expect(offsets('MMCS'), 'Ciudad Juárez').toEqual([-420, -360])
+    expect(offsets('MMMA'), 'Matamoros').toEqual([-360, -300])
+    expect(offsets('BGGH'), 'Nuuk').toEqual([-120, -60])
+    // Britanya Kolumbiyası: tzdata 2026b'de 2026-03-08'den beri bütün yıl UTC−7; eski ICU kışın
+    // UTC−8 der. Bu yüzden yalnız yaz örneği (sayfa farkları sunucudan alır, D-109).
+    expect(offset(summer, zoneOf('CYVR')), 'Vancouver').toBe(-420)
+    expect(offset(summer, zoneOf('CYXJ')), 'Fort St John').toBe(-420)
+    expect(offset(summer, zoneOf('CYXC')), 'Cranbrook').toBe(-360)
   })
 })

@@ -3,11 +3,13 @@ import {
   createDb,
   createRedis,
   listTrackPartitions,
+  readListingDrift,
   referenceStatus,
   runMigrations,
   weatherStatus,
   type Database,
 } from '@havayolu/db'
+import { AIRPORT_RING_CONFIG } from '@havayolu/shared'
 import { Queue } from 'bullmq'
 import { pino } from 'pino'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
@@ -270,6 +272,27 @@ describe("referans içe aktarımı (commit'li fixture)", () => {
     expect(result).toEqual({
       ourairports: { status: 'not_modified' },
       airlines: { status: 'not_modified' },
+    })
+  })
+
+  it('içe aktarımdan sonra kayma satırı (D-109): açık halkada 1.217, sapma yok', async () => {
+    const result = await runReferenceImport({
+      db: database.db,
+      fetcher: fixtures,
+      origin: 'fixture',
+      log,
+      now: () => new Date('2026-09-27T04:40:00Z'),
+      readDrift: () => readListingDrift(database.db, AIRPORT_RING_CONFIG),
+    })
+    expect(result.ourairports.status).toBe('not_modified')
+    expect(result.drift).toMatchObject({
+      listed: 1217,
+      withoutTimeZone: { count: 0 },
+      unknownSurfaces: { count: 0 },
+      duplicateIata: { count: 0 },
+      withoutCuratedName: { count: 0 },
+      curatedNotListed: { count: 0 },
+      icaoCollisions: { count: 0 },
     })
   })
 
