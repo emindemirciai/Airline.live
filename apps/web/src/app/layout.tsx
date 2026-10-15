@@ -96,7 +96,8 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
       <body>
         {/* Sayfa kaynağında görünen telif ve lisans bildirimi (ekranda gösterilmez). */}
         <div hidden dangerouslySetInnerHTML={{ __html: sourceNoticeComment(appName(env)) }} />
-        <link rel="license" href={PROJECT.licenseUrl} />
+        {/* Lisans: kullanım koşullarının kaynak kodu bölümü (MIT; ad ve logo kapsam dışı, D-112). */}
+        <link rel="license" href={`${href(TERMS_PATH)}#terms-code`} />
         <header className="site-header">
           <SiteBrand href={href('/')} name={appName(env)} />
           <nav aria-label={t.nav.mainLabel} className="site-nav">

@@ -30,7 +30,7 @@ beforeEach(() => {
   network = guardNetwork()
   vi.stubEnv('APP_ENV', 'test')
   vi.stubEnv('APP_NAME', 'havayolu')
-  vi.stubEnv('WEB_HOST', 'havayolu.live')
+  vi.stubEnv('WEB_HOST', 'airline.live')
 })
 
 afterEach(() => {
@@ -64,7 +64,7 @@ describe('GET /og/site', () => {
     vi.stubEnv('APP_NAME', 'deneme')
     const renamed = new Uint8Array(await (await GET()).arrayBuffer())
     expect(render.mock.calls.length).toBe(before + 1)
-    expect(render.mock.lastCall?.[0]).toMatchObject({ name: 'deneme', host: 'havayolu.live' })
+    expect(render.mock.lastCall?.[0]).toMatchObject({ name: 'deneme', host: 'airline.live' })
     expect(renamed).not.toEqual(first)
     expect(network.networkCalls()).toEqual([])
   })
@@ -100,7 +100,7 @@ describe('paylaşım görseli yazı tipleri', () => {
     expect(text).toContain('ğ')
     const png = await renderSiteOgPng({
       name: 'havayolu',
-      host: 'havayolu.live',
+      host: 'airline.live',
       taglineTr: text,
       taglineEn: text,
     })

@@ -1,14 +1,16 @@
-# havayolu — proje kuralları
+# Airline.live (iç ad havayolu) — proje kuralları
 
 Bu dosya her oturumda otomatik yüklenir; yalnızca her zaman geçerli kuralları içerir. Ayrıntılar: `docs/spec/` (alan, veri kaynakları, altyapı), `.claude/rules/` (dizine özel kurallar), `docs/prompts/` (parça görevleri), `docs/REFERENCES.md` (doğrulanmış URL'ler).
 
 ## Değerler
-- **Marka:** `havayolu` · **Domain:** `havayolu.live` (D-059). Ad `APP_NAME` env'inden okunur (varsayılan `havayolu`); alan adları koda gömülmez.
+- **Marka:** `Airline.live` · **Domain:** `airline.live` (D-112; D-059'un değerlerinin yerine). Ad `APP_NAME` env'inden okunur (varsayılan `Airline.live`, `@havayolu/shared` `DEFAULT_APP_NAME`); alan adları koda gömülmez. İç adlar (repo, `@havayolu/*`, `hy-*`, GHCR, Dokploy servis adı) `havayolu` kalır; kullanıcıya görünen hiçbir yerde eski ad yazılmaz.
 - **Host'lar** (ayrı env'ler; `api.` öneki türetilmez):
-  - web `https://havayolu.live` (`WEB_HOST`); `www.havayolu.live` kalıcı yönlendirmeyle köke gider
-  - API ve WS `https://api.havayolu.live` (`API_HOST`)
-  - admin `https://admin.havayolu.live` (`ADMIN_HOST`)
-  - analiz `https://analiz.havayolu.live` (`ANALYZE_URL`; kullanıcının Siteni Analiz Et uygulaması)
+  - web `https://airline.live` (`WEB_HOST`); `www.airline.live` kalıcı yönlendirmeyle köke gider
+  - API ve WS `https://api.airline.live` (`API_HOST`)
+  - admin `https://admin.airline.live` (`ADMIN_HOST`)
+  - analiz `https://analiz.airline.live` (`ANALYZE_URL`; kullanıcının Siteni Analiz Et uygulaması)
+  - eski alan adı `havayolu.live` (kök, `www`, `api`, `admin`): her istek aynı yol ve sorguyla 308 ile yeni karşılığına gider (`LEGACY_WEB_HOSTS`, `LEGACY_ADMIN_HOSTS`, `LEGACY_API_HOSTS`; D-112). Eski alan adları Dokploy'da bağlı kalır.
+  - iletişim `info@airline.live` (`CONTACT_EMAIL`)
 - **GITHUB_REPO:** `emindemirciai/havayolu`. Repo **gizli** (kullanıcı kararı 2026-09-27, D-068), plan GitHub Free. Bu planda gizli repoda kural seti, dal koruması ve gizli bilgi taraması çalışmaz; aynı kurallar süreçle uygulanır: `main`'e doğrudan push, silme ve force push yok; yalnızca PR + merge commit; `checks`, `test-integration` ve `e2e` yeşil olmadan birleştirme yok; commit'ten önce sır ve kişisel veri taranır. Actions ayda 2.000 dakikadır. GHCR imaj adları küçük harflidir: `ghcr.io/emindemirciai/havayolu-{web,api,worker}`; paketler şu an herkese açıktır (D-068).
 - **Birincil istasyon:** IST (LTFM). Tohum istasyonlar: IST, SAW, ESB, ADB, AYT.
 - **URL şeması** (D-076): Türkçe kökte; her genel sayfanın İngilizce ikizi `/en` + aynı yoldur (`/en`, `/en/havalimanlari`, `/en/istasyon/LTFM`). Yollar iki dilde de Türkçedir. İç bağlantılar `localePath` ile kurulur; admin öneksiz ve yalnızca Türkçedir.

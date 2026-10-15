@@ -12,7 +12,7 @@ import { getMessages } from '@havayolu/i18n'
  */
 export interface SiteOgContent {
   name: string
-  /** WEB_HOST (ör. havayolu.live); yerelde tanımlı değilse gösterilmez. */
+  /** WEB_HOST (ör. airline.live); yerelde tanımlı değilse gösterilmez. */
   host: string | null
   taglineTr: string
   taglineEn: string

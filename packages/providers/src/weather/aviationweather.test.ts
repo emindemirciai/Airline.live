@@ -25,7 +25,7 @@ const FIXTURE_NOW = Date.parse(
 const metarFixture = fixtureText('metar.json')
 const tafFixture = fixtureText('taf.json')
 
-const USER_AGENT = 'havayolu/0.11.0 (+https://havayolu.live; iletisim@example.test)'
+const USER_AGENT = 'havayolu/0.11.0 (+https://airline.live; iletisim@example.test)'
 const STATIONS = ['LTFM', 'LTBA', 'LTAC', 'LTBQ']
 
 interface Call {

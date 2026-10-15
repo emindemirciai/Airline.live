@@ -1615,7 +1615,7 @@ body:has(.map-page) .site-footer {
 /*
  * Site künyesi (D-089) şeridin başında, MapLibre girdilerinin kabından (blok `div`) önce durur; kap
  * satır içine alınır, künye ve atıflar tek metin gibi akar ve dar ekranda birlikte kırılır. Künyenin
- * kendisi ("havayolu v0.16.1 |") bölünmez. MapLibre'nin katlanan (compact) kip kuralları daha
+ * kendisi ("Airline.live v0.16.1 |") bölünmez. MapLibre'nin katlanan (compact) kip kuralları daha
  * belirgindir ve geçerli kalır; haritada katlanma kapalıdır (`compact: false`).
  */
 .live-map .maplibregl-ctrl-attrib-inner {

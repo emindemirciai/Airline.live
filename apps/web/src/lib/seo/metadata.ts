@@ -20,7 +20,7 @@ export const DEV_SITE_URL = 'http://localhost:3100'
 const LOOPBACK_HOST =
   /^(?:localhost|[a-z0-9.-]+\.localhost|127(?:\.\d{1,3}){3}|\[::1\])(?::\d{1,5})?$/i
 
-/** WEB_HOST (şemasız, ör. `havayolu.live`) → sitenin kök adresi. Boşsa yerel geliştirme adresi. */
+/** WEB_HOST (şemasız, ör. `airline.live`) → sitenin kök adresi. Boşsa yerel geliştirme adresi. */
 export function siteUrlFrom(webHost: string | undefined): URL {
   const host = webHost?.trim().toLowerCase()
   if (!host) return new URL(DEV_SITE_URL)
@@ -32,7 +32,7 @@ export function siteUrl(): URL {
   return siteUrlFrom(getServerEnv().WEB_HOST)
 }
 
-/** Site içi yolu mutlak adrese çevirir (`/istasyon/LTFM` → `https://havayolu.live/istasyon/LTFM`). */
+/** Site içi yolu mutlak adrese çevirir (`/istasyon/LTFM` → `https://airline.live/istasyon/LTFM`). */
 export function absoluteUrl(path: string, base: URL = siteUrl()): string {
   return new URL(path, base).toString()
 }
@@ -79,7 +79,7 @@ export interface PageMetadataOptions {
   locale: Locale
   /** Dil önekisiz mantıksal yol ve sorgusuz: `/`, `/havalimanlari`, `/istasyon/LTFM`. */
   path: string
-  /** Sayfa başlığı; kök düzendeki şablon (`%s · havayolu`) eklenir, `absoluteTitle` ile eklenmez. */
+  /** Sayfa başlığı; kök düzendeki şablon (`%s · Airline.live`) eklenir, `absoluteTitle` ile eklenmez. */
   title: string
   description: string
   /** Varsayılan true. false → `noindex, follow`. */

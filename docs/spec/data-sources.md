@@ -20,8 +20,8 @@ Doğrulama tarihi: **2026-09-25**. Canlı istekler ve kaynak kodu/doküman okuma
 - **Anahtar:** Şu an anahtarsızdır. Şartlarda şu yazar: "In the future, you will require an API key which you can get by feeding to adsb.lol". Opsiyonel `ADSBLOL_API_KEY` ve `ADSBLOL_API_KEY_HEADER` env'leri şimdiden desteklenir.
 - **İletişim:** Şartlar, üretimde kullanmadan önce işletmeciyle iletişime geçilmesini istiyor ("please contact me so I do not break your application"). Adres: info@adsb.lol. Bu, üretim ingest'inden (Parça 1 M4 yayını) önce yapılacak bir ACTIVATION adımıdır.
 - **User-Agent zorunludur.** Boş UA ve Node'un varsayılan `node` UA'sı HTTP 403 ("User-Agent too generic") alır.
-  - Biçim: `havayolu/<sürüm> (+https://havayolu.live; <CONTACT_EMAIL>)` (`APP_NAME` ve `WEB_HOST` env'lerinden).
-  - `WEB_HOST` boşsa (yerel): `havayolu/<sürüm> (+mailto:<CONTACT_EMAIL>)`.
+  - Biçim: `Airline.live/<sürüm> (+https://airline.live; <CONTACT_EMAIL>)` (`APP_NAME` ve `WEB_HOST` env'lerinden; D-112). `APP_NAME` RFC 9110 token'ıdır (boşluk yok; worker başka adı reddeder); `.` token karakteridir.
+  - `WEB_HOST` boşsa (yerel): `Airline.live/<sürüm> (+mailto:<CONTACT_EMAIL>)`.
   - `CONTACT_EMAIL` boşsa ingest başlamaz.
 - **CORS yoktur:** Tarayıcı ve mobil istemci doğrudan çağıramaz; yalnızca worker çağırır. Sunucusuz çıkışların (Cloudflare Workers) ilk istekte 429 aldığı raporlandı (işletmeci doğrulamadı); kullanılmaz.
 - **SLA yoktur** ("as is"). Durum sayfası: https://status.adsb.lol

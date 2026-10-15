@@ -21,8 +21,8 @@ const API = 'http://localhost:4100'
 describe('adresler', () => {
   it('tarayıcı yalnızca kendi API’mize gider', () => {
     expect(airportWeatherUrl(API, 'LTFM')).toBe('http://localhost:4100/v1/airports/LTFM/weather')
-    expect(airportWeatherHistoryUrl('https://api.havayolu.live', 'LTFM', 168)).toBe(
-      'https://api.havayolu.live/v1/airports/LTFM/weather/history?hours=168',
+    expect(airportWeatherHistoryUrl('https://api.airline.live', 'LTFM', 168)).toBe(
+      'https://api.airline.live/v1/airports/LTFM/weather/history?hours=168',
     )
   })
 })

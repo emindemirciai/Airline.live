@@ -1156,7 +1156,7 @@ export const en: Messages = {
     },
   },
   legal: {
-    owner: '{app} · © {year} {owner} ({ownerUrl}) · Source code: {repoUrl}',
+    owner: '{app} · © {year} {owner} ({ownerUrl})',
     license:
       'The code of this software is licensed under the MIT License. All copies or substantial portions of the code must include the copyright notice and the MIT license text (LICENSE).',
     violation:

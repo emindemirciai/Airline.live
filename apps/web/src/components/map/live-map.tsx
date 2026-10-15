@@ -413,7 +413,7 @@ export function LiveMap({
     messages.termsLink,
     termsHref,
   )
-  // Atıf şeridinin başındaki künye (D-089): "havayolu v0.16.1", Yenilikler sayfasına gider.
+  // Atıf şeridinin başındaki künye (D-089): "Airline.live v0.16.1", Yenilikler sayfasına gider.
   const credit = buildSiteCredit(site, localePath(locale, CHANGELOG_PATH), messages.siteCreditLabel)
   const creditHtml = siteCreditHtml(credit)
   // Seçili uçak görünümün dışına çıkınca abonelikten ve depodan düşer. Kart kullanıcı kapatana kadar

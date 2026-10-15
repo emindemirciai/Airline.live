@@ -1,7 +1,10 @@
-# havayolu — üretim compose'u (Dokploy). Kurallar: docs/spec/infra.md
+# Airline.live — üretim compose'u (Dokploy; servis, imaj ve veritabanı adları iç addır: hy-*, havayolu).
+# Kurallar: docs/spec/infra.md
 # - Hiçbir serviste `build:` yoktur; imajlar GitHub Actions'ta derlenir ve GHCR'dan çekilir.
 # - Traefik etiketi yazılmaz, dokploy-network tanımlanmaz: domain'ler Dokploy arayüzünden eklenir
-#   (hy-web → WEB_HOST ve ADMIN_HOST port 3000, hy-api → API_HOST port 4000).
+#   (hy-web → WEB_HOST ve ADMIN_HOST port 3000, hy-api → API_HOST port 4000). Eski alan adları
+#   (D-112: LEGACY_WEB_HOSTS ve LEGACY_ADMIN_HOSTS hy-web'de, LEGACY_API_HOSTS hy-api'de) aynı
+#   servislere bağlı ve sertifikalı kalır; uygulama onları 308 ile yeni host'lara yönlendirir.
 # - Postgres ve Redis dışarıya port açmaz. Değişkenler Dokploy'un yazdığı .env dosyasından gelir.
 
 x-logging: &logging

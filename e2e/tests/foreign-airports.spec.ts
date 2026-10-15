@@ -39,6 +39,7 @@ import {
   AIRPORT_COUNT,
   airportListCodes,
   API_URL,
+  APP_NAME,
   CIVIL_CLOSURE_AIRPORT,
   CIVIL_CLOSURE_COUNT,
   declineAnalytics,
@@ -493,7 +494,7 @@ test.describe('havalimanı sayfası', () => {
       expect(metaContents(body, 'robots').join(', '), `${ring3Path}: robots`).not.toMatch(/noindex/)
       // Viyana canlı veri çekim alanının dışındadır: başlık ve og:title canlı trafik vaat etmez (D-106).
       const title = `${copy.ring3Name} (${RING3_AIRPORT.iata}/${RING3_AIRPORT.icao}): ${copy.titleOutside}`
-      expect(titles(body)[0], `${ring3Path}: <title>`).toBe(`${title} · havayolu`)
+      expect(titles(body)[0], `${ring3Path}: <title>`).toBe(`${title} · ${APP_NAME}`)
       expect(metaContents(body, 'og:title'), `${ring3Path}: og:title`).toEqual([title])
       const airport = nodesOfType(jsonLdNodes(body), 'Airport')[0]
       expect(airport?.icaoCode).toBe(RING3_AIRPORT.icao)
@@ -536,7 +537,7 @@ test.describe('havalimanı sayfası', () => {
       expect(metaContents(body, 'robots').join(', '), `${ring4Path}: robots`).not.toMatch(/noindex/)
       // Londra canlı veri çekim alanının dışındadır: başlık ve og:title canlı trafik vaat etmez (D-106).
       const title = `${copy.ring4Name} (${RING4_AIRPORT.iata}/${RING4_AIRPORT.icao}): ${copy.titleOutside}`
-      expect(titles(body)[0], `${ring4Path}: <title>`).toBe(`${title} · havayolu`)
+      expect(titles(body)[0], `${ring4Path}: <title>`).toBe(`${title} · ${APP_NAME}`)
       expect(metaContents(body, 'og:title'), `${ring4Path}: og:title`).toEqual([title])
       const airport = nodesOfType(jsonLdNodes(body), 'Airport')[0]
       expect(airport?.icaoCode).toBe(RING4_AIRPORT.icao)

@@ -10,6 +10,7 @@ import {
   AIRPORT_COUNT,
   API_URL,
   aircraftRow,
+  APP_NAME,
   FOREIGN_AIRPORT_COUNT,
   LISTED_AIRPORT_COUNT,
   MILITARY_AIRFIELDS,
@@ -200,12 +201,12 @@ test.describe('tarayıcıda', () => {
     await page.goto('/havalimanlari')
     const brand = page.locator('header.site-header a.brand')
     await expect(brand).toHaveCount(1)
-    // Başlıkta adı yalnızca 'havayolu' olan tek bağlantı; işaret ada bir şey eklemez (sayfadaki yol
-    // bağlantısı da 'havayolu' adını taşır, o yüzden başlıkla sınırlanır).
+    // Başlıkta adı yalnızca marka adı olan tek bağlantı; işaret ada bir şey eklemez (sayfadaki yol
+    // bağlantısı da marka adını taşır, o yüzden başlıkla sınırlanır).
     await expect(
-      page.locator('header.site-header').getByRole('link', { name: 'havayolu', exact: true }),
+      page.locator('header.site-header').getByRole('link', { name: APP_NAME, exact: true }),
     ).toHaveCount(1)
-    await expect(brand).toHaveAccessibleName('havayolu')
+    await expect(brand).toHaveAccessibleName(APP_NAME)
     const mark = brand.locator('svg.brand-mark')
     await expect(mark).toHaveAttribute('aria-hidden', 'true')
     const box = await mark.boundingBox()
@@ -229,7 +230,7 @@ test.describe('tarayıcıda', () => {
     await page.goto(STATION_PATH)
     const main = page.locator('main')
     await expect(main.getByRole('heading', { level: 1 })).toContainText(`(${iata}/${icao})`)
-    // Görünür yol: havayolu › Havalimanları › İstanbul Havalimanı.
+    // Görünür yol: Airline.live › Havalimanları › İstanbul Havalimanı.
     await expect(main.locator('nav:has(a[href="/havalimanlari"])')).toHaveCount(1)
 
     // Pist tablosu: her pist bir satır (LTFM'de 6), başlıklı gerçek tablo.

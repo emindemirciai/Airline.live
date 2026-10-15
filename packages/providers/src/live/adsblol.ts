@@ -53,14 +53,15 @@ export class AdsbLolError extends Error {
 export interface UserAgentInput {
   appName: string
   version: string
-  /** Şemasız genel host (ör. havayolu.live); yerelde boş. */
+  /** Şemasız genel host (ör. airline.live); yerelde boş. */
   webHost?: string | null
   contactEmail?: string | null
 }
 
 /**
  * Sağlayıcı istekleri için User-Agent (data-sources.md §1):
- * `havayolu/<sürüm> (+https://<WEB_HOST>; <CONTACT_EMAIL>)`, WEB_HOST boşsa `(+mailto:<CONTACT_EMAIL>)`.
+ * `<APP_NAME>/<sürüm> (+https://<WEB_HOST>; <CONTACT_EMAIL>)`, ör. `Airline.live/0.25.0
+ * (+https://airline.live; <CONTACT_EMAIL>)`; WEB_HOST boşsa `(+mailto:<CONTACT_EMAIL>)`.
  */
 export function providerUserAgent({ appName, version, webHost, contactEmail }: UserAgentInput) {
   const host = webHost?.trim()

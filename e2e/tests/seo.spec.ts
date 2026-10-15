@@ -28,6 +28,8 @@ import {
 } from '../html'
 import {
   API_URL,
+  APP_NAME,
+  APP_NAME_PATTERN,
   enPath,
   fetchRaw,
   GPTBOT_USER_AGENT,
@@ -64,7 +66,7 @@ function istanbulDate(ms: number): string {
 }
 
 const STATION_PATH = `/istasyon/${PRIMARY_AIRPORT.icao}`
-const SUFFIX = ' · havayolu'
+const SUFFIX = ` · ${APP_NAME}`
 
 function exactTitle(title: string): RegExp {
   return new RegExp(`^${title.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`)
@@ -78,7 +80,7 @@ interface PublicPage {
   jsonLd: string[]
 }
 
-/** Başlıklar i18n'deki `seo.*` metinleridir; düzen şablonu " · havayolu" ekler (ana sayfa mutlaktır). */
+/** Başlıklar i18n'deki `seo.*` metinleridir; düzen şablonu " · <APP_NAME>" ekler (ana sayfa mutlaktır). */
 const PUBLIC_PAGES: PublicPage[] = [
   {
     path: '/',
@@ -99,8 +101,12 @@ const PUBLIC_PAGES: PublicPage[] = [
   {
     path: STATION_PATH,
     title: {
-      tr: /^İstanbul Havalimanı \(IST\/LTFM\) canlı hava trafiği ve pistler · havayolu$/,
-      en: /^Istanbul Airport \(IST\/LTFM\) live air traffic and runways · havayolu$/,
+      tr: new RegExp(
+        `^İstanbul Havalimanı \\(IST/LTFM\\) canlı hava trafiği ve pistler · ${APP_NAME_PATTERN}$`,
+      ),
+      en: new RegExp(
+        `^Istanbul Airport \\(IST/LTFM\\) live air traffic and runways · ${APP_NAME_PATTERN}$`,
+      ),
     },
     jsonLd: ['WebPage', 'Airport', 'BreadcrumbList'],
   },
@@ -266,13 +272,13 @@ test.describe('genel sayfalar', () => {
     const { html } = await inspect(request, '/')
     const nodes = jsonLdNodes(html)
     const website = nodesOfType(nodes, 'WebSite')[0]
-    expect(website?.name).toBe('havayolu')
+    expect(website?.name).toBe(APP_NAME)
     expect(sitePath(String(website?.url), 'WebSite.url')).toBe('/')
     expect(website?.inLanguage).toEqual(['tr', 'en'])
     // Google site içi arama kutusunu 2024-11-21'de kaldırdı; SearchAction eklenmez.
     expect(nodesOfType(nodes, 'SearchAction')).toHaveLength(0)
     const organization = nodesOfType(nodes, 'Organization')[0]
-    expect(organization?.name).toBe('havayolu')
+    expect(organization?.name).toBe(APP_NAME)
     expect(organization?.logo, 'Organization.logo').toBeTruthy()
   })
 })
@@ -466,7 +472,7 @@ test.describe('kök dosyalar', () => {
     const { response, body } = await fetchRaw(request, '/llms.txt')
     expect(response.status()).toBe(200)
     expect(response.headers()['content-type']).toMatch(/^text\/plain;\s*charset=utf-8/i)
-    expect(body.startsWith('# havayolu\n')).toBe(true)
+    expect(body.startsWith(`# ${APP_NAME}\n`)).toBe(true)
     expect(body).toMatch(/^> \S/m)
     // E-posta adresi ya da kişisel veri yoktur.
     expect(body).not.toMatch(/[^\s@()]+@[^\s@()]+\.[a-z]{2,}/i)
@@ -537,7 +543,7 @@ test.describe('kök dosyalar', () => {
       lang?: string
       icons?: { src: string; sizes?: string; type?: string }[]
     }
-    expect(manifest.name).toBe('havayolu')
+    expect(manifest.name).toBe(APP_NAME)
     expect(manifest.start_url).toBe('/')
     expect(manifest.lang).toBe('tr')
     const sizes = (manifest.icons ?? []).map((icon) => icon.sizes)

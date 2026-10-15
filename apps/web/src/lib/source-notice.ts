@@ -11,7 +11,6 @@ export function sourceNoticeLines(app: string): string[] {
     year: PROJECT.copyrightYear,
     owner: PROJECT.owner,
     ownerUrl: PROJECT.ownerUrl,
-    repoUrl: PROJECT.repoUrl,
   }
   return (['tr', 'en'] as const).flatMap((locale, index) => {
     const t = getMessages(locale).legal

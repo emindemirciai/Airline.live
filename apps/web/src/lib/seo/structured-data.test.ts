@@ -18,7 +18,7 @@ vi.mock('server-only', () => ({}))
 beforeEach(() => {
   vi.stubEnv('APP_ENV', 'test')
   vi.stubEnv('APP_NAME', 'havayolu')
-  vi.stubEnv('WEB_HOST', 'havayolu.live')
+  vi.stubEnv('WEB_HOST', 'airline.live')
 })
 
 afterEach(() => {
@@ -42,23 +42,31 @@ describe('websiteGraph', () => {
     const [website, org] = websiteGraph('tr')
     expect(website).toMatchObject({
       '@type': 'WebSite',
-      '@id': 'https://havayolu.live/#website',
+      '@id': 'https://airline.live/#website',
       name: 'havayolu',
-      alternateName: 'havayolu.live',
-      url: 'https://havayolu.live/',
+      alternateName: 'airline.live',
+      url: 'https://airline.live/',
       inLanguage: ['tr', 'en'],
-      publisher: { '@id': 'https://havayolu.live/#org' },
+      publisher: { '@id': 'https://airline.live/#org' },
     })
     expect(org).toEqual(organizationNode('tr'))
     expect(org).toMatchObject({
       '@type': 'Organization',
-      '@id': 'https://havayolu.live/#org',
-      url: 'https://havayolu.live/',
-      logo: { '@type': 'ImageObject', url: 'https://havayolu.live/icon/512', width: 512 },
+      '@id': 'https://airline.live/#org',
+      url: 'https://airline.live/',
+      logo: { '@type': 'ImageObject', url: 'https://airline.live/icon/512', width: 512 },
     })
     const json = JSON.stringify(websiteGraph('en'))
     expect(json).not.toContain('SearchAction')
     expect(json).not.toContain('sameAs')
+  })
+
+  it('ad alan adıyla büyük-küçük harf dışında aynıysa alternateName yazılmaz (D-112)', () => {
+    vi.stubEnv('APP_NAME', 'Airline.live')
+    const [website, org] = websiteGraph('tr')
+    expect(website).toMatchObject({ name: 'Airline.live', url: 'https://airline.live/' })
+    expect(website).not.toHaveProperty('alternateName')
+    expect(org).toMatchObject({ name: 'Airline.live' })
   })
 })
 
@@ -67,7 +75,7 @@ describe('airportNode', () => {
     const node = airportNode(ltfm, 'tr')
     expect(node).toMatchObject({
       '@type': 'Airport',
-      '@id': 'https://havayolu.live/istasyon/LTFM#airport',
+      '@id': 'https://airline.live/istasyon/LTFM#airport',
       name: 'İstanbul Havalimanı',
       alternateName: 'Istanbul Airport',
       iataCode: 'IST',
@@ -79,7 +87,7 @@ describe('airportNode', () => {
         addressRegion: 'İstanbul',
         addressCountry: 'TR',
       },
-      hasMap: 'https://havayolu.live/?havalimani=LTFM',
+      hasMap: 'https://airline.live/?havalimani=LTFM',
     })
     const geo = node.geo as Record<string, unknown>
     for (const key of ['latitude', 'longitude', 'elevation']) {
@@ -93,7 +101,7 @@ describe('airportNode', () => {
       '@id': airportId('LTFM'),
       name: 'Istanbul Airport',
       address: { addressRegion: 'Istanbul' },
-      hasMap: 'https://havayolu.live/en?havalimani=LTFM',
+      hasMap: 'https://airline.live/en?havalimani=LTFM',
     })
     // OurAirports adı görünen adla aynıysa alternateName yazılmaz.
     expect(node).not.toHaveProperty('alternateName')
@@ -138,7 +146,7 @@ describe('airportNode', () => {
         addressLocality: 'Atina',
         addressCountry: 'GR',
       },
-      hasMap: 'https://havayolu.live/?havalimani=LGAV',
+      hasMap: 'https://airline.live/?havalimani=LGAV',
     })
     expect(airportNode(athens, 'en').address).not.toHaveProperty('addressRegion')
     expect(airportNode(athens, 'en')).toMatchObject({
@@ -200,7 +208,7 @@ describe('airportNode', () => {
   })
 
   it('harita adresi ICAO kodunu büyük harfe çevirir', () => {
-    expect(airportMapUrl('ltfm', 'tr')).toBe('https://havayolu.live/?havalimani=LTFM')
+    expect(airportMapUrl('ltfm', 'tr')).toBe('https://airline.live/?havalimani=LTFM')
   })
 })
 
@@ -216,16 +224,16 @@ describe('webPageNode ve breadcrumbList', () => {
     })
     expect(node).toEqual({
       '@type': 'WebPage',
-      '@id': 'https://havayolu.live/en/istasyon/LTFM#page',
-      url: 'https://havayolu.live/en/istasyon/LTFM',
+      '@id': 'https://airline.live/en/istasyon/LTFM#page',
+      url: 'https://airline.live/en/istasyon/LTFM',
       name: 'Istanbul Airport (IST/LTFM)',
       inLanguage: 'en',
-      isPartOf: { '@id': 'https://havayolu.live/#website' },
-      about: { '@id': 'https://havayolu.live/istasyon/LTFM#airport' },
+      isPartOf: { '@id': 'https://airline.live/#website' },
+      about: { '@id': 'https://airline.live/istasyon/LTFM#airport' },
       dateModified: '2026-09-20T04:40:00.000Z',
-      breadcrumb: { '@id': 'https://havayolu.live/en/istasyon/LTFM#breadcrumb' },
+      breadcrumb: { '@id': 'https://airline.live/en/istasyon/LTFM#breadcrumb' },
     })
-    expect(pageId('tr', '/')).toBe('https://havayolu.live/#page')
+    expect(pageId('tr', '/')).toBe('https://airline.live/#page')
   })
 
   it('içerik yolu 1’den başlayan sıralı konumlar ve mutlak adresler taşır', () => {
@@ -237,13 +245,13 @@ describe('webPageNode ve breadcrumbList', () => {
       ],
       breadcrumbId('en', '/istasyon/LTFM'),
     )
-    expect(list['@id']).toBe('https://havayolu.live/en/istasyon/LTFM#breadcrumb')
+    expect(list['@id']).toBe('https://airline.live/en/istasyon/LTFM#breadcrumb')
     const items = list.itemListElement as { position: number; item: string }[]
     expect(items.map((i) => i.position)).toEqual([1, 2, 3])
     expect(items.map((i) => i.item)).toEqual([
-      'https://havayolu.live/en',
-      'https://havayolu.live/en/havalimanlari',
-      'https://havayolu.live/en/istasyon/LTFM',
+      'https://airline.live/en',
+      'https://airline.live/en/havalimanlari',
+      'https://airline.live/en/istasyon/LTFM',
     ])
   })
 
@@ -264,8 +272,8 @@ describe('webPageNode ve breadcrumbList', () => {
         '@type': 'ItemList',
         numberOfItems: 2,
         itemListElement: [
-          { '@type': 'ListItem', position: 1, url: 'https://havayolu.live/istasyon/LTFM' },
-          { '@type': 'ListItem', position: 2, url: 'https://havayolu.live/istasyon/LTAC' },
+          { '@type': 'ListItem', position: 1, url: 'https://airline.live/istasyon/LTFM' },
+          { '@type': 'ListItem', position: 2, url: 'https://airline.live/istasyon/LTAC' },
         ],
       },
     })

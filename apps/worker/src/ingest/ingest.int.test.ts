@@ -406,7 +406,9 @@ describe('ingest (gerçek PostgreSQL + redis-live)', () => {
           })
           // Tek istasyon (LTFM): ilk istek 40 NM birincil çemberidir.
           expect(requests[0]?.path).toBe('/v2/point/41.2749/28.7321/40')
-          expect(requests[0]?.userAgent).toMatch(/^havayolu\/0\.0\.0-test \(.*ops@example\.org\)$/)
+          expect(requests[0]?.userAgent).toMatch(
+            /^Airline\.live\/0\.0\.0-test \(.*ops@example\.org\)$/,
+          )
           expect(await redis.zcard(LIVE_KEYS.geo)).toBeGreaterThan(10)
           await waitFor('region freshness', async () => {
             const regions = await redis.hgetall(LIVE_KEYS.regions)

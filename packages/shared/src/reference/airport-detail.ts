@@ -35,7 +35,7 @@ export interface RunwayDetail {
   ends: [RunwayEnd, RunwayEnd]
 }
 
-/** Havalimanı havayolu'nun izlediği bir istasyonsa istasyon ayarları. */
+/** Havalimanı sitenin izlediği bir istasyonsa istasyon ayarları. */
 export interface AirportStationInfo {
   /** İstasyon açık mı (yönetici kapatabilir). */
   active: boolean

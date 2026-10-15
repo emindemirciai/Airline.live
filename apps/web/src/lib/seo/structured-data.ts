@@ -63,7 +63,8 @@ export function websiteGraph(locale: Locale): JsonLdNode[] {
     '@type': 'WebSite',
     '@id': ids.website(),
     name,
-    ...(host !== name ? { alternateName: host } : {}),
+    // Ad alan adıyla aynıysa (büyük-küçük harf dışında; `Airline.live` / `airline.live`) tekrar yazılmaz.
+    ...(host.toLowerCase() !== name.toLowerCase() ? { alternateName: host } : {}),
     url: absoluteUrl('/'),
     inLanguage: [...LOCALES],
     description: getMessages(locale).seo.home.description,
