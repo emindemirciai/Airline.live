@@ -115,3 +115,25 @@ Toplu önbellek dosyalarına (`/data/cache/…`) ya da başka bir hava durumu ka
 4. Volume'u silme: içinde üretim verisi var. DEPLOY_DOKPLOY §12'deki "volume'u sil" adımı yalnız henüz hiç veri yokken geçerlidir.
 
 **Önlem:** `POSTGRES_*`, Redis parolaları, `ADMIN_SETUP_TOKEN`, `IMAGE_TAG` ve `MEM_LIMIT_*` satırları marka ya da alan adı değişince de aynen kalır; Environment'ta bul-değiştir yapılmaz (`deploy/dokploy.env.example` başlığı, ACTIVATION → "(b2) satır satır").
+
+## `Upgrade` başlıklı istekler: API 405 ya da 404, site 502 (D-113)
+**Belirti:** Bir izleme aracı ya da elle denenen `curl -I --http1.1 -H 'Upgrade: websocket' -H 'Connection: Upgrade' …` beklenmedik bir kod alıyor.
+
+**API (`api.airline.live`, v0.25.2'den beri):** yalnızca canlı veri el sıkışması yükseltilir.
+
+| İstek | Yanıt |
+|---|---|
+| `GET /v1/ws`, `Upgrade: websocket`, geçerli `Sec-WebSocket-Key` ve `Sec-WebSocket-Version: 13` | 101 (canlı veri) |
+| aynısı, anahtar ya da sürüm eksik veya hatalı | 400 (`ws`'nin düz yanıtı, `Connection: close`) |
+| `HEAD /v1/ws`, Upgrade'li ya da değil | 405, `Allow: GET` |
+| Upgrade'siz `GET /v1/ws` ya da `Upgrade: h2c` | 404 |
+| başka yol ya da yöntem, Upgrade'li | o yolun sıradan yanıtı (ör. `/health` 200), bağlantı keep-alive kalır |
+| eski API host'u (`api.havayolu.live`) | 308 yeni host'a, bağlantı kapanır (D-112) |
+
+API bunlardan birinde 500 veriyor ya da istekten sonra yeniden başlıyorsa önce `curl -s https://api.airline.live/version` ile sürüme bak. v0.25.1 ve öncesinde `HEAD /v1/ws` 500 veriyor ve API sürecini en geç 25 sn içinde çökertiyordu (D-113). 0.25.2 ve sonrasında bu bir hatadır: `hy-api` logundaki `"level":50` satırıyla incelenir.
+
+**Site (`airline.live`, Next.js standalone):** site WebSocket sunmaz. Traefik isteği Next'e iletir ve Next'in kendi upgrade işleyicisi karar verir:
+- **Eşleşen yol** (`/`, `/havalimanlari`, `/istasyon/LTFM` …): yanıt yazılmadan bağlantı kapanır. `curl` "Empty reply from server" der, Traefik **502 Bad Gateway** döner.
+- **Eşleşmeyen yol** (`/olmayan-yol`, olmayan `/_next/static/…`): yanıt gelmez, bağlantı istemci ya da Traefik bırakana kadar açık kalır.
+
+Bu Next 16'nın iç davranışıdır (`next/dist/server/lib/router-server.js` → `upgradeHandler`) ve yamalanmaz. Tarayıcılar site host'una Upgrade göndermez (canlı veri `wss://api.airline.live/v1/ws`), kullanıcı etkisi yoktur. Site için Upgrade'li isteğin 502'si alarm değildir; izleme aracı siteyi düz `GET` ya da `HEAD` ile denetler. `hy-web`'de açık bağlantı sayısı bu yüzden büyürse D-113'teki değerlendirilmiş seçenek (açılışta `shouldUpgradeCallback: () => false`) kullanıcı kararıyla uygulanır.

@@ -8,7 +8,21 @@
 
 ---
 
-## v0.25.1 — 2026-10-15
+## v0.25.2 — 2026-10-15
+
+### Türkçe
+**Daha dayanıklı canlı veri sunucusu**
+
+- Canlı veri sunucusu beklenmedik bağlantı isteklerini artık düzgün bir hata yanıtıyla geri çeviriyor. Bu istekler sunucuyu yeniden başlatamıyor; canlı haritanın bağlantısı kopmadan sürüyor.
+
+### English
+**A sturdier live data server**
+
+- The live data server now turns away unexpected connection requests with a proper error response. They can no longer restart the server, so the live map stays connected.
+
+---
+
+## v0.25.1 — 2026-10-15 07:25 (UTC+3)
 
 ### Türkçe
 **Savaş nedeniyle kapalı havalimanları da listede**
