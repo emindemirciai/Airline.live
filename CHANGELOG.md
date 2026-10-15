@@ -16,8 +16,9 @@
 - Haritadaki “Etiketler” panelinde havalimanlarının simgeleri ve kodları artık tek satırda: “Gizle” ikisini de haritadan kaldırır, “Simge” yalnız kırmızı simgeleri gösterir, “Simge ve kod” (varsayılan) ikisini birden gösterir. Seçimin bu cihazda saklanır.
 - Daha önce havalimanı kodlarını gizlediysen ayarın “Simge” olarak gelir; haritan eskisi gibi görünür.
 - Havalimanları gizliyken de “Havalimanları” listesi ve arama çalışır: seçtiğin havalimanının penceresi açılır, pencere açıkken simgesi haritada görünür. Havalimanı sayfasındaki “Canlı haritada aç” bağlantısıyla açtığın havalimanının simgesi de görünür kalır.
+- Hava durumundaki rüzgâr şiddetinin adları sadeleşti: “Hafif-orta rüzgâr”, “Çok kuvvetli rüzgâr”, “Şiddetli fırtına” ve “Kasırga şiddetinde rüzgâr”; ani rüzgâr artışı da artık “Ani kuvvetli rüzgâr”. Eşikler ve renkler aynı.
 
-Dene: [Canlı harita](/)
+Dene: [Canlı harita](/) · [İstanbul Havalimanı hava durumu](/istasyon/LTFM)
 
 ### English
 **Airport icons can be hidden too**
@@ -25,12 +26,13 @@ Dene: [Canlı harita](/)
 - In the “Labels” panel on the map, airport icons and their codes now share one row: “Hide” removes both from the map, “Icon” shows only the red icons, and “Icon and code” (the default) shows both. Your choice is saved on this device.
 - If you had hidden airport codes before, your setting comes back as “Icon”, so your map looks the same as before.
 - With airports hidden, the “Airports” list and the search still work: the window of the airport you pick opens, and its icon shows on the map while the window is open. The icon of an airport you open with “Open on the live map” on its page stays visible too.
+- Turkish wind strength names in the weather are now plainer; English names, thresholds and colours are unchanged.
 
-Try it: [Live map](/)
+Try it: [Live map](/) · [Istanbul Airport weather](/istasyon/LTFM)
 
 ---
 
-## v0.25.2 — 2026-10-15
+## v0.25.2 — 2026-10-15 18:05 (UTC+3)
 
 ### Türkçe
 **Daha dayanıklı canlı veri sunucusu**
@@ -469,7 +471,7 @@ Try it: [Airports](/havalimanlari) · [Cairo Airport](/istasyon/HECA)
 ### Türkçe
 **Derecelendirilmiş rüzgâr renkleri**
 
-- Rüzgâr varsa rüzgâr satırı her zaman renkli ve şiddetinin adıyla yazılır: 10 km/sa’e kadar yeşil (Hafif rüzgâr), 11–19 km/sa yeşil-sarı (Tatlı rüzgâr), 20–30 km/sa sarı (Orta rüzgâr), 31 km/sa’ten ya da 46 km/sa hamleden itibaren kehribar (Sert / Hamleli rüzgâr), MGM uyarı eşiğinden (37 km/sa ya da 56 km/sa hamle) itibaren turuncu (Kuvvetli rüzgâr, Fırtınamsı rüzgâr), 63 km/sa’ten itibaren kırmızı (Fırtına ve üstü). Pencerede ve havalimanı sayfasında aynı.
+- Rüzgâr varsa rüzgâr satırı her zaman renkli ve şiddetinin adıyla yazılır: 10 km/sa’e kadar yeşil (Hafif rüzgâr), 11–19 km/sa yeşil-sarı (Hafif-orta rüzgâr), 20–30 km/sa sarı (Orta rüzgâr), 31 km/sa’ten ya da 46 km/sa hamleden itibaren kehribar (Sert / Hamleli rüzgâr), MGM uyarı eşiğinden (37 km/sa ya da 56 km/sa hamle) itibaren turuncu (Kuvvetli rüzgâr, Çok kuvvetli rüzgâr), 63 km/sa’ten itibaren kırmızı (Fırtına ve üstü). Pencerede ve havalimanı sayfasında aynı.
 
 Dene: [Haritada İstanbul](/?havalimani=LTFM)
 
@@ -594,8 +596,8 @@ Try it: [Istanbul window on the map](/?havalimani=LTFM)
 **Rüzgâr knot ile, şimşek ve yıldırım uyarısı, ortalı havalimanı penceresi**
 
 - Rüzgâr hızı km/sa’nın yanında knot olarak da yazılıyor: “Kuzeydoğudan 48 km/sa (26 kt), hamle 59 km/sa (32 kt)”. Pencerede, havalimanı sayfasında, tahminlerde ve METAR/TAF kaydında aynı biçim kullanılıyor.
-- Etkili rüzgâr her havalimanında belirtiliyor: ortalama rüzgâr 20 knotu ya da hamle 30 knotu geçince (MGM’nin meydan uyarı ölçütü) rüzgâr satırı renkli ve kalın yazılıyor, şiddeti de adıyla söyleniyor: “Kuvvetli rüzgâr”, “Fırtınamsı rüzgâr”, “Fırtına” … Yalnızca hamle güçlüyse “Kuvvetli hamle”. Tahmin özeti de dönemin en güçlü rüzgârını gösteriyor.
-- Şimşek ve yıldırım uyarısı: havalimanında gök gürültüsü varsa “şimşek ve yıldırım tehlikesi”, çevresinde varsa “yıldırım havalimanına da düşebilir” yazıyor. Kümülonimbüs (oraj bulutu) yağışla birlikteyse tehlike, yağışsızsa olasılık olarak belirtiliyor. Yıldırım yağmurun dışına, fırtınadan kilometrelerce uzağa da düşebildiği için uyarı yağmur yokken de gösteriliyor.
+- Etkili rüzgâr her havalimanında belirtiliyor: ortalama rüzgâr 20 knotu ya da hamle 30 knotu geçince (MGM’nin meydan uyarı ölçütü) rüzgâr satırı renkli ve kalın yazılıyor, şiddeti de adıyla söyleniyor: “Kuvvetli rüzgâr”, “Çok kuvvetli rüzgâr”, “Fırtına” … Yalnızca hamle güçlüyse “Kuvvetli hamle”. Tahmin özeti de dönemin en güçlü rüzgârını gösteriyor.
+- Şimşek ve yıldırım uyarısı: havalimanında gök gürültüsü varsa “şimşek ve yıldırım tehlikesi”, çevresinde varsa “yıldırım havalimanına da düşebilir” yazıyor. Kümülonimbüs (oraj bulutu) yağışla birlikteyse tehlike, yağışsızsa olasılık olarak belirtiliyor. Yıldırım yağmurun dışına, kilometrelerce uzağa da düşebildiği için uyarı yağmur yokken de gösteriliyor.
 - Haritadaki havalimanı penceresinde bütün yazılar ortalı; sayılar birimlerinden ayrılmıyor.
 
 Dene: [Haritada İstanbul penceresi](/?havalimani=LTFM) · [İstanbul Havalimanı hava durumu](/istasyon/LTFM)
