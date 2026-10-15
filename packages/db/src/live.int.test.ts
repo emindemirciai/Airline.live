@@ -1,6 +1,7 @@
 import { Redis } from 'ioredis'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import {
+  clearLiveAircraft,
   compactAircraft,
   CONFIGURED_PROVIDERS_TTL_SECONDS,
   COVERAGE_TTL_SECONDS,
@@ -165,6 +166,39 @@ describe('sweepLive', () => {
     expect(await sweepLive(redis, T0 + 10_000_000)).toBe(1234)
     expect(await redis.zcard(LIVE_KEYS.seen)).toBe(0)
     expect(await redis.zcard(LIVE_KEYS.geo)).toBe(0)
+  })
+})
+
+describe('yayından çekme ve canlı katmanın kapatılması (D-115)', () => {
+  it('writeLiveUpdates çekilenleri aynı pipeline’da güncellemelerden sonra siler', async () => {
+    await redis.flushdb()
+    await writeLiveUpdates(redis, [aircraft('4bb470', T0), aircraft('4bb471', T0)])
+    await writeLiveUpdates(redis, [aircraft('4bb470', T0 + 1_000)], ['4bb471'])
+    expect(await redis.zrange(LIVE_KEYS.seen, '0', '-1')).toEqual(['4bb470'])
+    expect(await redis.zscore(LIVE_KEYS.geo, '4bb471')).toBeNull()
+    expect(await redis.exists(LIVE_KEYS.aircraft('4bb471'))).toBe(0)
+    expect(await readLiveAircraft(redis, '4bb470')).toEqual(aircraft('4bb470', T0 + 1_000))
+  })
+
+  it('clearLiveAircraft uçakları ve stream’i siler; sağlayıcı, bölge ve kapsama kalır', async () => {
+    await redis.flushdb()
+    await writeLiveUpdates(redis, [aircraft('4bb470', T0), aircraft('4bb471', T0 + 90_000_000)])
+    await writeProviderLive(redis, 'adsbLol', { status: 'ok', updatedAt: T0 })
+    await writeRegionFreshness(redis, { LTFM: T0 })
+    await writeCoverage(redis, [{ id: 'P0', kind: 'primary', lat: 41.2, lon: 28.7, radiusNm: 60 }])
+    await writeConfiguredProviders(redis, ['adsbLol'])
+
+    expect(await clearLiveAircraft(redis)).toBe(2)
+    expect(await redis.zcard(LIVE_KEYS.seen)).toBe(0)
+    expect(await redis.zcard(LIVE_KEYS.geo)).toBe(0)
+    expect(await redis.exists(LIVE_KEYS.aircraft('4bb470'), LIVE_KEYS.aircraft('4bb471'))).toBe(0)
+    expect(await redis.exists(LIVE_KEYS.updates)).toBe(0)
+    expect(await readProviderLive(redis, 'adsbLol')).toMatchObject({ status: 'ok' })
+    expect(await redis.hget(LIVE_KEYS.regions, 'LTFM')).toBe(String(T0))
+    expect(await readCoverage(redis)).toHaveLength(1)
+    expect(await readConfiguredProviders(redis)).toEqual(['adsbLol'])
+    // Boş kümede yeniden çağrı ucuzdur ve 0 döner.
+    expect(await clearLiveAircraft(redis)).toBe(0)
   })
 })
 

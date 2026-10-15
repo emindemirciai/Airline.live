@@ -461,3 +461,43 @@ export const arrivalCoverageReports = pgTable(
     check('arrival_coverage_reports_hours_check', sql`${t.hours} between 1 and 168`),
   ],
 )
+
+/**
+ * Canlı katman anahtarı (Parça 1 M7d.1, D-115): tek satır (`id` = 1). Satır yoksa katman açıktır
+ * (varsayılan). Worker 2 sn'de bir, API 2 sn'de bir okur; kapalıyken canlı uçak yazılmaz ve
+ * sunulmaz. Değişiklik `admin_actions` satırıyla aynı işlemde yazılır.
+ */
+export const liveLayerState = pgTable(
+  'live_layer_state',
+  {
+    id: smallint('id').primaryKey().default(1),
+    enabled: boolean('enabled').notNull(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull(),
+    /** Değiştiren yöneticinin oturum e-postası. */
+    updatedBy: text('updated_by').notNull(),
+  },
+  (t) => [check('live_layer_state_singleton_check', sql`${t.id} = 1`)],
+)
+
+/**
+ * Yönetici işlem kaydı (D-115): kim, ne zaman, ne yaptı, isteğe bağlı neden. Özen yükümlülüğünün
+ * kanıtıdır, silinmez ve kırpılmaz. IP adresi yazılmaz; "kim" yöneticinin kendi adresidir.
+ */
+export const adminActions = pgTable(
+  'admin_actions',
+  {
+    id: bigint('id', { mode: 'number' }).primaryKey().generatedAlwaysAsIdentity(),
+    at: timestamp('at', { withTimezone: true }).notNull().defaultNow(),
+    /** Yöneticinin oturum e-postası (`AdminSession.email`). */
+    actor: text('actor').notNull(),
+    /** 'live_layer_on' | 'live_layer_off' */
+    action: text('action').notNull(),
+    /** İsteğe bağlı neden (ör. karar sayısı), en çok 500 karakter. */
+    reason: text('reason'),
+  },
+  (t) => [
+    index('admin_actions_at_idx').on(t.at),
+    check('admin_actions_action_check', sql`${t.action} in ('live_layer_on', 'live_layer_off')`),
+    check('admin_actions_reason_check', sql`char_length(${t.reason}) <= 500`),
+  ],
+)

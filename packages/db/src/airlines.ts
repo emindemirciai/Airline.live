@@ -101,3 +101,51 @@ export async function loadAirlineCodes(sql: postgres.Sql): Promise<AirlineCodes>
     rows.map((r) => ({ code: r.code, icao: r.icao, iata: r.iata, overridden: r.overridden })),
   )
 }
+
+/**
+ * Canlı yayın kuralının (D-115) işletmeci kodu satırı: ICAO kodu geçerli her havayolu satırı, IATA
+ * şartı olmadan. Desenler VRS'tendir (`airline_overrides` desen taşımaz).
+ */
+export interface AirlineDesignatorRow {
+  icao: string
+  iata: string | null
+  charterFlightPattern: string | null
+  positioningFlightPattern: string | null
+}
+
+/**
+ * `loadAirlineCodes` ile aynı birleştirme (`airlines` FULL JOIN `airline_overrides`), ama IATA
+ * gerekmez. ICAO `^[A-Z]{3}$`, IATA iki harf/rakam (iki rakam değil) olarak temizlenir; ICAO'su
+ * geçersiz satır atlanır. Sınıflandırma sağlayıcılardadır (`airlineDesignatorsFrom`); bu paket
+ * sağlayıcılara bağımlı değildir.
+ */
+export async function loadAirlineDesignatorRows(
+  sql: postgres.Sql,
+): Promise<AirlineDesignatorRow[]> {
+  const rows = await sql<
+    {
+      icao: string | null
+      iata: string | null
+      charter_flight_pattern: string | null
+      positioning_flight_pattern: string | null
+    }[]
+  >`
+    select coalesce(o.icao, a.icao) as icao,
+      coalesce(o.iata, a.iata) as iata,
+      a.charter_flight_pattern,
+      a.positioning_flight_pattern
+    from airlines a
+    full join airline_overrides o on o.code = a.code`
+  const out: AirlineDesignatorRow[] = []
+  for (const row of rows) {
+    const icao = clean(row.icao, ICAO_CODE)
+    if (icao === null) continue
+    out.push({
+      icao,
+      iata: clean(row.iata, IATA_CODE),
+      charterFlightPattern: row.charter_flight_pattern,
+      positioningFlightPattern: row.positioning_flight_pattern,
+    })
+  }
+  return out
+}

@@ -1,10 +1,13 @@
 import { describe, expect, it } from 'vitest'
 import { hourStart } from './ingest'
+import type { Redis } from 'ioredis'
 import {
+  clearLiveAircraft,
   compactAircraft,
   LIVE_KEYS,
   parseCoverage,
   parseScoredMembers,
+  writeLiveUpdates,
   type CoverageCircle,
   type LiveAircraftInput,
 } from './live'
@@ -156,5 +159,76 @@ describe('hourStart', () => {
     expect(hourStart(new Date('2026-01-20T10:00:00.000Z')).toISOString()).toBe(
       '2026-01-20T10:00:00.000Z',
     )
+  })
+})
+
+/** Pipeline komutlarını sırasıyla kaydeden sahte Redis (canlı istek yok). */
+function recordingRedis() {
+  const commands: string[] = []
+  const pipeline = new Proxy(
+    {},
+    {
+      get(_target, name: string) {
+        if (name === 'exec') return async () => commands.map(() => [null, 1])
+        return (...args: unknown[]) => {
+          commands.push(`${name} ${args.map(String).join(' ')}`)
+          return pipeline
+        }
+      },
+    },
+  )
+  const calls: string[] = []
+  const redis = {
+    pipeline: () => pipeline,
+    eval: async (...args: unknown[]) => {
+      calls.push(`eval ${args.slice(1).map(String).join(' ')}`)
+      return 3
+    },
+    del: async (...keys: string[]) => {
+      calls.push(`del ${keys.join(' ')}`)
+      return 1
+    },
+  } as unknown as Redis
+  return { redis, commands, calls }
+}
+
+describe('writeLiveUpdates (çekilen uçaklar)', () => {
+  it('çekilenler güncellemelerden sonra seen, geo ve hash’ten silinir', async () => {
+    const { redis, commands } = recordingRedis()
+    await writeLiveUpdates(redis, [base], ['4bb464', '4bb465'])
+    const names = commands.map((c) => c.split(' ')[0])
+    const lastUpdate = names.lastIndexOf('publish')
+    const firstRemoval = commands.findIndex((c) => c === 'zrem hy:ac:seen 4bb464 4bb465')
+    expect(lastUpdate).toBeGreaterThanOrEqual(0)
+    expect(firstRemoval).toBeGreaterThan(lastUpdate)
+    expect(commands.slice(firstRemoval)).toEqual([
+      'zrem hy:ac:seen 4bb464 4bb465',
+      'zrem hy:ac:geo 4bb464 4bb465',
+      'del hy:ac:4bb464 hy:ac:4bb465',
+    ])
+  })
+
+  it('yalnızca çekilen varsa güncelleme ve yayın yoktur; ikisi de boşsa hiçbir komut yok', async () => {
+    const only = recordingRedis()
+    await writeLiveUpdates(only.redis, [], ['4bb464'])
+    expect(only.commands).toEqual([
+      'zrem hy:ac:seen 4bb464',
+      'zrem hy:ac:geo 4bb464',
+      'del hy:ac:4bb464',
+    ])
+    const none = recordingRedis()
+    await writeLiveUpdates(none.redis, [], [])
+    expect(none.commands).toEqual([])
+  })
+})
+
+describe('clearLiveAircraft', () => {
+  it('süpürmeyi +inf sınırıyla çalıştırır, sonra güncelleme stream’ini siler', async () => {
+    const { redis, calls } = recordingRedis()
+    expect(await clearLiveAircraft(redis)).toBe(3)
+    expect(calls).toEqual([
+      `eval 2 ${LIVE_KEYS.seen} ${LIVE_KEYS.geo} +inf hy:ac:`,
+      'del hy:ac:updates',
+    ])
   })
 })
