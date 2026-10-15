@@ -522,6 +522,11 @@ async function clickPrimaryChip(page: Page, popup: Locator): Promise<void> {
     await page.mouse.click(chip.x, chip.y)
     await expect(popup).toBeVisible({ timeout: 2_000 })
   }).toPass({ timeout: 20_000 })
+  // Açılınca odak pencereye geçer (airport-popup.tsx); Escape onu ancak o zaman kapatır. Yük
+  // altında odak görünürlükten sonra gelebilir: hemen basılan Escape boşa giderdi.
+  await expect
+    .poll(() => popup.evaluate((el) => el.contains(document.activeElement)), { timeout: 5_000 })
+    .toBe(true)
 }
 
 /**
