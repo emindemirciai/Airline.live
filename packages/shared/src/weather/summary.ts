@@ -64,7 +64,7 @@ export interface WeatherSummaryRows {
   fog: WeatherText
   /** Yalnız dolu varsa. */
   hail: WeatherText | null
-  /** Yalnız toz, kum, duman, volkanik kül, ani sert rüzgâr, hortum vb. varsa. */
+  /** Yalnız toz, kum, duman, volkanik kül, ani kuvvetli rüzgâr, hortum vb. varsa. */
   other: WeatherText | null
   visibility: WeatherText
   clouds: WeatherText
@@ -135,10 +135,10 @@ export interface WeatherSummary {
   windLight: LightWind | null
   /**
    * Rüzgâr satırının renk basamağı (`windTier`; kullanıcı isteği 2026-10-04, D-083): rüzgâr varsa
-   * satır her zaman renklidir; `calm` açık yeşil, `breeze` limon yeşili ("Tatlı rüzgâr"), `moderate`
-   * sarı ("Orta rüzgâr"), `fresh` kehribar, `strong` turuncu, `storm` kırmızı (son üçünün adı
-   * `windLevel`'dandır). Rüzgâr kesmesi bildirildiyse arayüz satırı en az kehribar yapar. Bilinmeyen
-   * rüzgârda ve NIL'de null.
+   * satır her zaman renklidir; `calm` açık yeşil, `breeze` limon yeşili ("Hafif-orta rüzgâr"),
+   * `moderate` sarı ("Orta rüzgâr"), `fresh` kehribar, `strong` turuncu, `storm` kırmızı (son üçünün
+   * adı `windLevel`'dandır). Rüzgâr kesmesi bildirildiyse arayüz satırı en az kehribar yapar.
+   * Bilinmeyen rüzgârda ve NIL'de null.
    */
   windTier: WindTier | null
   /**

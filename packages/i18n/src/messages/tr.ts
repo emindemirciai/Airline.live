@@ -450,7 +450,7 @@ export const tr = {
       DRDU: 'Yerde sürüklenen toz',
       DRSA: 'Yerde sürüklenen kum',
       PO: 'Toz ya da kum hortumu',
-      SQ: 'Ani ve sert rüzgâr',
+      SQ: 'Ani kuvvetli rüzgâr',
       FC: 'Hortum bulutu',
       FC_heavy: 'Hortum',
       SS: 'Kum fırtınası',
@@ -493,32 +493,36 @@ export const tr = {
       light: 'Hafif rüzgâr',
       /**
        * Derecelendirilmiş rüzgâr renkleri (kullanıcı isteği 2026-10-04, D-083): gösterilen hız 11–19
-       * km/sa limon yeşili satırda "Tatlı rüzgâr", 20 km/sa ve üstü (ortalama 17 kt, hamle 25 kt
-       * eşiğinin altında) sarı satırda "Orta rüzgâr". Adlar MGM Beaufort 3 ve 4'ündür; 6 kt (11
-       * km/sa, 3 m/s) MGM'de Beaufort 2 "Hafif Rüzgâr"dır ama burada "Tatlı rüzgâr" olur, çünkü 10/11
+       * km/sa limon yeşili satırda "Hafif-orta rüzgâr", 20 km/sa ve üstü (ortalama 17 kt, hamle 25 kt
+       * eşiğinin altında) sarı satırda "Orta rüzgâr". Basamaklar MGM Beaufort 3 ve 4'üne denk düşer;
+       * 6 kt (11 km/sa, 3 m/s) MGM'de Beaufort 2'dir ama burada "Hafif-orta rüzgâr" olur, çünkü 10/11
        * km/sa sınırı kullanıcının hafif rüzgâr kuralıdır (2026-10-03). Rüzgâr kesmesi satırı kehribar
-       * yaptığında yazılmaz.
+       * yaptığında yazılmaz. Adlar sadedir (D-116): MGM'nin Beaufort 3 adı "Tatlı Rüzgâr" yerine
+       * "Hafif-orta rüzgâr" (ASCII kısa çizgi: hafif ile orta arası).
        */
-      breeze: 'Tatlı rüzgâr',
+      breeze: 'Hafif-orta rüzgâr',
       moderate: 'Orta rüzgâr',
       /**
        * Etkili rüzgârın şiddeti (D-083): rüzgâr satırının etiketi ve TAF öğesi. Satırın vurgu eşiği
        * ortalama ≥ 17 kt (MGM Beaufort 5) ya da hamle ≥ 25 kt'dir (kullanıcı kararı 2026-10-03); TAF
        * öğesi MGM meydan uyarısı eşiğiyle seçilir (ortalama ≥ 20 kt ya da hamle ≥ 30 kt, `gusts` ve
-       * üstü). Adlar MGM Beaufort ıskalasındandır. `gusty`: hamle 25–29 kt; `fresh`: ortalama 17–19
-       * kt; `gusts`: yalnız hamle meydan uyarısı eşiğini aştı.
+       * üstü). Eşikler MGM Beaufort ıskalasındandır; adlar MGM sözlüğünden ve sadedir (D-116):
+       * Beaufort 7, 10 ve 12'nin MGM adları ("Fırtınamsı Rüzgâr", "Tam Fırtına", "Harikeyn (Orkan)")
+       * yerine "Çok kuvvetli rüzgâr", "Şiddetli fırtına" ve "Kasırga şiddetinde rüzgâr" (bir rüzgâr
+       * şiddetidir, tropik siklon ya da hortum değildir). `gusty`: hamle 25–29 kt; `fresh`: ortalama
+       * 17–19 kt; `gusts`: yalnız hamle meydan uyarısı eşiğini aştı.
        */
       level: {
         gusty: 'Hamleli rüzgâr',
         fresh: 'Sert rüzgâr',
         gusts: 'Kuvvetli hamle',
         strong: 'Kuvvetli rüzgâr',
-        nearGale: 'Fırtınamsı rüzgâr',
+        nearGale: 'Çok kuvvetli rüzgâr',
         gale: 'Fırtına',
         severeGale: 'Kuvvetli fırtına',
-        storm: 'Tam fırtına',
+        storm: 'Şiddetli fırtına',
         violentStorm: 'Çok şiddetli fırtına',
-        hurricane: 'Harikeyn (orkan)',
+        hurricane: 'Kasırga şiddetinde rüzgâr',
       },
     },
     /** Sade görünümde 8 yön; uzman ayrıntılarında derece de yazılır. */

@@ -17,11 +17,11 @@ import {
  * - rüzgâr (`windTier`; derecelendirilmiş, kullanıcı isteği 2026-10-04): rüzgâr varsa satır her zaman
  *   renklidir ve basamağın adı yazılır. Gösterilen hız ≤ 10 km/sa (sakin dahil) açık yeşil, değer
  *   "Sakin" ya da "Hafif ve değişken yönlü" demiyorsa "Hafif rüzgâr" etiketi; 11–19 km/sa limon yeşili
- *   "Tatlı rüzgâr"; 20 km/sa ve üstü sarı "Orta rüzgâr"; ortalama 17–19 kt ya da hamle 25–29 kt
- *   kehribar ("Sert rüzgâr", "Hamleli rüzgâr"); MGM meydan uyarısı eşiğinden 34 kt'ye turuncu
- *   ("Kuvvetli hamle", "Kuvvetli rüzgâr", "Fırtınamsı rüzgâr"); 34 kt ve üstü kırmızı ("Fırtına" …
- *   "Harikeyn (orkan)"). Rüzgâr kesmesi bildirildiyse (`WS R34`) satır en az kehribardır, değerin
- *   altında "Rüzgâr kesmesi bildirildi: pist 34";
+ *   "Hafif-orta rüzgâr"; 20 km/sa ve üstü sarı "Orta rüzgâr"; ortalama 17–19 kt ya da hamle 25–29
+ *   kt kehribar ("Sert rüzgâr", "Hamleli rüzgâr"); MGM meydan uyarısı eşiğinden 34 kt'ye turuncu
+ *   ("Kuvvetli hamle", "Kuvvetli rüzgâr", "Çok kuvvetli rüzgâr"); 34 kt ve üstü kırmızı ("Fırtına"
+ *   … "Kasırga şiddetinde rüzgâr"; adlar D-116). Rüzgâr kesmesi bildirildiyse (`WS R34`) satır en
+ *   az kehribardır, değerin altında "Rüzgâr kesmesi bildirildi: pist 34";
  * - şimşek ve yıldırım riski (`lightning`: havalimanında ya da çevresinde oraj, kümülonimbüs):
  *   gök gürültüsü satırı kehribar, metni uyarıyı yazar.
  * "Yok", çevredeki ve kısa süre önceki diğer olaylar ile "Belirlenemedi" sade kalır (bilinmeyen
@@ -37,8 +37,8 @@ export interface WeatherRow {
   /** Var olan olayın ya da rüzgâr basamağının vurgusu; olay yoksa ya da belirlenemediyse null. */
   tone: WeatherTone | null
   /**
-   * Değerin yanında vurgulanan etiket: rüzgâr basamağının adı ("Hafif rüzgâr", "Tatlı rüzgâr", "Orta
-   * rüzgâr") ya da şiddetin adı ("Sert rüzgâr", "Kuvvetli rüzgâr", "Fırtına"); yoksa null.
+   * Değerin yanında vurgulanan etiket: rüzgâr basamağının adı ("Hafif rüzgâr", "Hafif-orta rüzgâr",
+   * "Orta rüzgâr") ya da şiddetin adı ("Sert rüzgâr", "Kuvvetli rüzgâr", "Fırtına"); yoksa null.
    */
   strong: string | null
   /** Değerin altındaki ek satır (rüzgâr kesmesi: "Rüzgâr kesmesi bildirildi: pist 34"); yoksa null. */
@@ -64,8 +64,8 @@ function atLeast(tier: WindTier | null, floor: WindTier): WindTier {
 
 /**
  * Basamağın adı: şiddet düzeyi varsa onun adı (kehribar, turuncu, kırmızı); yoksa "Orta rüzgâr",
- * "Tatlı rüzgâr" ya da (değer hızı yazıyorsa) "Hafif rüzgâr". "Sakin" ve "Hafif ve değişken yönlü"
- * değerleri basamağı zaten söyler.
+ * "Hafif-orta rüzgâr" ya da (değer hızı yazıyorsa) "Hafif rüzgâr". "Sakin" ve "Hafif ve değişken
+ * yönlü" değerleri basamağı zaten söyler.
  */
 function windTag(summary: WeatherSummary, t: WeatherTextOptions['t']): string | null {
   if (summary.windLevel) return t.wind.level[summary.windLevel]
@@ -84,8 +84,8 @@ function windTag(summary: WeatherSummary, t: WeatherTextOptions['t']): string | 
 /**
  * Rüzgâr satırının vurgusu, etiketi ve ek satırı (D-083): renk basamağı `windTier`'dan, etiket
  * basamağın adıdır. Rüzgâr kesmesi satırı en az kehribar yapar; kesme rüzgârın kendi basamağını
- * yükselttiyse (hafif, tatlı, orta rüzgâr) basamağın adı yazılmaz: renk kesmedendir ve kesme satırı
- * bunu söyler (kehribar satırda "Tatlı rüzgâr" yazmak rengi rüzgâra bağlardı).
+ * yükselttiyse (hafif, hafif-orta, orta rüzgâr) basamağın adı yazılmaz: renk kesmedendir ve kesme
+ * satırı bunu söyler (kehribar satırda "Hafif-orta rüzgâr" yazmak rengi rüzgâra bağlardı).
  */
 function windRow(summary: WeatherSummary, options: WeatherTextOptions): WeatherRow {
   const { t } = options
