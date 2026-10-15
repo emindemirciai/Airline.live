@@ -1283,7 +1283,7 @@ Sürüm v0.22.1 (dal `p1/map-no-military`, `main` `8a7a5ea` = v0.21.1'den; v0.22
 - **Değişmeyenler:** havalimanları listesi, istasyon sayfaları, API (`scope=listed` 503 kayıt); site haritası ve llms.txt (üsler `noindex`'tir, D-084: oralarda zaten yoklar). Uçak listesinin tahmini durumu ve konumu bütün listeyi kullanır (üsse yaklaşan uçak doğru yere göre yazılır). Ankara (Etimesgut) ve yurt dışındaki ortak sivil-askerî havalimanları (Bağdat, Podgorica, Cuxhaven/Nordholz) sivildir, haritada kalır.
 - **Ülke adları:** engeller haritada pini çizilen 498 havalimanıdır (503 − 5 üs); tablo `pnpm country-labels` ile yeniden üretildi. Yalnız TÜRKİYE'nin çapası kaydı.
 - **Açılış yakınlaştırması (D-104; kullanıcı 2026-10-06, İstanbul ekran görüntüsüyle: "başlangıçta zoom oranı bu olsun."):** masaüstünde 8,5 → 8; merkez IST/LTFM ve telefon kuralı (~7,8) aynı. Harita kurulmadan aboneliğin kutusu ±2,7° × ±1,2°'ye genişler (1920×1080'de z8 görünümü).
-- Sürüm, `entries.ts`, `CHANGELOG.md` ve README yayın adımındadır.
+- Sürüm (v0.25.1), `entries.ts` ve `CHANGELOG.md` main birleştirmesinden sonra; README yayın adımındadır.
 
 **Dosyalar:**
 - `apps/web/src/components/map/camera.ts` (`INITIAL_MAX_ZOOM` 8, `INITIAL_BOUNDS`); test `map-controller.test.ts` (1280×720, 1920×1080, 1915×910 → 8; kutu 1920×1080 görünümünü kapsar); `e2e/tests/live-map.spec.ts` (açıklama)
@@ -1322,7 +1322,7 @@ Sürüm v0.22.2 (dal `p1/no-military-site`, `main` `7a9309e` = v0.22.1'den). Kar
 - **Metinler (TR/EN):** `/havalimanlari` kapsam cümlesi "askerî hava üsleri ve bazı küçük havalimanları listelenmez"; ad kaynağı ipucundaki ve `/hakkinda` kaynak satırındaki üs cümlesi kalktı.
 - **Harita:** `mapShownAirports` savunma süzgeci olarak kaldı ve sadeleşti: liste yüklenirken bir kez süzülür; pin, pencere, liste, `?havalimani=` ve uçak listesi aynı listeyi kullanır. `?havalimani=<üs>` artık açılış görünümünde açar.
 - **Uzaklık referansı:** 66 → 61 nokta; halka üyeliği 0 değişiklik, `nearestTr` 4 değişiklik (D-107).
-- Sürüm, `entries.ts`, `CHANGELOG.md` ve README yayın adımındadır.
+- Sürüm (v0.25.1), `entries.ts` ve `CHANGELOG.md` main birleştirmesinden sonra; README yayın adımındadır.
 
 **Dosyalar:**
 - `packages/db/src/airports.ts` (`MILITARY_AIRFIELD_ICAOS`, `listedEntries`, `turkishReferencePoints`, açıklamalar); testler `airports.test.ts` (kural, fixture 1.217 / 498 / 56, halka kararlılığı ve dört `nearestTr` değişikliği), `airports.int.test.ts` (beklentiler)
@@ -1369,7 +1369,7 @@ Sürüm v0.22.3 (dal `p1/map-airport-search`, `main` `7a9309e` = v0.22.1'den; `p
 - **Seçim:** pine tıklamakla aynı (harita en az z10, pencere, adres değişmez); pencere kapanınca odak kutuya döner.
 - **Türkçe klavye:** uçak aramasında İ→I, ı→i ve tire çeşitleri; Türkçe harfli sorgu uçak aramaz.
 - **İlk yükleme (D-101):** ad tabloları `/`'nin ilk paketine girmez; dizin kurucusu ayrı parçadadır (pencere ve panelle ortak tembel giriş), harita hazır olunca boşta istenir ve liste gelince boşta kurulur, kutu odaklanınca da istenir; yüklenemezse yalnız kodla arama.
-- Sürüm, `entries.ts`, `CHANGELOG.md` ve README yayın adımındadır.
+- Sürüm (v0.25.1), `entries.ts` ve `CHANGELOG.md` main birleştirmesinden sonra; README yayın adımındadır.
 
 **Dosyalar:**
 - `packages/shared/src/reference/airport-search.ts` (yeni, saf motor; hiçbir şey içe aktarmaz), `airport-search-places.ts` (yeni, yalnız aranan ek adlar), `index.ts`; test `airport-search.test.ts`
@@ -1491,7 +1491,7 @@ Hedef sürüm yayın adımında belirlenir (dal `p1/map-all-countries`, `d807f15
 - **Tablo ilk pakette değil (inceleme düzeltmesi):** tablo ve noktalar `@havayolu/shared/country-label-placements` ve `@havayolu/shared/country-label-points` alt yollarında; harita denetleyicisi MapLibre ile paralel, dinamik importla yükler.
 - **Değişenler (59 ülke):** yalnız RUSYA, 57,51° D, 61,77° K (Komi) → 46,74° D, 59,04° K (Kirov ile Kostroma arası; Avrupa Rusyası'nın görsel merkezi, z3'ten).
 - **e2e beklentileri:** Tahran z3'te HİNDİSTAN ve ÇAD yazılır, z4'te PAKİSTAN (4,5) kesirli `minzoom`'la yazılmaz; İRAN'ın kutusu, IKA ve 375 px TÜRKIYE değişmedi.
-- Sürüm, `entries.ts`, `CHANGELOG.md` ve README yayın adımındadır.
+- Sürüm (v0.25.1), `entries.ts` ve `CHANGELOG.md` main birleştirmesinden sonra; README yayın adımındadır.
 
 **Dosyalar:**
 - `tools/src/country-labels/natural-earth.ts` (244 kodun birimleri, `NATURAL_EARTH_PART_SPLITS`, `NATURAL_EARTH_UNASSIGNED`, `countryParts`, `farCodes`, `countryAreasKm2`, yay sadeleşmesinde uçlar world-atlas'taki değerinde, en büyük parça korunur), `geometry.ts` (`placeOnOneWorldCopy`, `ringGeodesicAreaKm2`, `geodesicAreaKm2`), `label-model.ts` (`FAR_SAFETY_KM`, `LabelFitter`'ın km payı, yeni harfler, kırılabilir harfler), `airport-pins.ts` (engeller dünyanın komşu kopyalarında), `placement.ts` (kademe ve payı fixture'dan, ızgara ±180°, boş ızgara gizli, `COUNTRY_LABEL_AREAS_KM2`), `cli.ts`; testler `natural-earth.test.ts`, `geometry.test.ts`, `label-model.test.ts`, `airport-pins.test.ts`, `placement.test.ts`
@@ -2208,14 +2208,14 @@ Hedef sürüm 0.24.0 (yayın adımında yazılır; sürüm, changelog ve README 
 ## M6i.3 — Savaş nedeniyle kapalı havalimanları (yama)
 Onay: 2026-10-08 kullanıcı: "normal şartlarda açık ama savaş nedeniyle kapalı olan örneğin ukraynadaki limanları, da ekle. ve not düş". Ölçüt, not türleri, metinler, adlar ve öbür seçimler orkestratör varsayılanıdır (2026-10-15; sayım ve dört bölge araştırması; itiraz edilebilir). Açık sorular D-110'da (S1–S7).
 
-Sürüm birleştirmede `origin/main`'deki ilk boş PATCH (v0.24.1; M6j.2 önce birleşirse v0.25.1). Dal `p1/map-war-closures` (`C:/PROJELER/havayolu-war`), 29d415d'den; işe başlarken `origin/main` (e9d97de, v0.24.0) ileri sarılarak alındı (`git merge --ff-only`). Karar D-110'dadır. Halka 4 açık kalır.
+Sürüm v0.25.1: birleştirmede `origin/main`'deki ilk boş PATCH (main 2026-10-15'te v0.25.0'a geçti, D-112; dalın ilk üç commit başlığındaki "(v0.24.1)" bu sürümdür, geçmiş yeniden yazılmaz). Dal `p1/map-war-closures` (`C:/PROJELER/havayolu-war`), 29d415d'den; işe başlarken `origin/main` (e9d97de, v0.24.0) ileri sarılarak alındı (`git merge --ff-only`), sonra v0.25.0 birleştirme commit'iyle alındı. Karar D-110'dadır. Halka 4 açık kalır.
 
 **Kapsam:**
 - Kapanış tablosu 35 kayıt (`certainty`), tarifesiz kayıtlar aday (shared `isForeignCandidate`, db `isForeignCandidateRow`, `foreignCandidateFilter`, `CIVIL_FLIGHT_CLOSURE_ICAOS`); Krasnodar, Gelencik, Elista silinir.
 - Not iki türde; sayfa, harita penceresi, havalimanı listesi, arama sonucu başlığı ve açıklaması, llms.txt. Eklenenler dizine eklenir.
 - 23 havalimanının Türkçe ve İngilizce adı ve şehri; 33 bölge ve 1 havalimanı saat dilimi kuralı.
 - Fixture'a kapanış bloğu (23 havalimanı, 28 pist); ülke adı yerleşimi yeniden üretilir.
-- Sürüm, `entries.ts`, `CHANGELOG.md` ve README yayın adımındadır.
+- Sürüm (v0.25.1), `entries.ts` ve `CHANGELOG.md` main birleştirmesinden sonra; README yayın adımındadır.
 
 **Dosyalar:**
 - `packages/shared/src/reference/civil-closures.ts`, `airport-rings.ts`, `foreign-airport-names.ts`, `foreign-airport-names-r4.ts`, `time-zones.ts`; testler `civil-closures.test.ts`, `foreign.test.ts`, `time-zones.test.ts`, `reference.test.ts`, `names.test.ts`, `map/country-labels.test.ts` (`index.ts` `export *` ile `CivilFlightClosureCertainty`'yi zaten dışa aktarır)
