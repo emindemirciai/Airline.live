@@ -2,9 +2,14 @@ import { legacyRedirectLocation } from '@havayolu/shared'
 import type { FastifyInstance, FastifyRequest } from 'fastify'
 import type { Env } from '../env'
 
-/** WebSocket el sıkışması mı (`Upgrade: websocket`). */
-function isWebSocketUpgrade(request: FastifyRequest): boolean {
-  return request.headers.upgrade?.toLowerCase() === 'websocket'
+/**
+ * Upgrade isteği mi: `Upgrade` başlığı var (`websocket`, `h2c` ya da bilinmeyen bir belirteç).
+ * Sunucuda bir `upgrade` dinleyicisi olduğu için (`@fastify/websocket`) Node `Connection: Upgrade`
+ * taşıyan her isteği `upgrade` olayına ayırır: soket HTTP sunucusundan kopar, zaman aşımları işlemez
+ * ve yanıt bitince kendiliğinden kapanmaz. Başlık, `injectWS`'in sahte isteğini de kapsar.
+ */
+function isUpgradeRequest(request: FastifyRequest): boolean {
+  return request.headers.upgrade !== undefined
 }
 
 /**
@@ -16,9 +21,11 @@ function isWebSocketUpgrade(request: FastifyRequest): boolean {
  * - Host Fastify'ın `request.host`'udur: güvenilen vekilden gelen `X-Forwarded-Host`, yoksa `Host`.
  *   Adres istekten değil env'den kurulur; iç trafik (web → `http://hy-api:4000`, sağlık denetimi)
  *   eski host taşımaz ve dokunulmaz.
- * - WebSocket el sıkışması (`GET /v1/ws`) aynı 308'i düz HTTP yanıtı olarak alır ve soket kapanır.
- *   Tarayıcılar WebSocket yönlendirmesini izlemez: eski adreste açık kalan sekme yeniden bağlanmayı
- *   dener, sayfa yenilenince yeni adresten bağlanır. Web her zaman `API_HOST`'u kullanır.
+ * - Her upgrade isteği (WebSocket el sıkışması `GET /v1/ws`, `h2c` ya da başka bir belirteç) aynı
+ *   308'i düz HTTP yanıtı olarak alır ve soket yanıttan sonra kapanır; yoksa her istek hız sınırına
+ *   takılmadan açık bir soket bırakırdı. Tarayıcılar WebSocket yönlendirmesini izlemez: eski adreste
+ *   açık kalan sekme yeniden bağlanmayı dener, sayfa yenilenince yeni adresten bağlanır. Web her zaman
+ *   `API_HOST`'u kullanır.
  * - Tarayıcıların CORS ön kontrolü (OPTIONS) de 308 alır ve yönlendirme izlenmez; eski origin'ler
  *   CORS listesine eklenmez (eski alan adları sayfa sunmaz).
  * - Liste boşsa ya da API_HOST tanımsızsa kanca hiç eklenmez.
@@ -38,8 +45,9 @@ export function registerLegacyHostRedirect(
       pathAndQuery: request.url,
     })
     if (!location) return
-    if (isWebSocketUpgrade(request)) {
-      // `@fastify/websocket` soketi yalnızca kendi el sıkışmasında kapatır; yanıt bitince burada kapanır.
+    if (isUpgradeRequest(request)) {
+      // `upgrade` olayından gelen soketi `@fastify/websocket` yalnızca kendi onRequest kancası çalıştıysa
+      // kapatır. Bu kanca ondan önce yanıt verdiği için soket yanıt bitince burada kapanır.
       reply.header('connection', 'close')
       reply.raw.once('finish', () => reply.raw.socket?.destroy())
     }

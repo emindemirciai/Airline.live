@@ -1,3 +1,4 @@
+import { duplexPair } from 'node:stream'
 import Fastify, { type FastifyInstance } from 'fastify'
 import { afterEach, describe, expect, it } from 'vitest'
 import { parseEnv } from '../env'
@@ -61,6 +62,33 @@ describe('registerLegacyHostRedirect', () => {
     expect(res.headers.location).toBe('https://api.airline.live//evil.example/x?y=1')
     expect(res.body).toBe('')
   })
+
+  // Gerçek HTTP ayrıştırıcısıyla, port açmadan: soket çifti sunucuya `connection` olarak verilir.
+  // Node `Connection: Upgrade` taşıyan isteği `upgrade` olayına ayırır; soket sunucudan kopar.
+  it.each(['websocket', 'h2c', 'foo'])(
+    'eski host’ta Upgrade: %s 308 alır ve sunucu tarafındaki soket kapanır',
+    async (token) => {
+      const app = await wired()
+      const [client, server] = duplexPair()
+      let response = ''
+      client.on('data', (chunk: Buffer) => (response += chunk.toString()))
+      client.on('error', () => undefined)
+      const closed = new Promise<void>((resolve) => server.once('close', () => resolve()))
+      app.server.emit('connection', server)
+      client.write(
+        `GET /health HTTP/1.1\r\nHost: api.havayolu.live\r\nConnection: Upgrade\r\nUpgrade: ${token}\r\n` +
+          (token === 'websocket'
+            ? 'Sec-WebSocket-Version: 13\r\nSec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==\r\n'
+            : '') +
+          '\r\n',
+      )
+      await closed
+      expect(response).toMatch(/^HTTP\/1\.1 308 /)
+      expect(response).toMatch(/\r\nlocation: https:\/\/api\.airline\.live\/health\r\n/i)
+      expect(response).toMatch(/\r\nconnection: close\r\n/i)
+      expect(server.destroyed).toBe(true)
+    },
+  )
 
   it('liste boşsa kanca eklenmez', async () => {
     const app = await wired({ LEGACY_API_HOSTS: '' })
