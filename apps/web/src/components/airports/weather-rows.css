@@ -132,8 +132,8 @@
 
 /*
  * Rüzgâr basamakları (D-083; kullanıcı isteği 2026-10-04): açık yeşil hafif (gösterilen hız ≤ 10
- * km/sa, sakin dahil), limon yeşili tatlı (11–19 km/sa), sarı orta (20 km/sa ve üstü), kehribar
- * yukarıda, turuncu meydan uyarısı eşiğinden 34 kt'ye, kırmızı 34 kt ve üstü.
+ * km/sa, sakin dahil), limon yeşili hafif-orta (11–19 km/sa), sarı orta (20 km/sa ve üstü),
+ * kehribar yukarıda, turuncu meydan uyarısı eşiğinden 34 kt'ye, kırmızı 34 kt ve üstü.
  */
 .wx-row[data-tone='calm'] {
   --wx-tone-bg: var(--wx-calm-bg);
@@ -161,8 +161,8 @@
 }
 
 /*
- * Rüzgâr basamağının etiketi ("Tatlı rüzgâr", "Kuvvetli rüzgâr"): sığmazsa alt satıra geçer, değerin
- * kutusundan taşmaz.
+ * Rüzgâr basamağının etiketi ("Hafif-orta rüzgâr", "Kuvvetli rüzgâr"; en uzunu "Kasırga şiddetinde
+ * rüzgâr"): sığmazsa alt satıra geçer, değerin kutusundan taşmaz.
  */
 .wx-tag {
   display: inline-block;

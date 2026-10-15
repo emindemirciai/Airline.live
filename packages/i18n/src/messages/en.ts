@@ -789,7 +789,8 @@ export const en: Messages = {
       airports: 'Airports',
       airportModes: {
         hidden: 'Hide',
-        code: 'Code',
+        icon: 'Icon',
+        'icon-code': 'Icon and code',
       },
       countries: 'Country names',
       countryModes: {

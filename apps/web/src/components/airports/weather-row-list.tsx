@@ -10,8 +10,8 @@ import type { WeatherRow } from './weather-rows'
  * `moderate`, `fresh`, `strong`, `storm`; D-083), rüzgâr kesmesinin ve şimşek ve yıldırım riskinin
  * satırı `data-tone` ile renkli zemin ve kalın yazı alır; vurgu renkten ibaret değildir, değer olayın
  * adını ya da uyarıyı yazar ("Yok" yerine "Hafif sağanak yağmur"), rüzgârın basamağı etiketle
- * ("Hafif rüzgâr", "Tatlı rüzgâr", "Orta rüzgâr", "Sert rüzgâr", "Fırtına") ya da değerle ("Sakin")
- * yazılır.
+ * ("Hafif rüzgâr", "Hafif-orta rüzgâr", "Orta rüzgâr", "Sert rüzgâr", "Fırtına") ya da değerle
+ * ("Sakin") yazılır.
  * Kanca yoktur: sunucuda, adada ve harita penceresinde aynı biçimde çizilir. Harita penceresinin
  * bilgi satırları (rakım, pistler, yerel saat) da bu listeyle çizilir: iki liste aynı DOM'u ve aynı
  * sütunları kullanır (M6e.1, D-083).

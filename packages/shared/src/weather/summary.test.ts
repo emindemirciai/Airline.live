@@ -601,7 +601,7 @@ describe('summarizeMetar: derecelendirilmiş rüzgâr renkleri (M6e.3, 2026-10-0
       false,
       'light',
     ],
-    // 6 kt = 11 km/sa: eskiden sade, artık limon yeşili "Tatlı rüzgâr".
+    // 6 kt = 11 km/sa: eskiden sade, artık limon yeşili "Hafif-orta rüzgâr".
     [
       'METAR LTAI 031620Z 28006KT 240V300 9999 SCT030 BKN080 21/12 Q1018 NOSIG',
       'breeze',
@@ -617,7 +617,7 @@ describe('summarizeMetar: derecelendirilmiş rüzgâr renkleri (M6e.3, 2026-10-0
       null,
     ],
     ['METAR OSDI 031600Z 25009KT CAVOK 24/09 Q1020', 'breeze', null, false, null],
-    // 10 kt = 19 km/sa: tatlı rüzgârın üst ucu.
+    // 10 kt = 19 km/sa: hafif-orta rüzgârın üst ucu.
     ['METAR LGRX 031620Z 07010KT 9999 FEW030 22/05 Q1025', 'breeze', null, false, null],
     // 11 kt = 20 km/sa: sarı "Orta rüzgâr".
     ['METAR LGSK 031620Z 01011KT 9999 FEW015 20/09 Q1026', 'moderate', null, false, null],
@@ -1251,7 +1251,7 @@ describe('summarizeTaf', () => {
     const windyNew = taf(
       'TAF LTFM 151040Z 1512/1618 04028G40KT 9999 BKN030 BECMG 1520/1522 04010KT',
     )
-    // 28 kt fırtınamsı rüzgârdır (Beaufort 7; D-083). Zayıflatan BECMG 1520/1522: pencerenin sonu.
+    // 28 kt çok kuvvetli rüzgârdır (Beaufort 7; D-083, D-116). Zayıflatan BECMG 1520/1522: pencerenin sonu.
     expect(items([windyNew, windyOld], '2026-01-15T11:00:00Z')).toEqual([
       'weather.taf.until(weather.time.tomorrow(t22:00),weather.taf.strongWind(weather.wind.level.nearGale,weather.wind.from(weather.compass.from.NE,28kt), weather.wind.gust(40kt)))',
     ])
@@ -1265,7 +1265,7 @@ describe('summarizeTaf', () => {
       'weather.taf.until(weather.time.tomorrow(t18:00),weather.taf.strongWind(weather.wind.level.nearGale,weather.wind.from(weather.compass.from.NE,28kt), weather.wind.gust(40kt)))',
     ])
     // Ortalama bir dilimden, hamle ötekinden; yön ortalaması en yüksek dilimin yönüdür. Şiddet
-    // birleşen değerden: ortalama 30 kt fırtınamsı, hamle 45 kt fırtına → fırtına.
+    // birleşen değerden: ortalama 30 kt çok kuvvetli, hamle 45 kt fırtına → fırtına.
     expect(
       items([taf('TAF LTXX 151040Z 1512/1618 27030KT 9999 BKN030 BECMG 1514/1516 25022G45KT')]),
     ).toEqual([
@@ -1300,7 +1300,7 @@ describe('summarizeTaf', () => {
   })
 
   it('birden çok kuvvetli rüzgâr: en şiddetlisi yazılır, sonra gelse de (D-083)', () => {
-    // Temel 20 kt kuvvetli rüzgâr, TEMPO 45G65 tam fırtına: en erken olan değil en şiddetli olan.
+    // Temel 20 kt kuvvetli rüzgâr, TEMPO 45G65 şiddetli fırtına: en erken olan değil en şiddetli olan.
     expect(
       items([taf('TAF LTXX 151040Z 1512/1618 18020KT 9999 SCT030 TEMPO 1515/1518 27045G65KT')]),
     ).toEqual([

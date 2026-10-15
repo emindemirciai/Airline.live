@@ -24,10 +24,10 @@
 //   kehribar ve şiddetin adıyla (LTAI `20015G28KT` "Hamleli rüzgâr"), gösterilen hız ≤ 10 km/sa'da
 //   açık yeşil ve "Hafif rüzgâr" etiketiyle (LTAJ `09005KT`)
 // - M6e.3 (D-083, kullanıcı isteği 2026-10-04): rüzgâr satırı derecelendirilmiştir, rüzgâr varsa her
-//   zaman renklidir ve basamağın adı yazılır: açık yeşil (LTAJ), limon yeşili "Tatlı rüzgâr" (LTDB
-//   `18006KT`, 11 km/sa), sarı "Orta rüzgâr" (LTAC `32012KT`, 22 km/sa), kehribar (LTAI "Hamleli
-//   rüzgâr"), turuncu (IST `03018G32KT` "Kuvvetli hamle", meydan uyarısı); her basamağın zemini ve
-//   yazı rengi (kırmızı dahil) ölçülür
+//   zaman renklidir ve basamağın adı yazılır: açık yeşil (LTAJ), limon yeşili "Hafif-orta rüzgâr"
+//   (LTDB `18006KT`, 11 km/sa; D-116'dan beri bu ad), sarı "Orta rüzgâr" (LTAC `32012KT`, 22 km/sa),
+//   kehribar (LTAI "Hamleli rüzgâr"), turuncu (IST `03018G32KT` "Kuvvetli hamle", meydan uyarısı);
+//   her basamağın zemini ve yazı rengi (kırmızı dahil) ölçülür
 import { expect, test, type Locator, type Page } from '@playwright/test'
 import { jsonLdBlocks, metaContents, titles } from '../html'
 import { canvasChips, mapCenter } from '../label-canvas'
@@ -129,8 +129,8 @@ const COPY = {
     gustyLevel: 'Hamleli rüzgâr',
     /** Fixture LTAJ `09005KT`: 9 km/sa, açık yeşil satır ve etiket (M6e.2, D-083). */
     lightWind: 'Hafif rüzgâr',
-    /** Fixture LTDB `18006KT`: 11 km/sa, limon yeşili (M6e.3, D-083). */
-    breezeWind: 'Tatlı rüzgâr',
+    /** Fixture LTDB `18006KT`: 11 km/sa, limon yeşili (M6e.3, D-083; ad D-116). */
+    breezeWind: 'Hafif-orta rüzgâr',
     /** Fixture LTAC `32012KT`: 22 km/sa, sarı (M6e.3, D-083). */
     moderateWind: 'Orta rüzgâr',
     rainValue: 'Hafif sağanak yağmur',
@@ -503,8 +503,8 @@ test.describe('havalimanı sayfası', () => {
       await expect(light.locator('.wx-tag')).toHaveText(copy.lightWind)
 
       // Derecelendirilmiş rüzgâr (M6e.3, kullanıcı isteği 2026-10-04): LTDB `18006KT` (11 km/sa)
-      // limon yeşili "Tatlı rüzgâr", LTAC `32012KT` (22 km/sa) sarı "Orta rüzgâr"; eskiden sadeydi.
-      // Etiket beyaz zeminde satırın yazı rengindedir.
+      // limon yeşili "Hafif-orta rüzgâr", LTAC `32012KT` (22 km/sa) sarı "Orta rüzgâr"; eskiden
+      // sadeydi. Etiket beyaz zeminde satırın yazı rengindedir.
       for (const [code, tone, tag] of [
         ['LTDB', WIND_TONES[1], copy.breezeWind],
         ['LTAC', WIND_TONES[2], copy.moderateWind],

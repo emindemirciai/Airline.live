@@ -269,10 +269,10 @@ describe('WeatherPanel: bütün fixture durumları', () => {
       expect(row(html, 'wind'), icao).toBe(value)
       expect(html, icao).not.toContain('wx-tag')
     }
-    // LTDB 6 kt = 11 km/sa: yeşil değil, limon yeşili "Tatlı rüzgâr" (M6e.3; eskiden sade).
+    // LTDB 6 kt = 11 km/sa: yeşil değil, limon yeşili "Hafif-orta rüzgâr" (M6e.3; eskiden sade).
     const breeze = panel(fixtureWeather('LTDB'))
     expect(tone(breeze, 'wind')).toBe('breeze')
-    expect(row(breeze, 'wind')).toBe('Güneyden 11 km/sa (6 kt) Tatlı rüzgâr')
+    expect(row(breeze, 'wind')).toBe('Güneyden 11 km/sa (6 kt) Hafif-orta rüzgâr')
   })
 
   it('derecelendirilmiş rüzgâr renkleri (M6e.3, kullanıcı isteği 2026-10-04): bütün fixture istasyonları', () => {
@@ -281,15 +281,15 @@ describe('WeatherPanel: bütün fixture durumları', () => {
     const expected: Record<(typeof STATIONS)[number], [string | null | undefined, string | null]> =
       {
         LTFM: ['strong', 'Kuvvetli hamle'],
-        LTBA: ['breeze', 'Tatlı rüzgâr'],
+        LTBA: ['breeze', 'Hafif-orta rüzgâr'],
         LTAC: ['moderate', 'Orta rüzgâr'],
         LTAI: ['fresh', 'Hamleli rüzgâr'],
         LTBJ: ['calm', null],
         LTCG: ['calm', null],
-        LTFJ: ['breeze', 'Tatlı rüzgâr'],
+        LTFJ: ['breeze', 'Hafif-orta rüzgâr'],
         LTCE: ['strong', 'Kuvvetli rüzgâr'],
-        LTDB: ['breeze', 'Tatlı rüzgâr'],
-        LTAU: ['breeze', 'Tatlı rüzgâr'],
+        LTDB: ['breeze', 'Hafif-orta rüzgâr'],
+        LTAU: ['breeze', 'Hafif-orta rüzgâr'],
         LTBS: ['fresh', 'Hamleli rüzgâr'],
         LTCF: ['calm', null],
         LTAJ: ['calm', 'Hafif rüzgâr'],
@@ -329,8 +329,8 @@ describe('WeatherPanel: bütün fixture durumları', () => {
       )
     for (const [group, expectedTone, value] of [
       ['27005KT', 'calm', 'Batıdan 9 km/sa (5 kt) Hafif rüzgâr'],
-      ['27006KT', 'breeze', 'Batıdan 11 km/sa (6 kt) Tatlı rüzgâr'],
-      ['27010KT', 'breeze', 'Batıdan 19 km/sa (10 kt) Tatlı rüzgâr'],
+      ['27006KT', 'breeze', 'Batıdan 11 km/sa (6 kt) Hafif-orta rüzgâr'],
+      ['27010KT', 'breeze', 'Batıdan 19 km/sa (10 kt) Hafif-orta rüzgâr'],
       ['27011KT', 'moderate', 'Batıdan 20 km/sa (11 kt) Orta rüzgâr'],
       ['27016KT', 'moderate', 'Batıdan 30 km/sa (16 kt) Orta rüzgâr'],
       ['27017KT', 'fresh', 'Batıdan 31 km/sa (17 kt) Sert rüzgâr'],
@@ -338,10 +338,11 @@ describe('WeatherPanel: bütün fixture durumları', () => {
       ['27010G25KT', 'fresh', 'Batıdan 19 km/sa (10 kt), hamle 46 km/sa (25 kt) Hamleli rüzgâr'],
       ['27015G29KT', 'fresh', 'Batıdan 28 km/sa (15 kt), hamle 54 km/sa (29 kt) Hamleli rüzgâr'],
       ['27015G30KT', 'strong', 'Batıdan 28 km/sa (15 kt), hamle 56 km/sa (30 kt) Kuvvetli hamle'],
-      ['27033KT', 'strong', 'Batıdan 61 km/sa (33 kt) Fırtınamsı rüzgâr'],
+      ['27033KT', 'strong', 'Batıdan 61 km/sa (33 kt) Çok kuvvetli rüzgâr'],
       ['27034KT', 'storm', 'Batıdan 63 km/sa (34 kt) Fırtına'],
       ['27025G43KT', 'storm', 'Batıdan 46 km/sa (25 kt), hamle 80 km/sa (43 kt) Fırtına'],
-      ['270P99KT', 'storm', 'Batıdan 185 km/sa (100 kt) ve üzeri Harikeyn (orkan)'],
+      ['27050KT', 'storm', 'Batıdan 93 km/sa (50 kt) Şiddetli fırtına'],
+      ['270P99KT', 'storm', 'Batıdan 185 km/sa (100 kt) ve üzeri Kasırga şiddetinde rüzgâr'],
     ] as const) {
       const html = at(group)
       expect([tone(html, 'wind'), row(html, 'wind')], group).toEqual([expectedTone, value])
@@ -382,7 +383,7 @@ describe('WeatherPanel: bütün fixture durumları', () => {
     })
     expect(tone(light, 'wind')).toBe('fresh')
     expect(row(light, 'wind')).toBe('Güneyden 7 km/sa (4 kt) Rüzgâr kesmesi bildirildi: pist 16')
-    // Tatlı ve orta rüzgârda da (M6e.3): kesme satırı kehribar yapar, basamağın adı yazılmaz.
+    // Hafif-orta ve orta rüzgârda da (M6e.3): kesme satırı kehribar yapar, basamağın adı yazılmaz.
     for (const [group, value] of [
       ['18008KT', 'Güneyden 15 km/sa (8 kt)'],
       ['18014KT', 'Güneyden 26 km/sa (14 kt)'],

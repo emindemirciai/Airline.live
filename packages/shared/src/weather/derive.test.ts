@@ -219,7 +219,7 @@ describe('rüzgârın renk basamağı (kullanıcı isteği 2026-10-04: derecelen
     ['VRB05KT', 'calm'],
     ['VRB06KT', 'breeze'],
     // 10/11 km/sa (gösterilen değer): 5 kt = 9, 6 kt = 11; KMH olduğu gibi; MPS 2 m/s = 7, 3 m/s = 11.
-    // 6 kt ve 3 m/s MGM'de Beaufort 2 "Hafif Rüzgâr"dır; burada tatlıdır, çünkü sınır kullanıcının
+    // 6 kt ve 3 m/s MGM'de Beaufort 2 "Hafif Rüzgâr"dır; burada hafif-ortadır, çünkü sınır kullanıcının
     // hafif rüzgâr kuralıdır (2026-10-03, D-083), MGM'nin 6/7 kt sınırı değil.
     ['27005KT', 'calm'],
     ['27006KT', 'breeze'],
