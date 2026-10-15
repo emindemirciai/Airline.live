@@ -41,6 +41,7 @@ Durumlar: `[ ]` başlamadı, `[~]` sürüyor, `[k]` kod bitti ve kullanıcı do�
 | M6e.12 | Global konumlandırma (yama; D-106) | `p1/map-global-copy` | [k] kod bitti; üretimde doğrulandı (2026-10-07, v0.22.4): `/version` 0.22.4, `/` başlığı "Canlı uçuş takibi ve uçak haritası · havayolu", `/en` "Live flight tracker and aircraft map · havayolu"; Release 2026-10-07T20:09:13Z; paylaşım görseli ve sayfa denetimi kullanıcıda (ACTIVATION v0.22.4) | #40 |
 | M6e.11 | Bütün ülkelerin adları (yama; D-100) | `p1/map-all-countries` | [k] kod bitti; üretimde doğrulandı (2026-10-08, v0.22.5): `/version` 0.22.5, Release 2026-10-07T21:01:27Z (İstanbul 2026-10-08 00:01); uydu üstünde görünüm denetimi kullanıcıda (ACTIVATION M6e.11) | #41 |
 | M6e.15 | Marka geçişi: Airline.live (D-112): görünen ad `APP_NAME`'den, önceki alan adının bütün adreslerinden 308 (web proxy'si, API `onRequest`), User-Agent, sayfalarda iç ad yok, belgeler ve kullanıcı adımları | `p1/brand-airline-live` | [k] yayında: PR #44 (220d2d8), Release v0.25.0 2026-10-15 03:24:33 UTC, `/version` 0.25.0; Dokploy env'i (b2) ve sonraki kullanıcı adımları ACTIVATION "Marka geçişi: Airline.live"de | — |
+| M6e.16 | Havalimanı simgeleri gizlenebilir (D-113): "Etiketler" panelinde "Havalimanı simgeleri" Gizle / Göster; gizliyken pin ve kod çizilmez, tıklanmaz; açık pencerenin havalimanı çizilir (yama, v0.25.2) | `p1/map-airport-icons` | [~] kod ve yerel kontroller bitti (2026-10-15); yayın adımı (README, v0.25.1'in yayın anı, PR, CI) bekliyor | — |
 | M6h | 3. halka (≤ 2.000 km) — kullanıcı isteğiyle M7a'nın önüne alındı (2026-10-04); sivil uçuşa kapalı olabilecek havalimanı notu | `p1/m6h-ring3` | [k] kod bitti; üretimde doğrulandı (2026-10-04, v0.18.0): `scope=listed` 503 (61 + 75 + 89 + 278), Viyana 3. halka 1.149 km, beş Özbek istasyonunun METAR'ı UZxx koduyla, METAR'lı istasyon 463/503, toplu hava 1,34 MB, URKK ve UUOO notu iki dilde; admin Servisler ve worker günlüğü (429 yok) bekliyor (ACTIVATION) | #28 |
 | M7a | Canlı araçlar: `smoke:live`, `record` | `p1/m7a-live-tools` | [k] kod bitti; canlı smoke ve kayıt kullanıcıda (ACTIVATION) | #31 |
 | M7b.1 | İz tablolarına ham `seen_pos` ve `baro_rate` (migration 0006, v0.20.0; D-097) | `p1/m7b1-track-columns` | [x] tamam; üretimde doğrulandı (2026-10-05, v0.20.0): `hy-migrate` 0006'yı uyguladıktan sonra servisler açıldı, `/version` 0.20.0, `/ready` 200; v0.20.0 Release 2026-10-05T07:45:13Z. Ingest yazımı üretimde adsb.lol açılınca görülür (ACTIVATION 2. adım) | #33 |
@@ -2350,3 +2351,35 @@ Hedef sürüm v0.25.0 (MINOR). Sürüm (`package.json` 0.25.0), `entries.ts`'in 
 - `pnpm turbo run test --force --continue` → web 970, shared 757, tools 383, worker 304, api 303, providers 135, i18n 101, db 84, geo 36 (toplam 3.073; yeni: api `net/legacy-host.test.ts` +3)
 - `pnpm test:scripts` → 39/39 (`CHANGELOG.md` üretildi)
 - `prettier --check .`, `pnpm lint` (9/9), `pnpm typecheck` (9/9), `pnpm typecheck:scripts`, `pnpm typecheck:e2e`, `pnpm lint:e2e`, `pnpm check:eol`, `pnpm db:check`, `pnpm changelog:check` (v0.25.0) → yeşil
+
+## M6e.16 — Havalimanı simgeleri gizlenebilir (D-113)
+Onay: 2026-10-15 (kullanıcı isteği: "havalimanı ikonlarını da gizlenebilir yap.")
+
+Bu istek D-084'ün "pin kalır" kuralını tersine çevirir (kullanıcı kuralı 2026-10-03: etiket gizlenince kırmızı noktalar kalır). Etiketin Gizle'si yine yalnız kodları kaldırır; pinleri ayrı ayar gizler, varsayılan Göster. Grubun adı, yeri, kod grubunun kapanması ve pencere istisnası orkestratör varsayılanıdır (D-113; itiraz edilebilir).
+
+Sürüm v0.25.2 (PATCH). Dal `p1/map-airport-icons` (`C:/PROJELER/havayolu-brand`), `p1/map-war-closures`'ın (PR #45, v0.25.1, birleşmedi) üstünden; PR tabanı o daldır (yığılmış dal). README yayın adımındadır.
+
+**Kapsam:**
+- Ayar: `hy:map:labels` kaydında `airportIcons: 'hidden' | 'shown'` (varsayılan `'shown'`); alanı olmayan ya da geçersiz eski kayıt Göster okunur. `copyLabelSettings`, `sameLabelSettings`, `sameViewState` yeni alanı kapsar.
+- Panel: "Havalimanı simgeleri" / "Airport icons" (Gizle / Göster, Hide / Show) "Havalimanları" grubunun üstünde. Simgeler gizliyken "Havalimanları" grubu `aria-disabled`, kısa notlu ("Simgeler gizliyken kodlar da görünmez."), odaklanır ama değişmez (tıklama, boşluk, ok tuşları); seçimi saklı kalır. Panelin en çok yüksekliği 480 → 560 px.
+- Harita: pin kaynağı ve kod çizimi yalnız çizilen havalimanlarıyla (`drawnAirports`): simgeler açıkken bütün liste, gizliyken hiçbiri ya da yalnız açık pencerenin havalimanı. Kaynak yalnız liste değişince yenilenir (`sameAirportList`).
+- İstisna: "Havalimanları" listesinden, aramadan ya da haritadan açılan pencerenin havalimanı pencere açıkken pini ve (Kod'da) koduyla çizilir. `?havalimani=` pencere açmaz, istisnaya girmez. Ülke adı yerleşimi değişmez.
+
+**Dosyalar:**
+- `apps/web/src/lib/map/label-settings.ts` (+ test), `apps/web/src/components/map/use-label-settings.ts` (yorum)
+- `apps/web/src/components/map/panels/label-settings-control.tsx`, `panels.test.ts`; `apps/web/src/app/globals.css`
+- `apps/web/src/components/map/map-controller.ts` (+ test), `map-view.tsx`, `live-map.tsx`, `labels.ts` (yorum)
+- `packages/i18n/src/messages/tr.ts`, `en.ts`, `i18n.test.ts`
+- `e2e/tests/live-map.spec.ts` (yeni test; D-084 testinin iki kayıt beklentisi `airportIcons: 'shown'` ile)
+- `packages/shared/src/changelog/entries.ts` (0.25.2), `CHANGELOG.md` (üretilir), kök `package.json` 0.25.2
+- Belgeler: D-113 (D-084'e işaret satırı), `docs/spec/domain.md` (Harita etiketleri), bu plan
+
+**Kabul komutları:**
+- `pnpm format`, `pnpm lint`, `pnpm typecheck`, `pnpm typecheck:scripts`, `pnpm test`, `pnpm typecheck:e2e`, `pnpm lint:e2e`, `pnpm check:eol`, `pnpm db:check`, `pnpm test:scripts`, `pnpm changelog:check`
+- e2e (CI): "havalimanı simgeleri gizlenebilir (D-113)": Gizle'de IST'nin pini ve kodu çizilmez, kayıt `airportIcons: 'hidden'`, kod grubu kapalı ve Kod seçili kalır (ok tuşu ve tıklama değiştirmez), ayar yenilemede gelir, "Havalimanları" listesi IST penceresini açar ve pencere açıkken pin ve kod çizilir, kapanınca kalkar, pinin başının yeri pencere açmaz.
+
+**Çıktı kaydı (2026-10-15, yerel, ağ yok):**
+- `pnpm turbo run test --force --continue` → web 981/982, shared 764/765, tools 383, worker 304, api 304, providers 135, i18n 101, db 85, geo 36 (yeni: web +9: `label-settings.test.ts` +2, `map-controller.test.ts` +5, `panels.test.ts` +2; i18n mevcut teste yeni beklentiler). İki kırmızı test 0.25.1'in `releasedAt`'inin henüz yazılmamasından gelir (`changelog.test.ts` "en yeni dışında her sürümde var", `changelog-content.test.ts` "her sürümün saati var"): v0.25.1 yayımlanınca GitHub Release anı `entries.ts`'e yazılır ve ikisi geçer (D-091; M6i.3'teki durumun aynısı).
+- `pnpm format`, `pnpm lint` (9/9), `pnpm typecheck` (9/9), `pnpm typecheck:scripts`, `pnpm typecheck:e2e`, `pnpm lint:e2e`, `pnpm check:eol`, `pnpm db:check` (boş fark), `pnpm test:scripts` (39/39) → yeşil.
+- `pnpm changelog` → "CHANGELOG.md yazıldı (v0.25.2, 46 sürüm)"; `pnpm changelog:check` → "✓ Changelog tutarlı (v0.25.2)".
+- Çalıştırılmayanlar (görev sınırı): `pnpm dev`, `pnpm test:e2e`, `pnpm test:integration`, `pnpm build`, Docker; e2e CI'da koşar.
