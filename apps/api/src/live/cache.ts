@@ -14,9 +14,9 @@ import type {
   Bbox,
   CoverageState,
   LiveSource,
-  LiveStatus,
   ProviderState,
   PublicAircraft,
+  ServedLiveStatus,
   TickDiff,
 } from './types'
 
@@ -84,6 +84,11 @@ export interface LiveCacheOptions {
   codes: () => AirlineCodes
   /** Güncel hex engel listesi (admin). */
   blocklist: () => ReadonlySet<string>
+  /**
+   * Canlı katman açık mı (admin anahtarı, D-115; varsayılan hep açık). Kapalıyken görünür küme
+   * boştur; değişim turunda fark boş olsa da gönderilir (`statusChanged`).
+   */
+  layer?: () => boolean
   log: LiveCacheLog
   now?: () => number
   pollMs?: number
@@ -126,7 +131,8 @@ const round1 = (value: number) => Math.round(value * 10) / 10
  * örneğinin `sampleTime`'ı yazıldığı andan saniyeler önce olabilir (`seen_pos`, çekim aralığı);
  * "son yoklamadan beri" penceresi böyle geç gelen örnekleri kaçırırdı.
  *
- * Görünür küme = geçerli, gizli olmayan, engel listesinde olmayan ve `maxAgeMs`'ten yeni kayıtlar.
+ * Görünür küme = canlı katman açıkken geçerli, gizli olmayan, engel listesinde olmayan ve
+ * `maxAgeMs`'ten yeni kayıtlar (katman kapalıyken boş, D-115).
  * Bir önceki tura göre fark (eklenen, `t`'si değişen, çıkan) boş değilse `seq` artar, fark geçmişe
  * eklenir ve dinleyicilere bildirilir. Redis hatasında son durum sunulmaya devam eder (uyarı
  * dakikada bir); yaş budaması yine çalışır, 120 sn'den eski konum canlı diye sunulmaz.
@@ -135,6 +141,7 @@ export class LiveCache implements LiveSource {
   private readonly redis: Redis
   private readonly codes: () => AirlineCodes
   private readonly blocklist: () => ReadonlySet<string>
+  private readonly layer: () => boolean
   private readonly log: LiveCacheLog
   private readonly now: () => number
   private readonly pollMs: number
@@ -148,6 +155,8 @@ export class LiveCache implements LiveSource {
   private readonly listeners = new Set<(diff: TickDiff) => void>()
   private readonly warnedAt = new Map<string, number>()
   private seqValue = 0
+  /** Son turda uygulanan katman durumu; ilk turdan önce null. */
+  private appliedLayer: boolean | null = null
   private newestT: number | null = null
   private providerRecords = new Map<LiveProviderId, ProviderRecord>()
   /**
@@ -173,6 +182,7 @@ export class LiveCache implements LiveSource {
     this.redis = options.redisLive
     this.codes = options.codes
     this.blocklist = options.blocklist
+    this.layer = options.layer ?? (() => true)
     this.log = options.log
     this.now = options.now ?? Date.now
     this.pollMs = options.pollMs ?? LIVE_CACHE_DEFAULTS.pollMs
@@ -266,6 +276,9 @@ export class LiveCache implements LiveSource {
 
   private apply(t: number): TickDiff | null {
     const blocked = this.blocklist()
+    const layerOn = this.layer()
+    const layerChanged = this.appliedLayer !== null && this.appliedLayer !== layerOn
+    this.appliedLayer = layerOn
     const added: PublicAircraft[] = []
     const updated: PublicAircraft[] = []
     const removed: TickDiff['removed'] = []
@@ -276,7 +289,9 @@ export class LiveCache implements LiveSource {
     for (const [hex, entry] of this.known) {
       const aircraft = entry.aircraft
       const next =
-        aircraft !== null && !blocked.has(hex) && t - aircraft.t <= this.maxAgeMs ? aircraft : null
+        layerOn && aircraft !== null && !blocked.has(hex) && t - aircraft.t <= this.maxAgeMs
+          ? aircraft
+          : null
       const previous = this.visible.get(hex)
       if (next !== null && previous === undefined) {
         added.push(next)
@@ -298,9 +313,16 @@ export class LiveCache implements LiveSource {
     }
     this.newestT = newest
 
-    if (added.length === 0 && updated.length === 0 && removed.length === 0) return null
+    const empty = added.length === 0 && updated.length === 0 && removed.length === 0
+    if (empty && !layerChanged) return null
     this.seqValue += 1
-    const diff: TickDiff = { seq: this.seqValue, added, updated, removed }
+    const diff: TickDiff = {
+      seq: this.seqValue,
+      added,
+      updated,
+      removed,
+      ...(layerChanged ? { statusChanged: true as const } : {}),
+    }
     this.history.push(diff)
     if (this.history.length > this.historyTicks) {
       this.history.splice(0, this.history.length - this.historyTicks)
@@ -416,8 +438,9 @@ export class LiveCache implements LiveSource {
   /**
    * Sağlayıcı durumu o anki saate göre: kaydı 30 sn'den eski, kaydı kaybolmuş ya da kayıtları
    * 30 sn'dir okunamayan (daha önce görülmüş) sağlayıcı `down`. Hiç görülmemiş sağlayıcı yer almaz.
+   * `layer`: son turda uygulanan katman durumu (ilk turdan önce anahtarın kendisi).
    */
-  status(): LiveStatus {
+  status(): ServedLiveStatus {
     const t = this.now()
     const readFresh = this.providersReadAt !== null && t - this.providersReadAt <= PROVIDER_STALE_MS
     const providers: Partial<Record<LiveProviderId, ProviderState>> = {}
@@ -436,6 +459,7 @@ export class LiveCache implements LiveSource {
           ? null
           : round1(this.primary.ageS + Math.max(0, t - this.primary.at) / 1000),
       newestAgeS: this.newestT === null ? null : round1(Math.max(0, t - this.newestT) / 1000),
+      layer: (this.appliedLayer ?? this.layer()) ? 'on' : 'off',
     }
   }
 

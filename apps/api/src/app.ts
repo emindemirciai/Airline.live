@@ -4,11 +4,12 @@ import helmet from '@fastify/helmet'
 import rateLimit, { normalizeIP } from '@fastify/rate-limit'
 import swagger from '@fastify/swagger'
 import type { AirlineCodes } from '@havayolu/db'
-import { currentVersion } from '@havayolu/shared'
+import { currentVersion, LIVE_DATA_LICENSE } from '@havayolu/shared'
 import Fastify, { type FastifyInstance } from 'fastify'
 import type { Redis } from 'ioredis'
 import { registerArrivalCoverageRoutes, type ArrivalCoverageStore } from './admin/arrival-coverage'
 import { redisBlocklistStore, registerBlocklistRoutes } from './admin/blocklist'
+import { registerLiveLayerRoutes, type LiveLayerStore } from './admin/live-layer'
 import { collectServices, type ServiceProbes } from './admin/services'
 import { registerAuthRoutes, requireAdmin } from './auth/routes'
 import type { SessionStore } from './auth/session-store'
@@ -52,6 +53,12 @@ export interface AppDeps {
    */
   arrivalCoverage: ArrivalCoverageStore | null
   /**
+   * Canlı katman anahtarı (PostgreSQL, M7d.1, D-115): `store` null ise (veritabanı yok) admin uçları
+   * 503. `changed` başarılı değişiklikten sonra çağrılır (API'nin kopyası hemen yenilenir).
+   * Verilmezse uçlar 503 döner.
+   */
+  liveLayerAdmin?: { store: LiveLayerStore | null; changed: () => void }
+  /**
    * Havalimanı uçları (`/v1/airports`, `/v1/airports/:code`); okuyucu null ise (veritabanı yok)
    * 503.
    */
@@ -81,6 +88,12 @@ const UNAUTHORIZED = { message: 'Yönetici oturumu gerekli.' }
  */
 export const API_ROBOTS_TAG = 'noindex'
 export const API_ROBOTS_TXT = 'User-agent: *\nDisallow: /\n'
+
+/**
+ * OpenAPI açıklaması (D-115, ODbL 4.3): canlı uçak verisinin kaynağı, lisansı ve atfı. `info.license`
+ * canlı veri lisansıdır; diğer verilerin kaynakları kendi etiketlerinde yazar.
+ */
+export const OPENAPI_DESCRIPTION = `Canlı uçak verisi (\`/v1/live\`, \`/v1/search\`, \`/v1/ws\`) ADSB.lol kaynaklıdır ve Open Database License (ODbL) 1.0 altındadır: ${LIVE_DATA_LICENSE.licenseUrl}. Atıf: ADSB.lol (https://adsb.lol). Bu yanıtlar \`license\`, \`licenseUrl\` ve \`attribution\` alanlarını taşır. Havalimanı ve hava durumu verisinin kaynakları kendi etiketlerinde yazar.`
 
 /** Ucuz ve durumsuz sistem uçları hız sınırına girmez: web'in /durum sayfası ve izleme bunları sık çağırır. */
 const NO_RATE_LIMIT = { rateLimit: false } as const
@@ -131,12 +144,20 @@ export async function buildApp(env: Env, deps: AppDeps): Promise<FastifyInstance
   })
   await app.register(swagger, {
     openapi: {
-      info: { title: `${env.APP_NAME} API`, version: currentVersion() },
+      info: {
+        title: `${env.APP_NAME} API`,
+        version: currentVersion(),
+        description: OPENAPI_DESCRIPTION,
+        license: { name: LIVE_DATA_LICENSE.license, url: LIVE_DATA_LICENSE.licenseUrl },
+      },
       tags: [
         { name: 'system', description: 'Sağlık ve sürüm' },
         { name: 'auth', description: 'Yönetici oturumu (platform-admin sözleşmesi)' },
         { name: 'admin', description: 'Yönetim' },
-        { name: 'live', description: 'Canlı uçaklar ve arama (WebSocket: /v1/ws)' },
+        {
+          name: 'live',
+          description: 'Canlı uçaklar ve arama (WebSocket: /v1/ws); veri: ADSB.lol, ODbL 1.0',
+        },
         { name: 'reference', description: 'Referans verisi (havalimanları)' },
         {
           name: 'weather',
@@ -223,6 +244,12 @@ export async function buildApp(env: Env, deps: AppDeps): Promise<FastifyInstance
   })
   // Kapsama raporu: API satırı kuyruğa yazar, worker'ın jobs rolü çalıştırır (D-098).
   registerArrivalCoverageRoutes(app, { sessions: store, store: deps.arrivalCoverage })
+  // Canlı katman anahtarı: durum PostgreSQL'de, worker ve API 2 sn'de bir okur (D-115).
+  registerLiveLayerRoutes(app, {
+    sessions: store,
+    store: deps.liveLayerAdmin?.store ?? null,
+    changed: deps.liveLayerAdmin?.changed ?? (() => undefined),
+  })
 
   // Canlı veri: REST, arama ve WebSocket aynı önbellekten okur (D-074).
   registerLiveRoutes(app, deps.live)

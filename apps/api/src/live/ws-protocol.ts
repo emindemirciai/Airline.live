@@ -7,6 +7,7 @@
  * hücresinde `removed`, yeni hücresinde `added` olarak gelir; iki hücreyi de gören istemci önce
  * silip sonra eklediği için uçağı kaybetmez. Bilinmeyen hex'in silinmesi etkisizdir.
  */
+import { LIVE_DATA_LICENSE } from '@havayolu/shared'
 import { z } from 'zod'
 import { toBbox } from './bbox'
 import type { Bbox, CoverageState, LiveStatus, PublicAircraft, TickDiff } from './types'
@@ -213,13 +214,14 @@ export function diffMessage(prefix: Buffer, fragments: readonly Buffer[]): Buffe
   return Buffer.concat(parts)
 }
 
+/** Tam görüntü; canlı veri lisansı ve atfı (ODbL, D-115) her tam görüntüde gider, diff'te gitmez. */
 export function snapshotMessage(
   seq: number,
   coverage: CoverageState,
   status: LiveStatus,
   aircraft: readonly PublicAircraft[],
 ): string {
-  return JSON.stringify({ type: 'snapshot', seq, coverage, status, aircraft })
+  return JSON.stringify({ type: 'snapshot', seq, coverage, status, aircraft, ...LIVE_DATA_LICENSE })
 }
 
 export function reconnectMessage(afterMs: number): string {
