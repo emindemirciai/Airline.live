@@ -20,7 +20,7 @@ import {
   pendingHex,
   type SharedLinkState,
 } from '../../lib/map/shared-link'
-import { hexUrl } from '../../lib/map/url-state'
+import { findAirportByCode, hexUrl } from '../../lib/map/url-state'
 import { localePath } from '../../lib/locale-routing'
 import { TERMS_PATH } from '../../lib/terms'
 import { useNow, useWallNow } from '../../lib/use-now'
@@ -97,7 +97,8 @@ export interface LiveMapProps {
   initialHex: string | null
   /**
    * Açılışta ortalanacak havalimanı (`/?havalimani=LTFM`, ICAO ya da IATA), biçimi doğrulanmış.
-   * Paylaşılan uçak (`?hex=`) varsa ya da kullanıcı haritayı önce kendisi kullanırsa yok sayılır.
+   * Paylaşılan uçak (`?hex=`) varsa ya da kullanıcı haritayı önce kendisi kullanırsa kamera onu yok
+   * sayar. Havalimanları Gizle'deyken bu havalimanının pini yine çizilir (D-113).
    */
   initialAirport: string | null
   /**
@@ -222,8 +223,9 @@ export function LiveMap({
    */
   const [airports, setAirports] = useState<readonly MapAirport[]>(NO_AIRPORTS)
   /**
-   * Açık havalimanı penceresinin ICAO kodu. Havalimanı simgeleri gizliyken haritada yalnız bu
-   * havalimanının pini ve kodu çizilir (D-113): pencere pinle, listeden ya da aramadan açılır.
+   * Açık havalimanı penceresinin ICAO kodu. Havalimanları Gizle'deyken haritada bu havalimanının pini
+   * pencere kapanana kadar çizilir (D-113): pencere listeden, aramadan ya da Gizle'den önce pinle
+   * açılmış olabilir.
    */
   const [popupIcao, setPopupIcao] = useState<string | null>(null)
   const sheetLayout = useSyncExternalStore(subscribeSheet, sheetSnapshot, sheetServerSnapshot)
@@ -429,6 +431,11 @@ export function LiveMap({
   const popupAirport =
     popupIcao === null ? undefined : airports.find((airport) => airport.icao === popupIcao)
   const popupOpen = popupAirport !== undefined
+  // `?havalimani=` hedefi (ICAO ya da IATA; D-113): parametre adresteyken havalimanları Gizle'de de
+  // pini çizilir. Parametre sayfanın adresinden gelir ve uçak seçimi onu adresten silmez (`hexUrl`).
+  // Listede olmayan kod (askerî üs, D-107) çizilmez.
+  const linkIcao =
+    initialAirport === null ? null : (findAirportByCode(airports, initialAirport)?.icao ?? null)
   // Pencere yalnız kendi havalimanının havasını ister (D-090); kapalıyken istek yok.
   const weather = useAirportWeather(config.apiBaseUrl, popupAirport?.icao ?? null, weatherClock)
   // Listenin tahmini durumları (D-085): depo değiştikçe sınıflandırılır, çizimde yalnızca okunur.
@@ -519,6 +526,7 @@ export function LiveMap({
           store={store}
           airports={airports}
           popupIcao={popupAirport?.icao ?? null}
+          linkIcao={linkIcao}
           selectedHex={selectedHex}
           following={following}
           labelSettings={labelSettings}

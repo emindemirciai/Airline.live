@@ -3,8 +3,9 @@
 // durumlar ve daraltmanın saklanması (D-085) → satıra tıklayınca bilgi kartı solda açılır, tablette
 // seçili uçağın etiketi ve simgesi listenin altında kalmaz → arama (her yerdeki) uçağı bulur →
 // /?hex= ile doğrudan açılış aynı uçağı seçer → etiket ayarı (uçaklar, havalimanları ve ülke adları,
-// D-084, D-095) cihazda saklanır → havalimanı simgeleri gizlenir, pencerenin havalimanı çizilir
-// (D-113) → askerî hava üslerinin pini, kodu ve liste satırı yoktur,
+// D-084, D-095) cihazda saklanır → havalimanları Gizle / Simge / Simge ve kod; Gizle'de pin ve kod
+// yok, açık pencerenin ve `?havalimani=` hedefinin pini çizilir, eski kayıt Simge okunur (D-113) →
+// askerî hava üslerinin pini, kodu ve liste satırı yoktur,
 // `?havalimani=<üs>` bilinmeyen kod gibidir (D-103, D-107) → ülke adları uzaklaşınca sınırlarının
 // içinde, pinlerden uzak boş yerde yazılır (D-096, D-099), havalimanı olmayan ülkeler de (D-100),
 // yakınlaşınca silinir. Tablo, haritanın erişilebilir karşılığıdır; testler uçakları WebGL
@@ -416,7 +417,7 @@ test('etiket ayarı cihazda saklanır ve yeniden açılışta geri gelir; harita
   await expect(countries.getByRole('radio', { name: 'Gizle' })).toBeChecked()
 })
 
-test('havalimanı etiketi Kod ya da Gizle; cihazda saklanır; Kod’da kutu, Gizle’de pin tıklanır (D-084)', async ({
+test('havalimanları Simge ve kod ya da Simge; cihazda saklanır; Simge ve kod’da kutu, Simge’de pin tıklanır (D-084, D-113)', async ({
   page,
 }) => {
   // `?havalimani=LTFM` haritayı IST'de z10'da açar. Tek sayfa yüklemesi ve bir yenileme: her
@@ -438,29 +439,30 @@ test('havalimanı etiketi Kod ya da Gizle; cihazda saklanır; Kod’da kutu, Giz
       return raw === null ? null : (JSON.parse(raw) as unknown)
     }, LABEL_SETTINGS_KEY)
 
-  // Yalnız iki seçenek: "Kod ve ad" 2026-10-04'te kaldırıldı (ad havalimanı penceresindedir).
-  // Varsayılan Kod (kullanıcı kararı 2026-10-03): z10'da da IST kutusunda yalnız kod; tıklanınca
-  // pencere.
+  // Pinler ve kodları tek satırda üç seçenek (D-113; "Kod ve ad" 2026-10-04'te kaldırıldı, ad
+  // havalimanı penceresindedir). Varsayılan Simge ve kod (D-084'ün Kod'u, kullanıcı kararı
+  // 2026-10-03): z10'da da IST kutusunda yalnız kod; tıklanınca pencere.
   await button.click()
-  await expect(airports.getByRole('radio')).toHaveCount(2)
+  await expect(airports.getByRole('radio')).toHaveCount(3)
   await expect(mode('Gizle')).not.toBeChecked()
-  await expect(mode('Kod')).toBeChecked()
+  await expect(mode('Simge')).not.toBeChecked()
+  await expect(mode('Simge ve kod')).toBeChecked()
   await page.keyboard.press('Escape')
   await clickPrimaryChip(page, popup)
   await page.keyboard.press('Escape')
   await expect(popup).toBeHidden()
 
-  // Gizle klavyeyle seçilir: ok tuşu yalnız kendi grubunda gezer, uçak grupları değişmez.
+  // Simge (D-084'ün eski Gizle'si) klavyeyle seçilir: ok tuşu yalnız kendi grubunda gezer, uçak
+  // grupları değişmez. Kayıt yeni biçimdedir (`airportDisplay`; `airports` alanı yazılmaz).
   await button.click()
-  await mode('Kod').focus()
+  await mode('Simge ve kod').focus()
   await page.keyboard.press('ArrowLeft')
-  await expect(mode('Gizle')).toBeChecked()
+  await expect(mode('Simge')).toBeChecked()
   await expect(others.getByRole('radio', { name: 'Tam' })).toBeChecked()
   await expect.poll(stored).toEqual({
     selected: 'full',
     others: 'full',
-    airports: 'hidden',
-    airportIcons: 'shown',
+    airportDisplay: 'icon',
     countries: 'shown',
   })
   await page.keyboard.press('Escape')
@@ -470,10 +472,10 @@ test('havalimanı etiketi Kod ya da Gizle; cihazda saklanır; Kod’da kutu, Giz
   await page.reload()
   await waitForMap(page)
   await button.click()
-  await expect(mode('Gizle')).toBeChecked()
+  await expect(mode('Simge')).toBeChecked()
   await expect(others.getByRole('radio', { name: 'Tam' })).toBeChecked()
 
-  // Gizle: kutu çizilmez, pin görünür ve tıklanır kalır. Seçili ve diğer uçakların etiketi de
+  // Simge: kutu çizilmez, pin görünür ve tıklanır kalır. Seçili ve diğer uçakların etiketi de
   // gizlenir: tuvalde hiçbir şey kalmaz ve pinin başını bir uçak etiketi örtmez (etiket tıklaması
   // önce gelir, D-079). Seçili uçak da gizlenir: önceki tıklama yerdeki uçağı seçmişse adres
   // `?hex=` taşır ve yenilemede seçim geri gelir; o uçağın etiketi tuvali boyardı (CI'da bir kez
@@ -483,8 +485,7 @@ test('havalimanı etiketi Kod ya da Gizle; cihazda saklanır; Kod’da kutu, Giz
   await expect.poll(stored).toEqual({
     selected: 'hidden',
     others: 'hidden',
-    airports: 'hidden',
-    airportIcons: 'shown',
+    airportDisplay: 'icon',
     countries: 'shown',
   })
   await page.keyboard.press('Escape')
@@ -520,112 +521,284 @@ async function clickPrimaryChip(page: Page, popup: Locator): Promise<void> {
   }).toPass({ timeout: 20_000 })
 }
 
-test.describe('havalimanı simgeleri gizlenebilir (D-113)', () => {
-  // MapLibre `prefers-reduced-motion`'da kamera geçişlerini anında yapar: `?havalimani=` uçuşundan
-  // sonra IST'nin pin ucu hemen harita ortasındadır.
+/**
+ * Havalimanları ayarının pikselleri Sabiha Gökçen'de okunur: replay'de orada yerde uçak yoktur
+ * (seyir uçakları dönüşte birkaç saniye üstünden geçer; bekleyen denetimler yinelenir). IST'nin
+ * pininin üstünden replay'in taksi uçağı (`TAXI_AIRCRAFT`) sürekli geçer: IST yalnız DOM'dan
+ * (pencere, liste) ve etiket tuvalinden (kod yok) denetlenir.
+ */
+const SAW = { icao: 'LTFJ', iata: 'SAW' } as const
+
+/** İki animasyon karesi: ayar değişikliği haritaya geçer ve harita yeniden çizilir. */
+async function nextFrames(page: Page): Promise<void> {
+  await page.evaluate(
+    () =>
+      new Promise<void>((resolve) =>
+        requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
+      ),
+  )
+}
+
+test.describe('havalimanları Gizle / Simge / Simge ve kod (D-113)', () => {
+  // MapLibre `prefers-reduced-motion`'da kamera geçişlerini anında yapar: aramadan ya da
+  // `?havalimani=` ile havalimanına gidince pinin ucu hemen harita ortasındadır.
   test.use({ reducedMotion: 'reduce' })
 
-  test('Gizle: IST’nin pini ve kodu çizilmez, tıklanmaz; kod grubu kapalı ve seçimi saklı; ayar yeniden açılışta gelir; Havalimanları listesi IST penceresini pinle açar', async ({
+  const stored = (page: Page) =>
+    page.evaluate((key) => {
+      const raw = window.localStorage.getItem(key)
+      return raw === null ? null : (JSON.parse(raw) as unknown)
+    }, LABEL_SETTINGS_KEY)
+
+  /** Haritanın ortasındaki havalimanının pini ve kodu (pin başının yanındaki kutu). */
+  const centred = async (page: Page) => {
+    const tip = await mapCenter(page)
+    const head = { x: tip.x, y: tip.y - PIN_HEAD_OFFSET_PX }
+    return {
+      tip,
+      head,
+      pinRed: async () => (await pinPixels(page, tip)).red,
+      chip: async () =>
+        (await canvasChips(page, head)).find(
+          (chip) => Math.hypot(chip.x - head.x, chip.y - head.y) <= 30 + chip.width / 2,
+        ),
+    }
+  }
+
+  test('Gizle: pin ve kod çizilmez, tıklanmaz, yenilemede kalır; liste ve arama pencereyi açar, pencere açıkken pini çizilir; Simge pinleri kodsuz, Simge ve kod kodlarıyla getirir', async ({
     page,
   }) => {
-    // `?havalimani=LTFM` haritayı IST'de z10'da açar. Tek sayfa yüklemesi ve bir yenileme: her
-    // yükleme bir WebSocket el sıkışmasıdır (`WS_RATE_LIMIT`).
-    await page.goto(`/?havalimani=${PRIMARY_AIRPORT.icao}`)
-    await waitForMap(page)
+    // İki sayfa yüklemesi (her biri bir WebSocket el sıkışması, `WS_RATE_LIMIT`); adım çok.
+    test.setTimeout(150_000)
+    await openMap(page)
     const button = page.getByRole('button', { name: 'Etiketler', exact: true })
-    const icons = page.getByRole('group', { name: 'Havalimanı simgeleri', exact: true })
     const airports = page.getByRole('group', { name: 'Havalimanları', exact: true })
-    const icon = (name: string) => icons.getByRole('radio', { name, exact: true })
-    const code = (name: string) => airports.getByRole('radio', { name, exact: true })
-    const popup = page.locator(
+    const mode = (name: string) => airports.getByRole('radio', { name, exact: true })
+    const sawPopup = page.locator(`.live-map [role="dialog"].map-popup[data-icao="${SAW.icao}"]`)
+    const istPopup = page.locator(
       `.live-map [role="dialog"].map-popup[data-icao="${PRIMARY_AIRPORT.icao}"]`,
     )
     const anyPopup = page.locator('.live-map [role="dialog"].map-popup')
-    const stored = () =>
-      page.evaluate((key) => {
-        const raw = window.localStorage.getItem(key)
-        return raw === null ? null : (JSON.parse(raw) as unknown)
-      }, LABEL_SETTINGS_KEY)
-    // Pinin ucu IST'nin merkezinde (harita ortası), başı ~15 px yukarıda; kod kutusu başın yanında.
-    const tip = await mapCenter(page)
-    const head = { x: tip.x, y: tip.y - PIN_HEAD_OFFSET_PX }
-    const istChip = async () =>
-      (await canvasChips(page, head)).find(
-        (chip) => Math.hypot(chip.x - head.x, chip.y - head.y) <= 30 + chip.width / 2,
-      )
-    const drawn = async () => {
-      expect((await pinPixels(page, tip)).red).toBeGreaterThanOrEqual(15)
-      expect(await istChip(), 'IST kutusu tuvalde çizili').toBeDefined()
+    const canvas = page.locator('.live-map .maplibregl-canvas')
+    const input = searchInput(page)
+    const toggle = page.getByRole('button', { name: 'Havalimanları', exact: true })
+    /** Havalimanını aramadan açar: harita z10'da oraya gider, pencere açılır (D-108). */
+    const searchAirport = async (iata: string) => {
+      await input.fill(iata)
+      await expect(
+        page
+          .getByRole('search')
+          .getByRole('option')
+          .filter({ hasText: new RegExp(`^${iata}`) }),
+      ).toBeVisible()
+      await input.press('Enter')
     }
-    const notDrawn = async () => {
-      expect((await pinPixels(page, tip)).red).toBe(0)
-      // Hiçbir havalimanının kodu çizilmez (uçak etiketleri kod kutusu sayılmaz).
-      expect(await canvasChips(page, head)).toEqual([])
+    /** "Havalimanları" listesinden açar (görünümdeki havalimanları; liste görünümle yenilenir). */
+    const openFromList = async (iata: string) => {
+      const item = page.getByRole('button', { name: new RegExp(`^${iata}\\b`) })
+      await expect(async () => {
+        if ((await toggle.getAttribute('aria-expanded')) === 'true') await toggle.click()
+        await toggle.click()
+        await item.click({ timeout: 2_000 })
+      }).toPass({ timeout: 15_000 })
     }
 
-    // Varsayılan Göster (simge alanı olmayan eski kayıtlar da öyle okunur): pin ve kod çizili.
-    await expect(drawn).toPass({ timeout: 15_000 })
-
-    // Gizle: kaydedilir; "Havalimanları" grubu kapalı ve notlu, seçimi Kod kalır.
+    // Tek satır, üç seçenek; varsayılan Simge ve kod. Uçak etiketleri gizlenir: etiket tuvalinde
+    // yalnız havalimanı kodları kalır, boş tuval hiçbir kodun çizilmediğini gösterir.
     await button.click()
-    await expect(icon('Göster')).toBeChecked()
-    await expect(code('Kod')).toBeEnabled()
-    await icon('Gizle').check()
-    await expect.poll(stored).toEqual({
-      selected: 'full',
-      others: 'full',
-      airports: 'code',
-      airportIcons: 'hidden',
-      countries: 'shown',
-    })
-    await expect(code('Gizle')).toBeDisabled()
-    await expect(code('Kod')).toBeDisabled()
-    await expect(code('Kod')).toBeChecked()
-    await expect(airports.getByText('Simgeler gizliyken kodlar da görünmez.')).toBeVisible()
-    // Kapalı grup odaklanır ama değişmez: ok tuşu odağı ve seçimi taşımaz, tıklama seçmez.
-    await code('Kod').focus()
-    await page.keyboard.press('ArrowLeft')
-    await expect(code('Kod')).toBeFocused()
-    await expect(code('Kod')).toBeChecked()
-    await code('Gizle').click({ force: true })
-    await expect(code('Kod')).toBeChecked()
-    await expect(code('Gizle')).not.toBeChecked()
-    expect(await stored()).toMatchObject({ airports: 'code', airportIcons: 'hidden' })
+    await expect(airports.getByRole('radio')).toHaveCount(3)
+    await expect(mode('Simge ve kod')).toBeChecked()
+    await expect(page.getByRole('group', { name: 'Havalimanı simgeleri' })).toHaveCount(0)
+    await page
+      .getByRole('group', { name: 'Diğer uçaklar' })
+      .getByRole('radio', { name: 'Gizle' })
+      .check()
+    await page
+      .getByRole('group', { name: 'Seçili uçak' })
+      .getByRole('radio', { name: 'Gizle' })
+      .check()
     await page.keyboard.press('Escape')
     await expect(button).toHaveAttribute('aria-expanded', 'false')
-    await expect(notDrawn).toPass({ timeout: 10_000 })
 
-    // Yeniden açılış: liste yüklendikten sonra da (IST görünümde) pin ve kod çizilmez; panelde
-    // Gizle seçili, kod grubu kapalı.
+    // Arama SAW'ı açar; pencere kapanınca harita SAW'dadır.
+    await searchAirport(SAW.iata)
+    await expect(sawPopup).toBeVisible({ timeout: 15_000 })
+    await page.keyboard.press('Escape')
+    await expect(anyPopup).toHaveCount(0)
+    expect((await airportListCodes(page))[0]).toBe(SAW.iata)
+    const saw = await centred(page)
+    await expect(async () => {
+      expect(await saw.pinRed()).toBeGreaterThanOrEqual(15)
+      expect(await saw.chip(), 'SAW kutusu tuvalde çizili').toBeDefined()
+    }).toPass({ timeout: 15_000 })
+
+    // Gizle klavyeyle seçilir (Simge ve kod → Simge → Gizle); kayıt yeni biçimdedir.
+    await button.click()
+    await mode('Simge ve kod').focus()
+    await page.keyboard.press('ArrowLeft')
+    await expect(mode('Simge')).toBeChecked()
+    await page.keyboard.press('ArrowLeft')
+    await expect(mode('Gizle')).toBeChecked()
+    await expect
+      .poll(() => stored(page))
+      .toEqual({
+        selected: 'hidden',
+        others: 'hidden',
+        airportDisplay: 'hidden',
+        countries: 'shown',
+      })
+    await page.keyboard.press('Escape')
+    await expect(button).toHaveAttribute('aria-expanded', 'false')
+
+    // Gizle: SAW'ın pini yok, hiçbir havalimanının kodu yok; pinin başı tıklanmaz, imleç değişmez.
+    const gone = async () => {
+      expect(await saw.pinRed()).toBe(0)
+      expect(await paintedPixels(page)).toBe(0)
+    }
+    await expect(gone).toPass({ timeout: 10_000 })
+    await page.mouse.move(saw.head.x, saw.head.y)
+    await expect(canvas).not.toHaveCSS('cursor', 'pointer')
+    await page.mouse.click(saw.head.x, saw.head.y)
+    await expect(anyPopup).toHaveCount(0)
+
+    // Yeniden açılış (adres `/`, harita IST'de): Gizle seçili; IST'nin de kodu yok.
     await page.reload()
     await waitForMap(page)
     expect((await airportListCodes(page))[0]).toBe(PRIMARY_AIRPORT.iata)
-    await expect(notDrawn).toPass({ timeout: 10_000 })
+    await expect.poll(() => paintedPixels(page), { timeout: 10_000 }).toBe(0)
     await button.click()
-    await expect(icon('Gizle')).toBeChecked()
-    await expect(code('Kod')).toBeDisabled()
-    await expect(code('Kod')).toBeChecked()
+    await expect(mode('Gizle')).toBeChecked()
     await page.keyboard.press('Escape')
     await expect(button).toHaveAttribute('aria-expanded', 'false')
 
-    // "Havalimanları" listesi simgeler gizliyken de IST penceresini açar; pencere açıkken IST'nin
-    // pini ve kodu çizilir (pencerenin dayanağı).
-    const toggle = page.getByRole('button', { name: 'Havalimanları', exact: true })
-    const item = page.getByRole('button', { name: new RegExp(`^${PRIMARY_AIRPORT.iata}\\b`) })
-    await expect(async () => {
-      if ((await toggle.getAttribute('aria-expanded')) === 'true') await toggle.click()
-      await toggle.click()
-      await item.click({ timeout: 2_000 })
-    }).toPass({ timeout: 15_000 })
-    await expect(popup).toBeVisible()
-    await expect(drawn).toPass({ timeout: 10_000 })
+    // "Havalimanları" listesi Gizle'de de IST penceresini açar.
+    await openFromList(PRIMARY_AIRPORT.iata)
+    await expect(istPopup).toBeVisible()
+    await page.keyboard.press('Escape')
+    await expect(anyPopup).toHaveCount(0)
 
-    // Pencere kapanınca pin ve kod yine çizilmez; pinin başının yeri pencere açmaz.
+    // Arama Gizle'de de SAW'ı açar: pencere açıkken SAW'ın pini çizilir (kodu yazılmaz); pencere
+    // kapanınca pin kalkar.
+    await searchAirport(SAW.iata)
+    await expect(sawPopup).toBeVisible({ timeout: 15_000 })
+    const sawAgain = await centred(page)
+    await expect(async () => {
+      expect(await sawAgain.pinRed()).toBeGreaterThanOrEqual(15)
+      expect(await paintedPixels(page)).toBe(0)
+    }).toPass({ timeout: 15_000 })
+    await page.keyboard.press('Escape')
+    await expect(anyPopup).toHaveCount(0)
+    await expect(async () => {
+      expect(await sawAgain.pinRed()).toBe(0)
+      expect(await paintedPixels(page)).toBe(0)
+    }).toPass({ timeout: 10_000 })
+
+    // Liste de öyle: SAW'ın penceresi açıkken pini çizili, kapanınca yok.
+    await openFromList(SAW.iata)
+    await expect(sawPopup).toBeVisible()
+    await expect(async () => {
+      expect(await sawAgain.pinRed()).toBeGreaterThanOrEqual(15)
+    }).toPass({ timeout: 15_000 })
+    await page.keyboard.press('Escape')
+    await expect(anyPopup).toHaveCount(0)
+    await expect(async () => {
+      expect(await sawAgain.pinRed()).toBe(0)
+    }).toPass({ timeout: 10_000 })
+
+    // Simge: pinler geri gelir, kod yok.
+    await button.click()
+    await mode('Simge').check()
+    await expect.poll(() => stored(page)).toMatchObject({ airportDisplay: 'icon' })
+    await page.keyboard.press('Escape')
+    await expect(async () => {
+      expect(await sawAgain.pinRed()).toBeGreaterThanOrEqual(15)
+      expect(await paintedPixels(page)).toBe(0)
+    }).toPass({ timeout: 15_000 })
+
+    // Simge ve kod: kodlar da geri gelir.
+    await button.click()
+    await mode('Simge ve kod').check()
+    await expect.poll(() => stored(page)).toMatchObject({ airportDisplay: 'icon-code' })
+    await page.keyboard.press('Escape')
+    await expect(async () => {
+      expect(await sawAgain.pinRed()).toBeGreaterThanOrEqual(15)
+      expect(await sawAgain.chip(), 'SAW kutusu tuvalde çizili').toBeDefined()
+    }).toPass({ timeout: 15_000 })
+  })
+
+  test('eski kayıt (`airports: "hidden"`, v0.18.1–v0.25.1) Simge okunur; Gizle’de `?havalimani=` hedefinin pini çizili kalır ve tıklanır; Simge ve kod kodu getirir', async ({
+    page,
+  }) => {
+    // Tek sayfa yüklemesi. O sürümlerin Gizle'si yalnız kodu kaldırıyordu, pin kalıyordu (D-084).
+    const legacy = { selected: 'hidden', others: 'hidden', airports: 'hidden' }
+    await page.addInitScript(({ key, value }) => window.localStorage.setItem(key, value), {
+      key: LABEL_SETTINGS_KEY,
+      value: JSON.stringify(legacy),
+    })
+    await page.goto(`/?havalimani=${SAW.icao}`)
+    await waitForMap(page)
+    await expect
+      .poll(async () => (await airportListCodes(page))[0], { timeout: 30_000 })
+      .toBe(SAW.iata)
+    const button = page.getByRole('button', { name: 'Etiketler', exact: true })
+    const airports = page.getByRole('group', { name: 'Havalimanları', exact: true })
+    const mode = (name: string) => airports.getByRole('radio', { name, exact: true })
+    const popup = page.locator(`.live-map [role="dialog"].map-popup[data-icao="${SAW.icao}"]`)
+    const saw = await centred(page)
+
+    // Simge: panelde seçili, pin çizili, kod yok; kayıt okunurken yeniden yazılmaz.
+    await button.click()
+    await expect(mode('Simge')).toBeChecked()
+    await page.keyboard.press('Escape')
+    await expect(button).toHaveAttribute('aria-expanded', 'false')
+    expect(await stored(page)).toEqual(legacy)
+    await expect(async () => {
+      expect(await saw.pinRed()).toBeGreaterThanOrEqual(15)
+      expect(await paintedPixels(page)).toBe(0)
+    }).toPass({ timeout: 15_000 })
+    await expect(popup).toHaveCount(0)
+
+    // Gizle: kayıt yeni biçimde yazılır. SAW adresin hedefi olduğu için pini çizili ve tıklanır
+    // kalır; pencere kapanınca da (parametre adreste).
+    await button.click()
+    await mode('Gizle').check()
+    await expect
+      .poll(() => stored(page))
+      .toEqual({
+        selected: 'hidden',
+        others: 'hidden',
+        airportDisplay: 'hidden',
+        countries: 'shown',
+      })
+    await page.keyboard.press('Escape')
+    await expect(button).toHaveAttribute('aria-expanded', 'false')
+    // Ayar haritaya geçtikten sonra denetlenir (yoksa önceki çizim de geçerdi); üstünden geçen bir
+    // seyir uçağı için denetim yinelenir.
+    await nextFrames(page)
+    await expect(async () => {
+      expect(await saw.pinRed()).toBeGreaterThanOrEqual(15)
+      expect(await paintedPixels(page)).toBe(0)
+    }).toPass({ timeout: 10_000 })
+    await expect(async () => {
+      await page.mouse.click(saw.head.x, saw.head.y)
+      await expect(popup).toBeVisible({ timeout: 2_000 })
+    }).toPass({ timeout: 15_000 })
     await page.keyboard.press('Escape')
     await expect(popup).toBeHidden()
-    await expect(notDrawn).toPass({ timeout: 10_000 })
-    await page.mouse.click(head.x, head.y)
-    await expect(anyPopup).toHaveCount(0)
+    await nextFrames(page)
+    await expect(async () => {
+      expect(await saw.pinRed()).toBeGreaterThanOrEqual(15)
+    }).toPass({ timeout: 10_000 })
+
+    // Simge ve kod: SAW'ın kodu geri gelir.
+    await button.click()
+    await mode('Simge ve kod').check()
+    await expect.poll(() => stored(page)).toMatchObject({ airportDisplay: 'icon-code' })
+    await page.keyboard.press('Escape')
+    await expect(async () => {
+      expect(await saw.pinRed()).toBeGreaterThanOrEqual(15)
+      expect(await saw.chip(), 'SAW kutusu tuvalde çizili').toBeDefined()
+    }).toPass({ timeout: 15_000 })
   })
 })
 
@@ -716,8 +889,9 @@ test.describe('ülke adları (D-095, D-096, D-099, D-100)', () => {
   test.use({ reducedMotion: 'reduce' })
 
   test.beforeEach(async ({ context }) => {
-    // v0.18.1 kaydı (ülke alanı yok): ülke adları Göster okunur. Havalimanı kodları gizlenir: pin
-    // ucundaki kesiti ve pin tıklamasını kod kutusu etkilemez.
+    // v0.18.1 kaydı (ülke alanı yok): ülke adları Göster okunur. Eski `airports: 'hidden'` Simge
+    // okunur (D-113): pinler çizili, kodlar gizli; pin ucundaki kesiti ve pin tıklamasını kod kutusu
+    // etkilemez.
     await context.addInitScript((key) => {
       window.localStorage.setItem(
         key,
@@ -807,7 +981,8 @@ test.describe('ülke adları (D-095, D-096, D-099, D-100)', () => {
           LABEL_SETTINGS_KEY,
         ),
       )
-      .toMatchObject({ airports: 'hidden', countries: 'hidden' })
+      // Kayıt yeni biçimde yazılır: eski `airports: 'hidden'` Simge'dir (D-113).
+      .toEqual({ selected: 'full', others: 'hidden', airportDisplay: 'icon', countries: 'hidden' })
     await expect(async () => {
       expect(await pinPixels(page, ika)).toEqual(shown)
       const changed = await changedPixels(page, withName, await clipImage(page, clip))

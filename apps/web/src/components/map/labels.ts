@@ -11,11 +11,11 @@
  *   bulamazsa hariç) IST kodunu örtmez. Kodlar birbirini de örtmez; diğer kodların üstüne uçak
  *   etiketleri gelebilir. Çizilen kodun kutusu tıklanabilir (`airportHitTest`):
  *   havalimanı penceresini açar (M6c).
- * - Havalimanı etiketi ayarı (`settings.airports`, D-084): Gizle → kod yazılmaz (pinler GL
- *   katmanındadır, görünür ve tıklanır kalır); Kod → IATA kodu. Haritada havalimanı adı yazılmaz:
+ * - Havalimanları ayarı (`settings.airportDisplay`, D-084, D-113): IATA kodu yalnız Simge ve kod'da
+ *   yazılır. Simge'de kod yazılmaz, pinler (GL katmanı) görünür ve tıklanır kalır. Gizle'de pin de
+ *   kod da yoktur: çizime yalnız açık pencerenin ve `?havalimani=` hedefinin havalimanı girer
+ *   (map-controller.ts → `drawnAirports`), onların da yalnız pini. Haritada havalimanı adı yazılmaz:
  *   ad, pin ya da koda tıklanınca açılan havalimanı penceresindedir (kullanıcı isteği 2026-10-04).
- *   Havalimanı simgeleri gizliyken (`settings.airportIcons`, D-113) çizime yalnız açık pencerenin
- *   havalimanı girer (map-controller.ts → `drawnAirports`): ötekilerin ne pini ne kodu çizilir.
  * - Uçak etiketleri etiket ayarına göre kurulur (seçili uçak `selected`, diğerleri `others`;
  *   Gizle → etiket yok, simge yine engel sayılır), `layoutLabels` ile çakışmasız yerleşir.
  * - Görünüm kullanıcının tasarım tuvalindendir (Etiket.dc.html), renkler "Açık turkuaz" temasından
@@ -333,17 +333,19 @@ export function layoutAirportChips(
 }
 
 /**
- * Bu yakınlaştırma ve ayarla havalimanı kodu yazılabilir mi: ayar Gizle değil ve yakınlaştırma
- * yeterli. Değilse çizim havalimanlarını ekrana izdüşürmez (map-controller.ts `screenAirports`).
+ * Bu yakınlaştırma ve ayarla havalimanı kodu yazılabilir mi: ayar Simge ve kod (D-084'ün Kod'u,
+ * D-113) ve yakınlaştırma yeterli. Simge ve Gizle'de hiçbir kod yazılmaz; Gizle'de çizilen tek tük
+ * havalimanının (açık pencere, `?havalimani=` hedefi) da yalnız pini çizilir. Değilse çizim
+ * havalimanlarını ekrana izdüşürmez (map-controller.ts `screenAirports`).
  */
 export function airportChipsEnabled(
   zoom: number,
-  settings: Pick<LabelSettings, 'airports'>,
+  settings: Pick<LabelSettings, 'airportDisplay'>,
 ): boolean {
-  return settings.airports !== 'hidden' && zoom >= AIRPORT_LABEL_MIN_ZOOM
+  return settings.airportDisplay === 'icon-code' && zoom >= AIRPORT_LABEL_MIN_ZOOM
 }
 
-/** Kodlar yazılır mı: ayar Gizle değil, yakınlaştırma yeterli ve görünümde havalimanı var. */
+/** Kodlar yazılır mı: ayar Simge ve kod, yakınlaştırma yeterli ve görünümde havalimanı var. */
 export function showsAirportChips(
   frame: Pick<LabelFrame, 'zoom' | 'airports' | 'settings'>,
 ): boolean {

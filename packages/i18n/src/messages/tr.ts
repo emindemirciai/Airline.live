@@ -963,23 +963,16 @@ export const tr = {
       hidden: 'Gizle',
       short: 'Kısa',
       full: 'Tam',
-      /** Havalimanı simgeleri (D-113): Gizle / Göster; varsayılan Göster. */
-      airportIcons: 'Havalimanı simgeleri',
-      airportIconModes: {
-        hidden: 'Gizle',
-        shown: 'Göster',
-      },
       /**
-       * Havalimanı etiketleri (D-084): Gizle / Kod. Gizle yalnız kodları kaldırır, pinler kalır;
-       * pinleri "Havalimanı simgeleri" gizler (D-113).
+       * Havalimanları (D-084, D-113): simgeler (pinler) ve kodları tek satırda. Gizle → ne pin ne kod;
+       * Simge → pin, kod yok; Simge ve kod → pin ve IATA kodu (varsayılan).
        */
       airports: 'Havalimanları',
       airportModes: {
         hidden: 'Gizle',
-        code: 'Kod',
+        icon: 'Simge',
+        'icon-code': 'Simge ve kod',
       },
-      /** Simgeler gizliyken "Havalimanları" grubu kapalıdır; seçimi saklanır (D-113). */
-      airportsWithoutIcons: 'Simgeler gizliyken kodlar da görünmez.',
       /** Ülke adları (D-095): Gizle / Göster; varsayılan Göster. */
       countries: 'Ülke adları',
       countryModes: {

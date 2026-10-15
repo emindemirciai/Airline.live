@@ -15,17 +15,21 @@ export const CHANGELOG: readonly ChangelogEntry[] = [
     version: '0.25.2',
     date: '2026-10-15',
     title: {
-      tr: 'Havalimanı simgeleri gizlenebilir',
-      en: 'Airport icons can be hidden',
+      tr: 'Havalimanı simgeleri de gizlenebilir',
+      en: 'Airport icons can be hidden too',
     },
     items: [
       {
-        tr: 'Haritadaki “Etiketler” panelinde yeni bir “Havalimanı simgeleri” seçeneği var: Gizle’yi seçersen kırmızı havalimanı işaretleri ve kodları haritadan kalkar, Göster’le geri gelir. Seçimin bu cihazda saklanır.',
-        en: 'The “Labels” panel on the map has a new “Airport icons” option: choose Hide and the red airport markers and their codes leave the map; Show brings them back. Your choice is saved on this device.',
+        tr: 'Haritadaki “Etiketler” panelinde havalimanlarının simgeleri ve kodları artık tek satırda: “Gizle” ikisini de haritadan kaldırır, “Simge” yalnız kırmızı simgeleri gösterir, “Simge ve kod” (varsayılan) ikisini birden gösterir. Seçimin bu cihazda saklanır.',
+        en: 'In the “Labels” panel on the map, airport icons and their codes now share one row: “Hide” removes both from the map, “Icon” shows only the red icons, and “Icon and code” (the default) shows both. Your choice is saved on this device.',
       },
       {
-        tr: 'Simgeler gizliyken de “Havalimanları” listesi ve arama çalışır: seçtiğin havalimanının penceresi açılır ve pencere açıkken o havalimanının işareti haritada görünür.',
-        en: 'With the icons hidden, the “Airports” list and the search still work: the window of the airport you pick opens, and its marker shows on the map while the window is open.',
+        tr: 'Daha önce havalimanı kodlarını gizlediysen ayarın “Simge” olarak gelir; haritan eskisi gibi görünür.',
+        en: 'If you had hidden airport codes before, your setting comes back as “Icon”, so your map looks the same as before.',
+      },
+      {
+        tr: 'Havalimanları gizliyken de “Havalimanları” listesi ve arama çalışır: seçtiğin havalimanının penceresi açılır, pencere açıkken simgesi haritada görünür. Havalimanı sayfasındaki “Canlı haritada aç” bağlantısıyla açtığın havalimanının simgesi de görünür kalır.',
+        en: 'With airports hidden, the “Airports” list and the search still work: the window of the airport you pick opens, and its icon shows on the map while the window is open. The icon of an airport you open with “Open on the live map” on its page stays visible too.',
       },
     ],
     tryLinks: [{ path: '/', label: { tr: 'Canlı harita', en: 'Live map' } }],
@@ -33,6 +37,7 @@ export const CHANGELOG: readonly ChangelogEntry[] = [
   {
     version: '0.25.1',
     date: '2026-10-15',
+    releasedAt: '2026-10-15T04:25:20Z',
     title: {
       tr: 'Savaş nedeniyle kapalı havalimanları da listede',
       en: 'Airports closed by war are now listed',

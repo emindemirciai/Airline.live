@@ -11,11 +11,11 @@ import {
 } from '../../lib/map/label-settings'
 
 /**
- * Etiket ayarı (uçaklar Gizle / Kısa / Tam, havalimanı simgeleri Gizle / Göster, havalimanları
- * Gizle / Kod, ülke adları Gizle / Göster) cihazda saklanır. Sunucu çizimi ve hidrasyon varsayılanla
- * (uçaklar Tam, simgeler Göster, havalimanları Kod, ülke adları Göster) yapılır, ardından kayıtlı
- * ayar okunur; başka sekmedeki değişiklik `storage` olayıyla gelir. Depolama kapalıysa ayar yalnızca
- * sayfa açıkken geçerlidir.
+ * Etiket ayarı (uçaklar Gizle / Kısa / Tam, havalimanları Gizle / Simge / Simge ve kod, ülke adları
+ * Gizle / Göster) cihazda saklanır. Sunucu çizimi ve hidrasyon varsayılanla (uçaklar Tam,
+ * havalimanları Simge ve kod, ülke adları Göster) yapılır, ardından kayıtlı ayar okunur; başka
+ * sekmedeki değişiklik `storage` olayıyla gelir. Depolama kapalıysa ayar yalnızca sayfa açıkken
+ * geçerlidir.
  */
 let current: LabelSettings | null = null
 const listeners = new Set<() => void>()

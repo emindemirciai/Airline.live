@@ -1428,12 +1428,12 @@ body:has(.map-page) .site-footer {
   gap: 10px;
   width: min(300px, calc(100vw - 2 * var(--map-gutter)));
   /*
-   * Beş grup (D-084, D-095, D-113; ~510 px, simgeler gizliyken notla ~530 px): panel denetimlerin
-   * (Etiketler düğmesi 40 px + 8 px ara) üstünden açılır, üst kenarı `--map-panel-top`'un altında
-   * kalır; sığmazsa kayar. İlk satır `cqh` tanımayan tarayıcının yedeğidir.
+   * Dört grup (D-084, D-095; ~434 px): panel denetimlerin (Etiketler düğmesi 40 px + 8 px ara)
+   * üstünden açılır, üst kenarı `--map-panel-top`'un altında kalır; sığmazsa kayar. İlk satır `cqh`
+   * tanımayan tarayıcının yedeğidir.
    */
-  max-height: min(560px, calc(100dvh - 220px));
-  max-height: min(560px, calc(100cqh - var(--map-panel-top) - var(--map-controls-bottom) - 48px));
+  max-height: min(480px, calc(100dvh - 220px));
+  max-height: min(480px, calc(100cqh - var(--map-panel-top) - var(--map-controls-bottom) - 48px));
   overflow-y: auto;
   padding: 10px 14px 12px;
 }
@@ -1464,8 +1464,8 @@ body:has(.map-page) .site-footer {
 }
 
 /*
- * Seçenekler eşit genişlikte satırı doldurur: uçaklarda üç, havalimanı simgelerinde,
- * havalimanlarında ve ülke adlarında iki (D-084, D-095, D-113).
+ * Seçenekler eşit genişlikte satırı doldurur: uçaklarda ve havalimanlarında üç, ülke adlarında iki
+ * (D-084, D-095, D-113). Dar sütunda iki satıra kırılan seçenek ("Simge ve kod") 36 px'e sığar.
  */
 .map-seg {
   display: grid;
@@ -1519,32 +1519,6 @@ body:has(.map-page) .site-footer {
 .map-seg__option:has(.map-seg__input:focus-visible) {
   outline: 3px solid var(--focus);
   outline-offset: 1px;
-}
-
-/*
- * Kapalı grup (D-113: simgeler gizliyken "Havalimanları"): saklı seçim gri zeminde görünür,
- * seçenekler soluk ve değişmez; odak çerçevesi değişmez.
- */
-.map-labels__group[aria-disabled='true'] .map-seg__option,
-.map-labels__group[aria-disabled='true'] .map-seg__input {
-  cursor: not-allowed;
-}
-
-.map-labels__group[aria-disabled='true'] .map-seg__option,
-.map-labels__group[aria-disabled='true'] .map-seg__option:hover {
-  color: var(--map-muted-2);
-}
-
-.map-labels__group[aria-disabled='true'] .map-seg__option:has(.map-seg__input:checked) {
-  background: var(--map-line-strong);
-  color: var(--map-ink);
-}
-
-.map-labels__note {
-  margin: 4px 0 0;
-  color: var(--map-muted-2);
-  font-size: 0.75rem;
-  line-height: 1.4;
 }
 
 .map-labels__hint {
