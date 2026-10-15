@@ -20,7 +20,7 @@ type LocalizedTable = Readonly<Record<string, LocalizedText>>
  * ("/ New Al Muthana Air Base"), Podgorica ("/ Podgorica Golubovci Airbase") ve Cuxhaven ("/ Nordholz
  * Naval Airbase"). Adın sonundaki Arapça yazım da yazılmaz (Guemar, D-090). Eski ad da kural gereği
  * kalır (Kefalonya "Kefallinia Airport"). EuroAirport Basel-Mulhouse-Freiburg'un İngilizce adında
- * ayrı bir "Airport" sözcüğü yoktur; ad olduğu gibi kalır. Türkçe ad havayolu'nun derlemesidir
+ * ayrı bir "Airport" sözcüğü yoktur; ad olduğu gibi kalır. Türkçe ad sitenin derlemesidir
  * (kullanıcı kararı 2026-10-01, D-080), kuralları:
  * - Şehir ya da ada adı Türkçede bugün kullanılan yerleşik biçimiyle (exonym) yazılır: Atina,
  *   Selanik, Sofya, Filibe, Burgaz, Üsküp, Ohri, Priştine, Niş, Bükreş, Köstence, Krayova, Tiflis,

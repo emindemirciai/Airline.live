@@ -7,7 +7,8 @@
   "exports": {
     ".": "./src/index.ts",
     "./country-label-placements": "./src/map/country-label-placements.ts",
-    "./country-label-points": "./src/map/country-label-points.ts"
+    "./country-label-points": "./src/map/country-label-points.ts",
+    "./hosts": "./src/hosts.ts"
   },
   "scripts": {
     "lint": "eslint . --max-warnings 0",

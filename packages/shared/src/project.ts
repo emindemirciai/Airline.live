@@ -1,9 +1,17 @@
-/** Projenin sahibi ve lisansı (LICENSE dosyasıyla aynı). Sayfa kaynağındaki bildirimde kullanılır. */
+/**
+ * Marka adı (D-112): `APP_NAME` tanımsız ya da boşken web, API, worker ve araçlar bunu kullanır;
+ * build sırasında (env yokken) çizilen metinler de (havalimanı paylaşım görselinin `alt`'ı).
+ */
+export const DEFAULT_APP_NAME = 'Airline.live'
+
+/**
+ * Projenin sahibi ve lisansı (LICENSE dosyasıyla aynı). Sayfa kaynağındaki bildirimde kullanılır.
+ * Repo gizlidir (D-068) ve iç adını taşır: sayfalarda repo adresi yazılmaz, `<link rel="license">`
+ * kullanım koşullarının kaynak kodu bölümüne gider (D-112).
+ */
 export const PROJECT = {
   owner: 'emindemirciai',
   ownerUrl: 'https://github.com/emindemirciai',
-  repoUrl: 'https://github.com/emindemirciai/havayolu',
-  licenseUrl: 'https://github.com/emindemirciai/havayolu/blob/main/LICENSE',
   copyrightYear: 2026,
   license: 'MIT',
 } as const

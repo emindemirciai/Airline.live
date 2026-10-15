@@ -4,7 +4,7 @@
  * gelir (uydu, OpenFreeMap), yalnızca o altlık görünürken çıkar. MapLibre atıf HTML'ini ayrıca
  * temizler (izinli etiket ve adres şemaları; site içi göreli adres geçer).
  *
- * Şeridin başında sitenin kendi künyesi ("havayolu v0.16.1", Yenilikler bağlantısı, D-089) durur.
+ * Şeridin başında sitenin kendi künyesi ("Airline.live v0.16.1", Yenilikler bağlantısı, D-089) durur.
  * Künye MapLibre girdisi değildir: MapLibre girdileri uzunluğa göre sıraladığından hiçbir girdi
  * her altlıkta ilk sırada kalmaz. Künye, girdilerin kabının önüne ayrı bir öğe olarak konur.
  */
@@ -62,11 +62,11 @@ export interface SiteVersion {
 
 /** Atıf şeridinin başındaki site künyesi (D-089). */
 export interface SiteCredit {
-  /** Görünen metin: "havayolu v0.16.1". */
+  /** Görünen metin: "Airline.live v0.16.1". */
   text: string
   /** Yenilikler sayfasının sayfanın dilindeki adresi (`/yenilikler`, `/en/yenilikler`). */
   href: string
-  /** Bağlantının erişilebilir adı; görünen metinle başlar ("havayolu v0.16.1, yenilikler"). */
+  /** Bağlantının erişilebilir adı; görünen metinle başlar ("Airline.live v0.16.1, yenilikler"). */
   label: string
 }
 

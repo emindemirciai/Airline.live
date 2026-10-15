@@ -105,7 +105,7 @@ async function startStub(scenario: Scenario) {
       if (url.pathname === '/version' || url.pathname === '/api/version') {
         if (url.pathname === '/version' && doneServed) probesAfterDone += 1
         const gitSha = doneServed && probesAfterDone > scenario.shaAfterProbes ? NEW_SHA : OLD_SHA
-        return json(200, { app: 'havayolu', version: '0.4.0', gitSha })
+        return json(200, { app: 'Airline.live', version: '0.4.0', gitSha })
       }
       if (url.pathname === '/ready') return json(scenario.readyStatus, { status: 'x' })
       return json(404, { message: 'yok' })

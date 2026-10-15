@@ -1,7 +1,7 @@
 import { existsSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { parseReceiverUrls, ReceiverConfigError } from '@havayolu/providers'
-import { withoutEnvPlaceholders } from '@havayolu/shared'
+import { DEFAULT_APP_NAME, withoutEnvPlaceholders } from '@havayolu/shared'
 import { z } from 'zod'
 
 const emptyToUndefined = (value: unknown) =>
@@ -91,7 +91,23 @@ const EnvSchema = z.object({
   REDIS_LIVE_URL: z.preprocess(emptyToUndefined, z.url().optional()),
   DATABASE_URL: z.preprocess(emptyToUndefined, z.url().optional()),
 
-  APP_NAME: z.preprocess(emptyToUndefined, z.string().trim().min(1).default('havayolu')),
+  /**
+   * Marka adı (D-112): sağlayıcı isteklerinin User-Agent'ının ürün adıdır (`Airline.live/<sürüm>`).
+   * RFC 9110 token'ı olmalıdır (harf, rakam ve `!#$%&'*+.^_`|~-`; boşluk yok).
+   */
+  APP_NAME: z.preprocess(
+    emptyToUndefined,
+    z
+      .string()
+      .trim()
+      .min(1)
+      .max(64)
+      .regex(
+        /^[!#$%&'*+.^_`|~0-9A-Za-z-]+$/,
+        "User-Agent ürün adı olur: boşluksuz; harf, rakam ve !#$%&'*+.^_`|~- (ör. Airline.live)",
+      )
+      .default(DEFAULT_APP_NAME),
+  ),
   /** Referans indirmelerinin User-Agent'ındaki site adresi (şemasız host). */
   WEB_HOST: z.preprocess(emptyToUndefined, z.string().trim().optional()),
   CONTACT_EMAIL: z.preprocess(emptyToUndefined, z.email().optional()),

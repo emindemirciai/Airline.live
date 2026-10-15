@@ -355,7 +355,7 @@ describe('summarizeMetar: olay satırının durumu (vurgu)', () => {
 
 describe('summarizeMetar: rüzgâr renkleri ve rüzgâr kesmesi (M6e.2, 2026-10-03, D-083)', () => {
   /**
-   * Üretimdeki gerçek METAR'lar (havayolu.live hava API'si, 2026-10-03 15:37Z; 122 istasyon). Kullanıcı
+   * Üretimdeki gerçek METAR'lar (airline.live hava API'si, 2026-10-03 15:37Z; 122 istasyon). Kullanıcı
    * Konya penceresiyle (`36009KT`, "Kuzeyden 17 km/sa (9 kt)") "rüzgârlı limanlar var ama renkli
    * değil" dedi: 17–19 kt ve 25–29 kt hamleli istasyonlar MGM meydan uyarısı eşiğinin (20/30 kt)
    * altında kalıyor, vurgulanmıyordu; LGMK'nin `WS R34` grubu sade görünümde hiç yazılmıyordu.
@@ -570,7 +570,7 @@ describe('summarizeMetar: rüzgâr renkleri ve rüzgâr kesmesi (M6e.2, 2026-10-
 
 describe('summarizeMetar: derecelendirilmiş rüzgâr renkleri (M6e.3, 2026-10-04, D-083)', () => {
   /**
-   * Üretimdeki gerçek METAR'lar (havayolu.live hava API'si, 2026-10-03 16:56Z; METAR'ı olan 122
+   * Üretimdeki gerçek METAR'lar (airline.live hava API'si, 2026-10-03 16:56Z; METAR'ı olan 122
    * istasyon). Kullanıcı: "belli bir km/knot'ta renk yok ama rüzgâr var. derecelendirmeli yap". Eski
    * kuralda 11 km/sa ile 16 kt arası (bu anlık görüntüde 59 istasyon) sadeydi. Her basamaktan örnek;
    * kırmızı basamak bu anlık görüntünün METAR'larında yoktur, üretim TAF'larındaki rüzgâr grupları

@@ -249,8 +249,8 @@ describe('fetchMapAirports', () => {
     const [url, init] = fetchMock.mock.calls[0] ?? []
     expect(String(url)).toBe('http://localhost:4100/v1/airports?scope=listed&include=runways')
     expect(init?.signal).toBe(controller.signal)
-    expect(String(mapAirportsUrl('https://api.havayolu.live'))).toBe(
-      'https://api.havayolu.live/v1/airports?scope=listed&include=runways',
+    expect(String(mapAirportsUrl('https://api.airline.live'))).toBe(
+      'https://api.airline.live/v1/airports?scope=listed&include=runways',
     )
   })
 

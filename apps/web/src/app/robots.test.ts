@@ -15,9 +15,9 @@ function request(headers: Record<string, string>) {
 
 beforeEach(() => {
   vi.stubEnv('APP_ENV', 'test')
-  vi.stubEnv('WEB_HOST', 'havayolu.live')
-  vi.stubEnv('ADMIN_HOST', 'admin.havayolu.live')
-  request({ host: 'havayolu.live' })
+  vi.stubEnv('WEB_HOST', 'airline.live')
+  vi.stubEnv('ADMIN_HOST', 'admin.airline.live')
+  request({ host: 'airline.live' })
 })
 
 afterEach(() => {
@@ -40,7 +40,7 @@ describe('robots.txt', () => {
         'User-Agent: Bytespider',
         'Disallow: /',
         '',
-        'Sitemap: https://havayolu.live/sitemap.xml',
+        'Sitemap: https://airline.live/sitemap.xml',
         '',
       ].join('\n'),
     )
@@ -60,14 +60,14 @@ describe('robots.txt', () => {
   })
 
   it('admin host: tüm site kapalı, site haritası yok (X-Forwarded-Host öncelikli)', async () => {
-    request({ host: 'hy-web:3000', 'x-forwarded-host': 'Admin.Havayolu.Live' })
+    request({ host: 'hy-web:3000', 'x-forwarded-host': 'Admin.Airline.Live' })
     expect(resolveRobots(await robots())).toBe('User-Agent: *\nDisallow: /\n\n')
   })
 
   it('WEB_HOST yoksa Sitemap satırı yazılmaz; ADMIN_HOST yoksa admin ayrımı yapılmaz', async () => {
     vi.stubEnv('WEB_HOST', '')
     vi.stubEnv('ADMIN_HOST', '')
-    request({ host: 'admin.havayolu.live' })
+    request({ host: 'admin.airline.live' })
     const text = resolveRobots(await robots())
     expect(text).toContain('Disallow: /admin\n')
     expect(text).not.toContain('Sitemap:')

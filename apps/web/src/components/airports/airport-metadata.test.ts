@@ -10,7 +10,7 @@ vi.mock('server-only', () => ({}))
 beforeEach(() => {
   vi.stubEnv('APP_ENV', 'test')
   vi.stubEnv('APP_NAME', 'havayolu')
-  vi.stubEnv('WEB_HOST', 'havayolu.live')
+  vi.stubEnv('WEB_HOST', 'airline.live')
 })
 
 afterEach(() => {

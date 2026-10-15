@@ -5,7 +5,7 @@ import { config, proxy } from './proxy'
 /** Next'in iç adresi (standalone sunucu 0.0.0.0:3000'i dinler); host başlıktan gelir. */
 function request(path: string, headers: Record<string, string> = {}): NextRequest {
   return new NextRequest(`http://0.0.0.0:3000${path}`, {
-    headers: { host: 'havayolu.live', ...headers },
+    headers: { host: 'airline.live', ...headers },
   })
 }
 
@@ -15,8 +15,8 @@ function forwarded(response: Response, name: string): string | null {
 }
 
 beforeEach(() => {
-  vi.stubEnv('WEB_HOST', 'havayolu.live')
-  vi.stubEnv('ADMIN_HOST', 'admin.havayolu.live')
+  vi.stubEnv('WEB_HOST', 'airline.live')
+  vi.stubEnv('ADMIN_HOST', 'admin.airline.live')
 })
 
 afterEach(() => {
@@ -57,12 +57,12 @@ describe('proxy — dil yönlendirmesi', () => {
   it('/tr/* isteğin host’unda mutlak adresle 308 alır', () => {
     const response = proxy(request('/tr/durum?x=1'))
     expect(response.status).toBe(308)
-    expect(response.headers.get('location')).toBe('http://havayolu.live/durum?x=1')
+    expect(response.headers.get('location')).toBe('http://airline.live/durum?x=1')
 
     const secure = proxy(
-      new NextRequest('https://0.0.0.0:3000/tr', { headers: { host: 'havayolu.live' } }),
+      new NextRequest('https://0.0.0.0:3000/tr', { headers: { host: 'airline.live' } }),
     )
-    expect(secure.headers.get('location')).toBe('https://havayolu.live/')
+    expect(secure.headers.get('location')).toBe('https://airline.live/')
   })
 
   it('geçersiz host başlığında sunucunun kendi adresine yönlendirir', () => {
@@ -86,9 +86,95 @@ describe('proxy — dil yönlendirmesi', () => {
   })
 
   it('www isteği kök alan adına 308 ile gider (dil öneki korunur)', () => {
-    const response = proxy(request('/en/durum?x=1', { host: 'www.havayolu.live' }))
+    const response = proxy(request('/en/durum?x=1', { host: 'www.airline.live' }))
     expect(response.status).toBe(308)
-    expect(response.headers.get('location')).toBe('https://havayolu.live/en/durum?x=1')
+    expect(response.headers.get('location')).toBe('https://airline.live/en/durum?x=1')
+  })
+})
+
+describe('proxy — eski alan adları (D-112)', () => {
+  beforeEach(() => {
+    vi.stubEnv('LEGACY_WEB_HOSTS', 'havayolu.live,www.havayolu.live')
+    vi.stubEnv('LEGACY_ADMIN_HOSTS', 'admin.havayolu.live')
+  })
+
+  it('eski kök ve eski www her yolda 308 ile yeni köke gider; /en ve sorgu korunur', () => {
+    for (const [host, path] of [
+      ['havayolu.live', '/'],
+      ['havayolu.live', '/en/havalimanlari?x=1'],
+      ['www.havayolu.live', '/istasyon/LTFM?a=1&b=2'],
+      ['HAVAYOLU.LIVE', '/tr/durum'],
+      ['havayolu.live:443', '/admin'],
+    ] as const) {
+      const response = proxy(request(path, { host }))
+      expect(response.status, `${host}${path}`).toBe(308)
+      expect(response.headers.get('location'), `${host}${path}`).toBe(`https://airline.live${path}`)
+      expect(response.headers.get('x-middleware-rewrite')).toBeNull()
+    }
+  })
+
+  it('kök dosyalar da yönlenir: eski alan adı robots.txt ile kapatılmaz', () => {
+    for (const path of [
+      '/robots.txt',
+      '/sitemap.xml',
+      '/llms.txt',
+      '/og/site',
+      '/manifest.webmanifest',
+    ]) {
+      const response = proxy(request(path, { host: 'havayolu.live' }))
+      expect(response.status, path).toBe(308)
+      expect(response.headers.get('location'), path).toBe(`https://airline.live${path}`)
+    }
+  })
+
+  it('eski admin host’u 404 almadan yeni admin host’una gider', () => {
+    const response = proxy(request('/admin/kapsama?saat=24', { host: 'admin.havayolu.live' }))
+    expect(response.status).toBe(308)
+    expect(response.headers.get('location')).toBe(
+      'https://admin.airline.live/admin/kapsama?saat=24',
+    )
+  })
+
+  it('X-Forwarded-Host önce gelir; POST da 308 alır (yöntem ve gövde korunur)', () => {
+    const forwarded = proxy(
+      request('/api/version', { host: 'hy-web:3000', 'x-forwarded-host': 'havayolu.live' }),
+    )
+    expect(forwarded.status).toBe(308)
+    expect(forwarded.headers.get('location')).toBe('https://airline.live/api/version')
+
+    const post = proxy(
+      new NextRequest('http://0.0.0.0:3000/admin/giris', {
+        method: 'POST',
+        headers: { host: 'admin.havayolu.live' },
+      }),
+    )
+    expect(post.status).toBe(308)
+    expect(post.headers.get('location')).toBe('https://admin.airline.live/admin/giris')
+  })
+
+  it('yeni host’lar ve bilinmeyen host’lar bugünkü gibi çalışır', () => {
+    expect(proxy(request('/durum')).headers.get('x-middleware-next')).toBe('1')
+    const www = proxy(request('/durum', { host: 'www.airline.live' }))
+    expect(www.status).toBe(308)
+    expect(www.headers.get('location')).toBe('https://airline.live/durum')
+    expect(
+      proxy(request('/durum', { host: 'other.example' })).headers.get('x-middleware-next'),
+    ).toBe('1')
+  })
+
+  it('listeler boşsa eski alan adı normal web host’u gibi sunulur (geçişten önceki durum)', () => {
+    vi.stubEnv('LEGACY_WEB_HOSTS', '')
+    vi.stubEnv('LEGACY_ADMIN_HOSTS', '')
+    const response = proxy(request('/durum', { host: 'havayolu.live' }))
+    expect(response.status).toBe(200)
+    expect(response.headers.get('location')).toBeNull()
+  })
+
+  it('#…# talimatı ve yeni host’u kapsayan girdi yok sayılır; proxy hata atmaz', () => {
+    vi.stubEnv('LEGACY_WEB_HOSTS', 'airline.live,#boş bırak#')
+    vi.stubEnv('LEGACY_ADMIN_HOSTS', '#boş bırak#')
+    expect(proxy(request('/durum')).headers.get('x-middleware-next')).toBe('1')
+    expect(proxy(request('/admin', { host: 'admin.airline.live' })).status).toBe(200)
   })
 })
 
@@ -99,7 +185,7 @@ describe('proxy — X-Robots-Tag', () => {
   })
 
   it("admin host'undaki her yanıt noindex, nofollow taşır", () => {
-    const admin = { host: 'admin.havayolu.live' }
+    const admin = { host: 'admin.airline.live' }
     const page = proxy(request('/admin', admin))
     expect(page.headers.get('x-middleware-next')).toBe('1')
     expect(forwarded(page, 'x-hy-locale')).toBe('tr')
@@ -107,7 +193,7 @@ describe('proxy — X-Robots-Tag', () => {
 
     const redirect = proxy(request('/durum', admin))
     expect(redirect.status).toBe(307)
-    expect(redirect.headers.get('location')).toBe('https://admin.havayolu.live/admin')
+    expect(redirect.headers.get('location')).toBe('https://admin.airline.live/admin')
     expect(redirect.headers.get('x-robots-tag')).toBe('noindex, nofollow')
 
     const robots = proxy(request('/robots.txt', admin))
@@ -143,18 +229,18 @@ describe('proxy — kök dosyalar', () => {
 
   it('www host’unda kök alan adına 308 ile gider', () => {
     for (const path of ['/sitemap.xml', '/llms.txt', '/robots.txt', '/og/site', '/icon/512']) {
-      const response = proxy(request(path, { host: 'www.havayolu.live' }))
+      const response = proxy(request(path, { host: 'www.airline.live' }))
       expect(response.status, path).toBe(308)
-      expect(response.headers.get('location'), path).toBe(`https://havayolu.live${path}`)
+      expect(response.headers.get('location'), path).toBe(`https://airline.live${path}`)
     }
   })
 
   it('admin host’unda site haritası ve llms.txt yönetime yönlenir; hepsi noindex, nofollow', () => {
-    const admin = { host: 'admin.havayolu.live' }
+    const admin = { host: 'admin.airline.live' }
     for (const path of ['/sitemap.xml', '/llms.txt', '/og/site']) {
       const response = proxy(request(path, admin))
       expect(response.status, path).toBe(307)
-      expect(response.headers.get('location'), path).toBe('https://admin.havayolu.live/admin')
+      expect(response.headers.get('location'), path).toBe('https://admin.airline.live/admin')
       expect(response.headers.get('x-robots-tag'), path).toBe('noindex, nofollow')
     }
     // Admin sayfalarının kullandığı simgeler, manifest ve siteyi kapatan robots.txt geçer.

@@ -1,6 +1,6 @@
 # Atıflar
 
-havayolu'nun kaynak kodu MIT lisanslıdır ([LICENSE](LICENSE)). Uygulamanın gösterdiği veriler, harita altlıkları ve bazı bileşenler kendi lisanslarına tabidir. Atıflar haritada ve ilgili sayfalarda da görünür; kullanıcıya dönük özet sitenin kullanım koşullarındadır (`/kullanim-kosullari`, geçici metin). Kaynakların doğrulanmış şartları: [docs/spec/data-sources.md](docs/spec/data-sources.md).
+Airline.live'ın kaynak kodu MIT lisanslıdır ([LICENSE](LICENSE)). Uygulamanın gösterdiği veriler, harita altlıkları ve bazı bileşenler kendi lisanslarına tabidir. Atıflar haritada ve ilgili sayfalarda da görünür; kullanıcıya dönük özet sitenin kullanım koşullarındadır (`/kullanim-kosullari`, geçici metin). Kaynakların doğrulanmış şartları: [docs/spec/data-sources.md](docs/spec/data-sources.md).
 
 ## Uçuş ve havacılık verisi
 - **ADSB.lol:** Canlı uçak konumları. Lisans: [ODbL 1.0](https://opendatacommons.org/licenses/odbl/1-0/).
@@ -31,7 +31,7 @@ havayolu'nun kaynak kodu MIT lisanslıdır ([LICENSE](LICENSE)). Uygulamanın g�
 Diğer açık kaynak bağımlılıklar kendi lisanslarıyla `package.json` dosyalarında ve `pnpm-lock.yaml`'da listelenir. Uçak ikonları bu proje için çizilmiş özgün siluetlerdir; başka markaların ikon ve görselleri kullanılmaz.
 
 ## English summary
-The havayolu source code is MIT licensed. Third-party data and components keep their own licences:
+The Airline.live source code is MIT licensed. Third-party data and components keep their own licences:
 - **Live aircraft positions:** [ADSB.lol](https://adsb.lol), [ODbL 1.0](https://opendatacommons.org/licenses/odbl/1-0/). Our stored position and track tables are a derivative database under the ODbL.
 - **Reference data:**
   - OurAirports: public domain (Unlicense).

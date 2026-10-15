@@ -53,11 +53,11 @@ const AIRPORTS = [
   }),
 ]
 const INDEXABLE = ['LGAV', 'LTAC', 'LTBU', 'LTFM']
-const BASE = 'https://havayolu.live'
+const BASE = 'https://airline.live'
 
 beforeEach(() => {
   vi.stubEnv('APP_ENV', 'test')
-  vi.stubEnv('WEB_HOST', 'havayolu.live')
+  vi.stubEnv('WEB_HOST', 'airline.live')
   getAirports.mockResolvedValue(AIRPORTS)
 })
 

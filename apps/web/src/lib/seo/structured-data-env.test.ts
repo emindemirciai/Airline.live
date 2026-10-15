@@ -12,7 +12,7 @@ vi.mock('../env', async (importOriginal) => {
 beforeEach(() => {
   vi.stubEnv('APP_ENV', 'test')
   vi.stubEnv('APP_NAME', 'havayolu')
-  vi.stubEnv('WEB_HOST', 'havayolu.live')
+  vi.stubEnv('WEB_HOST', 'airline.live')
   vi.mocked(getServerEnv).mockClear()
 })
 
@@ -34,10 +34,10 @@ describe('JSON-LD listeleri sitenin adresini bir kez okur (D-102)', () => {
     expect(getServerEnv).toHaveBeenCalledTimes(1)
     const items = list.itemListElement as { position: number; url: string }[]
     expect(items).toHaveLength(1_217)
-    expect(items[0]).toMatchObject({ position: 1, url: 'https://havayolu.live/istasyon/X000' })
+    expect(items[0]).toMatchObject({ position: 1, url: 'https://airline.live/istasyon/X000' })
     expect(items.at(-1)).toMatchObject({
       position: 1_217,
-      url: 'https://havayolu.live/istasyon/X1216',
+      url: 'https://airline.live/istasyon/X1216',
     })
   })
 

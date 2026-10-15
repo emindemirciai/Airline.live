@@ -686,8 +686,8 @@ describe('Fastify bağlaması', () => {
     return parseEnv({
       APP_ENV: 'test',
       LOG_LEVEL: 'silent',
-      WEB_HOST: 'havayolu.live',
-      ADMIN_HOST: 'admin.havayolu.live',
+      WEB_HOST: 'airline.live',
+      ADMIN_HOST: 'admin.airline.live',
       ...overrides,
     })
   }
@@ -729,16 +729,13 @@ describe('Fastify bağlaması', () => {
       {},
       { WEB_HOST: '', ADMIN_HOST: '' },
       { WEB_HOST: 'localhost:3100', ADMIN_HOST: '' },
-      { WEB_HOST: '127.0.0.1:3100', ADMIN_HOST: 'admin.havayolu.live' },
+      { WEB_HOST: '127.0.0.1:3100', ADMIN_HOST: 'admin.airline.live' },
     ]
     for (const overrides of cases) {
       const e = env(overrides)
       expect(wsAllowedOrigins(e)).toEqual(allowedOrigins(e))
     }
-    expect(wsAllowedOrigins(env())).toEqual([
-      'https://havayolu.live',
-      'https://admin.havayolu.live',
-    ])
+    expect(wsAllowedOrigins(env())).toEqual(['https://airline.live', 'https://admin.airline.live'])
   })
 
   it('el sıkışması sınırı üretimde dakikada 30; geliştirme ve testte (StrictMode, iki el sıkışması) 60 (D-088)', () => {
@@ -753,7 +750,7 @@ describe('Fastify bağlaması', () => {
     const foreign = await inject(app, { origin: 'https://evil.example' })
     expect(await foreign.closed).toEqual({ code: 1008, reason: 'origin_not_allowed' })
 
-    const web = await inject(app, { origin: 'https://havayolu.live' })
+    const web = await inject(app, { origin: 'https://airline.live' })
     web.ws.send(subscribeText(V_IST))
     expect(await web.nextMessage()).toMatchObject({ type: 'snapshot', seq: 3, aircraft: [a1] })
 

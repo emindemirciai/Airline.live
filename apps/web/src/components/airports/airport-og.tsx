@@ -14,7 +14,7 @@ import { airportLocation, airportName } from './airport-text'
  */
 export interface AirportOgContent {
   app: string
-  /** WEB_HOST (ör. havayolu.live); tanımlı değilse gösterilmez. */
+  /** WEB_HOST (ör. airline.live); tanımlı değilse gösterilmez. */
   host: string | null
   codes: string
   name: string

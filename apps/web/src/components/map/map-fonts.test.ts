@@ -48,14 +48,14 @@ describe('withMapFonts (D-095)', () => {
       glyphs: 'https://tiles.example/fonts/{fontstack}/{range}.pbf',
       'font-faces': { 'Noto Sans Regular': 'https://tiles.example/noto.woff2' },
     }
-    const style = withMapFonts(fetched, 'https://havayolu.live')
+    const style = withMapFonts(fetched, 'https://airline.live')
     expect(style.glyphs).toBe(fetched.glyphs)
     expect(Object.keys(style['font-faces'] ?? {})).toEqual([
       'Noto Sans Regular',
       COUNTRY_LABEL_FONT,
     ])
-    expect(mapFontFaces('https://havayolu.live')[COUNTRY_LABEL_FONT]?.[0]?.url).toBe(
-      'https://havayolu.live/fonts/overpass-latin-600-normal.woff2',
+    expect(mapFontFaces('https://airline.live')[COUNTRY_LABEL_FONT]?.[0]?.url).toBe(
+      'https://airline.live/fonts/overpass-latin-600-normal.woff2',
     )
   })
 })

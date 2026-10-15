@@ -10,7 +10,7 @@ import {
 } from './map-config'
 
 const production: MapEnvInput = {
-  API_HOST: 'api.havayolu.live',
+  API_HOST: 'api.airline.live',
   MAP_STYLE_URL: 'https://tiles.openfreemap.org/styles/liberty',
   MAP_STYLE_URL_DARK: 'https://tiles.openfreemap.org/styles/dark',
   EXTERNAL_PROVIDERS_DISABLED: false,
@@ -19,8 +19,8 @@ const production: MapEnvInput = {
 describe('resolveMapConfig — API adresleri', () => {
   it('üretim host’unda https ve wss kullanır', () => {
     const config = resolveMapConfig(production)
-    expect(config.apiBaseUrl).toBe('https://api.havayolu.live')
-    expect(config.wsUrl).toBe('wss://api.havayolu.live/v1/ws')
+    expect(config.apiBaseUrl).toBe('https://api.airline.live')
+    expect(config.wsUrl).toBe('wss://api.airline.live/v1/ws')
   })
 
   it('yerel host’larda http ve ws kullanır', () => {
