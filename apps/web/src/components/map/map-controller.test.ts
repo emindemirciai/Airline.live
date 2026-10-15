@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs'
 import {
   AIRCRAFT_LAYER,
   AIRPORT_LAYER_ID,
@@ -256,6 +257,22 @@ describe('drawnAirports: havalimanları Gizle / Simge / Simge ve kod (D-114)', (
         airports.map((a) => ({ ...a })),
       ),
     ).toBe(false)
+  })
+
+  it('MapController pin kaynağını ve kodları yalnız çizilen listeyle kurar ve yeniler', () => {
+    // Denetleyici MapLibre ister; bağlantı kaynak metninden denetlenir (lazy-chunks.test.ts gibi).
+    // Kayıtlı Gizle'yle açılan sayfada kaynak ilk kurulumda da boştur: ham listeyle kurulsaydı bütün
+    // pinler ilk pencereye kadar çizilirdi.
+    const text = readFileSync(new URL('./map-controller.ts', import.meta.url), 'utf8')
+    expect(text).toContain(
+      'this.drawn = drawnAirports(options.state.airports, options.state.labelSettings, options.state)',
+    )
+    expect(text).toContain('[AIRPORT_SOURCE_ID, airportCollection(this.drawn)]')
+    expect(text).toContain('const drawn = drawnAirports(next.airports, next.labelSettings, next)')
+    expect(text).toContain('setData(airportCollection(drawn))')
+    expect(text).not.toMatch(/airportCollection\((?:this\.state|next|previous)\.airports\)/)
+    // Kod çizimi de aynı listeden: `screenAirports(project, this.drawn, …)`.
+    expect(text).toMatch(/screenAirports\(\s*\(lngLat\) => map\.project\(lngLat\),\s*this\.drawn,/)
   })
 
   it('kodlar yalnız Simge ve kod’da izdüşürülür; Gizle’de çizilen istisnanın da yalnız pini var', () => {

@@ -7,6 +7,7 @@ import {
   isAirportDisplayMode,
   LABEL_SETTINGS_KEY,
   legacyAirportDisplay,
+  legacyAirportsValue,
   loadLabelSettings,
   sameLabelSettings,
   saveLabelSettings,
@@ -50,8 +51,9 @@ describe('etiket ayarı', () => {
     expect(COUNTRY_LABEL_MODES).toEqual(['hidden', 'shown'])
   })
 
-  it('kaydeder ve geri okur; yalnız yeni biçim yazılır (airports ve airportIcons yok)', () => {
+  it('kaydeder ve geri okur; yeni biçimin yanına türetilmiş eski `airports` yazılır (D-114)', () => {
     const storage = memoryStorage()
+    const legacy = { hidden: 'hidden', icon: 'hidden', 'icon-code': 'code' } as const
     for (const airportDisplay of AIRPORT_DISPLAY_MODES) {
       const settings: LabelSettings = {
         selected: 'short',
@@ -61,13 +63,14 @@ describe('etiket ayarı', () => {
       }
       saveLabelSettings(storage, settings)
       expect(storage.data.get(LABEL_SETTINGS_KEY)).toBe(
-        `{"selected":"short","others":"hidden","airportDisplay":"${airportDisplay}","countries":"hidden"}`,
+        `{"selected":"short","others":"hidden","airportDisplay":"${airportDisplay}","countries":"hidden","airports":"${legacy[airportDisplay]}"}`,
       )
+      // Geçerli `airportDisplay` türetilmiş alandan önce gelir: Gizle, Simge'ye dönmez.
       expect(loadLabelSettings(storage)).toEqual(settings)
     }
   })
 
-  it('yalnızca bilinen alanlar yazılır', () => {
+  it('yalnızca bilinen alanlar yazılır; `airports` ayardan türetilir, gelen değer yazılmaz', () => {
     const storage = memoryStorage()
     const extra = {
       ...DEFAULT_LABEL_SETTINGS,
@@ -76,10 +79,63 @@ describe('etiket ayarı', () => {
       airportIcons: 'hidden',
     } as LabelSettings
     saveLabelSettings(storage, extra)
-    expect(JSON.parse(storage.data.get(LABEL_SETTINGS_KEY) ?? '{}')).toEqual(DEFAULT_LABEL_SETTINGS)
+    expect(JSON.parse(storage.data.get(LABEL_SETTINGS_KEY) ?? '{}')).toEqual({
+      ...DEFAULT_LABEL_SETTINGS,
+      airports: 'code',
+    })
   })
 
-  describe('eski kayıtlar (v0.18.1–v0.25.1, `airports` alanı; D-084 → D-114)', () => {
+  describe('eski sürümlerle birlikte yaşama (açık kalmış sekme, geri alma; D-114)', () => {
+    /** v0.14.0–v0.25.2'nin okuması: yalnız `airports`, geçersizse ya da yoksa Kod. */
+    const oldReader = (raw: string | undefined): string => {
+      const { airports } = JSON.parse(raw ?? '{}') as { airports?: unknown }
+      return airports === 'hidden' || airports === 'code' ? airports : 'code'
+    }
+    /** v0.25.2'nin yazması: bilinen dört alan, `airportDisplay` düşer. */
+    const oldWriter = (raw: string | undefined, change: Record<string, string>): string => {
+      const { selected, others, airports, countries } = JSON.parse(raw ?? '{}') as Record<
+        string,
+        unknown
+      >
+      return JSON.stringify({ selected, others, airports, countries, ...change })
+    }
+
+    it('legacyAirportsValue: Simge ve kod → Kod; Simge ve Gizle → eski Gizle (kodsuz pin)', () => {
+      expect(legacyAirportsValue('icon-code')).toBe('code')
+      expect(legacyAirportsValue('icon')).toBe('hidden')
+      expect(legacyAirportsValue('hidden')).toBe('hidden')
+    })
+
+    it('eski sürüm yeni kaydı en yakın değerle okur', () => {
+      const storage = memoryStorage()
+      const expected = { hidden: 'hidden', icon: 'hidden', 'icon-code': 'code' } as const
+      for (const airportDisplay of AIRPORT_DISPLAY_MODES) {
+        saveLabelSettings(storage, { ...DEFAULT_LABEL_SETTINGS, airportDisplay })
+        expect(oldReader(storage.data.get(LABEL_SETTINGS_KEY)), airportDisplay).toBe(
+          expected[airportDisplay],
+        )
+      }
+    })
+
+    it('eski sekme başka bir ayarı yazınca Simge ve Simge ve kod korunur, Gizle Simge olur', () => {
+      const expected = { hidden: 'icon', icon: 'icon', 'icon-code': 'icon-code' } as const
+      for (const airportDisplay of AIRPORT_DISPLAY_MODES) {
+        const storage = memoryStorage()
+        saveLabelSettings(storage, { ...DEFAULT_LABEL_SETTINGS, airportDisplay })
+        storage.setItem(
+          LABEL_SETTINGS_KEY,
+          oldWriter(storage.data.get(LABEL_SETTINGS_KEY), { others: 'short' }),
+        )
+        expect(loadLabelSettings(storage), airportDisplay).toEqual({
+          ...DEFAULT_LABEL_SETTINGS,
+          others: 'short',
+          airportDisplay: expected[airportDisplay],
+        })
+      }
+    })
+  })
+
+  describe('eski kayıtlar (v0.14.0–v0.25.2, `airports` alanı; D-084 → D-114)', () => {
     it('legacyAirportDisplay: Gizle (pin kalıyordu) → Simge; Kod ve "Kod ve ad" → Simge ve kod', () => {
       expect(legacyAirportDisplay('hidden')).toBe('icon')
       expect(legacyAirportDisplay('code')).toBe('icon-code')
@@ -113,7 +169,7 @@ describe('etiket ayarı', () => {
       })
     })
 
-    it('`airports: "code"` ve kaldırılan "Kod ve ad"ın `"name"`i Simge ve kod okunur', () => {
+    it('`airports: "code"` ve kaldırılan "Kod ve ad"ın `"name"`i (v0.14.0–v0.15.0) Simge ve kod okunur', () => {
       for (const airports of ['code', 'name']) {
         expect(
           loadLabelSettings(stored({ selected: 'short', others: 'hidden', airports })),
@@ -180,7 +236,7 @@ describe('etiket ayarı', () => {
       expect(loadLabelSettings(stored({ airportIcons: 'hidden' }))).toEqual(DEFAULT_LABEL_SETTINGS)
     })
 
-    it('eski kayıt okunurken yeniden yazılmaz; ayar değişince yalnız yeni biçimle yazılır', () => {
+    it('eski kayıt okunurken yeniden yazılmaz; ayar değişince yeni biçim ve türetilmiş `airports` yazılır', () => {
       const raw = JSON.stringify({ selected: 'full', others: 'hidden', airports: 'hidden' })
       const storage = memoryStorage({ [LABEL_SETTINGS_KEY]: raw })
       const loaded = loadLabelSettings(storage)
@@ -191,6 +247,7 @@ describe('etiket ayarı', () => {
         others: 'hidden',
         airportDisplay: 'icon',
         countries: 'hidden',
+        airports: 'hidden',
       })
     })
   })

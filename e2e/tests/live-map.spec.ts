@@ -453,7 +453,8 @@ test('havalimanları Simge ve kod ya da Simge; cihazda saklanır; Simge ve kod�
   await expect(popup).toBeHidden()
 
   // Simge (D-084'ün eski Gizle'si) klavyeyle seçilir: ok tuşu yalnız kendi grubunda gezer, uçak
-  // grupları değişmez. Kayıt yeni biçimdedir (`airportDisplay`; `airports` alanı yazılmaz).
+  // grupları değişmez. Kayıt yeni biçimdedir (`airportDisplay`); yanında eski sürümler için
+  // türetilmiş `airports` yazılır (Simge → `'hidden'`, eski Gizle'nin kodsuz pini; D-114).
   await button.click()
   await mode('Simge ve kod').focus()
   await page.keyboard.press('ArrowLeft')
@@ -464,6 +465,7 @@ test('havalimanları Simge ve kod ya da Simge; cihazda saklanır; Simge ve kod�
     others: 'full',
     airportDisplay: 'icon',
     countries: 'shown',
+    airports: 'hidden',
   })
   await page.keyboard.press('Escape')
   await expect(button).toHaveAttribute('aria-expanded', 'false')
@@ -487,6 +489,7 @@ test('havalimanları Simge ve kod ya da Simge; cihazda saklanır; Simge ve kod�
     others: 'hidden',
     airportDisplay: 'icon',
     countries: 'shown',
+    airports: 'hidden',
   })
   await page.keyboard.press('Escape')
   await expect.poll(() => paintedPixels(page), { timeout: 10_000 }).toBe(0)
@@ -527,15 +530,30 @@ async function clickPrimaryChip(page: Page, popup: Locator): Promise<void> {
  * pininin üstünden replay'in taksi uçağı (`TAXI_AIRCRAFT`) sürekli geçer: IST yalnız DOM'dan
  * (pencere, liste) ve etiket tuvalinden (kod yok) denetlenir.
  */
-const SAW = { icao: 'LTFJ', iata: 'SAW' } as const
+const SAW = { icao: 'LTFJ', iata: 'SAW', lat: 40.898602, lon: 29.3092 } as const
 
-/** İki animasyon karesi: ayar değişikliği haritaya geçer ve harita yeniden çizilir. */
-async function nextFrames(page: Page): Promise<void> {
+/**
+ * Açılış görünümünün ortası (`PRIMARY_AIRPORT_VIEW`, apps/web camera.ts; e2e uygulamayı import
+ * etmez). 1280×720'de açılış z8'dir ve kart açık değilken harita ortası tuvalin ortasıdır.
+ */
+const OPENING_VIEW = { lat: 41.2753, lon: 28.7519 } as const
+const OPENING_ZOOM = 8
+
+/**
+ * Ayar haritaya geçsin: pin kaynağının `setData`'sı MapLibre'nin worker'ında eşzamansızdır (veri
+ * yükleme, karo yenileme, ardından çizim); iki animasyon karesi yetmez. Değişmemesi beklenen çizim
+ * (pin kalır) bu beklemeden sonra denetlenir, yoksa ayardan önceki kare de geçerdi.
+ */
+async function settleMap(page: Page, ms = 1_000): Promise<void> {
   await page.evaluate(
-    () =>
+    (delay) =>
       new Promise<void>((resolve) =>
-        requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
+        setTimeout(
+          () => requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
+          delay,
+        ),
       ),
+    ms,
   )
 }
 
@@ -620,6 +638,14 @@ test.describe('havalimanları Gizle / Simge / Simge ve kod (D-114)', () => {
     await page.keyboard.press('Escape')
     await expect(button).toHaveAttribute('aria-expanded', 'false')
 
+    // Açılış görünümünde (IST, z8) SAW'ın pini çizili: yenilemeden sonraki denetimin karşılığı.
+    const opening = await mapCenter(page)
+    const offset = mercatorOffset(OPENING_VIEW, SAW, OPENING_ZOOM)
+    const sawAtOpening = { x: opening.x + offset.x, y: opening.y + offset.y }
+    await expect(async () => {
+      expect((await pinPixels(page, sawAtOpening)).red).toBeGreaterThanOrEqual(15)
+    }).toPass({ timeout: 15_000 })
+
     // Arama SAW'ı açar; pencere kapanınca harita SAW'dadır.
     await searchAirport(SAW.iata)
     await expect(sawPopup).toBeVisible({ timeout: 15_000 })
@@ -646,6 +672,7 @@ test.describe('havalimanları Gizle / Simge / Simge ve kod (D-114)', () => {
         others: 'hidden',
         airportDisplay: 'hidden',
         countries: 'shown',
+        airports: 'hidden',
       })
     await page.keyboard.press('Escape')
     await expect(button).toHaveAttribute('aria-expanded', 'false')
@@ -661,10 +688,18 @@ test.describe('havalimanları Gizle / Simge / Simge ve kod (D-114)', () => {
     await page.mouse.click(saw.head.x, saw.head.y)
     await expect(anyPopup).toHaveCount(0)
 
-    // Yeniden açılış (adres `/`, harita IST'de): Gizle seçili; IST'nin de kodu yok.
+    // Yeniden açılış (adres `/`, harita IST'de, z8): Gizle seçili; IST'nin de kodu yok. Pin kaynağı
+    // kayıtlı ayarla kurulur: hiçbir pencere açılmadan (sonraki adımların `setData`'sından önce)
+    // açılış görünümündeki SAW'ın pini yok. Liste yüklendikten ve harita oturduktan sonra
+    // denetlenir; yanlış kurulan kaynakta pin pencere açılana kadar kalırdı, yineleme yalnız
+    // üstünden geçen bir uçağı bekler.
     await page.reload()
     await waitForMap(page)
     expect((await airportListCodes(page))[0]).toBe(PRIMARY_AIRPORT.iata)
+    await settleMap(page)
+    await expect(async () => {
+      expect((await pinPixels(page, sawAtOpening)).red).toBe(0)
+    }).toPass({ timeout: 5_000 })
     await expect.poll(() => paintedPixels(page), { timeout: 10_000 }).toBe(0)
     await button.click()
     await expect(mode('Gizle')).toBeChecked()
@@ -708,7 +743,9 @@ test.describe('havalimanları Gizle / Simge / Simge ve kod (D-114)', () => {
     // Simge: pinler geri gelir, kod yok.
     await button.click()
     await mode('Simge').check()
-    await expect.poll(() => stored(page)).toMatchObject({ airportDisplay: 'icon' })
+    await expect
+      .poll(() => stored(page))
+      .toMatchObject({ airportDisplay: 'icon', airports: 'hidden' })
     await page.keyboard.press('Escape')
     await expect(async () => {
       expect(await sawAgain.pinRed()).toBeGreaterThanOrEqual(15)
@@ -718,7 +755,9 @@ test.describe('havalimanları Gizle / Simge / Simge ve kod (D-114)', () => {
     // Simge ve kod: kodlar da geri gelir.
     await button.click()
     await mode('Simge ve kod').check()
-    await expect.poll(() => stored(page)).toMatchObject({ airportDisplay: 'icon-code' })
+    await expect
+      .poll(() => stored(page))
+      .toMatchObject({ airportDisplay: 'icon-code', airports: 'code' })
     await page.keyboard.press('Escape')
     await expect(async () => {
       expect(await sawAgain.pinRed()).toBeGreaterThanOrEqual(15)
@@ -726,7 +765,7 @@ test.describe('havalimanları Gizle / Simge / Simge ve kod (D-114)', () => {
     }).toPass({ timeout: 15_000 })
   })
 
-  test('eski kayıt (`airports: "hidden"`, v0.18.1–v0.25.1) Simge okunur; Gizle’de `?havalimani=` hedefinin pini çizili kalır ve tıklanır; Simge ve kod kodu getirir', async ({
+  test('eski kayıt (`airports: "hidden"`, v0.14.0–v0.25.2) Simge okunur; Gizle’de `?havalimani=` hedefinin pini çizili kalır ve tıklanır; Simge ve kod kodu getirir', async ({
     page,
   }) => {
     // Tek sayfa yüklemesi. O sürümlerin Gizle'si yalnız kodu kaldırıyordu, pin kalıyordu (D-084).
@@ -758,8 +797,8 @@ test.describe('havalimanları Gizle / Simge / Simge ve kod (D-114)', () => {
     }).toPass({ timeout: 15_000 })
     await expect(popup).toHaveCount(0)
 
-    // Gizle: kayıt yeni biçimde yazılır. SAW adresin hedefi olduğu için pini çizili ve tıklanır
-    // kalır; pencere kapanınca da (parametre adreste).
+    // Gizle: kayıt yeni biçimde (ve türetilmiş `airports` ile) yazılır. SAW adresin hedefi olduğu
+    // için pini çizili ve tıklanır kalır; pencere kapanınca da (parametre adreste).
     await button.click()
     await mode('Gizle').check()
     await expect
@@ -769,12 +808,13 @@ test.describe('havalimanları Gizle / Simge / Simge ve kod (D-114)', () => {
         others: 'hidden',
         airportDisplay: 'hidden',
         countries: 'shown',
+        airports: 'hidden',
       })
     await page.keyboard.press('Escape')
     await expect(button).toHaveAttribute('aria-expanded', 'false')
-    // Ayar haritaya geçtikten sonra denetlenir (yoksa önceki çizim de geçerdi); üstünden geçen bir
-    // seyir uçağı için denetim yinelenir.
-    await nextFrames(page)
+    // Pin kaynağı eşzamansız yenilenir: denetim ~1 sn'lik beklemeden sonradır (`settleMap`), yoksa
+    // ayardan önceki kare de geçerdi. Üstünden geçen bir seyir uçağı için denetim yinelenir.
+    await settleMap(page)
     await expect(async () => {
       expect(await saw.pinRed()).toBeGreaterThanOrEqual(15)
       expect(await paintedPixels(page)).toBe(0)
@@ -785,7 +825,9 @@ test.describe('havalimanları Gizle / Simge / Simge ve kod (D-114)', () => {
     }).toPass({ timeout: 15_000 })
     await page.keyboard.press('Escape')
     await expect(popup).toBeHidden()
-    await nextFrames(page)
+    // Doğru kodda pencerenin kapanması pin kaynağını değiştirmez; hedef unutulsaydı pin bu
+    // beklemede kalkardı.
+    await settleMap(page)
     await expect(async () => {
       expect(await saw.pinRed()).toBeGreaterThanOrEqual(15)
     }).toPass({ timeout: 10_000 })
@@ -981,8 +1023,15 @@ test.describe('ülke adları (D-095, D-096, D-099, D-100)', () => {
           LABEL_SETTINGS_KEY,
         ),
       )
-      // Kayıt yeni biçimde yazılır: eski `airports: 'hidden'` Simge'dir (D-114).
-      .toEqual({ selected: 'full', others: 'hidden', airportDisplay: 'icon', countries: 'hidden' })
+      // Kayıt yeni biçimde yazılır: eski `airports: 'hidden'` Simge'dir; türetilmiş `airports` yine
+      // `'hidden'` (D-114).
+      .toEqual({
+        selected: 'full',
+        others: 'hidden',
+        airportDisplay: 'icon',
+        countries: 'hidden',
+        airports: 'hidden',
+      })
     await expect(async () => {
       expect(await pinPixels(page, ika)).toEqual(shown)
       const changed = await changedPixels(page, withName, await clipImage(page, clip))
