@@ -48,9 +48,9 @@ Durumlar: `[ ]` başlamadı, `[~]` sürüyor, `[k]` kod bitti ve kullanıcı do�
 | M6i.1 | 4. halkanın ön koşulları ve veri altyapısı (halka 3'te kalır, 503 listelenen): fixture'a 4. halka, 4 karakterli ICAO kuralı, pist kuralları, kaplama kodları, saat dilimleri; toplu havanın ham biçimi, AWC istek sayısı günlükte, uçuş evresi ızgarası, harita penceresinin tembel yüklenmesi — kullanıcı isteğiyle M7c'nin önüne alındı (2026-10-05; D-101) | `p1/m6i1-ring4-prep` | [k] kod bitti; üretimde doğrulandı (2026-10-06, v0.22.0): `/version` 0.22.0, ham toplu hava (`format=raw`) 502 KB, br ile 60 KB (çözülmüş biçim 1,36 MB, br ile 70 KB); v0.22.0 Release 2026-10-06T00:41:12Z; worker günlüğünde AWC `requests` denetimi bekliyor (ACTIVATION) | #36 |
 | M6i.2 | 4. halka (≤ 5.000 km, 719 havalimanı, 1.217 listelenen; D-107'den önce 1.222): adlar, halkanın açılması, ülke adı yerleşiminin yeniden üretimi, metinler, e2e (D-102) | `p1/m6i2-ring4` | [k] kod bitti; üretimde doğrulandı (2026-10-08, v0.23.0): `/version` 0.23.0, `scope=listed` 1.217, `/istasyon/EGLL` ve `/istasyon/VIDP` 200, `/istasyon/KHX` 404; Release 2026-10-08T02:24:22Z; METAR istek sayısı ve sayfa denetimleri kullanıcıda (ACTIVATION M6i.2) | #42 |
 | M6j.1 | 5. halkanın ön koşulları (halka 4'te kalır, 1.217 listelenen): fixture'a 5. halka ve iki dışlama örneği, 308 bölge ve 68 havalimanı saat dilimi kuralı, sunucunun fark tablosu, dilimsiz havalimanında UTC (D-106 (c)), pist ve kaplama kuralları, yurt dışı askerî liste, kodu değişen havalimanının eski kodundan 308, içe aktarım kayması günlüğü, fixture testlerinin süresi (D-109) | `p1/m6j1-ring5-prep` | [k] kod bitti (v0.24.0); üretim denetimi bekliyor (ACTIVATION M6j.1) | — |
-| M6i.3 | Savaş nedeniyle kapalı havalimanları: 23 havalimanı listeye girer (1.240), 35 havalimanında not, Krasnodar, Gelencik, Elista'nın notu kalkar (yama; D-110) | `p1/map-war-closures` | [~] kod ve yerel kontroller bitti (2026-10-15); yayın adımı (sürüm, Yenilikler, README, PR, CI) bekliyor | — |
+| M6i.3 | Savaş nedeniyle kapalı havalimanları: 23 havalimanı listeye girer (1.240), 35 havalimanında not, Krasnodar, Gelencik, Elista'nın notu kalkar (yama; D-110) | `p1/map-war-closures` | [~] kod, main birleştirmesi (v0.25.0) ve yerel kontroller bitti (2026-10-15); sürüm v0.25.1, Yenilikler yazıldı; yayın adımı (README, v0.25.0'ın yayın anı, PR, CI) bekliyor | — |
 | M6j.2 | 5. halkanın ölçeği (halka 4'te kalır): web belleğinde havalimanı listesi, API gövde önbelleği, `include=map`, 180. meridyen, istek üzerine pist uçları, METAR/TAF kaydı yalnız tarayıcıda, paylaşım görseli sınırı, toplu havada `format=raw` zorunlu, AWC ilk çalışma, llms.txt belleği (D-109) | `p1/m6j2-ring5-scale` | [ ] | — |
-| M6j.3 | 5. halka (dünyanın geri kalanı, ABD dahil; 2.026 havalimanı, 3.243 listelenen): adlar, tek ad parçası, arama dilimleri, halkanın açılması, ülke adları, düşük yakınlaştırmada küçük pinler, metinler, e2e (D-109) | `p1/m6j3-ring5` | [ ] | — |
+| M6j.3 | 5. halka (dünyanın geri kalanı, ABD dahil; 2.026 havalimanı, 3.266 listelenen; D-110'la): adlar, tek ad parçası, arama dilimleri, halkanın açılması, ülke adları, düşük yakınlaştırmada küçük pinler, metinler, e2e (D-109) | `p1/m6j3-ring5` | [ ] | — |
 | M7c | Kapsama ölçümü yedek yolu (`coverage:probe`) | `p1/m7c-coverage-probe` | [ ] | — |
 
 ## M0 — Repo iskeleti ve yerel test ortamı
@@ -1283,7 +1283,7 @@ Sürüm v0.22.1 (dal `p1/map-no-military`, `main` `8a7a5ea` = v0.21.1'den; v0.22
 - **Değişmeyenler:** havalimanları listesi, istasyon sayfaları, API (`scope=listed` 503 kayıt); site haritası ve llms.txt (üsler `noindex`'tir, D-084: oralarda zaten yoklar). Uçak listesinin tahmini durumu ve konumu bütün listeyi kullanır (üsse yaklaşan uçak doğru yere göre yazılır). Ankara (Etimesgut) ve yurt dışındaki ortak sivil-askerî havalimanları (Bağdat, Podgorica, Cuxhaven/Nordholz) sivildir, haritada kalır.
 - **Ülke adları:** engeller haritada pini çizilen 498 havalimanıdır (503 − 5 üs); tablo `pnpm country-labels` ile yeniden üretildi. Yalnız TÜRKİYE'nin çapası kaydı.
 - **Açılış yakınlaştırması (D-104; kullanıcı 2026-10-06, İstanbul ekran görüntüsüyle: "başlangıçta zoom oranı bu olsun."):** masaüstünde 8,5 → 8; merkez IST/LTFM ve telefon kuralı (~7,8) aynı. Harita kurulmadan aboneliğin kutusu ±2,7° × ±1,2°'ye genişler (1920×1080'de z8 görünümü).
-- Sürüm (v0.25.1), `entries.ts` ve `CHANGELOG.md` main birleştirmesinden sonra; README yayın adımındadır.
+- Sürüm, `entries.ts`, `CHANGELOG.md` ve README yayın adımındadır.
 
 **Dosyalar:**
 - `apps/web/src/components/map/camera.ts` (`INITIAL_MAX_ZOOM` 8, `INITIAL_BOUNDS`); test `map-controller.test.ts` (1280×720, 1920×1080, 1915×910 → 8; kutu 1920×1080 görünümünü kapsar); `e2e/tests/live-map.spec.ts` (açıklama)
@@ -1322,7 +1322,7 @@ Sürüm v0.22.2 (dal `p1/no-military-site`, `main` `7a9309e` = v0.22.1'den). Kar
 - **Metinler (TR/EN):** `/havalimanlari` kapsam cümlesi "askerî hava üsleri ve bazı küçük havalimanları listelenmez"; ad kaynağı ipucundaki ve `/hakkinda` kaynak satırındaki üs cümlesi kalktı.
 - **Harita:** `mapShownAirports` savunma süzgeci olarak kaldı ve sadeleşti: liste yüklenirken bir kez süzülür; pin, pencere, liste, `?havalimani=` ve uçak listesi aynı listeyi kullanır. `?havalimani=<üs>` artık açılış görünümünde açar.
 - **Uzaklık referansı:** 66 → 61 nokta; halka üyeliği 0 değişiklik, `nearestTr` 4 değişiklik (D-107).
-- Sürüm (v0.25.1), `entries.ts` ve `CHANGELOG.md` main birleştirmesinden sonra; README yayın adımındadır.
+- Sürüm, `entries.ts`, `CHANGELOG.md` ve README yayın adımındadır.
 
 **Dosyalar:**
 - `packages/db/src/airports.ts` (`MILITARY_AIRFIELD_ICAOS`, `listedEntries`, `turkishReferencePoints`, açıklamalar); testler `airports.test.ts` (kural, fixture 1.217 / 498 / 56, halka kararlılığı ve dört `nearestTr` değişikliği), `airports.int.test.ts` (beklentiler)
@@ -1369,7 +1369,7 @@ Sürüm v0.22.3 (dal `p1/map-airport-search`, `main` `7a9309e` = v0.22.1'den; `p
 - **Seçim:** pine tıklamakla aynı (harita en az z10, pencere, adres değişmez); pencere kapanınca odak kutuya döner.
 - **Türkçe klavye:** uçak aramasında İ→I, ı→i ve tire çeşitleri; Türkçe harfli sorgu uçak aramaz.
 - **İlk yükleme (D-101):** ad tabloları `/`'nin ilk paketine girmez; dizin kurucusu ayrı parçadadır (pencere ve panelle ortak tembel giriş), harita hazır olunca boşta istenir ve liste gelince boşta kurulur, kutu odaklanınca da istenir; yüklenemezse yalnız kodla arama.
-- Sürüm (v0.25.1), `entries.ts` ve `CHANGELOG.md` main birleştirmesinden sonra; README yayın adımındadır.
+- Sürüm, `entries.ts`, `CHANGELOG.md` ve README yayın adımındadır.
 
 **Dosyalar:**
 - `packages/shared/src/reference/airport-search.ts` (yeni, saf motor; hiçbir şey içe aktarmaz), `airport-search-places.ts` (yeni, yalnız aranan ek adlar), `index.ts`; test `airport-search.test.ts`
@@ -1491,7 +1491,7 @@ Hedef sürüm yayın adımında belirlenir (dal `p1/map-all-countries`, `d807f15
 - **Tablo ilk pakette değil (inceleme düzeltmesi):** tablo ve noktalar `@havayolu/shared/country-label-placements` ve `@havayolu/shared/country-label-points` alt yollarında; harita denetleyicisi MapLibre ile paralel, dinamik importla yükler.
 - **Değişenler (59 ülke):** yalnız RUSYA, 57,51° D, 61,77° K (Komi) → 46,74° D, 59,04° K (Kirov ile Kostroma arası; Avrupa Rusyası'nın görsel merkezi, z3'ten).
 - **e2e beklentileri:** Tahran z3'te HİNDİSTAN ve ÇAD yazılır, z4'te PAKİSTAN (4,5) kesirli `minzoom`'la yazılmaz; İRAN'ın kutusu, IKA ve 375 px TÜRKIYE değişmedi.
-- Sürüm (v0.25.1), `entries.ts` ve `CHANGELOG.md` main birleştirmesinden sonra; README yayın adımındadır.
+- Sürüm, `entries.ts`, `CHANGELOG.md` ve README yayın adımındadır.
 
 **Dosyalar:**
 - `tools/src/country-labels/natural-earth.ts` (244 kodun birimleri, `NATURAL_EARTH_PART_SPLITS`, `NATURAL_EARTH_UNASSIGNED`, `countryParts`, `farCodes`, `countryAreasKm2`, yay sadeleşmesinde uçlar world-atlas'taki değerinde, en büyük parça korunur), `geometry.ts` (`placeOnOneWorldCopy`, `ringGeodesicAreaKm2`, `geodesicAreaKm2`), `label-model.ts` (`FAR_SAFETY_KM`, `LabelFitter`'ın km payı, yeni harfler, kırılabilir harfler), `airport-pins.ts` (engeller dünyanın komşu kopyalarında), `placement.ts` (kademe ve payı fixture'dan, ızgara ±180°, boş ızgara gizli, `COUNTRY_LABEL_AREAS_KM2`), `cli.ts`; testler `natural-earth.test.ts`, `geometry.test.ts`, `label-model.test.ts`, `airport-pins.test.ts`, `placement.test.ts`
@@ -2167,7 +2167,7 @@ Hedef sürüm 0.24.0 (yayın adımında yazılır; sürüm, changelog ve README 
 - Belgeler: D-109, bu plan, `docs/spec/data-sources.md` (§3 fixture, liste, takma ad, pist ve kaplama, kayma; §5a), `docs/spec/domain.md` (yerel saat, askerî liste, adres takma adı), `docs/RUNBOOK.md` ("İçe aktarım kayması"), `docs/ACTIVATION.md` ("M6j.1 yayın doğrulaması", "Kalıcı kopyaya 5. halka ekleri", ¹ saat dilimleri, "M6j.3 METAR denetimi")
 
 **Kabul komutları:**
-- `cd C:/PROJELER/havayolu-data/ourairports-2026-10-01 && sha256sum -c SHA256SUMS` → beş dosya OK (kullanıcı ekleri eklerse yedi); ekler fixture'dan: `tail -n 2030 tools/fixtures/ourairports/airports.csv | sha256sum` → `784f4711…9e38`, `tail -n 3000 tools/fixtures/ourairports/runways.csv | sha256sum` → `b569d99d…f6d1`
+- `cd C:/PROJELER/havayolu-data/ourairports-2026-10-01 && sha256sum -c SHA256SUMS` → beş dosya OK (kullanıcı ekleri eklerse yedi); ekler fixture'dan: `tail -n 2030 tools/fixtures/ourairports/airports.csv | sha256sum` → `784f4711…9e38`, `tail -n 3000 tools/fixtures/ourairports/runways.csv | sha256sum` → `b569d99d…f6d1` (D-110'dan beri dosyaların sonunda kapanış bloğu durur; yeniden çalıştırmak için `head -n 3625 … | tail -n 2030` ve `head -n 4605 … | tail -n 3000`)
 - `pnpm exec tsx scripts/make-reference-fixtures.mts C:/PROJELER/havayolu-data/ourairports-2026-10-01 <geçici-klasör>` → "airports 439 + rings 75 + 89 + 275 + 716 + 2030, runways 149 + 4455, airlines 5964" ve "✓ ident alias exclusions WABP, WIOD, WRLB" (çıkış 0); `cmp` ile `tools/fixtures/ourairports/airports.csv` (3.624 satır), `runways.csv` (4.604) ve `vrs/airlines.csv` aynı
 - `pnpm --filter @havayolu/providers test` → 3.624 / 4.604 satır; 5. halka satırları sonda (ZWYN → 5A8 … ZYYK); FATH içe aktarılmaz; uç uzaklığı kuralı yalnız VAAM 610195 ve KPUB 241424
 - `pnpm --filter @havayolu/shared test` → halka 4 açık ve değişmedi; fixture'da 5. halka 2.031 aday, 2.029 kanonik ICAO'lu, askerî liste dışında 2.026; 2.028 aday 225 dilimde, her dilim ülkesinin `Intl` listesinde; kural sayıları 308 / 68 / 30; örnek farklar CYPL [−300, −300], SBTT [−240, −240], SCBA [−180, −180], PADK [−600, −540], YBHI [630, 570], NTMN [−570, −570] (Britanya Kolumbiyası yalnız yaz); her dolu kaplama kodu türe çevrilir, FAA eki; fark tablosu ve kayıt
@@ -2216,6 +2216,7 @@ Sürüm v0.25.1: birleştirmede `origin/main`'deki ilk boş PATCH (main 2026-10-
 - 23 havalimanının Türkçe ve İngilizce adı ve şehri; 33 bölge ve 1 havalimanı saat dilimi kuralı.
 - Fixture'a kapanış bloğu (23 havalimanı, 28 pist); ülke adı yerleşimi yeniden üretilir.
 - Sürüm (v0.25.1), `entries.ts` ve `CHANGELOG.md` main birleştirmesinden sonra; README yayın adımındadır.
+- **M6j.2 ile buluşma:** M6j.2 (`p1/m6j2-ring5-scale`, D-111) D-110'dan önce yazıldı; M6i.3 ile M6j.2'den hangisi ikinci birleşirse M6j.2'nin 4. halka beklentilerini 56 + 1.161 / 1.217'den 56 + 1.184 / 1.240'a çeker (`include=map`, worker istasyonları, `airports-cache-size` gövdeleri). M6j.2'nin bölümü bu dalda değiştirilmedi (o dalda yeniden yazıldı).
 
 **Dosyalar:**
 - `packages/shared/src/reference/civil-closures.ts`, `airport-rings.ts`, `foreign-airport-names.ts`, `foreign-airport-names-r4.ts`, `time-zones.ts`; testler `civil-closures.test.ts`, `foreign.test.ts`, `time-zones.test.ts`, `reference.test.ts`, `names.test.ts`, `map/country-labels.test.ts` (`index.ts` `export *` ile `CivilFlightClosureCertainty`'yi zaten dışa aktarır)
@@ -2245,6 +2246,13 @@ Sürüm v0.25.1: birleştirmede `origin/main`'deki ilk boş PATCH (main 2026-10-
 - `pnpm format`, `pnpm lint` (9/9), `pnpm typecheck` (9/9), `pnpm typecheck:scripts`, `pnpm typecheck:e2e`, `pnpm lint:e2e`, `pnpm check:eol`, `pnpm db:check` (boş fark) → yeşil.
 - `pnpm --filter @havayolu/web build` (Next 16.3.6, Turbopack) + `first-load.mjs` (gzip 9): `/` 16 dosya **1.133.272 B** (gzip **328.675**), `/havalimanlari` 1.008.415 B (gzip 284.155), `/istasyon/[icao]` 1.050.401 B (gzip 298.946). v0.24.0'ın birleştirme ölçümüne göre (`/` 1.133.272 B, gzip 328.676; `/havalimanlari` 1.008.415 B, gzip 284.155; `/istasyon/[icao]` 1.050.401 B) ilk yüklemede fark yok (`/` gzip −1 B): aday kuralı sunucudadır, kapanış tablosu harita penceresinin ve aramanın tembel ad parçasındadır (tabloyla birlikte).
 - Çalıştırılmayanlar: `pnpm test:integration`, `pnpm test:migration-upgrade`, `pnpm test:e2e`, `pnpm ci:full` (Docker ve 3100/4100/4200/4300; CI'da). Entegrasyon ve e2e beklentileri yazıldı: db 1. halka 133 / 2. halka 237 / 3. halka 520 / 4. halka 1.240 / 5. halka açık bağlamla 3.266; API `scope=listed` 1.184 yurt dışı, `/v1/airports/UKBB` ve `/KBP` aynı kayıt; worker istasyon listesi 1.240 ve kayma satırı 1.240; e2e `/istasyon/UKBB` (iki dil), HSFS, URKK, `/istasyon/kbp` 308, liste notu 35, Odessa penceresi, site haritası 2.490 adres, llms.txt satırı.
+
+**Çıktı kaydı (main birleştirmesi ve inceleme düzeltmeleri, 2026-10-15, v0.25.1):**
+- **Birleştirme:** `git fetch origin` ve `git merge --no-ff origin/main` (`220d2d8`, v0.25.0, D-112) → `667cd67`. Dört dosyada çakışma, iki taraf da tutuldu: `structured-data-env.test.ts` (1.240 ve X1239, `airline.live` adresiyle), `foreign-airport-names.ts` başlığı ("sitenin derlemesidir" ve "[CLOSED]" cümlesi), DECISIONS (D-112 üstte, D-110 altında), RUNBOOK (1.240 istasyonlu hava durumu sayıları main'in User-Agent'ıyla; iki yeni bölüm). Birleştirmeden sonra `pnpm typecheck` 9/9 ve `pnpm test` yeşil (web 973, shared 765, tools 383, worker 304, api 304).
+- **Sürüm:** kök `package.json` 0.25.1, `entries.ts`'te 0.25.1 kaydı (2026-10-15; 0.25.0'ın tarihine ve `releasedAt`'ine dokunulmadı), `pnpm changelog` (45 sürüm), `pnpm changelog:check` → v0.25.1.
+- **İnceleme düzeltmeleri:** Taiz kesinden belirsize (tek resmî kaynak 2021-07-31; 26 kesin, 9 belirsiz); Simferopol'ün 2014 bağlamı ve fiilî saat dilimi (D-110, `time-zones.ts` yorumu); Seçilmeyenler (g): OurAirports'ta `closed` ya da kodsuz savaş kayıpları (Donetsk, Luhansk, Trablus, Hudeyde); R1 aktarım etiketi, "güney ve orta Rusya", Kalashnyk cümlesi, M1'in tarihi, yeniden bakışın kaynak listesi, Aksum'un FCDO tarihi; e2e UKBB başlığı `· ${APP_NAME}`; ACTIVATION'da yeni host'lar ve fixture satırları; M6j.3 sayıları D-110'dan sonraki hâliyle (3.266 / 3.210 / 6.542); fixture'ın 5. halka satırları "halka bloklarının son satırları"; hava durumu yorumları ve RUNBOOK 1.240 / 207 istek; uçuş evresi metni (merkeze göre kurallar atlanır, pist hizası değil); sayfa ve pencere yorumları D-110'la.
+- `pnpm format`, `pnpm lint` (9/9), `pnpm typecheck` (9/9), `pnpm typecheck:scripts`, `pnpm typecheck:e2e`, `pnpm lint:e2e`, `pnpm check:eol`, `pnpm db:check` (boş fark), `pnpm test:scripts` (39/39), `pnpm changelog:check` (v0.25.1) → yeşil.
+- `pnpm turbo run test --force --continue` → web 972/973, shared 764/765, tools 383, worker 304, api 304, providers 135, i18n 101, db 85, geo 36. İki kırmızı test 0.25.0'ın `releasedAt`'inin henüz yazılmamasından gelir (`changelog.test.ts` "en yeni dışında her sürümde var", `changelog-content.test.ts` "her sürümün saati var"); yayın adımında v0.25.0 GitHub Release anı yazılınca geçer (D-091).
 
 ## M6j.2 — 5. halkanın ölçeği (halka 4'te kalır)
 Onay: M6j.1 ile aynı (2026-10-06 kullanıcı: "halkalar peşpeşe gelsin"; "TÜM HAVALİMANLARINI ne zaman ekleriz?"). Seçimler orkestratör varsayılanıdır (D-109'daki bölünme; ayrıntılar yayın adımında kendi kararına yazılır).
@@ -2277,27 +2285,29 @@ Hedef sürüm MINOR (yayın adımında). Dal `p1/m6j2-ring5-scale`, M6j.1'in fix
 ## M6j.3 — 5. halka açılır (dünyanın geri kalanı, ABD dahil)
 Onay: M6j.1 ile aynı (2026-10-06 kullanıcı: "halkalar peşpeşe gelsin"; "TÜM HAVALİMANLARINI ne zaman ekleriz?"). Adların derlemesi depo dışındadır (`C:/PROJELER/havayolu-data/ring5-names/`; hazırlık, dondurma ve pilot şimdi, ana dalga 4. halka yayındayken); ad yazım soruları S1–S8 varsayılanlarıyla (D-109; S1 M6j.1'de uygulandı).
 
+Sayılar D-110'dan sonradır (1.–4. halkada 23 savaş kapanışı listeye girdi: 3.243 → 3.266); D-110'a göre M6j.3 5. halkayı açmadan önce aynı ölçütle tarar ve bulduğu kapanışlar bu sayılara eklenir. Hava durumu istasyonu (3.264) ve açık ülke (232) sayıları öbür sayılardan türetildi, hiçbir test denetlemiyor; M6j.3'te doğrulanır.
+
 Hedef sürüm MINOR (yayın adımında). Dal `p1/m6j3-ring5`, M6j.2'nin üstünden. `ENABLED_AIRPORT_RING` 4 → 5; migration yok.
 
 **Kapsam (son tasarım §7):**
-- **Adlar:** `foreign-airport-names-r5.ts` (2.026 kayıt) taslaktan betikle, SHA-256 aynı; birleşik tablolar 3.187 yabancı ad; ad kuralı test genellemeleri (Türkçe şehir adının içindeki İngilizce sözcük, ülke içinde tekil İngilizce ad, 170 karakteri aşan açıklamada önce yükseklik sonra pist uzunluğu düşer); mevcut 1.161 ad ve 4. halkanın açıklamaları bayt bayt aynı.
+- **Adlar:** `foreign-airport-names-r5.ts` (2.026 kayıt) taslaktan betikle, SHA-256 aynı; birleşik tablolar 3.210 yabancı ad; ad kuralı test genellemeleri (Türkçe şehir adının içindeki İngilizce sözcük, ülke içinde tekil İngilizce ad, 170 karakteri aşan açıklamada önce yükseklik sonra pist uzunluğu düşer); mevcut 1.184 ad ve 4. halkanın açıklamaları bayt bayt aynı.
 - **Tek ad parçası:** 1.–5. halka mevcut tek tembel girişte (`airport-lazy.ts`, D-108; ~55 KB gzip), ilk yükte değil.
-- **Arama (D-108):** `createAirportSearchIndex` `timeRemaining()` dilimleriyle (3.243 sentetikte dilim ≤ 50 ms, tek seferlik kurulumla aynı dizin); `identAlias` tam kod M6j.1'de geldi, 5. halkanın 23 takma adı halkayla ("SPIM" → Lima, e2e); "TRK" önce Tarakan (WAQQ); 941 IATA kodu bir havayolu ICAO'su.
-- **Halka:** 3.243 listelenen, 3.187 yabancı, site haritası 6.496, llms.txt 3.243, hava durumu istasyonu 3.241, açık ülke 231.
-- **Metinler:** `/havalimanlari` açıklaması toplamla ("3.243" / "3,243"); D-106 (b) yeniden değerlendirmesi (iki tablo, Türkiye önce); `listedRadiusKm() === null` metinleri.
-- **Ülke adları:** `pnpm country-labels` 3.243 pinle.
+- **Arama (D-108):** `createAirportSearchIndex` `timeRemaining()` dilimleriyle (3.266 sentetikte dilim ≤ 50 ms, tek seferlik kurulumla aynı dizin); `identAlias` tam kod M6j.1'de geldi, 5. halkanın 23 takma adı halkayla ("SPIM" → Lima, e2e); "TRK" önce Tarakan (WAQQ); 941 IATA kodu bir havayolu ICAO'su (D-110'dan önce sayıldı; kapanışlarla gelen 23 havalimanının 11'inin IATA'sı da VRS fixture'ında bir havayolu ICAO'sudur: AAQ, CWC, DNK, EGO, KHE, NLV, ODS, ROV, SIP, URS, VIN).
+- **Halka:** 3.266 listelenen, 3.210 yabancı, site haritası 6.542, llms.txt 3.266, hava durumu istasyonu 3.264, açık ülke 232.
+- **Metinler:** `/havalimanlari` açıklaması toplamla ("3.266" / "3,266"); D-106 (b) yeniden değerlendirmesi (iki tablo, Türkiye önce); `listedRadiusKm() === null` metinleri.
+- **Ülke adları:** `pnpm country-labels` 3.266 pinle.
 - **Düşük yakınlaştırmada pinler (U2 varsayılanı):** `icon-size` 3 → 0,30, 4 → 0,45; her pin kalır.
-- **e2e:** KJFK sayfaları ve haritası, `/istasyon/JFK` → 308; `/istasyon/SPIM` → 308 SPJC; 404: LFPB, LBG, FATH, THY, YBOK, WKK, KHX, LSG; site haritası 6.496, llms.txt 3.243.
+- **e2e:** KJFK sayfaları ve haritası, `/istasyon/JFK` → 308; `/istasyon/SPIM` → 308 SPJC; 404: LFPB, LBG, FATH, THY, YBOK, WKK, KHX, LSG; site haritası 6.542, llms.txt 3.266.
 
 **Kabul komutları (son tasarım §7):**
 - `check5 --strict` 0 ihlal (`final.jsonl` ve birleşik repo tabloları); taslağın SHA-256'sı repo dosyasınınkiyle aynı
-- `pnpm --filter @havayolu/shared test` → 5. halka açık; 3.187 ad ve şehir; ad kuralları (sapmalar, teklik, şehrin içindeki İngilizce sözcük, 3.243 havalimanında iki dilde SEO 70–170, glifler)
-- `pnpm --filter @havayolu/db test` → 3.243; `pnpm --filter @havayolu/tools test` ve `pnpm country-labels` → "3243 airport pins", tablo sürüklenmesi yok, Tahran ve TÜRKİYE e2e beklentileri değişmez
-- `pnpm --filter @havayolu/web test` → 5. halka pencereleri (New York, Sidney, Honolulu, Santiago, Paskalya Adası); birleşik parça ilk yükte değil; arama dilimleri; `/havalimanlari` bütçesi; llms.txt 3.243
+- `pnpm --filter @havayolu/shared test` → 5. halka açık; 3.210 ad ve şehir; ad kuralları (sapmalar, teklik, şehrin içindeki İngilizce sözcük, 3.266 havalimanında iki dilde SEO 70–170, glifler)
+- `pnpm --filter @havayolu/db test` → 3.266; `pnpm --filter @havayolu/tools test` ve `pnpm country-labels` → "3266 airport pins", tablo sürüklenmesi yok, Tahran ve TÜRKİYE e2e beklentileri değişmez
+- `pnpm --filter @havayolu/web test` → 5. halka pencereleri (New York, Sidney, Honolulu, Santiago, Paskalya Adası); birleşik parça ilk yükte değil; arama dilimleri; `/havalimanlari` bütçesi; llms.txt 3.266
 - `pnpm --filter @havayolu/api test` → M6j.2'nin bütçeleri içinde
 - `pnpm build` → `/`, `/istasyon/[icao]`, `/havalimanlari` farkları ve parça boyu
-- Birleştiricide `pnpm test:integration` (API 56 + 3.187; pistsiz 6 + 14; worker 3.241 istasyon), `pnpm test:e2e`, `pnpm ci:full`, PR CI
-- **Kullanıcıya bağlı (`[k]`):** `scope=listed` 3.243 ± kayma (kayma satırı açıklar), ~70 dk içinde; yerel saatler (KJFK, SBGR, YSSY, PHNL, NZAA, SCIP, PADK ve kışın bir Britanya Kolumbiyası havalimanı); ilk METAR çalışmasında 429 yok; kimliği farklı istasyonların METAR'ı (KDJT dahil; CAJ4, CAT4 havasız); telefonda z3; uyduda ABD, Çin ve Brezilya'da ülke adları; bir hafta sonra veritabanı boyutu; ¹ dilimler (ACTIVATION)
+- Birleştiricide `pnpm test:integration` (API 56 + 3.210; pistsiz 6 + 14; worker 3.264 istasyon), `pnpm test:e2e`, `pnpm ci:full`, PR CI
+- **Kullanıcıya bağlı (`[k]`):** `scope=listed` 3.266 ± kayma (kayma satırı açıklar), ~70 dk içinde; yerel saatler (KJFK, SBGR, YSSY, PHNL, NZAA, SCIP, PADK ve kışın bir Britanya Kolumbiyası havalimanı); ilk METAR çalışmasında 429 yok; kimliği farklı istasyonların METAR'ı (KDJT dahil; CAJ4, CAT4 havasız); telefonda z3; uyduda ABD, Çin ve Brezilya'da ülke adları; bir hafta sonra veritabanı boyutu; ¹ dilimler (ACTIVATION)
 
 **Çıktı kaydı:** henüz yok.
 

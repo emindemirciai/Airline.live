@@ -6,7 +6,7 @@ Kapsam: sayımdaki (`sayim.md`, `sayim-adaylar.csv`) bütün Rusya satırları (
 
 | İddia | Yeniden okunan kaynak | Sonuç |
 |---|---|---|
-| 8 havalimanı "faaliyeti geçici olarak durdurulmuş" (Rosaviatsiya, sübvansiyon duyurusu) | aex.ru 2026-05-28 | Doğrulandı: "Анапа, Белгород, Брянск, Воронеж, Курск, Липецк, Ростов-на-Дону, Симферополь" |
+| 8 havalimanı "faaliyeti geçici olarak durdurulmuş" (Rosaviatsiya, sübvansiyon duyurusu) | aex.ru 2026-05-28 (aktarım: AviaStat → AVIA.RU → Rosaviatsiya basın servisi) | Doğrulandı: "Анапа, Белгород, Брянск, Воронеж, Курск, Липецк, Ростов-на-Дону, Симферополь" |
 | Elista, Gelencik, Krasnodar yeniden açıldı | favt.gov.ru id=16840 (2025-09-23); id=11535 (2024-04-26); mintrans news/12108 (2025-09-11) | Doğrulandı (resmî) |
 | Voronej kapalı | aviaport.ru 2026-03-18 (Rosaviatsiya: "По соображениям безопасности полетов, аэропорт Воронеж остается закрытым") | Doğrulandı |
 | Kara Toprak (Lipetsk, Voronej, Kursk, Belgorod) 2026'da açılmaz | kommersant.ru/doc/8738652 (2026-06-16: açılış "маловероятно") | Doğrulandı (uzman görüşü) |
@@ -91,7 +91,7 @@ Resmî:
 - https://www.easa.europa.eu/en/domains/air-operations/czibs (EASA, CZIB-2025-01 R3 Rusya; CZIB-2022-01R14 Ukrayna; ikisi de 2027-01-31'e kadar)
 
 Resmî açıklamayı aktaran:
-- https://www.aex.ru/news/2026/5/28/296012/ (2026-05-28, Rosaviatsiya: geçici olarak durdurulmuş 8 havalimanı)
+- https://www.aex.ru/news/2026/5/28/296012/ (2026-05-28, aktarım; Rosaviatsiya basın servisi: geçici olarak durdurulmuş 8 havalimanı)
 - https://www.aviaport.ru/news/rosaviatsiya-rasskazala-kogda-otkroyut-aeroport-v-voronezhe/ (2026-03-18, Rosaviatsiya: Voronej kapalı)
 - https://news.ru/society/situaciya-v-aeroportah-rossii-segodnya-10-iyulya-chto-v-saratove-gelendzhike (2025-07-10, Rosaviatsiya: Gelencik)
 - https://www.aa.com.tr/en/world/russia-says-work-underway-to-reopen-several-airports-safety-remains-priority/3717235 (2025-10-14, Nikitin; Platov yalanlaması)

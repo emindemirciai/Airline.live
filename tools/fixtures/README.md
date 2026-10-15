@@ -23,7 +23,7 @@ Testler, CI ve `EXTERNAL_PROVIDERS_DISABLED=true` iken yerel geliştirme bu dosy
   6f2ff2a0a711e2fbb3d0aa5b793fca537615069c39126280265b858f4d3cfcb3 *ring4-append/ring4-runways.csv
   ```
 
-  **5. halka ekleri (M6j.1, D-109):** üreticinin 5. halka çıktısı fixture'ın son satırlarıdır: `airports.csv`'nin son 2.030 satırı (492.779 B) ve `runways.csv`'nin son 3.000 satırı (467.356 B); ikisi M6j araştırmasının ek dosyalarıyla bayt bayt aynıdır. Kalıcı kopya M6j.1'de değiştirilmedi (ajan için salt okunur); `ring5-append/` klasörünü ve `SHA256SUMS`'ın iki yeni satırını kullanıcı ekler (ACTIVATION "Kalıcı kopyaya 5. halka ekleri"). Değerler:
+  **5. halka ekleri (M6j.1, D-109):** üreticinin 5. halka çıktısı 4. halka bloğundan sonra, kapanış bloğundan önce gelir (D-110'a kadar fixture'ın son satırlarıydı): `airports.csv`'nin 1.596.–3.625. satırları (2.030 satır, 492.779 B) ve `runways.csv`'nin 1.606.–4.605. satırları (3.000 satır, 467.356 B); ikisi M6j araştırmasının ek dosyalarıyla bayt bayt aynıdır. Kalıcı kopya M6j.1'de değiştirilmedi (ajan için salt okunur); `ring5-append/` klasörünü ve `SHA256SUMS`'ın iki yeni satırını kullanıcı ekler (ACTIVATION "Kalıcı kopyaya 5. halka ekleri"). Değerler:
 
   ```
   784f4711432731e622253275c6d624308d8b4cd9b23d7a211b9a3d29c9328e38 *ring5-append/ring5-airports.csv

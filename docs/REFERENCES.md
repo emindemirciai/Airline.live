@@ -83,7 +83,7 @@ Bir şeyi doğrulaman gerekiyorsa önce buradaki kaynakları kullan. Yeni bir ka
 - **Kullanılmaz:** SHGM listesi https://web.shgm.gov.tr/doc2/havlist.pdf. 2006 tarihli bir tablo dışa aktarımıdır ("HAVAALANLARI TABLOSU.xls", 2006-11-20) ve İstanbul Havalimanı'ndan (2018) eskidir.
 - OurAirports veri sözlüğü (pist kaplama kodları; `runway-surface.ts`): https://ourairports.com/help/data-dictionary.html
 
-## Savaş kapanışları (D-110; okunma 2026-10-08, A1, A2, A11, A12 ve A14 2026-10-15'te yeniden)
+## Savaş kapanışları (D-110; okunma 2026-10-08; A1, A2, A11–A15 ve M6–M8 2026-10-15'te yeniden, M1, M2, R1, U4 ve U10 aynı gün yayın öncesi incelemede; bkz. `yeniden-bakis-2026-10-15.md`)
 Kapanış tablosunun (`CIVIL_FLIGHT_CLOSURES`) kaynakları; etiketler `docs/research/2026-10-08-savas-kapanislari/` raporlarınındır. Bakım: RUNBOOK → "Savaş kapanışları tablosu". Uçuş verisi API'si değildir, yalnız okunur.
 - **Ukrayna:**
   - U1 EASA CZIB-2022-01R14 (resmî; revizyon 2026-07-24, 2027-01-31'e kadar): https://www.easa.europa.eu/en/domains/air-operations/czibs/czib-2022-01r14
@@ -94,8 +94,9 @@ Kapanış tablosunun (`CIVIL_FLIGHT_CLOSURES`) kaynakları; etiketler `docs/rese
   - U6 Ukrayna'nın en işlek havalimanları (2019 yolcu tablosu): https://en.wikipedia.org/wiki/List_of_the_busiest_airports_in_Ukraine
   - U8 Zaxid, 2021-10-28 (Windrose seferleri): https://zaxid.net/aviakompaniya_windrose_vidminyaye_regulyarni_reysi_kiyiv__uzhgorod_n1529179
   - U9 Bakanlar Kurulu, 2021-08-06 (Cherkasy; resmî): https://www.kmu.gov.ua/news/premyer-ministr-aeroport-u-cherkasah-maye-stati-poshtovhom-do-rozvitku-turizmu-v-misti
+  - U10 Interfax-Ukraine, 2014-03-12 (Altyapı Bakanı Burbak: Simferopol havalimanı kapalı): https://en.interfax.com.ua/news/economic/195531.html ; Rus iç hat seferleri ve 2022-02-24: https://en.wikipedia.org/wiki/Simferopol_International_Airport
 - **Rusya:**
-  - R1 AEX, 2026-05-28 (Rosaviatsiya'nın sekiz havalimanı listesi): https://www.aex.ru/news/2026/5/28/296012/
+  - R1 AEX, 2026-05-28 (AviaStat → AVIA.RU → Rosaviatsiya basın servisi aktarımı; temmuz–aralık 2025 sübvansiyon duyurusu, faaliyeti geçici olarak durdurulmuş sekiz havalimanı): https://www.aex.ru/news/2026/5/28/296012/
   - R2 Rosaviatsiya, 2024-04-26 (Elista; resmî): https://favt.gov.ru/novosti-novosti/?id=11535
   - R3 Rosaviatsiya, 2025-09-23 (üç açılış; resmî): https://favt.gov.ru/novosti-novosti/?id=16840
   - R4 news.ru, 2025-07-10 (Gelencik): https://news.ru/society/situaciya-v-aeroportah-rossii-segodnya-10-iyulya-chto-v-saratove-gelendzhike
@@ -108,8 +109,8 @@ Kapanış tablosunun (`CIVIL_FLIGHT_CLOSURES`) kaynakları; etiketler `docs/rese
   - R14 Kommersant, 2026-06-16 (Lipetsk, Kursk): https://www.kommersant.ru/doc/8738652
   - R15 AviaPort, 2026-03-18 (Voronej): https://www.aviaport.ru/news/rosaviatsiya-rasskazala-kogda-otkroyut-aeroport-v-voronezhe/
 - **Orta Doğu:**
-  - M1 CAMA Yemen (Taiz; resmî): https://cama.gov.ye/en/news/meeting-headed-by-al-sami-i-discusses-attacks-on-taiz-airport-s-campus
-  - M2 Saba, 2026-02-01 (Muha; resmî): https://www.sabanew.net/story/en/141652
+  - M1 CAMA Yemen, 2021-07-31 (Taiz 2015-10'dan beri hizmet dışı; Sana merkezli otorite, resmî; 12 aydan eski, bu yüzden Taiz belirsiz): https://cama.gov.ye/en/news/meeting-headed-by-al-sami-i-discusses-attacks-on-taiz-airport-s-campus
+  - M2 Saba, 2026-02-01 (Muha'nın açılışı; Taiz havalimanını anmaz, dolaylı; resmî): https://www.sabanew.net/story/en/141652
   - M3 SANA, 2026-08-09 (Lazkiye; resmî): https://sana.sy/locals/2549078/
   - M4 Arab News PK, 2026-09-28: https://www.arabnews.pk/middle-east/syria-moves-to-restore-latakia-international-airport-after-russian-handover-agreement-3002600
   - M5 ch-aviation, 2024-12-16: https://www.ch-aviation.com/news/148216-syria-reopens-airspace-airports-stay-closed

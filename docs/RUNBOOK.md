@@ -46,7 +46,7 @@ Başka bir canlı kaynağa geçmek DUR-SOR'dur (lisans kaydı, data-sources.md).
 - **403:** Worker 1 sa istek atmaz, satır "Çalışmıyor" olur. Bu bir kısıtlama değil, kaynağın davranışının değiştiği anlamına gelir (DUR-SOR 3): ajan kendiliğinden bir şey değiştirmez, kullanıcıya bildirir.
 - **5xx, zaman aşımı:** 60 sn sonra bir kez yeniden denenir; sonraki zamanlanmış çalışma yine dener.
 - Sayfa ve harita son geçerli raporu yaşıyla göstermeye devam eder; 3 sa'ten eski rapor "Eski gözlem", 12 sa'ten eskisi "güncel rapor yok" olur. Hiçbir rapor uydurulmaz ya da başka havalimanından alınmaz.
-- **Engel bitince kayıt dolar:** ilk başarılı METAR isteği son başarılı denetimden bu yana geçen süreyi (+1 sa, en çok 24 sa) ister; METAR/TAF kaydında delik kalmaz. İstasyonlar listelenen havalimanlarıdır (4. halkayla 56 + 77 + 104 + 283 + 720 = 1.240; savaş nedeniyle kapalı 23 havalimanı dahil, D-110; askerî hava üsleri hariç; D-080, D-088, D-090, D-102, D-107): bu istek onları geriye bakışa göre gruplara böler (24 saatlik doldurmada istek başına 6 istasyon, 207 istek; 1.217 istasyonla 203; 3. halkada 498 istasyonla 83), sonra olağan 16 METAR isteğine (80 × 15 + 40 istasyon) döner. İki isteğin başlangıcı arasında en az 700 ms geçer (`AWC_MIN_REQUEST_INTERVAL_MS`): 203 isteklik doldurma ~2,4 dk sürer ve dakikada 100 sınırının altında kalır (herhangi bir dakikada en çok 86). Listeye yeni giren ya da son 24 saatte hiç METAR'ı saklanmamış istasyon da worker süreci başına bir kez 24 saatle istenir (yeni halka yayını, worker yeniden başlatması). 24 saatten uzun kesintinin en eski kısmı ve kesintide yerini yenisine bırakan TAF'lar alınamaz.
+- **Engel bitince kayıt dolar:** ilk başarılı METAR isteği son başarılı denetimden bu yana geçen süreyi (+1 sa, en çok 24 sa) ister; METAR/TAF kaydında delik kalmaz. İstasyonlar listelenen havalimanlarıdır (4. halkayla 56 + 77 + 104 + 283 + 720 = 1.240; savaş nedeniyle kapalı 23 havalimanı dahil, D-110; askerî hava üsleri hariç; D-080, D-088, D-090, D-102, D-107): bu istek onları geriye bakışa göre gruplara böler (24 saatlik doldurmada istek başına 6 istasyon, 207 istek; 1.217 istasyonla 203; 3. halkada 498 istasyonla 83), sonra olağan 16 METAR isteğine (80 × 15 + 40 istasyon) döner. İki isteğin başlangıcı arasında en az 700 ms geçer (`AWC_MIN_REQUEST_INTERVAL_MS`): 207 isteklik doldurma ~2,4 dk sürer (206 × 0,7 ≈ 144 sn) ve dakikada 100 sınırının altında kalır (herhangi bir dakikada en çok 86). Listeye yeni giren ya da son 24 saatte hiç METAR'ı saklanmamış istasyon da worker süreci başına bir kez 24 saatle istenir (yeni halka yayını, worker yeniden başlatması). 24 saatten uzun kesintinin en eski kısmı ve kesintide yerini yenisine bırakan TAF'lar alınamaz.
 
 **Kontrol:**
 1. https://aviationweather.gov/data/api/ ve https://aviationweather.gov/data/feed/changelog.json: yeni bir kısıt, parametre değişikliği ya da duyuru var mı? Belgelenmemiş parametreler 400 döner (v4.26).
@@ -68,7 +68,7 @@ Toplu önbellek dosyalarına (`/data/cache/…`) ya da başka bir hava durumu ka
 
 **Kontrol:**
 1. 429 yalnız yayından sonraki ilk dakikalarda mı? Öyleyse önbellek dolunca kendiliğinden geçer; bir şey yapılmaz.
-2. Sürüyorsa (saatlerce, önbellek doluyken): API günlüğünde bu rotadaki 429'ların sıklığına bak. Listelenen istasyon sayısı arttıysa (yeni halka) ortalama hesabı yeniden yapılır: istasyon sayısı ÷ (`WEATHER_HISTORY_REVALIDATE_S` / 60) dakikada 60'ın altında kalmalı (`apps/web/src/lib/weather.test.ts` 1.217 için denetler).
+2. Sürüyorsa (saatlerce, önbellek doluyken): API günlüğünde bu rotadaki 429'ların sıklığına bak. Listelenen istasyon sayısı arttıysa (yeni halka) ortalama hesabı yeniden yapılır: istasyon sayısı ÷ (`WEATHER_HISTORY_REVALIDATE_S` / 60) dakikada 60'ın altında kalmalı (`apps/web/src/lib/weather.test.ts` 1.240 için denetler).
 3. Kalıcı çözüm kodda: kaydın ilk çizimden sonra yalnız tarayıcıdan yüklenmesi (D-101'in önerisi; 5. halka seçeneği) ya da önbellek süresini uzatmak. İkisi de yayınla gelir; Dokploy'da env ile değiştirilen bir ayar yoktur. API'nin hız sınırını web için gevşetmek DECISIONS kaydı ister.
 
 ## İçe aktarım kayması (`referans verisi kayması`, D-109)
@@ -92,7 +92,7 @@ Toplu önbellek dosyalarına (`/data/cache/…`) ya da başka bir hava durumu ka
 - Ukrayna NOTAM'ı A0081/26 2026-12-21'de biter; yerine geleni oku.
 - EASA CZIB'lerinin yeni revizyonları: Suriye 2026-11-30, Ukrayna ve Rusya 2027-01-31.
 - Rosaviatsiya'nın açılış duyuruları (favt.gov.ru haberleri; Rosaviatsiya uzatma duyurusu yayımlamaz, yalnız açılışları duyurur).
-- Belirsiz kayıtların her birinde havayolu ve havalimanı duyuruları (Kamışlı, Sana, El Faşir, Nyala, El-Obeid, Aksum, Gao, Mopti).
+- Belirsiz kayıtların her birinde havayolu ve havalimanı duyuruları (Kamışlı, Sana, Taiz, El Faşir, Nyala, El-Obeid, Aksum, Gao, Mopti).
 
 **Nasıl** (ajan web araştırması yapabilir, uçuş verisi API'si çağrılmaz; adresler `docs/REFERENCES.md` → "Savaş kapanışları (D-110)"):
 1. Her kaydın durumunu resmî kaynaktan oku; okunma tarihini yaz.

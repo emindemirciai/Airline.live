@@ -27,7 +27,7 @@ Güven ölçeği:
 | ICAO | IATA | Ad | Liste | Durum (2026-10-08) | Başlangıç | Neden | Güven | Öneri | Kaynak |
 |---|---|---|---|---|---|---|---|---|---|
 | HAMK | MQX | Mekele Alula Aba Nega | listede (4/2566) | **kapalı** (sivil seferler durdu; havalimanı 2026-10-03'te federal güçlere geçti, seferler dönmedi) | 2026-09-23 (FCDO: 22 Eylül) | Tigray çatışması: TPLF havalimanını aldı | **resmî** (FCDO, 2026-10-07) + raporlanmış (Ethiopian Airlines, AP) | **not ekle**, 2026 | S1–S8, S32, S33 |
-| HAAX | AXU | Aksum | listede (4/2482) | **kapalı** (sivil seferler durdu) | 2026-09-23 | Tigray çatışması | **resmî** (FCDO: bütün Tigray) + raporlanmış | **not ekle**, 2026 | S1, S3, S4, S7, S8 |
+| HAAX | AXU | Aksum | listede (4/2482) | **kapalı** (sivil seferler durdu) | 2026-09-23 (FCDO: 22 Eylül) | Tigray çatışması | **resmî** (FCDO: bütün Tigray) + raporlanmış | **not ekle**, 2026 | S1, S3, S4, S7, S8 |
 | FZNA | GOM | Goma International | listede (4/4233) | **kapalı** (2026-02-12'de yalnız MONUSCO helikopteri indi; pist mayınlı ve hasarlı, 2026-04-23) | 2025-01-27 | AFC/M23 Goma'yı aldı | **resmî** (MONUSCO, BM Güvenlik Konseyi, 2026-03-26) + raporlanmış | **not ekle**, 2025 | S11, S12, S34, S35 |
 | FZMA | BKY | Bukavu Kavumu | **listede değil** (4/4308; sched=no) | **kapalı** | 2025-02-14 | M23 havalimanını aldı | **resmî** (MONUSCO, 2026-03-26: "iki havalimanı" kapalı) | **listeye ekle + not**, 2025 | S12–S14 |
 | HSFS | ELF | El Fasher | listede (4/2591) | **kapalı** | 2023-04-15 | Sudan savaşı: kuşatma, RSF kenti 2025-10-26'da aldı | raporlanmış | **not ekle**, 2023 | S16 |
