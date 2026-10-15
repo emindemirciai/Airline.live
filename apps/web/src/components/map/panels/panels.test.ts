@@ -324,6 +324,27 @@ describe('StatusStrip', () => {
     })
   })
 
+  it('canlı katman kapalı (D-115): tek uyarı, ton down; sağlayıcı ve kapsama uyarısı yok', () => {
+    const off = { ...ok, providers: { adsbLol: 'down' as const }, layer: 'off' as const }
+    expect(summarizeStatus(off, 'none', 'open', false)).toEqual({
+      tone: 'down',
+      notices: ['layerOff'],
+    })
+    expect(summarizeStatus(off, 'full', 'open', true)).toEqual({
+      tone: 'down',
+      notices: ['layerOff', 'basemapFailed'],
+    })
+    // Bağlantı yokken bayat durumun katman bilgisi de gösterilmez.
+    expect(summarizeStatus(off, 'full', 'reconnecting', false)).toEqual({
+      tone: 'warn',
+      notices: ['reconnecting'],
+    })
+    expect(summarizeStatus({ ...ok, layer: 'on' }, 'full', 'open', false)).toEqual({
+      tone: 'ok',
+      notices: [],
+    })
+  })
+
   it('veri yaşı: birincil istasyon, yoksa en yeni örnek', () => {
     expect(dataAgeSeconds(ok, 0)).toBe(4)
     expect(dataAgeSeconds({ ...ok, primaryAgeS: null }, 0)).toBe(2)

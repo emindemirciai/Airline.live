@@ -61,7 +61,9 @@ describe('AboutContent', () => {
   it('v1 sınırları, gizlilik kuralları ve tazelik hedefleri (domain.md, D-073)', () => {
     const body = text(render('tr'))
     expect(body).toContain('rötar, kapı, terminal, bagaj, kod paylaşımı ve iptal bilgisi')
-    expect(body).toContain('Askeri uçaklar haritada, aramada ve API’de gösterilmez.')
+    expect(body).toContain(
+      'Canlı haritada yalnız bilinen bir havayolu çağrı koduyla uçan uçaklar gösterilir. Askerî, devlet ve özel uçakları tespit kurallarımızla göstermemeye çalışırız; bu kurallar kusursuz değildir.',
+    )
     expect(body).toContain('PIA ya da LADD')
     expect(body).toContain('engel listesine')
     expect(body).toContain('yaklaşık 20 sn')

@@ -205,7 +205,12 @@ export default async function AdminServicesPage() {
     <article className="page page-wide">
       <AdminNav
         current="services"
-        labels={{ label: t.navLabel, services: t.servicesTitle, coverage: t.coverage.title }}
+        labels={{
+          label: t.navLabel,
+          services: t.servicesTitle,
+          coverage: t.coverage.title,
+          live: t.liveLayer.title,
+        }}
       />
       <header className="page-header">
         <div>
