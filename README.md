@@ -2,7 +2,7 @@
 
 **[Türkçe](#türkçe) · [English](#english)**
 
-![sürüm](https://img.shields.io/badge/s%C3%BCr%C3%BCm-v0.25.1-blue) ![lisans](https://img.shields.io/badge/lisans-MIT-green) ![durum](https://img.shields.io/badge/durum-geli%C5%9Ftirme-yellow)
+![sürüm](https://img.shields.io/badge/s%C3%BCr%C3%BCm-v0.25.2-blue) ![lisans](https://img.shields.io/badge/lisans-MIT-green) ![durum](https://img.shields.io/badge/durum-geli%C5%9Ftirme-yellow)
 
 ---
 
@@ -14,7 +14,7 @@ Herkese açık, uluslararası sivil havacılık uçuş takip platformu; birincil
 
 > **Bilinen sınır:** Kendi ADS-B alıcımız olmadığı için İstanbul Havalimanı'nda iniş anı çoğunlukla doğrudan görülmez. İniş bildirimi çoğu uçuşta "muhtemelen indi (tahmini saat)" olarak ve son sinyalden 1–1,5 dk sonra gelir. Bazı uçuşlarda yalnızca "iniş verisi alınamadı" denebilir.
 
-### Durum — v0.25.1
+### Durum — v0.25.2
 | Alan | Durum |
 |---|---|
 | Yol haritası, veri kaynakları, mimari | ✅ Hazır ve doğrulandı |
@@ -54,6 +54,7 @@ Herkese açık, uluslararası sivil havacılık uçuş takip platformu; birincil
 | 4. halka: 5.000 km’ye kadar 719 havalimanı daha (toplam 1.217; Londra, Delhi, Ulan Batur, Nairobi…) | ✅ Parça 1 · M6i.2 (v0.23.0) |
 | 5. halkaya hazırlık: ~2.000 havalimanının pist ve saat dilimi verisi, eski kodlardan yönlendirme, sunucudan yerel saat | ✅ Parça 1 · M6j.1 (v0.24.0) |
 | Savaş nedeniyle kapalı havalimanları: 23 havalimanı listede (16’sı Ukrayna’da; Kiev, Odessa, Lviv…), 35 havalimanında kaynaklı kapanış notu (toplam 1.240) | ✅ Parça 1 · M6i.3 (v0.25.1) |
+| Daha dayanıklı canlı veri sunucusu: beklenmedik bağlantı (yükseltme) istekleri düzgün hata yanıtı alır, sunucuyu yeniden başlatamaz (D-113) | ✅ v0.25.2 |
 | Canlı araçlar: `pnpm smoke:live` (5 dk gerçek ingest ölçümü) ve `pnpm record` (oynatılabilir kayıt) | ✅ Parça 1 · M7a (kod hazır; canlı çalıştırma [ACTIVATION](docs/ACTIVATION.md) adımlarından sonra, kendi terminalinde) |
 | Kapsama ölçümü: iz tablolarında konum gecikmesi (`seen_pos`) ve barometrik alçalma hızı | ✅ Parça 1 · M7b.1 (rapor M7b.2 ile gelir) |
 | Kapsama raporu: admin → Kapsama (istasyon başına varış, yerde görülme oranı, güven aralığı, karar kuralları, indirilebilir rapor); gece 7 günlük oran; `pnpm coverage:report` (yerel) | ✅ Parça 1 · M7b.2 (gerçek rapor üretim ingest'inden sonra) |
@@ -88,23 +89,23 @@ pnpm dev
 - `docs/DEPLOY_DOKPLOY.md`: sunucu (Dokploy) kurulumu, bir kez
 - `docs/DECISIONS.md`: kararlar ve gerekçeleri
 
-### İstatistik (v0.25.1)
-Git'te 710 dosya, **157.116 satır**. Bunun 144.695 satırı kod (TypeScript, TSX, CSS, JS), 8.856 satırı belgedir. Lockfile, `docs/research/` ve elle yazılmayan veri (fixture CSV ve JSON dosyaları, drizzle şema snapshot'ları) hariç tutulur. Güncel değer için `pnpm stats` çalıştır.
+### İstatistik (v0.25.2)
+Git'te 711 dosya, **157.492 satır**. Bunun 144.993 satırı kod (TypeScript, TSX, CSS, JS), 8.934 satırı belgedir. Lockfile, `docs/research/` ve elle yazılmayan veri (fixture CSV ve JSON dosyaları, drizzle şema snapshot'ları) hariç tutulur. Güncel değer için `pnpm stats` çalıştır.
 
 | Alan | Satır |
 |---|---|
 | apps/web | 42.214 |
-| packages/shared | 24.459 |
+| packages/shared | 24.474 |
 | apps/worker | 16.923 |
 | tools | 16.096 |
-| apps/api | 15.125 |
-| packages/db | 12.526 |
-| docs | 6.707 |
+| apps/api | 15.407 |
+| packages/db | 12.527 |
+| docs | 6.767 |
 | packages/i18n | 4.651 |
 | packages/providers | 4.474 |
 | scripts | 2.267 |
 | packages/geo | 786 |
-| diğer (kök, deploy, .claude, .github) | 10.888 |
+| diğer (kök, deploy, .claude, .github) | 10.906 |
 
 ### Lisans, veri ve atıflar
 - Kod [MIT lisansı](LICENSE) ile lisanslanmıştır: © 2026 [emindemirciai](https://github.com/emindemirciai). Kodun tüm kopyaları ya da önemli bölümleri telif bildirimini ve lisans metnini içermek zorundadır; bunlar olmadan kopyalamak ya da dağıtmak lisans ve telif hakkı ihlalidir. **Airline.live** adı ve logosu MIT kapsamında değildir, hakları saklıdır. Aynı bildirim sitenin sayfa kaynağında da yer alır.
@@ -124,7 +125,7 @@ A public, international civil aviation flight tracker with Istanbul Airport (IST
 
 > **Known limitation:** Without our own ADS-B receiver, the moment of touchdown at Istanbul Airport is usually not observed directly. For most flights the landing alert says "probably landed (estimated time)" and arrives 1–1.5 minutes after the last signal. For some flights it can only say "landing data unavailable".
 
-### Status — v0.25.1
+### Status — v0.25.2
 | Area | Status |
 |---|---|
 | Roadmap, data sources, architecture | ✅ Done and verified |
@@ -164,6 +165,7 @@ A public, international civil aviation flight tracker with Istanbul Airport (IST
 | Ring 4: 719 more airports up to 5,000 km (1,217 in total; London, Delhi, Ulaanbaatar, Nairobi…) | ✅ Part 1 · M6i.2 (v0.23.0) |
 | Ring-5 groundwork: runway and time-zone data for ~2,000 airports, redirects from old codes, server-side local time | ✅ Part 1 · M6j.1 (v0.24.0) |
 | Airports closed by war: 23 airports listed (16 in Ukraine; Kyiv, Odesa, Lviv…), a sourced closure note on 35 airports (1,240 in total) | ✅ Part 1 · M6i.3 (v0.25.1) |
+| A sturdier live data server: unexpected connection (upgrade) requests get a proper error response and can no longer restart the server (D-113) | ✅ v0.25.2 |
 | Live tools: `pnpm smoke:live` (5-minute real ingest check) and `pnpm record` (replayable recording) | ✅ Part 1 · M7a (code ready; live runs after the [ACTIVATION](docs/ACTIVATION.md) steps, from your own terminal) |
 | Coverage measurement: position age (`seen_pos`) and barometric descent rate stored with tracks | ✅ Part 1 · M7b.1 (the report comes with M7b.2) |
 | Coverage report: admin → Kapsama (per-station arrivals, ground-seen share with confidence interval, decision rules, downloadable report); nightly 7-day ratio; `pnpm coverage:report` (local) | ✅ Part 1 · M7b.2 (the real report after production ingest) |
@@ -198,8 +200,8 @@ Then open `http://localhost:3100/` (live map), `/havalimanlari`, `/istasyon/LTFM
 - `docs/DEPLOY_DOKPLOY.md`: one-time server (Dokploy) setup
 - `docs/DECISIONS.md`: decisions and rationale
 
-### Stats (v0.25.1)
-710 files and **157,116 lines** in git: 144,695 lines of code (TypeScript, TSX, CSS, JS) and 8,856 lines of documentation. The lockfile, `docs/research/` and generated data (fixture CSV and JSON files, drizzle schema snapshots) are excluded. Run `pnpm stats` for current numbers.
+### Stats (v0.25.2)
+711 files and **157,492 lines** in git: 144,993 lines of code (TypeScript, TSX, CSS, JS) and 8,934 lines of documentation. The lockfile, `docs/research/` and generated data (fixture CSV and JSON files, drizzle schema snapshots) are excluded. Run `pnpm stats` for current numbers.
 
 ### License, data and attribution
 - Code is licensed under the [MIT License](LICENSE): © 2026 [emindemirciai](https://github.com/emindemirciai). All copies or substantial portions of the code must include the copyright notice and license text; copying or distributing without them infringes the license and the copyright. The **Airline.live** name and logo are not covered by the MIT License; rights reserved. The same notice appears in the page source of the site.
