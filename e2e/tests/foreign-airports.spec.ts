@@ -601,7 +601,7 @@ test.describe('havalimanı sayfası', () => {
       expect(response.status(), path).toBe(200)
       expect(metaContents(body, 'robots').join(', '), `${path}: robots`).not.toMatch(/noindex/)
       const title = `${copy.warName} (${WAR_CLOSURE_AIRPORT.iata}/${WAR_CLOSURE_AIRPORT.icao}): ${copy.titleOutside}`
-      expect(titles(body)[0], `${path}: <title>`).toBe(`${title} · havayolu`)
+      expect(titles(body)[0], `${path}: <title>`).toBe(`${title} · ${APP_NAME}`)
       expect(metaContents(body, 'og:title'), `${path}: og:title`).toEqual([title])
       const description = metaContents(body, 'description')[0] ?? ''
       // Açıklamanın son cümlesi nottur; çevredeki uçakları vaat etmez.
