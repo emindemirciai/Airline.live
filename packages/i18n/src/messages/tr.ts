@@ -506,11 +506,12 @@ export const tr = {
        * Etkili rüzgârın şiddeti (D-083): rüzgâr satırının etiketi ve TAF öğesi. Satırın vurgu eşiği
        * ortalama ≥ 17 kt (MGM Beaufort 5) ya da hamle ≥ 25 kt'dir (kullanıcı kararı 2026-10-03); TAF
        * öğesi MGM meydan uyarısı eşiğiyle seçilir (ortalama ≥ 20 kt ya da hamle ≥ 30 kt, `gusts` ve
-       * üstü). Eşikler MGM Beaufort ıskalasındandır; adlar MGM sözlüğünden ve sadedir (D-116):
-       * Beaufort 7, 10 ve 12'nin MGM adları ("Fırtınamsı Rüzgâr", "Tam Fırtına", "Harikeyn (Orkan)")
-       * yerine "Çok kuvvetli rüzgâr", "Şiddetli fırtına" ve "Kasırga şiddetinde rüzgâr" (bir rüzgâr
-       * şiddetidir, tropik siklon ya da hortum değildir). `gusty`: hamle 25–29 kt; `fresh`: ortalama
-       * 17–19 kt; `gusts`: yalnız hamle meydan uyarısı eşiğini aştı.
+       * üstü). Eşikler MGM Beaufort ıskalasındandır; adların çoğu MGM'nin Beaufort adlarıdır, dördü
+       * sade ifade için değişti (D-116; dördüncüsü yukarıdaki `breeze`): Beaufort 7, 10 ve 12'nin MGM
+       * adları ("Fırtınamsı Rüzgâr", "Tam Fırtına", "Harikeyn (Orkan)") yerine "Çok kuvvetli
+       * rüzgâr", "Şiddetli fırtına" ve "Kasırga şiddetinde rüzgâr" (bir rüzgâr şiddetidir, tropik
+       * siklon ya da hortum değildir). `gusty`: hamle 25–29 kt; `fresh`: ortalama 17–19 kt; `gusts`:
+       * yalnız hamle meydan uyarısı eşiğini aştı.
        */
       level: {
         gusty: 'Hamleli rüzgâr',
