@@ -534,11 +534,12 @@ describe('listListedAirports (D-080)', () => {
     ])
   })
 
-  it('uzaklık referansı küçük alanlar olmadan (M6d öncesi süzgeç) 1. halka daralır: 56 + 72', async () => {
+  it('uzaklık referansı küçük alanlar olmadan (M6d öncesi süzgeç) 1. halka daralır: 56 + 74 (D-110 savaş kapanışları UKFF ve URKA dahil)', async () => {
     await database.db.insert(airports).values(readFixture({ turkishIata: false }))
     const list = await listListedAirports(database.db, RINGS)
     expect(list.filter((a) => a.country === 'TR')).toHaveLength(56)
-    expect(list.filter((a) => a.country !== 'TR')).toHaveLength(72)
+    expect(list.filter((a) => a.country !== 'TR')).toHaveLength(74)
+    expect(list.map((a) => a.icao)).toEqual(expect.arrayContaining(['UKFF', 'URKA']))
     for (const icao of ['BKPR', 'LGPZ', 'LYNI']) {
       expect(
         list.map((a) => a.icao),
