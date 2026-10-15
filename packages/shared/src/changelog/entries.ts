@@ -12,8 +12,35 @@ import type { ChangelogEntry } from './types'
  */
 export const CHANGELOG: readonly ChangelogEntry[] = [
   {
+    version: '0.25.0',
+    date: '2026-10-15',
+    title: {
+      tr: 'Yeni adımız Airline.live',
+      en: 'Our new name is Airline.live',
+    },
+    items: [
+      {
+        tr: 'Sitenin adı artık Airline.live, adresi airline.live. Eski adresteki her sayfa, yer imleri ve paylaşılmış bağlantılar dahil, kendiliğinden yeni adresteki aynı sayfaya gider; Türkçe sayfalar kökte, İngilizceleri /en altında kalır.',
+        en: 'The site is now called Airline.live and lives at airline.live. Every page on the old address, bookmarks and shared links included, takes you to the same page at the new address; Turkish pages stay at the root and English ones under /en.',
+      },
+      {
+        tr: 'Yeni adreste analiz onayı bir kez yeniden sorulur ve haritanın etiket ve liste ayarları varsayılana döner; istediğin gibi yeniden seçebilirsin. Yöneticiler panele yeni adresten bir kez yeniden giriş yapar.',
+        en: 'On the new address the analytics consent banner asks once more, and the map’s label and list settings go back to their defaults; you can pick them again. Admins sign in to the panel once more at the new address.',
+      },
+      {
+        tr: 'Eski adreste açık kalmış bir sekmede canlı uçaklar durursa sayfayı bir kez yenile; sayfa yeni adreste açılır ve akış sürer.',
+        en: 'If live aircraft stop moving in a tab left open on the old address, reload the page once; it opens at the new address and the feed carries on.',
+      },
+    ],
+    tryLinks: [
+      { path: '/', label: { tr: 'Canlı harita', en: 'Live map' } },
+      { path: '/kullanim-kosullari', label: { tr: 'Kullanım koşulları', en: 'Terms of use' } },
+    ],
+  },
+  {
     version: '0.24.0',
-    date: '2026-10-08',
+    date: '2026-10-14',
+    releasedAt: '2026-10-14T17:57:58Z',
     title: {
       tr: '5. halkaya hazırlık: saat dilimleri ve eski kodlar',
       en: 'Getting ready for ring 5: time zones and old codes',
