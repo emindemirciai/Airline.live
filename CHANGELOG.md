@@ -30,7 +30,7 @@ Try it: [Kyiv Boryspil](/istasyon/UKBB) · [Airports](/havalimanlari)
 
 ---
 
-## v0.25.0 — 2026-10-15
+## v0.25.0 — 2026-10-15 06:24 (UTC+3)
 
 ### Türkçe
 **Yeni adımız Airline.live**

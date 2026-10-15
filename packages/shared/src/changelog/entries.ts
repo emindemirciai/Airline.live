@@ -40,6 +40,7 @@ export const CHANGELOG: readonly ChangelogEntry[] = [
   {
     version: '0.25.0',
     date: '2026-10-15',
+    releasedAt: '2026-10-15T03:24:33Z',
     title: {
       tr: 'Yeni adımız Airline.live',
       en: 'Our new name is Airline.live',
