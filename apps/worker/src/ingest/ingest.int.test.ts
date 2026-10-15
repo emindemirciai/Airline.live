@@ -4,6 +4,7 @@ import type { AddressInfo } from 'node:net'
 import { fileURLToPath } from 'node:url'
 import {
   activeStationsWithArp,
+  addToBlocklist,
   createDb,
   createFlight,
   createRedis,
@@ -13,6 +14,7 @@ import {
   readCoverage,
   runMigrations,
   seedStations,
+  setLiveLayer,
   writeProviderHealth,
   type Database,
   type ProviderHealthSnapshot,
@@ -742,5 +744,219 @@ describe('ingest (gerçek PostgreSQL + redis-live)', () => {
     )
     expect(called).toBe(0)
     expect(lines.join('\n')).toContain('adsblol config error')
+  })
+})
+
+/** Engel listesi redis-queue'dadır; başka testlerle çakışmasın diye 5 numaralı veritabanı. */
+function queueUrl(): string {
+  const url = new URL(
+    process.env.TEST_REDIS_QUEUE_URL ?? 'redis://:queue_dev_only@localhost:46379/5',
+  )
+  url.pathname = '/5'
+  return url.toString()
+}
+
+/** Yerel alıcının readsb kaydı (LTFM yakınında, havada). */
+const readsb = (hex: string, flight: string, over: Record<string, unknown> = {}) => ({
+  hex,
+  type: 'adsb_icao',
+  flight,
+  t: 'A21N',
+  category: 'A3',
+  alt_baro: 9000,
+  gs: 280,
+  track: 355,
+  lat: 41.0,
+  lon: 28.9,
+  seen_pos: 0.3,
+  seen: 0.1,
+  dbFlags: 0,
+  ...over,
+})
+
+describe('yayın kuralı ve canlı katman (D-115)', () => {
+  let queue: Redis
+
+  beforeAll(async () => {
+    queue = createRedis(queueUrl(), { name: 'test-worker-ingest-queue' })
+    await queue.flushdb()
+    await database.sql`
+      insert into airlines (code, name, icao, iata, row_hash)
+      values ('HYT', 'YTO Cargo Airlines', 'HYT', 'YG', 'test')
+      on conflict (code) do nothing`
+  })
+
+  afterAll(async () => {
+    if (database) await database.sql`delete from airlines where code = 'HYT'`.catch(() => undefined)
+    await queue?.flushdb().catch(() => undefined)
+    await queue?.quit().catch(() => undefined)
+  })
+
+  beforeEach(async () => {
+    await queue.flushdb()
+    await database.sql`truncate live_layer_state, admin_actions`
+  })
+
+  it('airline kapsamı: yalnızca havayolu uçağı yazılır; tescil çağrı kodlu, helikopter, PIA ve engelli uçak hiçbir yere yazılmaz', async () => {
+    const clock = testClock()
+    const receiver = await serve((req, res) => {
+      if (req.url !== '/data/aircraft.json') {
+        res.writeHead(404).end()
+        return
+      }
+      const aircraft = [
+        readsb('fe0101', 'HYT101  '),
+        readsb('fe0102', 'TCOIL   ', { r: 'TC-OIL', t: 'FA7X', category: 'A2' }),
+        readsb('fe0103', 'HYT103  ', { t: 'EC35', category: 'A7' }),
+        readsb('fe0104', 'HYT104  ', { dbFlags: 4 }),
+        readsb('fe0105', 'HYT105  '),
+      ]
+      res
+        .writeHead(200, { 'content-type': 'application/json' })
+        .end(JSON.stringify({ now: clock.now() / 1000, messages: 1000, aircraft }))
+    })
+    await addToBlocklist(queue, ['fe0105'])
+    const { log, lines } = captureLog()
+    const env = parseEnv({
+      APP_ENV: 'test',
+      EXTERNAL_PROVIDERS_DISABLED: 'true',
+      LOCAL_RECEIVER_URLS: `${receiver.url}/data/aircraft.json`,
+      WORKER_SERVICE_NAME: 'worker-test',
+      LIVE_AIRCRAFT_SCOPE: 'airline',
+    })
+    const dropped = ['fe0102', 'fe0103', 'fe0104', 'fe0105']
+    try {
+      await withIngest(
+        {
+          env,
+          log,
+          now: clock.now,
+          fetch: localOnlyFetch,
+          timers: FAST_TIMERS,
+          redisQueue: queue,
+        },
+        async (ingest) => {
+          await waitFor('published aircraft', async () => {
+            return (await redis.exists(LIVE_KEYS.aircraft('fe0101'))) === 1
+          })
+          await waitFor('flight row', async () => {
+            const n = await count(
+              database.sql`select count(*)::int as n from flights where hex = 'fe0101'`,
+            )
+            return n === 1
+          })
+          // Birkaç alıcı turu daha: kural dışındakiler hâlâ yazılmamış olmalı.
+          await new Promise((resolve) => setTimeout(resolve, 800))
+          expect(await redis.exists(...dropped.map((h) => LIVE_KEYS.aircraft(h)))).toBe(0)
+          expect(await redis.zrange(LIVE_KEYS.seen, '0', '-1')).toEqual(['fe0101'])
+          const flights = await database.sql<
+            { hex: string }[]
+          >`select hex from flights order by hex`
+          expect(flights.map((f) => f.hex)).toEqual(['fe0101'])
+          const stats = ingest.stats()
+          expect(stats).toMatchObject({ scope: 'airline', layer: 'on', aircraft: 5 })
+          expect(stats.published).toBeGreaterThan(0)
+          expect(stats.dropped).toMatchObject({
+            callsign_pattern: expect.any(Number) as number,
+            category: expect.any(Number) as number,
+            pia_ladd: expect.any(Number) as number,
+            blocklisted: expect.any(Number) as number,
+          })
+        },
+      )
+    } finally {
+      await receiver.close()
+    }
+    const logged = lines.join('\n')
+    expect(logged).toContain('"scope":"airline"')
+    for (const secret of ['TCOIL', 'TC-OIL', 'fe0102', 'fe0105']) {
+      expect(logged).not.toContain(secret)
+    }
+  })
+
+  it('katman kapanınca redis-live temizlenir ve yazım durur; açılınca sürer', async () => {
+    const clock = testClock()
+    const receiver = await serve((_req, res) => {
+      res.writeHead(200, { 'content-type': 'application/json' }).end(
+        JSON.stringify({
+          now: clock.now() / 1000,
+          messages: 1000,
+          aircraft: [readsb('fe0201', 'HYT201  '), readsb('fe0202', 'HYT202  ')],
+        }),
+      )
+    })
+    const { log } = captureLog()
+    const env = parseEnv({
+      APP_ENV: 'test',
+      EXTERNAL_PROVIDERS_DISABLED: 'true',
+      LOCAL_RECEIVER_URLS: `${receiver.url}/data/aircraft.json`,
+      WORKER_SERVICE_NAME: 'worker-test',
+    })
+    const rows = () => count(database.sql`select count(*)::int as n from track_points_sampled`)
+    try {
+      await withIngest(
+        {
+          env,
+          log,
+          now: clock.now,
+          fetch: localOnlyFetch,
+          timers: FAST_TIMERS,
+          redisQueue: queue,
+        },
+        async (ingest) => {
+          await waitFor('live aircraft', async () => (await redis.zcard(LIVE_KEYS.seen)) === 2)
+          await setLiveLayer(database.sql, {
+            enabled: false,
+            actor: 'admin@example.test',
+            reason: 'test',
+          })
+          await waitFor('layer off', () => ingest.stats().layer === 'off')
+          await waitFor('cleared', async () => {
+            const [seen, geo, keys, updates] = await Promise.all([
+              redis.zcard(LIVE_KEYS.seen),
+              redis.zcard(LIVE_KEYS.geo),
+              redis.exists(LIVE_KEYS.aircraft('fe0201'), LIVE_KEYS.aircraft('fe0202')),
+              redis.exists(LIVE_KEYS.updates),
+            ])
+            return seen === 0 && geo === 0 && keys === 0 && updates === 0
+          })
+          // Kapalıyken alıcı okunmaya devam eder ama hiçbir şey yazılmaz.
+          await new Promise((resolve) => setTimeout(resolve, 600))
+          const before = await rows()
+          await new Promise((resolve) => setTimeout(resolve, 1_000))
+          expect(await rows()).toBe(before)
+          expect(await redis.zcard(LIVE_KEYS.seen)).toBe(0)
+          expect(ingest.stats().dropped.layer_off).toBeGreaterThan(0)
+          expect(await redis.hget(LIVE_KEYS.provider('localReceiver'), 'status')).toBe('ok')
+
+          await setLiveLayer(database.sql, {
+            enabled: true,
+            actor: 'admin@example.test',
+            reason: null,
+          })
+          await waitFor('layer on', () => ingest.stats().layer === 'on')
+          await waitFor('aircraft back', async () => (await redis.zcard(LIVE_KEYS.seen)) === 2)
+        },
+      )
+    } finally {
+      await receiver.close()
+    }
+  })
+
+  it('katman kapalı açılırsa önceki süreçten kalan canlı uçaklar silinir', async () => {
+    await redis.zadd(LIVE_KEYS.seen, String(Date.now()), 'fe0301')
+    await redis.hset(LIVE_KEYS.aircraft('fe0301'), 'd', '{}', 't', String(Date.now()))
+    await setLiveLayer(database.sql, { enabled: false, actor: 'admin@example.test', reason: null })
+    const { log } = captureLog()
+    const env = parseEnv({
+      APP_ENV: 'test',
+      EXTERNAL_PROVIDERS_DISABLED: 'true',
+      WORKER_SERVICE_NAME: 'worker-test',
+    })
+    await withIngest({ env, log, timers: FAST_TIMERS, redisQueue: queue }, async (ingest) => {
+      expect(ingest.stats().layer).toBe('off')
+      await waitFor('cleared', async () => (await redis.exists(LIVE_KEYS.aircraft('fe0301'))) === 0)
+      expect(await redis.zcard(LIVE_KEYS.seen)).toBe(0)
+    })
   })
 })
