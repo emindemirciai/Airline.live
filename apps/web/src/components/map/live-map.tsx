@@ -221,7 +221,10 @@ export function LiveMap({
    * `?havalimani=` hedefi ve uçak listesinin konum ve durum satırı onu kullanmaz.
    */
   const [airports, setAirports] = useState<readonly MapAirport[]>(NO_AIRPORTS)
-  /** Açık havalimanı penceresinin ICAO kodu. */
+  /**
+   * Açık havalimanı penceresinin ICAO kodu. Havalimanı simgeleri gizliyken haritada yalnız bu
+   * havalimanının pini ve kodu çizilir (D-113): pencere pinle, listeden ya da aramadan açılır.
+   */
   const [popupIcao, setPopupIcao] = useState<string | null>(null)
   const sheetLayout = useSyncExternalStore(subscribeSheet, sheetSnapshot, sheetServerSnapshot)
   const [mapReady, setMapReady] = useState(false)
@@ -515,6 +518,7 @@ export function LiveMap({
           mapLabel={messages.mapLabel}
           store={store}
           airports={airports}
+          popupIcao={popupAirport?.icao ?? null}
           selectedHex={selectedHex}
           following={following}
           labelSettings={labelSettings}

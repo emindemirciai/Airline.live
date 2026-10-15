@@ -3,7 +3,8 @@
 // durumlar ve daraltmanın saklanması (D-085) → satıra tıklayınca bilgi kartı solda açılır, tablette
 // seçili uçağın etiketi ve simgesi listenin altında kalmaz → arama (her yerdeki) uçağı bulur →
 // /?hex= ile doğrudan açılış aynı uçağı seçer → etiket ayarı (uçaklar, havalimanları ve ülke adları,
-// D-084, D-095) cihazda saklanır → askerî hava üslerinin pini, kodu ve liste satırı yoktur,
+// D-084, D-095) cihazda saklanır → havalimanı simgeleri gizlenir, pencerenin havalimanı çizilir
+// (D-113) → askerî hava üslerinin pini, kodu ve liste satırı yoktur,
 // `?havalimani=<üs>` bilinmeyen kod gibidir (D-103, D-107) → ülke adları uzaklaşınca sınırlarının
 // içinde, pinlerden uzak boş yerde yazılır (D-096, D-099), havalimanı olmayan ülkeler de (D-100),
 // yakınlaşınca silinir. Tablo, haritanın erişilebilir karşılığıdır; testler uçakları WebGL
@@ -455,9 +456,13 @@ test('havalimanı etiketi Kod ya da Gizle; cihazda saklanır; Kod’da kutu, Giz
   await page.keyboard.press('ArrowLeft')
   await expect(mode('Gizle')).toBeChecked()
   await expect(others.getByRole('radio', { name: 'Tam' })).toBeChecked()
-  await expect
-    .poll(stored)
-    .toEqual({ selected: 'full', others: 'full', airports: 'hidden', countries: 'shown' })
+  await expect.poll(stored).toEqual({
+    selected: 'full',
+    others: 'full',
+    airports: 'hidden',
+    airportIcons: 'shown',
+    countries: 'shown',
+  })
   await page.keyboard.press('Escape')
   await expect(button).toHaveAttribute('aria-expanded', 'false')
 
@@ -475,9 +480,13 @@ test('havalimanı etiketi Kod ya da Gizle; cihazda saklanır; Kod’da kutu, Giz
   // 8.448 piksel, v0.17.0 PR'ı).
   await others.getByRole('radio', { name: 'Gizle' }).check()
   await selected.getByRole('radio', { name: 'Gizle' }).check()
-  await expect
-    .poll(stored)
-    .toEqual({ selected: 'hidden', others: 'hidden', airports: 'hidden', countries: 'shown' })
+  await expect.poll(stored).toEqual({
+    selected: 'hidden',
+    others: 'hidden',
+    airports: 'hidden',
+    airportIcons: 'shown',
+    countries: 'shown',
+  })
   await page.keyboard.press('Escape')
   await expect.poll(() => paintedPixels(page), { timeout: 10_000 }).toBe(0)
   // Pinin başı: ucu havalimanı merkezinde (harita ortası), baş ~13 px yukarıda.
@@ -510,6 +519,115 @@ async function clickPrimaryChip(page: Page, popup: Locator): Promise<void> {
     await expect(popup).toBeVisible({ timeout: 2_000 })
   }).toPass({ timeout: 20_000 })
 }
+
+test.describe('havalimanı simgeleri gizlenebilir (D-113)', () => {
+  // MapLibre `prefers-reduced-motion`'da kamera geçişlerini anında yapar: `?havalimani=` uçuşundan
+  // sonra IST'nin pin ucu hemen harita ortasındadır.
+  test.use({ reducedMotion: 'reduce' })
+
+  test('Gizle: IST’nin pini ve kodu çizilmez, tıklanmaz; kod grubu kapalı ve seçimi saklı; ayar yeniden açılışta gelir; Havalimanları listesi IST penceresini pinle açar', async ({
+    page,
+  }) => {
+    // `?havalimani=LTFM` haritayı IST'de z10'da açar. Tek sayfa yüklemesi ve bir yenileme: her
+    // yükleme bir WebSocket el sıkışmasıdır (`WS_RATE_LIMIT`).
+    await page.goto(`/?havalimani=${PRIMARY_AIRPORT.icao}`)
+    await waitForMap(page)
+    const button = page.getByRole('button', { name: 'Etiketler', exact: true })
+    const icons = page.getByRole('group', { name: 'Havalimanı simgeleri', exact: true })
+    const airports = page.getByRole('group', { name: 'Havalimanları', exact: true })
+    const icon = (name: string) => icons.getByRole('radio', { name, exact: true })
+    const code = (name: string) => airports.getByRole('radio', { name, exact: true })
+    const popup = page.locator(
+      `.live-map [role="dialog"].map-popup[data-icao="${PRIMARY_AIRPORT.icao}"]`,
+    )
+    const anyPopup = page.locator('.live-map [role="dialog"].map-popup')
+    const stored = () =>
+      page.evaluate((key) => {
+        const raw = window.localStorage.getItem(key)
+        return raw === null ? null : (JSON.parse(raw) as unknown)
+      }, LABEL_SETTINGS_KEY)
+    // Pinin ucu IST'nin merkezinde (harita ortası), başı ~15 px yukarıda; kod kutusu başın yanında.
+    const tip = await mapCenter(page)
+    const head = { x: tip.x, y: tip.y - PIN_HEAD_OFFSET_PX }
+    const istChip = async () =>
+      (await canvasChips(page, head)).find(
+        (chip) => Math.hypot(chip.x - head.x, chip.y - head.y) <= 30 + chip.width / 2,
+      )
+    const drawn = async () => {
+      expect((await pinPixels(page, tip)).red).toBeGreaterThanOrEqual(15)
+      expect(await istChip(), 'IST kutusu tuvalde çizili').toBeDefined()
+    }
+    const notDrawn = async () => {
+      expect((await pinPixels(page, tip)).red).toBe(0)
+      // Hiçbir havalimanının kodu çizilmez (uçak etiketleri kod kutusu sayılmaz).
+      expect(await canvasChips(page, head)).toEqual([])
+    }
+
+    // Varsayılan Göster (simge alanı olmayan eski kayıtlar da öyle okunur): pin ve kod çizili.
+    await expect(drawn).toPass({ timeout: 15_000 })
+
+    // Gizle: kaydedilir; "Havalimanları" grubu kapalı ve notlu, seçimi Kod kalır.
+    await button.click()
+    await expect(icon('Göster')).toBeChecked()
+    await expect(code('Kod')).toBeEnabled()
+    await icon('Gizle').check()
+    await expect.poll(stored).toEqual({
+      selected: 'full',
+      others: 'full',
+      airports: 'code',
+      airportIcons: 'hidden',
+      countries: 'shown',
+    })
+    await expect(code('Gizle')).toBeDisabled()
+    await expect(code('Kod')).toBeDisabled()
+    await expect(code('Kod')).toBeChecked()
+    await expect(airports.getByText('Simgeler gizliyken kodlar da görünmez.')).toBeVisible()
+    // Kapalı grup odaklanır ama değişmez: ok tuşu odağı ve seçimi taşımaz, tıklama seçmez.
+    await code('Kod').focus()
+    await page.keyboard.press('ArrowLeft')
+    await expect(code('Kod')).toBeFocused()
+    await expect(code('Kod')).toBeChecked()
+    await code('Gizle').click({ force: true })
+    await expect(code('Kod')).toBeChecked()
+    await expect(code('Gizle')).not.toBeChecked()
+    expect(await stored()).toMatchObject({ airports: 'code', airportIcons: 'hidden' })
+    await page.keyboard.press('Escape')
+    await expect(button).toHaveAttribute('aria-expanded', 'false')
+    await expect(notDrawn).toPass({ timeout: 10_000 })
+
+    // Yeniden açılış: liste yüklendikten sonra da (IST görünümde) pin ve kod çizilmez; panelde
+    // Gizle seçili, kod grubu kapalı.
+    await page.reload()
+    await waitForMap(page)
+    expect((await airportListCodes(page))[0]).toBe(PRIMARY_AIRPORT.iata)
+    await expect(notDrawn).toPass({ timeout: 10_000 })
+    await button.click()
+    await expect(icon('Gizle')).toBeChecked()
+    await expect(code('Kod')).toBeDisabled()
+    await expect(code('Kod')).toBeChecked()
+    await page.keyboard.press('Escape')
+    await expect(button).toHaveAttribute('aria-expanded', 'false')
+
+    // "Havalimanları" listesi simgeler gizliyken de IST penceresini açar; pencere açıkken IST'nin
+    // pini ve kodu çizilir (pencerenin dayanağı).
+    const toggle = page.getByRole('button', { name: 'Havalimanları', exact: true })
+    const item = page.getByRole('button', { name: new RegExp(`^${PRIMARY_AIRPORT.iata}\\b`) })
+    await expect(async () => {
+      if ((await toggle.getAttribute('aria-expanded')) === 'true') await toggle.click()
+      await toggle.click()
+      await item.click({ timeout: 2_000 })
+    }).toPass({ timeout: 15_000 })
+    await expect(popup).toBeVisible()
+    await expect(drawn).toPass({ timeout: 10_000 })
+
+    // Pencere kapanınca pin ve kod yine çizilmez; pinin başının yeri pencere açmaz.
+    await page.keyboard.press('Escape')
+    await expect(popup).toBeHidden()
+    await expect(notDrawn).toPass({ timeout: 10_000 })
+    await page.mouse.click(head.x, head.y)
+    await expect(anyPopup).toHaveCount(0)
+  })
+})
 
 /** Web Mercator (512 px karo): `to`nun `from`a göre z'deki ekran farkı, px (y aşağı). */
 function mercatorOffset(

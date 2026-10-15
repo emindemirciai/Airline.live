@@ -8,6 +8,10 @@
  * penceresini açar; boş harita pencereyi kapatır. Öncelik `resolveHit`'tedir (D-079). Pencerenin dayanağı `trackPoint` ile izlenir:
  * yer yalnızca haritanın kendi `render` olayında hesaplanır, çizim döngüsüne iş eklenmez.
  *
+ * Havalimanı simgeleri gizliyken (D-113) pinler ve kodlar çizilmez ve tıklanmaz: havalimanı
+ * kaynağına ve kod çizimine yalnız açık pencerenin havalimanı girer (`drawnAirports`); pencere
+ * kapanınca o da kalkar.
+ *
  * Harita koddaki düz arka plan stiliyle açılır; kendi katmanlarımız hemen eklenir ve uçaklar altlık
  * zinciri (basemap.ts) yüklenirken, yeniden denenirken ya da hiç yüklenemezken de çizilir.
  *
@@ -182,11 +186,35 @@ export interface MapInsets {
 
 export const NO_INSETS: Readonly<MapInsets> = Object.freeze({ bottom: 0, left: 0 })
 
+const NO_AIRPORTS: readonly Airport[] = Object.freeze([])
+
 /**
- * Havalimanı kodlarının çizim girdisi: görünümdeki havalimanları ekran konumlarıyla. Kod yazılmayacaksa
- * (yakınlaştırma `AIRPORT_LABEL_MIN_ZOOM`'un altında ya da ayar Gizle) hiçbir havalimanı izdüşürülmez:
- * her karede bütün liste (4. halkada 1.240 havalimanı, D-110) boşuna izdüşürülürdü (D-101). Uçak
- * etiketleri bundan etkilenmez.
+ * Haritada çizilen havalimanları (pin kaynağı ve kod çizimi, D-113). Simgeler açıksa liste kendisidir
+ * (aynı başvuru). Gizliyse hiçbiri çizilmez; yalnız açık pencerenin havalimanı ("Havalimanları"
+ * listesinden, aramadan ya da harita tıklamasıyla açılmış) çizilir: pencerenin dayanağı haritada
+ * görünür kalır, pini ve kodu tıklanır. Pencere kapanınca o da kalkar.
+ */
+export function drawnAirports<A extends Airport>(
+  airports: readonly A[],
+  settings: Pick<LabelSettings, 'airportIcons'>,
+  popupIcao: string | null,
+): readonly A[] {
+  if (settings.airportIcons !== 'hidden') return airports
+  const open = popupIcao === null ? undefined : airports.find((a) => a.icao === popupIcao)
+  return open ? [open] : (NO_AIRPORTS as readonly A[])
+}
+
+/** Çizilen havalimanları değişti mi: aynı başvuru ya da aynı sırada aynı nesneler değişmemiştir. */
+export function sameAirportList(a: readonly Airport[], b: readonly Airport[]): boolean {
+  return a === b || (a.length === b.length && a.every((airport, i) => airport === b[i]))
+}
+
+/**
+ * Havalimanı kodlarının çizim girdisi: görünümdeki havalimanları ekran konumlarıyla (`airports`
+ * çizilen havalimanlarıdır, `drawnAirports`). Kod yazılmayacaksa (yakınlaştırma
+ * `AIRPORT_LABEL_MIN_ZOOM`'un altında ya da ayar Gizle) hiçbir havalimanı izdüşürülmez: her karede
+ * bütün liste (4. halkada 1.240 havalimanı, D-110) boşuna izdüşürülürdü (D-101). Simgeler gizliyken
+ * liste boştur ya da yalnız açık pencerenin havalimanıdır (D-113). Uçak etiketleri bundan etkilenmez.
  */
 export function screenAirports(
   project: (lngLat: [number, number]) => { x: number; y: number },
@@ -213,6 +241,11 @@ export interface MapViewState {
   following: boolean
   labelSettings: LabelSettings
   airports: readonly Airport[]
+  /**
+   * Açık havalimanı penceresinin ICAO kodu (yoksa null): havalimanı simgeleri gizliyken yalnız bu
+   * havalimanının pini ve kodu çizilir (D-113).
+   */
+  popupIcao: string | null
   locale: Locale
   units: UnitSystem
   /** Haritayı örten panellerin payı (alttan açılan kart ya da pencere, soldaki kart). */
@@ -284,7 +317,8 @@ export function iconScaleAt(
 
 /**
  * Çizimi etkileyen durum değişmedi mi (`update` aynı durumda hiçbir şey yapmaz). Etiket ayarının
- * bütün alanları karşılaştırılır; havalimanı etiketi de yeniden çizim ister (D-084).
+ * bütün alanları karşılaştırılır; havalimanı etiketi ve simgeleri de yeniden çizim ister (D-084,
+ * D-113). Açık pencere de karşılaştırılır: simgeler gizliyken onun havalimanı çizilir.
  */
 export function sameViewState(a: MapViewState, b: MapViewState): boolean {
   return (
@@ -292,6 +326,7 @@ export function sameViewState(a: MapViewState, b: MapViewState): boolean {
     a.following === b.following &&
     sameLabelSettings(a.labelSettings, b.labelSettings) &&
     a.airports === b.airports &&
+    a.popupIcao === b.popupIcao &&
     a.locale === b.locale &&
     a.units === b.units &&
     a.insets.bottom === b.insets.bottom &&
@@ -326,6 +361,8 @@ export class MapController {
   private readonly countryLabels: CountryLabelOverlay
   private readonly unsubscribeStore: () => void
   private state: MapViewState
+  /** Haritada çizilen havalimanları (`drawnAirports`): pin kaynağının ve kodların girdisi. */
+  private drawn: readonly Airport[]
   private map: MaplibreMap | null = null
   private basemap: BasemapController | null = null
   private icons: AircraftIconImage[] | null = null
@@ -352,6 +389,11 @@ export class MapController {
   constructor(options: MapControllerOptions) {
     this.options = options
     this.state = options.state
+    this.drawn = drawnAirports(
+      options.state.airports,
+      options.state.labelSettings,
+      options.state.popupIcao,
+    )
     this.painter = new LabelPainter(options.labelCanvas)
     this.countryLabels = new CountryLabelOverlay({
       element: options.container,
@@ -391,8 +433,14 @@ export class MapController {
     if (sameViewState(previous, next)) return
     this.state = next
     const map = this.map
-    if (previous.airports !== next.airports && map && this.overlaysReady) {
-      map.getSource<GeoJSONSource>(AIRPORT_SOURCE_ID)?.setData(airportCollection(next.airports))
+    // Pin kaynağı yalnız çizilen havalimanları değişince yenilenir: liste, simge ayarı ya da (simgeler
+    // gizliyken) açık pencere (D-113). Katmanlar hazır değilse `installOverlays` güncel listeyi ekler.
+    const drawn = drawnAirports(next.airports, next.labelSettings, next.popupIcao)
+    if (!sameAirportList(this.drawn, drawn)) {
+      this.drawn = drawn
+      if (map && this.overlaysReady) {
+        map.getSource<GeoJSONSource>(AIRPORT_SOURCE_ID)?.setData(airportCollection(drawn))
+      }
     }
     if (
       previous.labelSettings.countries !== next.labelSettings.countries ||
@@ -621,7 +669,7 @@ export class MapController {
       if (!map.hasImage(id)) map.addImage(id, image, { pixelRatio })
     }
     const sources = [
-      [AIRPORT_SOURCE_ID, airportCollection(this.state.airports)],
+      [AIRPORT_SOURCE_ID, airportCollection(this.drawn)],
       [TRAIL_SOURCE_ID, EMPTY_COLLECTION],
       [AIRCRAFT_SOURCE_ID, EMPTY_COLLECTION],
     ] as const
@@ -944,7 +992,7 @@ export class MapController {
     const settings = this.state.labelSettings
     const airports = screenAirports(
       (lngLat) => map.project(lngLat),
-      this.state.airports,
+      this.drawn,
       zoom,
       settings,
       inView,

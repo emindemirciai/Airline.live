@@ -14,6 +14,8 @@
  * - Havalimanı etiketi ayarı (`settings.airports`, D-084): Gizle → kod yazılmaz (pinler GL
  *   katmanındadır, görünür ve tıklanır kalır); Kod → IATA kodu. Haritada havalimanı adı yazılmaz:
  *   ad, pin ya da koda tıklanınca açılan havalimanı penceresindedir (kullanıcı isteği 2026-10-04).
+ *   Havalimanı simgeleri gizliyken (`settings.airportIcons`, D-113) çizime yalnız açık pencerenin
+ *   havalimanı girer (map-controller.ts → `drawnAirports`): ötekilerin ne pini ne kodu çizilir.
  * - Uçak etiketleri etiket ayarına göre kurulur (seçili uçak `selected`, diğerleri `others`;
  *   Gizle → etiket yok, simge yine engel sayılır), `layoutLabels` ile çakışmasız yerleşir.
  * - Görünüm kullanıcının tasarım tuvalindendir (Etiket.dc.html), renkler "Açık turkuaz" temasından

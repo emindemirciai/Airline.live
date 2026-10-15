@@ -12,6 +12,25 @@ import type { ChangelogEntry } from './types'
  */
 export const CHANGELOG: readonly ChangelogEntry[] = [
   {
+    version: '0.25.2',
+    date: '2026-10-15',
+    title: {
+      tr: 'Havalimanı simgeleri gizlenebilir',
+      en: 'Airport icons can be hidden',
+    },
+    items: [
+      {
+        tr: 'Haritadaki “Etiketler” panelinde yeni bir “Havalimanı simgeleri” seçeneği var: Gizle’yi seçersen kırmızı havalimanı işaretleri ve kodları haritadan kalkar, Göster’le geri gelir. Seçimin bu cihazda saklanır.',
+        en: 'The “Labels” panel on the map has a new “Airport icons” option: choose Hide and the red airport markers and their codes leave the map; Show brings them back. Your choice is saved on this device.',
+      },
+      {
+        tr: 'Simgeler gizliyken de “Havalimanları” listesi ve arama çalışır: seçtiğin havalimanının penceresi açılır ve pencere açıkken o havalimanının işareti haritada görünür.',
+        en: 'With the icons hidden, the “Airports” list and the search still work: the window of the airport you pick opens, and its marker shows on the map while the window is open.',
+      },
+    ],
+    tryLinks: [{ path: '/', label: { tr: 'Canlı harita', en: 'Live map' } }],
+  },
+  {
     version: '0.25.1',
     date: '2026-10-15',
     title: {

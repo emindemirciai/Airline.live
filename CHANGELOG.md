@@ -8,6 +8,26 @@
 
 ---
 
+## v0.25.2 — 2026-10-15
+
+### Türkçe
+**Havalimanı simgeleri gizlenebilir**
+
+- Haritadaki “Etiketler” panelinde yeni bir “Havalimanı simgeleri” seçeneği var: Gizle’yi seçersen kırmızı havalimanı işaretleri ve kodları haritadan kalkar, Göster’le geri gelir. Seçimin bu cihazda saklanır.
+- Simgeler gizliyken de “Havalimanları” listesi ve arama çalışır: seçtiğin havalimanının penceresi açılır ve pencere açıkken o havalimanının işareti haritada görünür.
+
+Dene: [Canlı harita](/)
+
+### English
+**Airport icons can be hidden**
+
+- The “Labels” panel on the map has a new “Airport icons” option: choose Hide and the red airport markers and their codes leave the map; Show brings them back. Your choice is saved on this device.
+- With the icons hidden, the “Airports” list and the search still work: the window of the airport you pick opens, and its marker shows on the map while the window is open.
+
+Try it: [Live map](/)
+
+---
+
 ## v0.25.1 — 2026-10-15
 
 ### Türkçe

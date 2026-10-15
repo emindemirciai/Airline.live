@@ -1,17 +1,26 @@
 /**
  * Etiket ayarı (domain.md → Harita etiketleri): seçili uçak ve diğer uçaklar için ayrı ayrı
- * Gizle / Kısa / Tam (varsayılan ikisi için de Tam); havalimanları için Gizle / Kod (varsayılan
- * Kod, kullanıcı kararı 2026-10-03, D-084); ülke adları için Gizle / Göster (varsayılan Göster,
- * D-095). Cihazda (localStorage) saklanır. Depolama kapalı ya da bozuk olabilir (gizli pencere,
- * silinmiş site verisi): her erişim korunur, okunamayan değer varsayılana döner. Havalimanı ya da
- * ülke alanı olmayan eski kayıt geçerlidir (havalimanları Kod, ülke adları Göster; v0.18.1 kaydı
- * aynı anahtardadır). "Kod ve ad" 2026-10-04'te kullanıcı isteğiyle kaldırıldı (D-084): o seçenekle
- * saklanmış `'name'` değeri de Kod okunur.
+ * Gizle / Kısa / Tam (varsayılan ikisi için de Tam); havalimanı simgeleri (pinler) için Gizle /
+ * Göster (varsayılan Göster, kullanıcı isteği 2026-10-15, D-113); havalimanları için Gizle / Kod
+ * (varsayılan Kod, kullanıcı kararı 2026-10-03, D-084); ülke adları için Gizle / Göster (varsayılan
+ * Göster, D-095). Cihazda (localStorage) saklanır. Depolama kapalı ya da bozuk olabilir (gizli
+ * pencere, silinmiş site verisi): her erişim korunur, okunamayan değer varsayılana döner.
+ * Havalimanı, simge ya da ülke alanı olmayan eski kayıt geçerlidir (havalimanları Kod, simgeler ve
+ * ülke adları Göster; v0.18.1 ve v0.25.1 kayıtları aynı anahtardadır). "Kod ve ad" 2026-10-04'te
+ * kullanıcı isteğiyle kaldırıldı (D-084): o seçenekle saklanmış `'name'` değeri de Kod okunur.
+ * Simgeler gizliyken havalimanı kodu çizilmez ama havalimanı etiketinin değeri saklı kalır; simgeler
+ * geri gelince o değerle çizilir (D-113).
  */
 import type { LabelMode } from './label-text'
 
 /** Havalimanı etiketi: yazı yok (pin kalır) ya da IATA kodu. */
 export type AirportLabelMode = 'hidden' | 'code'
+
+/**
+ * Havalimanı simgeleri (D-113): pinler çizilir ya da çizilmez. Gizliyken kodlar da çizilmez; yalnız
+ * açık havalimanı penceresinin havalimanı çizilir (map-controller.ts → `drawnAirports`).
+ */
+export type AirportIconMode = 'hidden' | 'shown'
 
 /** Ülke adları (D-095): başkentlerde yazılır ya da hiç çizilmez. */
 export type CountryLabelMode = 'hidden' | 'shown'
@@ -20,6 +29,7 @@ export interface LabelSettings {
   selected: LabelMode
   others: LabelMode
   airports: AirportLabelMode
+  airportIcons: AirportIconMode
   countries: CountryLabelMode
 }
 
@@ -30,12 +40,16 @@ export const LABEL_MODES: readonly LabelMode[] = ['hidden', 'short', 'full']
 export const AIRPORT_LABEL_MODES: readonly AirportLabelMode[] = ['hidden', 'code']
 
 /** Seçenek sırası: Gizle, Göster (diğer gruplar gibi Gizle önce). */
+export const AIRPORT_ICON_MODES: readonly AirportIconMode[] = ['hidden', 'shown']
+
+/** Seçenek sırası: Gizle, Göster (diğer gruplar gibi Gizle önce). */
 export const COUNTRY_LABEL_MODES: readonly CountryLabelMode[] = ['hidden', 'shown']
 
 export const DEFAULT_LABEL_SETTINGS: Readonly<LabelSettings> = Object.freeze({
   selected: 'full',
   others: 'full',
   airports: 'code',
+  airportIcons: 'shown',
   countries: 'shown',
 })
 
@@ -49,6 +63,10 @@ export function isAirportLabelMode(value: unknown): value is AirportLabelMode {
   return typeof value === 'string' && (AIRPORT_LABEL_MODES as readonly string[]).includes(value)
 }
 
+export function isAirportIconMode(value: unknown): value is AirportIconMode {
+  return typeof value === 'string' && (AIRPORT_ICON_MODES as readonly string[]).includes(value)
+}
+
 export function isCountryLabelMode(value: unknown): value is CountryLabelMode {
   return typeof value === 'string' && (COUNTRY_LABEL_MODES as readonly string[]).includes(value)
 }
@@ -59,6 +77,7 @@ export function copyLabelSettings(settings: LabelSettings): LabelSettings {
     selected: settings.selected,
     others: settings.others,
     airports: settings.airports,
+    airportIcons: settings.airportIcons,
     countries: settings.countries,
   }
 }
@@ -69,6 +88,7 @@ export function sameLabelSettings(a: LabelSettings, b: LabelSettings): boolean {
     a.selected === b.selected &&
     a.others === b.others &&
     a.airports === b.airports &&
+    a.airportIcons === b.airportIcons &&
     a.countries === b.countries
   )
 }
@@ -86,11 +106,12 @@ export function loadLabelSettings(storage: Pick<Storage, 'getItem'> | null): Lab
     return defaults
   }
   if (typeof value !== 'object' || value === null || Array.isArray(value)) return defaults
-  const { selected, others, airports, countries } = value as Record<string, unknown>
+  const { selected, others, airports, airportIcons, countries } = value as Record<string, unknown>
   return {
     selected: isLabelMode(selected) ? selected : defaults.selected,
     others: isLabelMode(others) ? others : defaults.others,
     airports: isAirportLabelMode(airports) ? airports : defaults.airports,
+    airportIcons: isAirportIconMode(airportIcons) ? airportIcons : defaults.airportIcons,
     countries: isCountryLabelMode(countries) ? countries : defaults.countries,
   }
 }

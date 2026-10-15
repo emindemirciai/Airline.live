@@ -9,7 +9,11 @@ import type { MapAirport } from '../airport-data'
 import type { AircraftPlaceView } from './aircraft-place'
 import { AircraftTable } from './aircraft-table'
 import { InfoCard } from './info-card'
-import { LabelSettingsControl, LabelSettingsPanel } from './label-settings-control'
+import {
+  isRadioNavigationKey,
+  LabelSettingsControl,
+  LabelSettingsPanel,
+} from './label-settings-control'
 import { SearchBox, SearchResultsList } from './search-box'
 import { searchOptions, type AirportSearchRow } from './search-box-model'
 import {
@@ -522,11 +526,20 @@ describe('SearchResultsList (D-108)', () => {
   })
 })
 
+/** Varsayılan etiket ayarı (uçaklar Tam, simgeler Göster, havalimanları Kod, ülke adları Göster). */
+const LABEL_DEFAULTS: LabelSettings = {
+  selected: 'full',
+  others: 'full',
+  airports: 'code',
+  airportIcons: 'shown',
+  countries: 'shown',
+}
+
 describe('LabelSettingsControl', () => {
   it('kapalıyken yalnızca "Etiketler" düğmesi çizilir', () => {
     const html = renderToStaticMarkup(
       createElement(LabelSettingsControl, {
-        value: { selected: 'full', others: 'full', airports: 'code', countries: 'shown' },
+        value: LABEL_DEFAULTS,
         onChange: noop,
         messages: tr.labels,
       }),
@@ -537,93 +550,167 @@ describe('LabelSettingsControl', () => {
   })
 })
 
-describe('LabelSettingsPanel (D-084)', () => {
+describe('LabelSettingsPanel (D-084, D-113)', () => {
   const render = (value: LabelSettings, messages = tr.labels) =>
     renderToStaticMarkup(
       createElement(LabelSettingsPanel, { id: 'labels', value, onChange: noop, messages }),
     )
-  /** Grubun `legend`i ve radyo düğmeleri: [ad, değer, seçili mi]. */
+  /**
+   * Grubun `legend`i, kapalı mı (`aria-disabled`), notu ve radyo düğmeleri: [ad, değer, seçili mi,
+   * kapalı mı, açıklaması, sekmeyle ulaşılır mı].
+   */
   const groups = (html: string) =>
-    [...html.matchAll(/<fieldset[^>]*><legend>([^<]+)<\/legend>(.*?)<\/fieldset>/g)].map(
-      ([, legend, body = '']) => ({
-        legend,
-        options: [...body.matchAll(/<input type="radio"([^>]*)\/><span>([^<]+)<\/span>/g)].map(
-          ([, attributes = '', text]) => ({
-            name: /\bname="([^"]+)"/.exec(attributes)?.[1],
-            mode: /\bvalue="([^"]+)"/.exec(attributes)?.[1],
-            text,
-            checked: /\bchecked=""/.test(attributes),
-          }),
-        ),
-      }),
+    [...html.matchAll(/<fieldset([^>]*)><legend>([^<]+)<\/legend>(.*?)<\/fieldset>/g)].map(
+      ([, fieldset = '', legend, body = '']) => {
+        const note = /<p id="([^"]+)" class="map-labels__note">([^<]+)<\/p>/.exec(body)
+        return {
+          legend,
+          disabled: /\baria-disabled="true"/.test(fieldset),
+          note: note ? { id: note[1], text: note[2] } : null,
+          options: [...body.matchAll(/<input type="radio"([^>]*)\/><span>([^<]+)<\/span>/g)].map(
+            ([, attributes = '', text]) => ({
+              name: /\bname="([^"]+)"/.exec(attributes)?.[1],
+              mode: /\bvalue="([^"]+)"/.exec(attributes)?.[1],
+              text,
+              checked: /\bchecked=""/.test(attributes),
+              disabled: /\baria-disabled="true"/.test(attributes),
+              describedBy: /\baria-describedby="([^"]+)"/.exec(attributes)?.[1] ?? null,
+              // Kapalı grup da sekmeyle gezilir: yerel `disabled` ve `tabindex="-1"` yoktur.
+              focusable: !/\bdisabled=""/.test(attributes) && !/\btabindex="-1"/.test(attributes),
+            }),
+          ),
+        }
+      },
     )
 
-  it('dört grup: Seçili uçak, Diğer uçaklar, Havalimanları (Gizle / Kod), Ülke adları (Gizle / Göster)', () => {
-    const html = render({ selected: 'full', others: 'short', airports: 'code', countries: 'shown' })
+  it('beş grup: Seçili uçak, Diğer uçaklar, Havalimanı simgeleri (Gizle / Göster), Havalimanları (Gizle / Kod), Ülke adları (Gizle / Göster)', () => {
+    const html = render({ ...LABEL_DEFAULTS, others: 'short' })
     expect(html).toMatch(/^<div id="labels" class="map-panel map-labels__panel" role="group"/)
     const found = groups(html)
     expect(found.map((g) => g.legend)).toEqual([
       'Seçili uçak',
       'Diğer uçaklar',
+      'Havalimanı simgeleri',
       'Havalimanları',
       'Ülke adları',
     ])
+    // Havalimanı simgeleri (D-113): Gizle önce, varsayılan Göster; kod grubunun hemen üstünde.
+    expect(found[2]?.options.map((o) => [o.mode, o.text, o.checked])).toEqual([
+      ['hidden', 'Gizle', false],
+      ['shown', 'Göster', true],
+    ])
     // "Kod ve ad" 2026-10-04'te kaldırıldı: ad, havalimanı penceresindedir (kullanıcı isteği).
-    expect(found[2]?.options.map((o) => [o.mode, o.text])).toEqual([
+    expect(found[3]?.options.map((o) => [o.mode, o.text])).toEqual([
       ['hidden', 'Gizle'],
       ['code', 'Kod'],
     ])
     // Ülke adları (D-095): Gizle önce, varsayılan Göster.
-    expect(found[3]?.options.map((o) => [o.mode, o.text, o.checked])).toEqual([
+    expect(found[4]?.options.map((o) => [o.mode, o.text, o.checked])).toEqual([
       ['hidden', 'Gizle', false],
       ['shown', 'Göster', true],
     ])
     // Her grubun radyo adı ayrıdır (ok tuşları yalnızca kendi grubunda gezer).
-    expect(new Set(found.map((g) => g.options[0]?.name)).size).toBe(4)
+    expect(new Set(found.map((g) => g.options[0]?.name)).size).toBe(5)
     for (const group of found) {
       expect(new Set(group.options.map((o) => o.name)).size).toBe(1)
       expect(group.options.filter((o) => o.checked)).toHaveLength(1)
+      // Simgeler açıkken hiçbir grup kapalı değildir, not yoktur.
+      expect(group.disabled, group.legend).toBe(false)
+      expect(group.note, group.legend).toBeNull()
+      expect(group.options.every((o) => !o.disabled && o.describedBy === null && o.focusable)).toBe(
+        true,
+      )
     }
     expect(found[0]?.options.find((o) => o.checked)?.mode).toBe('full')
     expect(found[1]?.options.find((o) => o.checked)?.mode).toBe('short')
-    expect(found[2]?.options.find((o) => o.checked)?.mode).toBe('code')
+    expect(found[3]?.options.find((o) => o.checked)?.mode).toBe('code')
+    expect(html).not.toContain('map-labels__note')
     expect(textOf(html)).toContain(
       'Kısa: yalnızca sefer no. Tam: sefer no, hız ve yükseklik. Ülke adları haritayı uzaklaştırınca görünür.',
     )
     expect(textOf(html)).not.toContain('Kod ve ad')
+    expect(textOf(html)).not.toContain(tr.labels.airportsWithoutIcons)
   })
 
-  it('seçili havalimanı ve ülke adı seçeneği ayardan gelir; İngilizce metinler', () => {
+  it('seçili simge, havalimanı ve ülke adı seçeneği ayardan gelir; İngilizce metinler', () => {
     for (const airports of ['hidden', 'code'] as const) {
-      const found = groups(
-        render({ selected: 'full', others: 'full', airports, countries: 'shown' }),
-      )
-      expect(found[2]?.options.find((o) => o.checked)?.mode, airports).toBe(airports)
+      const found = groups(render({ ...LABEL_DEFAULTS, airports }))
+      expect(found[3]?.options.find((o) => o.checked)?.mode, airports).toBe(airports)
+      expect(found[2]?.options.find((o) => o.checked)?.mode, airports).toBe('shown')
+    }
+    for (const airportIcons of ['hidden', 'shown'] as const) {
+      const found = groups(render({ ...LABEL_DEFAULTS, airportIcons }))
+      expect(found[2]?.options.find((o) => o.checked)?.mode, airportIcons).toBe(airportIcons)
+      expect(found[3]?.options.find((o) => o.checked)?.mode, airportIcons).toBe('code')
     }
     for (const countries of ['hidden', 'shown'] as const) {
-      const found = groups(
-        render({ selected: 'full', others: 'full', airports: 'code', countries }),
-      )
-      expect(found[3]?.options.find((o) => o.checked)?.mode, countries).toBe(countries)
-      expect(found[2]?.options.find((o) => o.checked)?.mode, countries).toBe('code')
+      const found = groups(render({ ...LABEL_DEFAULTS, countries }))
+      expect(found[4]?.options.find((o) => o.checked)?.mode, countries).toBe(countries)
+      expect(found[3]?.options.find((o) => o.checked)?.mode, countries).toBe('code')
     }
     const enMessages = getMessages('en').map.labels
-    const enHtml = render(
-      { selected: 'full', others: 'full', airports: 'hidden', countries: 'shown' },
-      enMessages,
-    )
+    const enHtml = render({ ...LABEL_DEFAULTS, airports: 'hidden' }, enMessages)
     const en = groups(enHtml)
     expect(en.map((g) => g.legend)).toEqual([
       'Selected aircraft',
       'Other aircraft',
+      'Airport icons',
       'Airports',
       'Country names',
     ])
-    expect(en[2]?.options.map((o) => o.text)).toEqual(['Hide', 'Code'])
-    expect(en[3]?.options.map((o) => [o.text, o.checked])).toEqual([
+    expect(en[2]?.options.map((o) => [o.text, o.checked])).toEqual([
+      ['Hide', false],
+      ['Show', true],
+    ])
+    expect(en[3]?.options.map((o) => o.text)).toEqual(['Hide', 'Code'])
+    expect(en[4]?.options.map((o) => [o.text, o.checked])).toEqual([
       ['Hide', false],
       ['Show', true],
     ])
     expect(textOf(enHtml)).toContain('Country names appear when you zoom out.')
+  })
+
+  it('simgeler gizliyken "Havalimanları" kapalıdır (aria-disabled), notludur ve seçimini korur (D-113)', () => {
+    for (const airports of ['code', 'hidden'] as const) {
+      const html = render({ ...LABEL_DEFAULTS, airports, airportIcons: 'hidden' })
+      const found = groups(html)
+      const [icons, codes] = [found[2], found[3]]
+      // Simge grubu açık kalır (simgeler geri getirilir); seçili Gizle.
+      expect(icons?.disabled).toBe(false)
+      expect(icons?.options.find((o) => o.checked)?.mode).toBe('hidden')
+      expect(icons?.options.every((o) => !o.disabled)).toBe(true)
+      // Kod grubu görünür ama kapalı: seçim değişmez, saklı değer işaretli kalır.
+      expect(codes?.legend).toBe('Havalimanları')
+      expect(codes?.disabled, airports).toBe(true)
+      expect(codes?.options.map((o) => o.mode)).toEqual(['hidden', 'code'])
+      expect(codes?.options.find((o) => o.checked)?.mode, airports).toBe(airports)
+      expect(codes?.note?.text).toBe('Simgeler gizliyken kodlar da görünmez.')
+      for (const option of codes?.options ?? []) {
+        expect(option.disabled, option.mode).toBe(true)
+        // Not, odaklanan seçeneğin açıklamasıdır; seçenek sekmeyle ulaşılır kalır.
+        expect(option.describedBy, option.mode).toBe(codes?.note?.id)
+        expect(option.focusable, option.mode).toBe(true)
+      }
+      // Öteki gruplar etkilenmez.
+      for (const index of [0, 1, 4]) {
+        expect(found[index]?.disabled, found[index]?.legend).toBe(false)
+        expect(found[index]?.note, found[index]?.legend).toBeNull()
+      }
+      expect(html.match(/class="map-labels__note"/g)).toHaveLength(1)
+    }
+    const en = groups(
+      render({ ...LABEL_DEFAULTS, airportIcons: 'hidden' }, getMessages('en').map.labels),
+    )
+    expect(en[3]?.disabled).toBe(true)
+    expect(en[3]?.note?.text).toBe('Codes stay hidden while the icons are hidden.')
+  })
+
+  it('klavye: kapalı grupta ok tuşları seçimi değiştirmez; Tab, Escape ve Enter etkilenmez', () => {
+    for (const key of ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown']) {
+      expect(isRadioNavigationKey(key), key).toBe(true)
+    }
+    for (const key of ['Tab', 'Escape', 'Enter', ' ', 'Home', 'End', 'a']) {
+      expect(isRadioNavigationKey(key), JSON.stringify(key)).toBe(false)
+    }
   })
 })

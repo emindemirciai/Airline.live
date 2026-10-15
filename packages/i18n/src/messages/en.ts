@@ -786,11 +786,17 @@ export const en: Messages = {
       hidden: 'Hide',
       short: 'Short',
       full: 'Full',
+      airportIcons: 'Airport icons',
+      airportIconModes: {
+        hidden: 'Hide',
+        shown: 'Show',
+      },
       airports: 'Airports',
       airportModes: {
         hidden: 'Hide',
         code: 'Code',
       },
+      airportsWithoutIcons: 'Codes stay hidden while the icons are hidden.',
       countries: 'Country names',
       countryModes: {
         hidden: 'Hide',

@@ -11,12 +11,14 @@ import { INITIAL_BOUNDS, INITIAL_MAX_ZOOM, initialZoom, PRIMARY_AIRPORT_VIEW } f
 import { DEFAULT_LABEL_SETTINGS } from '../../lib/map/label-settings'
 import { AIRPORT_LABEL_MIN_ZOOM } from './labels'
 import {
+  drawnAirports,
   iconScaleAt,
   mapPadding,
   NO_INSETS,
   NO_PANELS,
   overlayLayers,
   resolveHit,
+  sameAirportList,
   sameViewState,
   screenAirports,
   type HitCandidates,
@@ -138,13 +140,14 @@ describe('sameViewState (D-084)', () => {
     following: false,
     labelSettings: DEFAULT_LABEL_SETTINGS,
     airports: [],
+    popupIcao: null,
     locale: 'tr',
     units: 'metric',
     insets: NO_INSETS,
     panels: NO_PANELS,
   }
 
-  it('etiket ayarının her alanı yeniden çizim ister: havalimanı etiketi dahil', () => {
+  it('etiket ayarının her alanı yeniden çizim ister: havalimanı etiketi ve simgeleri dahil', () => {
     expect(sameViewState(base, { ...base, labelSettings: { ...DEFAULT_LABEL_SETTINGS } })).toBe(
       true,
     )
@@ -152,12 +155,88 @@ describe('sameViewState (D-084)', () => {
       { selected: 'short' },
       { others: 'hidden' },
       { airports: 'hidden' },
+      { airportIcons: 'hidden' },
       { countries: 'hidden' },
     ] as const) {
       const next = { ...base, labelSettings: { ...DEFAULT_LABEL_SETTINGS, ...change } }
       expect(sameViewState(base, next), JSON.stringify(change)).toBe(false)
     }
     expect(sameViewState(base, { ...base, locale: 'en' })).toBe(false)
+  })
+
+  it('açık pencere de karşılaştırılır (simgeler gizliyken onun havalimanı çizilir, D-113)', () => {
+    expect(sameViewState({ ...base, popupIcao: 'LTFM' }, { ...base, popupIcao: 'LTFM' })).toBe(true)
+    expect(sameViewState(base, { ...base, popupIcao: 'LTFM' })).toBe(false)
+    expect(sameViewState({ ...base, popupIcao: 'LTFM' }, { ...base, popupIcao: 'LTFJ' })).toBe(
+      false,
+    )
+  })
+})
+
+describe('drawnAirports: havalimanı simgeleri gizlenebilir (D-113)', () => {
+  const ltfm = { icao: 'LTFM', iata: 'IST', lat: 41.26, lon: 28.73 } as Airport
+  const ltfj = { icao: 'LTFJ', iata: 'SAW', lat: 40.9, lon: 29.31 } as Airport
+  const egll = { icao: 'EGLL', iata: 'LHR', lat: 51.47, lon: -0.45 } as Airport
+  const airports = [ltfm, ltfj, egll]
+  const shown = { airportIcons: 'shown' } as const
+  const hidden = { airportIcons: 'hidden' } as const
+
+  it('simgeler açıkken bütün liste aynı başvuruyla çizilir; açık pencere bir şey değiştirmez', () => {
+    expect(drawnAirports(airports, shown, null)).toBe(airports)
+    expect(drawnAirports(airports, shown, 'LTFJ')).toBe(airports)
+    expect(drawnAirports(airports, DEFAULT_LABEL_SETTINGS, null)).toBe(airports)
+  })
+
+  it('simgeler gizliyken hiçbiri çizilmez; yalnız açık pencerenin havalimanı çizilir', () => {
+    expect(drawnAirports(airports, hidden, null)).toEqual([])
+    expect(drawnAirports(airports, hidden, 'LTFJ')).toEqual([ltfj])
+    expect(drawnAirports(airports, hidden, 'LTFJ')[0]).toBe(ltfj)
+    // Listede olmayan kod (ör. askerî üs, D-107): hiçbiri.
+    expect(drawnAirports(airports, hidden, 'LTBL')).toEqual([])
+    expect(drawnAirports([], hidden, 'LTFM')).toEqual([])
+  })
+
+  it('pin kaynağı yalnız çizilen liste değişince yenilenir (sameAirportList)', () => {
+    const open = drawnAirports(airports, hidden, 'LTFM')
+    // Her çizimde yeni dizi ama aynı havalimanı: kaynak yenilenmez.
+    expect(sameAirportList(open, drawnAirports(airports, hidden, 'LTFM'))).toBe(true)
+    expect(sameAirportList(drawnAirports(airports, hidden, null), [])).toBe(true)
+    // Pencere kapandı, başka havalimanı açıldı, simgeler geri geldi: yenilenir.
+    expect(sameAirportList(open, drawnAirports(airports, hidden, null))).toBe(false)
+    expect(sameAirportList(open, drawnAirports(airports, hidden, 'LTFJ'))).toBe(false)
+    expect(sameAirportList(open, drawnAirports(airports, shown, 'LTFM'))).toBe(false)
+    expect(sameAirportList(airports, drawnAirports(airports, shown, null))).toBe(true)
+    // Yeniden yüklenen liste (yeni nesneler) yenilenir.
+    expect(
+      sameAirportList(
+        airports,
+        airports.map((a) => ({ ...a })),
+      ),
+    ).toBe(false)
+  })
+
+  it('kodlar da yalnız çizilen havalimanları için izdüşürülür (screenAirports)', () => {
+    const project = vi.fn(([lon, lat]: [number, number]) => ({ x: lon * 10, y: lat * 10 }))
+    const inView = (x: number, y: number) => x >= 0 && x <= 500 && y >= 0 && y <= 500
+    const settings = { ...DEFAULT_LABEL_SETTINGS, airportIcons: 'hidden' } as const
+    expect(
+      screenAirports(project, drawnAirports(airports, settings, null), 9, settings, inView),
+    ).toEqual([])
+    expect(project).not.toHaveBeenCalled()
+    const open = screenAirports(
+      project,
+      drawnAirports(airports, settings, 'LTFM'),
+      9,
+      settings,
+      inView,
+    )
+    expect(open.map((item) => item.airport.icao)).toEqual(['LTFM'])
+    expect(project).toHaveBeenCalledTimes(1)
+    // Açık pencerenin havalimanının kodu da etiket ayarına uyar: Gizle'de yazılmaz.
+    const noCodes = { ...settings, airports: 'hidden' } as const
+    expect(
+      screenAirports(project, drawnAirports(airports, noCodes, 'LTFM'), 9, noCodes, inView),
+    ).toEqual([])
   })
 })
 
@@ -186,6 +265,7 @@ describe('panel payı (D-085)', () => {
     following: false,
     labelSettings: DEFAULT_LABEL_SETTINGS,
     airports: [],
+    popupIcao: null,
     locale: 'tr',
     units: 'metric',
     insets: NO_INSETS,
