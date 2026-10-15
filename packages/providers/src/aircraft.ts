@@ -125,6 +125,15 @@ export function isHiddenByDefault(state: Pick<AircraftState, 'dbFlags'>): boolea
 const identity = (value: string) => value.toUpperCase().replace(/[^A-Z0-9]/g, '')
 
 /**
+ * İki kimlik (çağrı kodu, tescil) harf ve rakamlarıyla aynı mı (TC-OIL ile "TCOIL  " aynıdır)? Biri
+ * harf ve rakam taşımıyorsa aynı sayılmaz.
+ */
+export function sameIdentity(a: string, b: string): boolean {
+  const left = identity(a)
+  return left !== '' && left === identity(b)
+}
+
+/**
  * PIA ve LADD uçaklarında (ve bayrağı bilinmeyenlerde) tescil gizlenir. Tescilini çağrı kodu olarak
  * yayınlayan uçağın (iş jetleri, ör. TC-OIL → "TCOIL") çağrı kodu da gizlenir; havayolu çağrı
  * kodları (ör. EJA123) görünür kalır.
@@ -138,6 +147,6 @@ export function withPrivacy<T extends Pick<AircraftState, 'dbFlags' | 'registrat
   const callsignIsRegistration =
     state.callsign !== null &&
     state.registration !== null &&
-    identity(state.callsign) === identity(state.registration)
+    sameIdentity(state.callsign, state.registration)
   return { ...state, registration: null, callsign: callsignIsRegistration ? null : state.callsign }
 }
