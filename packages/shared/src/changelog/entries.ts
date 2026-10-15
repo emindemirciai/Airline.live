@@ -12,6 +12,36 @@ import type { ChangelogEntry } from './types'
  */
 export const CHANGELOG: readonly ChangelogEntry[] = [
   {
+    version: '0.26.0',
+    date: '2026-10-15',
+    title: {
+      tr: 'Uçak gizliliği maddesi yenilendi',
+      en: 'Aircraft privacy wording updated',
+    },
+    items: [
+      {
+        tr: 'Kullanım koşullarındaki ve Hakkında sayfasındaki uçak gizliliği maddesi yenilendi. Canlı harita açıldığında önce yalnız havayolu çağrı koduyla uçan uçaklar görünecek; askerî, devlet ve özel uçakları tespit kurallarımızla göstermemeye çalışıyoruz ve bu kuralların kusursuz olmadığını açıkça yazıyoruz.',
+        en: 'The aircraft privacy section of the terms of use and the About page has new wording. When the live map opens, it will first show only aircraft flying under an airline callsign; we use detection rules to try to keep military, state and private aircraft off the site, and we now say plainly that these rules are not perfect.',
+      },
+      {
+        tr: 'Canlı uçaklar henüz açık değil; açılış için hazırlıklar sürüyor.',
+        en: 'Live aircraft are not switched on yet; preparations for opening continue.',
+      },
+      {
+        tr: 'API’nin canlı uçak yanıtları artık verinin lisansını (ODbL 1.0) ve kaynağını (ADSB.lol) da yazıyor.',
+        en: 'The API’s live aircraft responses now also state the data licence (ODbL 1.0) and source (ADSB.lol).',
+      },
+      {
+        tr: 'Yöneticiler canlı uçak katmanını panelden tek dokunuşla kapatıp açabiliyor.',
+        en: 'Admins can switch the live aircraft layer off and on with one tap in the panel.',
+      },
+    ],
+    tryLinks: [
+      { path: '/kullanim-kosullari', label: { tr: 'Kullanım koşulları', en: 'Terms of use' } },
+      { path: '/hakkinda', label: { tr: 'Hakkında', en: 'About' } },
+    ],
+  },
+  {
     version: '0.25.2',
     date: '2026-10-15',
     title: {

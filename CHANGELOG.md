@@ -8,6 +8,30 @@
 
 ---
 
+## v0.26.0 — 2026-10-15
+
+### Türkçe
+**Uçak gizliliği maddesi yenilendi**
+
+- Kullanım koşullarındaki ve Hakkında sayfasındaki uçak gizliliği maddesi yenilendi. Canlı harita açıldığında önce yalnız havayolu çağrı koduyla uçan uçaklar görünecek; askerî, devlet ve özel uçakları tespit kurallarımızla göstermemeye çalışıyoruz ve bu kuralların kusursuz olmadığını açıkça yazıyoruz.
+- Canlı uçaklar henüz açık değil; açılış için hazırlıklar sürüyor.
+- API’nin canlı uçak yanıtları artık verinin lisansını (ODbL 1.0) ve kaynağını (ADSB.lol) da yazıyor.
+- Yöneticiler canlı uçak katmanını panelden tek dokunuşla kapatıp açabiliyor.
+
+Dene: [Kullanım koşulları](/kullanim-kosullari) · [Hakkında](/hakkinda)
+
+### English
+**Aircraft privacy wording updated**
+
+- The aircraft privacy section of the terms of use and the About page has new wording. When the live map opens, it will first show only aircraft flying under an airline callsign; we use detection rules to try to keep military, state and private aircraft off the site, and we now say plainly that these rules are not perfect.
+- Live aircraft are not switched on yet; preparations for opening continue.
+- The API’s live aircraft responses now also state the data licence (ODbL 1.0) and source (ADSB.lol).
+- Admins can switch the live aircraft layer off and on with one tap in the panel.
+
+Try it: [Terms of use](/kullanim-kosullari) · [About](/hakkinda)
+
+---
+
 ## v0.25.2 — 2026-10-15
 
 ### Türkçe
