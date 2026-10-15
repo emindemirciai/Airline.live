@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { getServerEnv } from './env'
+import { getServerEnv, metaTagContent } from './env'
 import type { MapEnvInput } from './map-config'
 
 // `server-only` istemci paketlerinde hata fırlatır; testte sunucu modülü olarak yüklenir.
@@ -158,6 +158,78 @@ describe('getServerEnv — site alanları', () => {
     }
     withSiteEnv({ YANDEX_VERIFICATION: 'x/y' })
     expect(() => getServerEnv()).toThrow(/YANDEX_VERIFICATION/)
+  })
+
+  it('arama motorunun verdiği tam meta etiketinden content değerini alır (D-117)', () => {
+    withSiteEnv({
+      GOOGLE_SITE_VERIFICATION:
+        ' <meta name="google-site-verification" content="test-only_Google-1" /> ',
+      BING_SITE_VERIFICATION: '<meta name="msvalidate.01" content="TESTONLYBING0123" />',
+      YANDEX_VERIFICATION: "<META CONTENT='testonly0123abcd' NAME='yandex-verification'>",
+    })
+    const env = getServerEnv()
+    expect(env.GOOGLE_SITE_VERIFICATION).toBe('test-only_Google-1')
+    expect(env.BING_SITE_VERIFICATION).toBe('TESTONLYBING0123')
+    expect(env.YANDEX_VERIFICATION).toBe('testonly0123abcd')
+    // Dokploy'a yapıştırılan biçim (2026-10-15): eğik çizgi `>`'ye bitişik.
+    withSiteEnv({
+      GOOGLE_SITE_VERIFICATION: '<meta name="google-site-verification" content="test-only_G"/>',
+    })
+    expect(getServerEnv().GOOGLE_SITE_VERIFICATION).toBe('test-only_G')
+  })
+
+  it('içindeki değer kod değilse meta etiketini de reddeder (D-117)', () => {
+    for (const value of [
+      '<meta name="google-site-verification">',
+      '<meta name="google-site-verification" content="">',
+      '<meta name="google-site-verification" content="a b">',
+      '<meta name="google-site-verification" content="a.b">',
+      `<meta name="google-site-verification" content="${'a'.repeat(129)}">`,
+      '<meta name="google-site-verification" content="abc"> sonra',
+      '<meta name="google-site-verification" content="abc" "fazla">',
+      '<metadata content="abc">',
+      '<script content="abc"></script>',
+      'content="abc"',
+    ]) {
+      withSiteEnv({ GOOGLE_SITE_VERIFICATION: value })
+      expect(() => getServerEnv(), value).toThrow(/GOOGLE_SITE_VERIFICATION/)
+    }
+  })
+})
+
+describe('metaTagContent (D-117)', () => {
+  it('öznitelik sırası, tırnak biçimi ve büyük-küçük harf fark etmez', () => {
+    for (const [tag, content] of [
+      ['<meta name="google-site-verification" content="abc-1_X" />', 'abc-1_X'],
+      ['<meta content="abc" name="google-site-verification">', 'abc'],
+      ["<meta name='msvalidate.01' content='ABC123'/>", 'ABC123'],
+      ['<META NAME="yandex-verification" CONTENT="0a1b">', '0a1b'],
+      ['<meta name=google-site-verification content=abc>', 'abc'],
+      ['<meta\n  name="google-site-verification"\n  content = " abc "\n/>', 'abc'],
+      ['<meta content="first" content="second">', 'first'],
+      ['<meta data-content="x" content="abc">', 'abc'],
+      ['<meta name="google-site-verification" content="">', ''],
+      ['<meta content>', ''],
+    ] as const) {
+      expect(metaTagContent(tag), tag).toBe(content)
+    }
+  })
+
+  it('etiket değilse, content yoksa ya da öznitelikler çözülemiyorsa undefined', () => {
+    for (const value of [
+      'abc',
+      '',
+      '<meta>',
+      '<meta />',
+      '<meta name="google-site-verification">',
+      '<meta content="abc" "x">',
+      '<meta content="abc"> x',
+      'x <meta content="abc">',
+      '<metadata content="abc">',
+      '<link content="abc">',
+    ]) {
+      expect(metaTagContent(value), value).toBeUndefined()
+    }
   })
 })
 
