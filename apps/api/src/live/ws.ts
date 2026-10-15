@@ -19,7 +19,11 @@
  * Sınırlar: IP (/64) başına 10, toplam `WS_MAX_CONNECTIONS` bağlantı; el sıkışması IP başına
  * dakikada 30 (üretim dışında 60, `wsRateLimit`). `Origin` başlığı varsa web ya da admin host'u olmalıdır; başlığı olmayan yerel
  * uygulama kabul edilir. Sıkıştırma kapalıdır, en büyük istemci mesajı 16 KiB'tır.
+ *
+ * Yalnızca `GET` el sıkışması yükseltilir (`isLiveWsUpgrade`, D-113). `HEAD /v1/ws` 405 ve
+ * `Allow: GET` alır; `Upgrade` başlıklı başka her istek sıradan HTTP isteği olarak yanıtlanır.
  */
+import type { IncomingMessage } from 'node:http'
 import { normalizeIP } from '@fastify/rate-limit'
 import websocket from '@fastify/websocket'
 import type { FastifyBaseLogger, FastifyInstance, FastifyRequest } from 'fastify'
@@ -42,6 +46,26 @@ export interface LiveWsOptions {
   random?: () => number
   /** Varsayılan 25 sn. */
   pingIntervalMs?: number
+}
+
+/** Canlı veri WebSocket'inin yolu. */
+export const LIVE_WS_PATH = '/v1/ws'
+
+/**
+ * Node HTTP sunucusunun `shouldUpgradeCallback`'i (Node ≥ 24.9; `buildApp`, D-113): yalnızca canlı
+ * veri el sıkışması (`GET /v1/ws`, `Upgrade: websocket`) `upgrade` olayına ayrılır. Varsayılanda
+ * (`upgrade` dinleyicisi varken) `Connection: Upgrade` taşıyan her istek oraya düşer: soket HTTP
+ * sunucusundan kopar (zaman aşımı ve keep-alive işlemez) ve `@fastify/websocket` yolun HTTP
+ * işleyicisi yerine el sıkışmasını dener. Burada reddedilen istek sıradan HTTP isteğidir; sunucu
+ * `Upgrade` başlığını yok sayar (RFC 9110 §7.8). El sıkışmasının kendisini (anahtar, sürüm) `ws`
+ * denetler, hatalıysa 400 verir.
+ */
+export function isLiveWsUpgrade(request: IncomingMessage): boolean {
+  return (
+    request.method === 'GET' &&
+    request.url?.split('?', 1)[0] === LIVE_WS_PATH &&
+    request.headers.upgrade?.toLowerCase() === 'websocket'
+  )
 }
 
 /** En büyük istemci mesajı; aşılırsa `ws` bağlantıyı 1009 ile kapatır. */
@@ -127,8 +151,15 @@ export function registerLiveWs(app: FastifyInstance, opts: LiveWsOptions): void 
   // Yol, eklenti yüklendikten sonra kaydedilsin diye ayrı bir kapsamdadır (onRoute kancası).
   void app.register(async (scope) => {
     scope.get(
-      '/v1/ws',
-      { websocket: true, config: { rateLimit: wsRateLimit(env.APP_ENV) } },
+      LIVE_WS_PATH,
+      {
+        websocket: true,
+        // Fastify GET yolunun HEAD ikizini seçeneklerin kopyasıyla kurar. `@fastify/websocket` HEAD
+        // yolunu sarmaz; ikiz, aşağıdaki işleyiciyi `(request, reply)` ile çağırırdı: 500 ve
+        // merkezde soketi olmayan bir istemci, ilk ping turunda süreç çökerdi (D-113).
+        exposeHeadRoute: false,
+        config: { rateLimit: wsRateLimit(env.APP_ENV) },
+      },
       (socket, request) => {
         const origin = request.headers.origin
         if (origin !== undefined && !origins.has(origin)) {
@@ -146,6 +177,14 @@ export function registerLiveWs(app: FastifyInstance, opts: LiveWsOptions): void 
         socket.on('pong', () => hub.pong(client))
         socket.on('close', () => hub.disconnected(client))
       },
+    )
+    // El sıkışması yalnızca GET'tir. `Upgrade` başlıklı HEAD de buraya gelir (`isLiveWsUpgrade`).
+    scope.head(LIVE_WS_PATH, { schema: { hide: true } }, async (_request, reply) =>
+      reply.code(405).header('allow', 'GET').send({
+        statusCode: 405,
+        error: 'Method Not Allowed',
+        message: 'WebSocket el sıkışması GET ile yapılır.',
+      }),
     )
   })
 

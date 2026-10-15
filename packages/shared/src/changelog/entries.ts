@@ -12,7 +12,7 @@ import type { ChangelogEntry } from './types'
  */
 export const CHANGELOG: readonly ChangelogEntry[] = [
   {
-    version: '0.25.2',
+    version: '0.25.3',
     date: '2026-10-15',
     title: {
       tr: 'Havalimanı simgeleri de gizlenebilir',
@@ -33,6 +33,20 @@ export const CHANGELOG: readonly ChangelogEntry[] = [
       },
     ],
     tryLinks: [{ path: '/', label: { tr: 'Canlı harita', en: 'Live map' } }],
+  },
+  {
+    version: '0.25.2',
+    date: '2026-10-15',
+    title: {
+      tr: 'Daha dayanıklı canlı veri sunucusu',
+      en: 'A sturdier live data server',
+    },
+    items: [
+      {
+        tr: 'Canlı veri sunucusu beklenmedik bağlantı isteklerini artık düzgün bir hata yanıtıyla geri çeviriyor. Bu istekler sunucuyu yeniden başlatamıyor; canlı haritanın bağlantısı kopmadan sürüyor.',
+        en: 'The live data server now turns away unexpected connection requests with a proper error response. They can no longer restart the server, so the live map stays connected.',
+      },
+    ],
   },
   {
     version: '0.25.1',

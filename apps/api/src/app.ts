@@ -15,7 +15,7 @@ import type { SessionStore } from './auth/session-store'
 import type { Env } from './env'
 import { registerLiveRoutes } from './live/routes'
 import type { LiveSource } from './live/types'
-import { registerLiveWs } from './live/ws'
+import { isLiveWsUpgrade, registerLiveWs } from './live/ws'
 import { clientIp } from './net/client-ip'
 import { registerLegacyHostRedirect } from './net/legacy-host'
 import { registerAirportRoutes, type AirportRouteOptions } from './reference/airports'
@@ -96,6 +96,9 @@ export async function buildApp(env: Env, deps: AppDeps): Promise<FastifyInstance
             redact: ['req.headers.authorization', 'req.headers.cookie', '*.token', '*.password'],
           },
     trustProxy: env.TRUSTED_PROXY_CIDRS.length > 0 ? env.TRUSTED_PROXY_CIDRS : false,
+    // Yalnızca canlı veri el sıkışması `upgrade` olayına ayrılır; `Upgrade` başlıklı başka her istek
+    // sıradan HTTP isteğidir (D-113, live/ws.ts).
+    http: { shouldUpgradeCallback: isLiveWsUpgrade },
   })
 
   // İlk kanca: eski API alan adları her şeyden önce yeni host'a 308 ile gider (D-112).

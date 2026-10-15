@@ -8,7 +8,7 @@
 
 ---
 
-## v0.25.2 — 2026-10-15
+## v0.25.3 — 2026-10-15
 
 ### Türkçe
 **Havalimanı simgeleri de gizlenebilir**
@@ -27,6 +27,20 @@ Dene: [Canlı harita](/)
 - With airports hidden, the “Airports” list and the search still work: the window of the airport you pick opens, and its icon shows on the map while the window is open. The icon of an airport you open with “Open on the live map” on its page stays visible too.
 
 Try it: [Live map](/)
+
+---
+
+## v0.25.2 — 2026-10-15
+
+### Türkçe
+**Daha dayanıklı canlı veri sunucusu**
+
+- Canlı veri sunucusu beklenmedik bağlantı isteklerini artık düzgün bir hata yanıtıyla geri çeviriyor. Bu istekler sunucuyu yeniden başlatamıyor; canlı haritanın bağlantısı kopmadan sürüyor.
+
+### English
+**A sturdier live data server**
+
+- The live data server now turns away unexpected connection requests with a proper error response. They can no longer restart the server, so the live map stays connected.
 
 ---
 

@@ -41,7 +41,8 @@ Durumlar: `[ ]` başlamadı, `[~]` sürüyor, `[k]` kod bitti ve kullanıcı do�
 | M6e.12 | Global konumlandırma (yama; D-106) | `p1/map-global-copy` | [k] kod bitti; üretimde doğrulandı (2026-10-07, v0.22.4): `/version` 0.22.4, `/` başlığı "Canlı uçuş takibi ve uçak haritası · havayolu", `/en` "Live flight tracker and aircraft map · havayolu"; Release 2026-10-07T20:09:13Z; paylaşım görseli ve sayfa denetimi kullanıcıda (ACTIVATION v0.22.4) | #40 |
 | M6e.11 | Bütün ülkelerin adları (yama; D-100) | `p1/map-all-countries` | [k] kod bitti; üretimde doğrulandı (2026-10-08, v0.22.5): `/version` 0.22.5, Release 2026-10-07T21:01:27Z (İstanbul 2026-10-08 00:01); uydu üstünde görünüm denetimi kullanıcıda (ACTIVATION M6e.11) | #41 |
 | M6e.15 | Marka geçişi: Airline.live (D-112): görünen ad `APP_NAME`'den, önceki alan adının bütün adreslerinden 308 (web proxy'si, API `onRequest`), User-Agent, sayfalarda iç ad yok, belgeler ve kullanıcı adımları | `p1/brand-airline-live` | [k] yayında: PR #44 (220d2d8), Release v0.25.0 2026-10-15 03:24:33 UTC, `/version` 0.25.0; Dokploy env'i (b2) ve sonraki kullanıcı adımları ACTIVATION "Marka geçişi: Airline.live"de | — |
-| M6e.16 | Havalimanları tek ayar: Gizle / Simge / Simge ve kod (D-113): "Etiketler" panelinde pinler ve kodlar tek satırda; Gizle'de pin ve kod yok, açık pencerenin ve `?havalimani=` hedefinin pini çizilir; eski Gizle Simge okunur (yama, v0.25.2) | `p1/map-airport-icons` | [~] kod ve yerel kontroller bitti (2026-10-15); yayın adımı (README, PR, CI) bekliyor | — |
+| M6e.16 | WebSocket yükseltme istekleri (yama; D-113): API yalnız `GET /v1/ws` el sıkışmasını yükseltir, `HEAD /v1/ws` 405 ve `Allow: GET` (önceden 500 ve süreç çökmesi), sitenin 502'si RUNBOOK'ta | `p1/ws-upgrade-errors` | [~] kod ve `ci:full` yeşil; PR ve yayın bekliyor | — |
+| M6e.17 | Havalimanları tek ayar: Gizle / Simge / Simge ve kod (D-114): "Etiketler" panelinde pinler ve kodlar tek satırda; Gizle'de pin ve kod yok, açık pencerenin ve `?havalimani=` hedefinin pini çizilir; eski Gizle Simge okunur (yama, v0.25.3) | `p1/map-airport-icons` | [~] kod ve yerel kontroller bitti (2026-10-15); yayın adımı (README, PR, CI) bekliyor | — |
 | M6h | 3. halka (≤ 2.000 km) — kullanıcı isteğiyle M7a'nın önüne alındı (2026-10-04); sivil uçuşa kapalı olabilecek havalimanı notu | `p1/m6h-ring3` | [k] kod bitti; üretimde doğrulandı (2026-10-04, v0.18.0): `scope=listed` 503 (61 + 75 + 89 + 278), Viyana 3. halka 1.149 km, beş Özbek istasyonunun METAR'ı UZxx koduyla, METAR'lı istasyon 463/503, toplu hava 1,34 MB, URKK ve UUOO notu iki dilde; admin Servisler ve worker günlüğü (429 yok) bekliyor (ACTIVATION) | #28 |
 | M7a | Canlı araçlar: `smoke:live`, `record` | `p1/m7a-live-tools` | [k] kod bitti; canlı smoke ve kayıt kullanıcıda (ACTIVATION) | #31 |
 | M7b.1 | İz tablolarına ham `seen_pos` ve `baro_rate` (migration 0006, v0.20.0; D-097) | `p1/m7b1-track-columns` | [x] tamam; üretimde doğrulandı (2026-10-05, v0.20.0): `hy-migrate` 0006'yı uyguladıktan sonra servisler açıldı, `/version` 0.20.0, `/ready` 200; v0.20.0 Release 2026-10-05T07:45:13Z. Ingest yazımı üretimde adsb.lol açılınca görülür (ACTIVATION 2. adım) | #33 |
@@ -2352,7 +2353,31 @@ Hedef sürüm v0.25.0 (MINOR). Sürüm (`package.json` 0.25.0), `entries.ts`'in 
 - `pnpm test:scripts` → 39/39 (`CHANGELOG.md` üretildi)
 - `prettier --check .`, `pnpm lint` (9/9), `pnpm typecheck` (9/9), `pnpm typecheck:scripts`, `pnpm typecheck:e2e`, `pnpm lint:e2e`, `pnpm check:eol`, `pnpm db:check`, `pnpm changelog:check` (v0.25.0) → yeşil
 
-## M6e.16 — Havalimanları tek ayar: Gizle / Simge / Simge ve kod (D-113)
+## M6e.16 — WebSocket yükseltme istekleri (yama, v0.25.2; D-113)
+Kullanıcı isteği (2026-10-15): üretimde `curl -I` + `Upgrade: websocket` API'de `/v1/ws`'e 500, sitede `/`'e Traefik 502 aldı. Yerelde yeniden üret, API'de 4xx ve error günlüğü olmadan yanıtla, beklenmedik her yükseltme isteği temiz bitsin; D-112'nin eski host kancası korunur. Site Next'in iç davranışıysa yama değil RUNBOOK. Küçük PATCH yayını.
+
+**Bulgu:** `HEAD /v1/ws` (Upgrade'siz de) Fastify'ın HEAD ikizinden WebSocket işleyicisine `(request, reply)` ile düşüyordu: 500, merkezde soketi olmayan istemci, ilk ping turunda (≤ 25 sn) yakalanmayan `TypeError` ve **API süreci çöküyordu** (yerelde 8 sn). v0.8.0'dan beri. Site: Next 16 eşleşen yolda yanıt yazmadan kapatır (Traefik 502), eşleşmeyen yolda soketi açık bırakır.
+
+**Kapsam:**
+- `apps/api/src/live/ws.ts`: `LIVE_WS_PATH`, `isLiveWsUpgrade` (Node `shouldUpgradeCallback`), WS yolunda `exposeHeadRoute: false`, `HEAD /v1/ws` 405 + `Allow: GET`.
+- `apps/api/src/app.ts`: Fastify `http: { shouldUpgradeCallback: isLiveWsUpgrade }`.
+- `apps/api/src/net/legacy-host.ts`: yalnız yorum (dağıtım kuralı); kod aynı.
+- Yeni test `apps/api/src/live/ws-upgrade.test.ts` (gerçek ayrıştırıcı, soket çifti; 10 test).
+- Belgeler: D-113, RUNBOOK "`Upgrade` başlıklı istekler", Yenilikler 0.25.2 (v0.25.1'in yayın anı `2026-10-15T04:25:20Z`), README.
+
+**Kabul komutları:**
+- Yerel yeniden üretim (düzeltmeden önce ve sonra): `pnpm dev:infra`, `pnpm db:migrate`, API 4100'de; `curl -s -I --http1.1 -H 'Upgrade: websocket' -H 'Connection: Upgrade' http://127.0.0.1:4100/v1/ws` ve RUNBOOK tablosundaki istekler; site için `turbo run build --filter=@havayolu/web` + `node --env-file=.env.example apps/web/.next/standalone/apps/web/server.js` (3100)
+- `pnpm ci:full`
+- Yayından sonra: `/version` 0.25.2, ardından aynı `curl -I` API'de 405
+
+**Çıktı kaydı (yerel, 2026-10-15):**
+- Düzeltmeden önce (v0.25.1 kodu, API 4100): HEAD + Upgrade → 500 `content-length: 90`, `Connection: keep-alive`, log `"level":50` `socket.on is not a function`; düz HEAD → 500; anahtarsız GET 400, el sıkışması 101, düz GET 404. 8 sn sonra süreç `TypeError: client.socket.ping is not a function` (`ws-hub.ts:620`, `pingAll`) ile çıktı.
+- Düzeltmeden sonra: HEAD + Upgrade → 405, `allow: GET`, güvenlik başlıkları ve hız sınırı başlıkları, `Connection: keep-alive` ve aynı bağlantıda sonraki istek 200 (`curl --next`, `num_connects=0`); düz HEAD 405; anahtarsız GET 400; el sıkışması 101; düz GET 404; `GET /health` + WS anahtarı 200 (önceden 101); `GET /v1/ws` + `h2c` 404; `POST /v1/ws` + Upgrade 404; OPTIONS ön kontrolü + Upgrade 204. 35 sn (ping aralığından uzun) sonra `/health` 200; warn/error günlüğünde yalnız önceden var olan "yönetici girişi kapalı" uyarısı.
+- Site (Next 16.3.6 standalone, 3100): düz HEAD `/` 200; Upgrade'li HEAD ve GET `/`, GET `/havalimanlari` → curl 52 (boş yanıt); GET `/olmayan-yol-xyz` ve `/_next/static/nope.js` → curl 28 (10 sn'de yanıt yok); `--max-time 200` ile de 200 sn boyunca yanıt gelmedi, soket açık kaldı.
+- `npx vitest run src/live/ws-upgrade.test.ts src/net/legacy-host.test.ts` → 16/16. Düzeltmenin iki katmanı ayrı ayrı geri alınınca: yol düzeltmesi yokken 9/10 düşer ve vitest `client.socket.ping is not a function` yakalanmayan hatasını raporlar; sunucu seçeneği yokken 7/10 düşer.
+- `pnpm ci:full` (2026-10-15, Docker'da `dev:infra`, `db:migrate` sonrası) → çıkış 0: `ci:local` (format, EOL, `changelog:check` v0.25.2, `typecheck:scripts`, `typecheck:e2e`, `lint:e2e`, `db:check`, `test:scripts` 39, turbo lint/typecheck/test/build 31/31; testler web 973, shared 765, tools 383, api 314 (yeni 10), worker 304, providers 135, i18n 101, db 85, geo 36), `compose:guard`, `test:integration` (db 109, api 31, worker 18, tools 14), `test:migration-upgrade` (8 → 8), `test:e2e` 144 passed (6,8 dk).
+
+## M6e.17 — Havalimanları tek ayar: Gizle / Simge / Simge ve kod (D-114)
 Onay: 2026-10-15 (kullanıcı istekleri: "havalimanı ikonlarını da gizlenebilir yap." ve, iki ayrı satırlı ilk planı görünce, "etiket kısmında Havalimanı simgeleri ve etiketlerini toplu halde bir yerde göster. aç kapa ayrı ayrı olmasın.")
 
 İlk istek D-084'ün "pin kalır" kuralını kaldırır (kullanıcı kuralı 2026-10-03: etiket gizlenince kırmızı noktalar kalır); ikinci istek ilk tasarımı (ayrı "Havalimanı simgeleri" Gizle / Göster satırı, simgeler gizliyken kapanan "Havalimanları" Gizle / Kod satırı; 16c0e15, e0b68a7) tek satıra indirir. Seçeneklerin adı, sırası, eski kaydın çevrimi ve iki istisna orkestratör kararıdır (D-113; itiraz edilebilir).

@@ -4,9 +4,10 @@ import type { Env } from '../env'
 
 /**
  * Upgrade isteği mi: `Upgrade` başlığı var (`websocket`, `h2c` ya da bilinmeyen bir belirteç).
- * Sunucuda bir `upgrade` dinleyicisi olduğu için (`@fastify/websocket`) Node `Connection: Upgrade`
- * taşıyan her isteği `upgrade` olayına ayırır: soket HTTP sunucusundan kopar, zaman aşımları işlemez
- * ve yanıt bitince kendiliğinden kapanmaz. Başlık, `injectWS`'in sahte isteğini de kapsar.
+ * Node canlı veri el sıkışmasını (`GET /v1/ws`) `upgrade` olayına ayırır (`isLiveWsUpgrade`,
+ * D-113): soket HTTP sunucusundan kopar, zaman aşımları işlemez ve yanıt bitince kendiliğinden
+ * kapanmaz. Öbür yükseltme istekleri sıradan HTTP isteğidir; bağlantıları da yanıttan sonra kapanır
+ * (`Connection: close`). Başlık, `injectWS`'in sahte isteğini de kapsar.
  */
 function isUpgradeRequest(request: FastifyRequest): boolean {
   return request.headers.upgrade !== undefined
