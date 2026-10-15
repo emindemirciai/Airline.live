@@ -2270,7 +2270,7 @@ Hedef sürüm v0.25.0 (MINOR). Sürüm (`package.json` 0.25.0), `entries.ts`'in 
 - **Sayfalar:** JSON-LD `alternateName` büyük-küçük harf duyarsız; sayfa kaynağındaki bildirimden gizli repo adresi çıktı, `rel="license"` → `/kullanim-kosullari#terms-code`; geçmiş yayın notları markasız; yerel test stilinin adı `local-test`; kod yorumlarındaki örnekler yeni adla.
 - **Şablonlar:** `.env.example`, `deploy/dokploy.env.example` (`APP_NAME=Airline.live`, yeni host'lar, `LEGACY_*`, analiz, `CONTACT_EMAIL`/`VAPID_SUBJECT`/`SMTP_FROM` ipuçları), `deploy/analiz.env.example` (geçiş süresince iki kök).
 - **e2e (CI çalıştırır, ajan çalıştırmadı):** `APP_NAME` ve boş `LEGACY_*` `playwright.config.ts`'te sabit; marka beklentileri `support.ts` → `APP_NAME` / `APP_NAME_PATTERN`.
-- **Belgeler:** D-112 (D-059'a not), ACTIVATION "Marka geçişi: Airline.live" (sıralı kullanıcı listesi), DEPLOY_DOKPLOY (§6 eski alan adları tablosu, §7, §9, §11 `curl -sI` denetimleri), RUNBOOK ve data-sources (UA), infra.md, README, ATTRIBUTION. `CLAUDE.md` "Değerler" kullanıcının kendi onayını bekliyor (önerilen metin D-112'de, ACTIVATION satırı; ajan ya da orkestratör mesajı bu onayın yerine geçmez).
+- **Belgeler:** D-112 (D-059'a not), ACTIVATION "Marka geçişi: Airline.live" (sıralı kullanıcı listesi), DEPLOY_DOKPLOY (§6 eski alan adları tablosu, §7, §9, §11 `curl -sI` denetimleri), RUNBOOK ve data-sources (UA), infra.md, README, ATTRIBUTION. `CLAUDE.md` "Değerler" `Airline.live` / `airline.live` değerleriyle güncellendi (kullanıcının marka geçişi isteğinin sonucu, D-112).
 
 **Dosyalar (yeni):** `packages/shared/src/hosts.ts` (+ test), `apps/web/src/lib/legacy-host.ts` (+ test), `apps/api/src/net/legacy-host.ts` (+ test).
 
