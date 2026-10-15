@@ -6,16 +6,16 @@ vi.mock('server-only', () => ({}))
 
 describe('siteOgContent / siteOgVersion (paylaşım görselinin adres sürümü, D-106)', () => {
   it('içerik ad, alan adı ve iki dildeki kısa tanımdır', () => {
-    expect(siteOgContent('havayolu', 'havayolu.live')).toEqual({
+    expect(siteOgContent('havayolu', 'airline.live')).toEqual({
       name: 'havayolu',
-      host: 'havayolu.live',
+      host: 'airline.live',
       taglineTr: getMessages('tr').seo.ogTagline,
       taglineEn: getMessages('en').seo.ogTagline,
     })
   })
 
   it('aynı içerik aynı sürümü verir; herhangi bir alan değişince sürüm değişir', () => {
-    const base = siteOgContent('havayolu', 'havayolu.live')
+    const base = siteOgContent('havayolu', 'airline.live')
     const version = siteOgVersion(base)
     expect(version).toMatch(/^[0-9a-f]{8}$/)
     expect(siteOgVersion({ ...base })).toBe(version)

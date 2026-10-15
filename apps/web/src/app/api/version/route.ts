@@ -1,12 +1,12 @@
 import { currentVersion } from '@havayolu/shared'
-import { getServerEnv } from '@/lib/env'
+import { appName, getServerEnv } from '@/lib/env'
 
 export const dynamic = 'force-dynamic'
 
 export function GET() {
   const env = getServerEnv()
   return Response.json({
-    app: 'havayolu',
+    app: appName(env),
     version: currentVersion(),
     gitSha: env.GIT_SHA,
     buildTime: env.BUILD_TIME ?? null,

@@ -6,6 +6,7 @@ import { expect, test as setup } from '@playwright/test'
 import {
   AIRPORT_COUNT,
   API_URL,
+  APP_NAME,
   LISTED_AIRPORT_COUNT,
   PRIMARY_AIRPORT,
   PRIMARY_WEATHER,
@@ -13,12 +14,12 @@ import {
   RING1_AIRPORT,
 } from '../support'
 
-setup('uygulama havayolu ve replay verisi API’de', async ({ request }) => {
+setup('uygulama bu proje ve replay verisi API’de', async ({ request }) => {
   setup.setTimeout(240_000)
   const version = await request.get('/api/version')
   expect(version.status(), 'GET /api/version').toBe(200)
   const body = (await version.json()) as { app?: unknown }
-  expect(body.app, '3100 portundaki uygulama').toBe('havayolu')
+  expect(body.app, '3100 portundaki uygulama').toBe(APP_NAME)
 
   await expect
     .poll(

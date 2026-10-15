@@ -8,7 +8,29 @@
 
 ---
 
-## v0.24.0 — 2026-10-08
+## v0.25.0 — 2026-10-15
+
+### Türkçe
+**Yeni adımız Airline.live**
+
+- Sitenin adı artık Airline.live, adresi airline.live. Eski adresteki her sayfa, yer imleri ve paylaşılmış bağlantılar dahil, kendiliğinden yeni adresteki aynı sayfaya gider; Türkçe sayfalar kökte, İngilizceleri /en altında kalır.
+- Yeni adreste analiz onayı bir kez yeniden sorulur ve haritanın etiket ve liste ayarları varsayılana döner; istediğin gibi yeniden seçebilirsin. Yöneticiler panele yeni adresten bir kez yeniden giriş yapar.
+- Eski adreste açık kalmış bir sekmede canlı uçaklar durursa sayfayı bir kez yenile; sayfa yeni adreste açılır ve akış sürer.
+
+Dene: [Canlı harita](/) · [Kullanım koşulları](/kullanim-kosullari)
+
+### English
+**Our new name is Airline.live**
+
+- The site is now called Airline.live and lives at airline.live. Every page on the old address, bookmarks and shared links included, takes you to the same page at the new address; Turkish pages stay at the root and English ones under /en.
+- On the new address the analytics consent banner asks once more, and the map’s label and list settings go back to their defaults; you can pick them again. Admins sign in to the panel once more at the new address.
+- If live aircraft stop moving in a tab left open on the old address, reload the page once; it opens at the new address and the feed carries on.
+
+Try it: [Live map](/) · [Terms of use](/kullanim-kosullari)
+
+---
+
+## v0.24.0 — 2026-10-14 20:57 (UTC+3)
 
 ### Türkçe
 **5. halkaya hazırlık: saat dilimleri ve eski kodlar**
@@ -367,7 +389,7 @@ Try it: [What’s new](/yenilikler)
 
 - Türkiye’deki en yakın havalimanına 500 ile 1.000 km arasındaki 89 havalimanı eklendi: Kahire, İskenderiye, Belgrad, Budapeşte, Bükreş, Kişinev, Tiran, Korfu, Kuveyt, Tahran ve diğerleri. Her birinin Türkçe adı, sayfası, pistleri, canlı hava durumu ve yerel saati var. Listede artık 225 havalimanı var.
 - Liste sayfasındaki başlık artık “Türkiye dışındaki havalimanları”. İskenderiye’nin kaynaktaki hatalı kodu düzeltildi (HEBA), boş yinelenen pist satırları gösterilmiyor.
-- Haritanın alt köşesindeki atıf şeridi artık “havayolu” ve sitenin sürümüyle başlıyor; tıklayınca Yenilikler açılır. Uydu görüntüsü (Esri) ve canlı uçuş verisi (ADSB.lol) atıfları lisans gereği yerinde kalıyor.
+- Haritanın alt köşesindeki atıf şeridi artık sitenin adı ve sürümüyle başlıyor; tıklayınca Yenilikler açılır. Uydu görüntüsü (Esri) ve canlı uçuş verisi (ADSB.lol) atıfları lisans gereği yerinde kalıyor.
 - Havalimanı sayfasının uzman bölümünde yalnızca yürürlükteki TAF tahminleri gösterilir; eskileri METAR/TAF kaydında kalır.
 
 Dene: [Havalimanları](/havalimanlari) · [Kahire Havalimanı](/istasyon/HECA)
@@ -377,7 +399,7 @@ Dene: [Havalimanları](/havalimanlari) · [Kahire Havalimanı](/istasyon/HECA)
 
 - Added 89 airports between 500 and 1,000 km from the nearest airport in Türkiye: Cairo, Alexandria, Belgrade, Budapest, Bucharest, Chișinău, Tirana, Corfu, Kuwait, Tehran and others. Each has its page, runways, live weather and local time. The list now holds 225 airports.
 - The list page heading is now “Airports outside Türkiye”. Alexandria’s wrong code in the source data is corrected (HEBA), and empty duplicate runway rows are hidden.
-- The attribution strip at the bottom of the map now starts with “havayolu” and the site version, linking to What’s new. The satellite imagery (Esri) and live flight data (ADSB.lol) credits stay, as their licences require.
+- The attribution strip at the bottom of the map now starts with the site name and version, linking to What’s new. The satellite imagery (Esri) and live flight data (ADSB.lol) credits stay, as their licences require.
 - The expert section of the airport page shows only TAFs still in force; older ones remain in the METAR/TAF log.
 
 Try it: [Airports](/havalimanlari) · [Cairo Airport](/istasyon/HECA)
@@ -431,14 +453,14 @@ Try it: [Live map](/?havalimani=LTFM)
 ### Türkçe
 **Yeni logo: halkanın içinden geçen uçak**
 
-- havayolu’nun yeni logosu: turkuaz halkanın içinden 45° açıyla geçen, yukarıdan görünen çift motorlu bir yolcu uçağı. Sitenin başlığında, tarayıcı sekmesinde, telefona eklenen uygulama simgesinde ve paylaşım görsellerinde aynı logo var; küçük boyutlarda turkuaz daire içinde beyaz uçak olarak sadeleşir.
+- Sitenin yeni logosu: turkuaz halkanın içinden 45° açıyla geçen, yukarıdan görünen çift motorlu bir yolcu uçağı. Sitenin başlığında, tarayıcı sekmesinde, telefona eklenen uygulama simgesinde ve paylaşım görsellerinde aynı logo var; küçük boyutlarda turkuaz daire içinde beyaz uçak olarak sadeleşir.
 
 Dene: [Ana sayfa](/)
 
 ### English
 **New logo: a plane flying through the ring**
 
-- havayolu has a new logo: a top-down twin-engine airliner flying at 45° through the turquoise ring. The same logo appears in the site header, the browser tab, the app icon on your phone and share images; at small sizes it simplifies to a white plane in a turquoise disc.
+- The site has a new logo: a top-down twin-engine airliner flying at 45° through the turquoise ring. The same logo appears in the site header, the browser tab, the app icon on your phone and share images; at small sizes it simplifies to a white plane in a turquoise disc.
 
 Try it: [Home](/)
 
@@ -758,8 +780,8 @@ Try it: [Roadmap](/durum)
 - Havayolu listesi, AJet dahil güncel ICAO ve IATA kodlarıyla, sefer numarasıyla arama için hazır.
 - Veriler her gün kendiliğinden güncelleniyor ve yalnızca değişen kayıtlar yazılıyor. Kaynak bozuk ya da yarım gelirse eldeki veri korunuyor.
 - Uçuş izlerinin saklanacağı yer hazır: 30 saniyelik iz 7 gün, tam çözünürlüklü iz 30 gün tutulacak. Süresi dolan günler her gece kendiliğinden siliniyor.
-- Yönetim panelindeki Servisler sayfası (admin.havayolu.live) artık referans verisinin ve iz tablolarının durumunu da gösteriyor.
-- Yönetim panelinin adresi (admin.havayolu.live) doğrudan açıldığında hata veriyordu; artık giriş sayfasına yönlendiriyor.
+- Yönetim panelindeki Servisler sayfası artık referans verisinin ve iz tablolarının durumunu da gösteriyor.
+- Yönetim panelinin adresi doğrudan açıldığında hata veriyordu; artık giriş sayfasına yönlendiriyor.
 - Her sürüm artık GitHub’daki Releases bölümünde de sürüm notlarıyla yayımlanıyor; önceki sürümler de eklendi.
 
 ### English
@@ -770,8 +792,8 @@ Try it: [Roadmap](/durum)
 - The airline list, with current ICAO and IATA codes including AJet, is ready for flight number search.
 - The data updates itself every day and only changed records are written. If a source arrives broken or incomplete, the existing data is kept.
 - Storage for flight tracks is ready: the 30-second track will be kept for 7 days and the full-resolution track for 30 days. Expired days are deleted automatically every night.
-- The Services page in the admin panel (admin.havayolu.live) now also shows the status of the reference data and the track tables.
-- Opening the admin panel address (admin.havayolu.live) directly showed an error; it now redirects to the sign-in page.
+- The Services page in the admin panel now also shows the status of the reference data and the track tables.
+- Opening the admin panel address directly showed an error; it now redirects to the sign-in page.
 - Every version is now also published with its release notes under Releases on GitHub; earlier versions were added too.
 
 ---
@@ -783,14 +805,14 @@ Try it: [Roadmap](/durum)
 
 - Onaylanan her değişiklik testlerden geçtikten sonra kendiliğinden yayına çıkacak: uygulama derlenir, sunucuya gönderilir ve yeni sürümün gerçekten açıldığı kontrol edilir. Açılmazsa yayın başarısız sayılır ve haber verilir.
 - Bir sorun olursa önceki sürüme tek komutla dönülebiliyor; veriler korunuyor.
-- Sunucu kurulum rehberi hazır. Kurulum tamamlanınca havayolu.live yayına açılacak.
+- Sunucu kurulum rehberi hazır. Kurulum tamamlanınca site yayına açılacak.
 
 ### English
 **Automatic, verified release pipeline**
 
 - Every approved change will go live on its own once the tests pass: the app is built, sent to the server, and the new version is checked to be actually running. If it is not, the release is marked failed and reported.
 - If something goes wrong, the previous version can be restored with a single command; data is kept.
-- The server setup guide is ready. havayolu.live goes live once the setup is done.
+- The server setup guide is ready. The site goes live once the setup is done.
 
 ---
 
@@ -802,7 +824,7 @@ Try it: [Roadmap](/durum)
 - Yönetici girişi artık başka birinin yanlış denemeleriyle kilitlenemiyor: deneme sınırı herkes için ayrı tutuluyor. Durum sayfası çok ziyaret edildiğinde sunucu diğer kullanıcılara kapanmıyor.
 - Sunucu, geçici bir önbellek kesintisinde de çalışmaya devam ediyor; ilk kurulumda veritabanı hazır olmadan başlamıyor.
 - Yönetim panelinde dil değiştirme düğmesi düzeldi.
-- Kaynak kodu herkese açık ve MIT lisanslı. Sayfa kaynağında sahiplik ve lisans bildirimi yer alıyor; havayolu adı ve logosu lisans kapsamı dışında, hakları saklı.
+- Kaynak kodu herkese açık ve MIT lisanslı. Sayfa kaynağında sahiplik ve lisans bildirimi yer alıyor; sitenin adı ve logosu lisans kapsamı dışında, hakları saklı.
 
 ### English
 **Safer sign-in, sturdier server, open source**
@@ -810,23 +832,23 @@ Try it: [Roadmap](/durum)
 - Admin sign-in can no longer be locked by someone else's failed attempts: the attempt limit is kept per visitor. The server no longer shuts out other users when the status page gets heavy traffic.
 - The server keeps running through a brief cache outage and no longer starts before the database is ready on first setup.
 - The language switch now works in the admin panel.
-- The source code is public under the MIT License. The page source carries an ownership and license notice; the havayolu name and logo are outside the license, rights reserved.
+- The source code is public under the MIT License. The page source carries an ownership and license notice; the site’s name and logo are outside the license, rights reserved.
 
 ---
 
 ## v0.3.1 — 2026-09-25 21:19 (UTC+3)
 
 ### Türkçe
-**Yeni adımız havayolu, adresimiz havayolu.live**
+**Sitenin adı ve adresi belirlendi**
 
-- Uygulamanın adı havayolu oldu. Web sitesi havayolu.live, yönetim paneli admin.havayolu.live, sunucu api.havayolu.live, analiz paneli analiz.havayolu.live adresinde yayına alınacak.
-- www.havayolu.live adresine gelen ziyaretçiler otomatik olarak havayolu.live adresine yönlendirilir.
+- Uygulamanın adı ve alan adı belirlendi. Web sitesi, yönetim paneli, sunucu ve analiz paneli bu alan adının altında yayına alınacak.
+- Adresin www ile başlayan biçimine gelen ziyaretçiler otomatik olarak sitenin ana adresine yönlendirilir.
 
 ### English
-**Our new name is havayolu, at havayolu.live**
+**The site’s name and address are set**
 
-- The app is now called havayolu. The website will go live at havayolu.live, the admin panel at admin.havayolu.live, the server at api.havayolu.live and the analytics panel at analiz.havayolu.live.
-- Visitors to www.havayolu.live are redirected to havayolu.live automatically.
+- The app’s name and domain are set. The website, the admin panel, the server and the analytics panel will go live under this domain.
+- Visitors to the www address are redirected to the site’s main address automatically.
 
 ---
 

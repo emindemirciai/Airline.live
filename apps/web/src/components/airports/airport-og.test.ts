@@ -35,9 +35,9 @@ describe('airportOgContent', () => {
   it('kodlar, resmî Türkçe ad, il ve alan adı (dilden bağımsız)', () => {
     const ltfj = AIRPORTS.find((a) => a.icao === 'LTFJ')
     expect(ltfj).toBeDefined()
-    expect(airportOgContent(ltfj!, 'havayolu', 'havayolu.live')).toEqual({
+    expect(airportOgContent(ltfj!, 'havayolu', 'airline.live')).toEqual({
       app: 'havayolu',
-      host: 'havayolu.live',
+      host: 'airline.live',
       codes: 'SAW · LTFJ',
       name: 'İstanbul Sabiha Gökçen Uluslararası Havalimanı',
       location: 'İstanbul, Türkiye',
@@ -107,7 +107,7 @@ function glyphCover(contents: readonly AirportOgContent[]): AirportOgContent[] {
 
 describe('renderAirportOgPng', () => {
   const contents = [...AIRPORTS, ...FOREIGN].map((airport) =>
-    airportOgContent(airport, 'havayolu', 'havayolu.live'),
+    airportOgContent(airport, 'havayolu', 'airline.live'),
   )
   const sample = glyphCover(contents)
 

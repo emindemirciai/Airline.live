@@ -73,7 +73,7 @@ describe('isLocalHostname ve userAgentWebHost', () => {
     for (const host of ['localhost', 'LOCALHOST', '127.0.0.1', '::1', '[::1]']) {
       expect(isLocalHostname(host)).toBe(true)
     }
-    for (const host of ['havayolu.live', '127.0.0.2', '0.0.0.0', 'localhost.example', '']) {
+    for (const host of ['airline.live', '127.0.0.2', '0.0.0.0', 'localhost.example', '']) {
       expect(isLocalHostname(host)).toBe(false)
     }
   })
@@ -85,7 +85,7 @@ describe('isLocalHostname ve userAgentWebHost', () => {
     expect(userAgentWebHost('http://localhost:3100')).toBeNull()
     expect(userAgentWebHost(undefined)).toBeNull()
     expect(userAgentWebHost('  ')).toBeNull()
-    expect(userAgentWebHost('havayolu.live')).toBe('havayolu.live')
+    expect(userAgentWebHost('airline.live')).toBe('airline.live')
     expect(userAgentWebHost(' havayolu.example:8443 ')).toBe('havayolu.example:8443')
   })
 

@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:1.7
-# havayolu web imajı (Next.js standalone). Derleme bağlamı: repo kökü.
+# Airline.live web imajı (Next.js standalone). Derleme bağlamı: repo kökü.
 FROM node:24-slim AS base
 ENV CI=true NEXT_TELEMETRY_DISABLED=1
 RUN npm install -g pnpm@12.6.0 turbo@2.11.3 && npm cache clean --force

@@ -15,6 +15,7 @@ import {
 } from '@havayolu/db'
 import { coveragePlan, type PlannedCircle } from '@havayolu/geo/coverage'
 import { ADSBLOL_BASE_URL } from '@havayolu/providers'
+import { DEFAULT_APP_NAME } from '@havayolu/shared'
 import { EnvError, parseEnv, type Env } from '@havayolu/worker/env'
 import {
   startIngest,
@@ -609,7 +610,7 @@ export function smokePlanLines(config: SmokeConfig): string[] {
       : plan.map((c) => `${pointPath(c.center.lat, c.center.lon, c.radiusNm)} (${circleLabel(c)})`)
 
   const lines = [
-    `smoke:live planı · ${env?.APP_NAME ?? 'havayolu'} ${config.version} (canlı istek atılmadı)`,
+    `smoke:live planı · ${env?.APP_NAME ?? DEFAULT_APP_NAME} ${config.version} (canlı istek atılmadı)`,
     `  Ne çalışır: worker'ın ingest'i (startIngest) bu süreçte ${duration}; ≈${estimateSmokeRequests(
       config.durationMs,
       rps,

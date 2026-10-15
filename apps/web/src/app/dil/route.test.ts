@@ -42,7 +42,7 @@ describe('GET /dil', () => {
       expect(target, query).toBe(expected)
       // Tarayıcı `//host` ve `/\host` biçimini şemasız dış adres sayar.
       expect(target, query).toMatch(/^\/(?![/\\])/)
-      expect(new URL(target, 'https://havayolu.live').host, query).toBe('havayolu.live')
+      expect(new URL(target, 'https://airline.live').host, query).toBe('airline.live')
     }
   })
 
@@ -53,12 +53,12 @@ describe('GET /dil', () => {
     )
     // Tam genişlikli bölü (U+FF0F) kodlanır; adres site içinde kalır.
     const target = location('?next=/%EF%BC%8Fevil.example')
-    expect(new URL(target, 'https://havayolu.live').host).toBe('havayolu.live')
+    expect(new URL(target, 'https://airline.live').host).toBe('airline.live')
   })
 
   it('iki kez kodlanmış bölü işareti site içinde kalır', () => {
     const target = location('?next=/en/%252F%252Fevil.example')
-    expect(new URL(target, 'https://havayolu.live').host).toBe('havayolu.live')
+    expect(new URL(target, 'https://airline.live').host).toBe('airline.live')
   })
 
   it('üretimde silinen çerez Secure taşır', () => {

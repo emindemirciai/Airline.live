@@ -32,23 +32,23 @@ describe('parseHexParam', () => {
 describe('hexUrl', () => {
   it('hex’i ekler ya da değiştirir; diğer parametreleri ve # kısmını korur', () => {
     expect(hexUrl('http://localhost:3100/', 'ff0001')).toBe('/?hex=ff0001')
-    expect(hexUrl('https://havayolu.live/?hex=aaaaaa&x=1#labels', '4bb1c5')).toBe(
+    expect(hexUrl('https://airline.live/?hex=aaaaaa&x=1#labels', '4bb1c5')).toBe(
       '/?hex=4bb1c5&x=1#labels',
     )
-    expect(hexUrl('https://havayolu.live/en?lang=en', '~ab12cd')).toBe('/en?lang=en&hex=%7Eab12cd')
+    expect(hexUrl('https://airline.live/en?lang=en', '~ab12cd')).toBe('/en?lang=en&hex=%7Eab12cd')
   })
 
   it('İngilizce sayfada /en önekini korur', () => {
     expect(hexUrl('http://localhost:3100/en', 'ff0001')).toBe('/en?hex=ff0001')
-    expect(hexUrl('https://havayolu.live/en?hex=ff0001', null)).toBe('/en')
-    expect(hexUrl('https://havayolu.live/en?havalimani=LTFM', '4bb1c5')).toBe(
+    expect(hexUrl('https://airline.live/en?hex=ff0001', null)).toBe('/en')
+    expect(hexUrl('https://airline.live/en?havalimani=LTFM', '4bb1c5')).toBe(
       '/en?havalimani=LTFM&hex=4bb1c5',
     )
   })
 
   it('null ile hex’i kaldırır', () => {
-    expect(hexUrl('https://havayolu.live/?hex=ff0001', null)).toBe('/')
-    expect(hexUrl('https://havayolu.live/?x=1&hex=ff0001#a', null)).toBe('/?x=1#a')
+    expect(hexUrl('https://airline.live/?hex=ff0001', null)).toBe('/')
+    expect(hexUrl('https://airline.live/?x=1&hex=ff0001#a', null)).toBe('/?x=1#a')
   })
 })
 

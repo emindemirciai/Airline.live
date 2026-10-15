@@ -2,7 +2,7 @@
 // uymasını isteyen bir maddeyi ister: sayfa açılır, madde ve belgeler oradadır, bağlantı haritanın
 // atıf satırında ve site alt bilgisinde her zaman görünür.
 import { expect, test } from '@playwright/test'
-import { declineAnalytics, openMap } from '../support'
+import { APP_NAME_PATTERN, declineAnalytics, openMap } from '../support'
 
 const TERMS_PATH = '/kullanim-kosullari'
 const ESRI_CLAUSE = 'Haritayı kullanarak Esri’nin geçerli koşullarına uymayı kabul edersin'
@@ -20,7 +20,7 @@ test('kullanım koşulları sayfası 200 döner ve Esri maddesini içerir', asyn
   expect(await response.text()).toContain(ESRI_CLAUSE)
 
   await page.goto(TERMS_PATH)
-  await expect(page).toHaveTitle(/^Kullanım koşulları · havayolu$/)
+  await expect(page).toHaveTitle(new RegExp(`^Kullanım koşulları · ${APP_NAME_PATTERN}$`))
   await expect(page.getByRole('heading', { level: 1, name: 'Kullanım koşulları' })).toBeVisible()
   await expect(page.getByText(ESRI_CLAUSE)).toBeVisible()
   await expect(

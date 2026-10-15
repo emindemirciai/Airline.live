@@ -172,6 +172,8 @@ describe('ilk paket: ülke adlarının yerleşim tablosu dinamik parçada (D-100
       '.': './src/index.ts',
       './country-label-placements': './src/map/country-label-placements.ts',
       './country-label-points': './src/map/country-label-points.ts',
+      // Host kuralları (D-112): proxy ana girişin bütün tablolarını yüklemesin diye ayrı giriş.
+      './hosts': './src/hosts.ts',
     })
   })
 })
