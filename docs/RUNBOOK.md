@@ -84,3 +84,16 @@ Toplu önbellek dosyalarına (`/data/cache/…`) ya da başka bir hava durumu ka
 - `icaoCollisions`: aynı kanonik ICAO'yu taşıyan ikinci aday satır (`listedEntries` en küçük kimliklisini gösterir, öbürü görünmez). Kaynak düzeltmesi (`OURAIRPORTS_ICAO_CORRECTIONS`) gerekebilir.
 
 **Kontrol:** hiçbiri acil değildir; kullanıcıya dönük her durumun güvenli bir yedeği vardır; tek istisna, çok dilimli bir ülkede yeni listelenen havalimanının bölge varsayılanıyla yanlış dilim almasıdır (`withoutCuratedName` örneklerini dilim için de denetle). Satır takma ad çakışmasını da saymaz: `IDENT_ALIAS_EXCLUSIONS` fixture tazelenirken üreticinin sayımıyla denetlenir (D-109). Satırı haftada bir oku; sayı büyürse (özellikle 5. halka açıldıktan sonra) kuralı ekleyen küçük bir yama aç. Kodda yeni kural eklemek üretim verisine dokunmayı gerektirmez.
+
+## Dokploy env'i değişince bütün site kapandı (`hy-migrate`: "password authentication failed")
+**Belirti:** Dokploy'da Environment değiştirilip yeniden deploy edildikten sonra her host (site, API, admin) Traefik'in `404 page not found` yanıtını verir. `hy-migrate` logunda `password authentication failed for user <ad>` var; ona bağlı servisler (`hy-api`, `hy-web`, iki worker) hiç açılmaz.
+
+**Neden:** `POSTGRES_DB`, `POSTGRES_USER` ya da `POSTGRES_PASSWORD` değişti. Postgres bu değerleri yalnızca boş volume'u ilk açarken kullanır; sonradan değişen ad ya da parola mevcut veritabanında yoktur ve her bağlantı reddedilir. Servisler açılmadığı için Traefik'in yönlendireceği bir hedef kalmaz ve 404 döner. 2026-10-15'te marka geçişinde Environment'ta "havayolu" "airline" ile değiştirilince olan budur (D-112; site ~1 sa kapalı kaldı, veri kaybı olmadı).
+
+**Çözüm:**
+1. Dokploy → `havayolu` Compose → Environment'ta `POSTGRES_DB=havayolu` ve `POSTGRES_USER=havayolu` yaz; `POSTGRES_PASSWORD` ilk kurulumda girilen parola olmalı (parola yöneticinde).
+2. O deploy'da başka satırlar da değiştiyse ve neyin bozduğu belli değilse onları da önceki değerlerine döndür (marka geçişinde: `APP_NAME`, `WEB_HOST`, `API_HOST`, `ADMIN_HOST`; `LEGACY_*` satırlarını sil).
+3. Kaydet ve yeniden deploy et. `hy-migrate` bitince servisler açılır; doğrulama: `curl -s https://api.airline.live/version` (geçişten önce `https://api.havayolu.live/version`) ve admin → Servisler.
+4. Volume'u silme: içinde üretim verisi var. DEPLOY_DOKPLOY §12'deki "volume'u sil" adımı yalnız henüz hiç veri yokken geçerlidir.
+
+**Önlem:** `POSTGRES_*`, Redis parolaları, `ADMIN_SETUP_TOKEN`, `IMAGE_TAG` ve `MEM_LIMIT_*` satırları marka ya da alan adı değişince de aynen kalır; Environment'ta bul-değiştir yapılmaz (`deploy/dokploy.env.example` başlığı, ACTIVATION → "(b2) satır satır").

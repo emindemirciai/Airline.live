@@ -107,6 +107,7 @@ GHCR paketleri şu an herkese açıktır ve Dokploy onları girişsiz çeker (20
      ```
 
 4. **Kopyalama:** `.env.example`'ı kopyalama (D-060). `GIT_SHA` ve `BUILD_TIME` girilmez.
+5. **Bir kez yazılan satırlar:** `POSTGRES_DB`, `POSTGRES_USER` ve `POSTGRES_PASSWORD` ilk deploy'da volume'a yazılır ve bir daha değiştirilmez (marka ya da alan adı değişince de). Değişirse `hy-migrate` veritabanına giremez ve bütün site kapanır (RUNBOOK "Dokploy env'i değişince bütün site kapandı"). Environment'ta bul-değiştir yapma.
 
 ## 6. Alan adları (Domains)
 Compose servisinin Domains sekmesinde her satır için HTTPS açık, sertifika Let's Encrypt:
@@ -126,6 +127,29 @@ Compose servisinin Domains sekmesinde her satır için HTTPS açık, sertifika L
 | `hy-web` | `www.havayolu.live` | 3000 | `https://airline.live` + aynı yol, tek adımda (`LEGACY_WEB_HOSTS`) |
 | `hy-web` | `admin.havayolu.live` | 3000 | `https://admin.airline.live` + aynı yol (`LEGACY_ADMIN_HOSTS`) |
 | `hy-api` | `api.havayolu.live` | 4000 | `https://api.airline.live` + aynı yol (`LEGACY_API_HOSTS`; WebSocket el sıkışması 308 alır, eski sekme yenilenince yeni adrese bağlanır) |
+
+**Geçişte Environment (D-112; ACTIVATION (b2), v0.25.0 yayındayken).** Satır satır değişenler, yalnız bunlar:
+
+- `APP_NAME`: `havayolu` → `Airline.live`
+- `WEB_HOST`: `havayolu.live` → `airline.live`
+- `API_HOST`: `api.havayolu.live` → `api.airline.live`
+- `ADMIN_HOST`: `admin.havayolu.live` → `admin.airline.live`
+- `LEGACY_WEB_HOSTS` (yeni satır): `havayolu.live,www.havayolu.live`
+- `LEGACY_ADMIN_HOSTS` (yeni satır): `admin.havayolu.live`
+- `LEGACY_API_HOSTS` (yeni satır): `api.havayolu.live`
+- `ANALYZE_URL`: `https://analiz.havayolu.live` → `https://analiz.airline.live`
+- `ANALYZE_SITE_ID`: `havayolu.live` → `airline.live`
+- sonra, ayrı adımda ((b2) doğrulandıktan sonra): `CONTACT_EMAIL=info@airline.live`
+
+Aynen kalanlar (dokunma):
+
+- `POSTGRES_DB` ve `POSTGRES_USER` (`havayolu`; iç addır, değişirse veritabanına giriş bozulur ve bütün site kapanır: 2026-10-15 kesintisi, RUNBOOK)
+- `POSTGRES_PASSWORD`, `REDIS_QUEUE_PASSWORD`, `REDIS_LIVE_PASSWORD`, `ADMIN_SETUP_TOKEN`
+- `IMAGE_TAG`
+- bütün `MEM_LIMIT_*` satırları
+- öbür bütün satırlar (`ADMIN_EMAIL`, `ESRI_API_KEY`, arama motoru doğrulamaları, `TRUSTED_PROXY_CIDRS` …)
+
+Environment'ta "havayolu" için bul-değiştir yapılmaz: Compose, servis ve veritabanı adları `havayolu` kalır.
 
 Şimdi Dokploy'dan deploy etme: ilk yayın 10. adımdadır ve alan adlarını da o uygular. Sonrasında alan adı değişiklikleri Dokploy'da Deploy ile ya da `deploy.yml`'yi `dry_run=false` ile yeniden çalıştırarak uygulanır.
 
@@ -236,6 +260,7 @@ Bundan sonra her birleşen PR aynı yolu kendiliğinden izler.
   - SHA, `main`'de deploy işinin imaj derlediği bir commit olmalı (PR dalındaki bir commit değil). İmajlardan biri yoksa hiçbir etiket taşınmaz, iş kırmızı biter.
   - Seçilen imajlar `:main` olur ve aynı doğrulama yapılır.
   - Veritabanı şeması geri alınmaz; şema değişiklikleri geriye uyumludur.
+  - **Eski alan adları (D-112):** `LEGACY_*_HOSTS` girildikten sonra v0.25.0'dan eski bir SHA'ya dönmek eski alan adlarının 308'lerini kapatır (eski imaj listeyi tanımaz, doğrulama yine yeşildir). Mümkünse en az v0.25.0'a geri al; daha eskiye dönmek gerekirse en az v0.25.0 yeniden yayına çıkana kadar eski adresler yönlendirmesiz sunulur (§11'deki dört `curl -sI` satırıyla denetle).
   - Sonraki birleşme, belge değişikliği bile olsa, canlıdan farkı yayınlar ve sorunlu kodu geri getirir. Bu yüzden geri aldıktan sonra sorunlu değişikliği önce bir PR ile geri al (revert).
 - **Parola unutulursa:** Bir parola `#…#` talimatıyla kaldıysa API açılmaz; Dokploy logunda hangisi olduğu yazar.
   - Postgres parolası ilk açılışta veritabanına yazılır. Yanlış girildiyse ve **henüz veri yoksa**:
