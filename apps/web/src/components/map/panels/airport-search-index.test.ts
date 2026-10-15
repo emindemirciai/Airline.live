@@ -11,7 +11,8 @@ import { submitOutcome, type AircraftLookup, type SubmitOutcome } from './search
 
 /**
  * Haritanın listesi: fixture'ın listelenen havalimanları (D-080; askerî üs yok, D-107), 4. halka açık
- * (D-102): 56 Türkiye + 1.161 yurt dışı. Arama 4. halkanın adlarını da kapsar.
+ * (D-102): 56 Türkiye + 1.184 yurt dışı (savaş nedeniyle kapalı 23 havalimanıyla, D-110). Arama 4.
+ * halkanın adlarını da kapsar.
  */
 const AIRPORTS: MapAirport[] = fixtureListedAirports().flatMap((detail) => {
   const airport = toMapAirport(detail)
@@ -26,7 +27,7 @@ const codes = (query: string, search = tr) => search(query).rows.map((row) => ro
 
 describe('havalimanı araması: fixture listesi (D-108)', () => {
   it("liste fixture'ın listelenen havalimanlarıdır", () => {
-    expect(AIRPORTS.length).toBe(1217)
+    expect(AIRPORTS.length).toBe(1240)
   })
 
   it('"ist": önce tam kodla IST, sonra İstanbul havalimanları', () => {

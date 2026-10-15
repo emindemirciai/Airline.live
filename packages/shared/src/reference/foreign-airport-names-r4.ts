@@ -2,9 +2,10 @@ import type { LocalizedText } from '../locale'
 
 /**
  * 4. halkanın (Türkiye'deki IATA kodlu en yakın havalimanına 2.000 km'den uzak, en çok 5.000 km;
- * D-102) 719 yurt dışı havalimanının Türkçe ve İngilizce görünen adları, ICAO koduna göre sıralı
+ * D-102) 720 yurt dışı havalimanının (719 ve savaş nedeniyle kapalı Bukavu, D-110) Türkçe ve
+ * İngilizce görünen adları, ICAO koduna göre sıralı
  * (anahtar listedeki kanonik ICAO'dur; dört karakterli ICAO'su olmayan Kihihi "UG-0002" listede
- * yoktur). `foreign-airport-names.ts` bu tabloyu ve `RING4_AIRPORT_CITIES`'i 1.–3. halkanın 442
+ * yoktur). `foreign-airport-names.ts` bu tabloyu ve `RING4_AIRPORT_CITIES`'i 1.–3. halkanın 464
  * kaydıyla birleştirir; oradaki başlık kuralları (D-080, D-084, D-088, D-090) burada da geçerlidir,
  * aşağıda 4. halkanın eklediği kurallar var. Tablo ayrı dosyadadır: inceleme ve birleştirme
  * kolaylığı (5. halkada aynı desen).
@@ -426,6 +427,7 @@ export const RING4_AIRPORT_NAMES: Readonly<Record<string, LocalizedText>> = {
   FZIC: { tr: 'Kisangani Bangoka Havalimanı', en: 'Bangoka International Airport' },
   FZJH: { tr: 'Isiro Matari Havalimanı', en: 'Matari Airport' },
   FZKA: { tr: 'Bunia Havalimanı', en: 'Bunia Airport' },
+  FZMA: { tr: 'Bukavu Kavumu Havalimanı', en: 'Bukavu Kavumu Airport' },
   FZNA: { tr: 'Goma Havalimanı', en: 'Goma International Airport' },
   FZOA: { tr: 'Kindu Havalimanı', en: 'Kindu Airport' },
   FZRF: { tr: 'Kalemie Havalimanı', en: 'Kalemie Airport' },
@@ -1280,6 +1282,7 @@ export const RING4_AIRPORT_CITIES: LocalizedTable = {
   FZIC: { tr: 'Kisangani', en: 'Kisangani' },
   FZJH: { tr: 'Isiro', en: 'Isiro' },
   FZKA: { tr: 'Bunia', en: 'Bunia' },
+  FZMA: { tr: 'Bukavu', en: 'Bukavu' },
   FZNA: { tr: 'Goma', en: 'Goma' },
   FZOA: { tr: 'Kindu', en: 'Kindu' },
   FZRF: { tr: 'Kalemie', en: 'Kalemie' },

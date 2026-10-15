@@ -1,5 +1,6 @@
 import {
   AIRPORT_RINGS_KM,
+  civilFlightClosure,
   ENABLED_AIRPORT_RING,
   foreignAirportCity,
   foreignAirportName,
@@ -48,20 +49,22 @@ describe('fixture', () => {
     expect(AIRPORTS.every((a) => a.runways.length > 0)).toBe(true)
   })
 
-  it('1.–4. halka: Türkiye dışındaki 1.161 havalimanı 5.000 km içinde, tarifeli ve Türkçe adlı (D-080, D-088, D-090, D-102)', () => {
+  it('1.–4. halka: Türkiye dışındaki 1.184 havalimanı 5.000 km içinde, tarifeli ya da kapanış tablosunda ve Türkçe adlı (D-080, D-088, D-090, D-102, D-110)', () => {
     const ring1 = FOREIGN.filter((a) => a.ring === 1)
     const ring2 = FOREIGN.filter((a) => a.ring === 2)
     const ring3 = FOREIGN.filter((a) => a.ring === 3)
     const ring4 = FOREIGN.filter((a) => a.ring === 4)
-    expect(ring1).toHaveLength(75)
-    expect(ring2).toHaveLength(89)
-    expect(ring3).toHaveLength(278)
-    expect(ring4).toHaveLength(719)
+    expect(ring1).toHaveLength(77)
+    expect(ring2).toHaveLength(104)
+    expect(ring3).toHaveLength(283)
+    expect(ring4).toHaveLength(720)
     expect(FOREIGN).toHaveLength(ring1.length + ring2.length + ring3.length + ring4.length)
-    expect(FOREIGN).toHaveLength(1161)
+    expect(FOREIGN).toHaveLength(1184)
     expect(LISTED).toHaveLength(AIRPORTS.length + FOREIGN.length)
-    expect(LISTED).toHaveLength(1217)
-    expect(FOREIGN.every((a) => a.scheduled)).toBe(true)
+    expect(LISTED).toHaveLength(1240)
+    // Savaş nedeniyle kapalı 23 havalimanı OurAirports'ta tarifesizdir; kapanış tablosuyla listelenir.
+    expect(FOREIGN.every((a) => a.scheduled || civilFlightClosure(a.icao) !== undefined)).toBe(true)
+    expect(FOREIGN.filter((a) => !a.scheduled)).toHaveLength(23)
     expect(ring1.every((a) => (a.distanceToTrKm ?? Infinity) <= 500)).toBe(true)
     // Uzaklık tam km'ye yuvarlıdır, halka tam uzaklıktandır: Ben Gurion 500,44 km → 500, 2. halka.
     expect(ring2.every((a) => (a.distanceToTrKm ?? -1) >= 500)).toBe(true)
@@ -337,6 +340,37 @@ describe('başlık ve açıklama: fixture’daki her havalimanı', () => {
     expect(airportTitle(byIcao('LTFM'), 'en', true)).toBe(
       'Istanbul Airport (IST/LTFM) live air traffic and runways',
     )
+  })
+
+  it('savaş nedeniyle kapalı havalimanı (D-110): başlık canlı trafik vaat etmez, açıklamanın son cümlesi not', () => {
+    // Kamışlı canlı veri çekim alanının içindedir; başlığı yine de canlı trafik vaat etmez.
+    for (const covered of [true, false]) {
+      expect(airportTitle(byIcao('UKBB'), 'tr', covered)).toBe(
+        'Kiev Borispil Havalimanı (KBP/UKBB): pistler ve havalimanı bilgileri',
+      )
+      expect(
+        airportTitle(byIcao('OSKL'), 'en', covered).endsWith(
+          ' (KAC/OSKL): runways and airport information',
+        ),
+      ).toBe(true)
+    }
+    expect(airportTitle(byIcao('UKBB'), 'en', true)).toBe(
+      'Boryspil International Airport (KBP/UKBB): runways and airport information',
+    )
+    expect(airportDescription(byIcao('UKBB'), 'tr', false)).toBe(
+      'Kiev Borispil Havalimanı, Ukrayna: 2 pist, en uzunu 4.000 m; rakım 130 m. Savaş nedeniyle sivil uçuşlara kapalı (2022’den beri).',
+    )
+    expect(airportDescription(byIcao('UKBB'), 'en', true)).toBe(
+      'Boryspil International Airport, Ukraine: 2 runways, longest 4,000 m; elevation 130 m. Closed to civil flights because of the war (since 2022).',
+    )
+    expect(
+      airportDescription(byIcao('OSKL'), 'tr', true).endsWith(
+        '. Savaş nedeniyle sivil uçuşlara kapalı olabilir (2024’ten beri).',
+      ),
+    ).toBe(true)
+    expect(airportDescription(byIcao('OSKL'), 'tr', true)).not.toMatch(/Çevredeki uçaklar/)
+    // Yeniden açılan Krasnodar olağan kalıpla.
+    expect(airportTitle(byIcao('URKK'), 'tr', true)).toMatch(/canlı hava trafiği ve pistler$/)
   })
 
   it('çekim alanının dışındaki havalimanının başlığı canlı trafik vaat etmez (Viyana, Hakkari Yüksekova; D-106)', () => {

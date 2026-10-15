@@ -270,10 +270,18 @@ describe('isIndexable ve isMonitoredStation', () => {
     ).toBe(true)
   })
 
-  it('yakın ülkelerdeki listelenen havalimanları aday kuralı gereği tarifelidir ve dizine girer', () => {
+  it('yakın ülkelerdeki listelenen havalimanları aday kuralı gereği tarifeli ya da kapanış tablosundadır ve dizine girer (D-110)', () => {
     const foreign = fixtureListedAirports().filter((airport) => airport.country !== 'TR')
     expect(foreign.length).toBeGreaterThan(70)
     expect(foreign.every(isIndexable)).toBe(true)
+    // Savaş nedeniyle kapalı 23 havalimanı OurAirports'ta tarifesizdir; kapanış tablosu "arkasında
+    // durabildiğimiz veri"dir (D-076), sayfa tarife vaat etmez.
+    const unscheduled = foreign.filter((airport) => !airport.scheduled)
+    expect(unscheduled).toHaveLength(23)
+    expect(unscheduled.map((airport) => airport.icao)).toEqual(
+      expect.arrayContaining(['UKBB', 'UKLL', 'URRP', 'FZMA']),
+    )
+    expect(unscheduled.every(isIndexable)).toBe(true)
   })
 
   it('OurAirports tarifeli bayrağı tek ölçüt değildir: resmî adı doğrulanan sivil havalimanı dizine girer', () => {

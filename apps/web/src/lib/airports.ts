@@ -1,7 +1,12 @@
 import 'server-only'
 import { distanceKm } from '@havayolu/geo'
 import { coveragePlan, planCoversPoint, type PlannedCircle } from '@havayolu/geo/coverage'
-import { airportNameSource, type AirportDetail, type AirportNameSource } from '@havayolu/shared'
+import {
+  airportNameSource,
+  civilFlightClosure,
+  type AirportDetail,
+  type AirportNameSource,
+} from '@havayolu/shared'
 import { cache } from 'react'
 import { z } from 'zod'
 // Göreli yollar: vitest `@/` takma adını çözmez; bu modül ve onu kullanan SEO dosyaları testte yüklenir.
@@ -22,10 +27,10 @@ export { isTurkish } from '../components/airports/airport-text'
  * - İstemci başlıkları (X-Forwarded-For, CF-Connecting-IP) **iletilmez**: Next önbellek anahtarı
  *   istek başlıklarını içerir (next/dist/server/lib/incremental-cache → generateCacheKey); iletilse
  *   önbellek ziyaretçi başına bölünürdü.
- * - Boyut (4. halka, D-102): 1.217 havalimanı ve pistleri 1,05 MB; Next'in önbellek kaydı (gövde
- *   base64) 1,40 MB, 2 MiB öğe sınırının %67'si (geliştirmede sınır aşılırsa hata, üretimde
- *   önbelleksiz istek). API'nin `airports-cache-size.test.ts` testi kaydın sınırın %85'inin altında
- *   kaldığını fixture'dan denetler; 5. halkada sınır kırılır (D-101).
+ * - Boyut (4. halka, D-102; savaş kapanışlarıyla, D-110): 1.240 havalimanı ve pistleri 1,07 MB;
+ *   Next'in önbellek kaydı (gövde base64) 1,43 MB, 2 MiB öğe sınırının %68'i (geliştirmede sınır
+ *   aşılırsa hata, üretimde önbelleksiz istek). API'nin `airports-cache-size.test.ts` testi kaydın
+ *   sınırın %85'inin altında kaldığını fixture'dan denetler; 5. halkada sınır kırılır (D-101).
  * - Ayrıştırma önbellek kaydı başına bir kez: Next her çizimde kaydın gövdesini yeniden verir;
  *   gövdenin JSON'u ve denetimi (`parseAirportsBody`) 4. halkada çizim başına ~12 ms'dir (JSON ~6,
  *   zod ~5; 3. halkada ~5). Ayrıştırılan liste pencere başına bellekte tutulur ve gelen gövde
@@ -233,14 +238,17 @@ const CIVIL_NAME_SOURCES: ReadonlySet<AirportNameSource> = new Set(['dhmi', 'ope
  * (Siirt, Kocaeli). Kalanlar (adı doğrulanmamış, tarifesiz ve istasyon olmayan yeni kayıtlar)
  * `noindex, follow` alır ve site haritasına girmez; askerî hava üsleri D-107'den beri listede
  * yoktur (sayfaları 404), D-084'te bu kuralla dışarıda kalıyorlardı. Yakın ülkelerdeki listelenen
- * havalimanları aday kuralı gereği tarifelidir (`isForeignCandidate`), hepsi dizine eklenir
- * (D-080).
+ * havalimanları aday kuralı gereği tarifeli ya da kapanış tablosundadır (`isForeignCandidate`),
+ * hepsi dizine eklenir (D-080). Savaş nedeniyle kapalı havalimanı (`civilFlightClosure`, D-110)
+ * OurAirports'ta tarifesiz görünse de dizine eklenir: kapanış tablosu kaynaklı ve küratörlüdür,
+ * sayfanın notu durumu açıklar, sayfa tarife vaat etmez.
  */
 export function isIndexable(airport: AirportDetail): boolean {
   return (
     airport.scheduled ||
     airport.station !== null ||
-    CIVIL_NAME_SOURCES.has(airportNameSource(airport.icao))
+    CIVIL_NAME_SOURCES.has(airportNameSource(airport.icao)) ||
+    civilFlightClosure(airport.icao) !== undefined
   )
 }
 

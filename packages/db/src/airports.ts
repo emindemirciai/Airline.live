@@ -154,6 +154,54 @@ export const MILITARY_AIRFIELD_ICAOS: readonly string[] = [
 
 const MILITARY_AIRFIELDS: ReadonlySet<string> = new Set(MILITARY_AIRFIELD_ICAOS)
 
+/**
+ * Savaş nedeniyle sivil uçuşlara kapalı havalimanları (D-110), kanonik ICAO sırasıyla: normal
+ * şartlarda sivil yolcu seferi alan, OurAirports'ta çoğu tarifesiz görünen havalimanları. Aday
+ * kuralında tarifeli sayılırlar (`isForeignCandidateRow`, `foreignCandidateFilter`); D-080'in öbür
+ * koşulları ve askerî alan dışlaması (D-107) geçerlidir. Kapanış tarihi, not türü ve kaynaklar
+ * `@havayolu/shared` `CIVIL_FLIGHT_CLOSURES`'tadır; bu liste onun anahtarlarıyla aynıdır (db
+ * shared'a bağımlı değildir; `apps/api/src/reference/rings.test.ts` iki yazımı denetler).
+ */
+export const CIVIL_FLIGHT_CLOSURE_ICAOS: readonly string[] = [
+  'FZMA',
+  'FZNA',
+  'GAGO',
+  'GAMB',
+  'HAAX',
+  'HSFS',
+  'HSNN',
+  'HSOB',
+  'OSKL',
+  'OSLK',
+  'OYSN',
+  'OYTZ',
+  'UKBB',
+  'UKDD',
+  'UKDE',
+  'UKDR',
+  'UKFF',
+  'UKHH',
+  'UKKK',
+  'UKLI',
+  'UKLL',
+  'UKLN',
+  'UKLR',
+  'UKLU',
+  'UKOH',
+  'UKON',
+  'UKOO',
+  'UKWW',
+  'URKA',
+  'URRP',
+  'UUBP',
+  'UUOB',
+  'UUOK',
+  'UUOL',
+  'UUOO',
+]
+
+const CLOSED_TO_CIVIL: ReadonlySet<string> = new Set(CIVIL_FLIGHT_CLOSURE_ICAOS)
+
 /** Kanonik ICAO'su askerî hava üssü olan satır (D-107); `ourAirportsIcao` ile denetlenir. */
 const isMilitaryAirfieldRow = (row: Pick<AirportSourceRow, 'ident' | 'icaoCode' | 'gpsCode'>) =>
   MILITARY_AIRFIELDS.has(ourAirportsIcao(row))
@@ -319,16 +367,22 @@ function isListableRow(row: AirportSourceRow, iata: string): boolean {
 const CANONICAL_ICAO = /^[A-Z0-9]{4}$/
 
 /**
- * Yurt dışı adayı (`@havayolu/shared` `isForeignCandidate`; D-080, D-101): büyük ya da orta
- * havalimanı, tarifeli, üç harfli IATA kodu (IATA denetimi `listedEntries`'tedir) ve kanonik
- * ICAO'su (`ourAirportsIcao`) dört karakter. `icao_code` ve `gps_code` taşımayan satırın kimliği
- * ident'tir ("UG-0002", Kihihi KHX); sayfası ve hava durumu istasyonu olamayacağı için listeye
- * girmez. Ülke listeleri (`listAirportsWithIata`) bu koşulu uygulamaz.
+ * Yurt dışı adayı (`@havayolu/shared` `isForeignCandidate`; D-080, D-101, D-110): büyük ya da orta
+ * havalimanı, tarifeli ya da kapanış tablosunda (`CIVIL_FLIGHT_CLOSURE_ICAOS`; savaş nedeniyle
+ * kapalı havalimanı OurAirports'ta tarifesiz görünse de), üç harfli IATA kodu (IATA denetimi
+ * `listedEntries`'tedir) ve kanonik ICAO'su (`ourAirportsIcao`) dört karakter. `icao_code` ve
+ * `gps_code` taşımayan satırın kimliği ident'tir ("UG-0002", Kihihi KHX); sayfası ve hava durumu
+ * istasyonu olamayacağı için listeye girmez. Ülke listeleri (`listAirportsWithIata`) bu koşulu
+ * uygulamaz.
  */
-const isForeignCandidateRow = (row: AirportSourceRow) =>
-  (row.type === 'large_airport' || row.type === 'medium_airport') &&
-  row.scheduledService &&
-  CANONICAL_ICAO.test(ourAirportsIcao(row))
+const isForeignCandidateRow = (row: AirportSourceRow) => {
+  const icao = ourAirportsIcao(row)
+  return (
+    (row.type === 'large_airport' || row.type === 'medium_airport') &&
+    (row.scheduledService || CLOSED_TO_CIVIL.has(icao)) &&
+    CANONICAL_ICAO.test(icao)
+  )
+}
 
 /** Türkiye referansının satırdaki alanları. */
 type ReferenceSourceRow = Pick<
@@ -563,14 +617,21 @@ async function readKnownIcaos(db: PostgresJsDatabase): Promise<ReadonlySet<strin
 }
 
 /**
- * Yurt dışı adayları (SQL ön süzgeci): `isForeignCandidateRow`'un koşulları; kanonik ICAO'nun
- * biçimi bellekte denetlenir.
+ * Yurt dışı adayları (SQL ön süzgeci): `isForeignCandidateRow`'un koşulları, üst kümesiyle.
+ * Tarifeli ya da `icao_code`, `gps_code`, `ident`'ten biri kapanış tablosunda (D-110; kanonik ICAO
+ * bu üçünden biridir). Kesin karar ve kanonik ICAO'nun biçimi bellekte denetlenir
+ * (`isForeignCandidateRow`).
  */
 const foreignCandidateFilter = (): SQL =>
   and(
     ne(airports.isoCountry, TURKEY_COUNTRY_CODE),
     inArray(airports.type, ['large_airport', 'medium_airport']),
-    eq(airports.scheduledService, true),
+    or(
+      eq(airports.scheduledService, true),
+      inArray(sql`upper(btrim(${airports.icaoCode}))`, [...CIVIL_FLIGHT_CLOSURE_ICAOS]),
+      inArray(sql`upper(btrim(${airports.gpsCode}))`, [...CIVIL_FLIGHT_CLOSURE_ICAOS]),
+      inArray(sql`upper(btrim(${airports.ident}))`, [...CIVIL_FLIGHT_CLOSURE_ICAOS]),
+    ),
     isNotNull(airports.iataCode),
   ) as SQL
 

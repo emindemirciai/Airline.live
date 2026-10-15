@@ -37,8 +37,8 @@ import type { Logger } from 'pino'
 /**
  * Havalimanı hava durumu işleri (D-078): METAR 5 dk'da, TAF 15 dk'da bir; her çalışma listelenen
  * bütün havalimanlarını (Türkiye ve açık halkalar, D-080) ister. AWC istemcisi listeyi 400 kayıt
- * sınırına göre gruplara böler (olağan 2 saatlik METAR'da 80 istasyon: 4. halkayla 1.217 istasyon 16
- * istek, D-102, D-107; TAF'ta istekte en çok 200 istasyon: yedi istek) ve iki isteğin başlangıcı
+ * sınırına göre gruplara böler (olağan 2 saatlik METAR'da 80 istasyon: 4. halkayla 1.240 istasyon 16
+ * istek, D-102, D-107, D-110; TAF'ta istekte en çok 200 istasyon: yedi istek) ve iki isteğin başlangıcı
  * arasında en az 700 ms bekler (`AWC_MIN_REQUEST_INTERVAL_MS`; saatte ~220 istek, anlık en çok
  * dakikada ~86).
  * Yayından sonraki ilk METAR çalışmasında listeye yeni giren istasyonlar 24 saatle istenir
@@ -184,7 +184,7 @@ export type WeatherRunResult =
       truncated: boolean
       /**
        * Kaynağa atılan istek sayısı (AWC istemcisi grupları ve 400 kayıt sınırındaki bölünmeleri
-       * sayar; fixture 0). Çalışma günlüğünde görünür: 4. halkada (1.217 istasyon) olağan METAR 16,
+       * sayar; fixture 0). Çalışma günlüğünde görünür: 4. halkada (1.240 istasyon, D-110) olağan METAR 16,
        * TAF 7 istektir (D-102; 3. halkada 7 ve 3, D-090); 4. halkanın yayından sonraki ilk METAR
        * çalışması ~133 (D-101, D-102).
        */

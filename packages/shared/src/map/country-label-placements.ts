@@ -37,7 +37,7 @@ export const COUNTRY_LABEL_PLACEMENT_PARAMS = {
   latticeSteps: 100,
   clearMaxDelayZooms: 1.5,
   crowdedMaxDelayZooms: 0.25,
-  airportPins: 1217,
+  airportPins: 1240,
   airportCodeMinZoom: 5,
   airportCodeSides: ['right', 'left'],
   capitalAnchored: ['CY'],

@@ -422,7 +422,7 @@ describe('LabelPainter.airportHitTest', () => {
   })
 })
 
-describe('listelenen havalimanları z5’te (4. halka, 1.217 havalimanı; D-090, D-102, D-107)', () => {
+describe('listelenen havalimanları z5’te (4. halka, 1.240 havalimanı; D-090, D-102, D-107, D-110)', () => {
   // Web Mercator, z5: kodların yazıldığı en uzak yakınlaştırma (AIRPORT_LABEL_MIN_ZOOM), görünümdeki
   // havalimanı sayısı en büyüktür. Kod yerleşimi haritanın her `render` olayında yalnız
   // görünümdekilere yapılır (`screenAirports`). 3. halkada 2560×1440 görünüm bütün listeyi (498)
@@ -430,8 +430,11 @@ describe('listelenen havalimanları z5’te (4. halka, 1.217 havalimanı; D-090,
   // yoğun bölgeyi (Avrupa, Orta Doğu, Kuzey Afrika) taşır.
   const ZOOM = AIRPORT_LABEL_MIN_ZOOM
   const VIEW = { width: 2560, height: 1440 }
-  /** 2560×1440 görünümdeki havalimanları (1.217 listelenenden). */
-  const SCREEN_AIRPORTS = 909
+  /**
+   * 2560×1440 görünümdeki havalimanları (1.240 listelenenden; D-110'dan önce 1.217'den 909, savaş
+   * nedeniyle kapalı 23 havalimanından Bukavu dışındaki 22'si görünümde).
+   */
+  const SCREEN_AIRPORTS = 931
   const world = 256 * 2 ** ZOOM
   const project = (lat: number, lon: number) => {
     const sin = Math.sin((lat * Math.PI) / 180)
@@ -450,10 +453,10 @@ describe('listelenen havalimanları z5’te (4. halka, 1.217 havalimanı; D-090,
     .filter(({ x, y }) => x >= 0 && x <= VIEW.width && y >= 0 && y <= VIEW.height)
 
   it('görünümdekiler; kodlar birbirini örtmez, görünümden taşmaz, her havalimanına en çok bir kod', () => {
-    expect(listed).toHaveLength(1217)
+    expect(listed).toHaveLength(1240)
     expect(screen).toHaveLength(SCREEN_AIRPORTS)
-    // 1.–3. halkanın hepsi görünümdedir.
-    expect(screen.filter(({ airport }) => airport.ring <= 3)).toHaveLength(498)
+    // 1.–3. halkanın hepsi görünümdedir (498 ve savaş kapanışlarının 22'si, D-110).
+    expect(screen.filter(({ airport }) => airport.ring <= 3)).toHaveLength(520)
     const chips = layoutAirportChips(screen, VIEW, measure)
     expect(chips.length).toBeGreaterThan(50)
     expect(new Set(chips.map((chip) => chip.icao)).size).toBe(chips.length)

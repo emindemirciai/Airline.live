@@ -10,7 +10,7 @@
  *   makinedeki Node'un CLDR'ından gelir (`countryLabelText`). Özet: bileşim başına yazılan ad
  *   sayısı, hiç sığmayanlar, yerleşim türleri, boş yer için geciken adlar, boş yer bulunamayan ve
  *   başkentte sabit adların çakışması (D-099).
- * - `airports`: fixture'ın listelenen havalimanlarının ICAO kodları (1.217; askerî hava üsleri
+ * - `airports`: fixture'ın listelenen havalimanlarının ICAO kodları (1.240; askerî hava üsleri
  *   listelenmez, D-107), satır başına bir, sıralı (kökte
  *   `pnpm exec tsx tools/src/country-labels/cli.ts airports`). Kullanıcı bunu üretimin
  *   `GET /v1/airports?scope=listed` listesiyle karşılaştırır (ACTIVATION, D-099): üretim

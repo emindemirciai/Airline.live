@@ -46,6 +46,7 @@ import {
   UNLISTED_FOREIGN_AIRPORT,
   sitePath,
   STATIC_PUBLIC_PATHS,
+  WAR_CLOSURE_AIRPORT,
   WEB_HOST,
 } from '../support'
 
@@ -367,11 +368,11 @@ test.describe('kök dosyalar', () => {
     expect(body).toContain('xmlns:xhtml="http://www.w3.org/1999/xhtml"')
     const entries = parseSitemap(body)
 
-    // Havalimanları: Türkiye'nin dizine eklenen 56'sı ve diğer ülkelerdeki 1.161'i (1.–4. halka;
-    // D-080, D-084, D-088, D-090, D-102): (1.217 + 5) × 2 = 2.444 adres (50.000 sınırının çok
-    // altında).
+    // Havalimanları: Türkiye'nin dizine eklenen 56'sı ve diğer ülkelerdeki 1.184'ü (1.–4. halka,
+    // savaş nedeniyle kapalı 23 havalimanı dahil; D-080, D-084, D-088, D-090, D-102, D-110):
+    // (1.240 + 5) × 2 = 2.490 adres (50.000 sınırının çok altında).
     expect(entries).toHaveLength((INDEXABLE_LISTED_AIRPORT_COUNT + STATIC_PUBLIC_PATHS.length) * 2)
-    expect(entries).toHaveLength(2444)
+    expect(entries).toHaveLength(2490)
     const byLoc = new Map(entries.map((entry) => [entry.loc, entry]))
     expect(byLoc.size, 'yinelenen adres yok').toBe(entries.length)
     const paths = entries.map((entry) => sitePath(entry.loc, 'loc'))
@@ -380,6 +381,8 @@ test.describe('kök dosyalar', () => {
     const ring2Path = `/istasyon/${RING2_AIRPORT.icao}`
     const kktcPath = `/istasyon/${KKTC_AIRPORT.icao}`
     const ring4Path = `/istasyon/${RING4_AIRPORT.icao}`
+    // Savaş nedeniyle kapalı, OurAirports'ta tarifesiz Kiev Borispil dizine eklenir (D-110).
+    const warPath = `/istasyon/${WAR_CLOSURE_AIRPORT.icao}`
     for (const path of [
       ...STATIC_PUBLIC_PATHS,
       STATION_PATH,
@@ -387,6 +390,7 @@ test.describe('kök dosyalar', () => {
       ring2Path,
       kktcPath,
       ring4Path,
+      warPath,
     ]) {
       expect(paths).toContain(path)
       expect(paths).toContain(enPath(path))
@@ -496,6 +500,11 @@ test.describe('kök dosyalar', () => {
     for (const { icao } of MILITARY_AIRFIELDS) expect(icaos.has(icao), icao).toBe(false)
     expect(icaos.has(UNLISTED_FOREIGN_AIRPORT.icao)).toBe(false)
     expect(icaos.has(RING4_AIRPORT.icao)).toBe(true)
+    // Savaş nedeniyle kapalı havalimanının satırı Türkçe notu taşır (D-110).
+    const warLine = airportLines.find((line) =>
+      line.includes(`(${WAR_CLOSURE_AIRPORT.iata}/${WAR_CLOSURE_AIRPORT.icao})`),
+    )
+    expect(warLine).toContain('Savaş nedeniyle sivil uçuşlara kapalı (2022’den beri)')
     expect(body).not.toContain(NON_ICAO_AIRPORT.ident)
     expect(body).not.toContain(`(${NON_ICAO_AIRPORT.iata}/`)
     // Diğer ülkelerdekiler ayrı bir bölümdedir (D-080): başlık Türkiye listesinden sonra gelir; Atina

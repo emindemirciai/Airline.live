@@ -1,4 +1,5 @@
 import {
+  CIVIL_FLIGHT_CLOSURE_ICAOS,
   cleanAirportName,
   greatCircleKm,
   MILITARY_AIRFIELD_ICAOS as DB_MILITARY_AIRFIELD_ICAOS,
@@ -14,6 +15,8 @@ import {
   AIRPORT_RING_CONFIG,
   AIRPORT_RINGS_KM,
   airportRing,
+  CIVIL_FLIGHT_CLOSURES,
+  civilFlightClosure,
   ENABLED_AIRPORT_RING,
   FOREIGN_AIRPORT_NAMES,
   isCanonicalIcao,
@@ -70,6 +73,17 @@ describe('halka kuralı: shared ile db aynı', () => {
     }
   })
 
+  it('kapanış tablosu iki pakette aynı (D-110): db CIVIL_FLIGHT_CLOSURE_ICAOS = shared CIVIL_FLIGHT_CLOSURES anahtarları', () => {
+    expect(CIVIL_FLIGHT_CLOSURE_ICAOS).toEqual(Object.keys(CIVIL_FLIGHT_CLOSURES).sort())
+    expect(CIVIL_FLIGHT_CLOSURE_ICAOS).toHaveLength(35)
+    // Tabloda olsa da küçük alan, heliport, kapalı alan ve IATA'sız satır aday değildir.
+    for (const type of ['small_airport', 'heliport', 'closed']) {
+      expect(isForeignCandidate(type, false, 'KBP', 'UKBB'), type).toBe(false)
+    }
+    expect(isForeignCandidate('large_airport', false, null, 'UKBB')).toBe(false)
+    expect(isForeignCandidate('large_airport', false, 'KBP', 'UKBB')).toBe(true)
+  })
+
   it('db yurt dışı aday kuralı = shared isForeignCandidate (tür, tarife, IATA ve ICAO eksenleri)', () => {
     const types = ['large_airport', 'medium_airport', 'small_airport', 'heliport', 'closed']
     const iatas = ['ATH', ' ath ', 'AB', 'A1B', 'ABCD', '', null]
@@ -90,6 +104,9 @@ describe('halka kuralı: shared ile db aynı', () => {
       { ident: 'GR-0005', icaoCode: 'LGXYZ', gpsCode: null },
       // Kaynak düzeltmesi (D-088): İskenderiye HEAX → HEBA.
       { ident: 'HEBA', icaoCode: 'HEAX', gpsCode: 'HEAX' },
+      // Kapanış tablosu (D-110): tarifesiz de aday; GPS yedeği ve küçük harf.
+      { ident: 'UKBB', icaoCode: 'UKBB', gpsCode: 'UKBB' },
+      { ident: 'UA-0001', icaoCode: null, gpsCode: ' ukbb ' },
     ]
     const results = new Set<boolean>()
     let id = 1
@@ -122,9 +139,11 @@ describe('halka kuralı: shared ile db aynı', () => {
               selected.length === 1,
               `${type} ${scheduled} ${String(iata)} ${JSON.stringify(identity)}`,
             ).toBe(expected)
-            // ICAO koşulu olmayan D-080 kuralı yalnız ICAO ekseninde ayrılır.
+            // ICAO koşulu olmayan D-080 kuralı yalnız ICAO ekseninde ayrılır; kapanış tablosundaki
+            // havalimanı tarifeli sayılır (D-110).
             if (isCanonicalIcao(ourAirportsIcao(row))) {
-              expect(expected).toBe(isScheduledIataAirport(type, scheduled, iata))
+              const closed = civilFlightClosure(ourAirportsIcao(row)) !== undefined
+              expect(expected).toBe(isScheduledIataAirport(type, scheduled || closed, iata))
             }
           }
         }

@@ -8,7 +8,29 @@
 
 ---
 
-## v0.25.0 — 2026-10-15
+## v0.25.1 — 2026-10-15
+
+### Türkçe
+**Savaş nedeniyle kapalı havalimanları da listede**
+
+- Normalde yolcu seferi alan ama savaş nedeniyle sivil uçuşlara kapalı 23 havalimanı listeye girdi: Ukrayna’nın 16 havalimanı (Kiev Borispil, Lviv ve Odessa dahil), Rusya’nın 6 havalimanı (Rostov ve Anapa dahil) ve Kongo DC’de Bukavu. Listede artık 1.240 havalimanı var.
+- Bu havalimanlarının ve savaştan etkilenen 12 havalimanının daha sayfasında, harita penceresinde ve havalimanı listesinde bir not var. Kapanışı resmî bir kaynak doğruluyorsa not “Savaş nedeniyle sivil uçuşlara kapalı”, doğrulamıyorsa “… kapalı olabilir” der; yanında kapanışın yılı yazar.
+- Yeniden açılan Krasnodar, Gelencik ve Elista’nın notu kalktı.
+
+Dene: [Kiev Borispil](/istasyon/UKBB) · [Havalimanları](/havalimanlari)
+
+### English
+**Airports closed by war are now listed**
+
+- We added 23 airports that normally have passenger flights but are closed to civil flights because of war: 16 in Ukraine (Kyiv Boryspil, Lviv and Odesa among them), 6 in Russia (Rostov and Anapa among them) and Bukavu in DR Congo. The list now has 1,240 airports.
+- These airports, and 12 more affected by war, carry a note on their page, in the map popup and in the airport list. Where an official source confirms the closure, it reads “Closed to civil flights because of the war”; where none does, “May be closed …”; the year it began is shown too.
+- Krasnodar, Gelendzhik and Elista have reopened, so their note is gone.
+
+Try it: [Kyiv Boryspil](/istasyon/UKBB) · [Airports](/havalimanlari)
+
+---
+
+## v0.25.0 — 2026-10-15 06:24 (UTC+3)
 
 ### Türkçe
 **Yeni adımız Airline.live**

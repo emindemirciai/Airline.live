@@ -101,40 +101,56 @@ const turkish = turkishRows.map(position)
  * üreticisiyle aynı). `listable`: listeye giren aday, kanonik ICAO'su dört karakter
  * (`isForeignCandidate`, D-101).
  */
-const candidates = rows
-  .filter((r) => r.get('iso_country') !== 'TR')
-  .filter((r) =>
-    isScheduledIataAirport(
+const toCandidate = (r: Map<string, string>) => {
+  const here = position(r)
+  const distance = Math.min(...turkish.map((tr) => km(here, tr)))
+  return {
+    icao: icaoOf(r),
+    name: cleanName(r.get('name') ?? ''),
+    country: r.get('iso_country') ?? '',
+    ...here,
+    distance,
+    ring: airportRing(distance),
+    listable: isForeignCandidate(
       r.get('type') ?? '',
       r.get('scheduled_service') === 'yes',
       r.get('iata_code'),
+      icaoOf(r),
     ),
+  }
+}
+const scheduledIata = (r: Map<string, string>) =>
+  isScheduledIataAirport(
+    r.get('type') ?? '',
+    r.get('scheduled_service') === 'yes',
+    r.get('iata_code'),
   )
-  .map((r) => {
-    const here = position(r)
-    const distance = Math.min(...turkish.map((tr) => km(here, tr)))
-    return {
-      icao: icaoOf(r),
-      name: cleanName(r.get('name') ?? ''),
-      country: r.get('iso_country') ?? '',
-      ...here,
-      distance,
-      ring: airportRing(distance),
-      listable: isForeignCandidate(
-        r.get('type') ?? '',
-        r.get('scheduled_service') === 'yes',
-        r.get('iata_code'),
-        icaoOf(r),
-      ),
-    }
-  })
+const candidates = rows
+  .filter((r) => r.get('iso_country') !== 'TR')
+  .filter(scheduledIata)
+  .map(toCandidate)
+/**
+ * Kapanış tablosunun OurAirports'ta tarifesiz havalimanları (D-110): halka analizinin adayı
+ * değildir (OurAirports bayrağı), liste kuralı (`isForeignCandidate`) onları tarifeli sayar. 23
+ * havalimanı, hepsi 1.–4. halkada; fixture'ın kapanış bloğudur.
+ */
+const closureOnly = rows
+  .filter((r) => r.get('iso_country') !== 'TR')
+  .filter((r) => !scheduledIata(r))
+  .map(toCandidate)
+  .filter((c) => c.listable)
 const ringOne = candidates.filter((c) => c.ring === 1)
 const ringTwo = candidates.filter((c) => c.ring === 2)
 const ringThree = candidates.filter((c) => c.ring === 3)
 const ringFour = candidates.filter((c) => c.ring === 4)
 const ringFive = candidates.filter((c) => c.ring === 5)
-/** Açık halkalardaki yabancı havalimanları (M6i.2'den beri 1.–4. halka, D-102). */
-const listed = candidates.filter((c) => c.listable && c.ring <= ENABLED_AIRPORT_RING)
+/**
+ * Açık halkalardaki yabancı havalimanları (M6i.2'den beri 1.–4. halka, D-102; savaş nedeniyle
+ * kapalı tarifesizler dahil, D-110).
+ */
+const listed = [...candidates, ...closureOnly].filter(
+  (c) => c.listable && c.ring <= ENABLED_AIRPORT_RING,
+)
 /**
  * Türkçe adında şehir geçmeyen havalimanları: Ercan (Lefkoşa), Malta (Valletta), Bahreyn (Manama);
  * 4. halkada ülke ya da özerk ada adını taşıyanlar (D-102): Guernsey (Saint Peter Port), Jersey
@@ -314,19 +330,46 @@ describe('halkalar', () => {
     )
     // Uganda KHX'siz de dört havalimanıyla yeni ülkedir.
     expect(ringFour.filter((c) => c.listable && c.country === 'UG')).toHaveLength(4)
-    // M6i.2'den beri liste 4. halkayı da taşır (D-102): 75 + 89 + 278 + 719 = 1.161 yurt dışı.
-    expect(listed).toHaveLength(1161)
+    // M6i.2'den beri liste 4. halkayı da taşır (D-102): 75 + 89 + 278 + 719 = 1.161 aday; savaş
+    // nedeniyle kapalı 23 tarifesiz havalimanıyla (D-110) 77 + 104 + 283 + 720 = 1.184 yurt dışı.
+    expect(listed).toHaveLength(1184)
     expect(listed).toHaveLength(
       ringOne.length +
         ringTwo.length +
         ringThree.length +
-        ringFour.filter((c) => c.listable).length,
+        ringFour.filter((c) => c.listable).length +
+        closureOnly.length,
     )
+    expect([1, 2, 3, 4].map((ring) => listed.filter((c) => c.ring === ring).length)).toEqual([
+      77, 104, 283, 720,
+    ])
     expect(listed.map((c) => c.icao)).toEqual(
       expect.arrayContaining(['EGLL', 'LFPG', 'EHAM', 'LEMD', 'LEBL', 'VIDP', 'ZMCK']),
     )
     expect(listed.map((c) => c.icao)).not.toContain('UG-0002')
     expect(listed.map((c) => c.icao)).not.toContain('KJFK')
+  })
+
+  it('fixture: savaş nedeniyle kapalı 23 tarifesiz havalimanı listelenir; 5. halkada kapanış yok (D-110)', () => {
+    expect(closureOnly.map((c) => c.icao).sort()).toEqual(
+      [
+        ...['FZMA', 'UKBB', 'UKDD', 'UKDE', 'UKDR', 'UKFF', 'UKHH', 'UKKK', 'UKLI', 'UKLL'],
+        ...['UKLN', 'UKLR', 'UKLU', 'UKOH', 'UKON', 'UKOO', 'UKWW', 'URKA', 'URRP', 'UUBP'],
+        ...['UUOB', 'UUOK', 'UUOL'],
+      ].sort(),
+    )
+    expect(closureOnly.every((c) => c.ring <= ENABLED_AIRPORT_RING)).toBe(true)
+    // Ukrayna ilk kez listelenen ülkedir; Rusya ve Kongo DC zaten listedeydi.
+    const countries = new Set(closureOnly.map((c) => c.country))
+    expect([...countries].sort()).toEqual(['CD', 'RU', 'UA'])
+    expect(closureOnly.filter((c) => c.country === 'UA')).toHaveLength(16)
+    expect(candidates.some((c) => c.country === 'UA')).toBe(false)
+    // Halka analizinin aday sayımları OurAirports bayrağıyla kalır: tarifesizler orada yoktur.
+    for (const c of closureOnly)
+      expect(
+        candidates.map((x) => x.icao),
+        c.icao,
+      ).not.toContain(c.icao)
   })
 
   it("fixture: 5. halka 2.031 aday, 2.029'u dört karakterli ICAO'lu, 2.026'sı listelenebilir (askerî liste); halka kapalı (D-109)", () => {
@@ -354,8 +397,9 @@ describe('halkalar', () => {
     const countries = new Set(ringFiveListed.map((c) => c.country))
     expect(countries.size).toBe(129)
     expect([...countries].filter((code) => !earlier.has(code))).toHaveLength(118)
-    // Bütün halkalar açılınca: 1.161 + 2.026 = 3.187 yurt dışı havalimanı; uygulamada halka 4'tür.
-    expect(listed.length + ringFiveListed.length).toBe(3187)
+    // Bütün halkalar açılınca: 1.184 + 2.026 = 3.210 yurt dışı havalimanı (D-110'dan önce 3.187);
+    // uygulamada halka 4'tür.
+    expect(listed.length + ringFiveListed.length).toBe(3210)
     expect(ENABLED_AIRPORT_RING).toBe(4)
     expect(listed.map((c) => c.icao)).not.toContain('KJFK')
     // Fixture'ın iki dışlama örneği aday değildir (D-109): Le Bourget tarifesiz, Thohoyandou küçük.
@@ -374,15 +418,17 @@ describe('halkalar', () => {
 
 describe('FOREIGN_AIRPORT_NAMES', () => {
   it("fixture'daki açık halkaların (1.–4.) her havalimanı için tam bir kayıt vardır, fazlası yoktur", () => {
-    expect(Object.keys(FOREIGN_AIRPORT_NAMES)).toHaveLength(1161)
+    expect(Object.keys(FOREIGN_AIRPORT_NAMES)).toHaveLength(1184)
     expect(Object.keys(FOREIGN_AIRPORT_NAMES).sort()).toEqual(listed.map((c) => c.icao).sort())
-    // 4. halkanın ayrı tablosu (D-102): tam olarak 4. halkanın 719 listelenen havalimanı.
+    // 4. halkanın ayrı tablosu (D-102): tam olarak 4. halkanın 720 listelenen havalimanı (Bukavu
+    // dahil, D-110).
     expect(Object.keys(RING4_AIRPORT_NAMES).sort()).toEqual(
-      ringFour
-        .filter((c) => c.listable)
+      listed
+        .filter((c) => c.ring === 4)
         .map((c) => c.icao)
         .sort(),
     )
+    expect(Object.keys(RING4_AIRPORT_NAMES)).toHaveLength(720)
     expect(Object.keys(RING4_AIRPORT_CITIES).sort()).toEqual(
       Object.keys(RING4_AIRPORT_NAMES).sort(),
     )
@@ -403,7 +449,7 @@ describe('FOREIGN_AIRPORT_NAMES', () => {
       else expect(name.en, icao).toMatch(/Airport/)
       expect(name.en, icao).not.toMatch(/Havalimanı|\bairport\b/)
     }
-    // Adlar tekildir: Türkçe ve İngilizce, büyük-küçük harf ve aksan katlanınca da (1.161 ad).
+    // Adlar tekildir: Türkçe ve İngilizce, büyük-küçük harf ve aksan katlanınca da (1.184 ad).
     const fold = (text: string) =>
       text.normalize('NFKD').replace(/\p{M}/gu, '').toLocaleLowerCase('en')
     for (const locale of ['tr', 'en'] as const) {
@@ -452,7 +498,7 @@ describe('FOREIGN_AIRPORT_NAMES', () => {
     })
   })
 
-  it('İngilizce ad OurAirports adıdır; yalnızca belgeli sınıflarda kısaltılmıştır (D-080, D-088, D-090, D-102)', () => {
+  it('İngilizce ad OurAirports adıdır; yalnızca belgeli sınıflarda kısaltılmıştır (D-080, D-088, D-090, D-102, D-110)', () => {
     // Karşılaştırma API'nin ad temizliğinden geçmiş adla: Bacău'nun kaynaktaki adında çift boşluk,
     // dokuz Fransız havalimanının adında küçük harfli "airport" var (D-088, D-090).
     const differs = listed
@@ -467,6 +513,8 @@ describe('FOREIGN_AIRPORT_NAMES', () => {
         // (OEGN), yerel ad yerine parantezdeki İngilizce ad (LPVZ), parantezli ya da virgüllü semt ve
         // ikinci ad (EBAW, DAOO, VOVI, VERW), kaynakta yinelenen cins sözcük (LEGR).
         ...['DAOO', 'DNPM', 'EBAW', 'EKKA', 'LEGR', 'LPVZ', 'OEGN', 'VERW', 'VIAG', 'VOVI', 'ZURK'],
+        // D-110: kaynaktaki "[CLOSED]" eki yazılmaz, durumu kapanış notu söyler (Mykolaiv).
+        'UKON',
       ].sort(),
     )
     // Kısaltılan ad, kaynağın sözcüklerinden oluşur (yeni sözcük eklenmez).
@@ -484,6 +532,10 @@ describe('FOREIGN_AIRPORT_NAMES', () => {
     expect(FOREIGN_AIRPORT_NAMES.ETMN?.en).toBe('Sea-Airport Cuxhaven/Nordholz')
     expect(FOREIGN_AIRPORT_NAMES.DAUO?.en).toBe('Guemar Airport')
     expect(FOREIGN_AIRPORT_NAMES.LRBC?.en).toBe('Bacău George Enescu International Airport')
+    expect(listed.find((c) => c.icao === 'UKON')?.name).toBe(
+      'Mykolaiv International Airport [CLOSED]',
+    )
+    expect(FOREIGN_AIRPORT_NAMES.UKON?.en).toBe('Mykolaiv International Airport')
     const raw = (icao: string) => rows.find((r) => icaoOf(r) === icao)?.get('name')
     expect(raw('LFKB')).toBe('Bastia-Poretta International airport')
     expect(FOREIGN_AIRPORT_NAMES.LFKB?.en).toBe('Bastia-Poretta International Airport')
@@ -610,6 +662,44 @@ describe('FOREIGN_AIRPORT_NAMES', () => {
     // Ülke ya da özerk ada adını taşıyan havalimanında şehir adda geçmez.
     expect(foreignAirportCity('EGJJ')).toEqual({ tr: 'Saint Helier', en: 'Saint Helier' })
     expect(foreignAirportCity('FSIA')?.en).toBe('Victoria')
+  })
+
+  it('savaş nedeniyle kapalı havalimanları (D-110): Ukrayna yazım kuralı, exonym ve şehir', () => {
+    const tr = (icao: string) => FOREIGN_AIRPORT_NAMES[icao]?.tr
+    const en = (icao: string) => FOREIGN_AIRPORT_NAMES[icao]?.en
+    // Yerleşik Türkçe exonym kuralın önündedir; İngilizce şehir İngilizcede yerleşik biçimdir.
+    expect(tr('UKBB')).toBe('Kiev Borispil Havalimanı')
+    expect(en('UKBB')).toBe('Boryspil International Airport')
+    expect(foreignAirportCity('UKBB')).toEqual({ tr: 'Kiev', en: 'Kyiv' })
+    expect(tr('UKKK')).toBe('Kiev Igor Sikorsky Havalimanı')
+    expect(tr('UKOO')).toBe('Odessa Havalimanı')
+    expect(foreignAirportCity('UKOO')).toEqual({ tr: 'Odessa', en: 'Odesa' })
+    expect(tr('UKDE')).toBe('Zaporijya Havalimanı')
+    expect(tr('UKOH')).toBe('Herson Havalimanı')
+    // Harf çevirisi: kh → h, zh → j, ch → ç, ї → yi, -ий → -iy, ünsüzden sonra ia → ya, başta İ.
+    expect(tr('UKHH')).toBe('Harkiv Havalimanı')
+    expect(tr('UKLU')).toBe('Ujhorod Havalimanı')
+    expect(tr('UKLN')).toBe('Çernivtsi Havalimanı')
+    expect(tr('UKON')).toBe('Mikolayiv Havalimanı')
+    expect(tr('UKDR')).toBe('Kriviy Rih Havalimanı')
+    expect(tr('UKWW')).toBe('Vinnitsya Havalimanı')
+    expect(tr('UKLI')).toBe('İvano-Frankivsk Havalimanı')
+    // Tartışmalı bölgede yalnız şehir adı (D-080 karar 2); Rusya'da yerel ad ve yerleşim adı.
+    expect(tr('UKFF')).toBe('Simferopol Havalimanı')
+    expect(tr('URRP')).toBe('Rostov-na-Donu Platov Havalimanı')
+    expect(foreignAirportCity('URRP')).toEqual({ tr: 'Rostov-na-Donu', en: 'Rostov-on-Don' })
+    expect(tr('URKA')).toBe('Anapa Vityazevo Havalimanı')
+    expect(tr('UUOK')).toBe('Kursk Havalimanı')
+    expect(tr('FZMA')).toBe('Bukavu Kavumu Havalimanı')
+    // Şehir OurAirports yerleşiminden farklı: Boryspil, Krasnyi Kurgan, Kamakombe; yazım hatası.
+    const municipality = (icao: string) => rows.find((r) => icaoOf(r) === icao)?.get('municipality')
+    expect(municipality('UKBB')).toBe('Boryspil')
+    expect(municipality('URKA')).toBe('Krasnyi Kurgan')
+    expect(municipality('FZMA')).toBe('Kamakombe')
+    expect(municipality('UKDE')).toBe('Zaporizhia')
+    expect(foreignAirportCity('UKDE')?.en).toBe('Zaporizhzhia')
+    expect(municipality('UKWW')).toBe('Vinnitsa')
+    expect(foreignAirportCity('UKWW')?.en).toBe('Vinnytsia')
   })
 
   it('kaynak düzeltmesi: İskenderiye OurAirports HEAX → HEBA; yalnız yanlış değer durdukça', () => {
@@ -836,11 +926,11 @@ describe('ülke adları', () => {
   })
 
   it('countryName: 4. halkanın ülkeleri (D-102); iki Kongo ve Fildişi Sahili D-100 tablosundan', () => {
-    // 4. halka Kongo DC (14), Kongo (2) ve Fildişi Sahili (3) havalimanlarını açar; adları
-    // `COUNTRY_NAME_OVERRIDES`'tan gelir (ayrı bir 4. halka tablosu yoktur).
+    // 4. halka Kongo DC (15; Bukavu D-110), Kongo (2) ve Fildişi Sahili (3) havalimanlarını açar;
+    // adları `COUNTRY_NAME_OVERRIDES`'tan gelir (ayrı bir 4. halka tablosu yoktur).
     const ringFour = (country: string) =>
       listed.filter((c) => c.ring === 4 && c.country === country)
-    expect(ringFour('CD')).toHaveLength(14)
+    expect(ringFour('CD')).toHaveLength(15)
     expect(ringFour('CG')).toHaveLength(2)
     expect(ringFour('CI')).toHaveLength(3)
     expect(countryName(' cg ', 'tr')).toBe('Kongo Cumhuriyeti')
@@ -857,10 +947,10 @@ describe('ülke adları', () => {
     expect(countryName('GB', 'tr')).toBe('Birleşik Krallık')
   })
 
-  it("fixture'daki açık halkaların ülkelerinin hepsi Intl'de adlandırılır (4. halkayla 113)", () => {
+  it("fixture'daki açık halkaların ülkelerinin hepsi Intl'de adlandırılır (4. halka ve Ukrayna'yla 114)", () => {
     const countries = new Set(listed.map((c) => c.country))
-    // 3. halkaya kadar 58, 4. halkanın 55 yeni ülkesiyle 113 (D-102).
-    expect(countries.size).toBe(113)
+    // 3. halkaya kadar 58, 4. halkanın 55 yeni ülkesiyle 113 (D-102); Ukrayna'yla 114 (D-110).
+    expect(countries.size).toBe(114)
     for (const code of countries) {
       for (const locale of ['tr', 'en'] as const) {
         expect(countryName(code, locale), `${code} ${locale}`).not.toBe(code)
@@ -905,10 +995,11 @@ describe('ülke adlarının kapsamı (D-095, D-100)', () => {
   })
 
   it('4. halka açık (D-102): listelenebilecek her havalimanının ülkesi de tabloda; tablo 4. halkanın pinleriyle yeniden üretildi', () => {
-    // Açık halkaların adayları; fixture'daki 5. halka satırları (D-109) halka açılınca (M6j.3) sayılır.
-    const open = candidates.filter((c) => c.listable && c.ring <= ENABLED_AIRPORT_RING)
+    // Açık halkaların adayları ve savaş kapanışları (D-110); fixture'daki 5. halka satırları (D-109)
+    // halka açılınca (M6j.3) sayılır.
+    const open = listed
     const countries = new Set(open.map((c) => c.country))
-    expect(listed.filter((c) => c.ring === 4)).toHaveLength(719)
+    expect(listed.filter((c) => c.ring === 4)).toHaveLength(720)
     for (const code of countries) {
       if (UNLABELLED_COUNTRIES.includes(code)) continue
       expect(labelled.has(code), code).toBe(true)
@@ -922,11 +1013,13 @@ describe('ülke adlarının kapsamı (D-095, D-100)', () => {
     expect(missing).toEqual(['CC', 'CX'])
   })
 
-  it('havalimanı listelenmeyen ülkeler de yazılır (D-100): Ukrayna, ABD, Brezilya, Avustralya; Hindistan ve Grönland 4. halkayla listelenir (D-102)', () => {
-    // v0.22.5'te (3. halka) Hindistan ve Grönland'ın da listelenen havalimanı yoktu.
+  it('havalimanı listelenmeyen ülkeler de yazılır (D-100): ABD, Brezilya, Avustralya; Hindistan ve Grönland 4. halkayla (D-102), Ukrayna savaş kapanışlarıyla listelenir (D-110)', () => {
+    // v0.22.5'te (3. halka) Hindistan ve Grönland'ın, v0.24.0'da Ukrayna'nın da listelenen
+    // havalimanı yoktu.
     expect(listedCountries.has('IN')).toBe(true)
     expect(listedCountries.has('GL')).toBe(true)
-    for (const code of ['UA', 'US', 'BR', 'AU']) expect(listedCountries.has(code), code).toBe(false)
+    expect(listedCountries.has('UA')).toBe(true)
+    for (const code of ['US', 'BR', 'AU']) expect(listedCountries.has(code), code).toBe(false)
     for (const code of ['UA', 'US', 'BR', 'AU', 'IN', 'GL']) {
       for (const locale of ['tr', 'en'] as const) {
         const row = COUNTRY_LABEL_PLACEMENTS[locale][code]

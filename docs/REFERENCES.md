@@ -83,6 +83,63 @@ Bir şeyi doğrulaman gerekiyorsa önce buradaki kaynakları kullan. Yeni bir ka
 - **Kullanılmaz:** SHGM listesi https://web.shgm.gov.tr/doc2/havlist.pdf. 2006 tarihli bir tablo dışa aktarımıdır ("HAVAALANLARI TABLOSU.xls", 2006-11-20) ve İstanbul Havalimanı'ndan (2018) eskidir.
 - OurAirports veri sözlüğü (pist kaplama kodları; `runway-surface.ts`): https://ourairports.com/help/data-dictionary.html
 
+## Savaş kapanışları (D-110; okunma 2026-10-08; A1, A2, A11–A15 ve M6–M8 2026-10-15'te yeniden, M1, M2, R1, U4 ve U10 aynı gün yayın öncesi incelemede; bkz. `yeniden-bakis-2026-10-15.md`)
+Kapanış tablosunun (`CIVIL_FLIGHT_CLOSURES`) kaynakları; etiketler `docs/research/2026-10-08-savas-kapanislari/` raporlarınındır. Bakım: RUNBOOK → "Savaş kapanışları tablosu". Uçuş verisi API'si değildir, yalnız okunur.
+- **Ukrayna:**
+  - U1 EASA CZIB-2022-01R14 (resmî; revizyon 2026-07-24, 2027-01-31'e kadar): https://www.easa.europa.eu/en/domains/air-operations/czibs/czib-2022-01r14
+  - U2 Ukrayna Dışişleri Bakanlığı, 2022-02-24 (resmî): https://www.kmu.gov.ua/news/rekomendaciyi-mzs-gromadyanam-ukrayini-u-zvyazku-iz-zakrittyam-povitryanogo-prostoru-ukrayini
+  - U3 NOTAM UKBV A0081/26 (2026-09-22 ile 2026-12-21 arası), SafeAirspace aktarımı: https://safeairspace.net/ukraine/
+  - U4 Obozrevatel, 2026-09-30 (bakan Kalashnyk): https://www.obozrevatel.com/ukr/section-ekonomika-glavnaya/economy/news-ukrayina-hotuyetsya-vidkryty-nebo-shche-do-zavershennya-viyny-koly-mozhut-povernutysya-tsyvilni-reysy-30-09-2026.html
+  - U5 Glavkom, 2025-12-17 (Devlet Havacılık Servisi): https://glavcom.ua/country/incidents/derzhaviasluzhba-pojasnila-koli-zapratsjujut-aeroporti-pislja-vijni-1093465.html
+  - U6 Ukrayna'nın en işlek havalimanları (2019 yolcu tablosu): https://en.wikipedia.org/wiki/List_of_the_busiest_airports_in_Ukraine
+  - U8 Zaxid, 2021-10-28 (Windrose seferleri): https://zaxid.net/aviakompaniya_windrose_vidminyaye_regulyarni_reysi_kiyiv__uzhgorod_n1529179
+  - U9 Bakanlar Kurulu, 2021-08-06 (Cherkasy; resmî): https://www.kmu.gov.ua/news/premyer-ministr-aeroport-u-cherkasah-maye-stati-poshtovhom-do-rozvitku-turizmu-v-misti
+  - U10 Interfax-Ukraine, 2014-03-12 (Altyapı Bakanı Burbak: Simferopol havalimanı kapalı): https://en.interfax.com.ua/news/economic/195531.html ; Rus iç hat seferleri ve 2022-02-24: https://en.wikipedia.org/wiki/Simferopol_International_Airport
+- **Rusya:**
+  - R1 AEX, 2026-05-28 (AviaStat → AVIA.RU → Rosaviatsiya basın servisi aktarımı; temmuz–aralık 2025 sübvansiyon duyurusu, faaliyeti geçici olarak durdurulmuş sekiz havalimanı): https://www.aex.ru/news/2026/5/28/296012/
+  - R2 Rosaviatsiya, 2024-04-26 (Elista; resmî): https://favt.gov.ru/novosti-novosti/?id=11535
+  - R3 Rosaviatsiya, 2025-09-23 (üç açılış; resmî): https://favt.gov.ru/novosti-novosti/?id=16840
+  - R4 news.ru, 2025-07-10 (Gelencik): https://news.ru/society/situaciya-v-aeroportah-rossii-segodnya-10-iyulya-chto-v-saratove-gelendzhike
+  - R5 Mintrans, 2025-09-11 (Krasnodar; resmî): https://mintrans.gov.ru/eye/press-center/news/12108
+  - R9 www1.ru, 2026-01-06 (Simferopol): https://www1.ru/en/news/2026/01/06/otkrytie-iuznyx-aeroportov-v-rf-naxoditsia-pod-voprosom.amp.html
+  - R10 93.ru, 2026-02-27 (Anapa): https://93.ru/text/gorod/2026/02/27/76285824/
+  - R11 travelto.ru, 2026-09-17 güncel (Anapa ve Rostov kapalı): https://travelto.ru/blog/aeroport-anapa-rabotaet/ , https://travelto.ru/blog/aeroport-rostov-rabotaet/
+  - R12 profile.ru, 2025-10-10 (Platov açılış haberinin yalanlanması): https://profile.ru/news/society/rosaviaciya-oprovergla-otkrytie-aeroporta-rostova-na-donu-1766079/amp/
+  - R13 travelto.ru, 2026-09-09 güncel ("8 kapalı"): https://travelto.ru/blog/kakie-aeroport-zakryty-v-rossii/
+  - R14 Kommersant, 2026-06-16 (Lipetsk, Kursk): https://www.kommersant.ru/doc/8738652
+  - R15 AviaPort, 2026-03-18 (Voronej): https://www.aviaport.ru/news/rosaviatsiya-rasskazala-kogda-otkroyut-aeroport-v-voronezhe/
+- **Orta Doğu:**
+  - M1 CAMA Yemen, 2021-07-31 (Taiz 2015-10'dan beri hizmet dışı; Sana merkezli otorite, resmî; 12 aydan eski, bu yüzden Taiz belirsiz): https://cama.gov.ye/en/news/meeting-headed-by-al-sami-i-discusses-attacks-on-taiz-airport-s-campus
+  - M2 Saba, 2026-02-01 (Muha'nın açılışı; Taiz havalimanını anmaz, dolaylı; resmî): https://www.sabanew.net/story/en/141652
+  - M3 SANA, 2026-08-09 (Lazkiye; resmî): https://sana.sy/locals/2549078/
+  - M4 Arab News PK, 2026-09-28: https://www.arabnews.pk/middle-east/syria-moves-to-restore-latakia-international-airport-after-russian-handover-agreement-3002600
+  - M5 ch-aviation, 2024-12-16: https://www.ch-aviation.com/news/148216-syria-reopens-airspace-airports-stay-closed
+  - M6 SANA EN, ~2026-09-08 (Kamışlı, onarım son aşamada; resmî): https://sana.sy/en/syria/2341201/
+  - M7 SyriacPress, 2026-09-08: https://syriacpress.com/blog/2026/09/08/delegation-reviews-final-stages-of-qamishli-international-airport-rehabilitation
+  - M8 Shafaq, 2026-02-21: https://shafaq.com/en/Middle-East/First-civilian-flight-lands-at-Qamishli-Airport-under-SDF-Damascus-deal
+  - Kamışlı yeniden bakışı (2026-10-15): Rudaw https://www.rudaw.net/english/middleeast/syria/210220261 ; Enab Baladi https://english.enabbaladi.net/archives/2026/02/syrian-government-delegation-at-qamishli-airport-ahead-of-reopening/
+  - M9 The Media Line, 2025-05-28: https://themedialine.org/headlines/israeli-strike-destroys-yemens-last-commercial-jet-at-sanaa-airport/
+  - M10 Petra, 2026-07-17: https://petra.gov.jo/en/news/jordan-to-launch-regular-ammansanaa-flights
+  - M11 Al Jazeera, 2026-07-13: https://www.aljazeera.com/news/2026/7/13/yemen-govt-says-its-forces-attacked-sanaa-airport
+  - M12 Arab News, 2026-10-07: https://www.arabnews.com/middle-east/houthis-strike-aden-airport-as-number-of-people-displaced-by-latest-yemen-fighting-tops-200000-3005104
+- **Afrika:**
+  - A1 FCDO Etiyopya, 2026-10-07 (resmî): https://www.gov.uk/foreign-travel-advice/ethiopia
+  - A2 aerocorner, 2026-09-24: https://aerocorner.com/news/ethiopian-airlines-mekelle-axum-shire-flights-suspended/
+  - A3 Radio Okapi, 2026-03-28 (MONUSCO, BM Güvenlik Konseyi 2026-03-26): https://www.radiookapi.net/2026/03/28/actualite/politique/new-york-la-monusco-appelle-la-reouverture-des-aeroports-de-goma-et
+  - A4 africanews, 2025-02-14 (Bukavu): https://www.africanews.com/amp/2025/02/14/m23-rebels-seize-key-airport-in-eastern-congo/
+  - A5 Kavumu Airport (savaş öncesi hatlar): https://en.wikipedia.org/wiki/Kavumu_Airport
+  - A6 actualite.cd, 2026-04-23 (Goma pisti mayınlı): https://actualite.cd/2026/04/23/goma-selon-lafcm23-kinshasa-qui-avait-ferme-lespace-aerien-detient-la-cle-de-reouverture
+  - A7 Goma International Airport: https://en.wikipedia.org/wiki/Goma_International_Airport
+  - A8 El Fasher Airport ve allafrica, 2025-10-28: https://en.wikipedia.org/wiki/El_Fasher_Airport , https://allafrica.com/stories/202510280552.html
+  - A9 Darfur24, 2026-08-11: https://darfur24.com/en/2026/08/11/increased-air-traffic-at-nyala-airport/
+  - A10 El Obeid Airport (2026-08-26 düzenlemesi): https://en.wikipedia.org/wiki/El_Obeid_Airport
+  - A11 africanews, 2026-10-09 ve 2026-10-12 (Mekele açıldı; Aksum ve Şire askıda): https://www.africanews.com/2026/10/09/ethiopian-airlines-to-resume-flights-to-tigrays-capital-from-sunday/ , https://www.africanews.com/2026/10/12/flights-to-mekelle-resume-after-ethiopian-forces-recapture-of-tigray-capital/
+  - A12 afriquinfos, 2026-04-28 (Sky Mali Gao ve Mopti'yi askıya aldı): https://afriquinfos.com/sky-mali-justifie-la-suspension-temporaire-de-ses-vols-domestiques-securite-en-rouge-sur-bamako/
+  - A13 ch-aviation, 2026-05-12: https://www.ch-aviation.com/news/167046-sky-mali-halts-flights-amid-security-crisis
+  - A14 Prensa Latina, 2026-04-28 (2026-10-15'te dönüş haberi bulunamadı): https://www.prensa-latina.cu/2026/04/28/aerolinea-de-mali-anuncia-suspension-de-vuelos/
+  - A15 Koaci, 2026-09-15 (Sévaré üssüne saldırı): https://www.koaci.com/article/2026/09/15/mali/politique/mali-la-base-aerienne-de-sevare-visee-par-une-attaque-attribuee-au-jnim_200561.html
+  - A16 CCAA, 2026-05-07 (Bamenda; resmî): https://www.ccaa.aero/index.php/en/espace-informations-nouvelles-de-la-ccaa-en/1859-modernization-of-bamenda-airport-towards-international-standards
+
 ## Arama motorları, yapay zekâ tarayıcıları ve yapılandırılmış veri (erişim 2026-09-29; D-076)
 - **Google Search Central:**
   - Yerelleştirilmiş sürümler, hreflang, x-default, tam adres, kendini listeleme: https://developers.google.com/search/docs/specialty/international/localized-versions

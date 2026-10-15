@@ -615,8 +615,8 @@ describe('airportTimeZone', () => {
     // Rusya'nın kuralı yazılmamış bölgesi (Leningrad oblastı; 5. halkayla Habarovsk ve New York'un
     // kuralı var, D-109), bölgesiz Almanya (Büsingen ikinci dilimdir), Özbekistan'ın Taşkent şehri
     // kodu (OurAirports Taşkent'i UZ-TO'ya yazar), ABD'de OurAirports'un "atanmamış" kodu, Kıbrıs'ın
-    // havalimanı kuralı olmayan bir alanı, Ukrayna (iki dilim), Grönland'ın kuralı olmayan bölgesi,
-    // bilinmeyen kod.
+    // havalimanı kuralı olmayan bir alanı, bölgesiz Ukrayna (iki dilim; bölgeleri D-110'dan beri
+    // kurallı), Grönland'ın kuralı olmayan bölgesi, bilinmeyen kod.
     expect(airportTimeZone({ icao: 'ULLX', country: 'RU', isoRegion: 'RU-LEN' })).toBeNull()
     expect(airportTimeZone({ icao: 'BGSF', country: 'GL', isoRegion: 'GL-QE' })).toBeNull()
     expect(airportTimeZone({ icao: 'EDDF', country: 'DE' })).toBeNull()
@@ -629,7 +629,8 @@ describe('airportTimeZone', () => {
       'America/New_York',
     )
     expect(airportTimeZone({ icao: 'LCRA', country: 'CY', isoRegion: 'CY-06' })).toBeNull()
-    expect(airportTimeZone({ icao: 'UKBB', country: 'UA', isoRegion: 'UA-32' })).toBeNull()
+    expect(airportTimeZone({ icao: 'UKXX', country: 'UA', isoRegion: null })).toBeNull()
+    expect(airportTimeZone({ icao: 'UKBB', country: 'UA', isoRegion: 'UA-32' })).toBe('Europe/Kiev')
     expect(airportTimeZone({ icao: 'XXXX', country: 'ZZ', isoRegion: 'ZZ-1' })).toBeNull()
     expect(airportTimeZone({ icao: '', country: '', isoRegion: null })).toBeNull()
     // Nesne prototipinin anahtarları tablo kaydı sayılmaz.
@@ -765,17 +766,121 @@ describe('fixture: listelenen her havalimanının dilimi var', () => {
         ),
       )
       .filter((r) => airportRing(distanceToTurkey(r)) <= ENABLED_AIRPORT_RING)
-    // M6i.2'den beri 1.–4. halka açık: 75 + 89 + 278 + 719 (D-088, D-090, D-102); 1.–3. halka
-    // `expected` tablosunda, 4. halka `RING_FOUR_ZONES`'tadır.
-    expect(listed).toHaveLength(1161)
+    // M6i.2'den beri 1.–4. halka açık: 75 + 89 + 278 + 719 (D-088, D-090, D-102) ve savaş nedeniyle
+    // kapalı 23 havalimanı (D-110); 1.–3. halka `expected` tablosunda, 4. halka
+    // `RING_FOUR_ZONES`'ta, kapanış tablosunun tarifesizleri `WAR_CLOSURE_ZONES`'tadır.
+    expect(listed).toHaveLength(1184)
     for (const r of listed) {
       const airport = fixtureAirport(r)
       const zone = airportTimeZone(airport)
       expect(zone, airport.icao).not.toBeNull()
       expect(zone, airport.icao).toBe(
-        expectedByIcao.get(airport.icao)?.zone ?? ringFourZone(airport.icao),
+        expectedByIcao.get(airport.icao)?.zone ??
+          ringFourZone(airport.icao) ??
+          warClosureByIcao.get(airport.icao)?.zone,
       )
     }
+  })
+})
+
+/**
+ * Savaş nedeniyle kapalı, OurAirports'ta tarifesiz 23 havalimanı (D-110; kapanış tablosu
+ * `CIVIL_FLIGHT_CLOSURES`, fixture'ın kapanış bloğu): "ICAO bölge dilim". Halka tabloları
+ * (`RING_AIRPORTS`, `RING_FOUR_ZONES`) halka analizinin adaylarını sayar, bunlar orada yoktur.
+ * Ukrayna tzdb `zone.tab`'a göre (Kırım Europe/Simferopol, öbürleri Europe/Kiev; Intl yazımı),
+ * Harkiv'in OurAirports bölgesi "atanmamış" (UA-U-A, havalimanı kuralı), Rivne'ninki OurAirports
+ * kodu UA-19 (ISO UA-56).
+ */
+const WAR_CLOSURE_ZONES: readonly string[] = [
+  'FZMA CD-SK Africa/Lubumbashi',
+  'UKBB UA-32 Europe/Kiev',
+  'UKDD UA-12 Europe/Kiev',
+  'UKDE UA-23 Europe/Kiev',
+  'UKDR UA-12 Europe/Kiev',
+  'UKFF UA-43 Europe/Simferopol',
+  'UKHH UA-U-A Europe/Kiev',
+  'UKKK UA-30 Europe/Kiev',
+  'UKLI UA-26 Europe/Kiev',
+  'UKLL UA-46 Europe/Kiev',
+  'UKLN UA-77 Europe/Kiev',
+  'UKLR UA-19 Europe/Kiev',
+  'UKLU UA-21 Europe/Kiev',
+  'UKOH UA-65 Europe/Kiev',
+  'UKON UA-48 Europe/Kiev',
+  'UKOO UA-51 Europe/Kiev',
+  'UKWW UA-05 Europe/Kiev',
+  'URKA RU-KDA Europe/Moscow',
+  'URRP RU-ROS Europe/Moscow',
+  'UUBP RU-BRY Europe/Moscow',
+  'UUOB RU-BEL Europe/Moscow',
+  'UUOK RU-KRS Europe/Moscow',
+  'UUOL RU-LIP Europe/Moscow',
+]
+const warClosureByIcao = new Map(
+  WAR_CLOSURE_ZONES.map((line) => {
+    const [icao = '', isoRegion = '', zone = ''] = line.split(' ')
+    return [icao, { icao, isoRegion, zone }] as const
+  }),
+)
+
+/** ISO 3166-2:UA: 24 bölge, Kırım Özerk Cumhuriyeti, Kiev ve Sivastopol şehirleri (27 kod). */
+const UKRAINE_ISO_REGIONS = [
+  ...['UA-05', 'UA-07', 'UA-09', 'UA-12', 'UA-14', 'UA-18', 'UA-21', 'UA-23', 'UA-26'],
+  ...['UA-30', 'UA-32', 'UA-35', 'UA-40', 'UA-43', 'UA-46', 'UA-48', 'UA-51', 'UA-53'],
+  ...['UA-56', 'UA-59', 'UA-61', 'UA-63', 'UA-65', 'UA-68', 'UA-71', 'UA-74', 'UA-77'],
+]
+
+describe('savaş nedeniyle kapalı havalimanlarının saat dilimleri (D-110)', () => {
+  const closures = rows
+    .filter((r) => r.get('iso_country') !== 'TR' && r.get('scheduled_service') !== 'yes')
+    .filter((r) =>
+      isForeignCandidate(
+        r.get('type') ?? '',
+        r.get('scheduled_service') === 'yes',
+        r.get('iata_code'),
+        icaoOf(r),
+      ),
+    )
+
+  it("fixture'daki 23 tarifesiz kapanış kaydı beklenen dilimde; hepsi açık halkada", () => {
+    expect(closures.map(icaoOf).sort()).toEqual([...warClosureByIcao.keys()].sort())
+    for (const r of closures) {
+      const airport = fixtureAirport(r)
+      const expectedRow = warClosureByIcao.get(airport.icao)
+      expect(airport.isoRegion, airport.icao).toBe(expectedRow?.isoRegion)
+      expect(airportTimeZone(airport), airport.icao).toBe(expectedRow?.zone)
+      expect(airportRing(distanceToTurkey(r)), airport.icao).toBeLessThanOrEqual(4)
+    }
+  })
+
+  it('33 bölge kuralı (Ukrayna 28, Rusya 4, Kongo DC 1) ve Harkiv havalimanı kuralı', () => {
+    const ukraine = Object.keys(REGION_TIME_ZONES).filter((code) => code.startsWith('UA-'))
+    // Ukrayna'nın her ISO kodu ve OurAirports'un Rivne kodu: ülkenin her bölgesinin kuralı var.
+    expect(ukraine.toSorted()).toEqual([...UKRAINE_ISO_REGIONS, 'UA-19'].sort())
+    expect(Object.hasOwn(COUNTRY_TIME_ZONES, 'UA')).toBe(false)
+    for (const code of ukraine) {
+      expect(REGION_TIME_ZONES[code], code).toBe(
+        code === 'UA-40' || code === 'UA-43' ? 'Europe/Simferopol' : 'Europe/Kiev',
+      )
+    }
+    for (const code of ['RU-BEL', 'RU-BRY', 'RU-KRS', 'RU-LIP']) {
+      expect(REGION_TIME_ZONES[code], code).toBe('Europe/Moscow')
+    }
+    expect(REGION_TIME_ZONES['CD-SK']).toBe('Africa/Lubumbashi')
+    expect(AIRPORT_TIME_ZONES.UKHH).toBe('Europe/Kiev')
+    // Ad Intl'in yazımıdır: tzdb'deki Europe/Kyiv'i ICU Europe/Kiev diye verir.
+    const kyiv = new Intl.DateTimeFormat('en', { timeZone: 'Europe/Kyiv' })
+    expect(kyiv.resolvedOptions().timeZone).toBe('Europe/Kiev')
+    expect(Object.values(REGION_TIME_ZONES)).not.toContain('Europe/Kyiv')
+  })
+
+  it('Kiev yazın UTC+3, 25 Ekim 2026’dan sonra UTC+2; Simferopol bütün yıl UTC+3; Bukavu UTC+2', () => {
+    expect(offset('2026-10-24T12:00:00Z', 'Europe/Kiev')).toBe(180)
+    expect(offset('2026-10-25T01:00:00Z', 'Europe/Kiev')).toBe(120)
+    expect(offset('2026-01-15T12:00:00Z', 'Europe/Kiev')).toBe(120)
+    expect(offset('2026-01-15T12:00:00Z', 'Europe/Simferopol')).toBe(180)
+    expect(offset('2026-07-15T12:00:00Z', 'Europe/Simferopol')).toBe(180)
+    expect(offset('2026-07-15T12:00:00Z', 'Africa/Lubumbashi')).toBe(120)
   })
 })
 
@@ -966,6 +1071,8 @@ const REGION_CODE_ALIASES: Readonly<Record<string, string>> = {
   ...{ 'CN-46': 'CN-HI', 'CN-50': 'CN-CQ', 'CN-51': 'CN-SC', 'CN-52': 'CN-GZ', 'CN-53': 'CN-YN' },
   ...{ 'CN-61': 'CN-SN', 'CN-64': 'CN-NX' },
   ...{ 'EC-25': 'EC-SE', 'ID-PP': 'ID-PE', 'MX-DIF': 'MX-CMX' },
+  // Savaş nedeniyle kapalı havalimanları (D-110): OurAirports'un Rivne kodu.
+  'UA-19': 'UA-56',
 }
 
 /** ISO 3166-2:KZ: 17 bölge ve 3 şehir (Astana 71, Almatı 75, Şımkent 79); 2022 bölgeleri 10, 33, 62. */
@@ -1078,7 +1185,7 @@ describe("4. halka saat dilimleri (D-101; halka M6i.2'de açıldı, D-102)", () 
       RU: 24,
       UZ: 6,
     })
-    // 1.–4. halkanın altı havalimanı kuralı (5. halkanın 68'i aşağıda, D-109).
+    // 1.–4. halkanın altı havalimanı kuralı (Harkiv'inki aşağıda, D-110; 5. halkanın 68'i, D-109).
     expect(Object.keys(AIRPORT_TIME_ZONES)).toEqual(
       expect.arrayContaining(['BGCO', 'BGKK', 'LCEN', 'LCLK', 'LCPH', 'UGSS']),
     )
@@ -1690,11 +1797,12 @@ describe('5. halka saat dilimleri (D-109; halka kapalı, M6j.1)', () => {
     // ISO eşleri (OurAirports kodu ↔ ISO 3166-2) 30: Çin 27, Meksika, Ekvador, Endonezya.
     const ringFiveAliases = Object.keys(REGION_CODE_ALIASES).filter((code) => added.includes(code))
     expect(ringFiveAliases).toHaveLength(30)
-    // Toplam: 4. halkaya kadar 181 anahtar, 5. halkada 308 + 30.
-    expect(regionRules).toHaveLength(181 + 308 + 30)
-    // Havalimanı kuralları: 4. halkaya kadar 6, 5. halkada 68 (54 bölünen bölge, 6 kaba bölge,
-    // tzdb'ye sadık 8).
-    expect(Object.keys(AIRPORT_TIME_ZONES)).toHaveLength(74)
+    // Toplam: 4. halkaya kadar 214 anahtar (181 ve savaş kapanışlarının 33'ü, D-110), 5. halkada
+    // 308 + 30.
+    expect(regionRules).toHaveLength(181 + 33 + 308 + 30)
+    // Havalimanı kuralları: 4. halkaya kadar 7 (Harkiv, D-110), 5. halkada 68 (54 bölünen bölge, 6
+    // kaba bölge, tzdb'ye sadık 8).
+    expect(Object.keys(AIRPORT_TIME_ZONES)).toHaveLength(75)
     const keptIcaos = new Set(kept.map(icaoOf))
     const ringFiveAirportRules = Object.keys(AIRPORT_TIME_ZONES).filter((icao) =>
       keptIcaos.has(icao),

@@ -5,8 +5,8 @@ import { parseAirports } from '@havayolu/providers'
 import { LiveArgsError } from './args'
 
 /**
- * Klasör başına bir kez ayrıştırılan fixture satırları (D-109: 5. halkayla 3.624 satır; smoke her
- * istasyon için, testler her çağrıda yeniden ayrıştırıyordu).
+ * Klasör başına bir kez ayrıştırılan fixture satırları (D-109: 5. halkayla ve kapanış bloğuyla,
+ * D-110, 3.647 satır; smoke her istasyon için, testler her çağrıda yeniden ayrıştırıyordu).
  */
 const parsedFixtures = new Map<string, ReturnType<typeof parseAirports>['rows']>()
 

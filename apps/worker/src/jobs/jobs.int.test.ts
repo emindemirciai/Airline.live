@@ -107,8 +107,9 @@ describe('bakım işleri (gerçek PostgreSQL + Redis, BullMQ)', () => {
 
       // Hava durumu açılışta, referans içe aktarımından sonra fixture'dan (zamanı kaydırılarak)
       // yazılır: 20 istasyon (14 Türkiye, 6 1. halka), raporu olmayan LTBQ yok; LTFM'nin 3 günlük
-      // geçmişi. İstasyon listesi listelenen havalimanlarıdır (Türkiye, 1.–4. halka: 56 + 75 + 89 +
-      // 278 + 719 = 1.217; D-080, D-088, D-090, D-102; askerî hava üsleri yok, D-107). İskenderiye
+      // geçmişi. İstasyon listesi listelenen havalimanlarıdır (Türkiye, 1.–4. halka: 56 + 77 + 104 +
+      // 283 + 720 = 1.240; D-080, D-088, D-090, D-102; askerî hava üsleri yok, D-107; savaş
+      // nedeniyle kapalı 23 havalimanı dahil, D-110). İskenderiye
       // OurAirports'taki HEAX koduyla değil HEBA ile, Özbekistan'ın istasyonları OurAirports kimliği
       // (UTxx) değil ICAO'suyla (UZxx) istenir.
       await waitFor(async () => {
@@ -119,7 +120,8 @@ describe('bakım işleri (gerçek PostgreSQL + Redis, BullMQ)', () => {
       expect(weather.metar).toMatchObject({ origin: 'fixture', lastError: null, skippedCount: 0 })
       expect(weather.taf).toMatchObject({ origin: 'fixture', lastError: null })
       const listed = await databaseWeatherStore(database).stations()
-      expect(listed).toHaveLength(1217)
+      expect(listed).toHaveLength(1240)
+      expect(listed).toEqual(expect.arrayContaining(['UKBB', 'UKFF', 'URRP', 'FZMA']))
       for (const icao of ['LTAG', 'LTAH', 'LTBG', 'LTBI', 'LTBL'])
         expect(listed).not.toContain(icao)
       expect(listed).toEqual(
@@ -275,7 +277,7 @@ describe("referans içe aktarımı (commit'li fixture)", () => {
     })
   })
 
-  it('içe aktarımdan sonra kayma satırı (D-109): açık halkada 1.217, sapma yok', async () => {
+  it('içe aktarımdan sonra kayma satırı (D-109): açık halkada 1.240 (D-110), sapma yok', async () => {
     const result = await runReferenceImport({
       db: database.db,
       fetcher: fixtures,
@@ -286,7 +288,7 @@ describe("referans içe aktarımı (commit'li fixture)", () => {
     })
     expect(result.ourairports.status).toBe('not_modified')
     expect(result.drift).toMatchObject({
-      listed: 1217,
+      listed: 1240,
       withoutTimeZone: { count: 0 },
       unknownSurfaces: { count: 0 },
       duplicateIata: { count: 0 },

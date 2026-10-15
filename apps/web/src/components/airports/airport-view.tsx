@@ -40,7 +40,7 @@ import {
   runwayDesignator,
 } from './airport-text'
 import { Breadcrumbs } from './breadcrumbs'
-import { civilClosureNote } from './civil-closure'
+import { civilClosureNote, civilClosureTemplates } from './civil-closure'
 import { airportCrumbs } from './crumbs'
 import { AVIATION_WEATHER_URL } from './weather-links'
 
@@ -115,9 +115,11 @@ const displacedFt = (end: RunwayDetail['ends'][number]) =>
  * yazılır; Türkiye'ye göre bir satır yoktur (D-106). "… ilindeki diğer havalimanları" cümlesi yalnızca
  * Türkiye'dedir. "En yakın havalimanları" listesi Türkiye'yi ve diğer ülkeleri karışık içerebilir.
  *
- * Sivil uçuşlara kapalı olabilecek havalimanı (kullanıcı kararı 2026-10-04, D-090; Krasnodar,
- * Gelencik, Elista, Voronej): başlığın altında kehribar not (`role="note"`), harita penceresiyle aynı
- * metin. Not yalnız görünür metindir; başlık, açıklama ve JSON-LD değişmez.
+ * Savaş nedeniyle sivil uçuşlara kapalı havalimanı (kapanış tablosu `CIVIL_FLIGHT_CLOSURES`, D-110;
+ * ilk tablo D-090): başlığın altında kehribar not (`role="note"`), harita penceresiyle aynı metin;
+ * kesin kayıtta "Savaş nedeniyle sivil uçuşlara kapalı (<yıl>’den beri)", belirsiz kayıtta "… kapalı
+ * olabilir (…)". Sayfa başlığı canlı trafik vaat etmez (`airportTitle` → `titleOutside`), açıklamanın
+ * son cümlesi nottur (`airportDescription`); JSON-LD değişmez.
  */
 export function AirportView({ locale, app, airport, airports, weather }: AirportViewProps) {
   const messages = getMessages(locale)
@@ -135,8 +137,8 @@ export function AirportView({ locale, app, airport, airports, weather }: Airport
   const nameSource = airportNameSource(airport.icao)
   const covered = isInLiveCoverage(airport, liveCoveragePlan(airports))
   const district = airportLocality(airport, locale)
-  // Sivil uçuşlara kapalı olabilecek havalimanı (D-090): başlığın altında görünür not.
-  const closure = civilClosureNote(airport.icao, locale, t.civilClosure)
+  // Savaş nedeniyle kapalı havalimanı (D-110; D-090): başlığın altında görünür not.
+  const closure = civilClosureNote(airport.icao, locale, civilClosureTemplates(t))
 
   const runwaySentence =
     count === 1 && longest
