@@ -34,20 +34,33 @@ describe('OurAirports airports', () => {
     expect(airports.skipped).toEqual([])
     // Fixture bütün TR alanlarını (429), sekiz uzak havalimanını, iki dışlama örneğini (LFPB, FATH;
     // D-109), 1. halkanın 75, 2. halkanın 89, 3. halkanın 275, 4. halkanın 716 ve 5. halkanın 2.030
-    // yeni havalimanını (D-080, D-088, D-090, D-101, D-109) içerir; filtre büyük/orta ve tarifeli
+    // yeni havalimanını (D-080, D-088, D-090, D-101, D-109) ve en sonda kapanış bloğunun savaş
+    // nedeniyle kapalı, tarifesiz 23 havalimanını (D-110) içerir; filtre büyük/orta ve tarifeli
     // olanları ve Türkiye'nin IATA kodlu 5 küçük alanını (yurt dışı havalimanlarının uzaklık
     // referansı, D-080) tutar. Thohoyandou (FATH) küçük ve tarifesizdir: içe aktarılmaz.
     const all = parseAirports(fixture('ourairports/airports.csv'), () => true)
     expect(all.skipped).toEqual([])
-    expect(all.rows.length).toBe(3624)
+    expect(all.rows.length).toBe(3647)
     expect(all.rows.filter((a) => a.isoCountry === 'TR')).toHaveLength(429)
-    expect(airports.rows.length + airports.ignored).toBe(3624)
+    expect(airports.rows.length + airports.ignored).toBe(3647)
     // Halkaların satırları önceki satırların ardından, kaynak sırasıyla gelir: 3. halkanın sonuncusu
     // Samara (UWWW), 4. halkanın ilki Neerlerit Inaat (Grönland), sonuncusu Yining (ZWYN); 5.
-    // halkanın ilki Aleknagik (5A8, WKK), sonuncusu Yingkou (ZYYK).
+    // halkanın ilki Aleknagik (5A8, WKK), sonuncusu Yingkou (ZYYK); kapanış bloğunun ilki Bukavu
+    // (FZMA), sonuncusu Lipetsk (UUOL). Kapanış bloğunun hepsi tarifesizdir ve içe aktarılır
+    // (büyük ya da orta havalimanı).
     expect(all.rows.slice(877, 879).map((a) => a.ident)).toEqual(['UWWW', 'BGCO'])
     expect(all.rows.slice(1593, 1595).map((a) => a.ident)).toEqual(['ZWYN', '5A8'])
-    expect(all.rows.at(-1)?.ident).toBe('ZYYK')
+    expect(all.rows.slice(3623, 3625).map((a) => a.ident)).toEqual(['ZYYK', 'FZMA'])
+    expect(all.rows.at(-1)?.ident).toBe('UUOL')
+    const closures = all.rows.slice(3624)
+    expect(closures).toHaveLength(23)
+    expect(closures.every((a) => !a.scheduledService)).toBe(true)
+    for (const row of closures) {
+      expect(
+        airports.rows.some((a) => a.ident === row.ident),
+        row.ident,
+      ).toBe(true)
+    }
     expect(all.rows.find((a) => a.ident === 'FATH')).toMatchObject({
       type: 'small_airport',
       scheduledService: false,
@@ -136,8 +149,9 @@ describe('OurAirports airports', () => {
 describe('OurAirports runways ve pist eşikleri (M2 kabulü)', () => {
   it('fixture ayrışır; içe aktarılmayan havalimanının pisti ve kapalı pist filtre dışıdır', () => {
     expect(runways.skipped).toEqual([])
-    // 4.604 veri satırı: taban (149; LFPB'nin üç pisti dahil) ve 1.–5. halkanın açık pistleri (4.455).
-    expect(runways.rows.length + runways.ignored).toBe(4604)
+    // 4.632 veri satırı: taban (149; LFPB'nin üç pisti dahil), 1.–5. halkanın açık pistleri (4.455) ve
+    // kapanış bloğunun açık pistleri (28, D-110).
+    expect(runways.rows.length + runways.ignored).toBe(4632)
     const ltfm = airports.rows.find((a) => a.ident === 'LTFM')?.id
     const other = parseRunways(
       [

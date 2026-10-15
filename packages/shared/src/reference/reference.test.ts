@@ -292,7 +292,8 @@ describe('runwaySurfaceKey', () => {
       .map((r) => `${r.get('id')} ${r.get('airport_ident')}`)
     // Gösterilmeyen yinelenen boş satırlar: Taba 04/22, Cluj 08/26 (D-088); Hassi Messaoud 01/19,
     // Bujumbura 02/20, Beauvais 13R/31L ve 2 ft'lik Pamplona 03/21 (D-101); 5. halkada Kolombiya'nın
-    // beşi, Kushiro (RJNO), Yeni Zelanda'nın dördü ve Chiayi (RCKU) (D-109). Gösterilen ama kaplaması
+    // beşi, Kushiro (RJNO), Yeni Zelanda'nın dördü ve Chiayi (RCKU) (D-109); Simferopol'ün uzunluksuz
+    // 01/19'u (UKFF, 01L/19R'nin yinelemesi; D-110). Gösterilen ama kaplaması
     // bilinmeyen pistler: 4. halkada Kulusuk, Malindi'nin ikisi, Moğolistan'ın dördü, Nyingchi; 5.
     // halkada Riberalta, Puerto Jiménez, Narsarsuaq, Paramaribo Zorg en Hoop, Huambo ve
     // Paraparaumu.
@@ -303,7 +304,7 @@ describe('runwaySurfaceKey', () => {
       ...['260329 SKMZ', '260332 SKAS', '260333 SKRH', '260334 SKSV', '260338 DAUH'],
       ...['260339 HETB', '260341 LEPP', '260344 LFOB', '260378 RJNO', '260388 NZGS'],
       ...['260391 NZKK', '260395 NZPM', '260398 NZRO', '260402 NZWK', '260408 LRCL'],
-      '260411 RCKU',
+      ...['260411 RCKU', '260413 UKFF'],
     ])
   })
 

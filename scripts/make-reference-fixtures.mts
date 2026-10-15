@@ -6,18 +6,23 @@
 // (SHA256SUMS ile; tools/fixtures/README.md). Bugünkü fixture o klasörden bayt bayt aynı üretilir.
 // Alt küme: Türkiye'deki bütün kayıtlar ve FIXTURE_EXTRA_AIRPORTS (pistlerinin hepsiyle), ardından
 // Türkiye dışı adaylar halka halka: önce 1., sonra 2., 3., 4. ve 5. halka (açık pistleriyle; D-080,
-// D-088, D-090, D-101, D-109);
-// havayollarının tamamı.
+// D-088, D-090, D-101, D-109), ve kapanış tablosunun tarifesiz havalimanları (açık pistleriyle,
+// D-110); havayollarının tamamı.
 // Ayrıca adres takma adının dışlama listesini (`IDENT_ALIAS_EXCLUSIONS`, D-109) tam dosyayla sayar
 // (`identAliasExclusionCensus`); sayım koddaki listeden farklıysa çıkış kodu 1'dir (fixture yine
 // yazılır; liste `packages/db/src/airports.ts`'te ve web test yardımcısında güncellenir).
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { IDENT_ALIAS_EXCLUSIONS, identAliasExclusionCensus } from '../packages/db/src/airports.ts'
+import {
+  IDENT_ALIAS_EXCLUSIONS,
+  identAliasExclusionCensus,
+  ourAirportsIcao,
+} from '../packages/db/src/airports.ts'
 import { distanceKm } from '../packages/geo/src/index.ts'
 import { parseCsv } from '../packages/providers/src/reference/csv.ts'
 import { isImportedAirport } from '../packages/providers/src/reference/ourairports.ts'
+import { CIVIL_FLIGHT_CLOSURES } from '../packages/shared/src/reference/civil-closures.ts'
 
 /**
  * Türkiye dışından testlerde kullanılabilecek birkaç büyük havalimanı ve iki dışlama örneği
@@ -113,6 +118,32 @@ const rings = FIXTURE_RINGS_KM.map((limit, index) => {
   })
 })
 const ringAirports = rings.flat()
+const ringIdents = new Set(ringAirports.map((row) => row[identCol]))
+const icaoCodeCol = col(airportHeader, 'icao_code')
+const gpsCodeCol = col(airportHeader, 'gps_code')
+const value = (row: string[], index: number) => row[index]?.trim() ?? ''
+const optional = (row: string[], index: number) => value(row, index) || null
+const canonicalIcao = (row: string[]) =>
+  ourAirportsIcao({
+    ident: value(row, identCol),
+    icaoCode: optional(row, icaoCodeCol),
+    gpsCode: optional(row, gpsCodeCol),
+  })
+/**
+ * Kapanış bloğu (D-110): kapanış tablosunun (`CIVIL_FLIGHT_CLOSURES`) halka bloklarında olmayan,
+ * yani OurAirports'ta tarifesiz havalimanları; Türkiye dışında, tabanda yok, büyük ya da orta, üç
+ * harfli IATA kodlu ve kanonik ICAO'su tabloda. Kaynak sırasıyla, dosyaların sonunda; önceki
+ * satırlar değişmez. Tabloda olup tarifeli olanlar zaten halka bloklarındadır, yinelenmez.
+ */
+const closureAirports = airports.filter(
+  (row) =>
+    row[countryCol] !== 'TR' &&
+    !baseIdents.has(row[identCol]) &&
+    !ringIdents.has(row[identCol]) &&
+    (row[typeCol] === 'large_airport' || row[typeCol] === 'medium_airport') &&
+    IATA_CODE.test(row[iataCol] ?? '') &&
+    Object.hasOwn(CIVIL_FLIGHT_CLOSURES, canonicalIcao(row)),
+)
 
 const [runwayHeader = [], ...runways] = read('runways.csv')
 const runwayAirportCol = col(runwayHeader, 'airport_ident')
@@ -124,6 +155,12 @@ const ringRunways = rings.flatMap((ring) => {
   return runways.filter((row) => idents.has(row[runwayAirportCol]) && row[closedCol] !== '1')
 })
 
+// Kapanış bloğunun açık pistleri (halka satırlarının kuralı), en sonda.
+const closureIdents = new Set(closureAirports.map((row) => row[identCol]))
+const closureRunways = runways.filter(
+  (row) => closureIdents.has(row[runwayAirportCol]) && row[closedCol] !== '1',
+)
+
 const airlines = read('airlines.csv')
 
 const ourairports = join(output, 'ourairports')
@@ -132,21 +169,17 @@ mkdirSync(ourairports, { recursive: true })
 mkdirSync(vrs, { recursive: true })
 writeFileSync(
   join(ourairports, 'airports.csv'),
-  toCsv([airportHeader, ...baseAirports, ...ringAirports]),
+  toCsv([airportHeader, ...baseAirports, ...ringAirports, ...closureAirports]),
 )
 writeFileSync(
   join(ourairports, 'runways.csv'),
-  toCsv([runwayHeader, ...baseRunways, ...ringRunways]),
+  toCsv([runwayHeader, ...baseRunways, ...ringRunways, ...closureRunways]),
 )
 writeFileSync(join(vrs, 'airlines.csv'), toCsv(airlines))
 console.log(
-  `✓ airports ${baseAirports.length} + rings ${rings.map((ring) => ring.length).join(' + ')}, runways ${baseRunways.length} + ${ringRunways.length}, airlines ${airlines.length - 1}`,
+  `✓ airports ${baseAirports.length} + rings ${rings.map((ring) => ring.length).join(' + ')} + closures ${closureAirports.length}, runways ${baseRunways.length} + ${ringRunways.length} + ${closureRunways.length}, airlines ${airlines.length - 1}`,
 )
 
-const value = (row: string[], index: number) => row[index]?.trim() ?? ''
-const optional = (row: string[], index: number) => value(row, index) || null
-const icaoCodeCol = col(airportHeader, 'icao_code')
-const gpsCodeCol = col(airportHeader, 'gps_code')
 const exclusions = identAliasExclusionCensus(
   airports.map((row) => ({
     ident: value(row, identCol),

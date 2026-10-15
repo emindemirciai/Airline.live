@@ -273,7 +273,7 @@ describe('yerleşim tablosu (D-096, D-099, D-100)', { timeout: 120_000 }, () => 
       farSafetyKm: 2.5,
       clearMaxDelayZooms: CLEAR_MAX_DELAY_ZOOMS,
       crowdedMaxDelayZooms: CROWDED_MAX_DELAY_ZOOMS,
-      airportPins: 1217,
+      airportPins: 1240,
       airportCodeMinZoom: 5,
       airportCodeSides: ['right', 'left'],
       capitalAnchored: ['CY'],

@@ -1,3 +1,5 @@
+import { civilFlightClosure } from './civil-closures'
+
 /**
  * Türkiye dışındaki havalimanları halka halka, yakından uzağa açılır (kullanıcı kararı 2026-10-01,
  * D-080). Uzaklık, havalimanından Türkiye'deki **en yakın IATA kodlu havalimanına** büyük daire
@@ -77,8 +79,9 @@ export function isCanonicalIcao(icao: string | null | undefined): boolean {
 /**
  * D-080'in aday kuralı, ICAO koşulu olmadan: OurAirports `large_airport` ya da `medium_airport`,
  * tarifeli seferi var ve üç harfli IATA kodu taşıyor. IATA kodu kırpılıp büyük harfe çevrilir.
- * Halka analizi ve fixture üreticisi bu kuralı sayar (4. halkada 720 aday); listeye giren aday
- * ayrıca kanonik ICAO koşulunu taşır (`isForeignCandidate`, 719).
+ * Halka analizi ve fixture üreticisinin halka blokları bu kuralı sayar (4. halkada 720 aday);
+ * listeye giren aday ayrıca kanonik ICAO koşulunu taşır ve kapanış tablosundakiler de tarifeli
+ * sayılır (`isForeignCandidate`; 4. halkada 720 = 719 + Bukavu, D-110).
  */
 export function isScheduledIataAirport(
   type: string,
@@ -93,11 +96,13 @@ export function isScheduledIataAirport(
 }
 
 /**
- * Türkiye dışındaki bir havalimanı listeye aday mı (D-080, D-101): D-080 kuralı
- * (`isScheduledIataAirport`) ve kanonik ICAO'su (`ourAirportsIcao`) dört karakter
- * (`isCanonicalIcao`). Değişmez kural: `scope=listed`'deki her havalimanının dört karakterli
- * ICAO'su vardır. Halka sınırı ayrıca uygulanır (`airportRing`). `@havayolu/db` aynı kuralı kendi
- * yazımıyla uygular; `apps/api/src/reference/rings.test.ts` ikisini denetler.
+ * Türkiye dışındaki bir havalimanı listeye aday mı (D-080, D-101, D-110): D-080 kuralı
+ * (`isScheduledIataAirport`; tarifeli ya da kapanış tablosunda, `civilFlightClosure`: savaş
+ * nedeniyle kapalı havalimanı OurAirports'ta tarifesiz görünse de tarifeli sayılır) ve kanonik
+ * ICAO'su (`ourAirportsIcao`) dört karakter (`isCanonicalIcao`). Değişmez kural: `scope=listed`'deki
+ * her havalimanının dört karakterli ICAO'su vardır. Halka sınırı ayrıca uygulanır (`airportRing`).
+ * `@havayolu/db` aynı kuralı kendi yazımıyla uygular; `apps/api/src/reference/rings.test.ts` ikisini
+ * denetler. Halka analizinin aday sayımları OurAirports bayrağıyla kalır (`isScheduledIataAirport`).
  */
 export function isForeignCandidate(
   type: string,
@@ -105,5 +110,6 @@ export function isForeignCandidate(
   iata: string | null | undefined,
   icao: string | null | undefined,
 ): boolean {
-  return isScheduledIataAirport(type, scheduled, iata) && isCanonicalIcao(icao)
+  const closed = civilFlightClosure(icao ?? '') !== undefined
+  return isScheduledIataAirport(type, scheduled || closed, iata) && isCanonicalIcao(icao)
 }

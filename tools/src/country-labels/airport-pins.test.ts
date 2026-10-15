@@ -89,28 +89,31 @@ function bruteHits(box: WorldBox, zoom: number): { count: number; icaos: string[
 }
 
 describe('listelenen havalimanları (D-080, D-099)', () => {
-  it('üretimdeki liste: 1.217 havalimanı (Türkiye 56, 1. halka 75, 2. halka 89, 3. halka 278, 4. halka 719), askerî üsler yok (D-107), ICAO sırasıyla', () => {
+  it('üretimdeki liste: 1.240 havalimanı (Türkiye 56, 1. halka 77, 2. halka 104, 3. halka 283, 4. halka 720; savaş kapanışlarıyla, D-110), askerî üsler yok (D-107), ICAO sırasıyla', () => {
     // Halka açılınca fixture yeni halkanın adaylarıyla genişler ve tablo yeniden üretilir (M6i.2'de
     // 4. halka, D-102).
     expect(ENABLED_AIRPORT_RING).toBe(4)
-    expect(PINS).toHaveLength(1217)
+    expect(PINS).toHaveLength(1240)
     const byRing = [0, 1, 2, 3, 4].map((ring) => PINS.filter((pin) => pin.ring === ring).length)
-    expect(byRing).toEqual([56, 75, 89, 278, 719])
+    expect(byRing).toEqual([56, 77, 104, 283, 720])
     const icaos = PINS.map((pin) => pin.icao)
     expect(icaos).toEqual([...icaos].sort())
-    expect(new Set(icaos).size).toBe(1217)
+    expect(new Set(icaos).size).toBe(1240)
     for (const icao of ['LTFM', 'LTAC', 'OIIE', 'LIMP', 'UUEE', 'HEBA', 'EGLL', 'VIDP', 'ZMCK'])
       expect(icaos).toContain(icao)
+    // Ukrayna'da ilk kez pin var (D-110): 16 havalimanı, Kırım dahil.
+    expect(icaos.filter((icao) => icao.startsWith('UK'))).toHaveLength(16)
+    for (const icao of ['UKBB', 'UKFF', 'URRP', 'FZMA']) expect(icaos).toContain(icao)
     for (const icao of MILITARY_AIRFIELD_ICAOS) expect(icaos).not.toContain(icao)
     // Dört karakterli ICAO'su olmayan Kihihi (UG-0002, IATA KHX) listede yoktur (D-101).
     expect(icaos).not.toContain('UG-0002')
     expect(PINS.some((pin) => pin.iata === 'KHX')).toBe(false)
   })
 
-  it('haritadaki pinler (D-103, D-107): listenin kendisi; savunma süzgeci (`mapShownAirports`) bir şey çıkarmaz; 1.217 havalimanı (Türkiye 56)', () => {
-    expect(MAP_PINS).toHaveLength(1217)
+  it('haritadaki pinler (D-103, D-107): listenin kendisi; savunma süzgeci (`mapShownAirports`) bir şey çıkarmaz; 1.240 havalimanı (Türkiye 56)', () => {
+    expect(MAP_PINS).toHaveLength(1240)
     const byRing = [0, 1, 2, 3, 4].map((ring) => MAP_PINS.filter((pin) => pin.ring === ring).length)
-    expect(byRing).toEqual([56, 75, 89, 278, 719])
+    expect(byRing).toEqual([56, 77, 104, 283, 720])
     const icaos = MAP_PINS.map((pin) => pin.icao)
     expect(icaos).toEqual([...icaos].sort())
     expect(MAP_PINS).toEqual(PINS)

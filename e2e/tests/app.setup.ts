@@ -69,8 +69,8 @@ setup('havalimanı referans verisi API’de', async ({ request }) => {
     .toBe(AIRPORT_COUNT)
 
   // Listelenen havalimanları (M6d, D-080; M6g, D-088; M6h, D-090; M6i.2, D-102): Türkiye + 1.–4.
-  // halka (1.217; askerî hava üsleri yok, D-107). Sayfalar, site haritası ve harita bu listeyi
-  // kullanır; halka üyeliği API'de hesaplanıp önbelleğe alınır. Yerel veritabanı eski bir içe
+  // halka (1.240; askerî hava üsleri yok, D-107; savaş nedeniyle kapalı 23 havalimanı dahil,
+  // D-110). Sayfalar, site haritası ve harita bu listeyi kullanır; halka üyeliği API'de hesaplanıp önbelleğe alınır. Yerel veritabanı eski bir içe
   // aktarımı tutuyorsa (sayı eski halkanın sayısıdır) iki OurAirports satırı `reference_sources`'ta
   // sıfırlanır; web'in geliştirme veri önbelleği (`apps/web/.next/dev/cache/fetch-cache`) de eski
   // listeyi 1 saat sunabilir (M6h kaydı).

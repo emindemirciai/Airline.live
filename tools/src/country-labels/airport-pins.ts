@@ -8,8 +8,9 @@
  *   süzgeci (`@havayolu/providers` `parseAirports`), kimlik sırası, Türkiye'deki uzaklık
  *   referansları ve halka seçimi (`@havayolu/db` `turkishReferencePoints`, `selectListedAirports`,
  *   `AIRPORT_RING_CONFIG`). Fixture Türkiye'nin bütün satırlarını ve açık halkaların (1.–4.) bütün
- *   yurt dışı adaylarını taşır: liste, üretimin kuralının bu kopyaya uygulanmış hâlidir (1.217 = 56
- *   + 75 + 89 + 278 + 719; askerî hava üsleri listelenmez, D-107; `listedAirportPins`). Üretim
+ *   yurt dışı adaylarını taşır: liste, üretimin kuralının bu kopyaya uygulanmış hâlidir (1.240 = 56
+ *   + 77 + 104 + 283 + 720; savaş nedeniyle kapalı 23 havalimanı kapanış tablosuyla, D-110; askerî
+ *   hava üsleri listelenmez, D-107; `listedAirportPins`). Üretim
  *   OurAirports'u her gece yeniden içe aktarır (`reference-import`); tarifeli sefer, tür, IATA kodu
  *   ya da konum değişirse üretimin listesi fixture'dan ayrılabilir. Bunu hiçbir test yakalamaz:
  *   kullanıcı iki listeyi elle karşılaştırır (ACTIVATION "Ülke adlarının engelleri"), ayrılık varsa
@@ -17,7 +18,7 @@
  *   yeniden üretilir (M6i.2, D-102) (airport-pins.test.ts açık halkayı denetler).
  * - **Haritadaki pinler** (`mapAirportPins`): liste, web haritasının savunma süzgecinden
  *   (`@havayolu/shared` `mapShownAirports`, D-103) geçerek. D-107'den beri liste askerî hava üssü
- *   taşımadığı için süzgeç bir şey çıkarmaz; engeller listenin kendisidir: 1.217 havalimanı
+ *   taşımadığı için süzgeç bir şey çıkarmaz; engeller listenin kendisidir: 1.240 havalimanı
  *   (Türkiye 56).
  * - **Pin:** bitmap kutusu (airport-pin.ts): 24 × 32 görünüm kutusu + her yana 3 birim pay; katman
  *   alt kenarı noktaya bağlar ve `icon-offset` ile 3 birim aşağı kaydırır (`AIRPORT_LAYER`; ofset

@@ -12,8 +12,35 @@ import type { ChangelogEntry } from './types'
  */
 export const CHANGELOG: readonly ChangelogEntry[] = [
   {
+    version: '0.25.1',
+    date: '2026-10-15',
+    title: {
+      tr: 'Savaş nedeniyle kapalı havalimanları da listede',
+      en: 'Airports closed by war are now listed',
+    },
+    items: [
+      {
+        tr: 'Normalde yolcu seferi alan ama savaş nedeniyle sivil uçuşlara kapalı 23 havalimanı listeye girdi: Ukrayna’nın 16 havalimanı (Kiev Borispil, Lviv ve Odessa dahil), Rusya’nın 6 havalimanı (Rostov ve Anapa dahil) ve Kongo DC’de Bukavu. Listede artık 1.240 havalimanı var.',
+        en: 'We added 23 airports that normally have passenger flights but are closed to civil flights because of war: 16 in Ukraine (Kyiv Boryspil, Lviv and Odesa among them), 6 in Russia (Rostov and Anapa among them) and Bukavu in DR Congo. The list now has 1,240 airports.',
+      },
+      {
+        tr: 'Bu havalimanlarının ve savaştan etkilenen 12 havalimanının daha sayfasında, harita penceresinde ve havalimanı listesinde bir not var. Kapanışı resmî bir kaynak doğruluyorsa not “Savaş nedeniyle sivil uçuşlara kapalı”, doğrulamıyorsa “… kapalı olabilir” der; yanında kapanışın yılı yazar.',
+        en: 'These airports, and 12 more affected by war, carry a note on their page, in the map popup and in the airport list. Where an official source confirms the closure, it reads “Closed to civil flights because of the war”; where none does, “May be closed …”; the year it began is shown too.',
+      },
+      {
+        tr: 'Yeniden açılan Krasnodar, Gelencik ve Elista’nın notu kalktı.',
+        en: 'Krasnodar, Gelendzhik and Elista have reopened, so their note is gone.',
+      },
+    ],
+    tryLinks: [
+      { path: '/istasyon/UKBB', label: { tr: 'Kiev Borispil', en: 'Kyiv Boryspil' } },
+      { path: '/havalimanlari', label: { tr: 'Havalimanları', en: 'Airports' } },
+    ],
+  },
+  {
     version: '0.25.0',
     date: '2026-10-15',
+    releasedAt: '2026-10-15T03:24:33Z',
     title: {
       tr: 'Yeni adımız Airline.live',
       en: 'Our new name is Airline.live',

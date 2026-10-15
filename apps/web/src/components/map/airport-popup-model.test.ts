@@ -172,12 +172,12 @@ describe('havalimanı bilgileri', () => {
   })
 
   it('listelenen her havalimanının penceresinde yer ve saat dilimi vardır (4. halka dahil, D-090, D-102)', () => {
-    // API kaydı haritanın okuyucusundan geçer (`toMapAirport`): sayfadaki listeyle aynı 1.217 kayıt
-    // (askerî üsler yok, D-107).
+    // API kaydı haritanın okuyucusundan geçer (`toMapAirport`): sayfadaki listeyle aynı 1.240 kayıt
+    // (askerî üsler yok, D-107; savaş nedeniyle kapalı 23 havalimanı dahil, D-110).
     const listed = fixtureListedAirports().map((airport) => toMapAirport(airport))
     expect(listed.filter((airport) => airport === null)).toEqual([])
     const map = new Map(listed.flatMap((airport) => (airport ? [[airport.icao, airport]] : [])))
-    expect(map.size).toBe(1217)
+    expect(map.size).toBe(1240)
     for (const airport of map.values()) {
       expect(airportPlace(airport, 'tr'), airport.icao).not.toBeNull()
       expect(airportPlace(airport, 'en'), airport.icao).not.toBeNull()
@@ -233,7 +233,7 @@ describe('havalimanı bilgileri', () => {
     expect(airportPlace(of('EGLL'), 'tr')).toBe('Birleşik Krallık')
   })
 
-  it('sivil uçuşlara kapalı olabilecek havalimanında not; diğerlerinde yok (D-090)', () => {
+  it('savaş nedeniyle kapalı havalimanında not; diğerlerinde yok (D-110)', () => {
     const listed = new Map(
       fixtureListedAirports().flatMap((airport) => {
         const map = toMapAirport(airport)
@@ -243,15 +243,32 @@ describe('havalimanı bilgileri', () => {
     const closed = [...listed.values()].filter(
       (airport) => airportFacts(airport, NOW, 'tr', tr.map.airportPopup).closure !== null,
     )
-    // Listelenenler: Krasnodar, Gelencik (1. halka), Elista (2. halka), Voronej (3. halka).
-    expect(closed.map((airport) => airport.icao).sort()).toEqual(['URKG', 'URKK', 'URWI', 'UUOO'])
+    // Kapanış tablosunun 35 kaydının hepsi haritada; yeniden açılan Krasnodar, Gelencik, Elista
+    // ve Mekele not göstermez.
+    expect(closed).toHaveLength(35)
+    for (const icao of ['URKK', 'URKG', 'URWI', 'HAMK']) {
+      expect(
+        closed.map((airport) => airport.icao),
+        icao,
+      ).not.toContain(icao)
+    }
+    const odesa = listed.get('UKOO')
+    if (!odesa) throw new Error('fixture has no UKOO')
+    expect(airportFacts(odesa, NOW, 'tr', tr.map.airportPopup).closure).toBe(
+      'Savaş nedeniyle sivil uçuşlara kapalı (2022’den beri)',
+    )
     const voronezh = listed.get('UUOO')
     if (!voronezh) throw new Error('fixture has no UUOO')
     expect(airportFacts(voronezh, NOW, 'tr', tr.map.airportPopup).closure).toBe(
-      'Sivil uçuşlara kapalı olabilir (2022’den beri)',
+      'Savaş nedeniyle sivil uçuşlara kapalı (2022’den beri)',
     )
     expect(airportFacts(voronezh, NOW, 'en', en.map.airportPopup).closure).toBe(
-      'May be closed to civil flights (since 2022)',
+      'Closed to civil flights because of the war (since 2022)',
+    )
+    const gao = listed.get('GAGO')
+    if (!gao) throw new Error('fixture has no GAGO')
+    expect(airportFacts(gao, NOW, 'en', en.map.airportPopup).closure).toBe(
+      'May be closed to civil flights because of the war (since 2026)',
     )
     expect(airportFacts(IST, NOW, 'tr', tr.map.airportPopup).closure).toBeNull()
   })

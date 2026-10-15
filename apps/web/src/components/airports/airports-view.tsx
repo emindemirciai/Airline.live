@@ -19,6 +19,7 @@ import {
   sortByProvince,
 } from './airport-text'
 import { Breadcrumbs } from './breadcrumbs'
+import { civilClosureNote, civilClosureTemplates } from './civil-closure'
 import { airportsCrumbs } from './crumbs'
 
 export interface AirportsViewProps {
@@ -62,7 +63,8 @@ function AirportLink({ airport, locale }: { airport: AirportDetail; locale: Loca
  * ülkelerdeki havalimanlarının ayrı tablosu (D-080, D-106). İki tablo da gerçek `<table>`'dır. Türkiye
  * ile, sonra ada göre; diğer ülkeler ülkeye, sonra ada göre sıralıdır (sayfanın dilinin alfabesi).
  * Türkiye'ye uzaklık sütunu yoktur (D-106). Bölümün başındaki kapsama notu canlı uçak verisinin
- * şimdilik yalnızca Türkiye ve çevresinden çekildiğini söyler (D-076 kapsama dürüstlüğü).
+ * şimdilik yalnızca Türkiye ve çevresinden çekildiğini söyler (D-076 kapsama dürüstlüğü). Savaş
+ * nedeniyle kapalı havalimanının ad hücresinde, bağlantının altında sayfadaki not durur (D-110).
  */
 export function AirportsView({ locale, app, airports }: AirportsViewProps) {
   const messages = getMessages(locale)
@@ -72,6 +74,7 @@ export function AirportsView({ locale, app, airports }: AirportsViewProps) {
   const { turkey, foreign } = listedAirportRows(airports, locale)
   const counts = airportCounts(airports)
   const radiusKm = listedRadiusKm()
+  const closureTemplates = civilClosureTemplates(a)
 
   return (
     <article className="page page-wide airports-page">
@@ -155,10 +158,12 @@ export function AirportsView({ locale, app, airports }: AirportsViewProps) {
                   <tbody>
                     {foreign.map((airport) => {
                       const longest = longestRunway(airport)
+                      const closure = civilClosureNote(airport.icao, locale, closureTemplates)
                       return (
                         <tr key={airport.icao}>
                           <th scope="row">
                             <AirportLink airport={airport} locale={locale} />
+                            {closure ? <span className="airports-closure">{closure}</span> : null}
                           </th>
                           <td>{airportCountry(airport, locale)}</td>
                           <td className="mono">{airport.iata}</td>

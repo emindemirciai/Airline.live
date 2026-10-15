@@ -56,8 +56,8 @@ function focusPlaceIn(root: HTMLElement | null): FocusPlace {
 
 /**
  * Canlı haritada havalimanı noktasına ya da IATA koduna tıklanınca açılan küçük pencere (M6c):
- * resmî ad, IATA/ICAO, il (yakın ülkelerde ülke, D-080), sivil uçuşlara kapalı olabilecek
- * havalimanında not (D-090), rakım, pist özeti, yerel saat ve UTC farkı (saat dilimi biliniyorsa,
+ * resmî ad, IATA/ICAO, il (yakın ülkelerde ülke, D-080), savaş nedeniyle kapalı havalimanında not
+ * (kesin ya da "olabilir"; D-110, D-090), rakım, pist özeti, yerel saat ve UTC farkı (saat dilimi biliniyorsa,
  * `popupTimeZone`; D-084), güncel hava durumu ve havalimanı sayfası bağlantısı. Gün doğumu ve
  * batımı yalnız havalimanı sayfasındadır (kullanıcı kararı 2026-10-02).
  * - Hava durumu: başlığın yanında ayrı sıcaklık kutucuğu (önünde "·" yok; eksi U+2212), simgeli

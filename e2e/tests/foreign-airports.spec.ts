@@ -1,14 +1,15 @@
 // Diğer ülkelerdeki havalimanları, 1.–4. halka (Parça 1 M6d, D-080; M6g, D-088; M6h, D-090; M6i.2,
-// D-102; D-106). Listelenen havalimanları IATA kodlu Türkiye havalimanları (askerî hava üsleri hariç,
-// D-107) ve IATA kodlu en yakın Türkiye havalimanına en çok 5.000 km olan, OurAirports'ta tarifeli
-// seferi kayıtlı, dört karakterli ICAO'su olan büyük ve orta boy yabancı havalimanlarıdır. Veri
+// D-102; D-106; D-110). Listelenen havalimanları IATA kodlu Türkiye havalimanları (askerî hava üsleri
+// hariç, D-107) ve IATA kodlu en yakın Türkiye havalimanına en çok 5.000 km olan, OurAirports'ta
+// tarifeli seferi kayıtlı ya da savaş nedeniyle kapalı (kapanış tablosu, D-110), dört karakterli
+// ICAO'su olan büyük ve orta boy yabancı havalimanlarıdır. Veri
 // tools/fixtures/ourairports'taki commit'li alt kümeden (2026-10-01 indirmesi), hava durumu elle
 // yazılmış fixture'dan gelir. Denetlenenler:
-// - API: `scope=listed` (56 + 75 + 89 + 278 + 719; askerî üsler yok, D-107), halka ve uzaklık
+// - API: `scope=listed` (56 + 77 + 104 + 283 + 720; askerî üsler yok, D-107), halka ve uzaklık
 //   alanları (1. halka ≤ 500 km, 2. halka 500–1.000 km, sınırdaki Ben Gurion 500; 3. halka
 //   1.000–2.000 km; 4. halka 2.000–5.000 km), Kihihi (UG-0002, KHX) ve New York JFK yok, `country`
 //   ile birlikte 400; tek havalimanı ve hava durumu yabancı havalimanını da çözer
-// - /havalimanlari: Türkiye tablosundan sonra "Diğer ülkelerdeki havalimanları" tablosu (1.161 satır,
+// - /havalimanlari: Türkiye tablosundan sonra "Diğer ülkelerdeki havalimanları" tablosu (1.184 satır,
 //   ülkeye göre Türkçe sıralı, ülke sütunu; Türkiye'ye uzaklık sütunu yok, D-106); Kahire, Viyana ve
 //   Londra satırları
 // - /istasyon/HECA (2. halka), /istasyon/LOWW (3. halka) ve /istasyon/EGLL (4. halka), iki dilde: ad,
@@ -18,7 +19,10 @@
 // - /istasyon/lhr → 308 /istasyon/EGLL; /istasyon/KHX yönlendirmeden 404 (D-101)
 // - adres takma adı (D-109): /istasyon/UTSS → 308 /istasyon/UZSS; 5. halkanın SPIM'i, WABP ve
 //   askerî liste (PWAK, YBOK, PKWA) 404
-// - /istasyon/UUOO (Voronej): "Sivil uçuşlara kapalı olabilir (2022’den beri)" notu, iki dilde (D-090)
+// - savaş nedeniyle kapalı havalimanları (D-110): /istasyon/UUOO (Voronej) ve /istasyon/UKBB (Kiev
+//   Borispil; OurAirports'ta tarifesiz) "Savaş nedeniyle sivil uçuşlara kapalı (2022’den beri)", iki
+//   dilde; /istasyon/HSFS "… kapalı olabilir (2023’ten beri)"; yeniden açılan /istasyon/URKK notsuz;
+//   /havalimanlari'da adın altında 35 not; haritada Odessa'nın penceresi notu gösterir
 // - /istasyon/LGAV ve /en/istasyon/LGAV: ülke, hava durumu, harita bağlantısı, dizine eklenir,
 //   JSON-LD `addressCountry` GR; /istasyon/LCEN KKTC'yi gösterir ve JSON-LD'de ülke kodu yazmaz;
 //   IATA kodu yönlendirir; fixture'da olup listelenmeyen uzak havalimanı 404
@@ -37,6 +41,7 @@ import {
   API_URL,
   APP_NAME,
   CIVIL_CLOSURE_AIRPORT,
+  CIVIL_CLOSURE_COUNT,
   declineAnalytics,
   enPath,
   expectRedirect,
@@ -47,6 +52,9 @@ import {
   KKTC_AIRPORT,
   LABEL_SETTINGS_KEY,
   LISTED_AIRPORT_COUNT,
+  MAP_CLOSURE_AIRPORT,
+  POSSIBLE_CLOSURE_AIRPORT,
+  REOPENED_AIRPORT,
   RING1_AIRPORT,
   RING1_AIRPORT_COUNT,
   RING1_WEATHER_AIRPORTS,
@@ -61,6 +69,7 @@ import {
   NON_ICAO_AIRPORT,
   UNLISTED_FOREIGN_AIRPORT,
   waitForMap,
+  WAR_CLOSURE_AIRPORT,
   WEB_URL,
 } from '../support'
 
@@ -71,6 +80,7 @@ const RING2_PATH = `/istasyon/${RING2_AIRPORT.icao}`
 const RING3_PATH = `/istasyon/${RING3_AIRPORT.icao}`
 const RING4_PATH = `/istasyon/${RING4_AIRPORT.icao}`
 const CLOSURE_PATH = `/istasyon/${CIVIL_CLOSURE_AIRPORT.icao}`
+const WAR_PATH = `/istasyon/${WAR_CLOSURE_AIRPORT.icao}`
 /** Atina'nın saat dilimi (`airportTimeZone`, tzdb; D-084). */
 const ATHENS_TIME_ZONE = 'Europe/Athens'
 
@@ -89,6 +99,13 @@ const COPY = {
     ring4Name: RING4_AIRPORT.nameTr,
     titleOutside: 'pistler ve havalimanı bilgileri',
     closure: CIVIL_CLOSURE_AIRPORT.noteTr,
+    possibleClosure: POSSIBLE_CLOSURE_AIRPORT.noteTr,
+    warName: WAR_CLOSURE_AIRPORT.nameTr,
+    warLocation: WAR_CLOSURE_AIRPORT.locationTr,
+    /** Raporu olmayan havalimanının hava durumu metni (`weather.age.none`). */
+    noCurrentReport: 'güncel bir havacılık hava raporu yok',
+    /** Pencerenin raporsuz durumu (`map.airportPopup.noReport`). */
+    popupNoReport: 'Hava durumu raporu yok',
     kktc: new RegExp(KKTC_AIRPORT.shortTr),
     collator: 'tr-TR',
     listButton: 'Havalimanları',
@@ -117,6 +134,11 @@ const COPY = {
     ring4Name: RING4_AIRPORT.nameEn,
     titleOutside: 'runways and airport information',
     closure: CIVIL_CLOSURE_AIRPORT.noteEn,
+    possibleClosure: POSSIBLE_CLOSURE_AIRPORT.noteEn,
+    warName: WAR_CLOSURE_AIRPORT.nameEn,
+    warLocation: WAR_CLOSURE_AIRPORT.locationEn,
+    noCurrentReport: 'no current aviation weather report',
+    popupNoReport: 'No weather report',
     kktc: new RegExp(`${KKTC_AIRPORT.shortEn}|Turkish Republic of Northern Cyprus`),
     collator: 'en-GB',
     listButton: 'Airports',
@@ -156,7 +178,7 @@ function row(scope: Locator, label: string): Locator {
 }
 
 test.describe('API', () => {
-  test('scope=listed: 56 Türkiye + 1.161 Türkiye dışı havalimanı (75 + 89 + 278 + 719); halka ve uzaklık; 5. halka ve ICAO’suz havalimanı yok', async ({
+  test('scope=listed: 56 Türkiye + 1.184 Türkiye dışı havalimanı (77 + 104 + 283 + 720; savaş kapanışlarıyla, D-110); halka ve uzaklık; 5. halka ve ICAO’suz havalimanı yok', async ({
     request,
   }) => {
     for (const path of ['/v1/airports?scope=listed', '/v1/airports?scope=listed&include=runways']) {
@@ -228,8 +250,14 @@ test.describe('API', () => {
       // Kihihi (UG-0002, KHX) dört karakterli ICAO'su olmadığı için listede yoktur (D-101).
       expect(airports.some((airport) => airport.icao === NON_ICAO_AIRPORT.ident)).toBe(false)
       expect(airports.some((airport) => airport.iata === NON_ICAO_AIRPORT.iata)).toBe(false)
-      // Sivil uçuşlara kapalı olabilecek havalimanı listede kalır (D-090).
+      // Savaş nedeniyle kapalı havalimanları listededir (D-110): Voronej (OurAirports'ta tarifeli) ve
+      // Kiev Borispil (tarifesiz, kapanış tablosuyla).
       expect(airports.some((airport) => airport.icao === CIVIL_CLOSURE_AIRPORT.icao)).toBe(true)
+      expect(airports.find((airport) => airport.icao === WAR_CLOSURE_AIRPORT.icao)).toMatchObject({
+        iata: WAR_CLOSURE_AIRPORT.iata,
+        country: 'UA',
+        ring: 2,
+      })
       expect(airports.some((airport) => airport.icao === UNLISTED_FOREIGN_AIRPORT.icao)).toBe(false)
       if (path.includes('include=runways')) expect(athens?.runways?.length ?? 0).toBeGreaterThan(0)
     }
@@ -260,7 +288,7 @@ test.describe('API', () => {
     expect(String(body.metar?.raw)).toContain(icao)
   })
 
-  test('toplu hava: scope=listed bütün listelenen havalimanları (1.217); 1. halka fixture istasyonlarında METAR; ICAO’suz havalimanı yok', async ({
+  test('toplu hava: scope=listed bütün listelenen havalimanları (1.240); 1. halka fixture istasyonlarında METAR; ICAO’suz havalimanı yok', async ({
     request,
   }) => {
     const response = await request.get(`${API_URL}/v1/weather?scope=listed`)
@@ -293,7 +321,7 @@ test.describe('havalimanı listesi', () => {
   for (const locale of ['tr', 'en'] as const) {
     const copy = COPY[locale]
 
-    test(`${copy.listPath}: Diğer ülkelerdeki havalimanları tablosu 1.161 satır, ülkeye göre sıralı; satır sayfayı açar`, async ({
+    test(`${copy.listPath}: Diğer ülkelerdeki havalimanları tablosu 1.184 satır, ülkeye göre sıralı; satır sayfayı açar`, async ({
       page,
     }) => {
       await page.goto(copy.listPath)
@@ -479,7 +507,7 @@ test.describe('havalimanı sayfası', () => {
         `${copy.ring3Name} (${RING3_AIRPORT.iata}/${RING3_AIRPORT.icao})`,
       )
       await expect(main.locator('.airport-location')).toContainText(copy.ring3Country)
-      // Viyana'nın notu yoktur (sivil uçuşlara kapalı olabilecekler listesinde değil).
+      // Viyana'nın notu yoktur (kapanış tablosunda değil, D-110).
       await expect(main.locator('.civil-closure')).toHaveCount(0)
       // Saat dilimi Europe/Vienna (D-084 ülke tablosu): yerel saat ve gün doğumu yazılır.
       const sun = main
@@ -537,7 +565,7 @@ test.describe('havalimanı sayfası', () => {
     })
   }
 
-  test('/istasyon/UUOO ve /en/istasyon/UUOO: "Sivil uçuşlara kapalı olabilir (2022’den beri)" notu; dizine eklenir (D-090)', async ({
+  test('/istasyon/UUOO ve /en/istasyon/UUOO: "Savaş nedeniyle sivil uçuşlara kapalı (2022’den beri)" notu; dizine eklenir (D-110)', async ({
     page,
     request,
   }) => {
@@ -557,6 +585,85 @@ test.describe('havalimanı sayfası', () => {
       await expect(note).toHaveText(COPY[locale].closure)
       await expect(note).toBeVisible()
       await expect(main.locator('header .civil-closure')).toHaveCount(1)
+    }
+  })
+
+  for (const locale of ['tr', 'en'] as const) {
+    const copy = COPY[locale]
+    const path = locale === 'tr' ? WAR_PATH : enPath(WAR_PATH)
+
+    test(`${path} (savaş nedeniyle kapalı, OurAirports'ta tarifesiz): not, yer, başlık canlı trafik vaat etmez, yerel saat Kiev'in; dizine eklenir (D-110)`, async ({
+      page,
+      request,
+    }) => {
+      const loadedFrom = Date.now()
+      const { response, body } = await fetchRaw(request, path)
+      expect(response.status(), path).toBe(200)
+      expect(metaContents(body, 'robots').join(', '), `${path}: robots`).not.toMatch(/noindex/)
+      const title = `${copy.warName} (${WAR_CLOSURE_AIRPORT.iata}/${WAR_CLOSURE_AIRPORT.icao}): ${copy.titleOutside}`
+      expect(titles(body)[0], `${path}: <title>`).toBe(`${title} · ${APP_NAME}`)
+      expect(metaContents(body, 'og:title'), `${path}: og:title`).toEqual([title])
+      const description = metaContents(body, 'description')[0] ?? ''
+      // Açıklamanın son cümlesi nottur; çevredeki uçakları vaat etmez.
+      expect(description.endsWith(`${copy.closure}.`), `${path}: ${description}`).toBe(true)
+
+      await page.goto(path)
+      const main = page.locator('main')
+      await expect(main.getByRole('heading', { level: 1 })).toContainText(
+        `${copy.warName} (${WAR_CLOSURE_AIRPORT.iata}/${WAR_CLOSURE_AIRPORT.icao})`,
+      )
+      await expect(main.locator('.airport-location')).toHaveText(copy.warLocation)
+      const note = main.getByRole('note')
+      await expect(note).toHaveText(copy.closure)
+      await expect(note).toBeVisible()
+      // Hava durumu fixture'ında raporu yok; yerel saat ve gün doğumu Kiev'in (Europe/Kiev).
+      const weather = main.getByRole('region', { name: copy.weather, exact: true })
+      await expect(weather).toContainText(copy.noCurrentReport, { timeout: 15_000 })
+      const sun = weather.locator('.weather-sun')
+      await expect(sun).toContainText(copy.sunrise)
+      await expectLocalClock(
+        sun.locator('li').first(),
+        `${copy.localTime} `,
+        loadedFrom,
+        WAR_CLOSURE_AIRPORT.timeZone,
+      )
+    })
+  }
+
+  test('belirsiz not (El Faşir), yeniden açılan Krasnodar notsuz; IATA kodu KBP UKBB’ye yönlendirir (D-110)', async ({
+    page,
+    request,
+  }) => {
+    for (const locale of ['tr', 'en'] as const) {
+      const path = `/istasyon/${POSSIBLE_CLOSURE_AIRPORT.icao}`
+      await page.goto(locale === 'tr' ? path : enPath(path))
+      const note = page.locator('main').getByRole('note')
+      await expect(note).toHaveText(COPY[locale].possibleClosure)
+    }
+    const { response } = await fetchRaw(request, `/istasyon/${REOPENED_AIRPORT.icao}`)
+    expect(response.status()).toBe(200)
+    await page.goto(`/istasyon/${REOPENED_AIRPORT.icao}`)
+    await expect(page.locator('main').getByRole('heading', { level: 1 })).toBeVisible()
+    await expect(page.locator('main .civil-closure')).toHaveCount(0)
+    await expectRedirect(request, `/istasyon/${WAR_CLOSURE_AIRPORT.iata.toLowerCase()}`, WAR_PATH)
+    await expectRedirect(request, enPath(`/istasyon/${WAR_CLOSURE_AIRPORT.iata}`), enPath(WAR_PATH))
+  })
+
+  test('/havalimanlari: savaş nedeniyle kapalı 35 havalimanının satırında adın altında not (D-110)', async ({
+    page,
+  }) => {
+    for (const locale of ['tr', 'en'] as const) {
+      const copy = COPY[locale]
+      await page.goto(copy.listPath)
+      const table = page
+        .locator('main')
+        .getByRole('table', { name: new RegExp(copy.foreignHeading) })
+      await expect(table.locator('.airports-closure')).toHaveCount(CIVIL_CLOSURE_COUNT)
+      const kbp = table.locator('tbody tr').filter({ hasText: WAR_CLOSURE_AIRPORT.icao })
+      await expect(kbp.locator('th .airports-closure')).toHaveText(copy.closure)
+      await expect(kbp.locator('th a')).toHaveText(copy.warName)
+      // Türkiye tablosunda not yok.
+      await expect(page.locator('main table').first().locator('.airports-closure')).toHaveCount(0)
     }
   })
 
@@ -794,6 +901,37 @@ test.describe('harita: Türkiye dışındaki havalimanı', () => {
       'href',
       RING4_PATH,
     )
+    await page.keyboard.press('Escape')
+    await expect(popup).toBeHidden()
+  })
+})
+
+test.describe('harita: savaş nedeniyle kapalı havalimanı (D-110)', () => {
+  test.use({ reducedMotion: 'reduce' })
+
+  test.beforeEach(async ({ context }) => {
+    await declineAnalytics(context)
+    await context.addInitScript((key) => {
+      window.localStorage.setItem(key, JSON.stringify({ selected: 'full', others: 'hidden' }))
+    }, LABEL_SETTINGS_KEY)
+  })
+
+  test('?havalimani=UKOO Odessa’da açar; listeden açılan pencere savaş notunu ve raporsuz havayı gösterir', async ({
+    page,
+  }) => {
+    await page.goto(`/?havalimani=${MAP_CLOSURE_AIRPORT.icao}`)
+    await waitForMap(page)
+    await expect
+      .poll(async () => (await airportListCodes(page))[0], { timeout: 30_000 })
+      .toBe(MAP_CLOSURE_AIRPORT.iata)
+    const toggle = page.getByRole('button', { name: COPY.tr.listButton, exact: true })
+    await toggle.click()
+    await page.getByRole('button', { name: new RegExp(`^${MAP_CLOSURE_AIRPORT.iata}\\b`) }).click()
+    const popup = mapPopup(page)
+    await expect(popup).toBeVisible()
+    await expect(popup).toHaveAttribute('data-icao', MAP_CLOSURE_AIRPORT.icao)
+    await expect(popup.getByRole('note')).toHaveText(COPY.tr.closure)
+    await expect(popup).toContainText(COPY.tr.popupNoReport, { timeout: 15_000 })
     await page.keyboard.press('Escape')
     await expect(popup).toBeHidden()
   })

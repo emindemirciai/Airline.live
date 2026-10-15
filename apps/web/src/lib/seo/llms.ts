@@ -12,6 +12,7 @@ import {
   listedRadiusKm,
   sortByCountry,
 } from '../../components/airports/airport-text'
+import { civilClosureNote, civilClosureTemplates } from '../../components/airports/civil-closure'
 import { AVIATION_WEATHER_URL } from '../../components/airports/weather-links'
 import { isIndexable, splitByCountry } from '../airports'
 import { localePath } from '../locale-routing'
@@ -116,7 +117,9 @@ export function buildLlmsTxt(input: LlmsInput): string {
   const foreignLines = sortByCountry(foreign, 'tr').map((airport) => {
     const path = airportPath(airport.icao)
     const name = `${airportDisplayName(airport, 'tr')} (${airport.iata}/${airport.icao.toUpperCase()})`
-    const notes = [airportCountry(airport, 'tr'), runwayNote(airport, tr)].filter(
+    // Savaş nedeniyle kapalı havalimanında sayfadaki not (D-110), ülke ve pist notunun yanında.
+    const closure = civilClosureNote(airport.icao, 'tr', civilClosureTemplates(tr.airport))
+    const notes = [airportCountry(airport, 'tr'), runwayNote(airport, tr), closure].filter(
       (note): note is string => Boolean(note),
     )
     const english = `${tr.nav.switchTo}: ${link(airportDisplayName(airport, 'en'), url('en', path))}`

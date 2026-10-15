@@ -443,7 +443,7 @@ describe('AirportPopup', () => {
     expect(factRow(winter, 'localTime')?.value).toBe('22:05 (UTC+1)')
   })
 
-  it('sivil uçuşlara kapalı olabilecek havalimanı (Voronej): görünür not, iki dilde (D-090)', () => {
+  it('savaş nedeniyle kapalı havalimanı (Voronej kesin, Kamışlı belirsiz): görünür not, iki dilde (D-110)', () => {
     const voz: MapAirport = {
       ...IST,
       icao: 'UUOO',
@@ -463,10 +463,18 @@ describe('AirportPopup', () => {
     const html = render('tr', { data: null, failed: false }, false, voz)
     // Not başlığın altında, bilgi satırlarından önce; ekran okuyucuya not olarak okunur.
     expect(html).toMatch(
-      /<\/header><p class="civil-closure" role="note">Sivil uçuşlara kapalı olabilir \(2022’den beri\)<\/p><dl/,
+      /<\/header><p class="civil-closure" role="note">Savaş nedeniyle sivil uçuşlara kapalı \(2022’den beri\)<\/p><dl/,
     )
     expect(render('en', { data: null, failed: false }, false, voz)).toContain(
-      '<p class="civil-closure" role="note">May be closed to civil flights (since 2022)</p>',
+      '<p class="civil-closure" role="note">Closed to civil flights because of the war (since 2022)</p>',
+    )
+    // Belirsiz kayıt (Kamışlı; D-110): "kapalı olabilir".
+    const kac: MapAirport = { ...voz, icao: 'OSKL', iata: 'KAC', country: 'SY', ring: 1 }
+    expect(render('tr', { data: null, failed: false }, false, kac)).toContain(
+      '<p class="civil-closure" role="note">Savaş nedeniyle sivil uçuşlara kapalı olabilir (2024’ten beri)</p>',
+    )
+    expect(render('en', { data: null, failed: false }, false, kac)).toContain(
+      '<p class="civil-closure" role="note">May be closed to civil flights because of the war (since 2024)</p>',
     )
     // Listede olmayan havalimanında not yok.
     expect(render('tr', { data: null, failed: false })).not.toContain('civil-closure')
