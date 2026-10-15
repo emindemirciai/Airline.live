@@ -47,13 +47,14 @@ export const GUSTY_WIND_GUST_KT = 25
 export const LIGHT_WIND_MAX_KMH = 10
 
 /**
- * "Tatlı rüzgâr"ın (`breeze`) üst sınırı, km/sa (kullanıcı isteği 2026-10-04, D-083): gösterilen hız
- * 11–19 km/sa limon yeşili, 20 km/sa ve üstü (vurgu eşiğine kadar) sarı "Orta rüzgâr"dır. Sınır
- * hafif rüzgârınki gibi gösterilen km/sa'dadır: KT raporunda 10 kt (19 km/sa) tatlı, 11 kt (20 km/sa)
- * orta; 16 kt (30 km/sa) orta, 17 kt (31 km/sa) kehribar "Sert rüzgâr". MGM Beaufort ıskalasında 3
- * "Tatlı Rüzgâr" 7–10 kt, 4 "Orta Rüzgâr" 11–16 kt'dir. Alt uç MGM'ye uymaz: 6 kt (11 km/sa, 3 m/s)
- * MGM'de Beaufort 2 "Hafif Rüzgâr"dır ama burada tatlıdır, çünkü 10/11 km/sa sınırı kullanıcının
- * hafif rüzgâr kuralıdır (`LIGHT_WIND_MAX_KMH`).
+ * "Hafif-orta rüzgâr"ın (`breeze`; D-116) üst sınırı, km/sa (kullanıcı isteği 2026-10-04, D-083):
+ * gösterilen hız 11–19 km/sa limon yeşili, 20 km/sa ve üstü (vurgu eşiğine kadar) sarı "Orta
+ * rüzgâr"dır. Sınır hafif rüzgârınki gibi gösterilen km/sa'dadır: KT raporunda 10 kt (19 km/sa)
+ * hafif-orta, 11 kt (20 km/sa) orta; 16 kt (30 km/sa) orta, 17 kt (31 km/sa) kehribar "Sert rüzgâr".
+ * MGM Beaufort ıskalasında 3 "Tatlı Rüzgâr" 7–10 kt, 4 "Orta Rüzgâr" 11–16 kt'dir (arayüz adı
+ * sadedir, D-116). Alt uç MGM'ye uymaz: 6 kt (11 km/sa, 3 m/s) MGM'de Beaufort 2 "Hafif Rüzgâr"dır
+ * ama burada hafif-ortadır, çünkü 10/11 km/sa sınırı kullanıcının hafif rüzgâr kuralıdır
+ * (`LIGHT_WIND_MAX_KMH`).
  */
 export const BREEZE_WIND_MAX_KMH = 19
 
@@ -122,7 +123,9 @@ export function relativeHumidity(
  * Rüzgâr 17, 7 Fırtınamsı Rüzgâr 28, 8 Fırtına 34, 9 Kuvvetli Fırtına 41, 10 Tam Fırtına 48, 11 Çok
  * Şiddetli Fırtına 56, 12 Harikeyn (Orkan) 64 kt. 20–27 kt tek bant, "Kuvvetli rüzgâr"dır: alt sınır
  * MGM meydan uyarısının eşiğidir (Beaufort 5'in üst ucu 20–21 kt da vurgulu satırda "Sert" değil
- * "Kuvvetli" okunur; D-083). "Sert rüzgâr" bu yüzden 17–19 kt'dir.
+ * "Kuvvetli" okunur; D-083). "Sert rüzgâr" bu yüzden 17–19 kt'dir. Eşikler MGM'nin, arayüzdeki
+ * adlar sadedir (D-116): 7 "Çok kuvvetli rüzgâr", 10 "Şiddetli fırtına", 12 "Kasırga şiddetinde
+ * rüzgâr".
  */
 const MEAN_LEVELS: readonly (readonly [number, WindLevel])[] = [
   [64, 'hurricane'],

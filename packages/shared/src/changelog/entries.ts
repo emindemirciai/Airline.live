@@ -12,8 +12,42 @@ import type { ChangelogEntry } from './types'
  */
 export const CHANGELOG: readonly ChangelogEntry[] = [
   {
+    version: '0.25.3',
+    date: '2026-10-15',
+    title: {
+      tr: 'Havalimanı simgeleri de gizlenebilir',
+      en: 'Airport icons can be hidden too',
+    },
+    items: [
+      {
+        tr: 'Haritadaki “Etiketler” panelinde havalimanlarının simgeleri ve kodları artık tek satırda: “Gizle” ikisini de haritadan kaldırır, “Simge” yalnız kırmızı simgeleri gösterir, “Simge ve kod” (varsayılan) ikisini birden gösterir. Seçimin bu cihazda saklanır.',
+        en: 'In the “Labels” panel on the map, airport icons and their codes now share one row: “Hide” removes both from the map, “Icon” shows only the red icons, and “Icon and code” (the default) shows both. Your choice is saved on this device.',
+      },
+      {
+        tr: 'Daha önce havalimanı kodlarını gizlediysen ayarın “Simge” olarak gelir; haritan eskisi gibi görünür.',
+        en: 'If you had hidden airport codes before, your setting comes back as “Icon”, so your map looks the same as before.',
+      },
+      {
+        tr: 'Havalimanları gizliyken de “Havalimanları” listesi ve arama çalışır: seçtiğin havalimanının penceresi açılır, pencere açıkken simgesi haritada görünür. Havalimanı sayfasındaki “Canlı haritada aç” bağlantısıyla açtığın havalimanının simgesi de görünür kalır.',
+        en: 'With airports hidden, the “Airports” list and the search still work: the window of the airport you pick opens, and its icon shows on the map while the window is open. The icon of an airport you open with “Open on the live map” on its page stays visible too.',
+      },
+      {
+        tr: 'Hava durumundaki rüzgâr şiddetinin adları sadeleşti: “Hafif-orta rüzgâr”, “Çok kuvvetli rüzgâr”, “Şiddetli fırtına” ve “Kasırga şiddetinde rüzgâr”; ani rüzgâr artışı da artık “Ani kuvvetli rüzgâr”. Eşikler ve renkler aynı.',
+        en: 'Turkish wind strength names in the weather are now plainer; English names, thresholds and colours are unchanged.',
+      },
+    ],
+    tryLinks: [
+      { path: '/', label: { tr: 'Canlı harita', en: 'Live map' } },
+      {
+        path: '/istasyon/LTFM',
+        label: { tr: 'İstanbul Havalimanı hava durumu', en: 'Istanbul Airport weather' },
+      },
+    ],
+  },
+  {
     version: '0.25.2',
     date: '2026-10-15',
+    releasedAt: '2026-10-15T15:05:56Z',
     title: {
       tr: 'Daha dayanıklı canlı veri sunucusu',
       en: 'A sturdier live data server',
@@ -502,7 +536,7 @@ export const CHANGELOG: readonly ChangelogEntry[] = [
     },
     items: [
       {
-        tr: 'Rüzgâr varsa rüzgâr satırı her zaman renkli ve şiddetinin adıyla yazılır: 10 km/sa’e kadar yeşil (Hafif rüzgâr), 11–19 km/sa yeşil-sarı (Tatlı rüzgâr), 20–30 km/sa sarı (Orta rüzgâr), 31 km/sa’ten ya da 46 km/sa hamleden itibaren kehribar (Sert / Hamleli rüzgâr), MGM uyarı eşiğinden (37 km/sa ya da 56 km/sa hamle) itibaren turuncu (Kuvvetli rüzgâr, Fırtınamsı rüzgâr), 63 km/sa’ten itibaren kırmızı (Fırtına ve üstü). Pencerede ve havalimanı sayfasında aynı.',
+        tr: 'Rüzgâr varsa rüzgâr satırı her zaman renkli ve şiddetinin adıyla yazılır: 10 km/sa’e kadar yeşil (Hafif rüzgâr), 11–19 km/sa yeşil-sarı (Hafif-orta rüzgâr), 20–30 km/sa sarı (Orta rüzgâr), 31 km/sa’ten ya da 46 km/sa hamleden itibaren kehribar (Sert / Hamleli rüzgâr), MGM uyarı eşiğinden (37 km/sa ya da 56 km/sa hamle) itibaren turuncu (Kuvvetli rüzgâr, Çok kuvvetli rüzgâr), 63 km/sa’ten itibaren kırmızı (Fırtına ve üstü). Pencerede ve havalimanı sayfasında aynı.',
         en: 'Whenever there is wind, the wind row is coloured and names its strength: green up to 10 km/h (Light wind), lime 11–19 km/h (Gentle breeze), yellow 20–30 km/h (Moderate wind), amber from 31 km/h or 46 km/h gusts (Fresh / Gusty wind), orange from the Turkish aerodrome warning threshold of 37 km/h or 56 km/h gusts (Strong wind, Near gale), red from 63 km/h (Gale and above). The same in the map window and on the airport page.',
       },
     ],
@@ -564,7 +598,7 @@ export const CHANGELOG: readonly ChangelogEntry[] = [
     },
     items: [
       {
-        tr: 'Rüzgârlı havalimanları artık renkli: ortalama rüzgâr 31 km/sa’i (17 kt) ya da hamle 46 km/sa’i (25 kt) geçince rüzgâr satırı turuncu olur ve “Sert rüzgâr” ya da “Hamleli rüzgâr” yazar; daha güçlüsü yine “Kuvvetli rüzgâr”, “Fırtına” … diye adlandırılır. Bütün havalimanlarının canlı verisiyle denetlendi; önceden renksiz kalan 12 rüzgârlı havalimanı artık renkli.',
+        tr: 'Rüzgârlı havalimanları artık renkli: ortalama rüzgâr 31 km/sa’i (17 kt) ya da hamle 46 km/sa’i (25 kt) geçince rüzgâr satırı kehribar olur ve “Sert rüzgâr” ya da “Hamleli rüzgâr” yazar; daha güçlüsü yine “Kuvvetli rüzgâr”, “Fırtına” … diye adlandırılır. Bütün havalimanlarının canlı verisiyle denetlendi; önceden renksiz kalan 12 rüzgârlı havalimanı artık renkli.',
         en: 'Windy airports are now highlighted: when the mean wind reaches 31 km/h (17 kt) or gusts reach 46 km/h (25 kt), the wind row turns amber and says “Fresh wind” or “Gusty wind”; stronger winds are still named “Strong wind”, “Gale” and so on. Checked against live data from every airport; 12 windy airports that were not highlighted before now are.',
       },
       {
@@ -651,11 +685,11 @@ export const CHANGELOG: readonly ChangelogEntry[] = [
         en: 'Wind speed is now given in knots as well as km/h: “From the northeast 48 km/h (26 kt), gusts 59 km/h (32 kt)”. The same format is used in the map window, on the airport page, in forecasts and in the METAR/TAF log.',
       },
       {
-        tr: 'Etkili rüzgâr her havalimanında belirtiliyor: ortalama rüzgâr 20 knotu ya da hamle 30 knotu geçince (MGM’nin meydan uyarı ölçütü) rüzgâr satırı renkli ve kalın yazılıyor, şiddeti de adıyla söyleniyor: “Kuvvetli rüzgâr”, “Fırtınamsı rüzgâr”, “Fırtına” … Yalnızca hamle güçlüyse “Kuvvetli hamle”. Tahmin özeti de dönemin en güçlü rüzgârını gösteriyor.',
+        tr: 'Etkili rüzgâr her havalimanında belirtiliyor: ortalama rüzgâr 20 knotu ya da hamle 30 knotu geçince (MGM’nin meydan uyarı ölçütü) rüzgâr satırı renkli ve kalın yazılıyor, şiddeti de adıyla söyleniyor: “Kuvvetli rüzgâr”, “Çok kuvvetli rüzgâr”, “Fırtına” … Yalnızca hamle güçlüyse “Kuvvetli hamle”. Tahmin özeti de dönemin en güçlü rüzgârını gösteriyor.',
         en: 'Significant wind is flagged at every airport: when the mean wind reaches 20 knots or gusts reach 30 knots (the Turkish aerodrome warning threshold), the wind row is coloured and bold and the strength is named: “Strong wind”, “Near gale”, “Gale” … If only the gusts are strong it says “Strong gusts”. The forecast summary now shows the strongest wind of the period.',
       },
       {
-        tr: 'Şimşek ve yıldırım uyarısı: havalimanında gök gürültüsü varsa “şimşek ve yıldırım tehlikesi”, çevresinde varsa “yıldırım havalimanına da düşebilir” yazıyor. Kümülonimbüs (oraj bulutu) yağışla birlikteyse tehlike, yağışsızsa olasılık olarak belirtiliyor. Yıldırım yağmurun dışına, fırtınadan kilometrelerce uzağa da düşebildiği için uyarı yağmur yokken de gösteriliyor.',
+        tr: 'Şimşek ve yıldırım uyarısı: havalimanında gök gürültüsü varsa “şimşek ve yıldırım tehlikesi”, çevresinde varsa “yıldırım havalimanına da düşebilir” yazıyor. Kümülonimbüs (oraj bulutu) yağışla birlikteyse tehlike, yağışsızsa olasılık olarak belirtiliyor. Yıldırım yağmurun dışına, kilometrelerce uzağa da düşebildiği için uyarı yağmur yokken de gösteriliyor.',
         en: 'Lightning warnings: a thunderstorm at the airport shows “lightning danger”, one nearby shows “lightning can strike the airport too”. Cumulonimbus (thunderstorm cloud) with precipitation is shown as a danger, without precipitation as a possibility. Lightning can strike well away from the rain and kilometres from the storm, so the warning also appears when it is not raining.',
       },
       {

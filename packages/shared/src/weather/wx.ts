@@ -71,7 +71,7 @@ export const isThunderGroup = (g: WeatherGroup) => g.descriptor === 'TS'
 export const isFogGroup = (g: WeatherGroup) => has(g, 'FG')
 export const isHailGroup = (g: WeatherGroup) => has(g, 'GR', 'GS')
 export const isUnknownPrecipitationGroup = (g: WeatherGroup) => has(g, 'UP')
-/** Toz/kum ailesi ve öteki olaylar (duman, volkanik kül, ani sert rüzgâr, hortum, sprey). */
+/** Toz/kum ailesi ve öteki olaylar (duman, volkanik kül, ani kuvvetli rüzgâr, hortum, sprey). */
 export const isOtherGroup = (g: WeatherGroup) =>
   has(g, 'DU', 'SA', 'PO', 'SS', 'DS', 'FU', 'VA', 'SQ', 'FC', 'PY')
 export const isDustSandGroup = (g: WeatherGroup) => has(g, 'DU', 'SA', 'PO', 'SS', 'DS')
@@ -117,7 +117,7 @@ export function mostSevereGroup(groups: readonly WeatherGroup[]): WeatherGroup |
 
 /**
  * Şiddet eki alan metin kimlikleri: `<id>_light`, `<id>`, `<id>_heavy`. Kalanlar tek biçimlidir;
- * `FC`, `SS` ve `DS`'nin kuvvetli biçimi ayrıca vardır (`+FC` hortum, `+SS`/`+DS` şiddetli fırtına).
+ * `FC`, `SS` ve `DS`'nin kuvvetli biçimi ayrıca vardır (`+FC` hortum, `+SS`/`+DS` kuvvetli kum/toz fırtınası).
  */
 const INTENSITY_PHRASES = [
   'DZ',

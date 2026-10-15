@@ -138,18 +138,18 @@ describe('hava durumu metin anahtarları', () => {
     }
   })
 
-  it('rüzgâr şiddeti adları MGM Beaufort ıskalasındandır (D-083)', () => {
+  it('rüzgâr şiddeti adları sade ve sıralı (D-083, D-116)', () => {
     expect(Object.values(getMessages('tr').weather.wind.level)).toEqual([
       'Hamleli rüzgâr',
       'Sert rüzgâr',
       'Kuvvetli hamle',
       'Kuvvetli rüzgâr',
-      'Fırtınamsı rüzgâr',
+      'Çok kuvvetli rüzgâr',
       'Fırtına',
       'Kuvvetli fırtına',
-      'Tam fırtına',
+      'Şiddetli fırtına',
       'Çok şiddetli fırtına',
-      'Harikeyn (orkan)',
+      'Kasırga şiddetinde rüzgâr',
     ])
     expect(Object.keys(getMessages('en').weather.wind.level)).toEqual([...WIND_LEVELS])
   })
@@ -159,7 +159,7 @@ describe('hava durumu metin anahtarları', () => {
     const en = getMessages('en').weather.wind
     expect([tr.light, tr.breeze, tr.moderate]).toEqual([
       'Hafif rüzgâr',
-      'Tatlı rüzgâr',
+      'Hafif-orta rüzgâr',
       'Orta rüzgâr',
     ])
     expect([en.light, en.breeze, en.moderate]).toEqual([
@@ -176,6 +176,22 @@ describe('hava durumu metin anahtarları', () => {
         expect(text).not.toMatch(/\{\w+\}/)
       }
     }
+  })
+
+  it('Türkçe hava metinlerinde -msı/-msi eki ve eski Beaufort adları yok (D-116)', () => {
+    // Kullanıcı isteği (2026-10-15): "fırtınamsı, rüzgarımsı vs kullanma".
+    const texts: string[] = []
+    const collect = (value: unknown): void => {
+      if (typeof value === 'string') texts.push(value)
+      else if (value !== null && typeof value === 'object') Object.values(value).forEach(collect)
+    }
+    collect(getMessages('tr').weather)
+    expect(texts.length).toBeGreaterThan(100)
+    for (const text of texts) {
+      expect(text).not.toMatch(/\p{L}ms[ıiuü](?!\p{L})/u)
+      expect(text).not.toMatch(/tatlı rüzgâr|tam fırtına|harikeyn|orkan/iu)
+    }
+    expect(getMessages('tr').weather.wx.SQ).toBe('Ani kuvvetli rüzgâr')
   })
 
   it('sayıdan ya da sayı yazan yer tutucudan önce "·" ya da "–" yok (eksi gibi okunur; 2026-10-02)', () => {
@@ -635,14 +651,14 @@ describe('M6e: km/sa ve kt, rüzgâr şiddeti, şimşek ve yıldırım (D-083)',
       '270P99KT',
       'Batıdan 185 km/sa (100 kt) ve üzeri',
       'From the west 185 km/h (100 kt) or more',
-      'Harikeyn (orkan)',
+      'Kasırga şiddetinde rüzgâr',
     ],
     [
       // P49MPS: 50 m/s ve üzeri (97 kt); kt eşiği (100) yüzünden "ve üzeri" düşüyordu.
       '270P49MPS',
       'Batıdan 180 km/sa (97 kt) ve üzeri',
       'From the west 180 km/h (97 kt) or more',
-      'Harikeyn (orkan)',
+      'Kasırga şiddetinde rüzgâr',
     ],
     [
       '27020GP49MPS',
@@ -666,8 +682,9 @@ describe('M6e: km/sa ve kt, rüzgâr şiddeti, şimşek ve yıldırım (D-083)',
       '32030KT',
       'Kuzeybatıdan 56 km/sa (30 kt)',
       'From the northwest 56 km/h (30 kt)',
-      'Fırtınamsı rüzgâr',
+      'Çok kuvvetli rüzgâr',
     ],
+    ['27050KT', 'Batıdan 93 km/sa (50 kt)', 'From the west 93 km/h (50 kt)', 'Şiddetli fırtına'],
   ] as const)('%s → %s', (group, tr, en, level) => {
     const raw = `LTXX 031250Z ${group} 9999 FEW030 10/05 Q1010`
     expect(rows(raw).wind).toBe(tr)
@@ -745,8 +762,8 @@ describe('M6e.2: rüzgâr renkleri ve rüzgâr kesmesi (kullanıcı kararı 2026
   })
 
   it('üretim METAR’ları (2026-10-03 16:56Z): her basamağın değeri iki dilde (M6e.3)', () => {
-    // Sınırlar gösterilen km/sa'dadır: 6 kt = 11 km/sa tatlı, 10 kt = 19 km/sa tatlı, 11 kt = 20
-    // km/sa orta, 16 kt = 30 km/sa orta, 17 kt = 31 km/sa kehribar "Sert rüzgâr".
+    // Sınırlar gösterilen km/sa'dadır: 6 kt = 11 km/sa hafif-orta, 10 kt = 19 km/sa hafif-orta,
+    // 11 kt = 20 km/sa orta, 16 kt = 30 km/sa orta, 17 kt = 31 km/sa kehribar "Sert rüzgâr".
     const cases = [
       ['METAR LGKP 031620Z 03005KT 9999 FEW020TCU SCT025 20/14 Q1018', 'calm'],
       ['METAR LTAI 031620Z 28006KT 240V300 9999 SCT030 BKN080 21/12 Q1018 NOSIG', 'breeze'],
@@ -857,10 +874,10 @@ describe('TAF özeti', () => {
       '2026-01-16T18:00:00.000Z',
     )
     const summary = summarizeTaf([newer, older], Date.parse('2026-01-15T11:00:00.000Z'))
-    // 28 kt = 52 km/sa, 40 kt = 74 km/sa; 25 kt (46) ve 38 kt (70) yazılmaz. 28 kt fırtınamsı
-    // rüzgârdır (Beaufort 7); knot parantezde (D-083).
+    // 28 kt = 52 km/sa, 40 kt = 74 km/sa; 25 kt (46) ve 38 kt (70) yazılmaz. 28 kt çok kuvvetli
+    // rüzgârdır (Beaufort 7; D-116); knot parantezde (D-083).
     expect(summary.items.map((item) => spaced(weatherText(item, TR)))).toEqual([
-      'Yarın 01:00 saatine kadar fırtınamsı rüzgâr, kuzeydoğudan 52 km/sa (28 kt), hamle 74 km/sa (40 kt)',
+      'Yarın 01:00 saatine kadar çok kuvvetli rüzgâr, kuzeydoğudan 52 km/sa (28 kt), hamle 74 km/sa (40 kt)',
     ])
     expect(summary.items.map((item) => spaced(weatherText(item, EN)))).toEqual([
       'Until 01:00 tomorrow: near gale, from the northeast 52 km/h (28 kt), gusts 74 km/h (40 kt)',
@@ -908,9 +925,10 @@ describe('TAF özeti', () => {
       summarizeTaf([windy], Date.parse('2026-10-03T12:00:00.000Z')).items.map((item) =>
         spaced(weatherText(item, options)),
       )
-    // 45 kt kuvvetli fırtına, hamle 65 kt tam fırtına → tam fırtına; temel 20 kt geride kalır.
+    // 45 kt kuvvetli fırtına, hamle 65 kt şiddetli fırtına → şiddetli fırtına (D-116); temel 20 kt
+    // geride kalır.
     expect(items(TR)).toEqual([
-      '18:00 ile 21:00 arası ara ara tam fırtına, batıdan 83 km/sa (45 kt), hamle 120 km/sa (65 kt)',
+      '18:00 ile 21:00 arası ara ara şiddetli fırtına, batıdan 83 km/sa (45 kt), hamle 120 km/sa (65 kt)',
     ])
     expect(items(EN)).toEqual([
       'At times between 18:00 and 21:00: storm, from the west 83 km/h (45 kt), gusts 120 km/h (65 kt)',

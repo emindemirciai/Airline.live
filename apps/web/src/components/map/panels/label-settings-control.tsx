@@ -3,7 +3,7 @@
 import type { Messages } from '@havayolu/i18n'
 import { useEffect, useId, useRef, useState } from 'react'
 import {
-  AIRPORT_LABEL_MODES,
+  AIRPORT_DISPLAY_MODES,
   COUNTRY_LABEL_MODES,
   LABEL_MODES,
   type LabelSettings,
@@ -19,9 +19,10 @@ export interface LabelSettingsControlProps {
 
 /**
  * "Etiketler" düğmesi ve açılır ayar paneli: seçili uçak ve diğer uçaklar için ayrı ayrı Gizle,
- * Kısa ya da Tam; havalimanları için Gizle ya da Kod (D-084); ülke adları için Gizle ya da Göster
- * (D-095). Denetimli bileşendir; saklama (`hy:map:labels`) üst bileşenin işidir. Panel Escape'le ve
- * dışına tıklanınca kapanır; Escape odağı düğmeye geri verir ve tüketilir.
+ * Kısa ya da Tam; havalimanları için tek satırda Gizle, Simge ya da Simge ve kod (pinler ve kodları
+ * birlikte, D-084, D-114); ülke adları için Gizle ya da Göster (D-095). Denetimli bileşendir; saklama
+ * (`hy:map:labels`) üst bileşenin işidir. Panel Escape'le ve dışına tıklanınca kapanır; Escape odağı
+ * düğmeye geri verir ve tüketilir.
  */
 export function LabelSettingsControl({ value, onChange, messages }: LabelSettingsControlProps) {
   const [open, setOpen] = useState(false)
@@ -79,7 +80,10 @@ export interface LabelSettingsPanelProps extends LabelSettingsControlProps {
   id?: string
 }
 
-/** Açık panelin içeriği: başlık, dört seçenek grubu ve ipucu. */
+/**
+ * Açık panelin içeriği: başlık, dört seçenek grubu ve ipucu. Havalimanlarının pinleri ve kodları tek
+ * gruptadır (kullanıcı isteği 2026-10-15, D-114): Gizle (ne pin ne kod), Simge (pin), Simge ve kod.
+ */
 export function LabelSettingsPanel({ id, value, onChange, messages }: LabelSettingsPanelProps) {
   const titleId = useId()
   const groupName = useId()
@@ -102,10 +106,10 @@ export function LabelSettingsPanel({ id, value, onChange, messages }: LabelSetti
       <ModeGroup
         legend={messages.airports}
         name={`${groupName}-airports`}
-        modes={AIRPORT_LABEL_MODES}
+        modes={AIRPORT_DISPLAY_MODES}
         label={(mode) => messages.airportModes[mode]}
-        checked={value.airports}
-        onSelect={(mode) => onChange({ ...value, airports: mode })}
+        checked={value.airportDisplay}
+        onSelect={(mode) => onChange({ ...value, airportDisplay: mode })}
       />
       <ModeGroup
         legend={messages.countries}

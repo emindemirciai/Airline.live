@@ -311,8 +311,8 @@ describe('AirportPopup', () => {
     // Derecelendirilmiş renkler (M6e.3, kullanıcı isteği 2026-10-04): rüzgâr varsa satır renklidir,
     // basamağın adı etikettir. 6 kt (11 km/sa) ve 16 kt (30 km/sa) eskiden sadeydi.
     for (const [group, tone, value] of [
-      ['24006KT', 'breeze', 'Güneybatıdan 11 km/sa (6 kt) Tatlı rüzgâr'],
-      ['24010KT', 'breeze', 'Güneybatıdan 19 km/sa (10 kt) Tatlı rüzgâr'],
+      ['24006KT', 'breeze', 'Güneybatıdan 11 km/sa (6 kt) Hafif-orta rüzgâr'],
+      ['24010KT', 'breeze', 'Güneybatıdan 19 km/sa (10 kt) Hafif-orta rüzgâr'],
       ['24011KT', 'moderate', 'Güneybatıdan 20 km/sa (11 kt) Orta rüzgâr'],
       ['24016KT', 'moderate', 'Güneybatıdan 30 km/sa (16 kt) Orta rüzgâr'],
       ['24017KT', 'fresh', 'Güneybatıdan 31 km/sa (17 kt) Sert rüzgâr'],

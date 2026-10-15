@@ -36,6 +36,10 @@ export interface MapViewProps {
   mapLabel: string
   store: AircraftStore
   airports: readonly Airport[]
+  /** Açık havalimanı penceresinin ICAO kodu: havalimanları Gizle'deyken de çizilir (D-114). */
+  popupIcao: string | null
+  /** Adresteki `?havalimani=` hedefinin ICAO kodu: havalimanları Gizle'deyken de çizilir (D-114). */
+  linkIcao: string | null
   selectedHex: string | null
   following: boolean
   labelSettings: LabelSettings
@@ -68,6 +72,8 @@ export function MapView({
   mapLabel,
   store,
   airports,
+  popupIcao,
+  linkIcao,
   selectedHex,
   following,
   labelSettings,
@@ -91,7 +97,18 @@ export function MapView({
     target: { lat: number; lon: number }
     listener: (point: ScreenPoint) => void
   } | null>(null)
-  const state = { selectedHex, following, labelSettings, airports, locale, units, insets, panels }
+  const state = {
+    selectedHex,
+    following,
+    labelSettings,
+    airports,
+    popupIcao,
+    linkIcao,
+    locale,
+    units,
+    insets,
+    panels,
+  }
   const stateRef = useRef(state)
 
   const handleSelect = useEffectEvent((hex: string) => onSelect(hex))

@@ -8,3 +8,4 @@ docs
 CHANGELOG.md
 *.md
 next-env.d.ts
+.claude/worktrees
