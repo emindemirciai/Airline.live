@@ -2,7 +2,7 @@
 
 **[Türkçe](#türkçe) · [English](#english)**
 
-![sürüm](https://img.shields.io/badge/s%C3%BCr%C3%BCm-v0.25.2-blue) ![lisans](https://img.shields.io/badge/lisans-MIT-green) ![durum](https://img.shields.io/badge/durum-geli%C5%9Ftirme-yellow)
+![sürüm](https://img.shields.io/badge/s%C3%BCr%C3%BCm-v0.25.3-blue) ![lisans](https://img.shields.io/badge/lisans-MIT-green) ![durum](https://img.shields.io/badge/durum-geli%C5%9Ftirme-yellow)
 
 ---
 
@@ -14,13 +14,13 @@ Herkese açık, uluslararası sivil havacılık uçuş takip platformu; birincil
 
 > **Bilinen sınır:** Kendi ADS-B alıcımız olmadığı için İstanbul Havalimanı'nda iniş anı çoğunlukla doğrudan görülmez. İniş bildirimi çoğu uçuşta "muhtemelen indi (tahmini saat)" olarak ve son sinyalden 1–1,5 dk sonra gelir. Bazı uçuşlarda yalnızca "iniş verisi alınamadı" denebilir.
 
-### Durum — v0.25.2
+### Durum — v0.25.3
 | Alan | Durum |
 |---|---|
 | Yol haritası, veri kaynakları, mimari | ✅ Hazır ve doğrulandı |
 | Yerel test ortamı, Durum ve Yenilikler sayfaları | ✅ Parça 1 · M0 |
 | Bütün servisler, yönetim paneli (Servisler ekranı), onaylı analiz | ✅ Parça 1 · M1a |
-| Marka ve alan adı: Airline.live · airline.live; önceki alan adından kalıcı yönlendirme (D-112) | ✅ v0.25.0 (kod yayında; Dokploy geçişi [ACTIVATION](docs/ACTIVATION.md) adımlarında) |
+| Marka ve alan adı: Airline.live · airline.live; önceki alan adından kalıcı yönlendirme (D-112) | ✅ v0.25.0 (2026-10-15’ten beri airline.live’da) |
 | Güvenlik sertleştirmesi (ziyaretçi başına giriş sınırı, Redis kesintisine dayanıklılık) | ✅ v0.3.2 |
 | Canlı yayın: web, api., admin. (Dokploy, Let's Encrypt) | ✅ 2026-09-27 |
 | Otomatik yayın hattı (GitHub Actions → GHCR → Dokploy), doğrulama ve geri alma | ✅ Parça 1 · M1b, sunucu kurulumu sürüyor ([rehber](docs/DEPLOY_DOKPLOY.md)) |
@@ -35,8 +35,8 @@ Herkese açık, uluslararası sivil havacılık uçuş takip platformu; birincil
 | Havalimanlarında canlı hava durumu (METAR/TAF; rüzgâr, yağmur, kar, gök gürültüsü, sis), METAR/TAF kaydı, haritada kırmızı iğne ve havalimanı penceresi, IST merkezli açılış | ✅ Parça 1 · M6c |
 | Yakın ülkelerdeki 75 havalimanı (Türkiye’deki en yakın havalimanına ≤ 500 km): sayfa, pistler, hava durumu, haritada iğne ve pencere; Ercan KKTC; açık turkuaz tema; hava durumu satırlarında simge ve vurgu | ✅ Parça 1 · M6d |
 | Rüzgâr km/sa ve knot ile; etkili rüzgâr (MGM meydan uyarı ölçütü) ve şiddet adı; şimşek ve yıldırım uyarısı; hizalı havalimanı penceresi | ✅ Parça 1 · M6e, v0.13.1 |
-| Askerî ve sivil havalimanı adları TR/EN; haritada havalimanı etiketi (Gizle / Kod); yurt dışında yerel saat ve UTC farkı | ✅ Parça 1 · M6f |
-| Derecelendirilmiş rüzgâr renkleri (yeşilden kırmızıya, Beaufort adlarıyla) ve rüzgâr kesmesi uyarısı | ✅ v0.14.1, v0.16.1 |
+| Askerî ve sivil havalimanı adları TR/EN; haritada havalimanları tek ayarda (Gizle / Simge / Simge ve kod, D-114); yurt dışında yerel saat ve UTC farkı | ✅ Parça 1 · M6f |
+| Derecelendirilmiş rüzgâr renkleri (yeşilden kırmızıya, sade şiddet adlarıyla) ve rüzgâr kesmesi uyarısı | ✅ v0.14.1, v0.16.1, v0.25.3 (D-116) |
 | 2. halka: 1.000 km’ye kadar 89 havalimanı daha (toplam 225); haritanın atıf şeridinde site adı ve sürüm | ✅ Parça 1 · M6g |
 | Yeniliklerde her sürümün yayın tarihi ve saati | ✅ v0.17.1 |
 | Haritada kesikli ülke sınırları (OpenStreetMap) | ✅ v0.17.2 |
@@ -89,23 +89,23 @@ pnpm dev
 - `docs/DEPLOY_DOKPLOY.md`: sunucu (Dokploy) kurulumu, bir kez
 - `docs/DECISIONS.md`: kararlar ve gerekçeleri
 
-### İstatistik (v0.25.2)
-Git'te 711 dosya, **157.492 satır**. Bunun 144.993 satırı kod (TypeScript, TSX, CSS, JS), 8.934 satırı belgedir. Lockfile, `docs/research/` ve elle yazılmayan veri (fixture CSV ve JSON dosyaları, drizzle şema snapshot'ları) hariç tutulur. Güncel değer için `pnpm stats` çalıştır.
+### İstatistik (v0.25.3)
+Git'te 711 dosya, **158.661 satır**. Bunun 146.013 satırı kod (TypeScript, TSX, CSS, JS), 9.080 satırı belgedir. Lockfile, `docs/research/` ve elle yazılmayan veri (fixture CSV ve JSON dosyaları, drizzle şema snapshot'ları) hariç tutulur. Güncel değer için `pnpm stats` çalıştır.
 
 | Alan | Satır |
 |---|---|
-| apps/web | 42.214 |
-| packages/shared | 24.474 |
+| apps/web | 42.814 |
+| packages/shared | 24.511 |
 | apps/worker | 16.923 |
 | tools | 16.096 |
 | apps/api | 15.407 |
 | packages/db | 12.527 |
-| docs | 6.767 |
-| packages/i18n | 4.651 |
+| docs | 6.889 |
+| packages/i18n | 4.692 |
 | packages/providers | 4.474 |
 | scripts | 2.267 |
 | packages/geo | 786 |
-| diğer (kök, deploy, .claude, .github) | 10.906 |
+| diğer (kök, deploy, .claude, .github) | 11.275 |
 
 ### Lisans, veri ve atıflar
 - Kod [MIT lisansı](LICENSE) ile lisanslanmıştır: © 2026 [emindemirciai](https://github.com/emindemirciai). Kodun tüm kopyaları ya da önemli bölümleri telif bildirimini ve lisans metnini içermek zorundadır; bunlar olmadan kopyalamak ya da dağıtmak lisans ve telif hakkı ihlalidir. **Airline.live** adı ve logosu MIT kapsamında değildir, hakları saklıdır. Aynı bildirim sitenin sayfa kaynağında da yer alır.
@@ -125,13 +125,13 @@ A public, international civil aviation flight tracker with Istanbul Airport (IST
 
 > **Known limitation:** Without our own ADS-B receiver, the moment of touchdown at Istanbul Airport is usually not observed directly. For most flights the landing alert says "probably landed (estimated time)" and arrives 1–1.5 minutes after the last signal. For some flights it can only say "landing data unavailable".
 
-### Status — v0.25.2
+### Status — v0.25.3
 | Area | Status |
 |---|---|
 | Roadmap, data sources, architecture | ✅ Done and verified |
 | Local test environment, Status and What's new pages | ✅ Part 1 · M0 |
 | All services, admin panel (Services screen), consent-based analytics | ✅ Part 1 · M1a |
-| Brand and domain: Airline.live · airline.live; permanent redirect from the previous domain (D-112) | ✅ v0.25.0 (code live; Dokploy switch in the [ACTIVATION](docs/ACTIVATION.md) steps) |
+| Brand and domain: Airline.live · airline.live; permanent redirect from the previous domain (D-112) | ✅ v0.25.0 (on airline.live since 2026-10-15) |
 | Security hardening (per-visitor sign-in limit, resilience to Redis outages) | ✅ v0.3.2 |
 | Live: web, api., admin. (Dokploy, Let's Encrypt) | ✅ 2026-09-27 |
 | Automatic release pipeline (GitHub Actions → GHCR → Dokploy), verification and rollback | ✅ Part 1 · M1b, server setup in progress ([guide](docs/DEPLOY_DOKPLOY.md)) |
@@ -146,8 +146,8 @@ A public, international civil aviation flight tracker with Istanbul Airport (IST
 | Live airport weather (METAR/TAF; wind, rain, snow, thunderstorm, fog), METAR/TAF log, red map pins and airport window on the map, map opens on IST | ✅ Part 1 · M6c |
 | 75 airports in nearby countries (within 500 km of the nearest airport in Türkiye): pages, runways, weather, map pins and window; Ercan in the TRNC; light turquoise theme; weather row icons and highlights | ✅ Part 1 · M6d |
 | Wind in km/h and knots; significant wind (Turkish aerodrome warning threshold) with strength names; lightning warnings; aligned airport window | ✅ Part 1 · M6e, v0.13.1 |
-| Military and civil airport names in TR/EN; airport labels on the map (Hide / Code); local time with UTC offset abroad | ✅ Part 1 · M6f |
-| Graded wind colours (green to red, with Beaufort names) and wind shear warnings | ✅ v0.14.1, v0.16.1 |
+| Military and civil airport names in TR/EN; airports on the map in one setting (Hide / Icon / Icon and code, D-114); local time with UTC offset abroad | ✅ Part 1 · M6f |
+| Graded wind colours (green to red, with Beaufort names) and wind shear warnings | ✅ v0.14.1, v0.16.1, v0.25.3 (plainer Turkish names, D-116) |
 | Ring 2: 89 more airports up to 1,000 km (225 in total); site name and version in the map attribution strip | ✅ Part 1 · M6g |
 | Release date and time for every version on What’s new | ✅ v0.17.1 |
 | Dashed country borders on the map (OpenStreetMap) | ✅ v0.17.2 |
@@ -200,8 +200,8 @@ Then open `http://localhost:3100/` (live map), `/havalimanlari`, `/istasyon/LTFM
 - `docs/DEPLOY_DOKPLOY.md`: one-time server (Dokploy) setup
 - `docs/DECISIONS.md`: decisions and rationale
 
-### Stats (v0.25.2)
-711 files and **157,492 lines** in git: 144,993 lines of code (TypeScript, TSX, CSS, JS) and 8,934 lines of documentation. The lockfile, `docs/research/` and generated data (fixture CSV and JSON files, drizzle schema snapshots) are excluded. Run `pnpm stats` for current numbers.
+### Stats (v0.25.3)
+711 files and **158,661 lines** in git: 146,013 lines of code (TypeScript, TSX, CSS, JS) and 9,080 lines of documentation. The lockfile, `docs/research/` and generated data (fixture CSV and JSON files, drizzle schema snapshots) are excluded. Run `pnpm stats` for current numbers.
 
 ### License, data and attribution
 - Code is licensed under the [MIT License](LICENSE): © 2026 [emindemirciai](https://github.com/emindemirciai). All copies or substantial portions of the code must include the copyright notice and license text; copying or distributing without them infringes the license and the copyright. The **Airline.live** name and logo are not covered by the MIT License; rights reserved. The same notice appears in the page source of the site.

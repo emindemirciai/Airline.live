@@ -56,16 +56,56 @@ const styleUrl = z
 /** ArcGIS API anahtarı; karo adresine sorgu parametresi olarak girer. */
 const ESRI_API_KEY = /^[A-Za-z0-9._~+/=-]+$/
 
+/** `<meta …>` ya da `<meta … />`: etiketin öznitelik bölümü (büyük-küçük harf fark etmez). */
+const META_TAG = /^<meta(?=[\s/>])([\s\S]*?)\/?>$/i
+/** Tek öznitelik: ad, isteğe bağlı `=` ve çift tırnaklı, tek tırnaklı ya da tırnaksız değer. */
+const META_ATTRIBUTE = /\s*([^\s"'<>/=]+)(?:\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'=<>`]+)))?/y
+
+/**
+ * Doğrulama değeri olarak yapıştırılmış tam meta etiketinin `content` değeri (D-117): Search
+ * Console, Bing ve Yandex etiketin tamamını verir (`<meta name="google-site-verification"
+ * content="…" />`). Öznitelik sırası ve tırnak biçimi fark etmez; `content` adı büyük-küçük harfe
+ * bakmaz. Etiket değilse, öznitelikleri çözülemiyorsa ya da `content` yoksa undefined: değer olduğu
+ * gibi doğrulanır ve reddedilir.
+ */
+export function metaTagContent(value: string): string | undefined {
+  const tag = META_TAG.exec(value)
+  if (!tag) return undefined
+  const attributes = tag[1] ?? ''
+  let end = 0
+  let content: string | undefined
+  for (;;) {
+    META_ATTRIBUTE.lastIndex = end
+    const attribute = META_ATTRIBUTE.exec(attributes)
+    if (!attribute) break
+    end = META_ATTRIBUTE.lastIndex
+    if (content === undefined && attribute[1]?.toLowerCase() === 'content') {
+      content = attribute[2] ?? attribute[3] ?? attribute[4] ?? ''
+    }
+  }
+  if (attributes.slice(end).trim() !== '') return undefined
+  return content?.trim()
+}
+
 /**
  * Arama motoru site doğrulama kodu (Google Search Console, Bing Webmaster, Yandex Webmaster): meta
- * etiketinin yalnızca `content` değeri. Kullanıcı üretir (ACTIVATION); tanımsızsa etiket çıkmaz.
+ * etiketinin `content` değeri. Kullanıcı üretir (ACTIVATION); tanımsızsa etiket çıkmaz. Etiketin
+ * tamamı yapıştırılırsa `content` değeri alınır (D-117); değer yine kod biçiminde olmalıdır, değilse
+ * açılış hata verir.
  */
 const siteVerification = z.preprocess(
-  emptyToUndefined,
+  (value) => {
+    const defined = emptyToUndefined(value)
+    if (typeof defined !== 'string') return defined
+    const trimmed = defined.trim()
+    return metaTagContent(trimmed) ?? trimmed
+  },
   z
     .string()
-    .trim()
-    .regex(/^[A-Za-z0-9_-]{1,128}$/, 'yalnızca harf, rakam, _ ve - (en fazla 128 karakter)')
+    .regex(
+      /^[A-Za-z0-9_-]{1,128}$/,
+      'yalnızca harf, rakam, _ ve - (en fazla 128 karakter) ya da bu content değerini taşıyan meta etiketi',
+    )
     .optional(),
 )
 

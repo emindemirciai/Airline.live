@@ -1,10 +1,10 @@
 import { getMessages } from '@havayolu/i18n'
 import type { LiveStatus } from '@havayolu/shared'
-import { createElement } from 'react'
+import { Children, createElement, isValidElement, type ReactElement, type ReactNode } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
 import type { TrackedAircraft } from '../../../lib/live/store'
-import type { LabelSettings } from '../../../lib/map/label-settings'
+import { AIRPORT_DISPLAY_MODES, type LabelSettings } from '../../../lib/map/label-settings'
 import type { MapAirport } from '../airport-data'
 import type { AircraftPlaceView } from './aircraft-place'
 import { AircraftTable } from './aircraft-table'
@@ -543,11 +543,19 @@ describe('SearchResultsList (D-108)', () => {
   })
 })
 
+/** Varsayılan etiket ayarı (uçaklar Tam, havalimanları Simge ve kod, ülke adları Göster). */
+const LABEL_DEFAULTS: LabelSettings = {
+  selected: 'full',
+  others: 'full',
+  airportDisplay: 'icon-code',
+  countries: 'shown',
+}
+
 describe('LabelSettingsControl', () => {
   it('kapalıyken yalnızca "Etiketler" düğmesi çizilir', () => {
     const html = renderToStaticMarkup(
       createElement(LabelSettingsControl, {
-        value: { selected: 'full', others: 'full', airports: 'code', countries: 'shown' },
+        value: LABEL_DEFAULTS,
         onChange: noop,
         messages: tr.labels,
       }),
@@ -558,29 +566,37 @@ describe('LabelSettingsControl', () => {
   })
 })
 
-describe('LabelSettingsPanel (D-084)', () => {
+describe('LabelSettingsPanel (D-084, D-114)', () => {
   const render = (value: LabelSettings, messages = tr.labels) =>
     renderToStaticMarkup(
       createElement(LabelSettingsPanel, { id: 'labels', value, onChange: noop, messages }),
     )
-  /** Grubun `legend`i ve radyo düğmeleri: [ad, değer, seçili mi]. */
+  /**
+   * Grubun `legend`i, `fieldset` nitelikleri ve radyo düğmeleri: [ad, değer, yazı, seçili mi,
+   * kullanılabilir mi]. Kullanılabilir: yerel `disabled`, `aria-disabled` ve `tabindex="-1"` yok;
+   * seçenek sekmeyle ulaşılır, ok tuşları grubun içinde seçer (tarayıcının radyo grubu davranışı).
+   */
   const groups = (html: string) =>
-    [...html.matchAll(/<fieldset[^>]*><legend>([^<]+)<\/legend>(.*?)<\/fieldset>/g)].map(
-      ([, legend, body = '']) => ({
+    [...html.matchAll(/<fieldset([^>]*)><legend>([^<]+)<\/legend>(.*?)<\/fieldset>/g)].map(
+      ([, fieldset = '', legend, body = '']) => ({
         legend,
+        fieldset,
         options: [...body.matchAll(/<input type="radio"([^>]*)\/><span>([^<]+)<\/span>/g)].map(
           ([, attributes = '', text]) => ({
             name: /\bname="([^"]+)"/.exec(attributes)?.[1],
             mode: /\bvalue="([^"]+)"/.exec(attributes)?.[1],
             text,
             checked: /\bchecked=""/.test(attributes),
+            usable: !/\b(?:disabled=""|aria-disabled=|tabindex="-1")/.test(attributes),
           }),
         ),
       }),
     )
+  const checkedMode = (group: ReturnType<typeof groups>[number] | undefined) =>
+    group?.options.find((o) => o.checked)?.mode
 
-  it('dört grup: Seçili uçak, Diğer uçaklar, Havalimanları (Gizle / Kod), Ülke adları (Gizle / Göster)', () => {
-    const html = render({ selected: 'full', others: 'short', airports: 'code', countries: 'shown' })
+  it('dört grup: Seçili uçak, Diğer uçaklar, Havalimanları (Gizle / Simge / Simge ve kod), Ülke adları (Gizle / Göster)', () => {
+    const html = render({ ...LABEL_DEFAULTS, others: 'short' })
     expect(html).toMatch(/^<div id="labels" class="map-panel map-labels__panel" role="group"/)
     const found = groups(html)
     expect(found.map((g) => g.legend)).toEqual([
@@ -589,10 +605,11 @@ describe('LabelSettingsPanel (D-084)', () => {
       'Havalimanları',
       'Ülke adları',
     ])
-    // "Kod ve ad" 2026-10-04'te kaldırıldı: ad, havalimanı penceresindedir (kullanıcı isteği).
-    expect(found[2]?.options.map((o) => [o.mode, o.text])).toEqual([
-      ['hidden', 'Gizle'],
-      ['code', 'Kod'],
+    // Havalimanları (D-114): pinler ve kodları tek satırda, Gizle önce; varsayılan Simge ve kod.
+    expect(found[2]?.options.map((o) => [o.mode, o.text, o.checked])).toEqual([
+      ['hidden', 'Gizle', false],
+      ['icon', 'Simge', false],
+      ['icon-code', 'Simge ve kod', true],
     ])
     // Ülke adları (D-095): Gizle önce, varsayılan Göster.
     expect(found[3]?.options.map((o) => [o.mode, o.text, o.checked])).toEqual([
@@ -604,47 +621,91 @@ describe('LabelSettingsPanel (D-084)', () => {
     for (const group of found) {
       expect(new Set(group.options.map((o) => o.name)).size).toBe(1)
       expect(group.options.filter((o) => o.checked)).toHaveLength(1)
+      // Hiçbir grup kapalı değildir: her seçenek sekmeyle ve ok tuşlarıyla seçilir.
+      expect(group.fieldset, group.legend).not.toMatch(/disabled/)
+      expect(
+        group.options.every((o) => o.usable),
+        group.legend,
+      ).toBe(true)
     }
-    expect(found[0]?.options.find((o) => o.checked)?.mode).toBe('full')
-    expect(found[1]?.options.find((o) => o.checked)?.mode).toBe('short')
-    expect(found[2]?.options.find((o) => o.checked)?.mode).toBe('code')
+    expect(checkedMode(found[0])).toBe('full')
+    expect(checkedMode(found[1])).toBe('short')
+    // Ayrı "Havalimanı simgeleri" satırı ve not yok (ilk tasarım, D-114 → Seçilmeyenler).
+    expect(textOf(html)).not.toContain('Havalimanı simgeleri')
+    expect(html).not.toContain('map-labels__note')
+    expect(html).not.toContain('aria-describedby')
     expect(textOf(html)).toContain(
       'Kısa: yalnızca sefer no. Tam: sefer no, hız ve yükseklik. Ülke adları haritayı uzaklaştırınca görünür.',
     )
     expect(textOf(html)).not.toContain('Kod ve ad')
   })
 
-  it('seçili havalimanı ve ülke adı seçeneği ayardan gelir; İngilizce metinler', () => {
-    for (const airports of ['hidden', 'code'] as const) {
-      const found = groups(
-        render({ selected: 'full', others: 'full', airports, countries: 'shown' }),
-      )
-      expect(found[2]?.options.find((o) => o.checked)?.mode, airports).toBe(airports)
+  it('seçili havalimanı seçeneği ayardan gelir, öbür grupları etkilemez; Gizle’de de satır açıktır', () => {
+    for (const airportDisplay of ['hidden', 'icon', 'icon-code'] as const) {
+      const found = groups(render({ ...LABEL_DEFAULTS, airportDisplay }))
+      expect(found, airportDisplay).toHaveLength(4)
+      expect(checkedMode(found[2]), airportDisplay).toBe(airportDisplay)
+      expect(checkedMode(found[0]), airportDisplay).toBe('full')
+      expect(checkedMode(found[1]), airportDisplay).toBe('full')
+      expect(checkedMode(found[3]), airportDisplay).toBe('shown')
+      expect(found.every((g) => g.options.every((o) => o.usable))).toBe(true)
     }
     for (const countries of ['hidden', 'shown'] as const) {
-      const found = groups(
-        render({ selected: 'full', others: 'full', airports: 'code', countries }),
-      )
-      expect(found[3]?.options.find((o) => o.checked)?.mode, countries).toBe(countries)
-      expect(found[2]?.options.find((o) => o.checked)?.mode, countries).toBe('code')
+      const found = groups(render({ ...LABEL_DEFAULTS, countries }))
+      expect(checkedMode(found[3]), countries).toBe(countries)
+      expect(checkedMode(found[2]), countries).toBe('icon-code')
     }
-    const enMessages = getMessages('en').map.labels
-    const enHtml = render(
-      { selected: 'full', others: 'full', airports: 'hidden', countries: 'shown' },
-      enMessages,
-    )
-    const en = groups(enHtml)
-    expect(en.map((g) => g.legend)).toEqual([
+  })
+
+  it('İngilizce metinler: Airports (Hide / Icon / Icon and code)', () => {
+    const enHtml = render({ ...LABEL_DEFAULTS, airportDisplay: 'hidden' }, en.labels)
+    const found = groups(enHtml)
+    expect(found.map((g) => g.legend)).toEqual([
       'Selected aircraft',
       'Other aircraft',
       'Airports',
       'Country names',
     ])
-    expect(en[2]?.options.map((o) => o.text)).toEqual(['Hide', 'Code'])
-    expect(en[3]?.options.map((o) => [o.text, o.checked])).toEqual([
+    expect(found[2]?.options.map((o) => [o.text, o.checked])).toEqual([
+      ['Hide', true],
+      ['Icon', false],
+      ['Icon and code', false],
+    ])
+    expect(found[3]?.options.map((o) => [o.text, o.checked])).toEqual([
       ['Hide', false],
       ['Show', true],
     ])
+    expect(textOf(enHtml)).not.toContain('Airport icons')
     expect(textOf(enHtml)).toContain('Country names appear when you zoom out.')
+  })
+
+  it('seçim yalnız havalimanları alanını değiştirir (onChange; öbür alanlar korunur)', () => {
+    const value: LabelSettings = {
+      selected: 'short',
+      others: 'hidden',
+      airportDisplay: 'icon-code',
+      countries: 'hidden',
+    }
+    const changes: LabelSettings[] = []
+    // Panel bir çizimin içinde çağrılır (useId); dönen ağaçtaki "Havalimanları" grubunun seçim işlevi
+    // her seçenekle çağrılır.
+    const probe = () => {
+      const panel = LabelSettingsPanel({
+        value,
+        onChange: (next) => changes.push(next),
+        messages: tr.labels,
+      })
+      const group = Children.toArray((panel.props as { children?: ReactNode }).children).find(
+        (child): child is ReactElement<{ legend: string; onSelect: (mode: string) => void }> =>
+          isValidElement(child) &&
+          (child.props as { legend?: unknown }).legend === tr.labels.airports,
+      )
+      for (const mode of AIRPORT_DISPLAY_MODES) group?.props.onSelect(mode)
+      return null
+    }
+    renderToStaticMarkup(createElement(probe))
+    expect(changes).toEqual(
+      AIRPORT_DISPLAY_MODES.map((airportDisplay) => ({ ...value, airportDisplay })),
+    )
   })
 })

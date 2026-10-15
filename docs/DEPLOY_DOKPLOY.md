@@ -261,6 +261,7 @@ Bundan sonra her birleşen PR aynı yolu kendiliğinden izler.
   - Seçilen imajlar `:main` olur ve aynı doğrulama yapılır.
   - Veritabanı şeması geri alınmaz; şema değişiklikleri geriye uyumludur.
   - **Eski alan adları (D-112):** `LEGACY_*_HOSTS` girildikten sonra v0.25.0'dan eski bir SHA'ya dönmek eski alan adlarının 308'lerini kapatır (eski imaj listeyi tanımaz, doğrulama yine yeşildir). Mümkünse en az v0.25.0'a geri al; daha eskiye dönmek gerekirse en az v0.25.0 yeniden yayına çıkana kadar eski adresler yönlendirmesiz sunulur (§11'deki dört `curl -sI` satırıyla denetle).
+  - **Doğrulama env'leri (D-117):** `GOOGLE_SITE_VERIFICATION`, `BING_SITE_VERIFICATION` ya da `YANDEX_VERIFICATION` etiketin tamamıysa (`<meta …>`), v0.25.3'ten eski bir SHA'ya dönmek web'de her sayfayı ve `/api/version`'ı 500'e düşürür (eski imaj yalnızca kodu kabul eder; geri alma işi kırmızı biter). Geri almadan önce Dokploy'da değeri etiketin `content` koduyla değiştir. En güvenlisi baştan yalnızca `content` kodunu girmektir: her sürümde çalışır.
   - Sonraki birleşme, belge değişikliği bile olsa, canlıdan farkı yayınlar ve sorunlu kodu geri getirir. Bu yüzden geri aldıktan sonra sorunlu değişikliği önce bir PR ile geri al (revert).
 - **Parola unutulursa:** Bir parola `#…#` talimatıyla kaldıysa API açılmaz; Dokploy logunda hangisi olduğu yazar.
   - Postgres parolası ilk açılışta veritabanına yazılır. Yanlış girildiyse ve **henüz veri yoksa**:

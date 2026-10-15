@@ -95,12 +95,25 @@ describe('i18n', () => {
     // Ülke adları (D-095): Gizle / Göster; ipucu adların uzaklaşınca göründüğünü söyler.
     expect(map.labels.countries).toBe('Ülke adları')
     expect(map.labels.countryModes).toEqual({ hidden: 'Gizle', shown: 'Göster' })
+    // Havalimanları (D-084, D-114): pinler ve kodları tek satırda; ayrı simge satırı ve not yok.
+    expect(map.labels.airports).toBe('Havalimanları')
+    expect(map.labels.airportModes).toEqual({
+      hidden: 'Gizle',
+      icon: 'Simge',
+      'icon-code': 'Simge ve kod',
+    })
+    for (const removed of ['airportIcons', 'airportIconModes', 'airportsWithoutIcons']) {
+      expect(Object.keys(map.labels)).not.toContain(removed)
+      expect(Object.keys(getMessages('en').map.labels)).not.toContain(removed)
+    }
     expect(map.labels.hint).toBe(
       'Kısa: yalnızca sefer no. Tam: sefer no, hız ve yükseklik. Ülke adları haritayı uzaklaştırınca görünür.',
     )
     const en = getMessages('en').map.labels
     expect(en.countries).toBe('Country names')
     expect(en.countryModes).toEqual({ hidden: 'Hide', shown: 'Show' })
+    expect(en.airports).toBe('Airports')
+    expect(en.airportModes).toEqual({ hidden: 'Hide', icon: 'Icon', 'icon-code': 'Icon and code' })
     expect(en.hint).toBe(
       'Short: flight number only. Full: flight number, speed and altitude. Country names appear when you zoom out.',
     )
