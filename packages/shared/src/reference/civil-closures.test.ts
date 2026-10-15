@@ -72,14 +72,14 @@ const listedRows = rows
   .filter((r) => ringOf(r) <= ENABLED_AIRPORT_RING)
 const listedForeign = listedRows.map(icaoOf)
 
-/** Kesin kayıtlar (D-110 → "Not türü"): 23'ü 2022'den beri Ukrayna ve Rusya, dördü öbür yıllar. */
+/** Kesin kayıtlar (D-110 → "Not türü"): 23'ü 2022'den beri Ukrayna ve Rusya, üçü öbür yıllar. */
 const CONFIRMED = [
   ...['UKBB', 'UKDD', 'UKDE', 'UKDR', 'UKFF', 'UKHH', 'UKKK', 'UKLI', 'UKLL', 'UKLN', 'UKLR'],
   ...['UKLU', 'UKOH', 'UKON', 'UKOO', 'UKWW', 'URKA', 'URRP', 'UUBP', 'UUOB', 'UUOK', 'UUOL'],
-  ...['UUOO', 'FZMA', 'FZNA', 'OSLK', 'OYTZ'],
+  ...['UUOO', 'FZMA', 'FZNA', 'OSLK'],
 ]
 /** Belirsiz kayıtlar: haber ve dolaylı kanıt, açılışı yakın ya da denetimi yeni el değiştiren. */
-const POSSIBLE = ['GAGO', 'GAMB', 'HAAX', 'HSFS', 'HSNN', 'HSOB', 'OSKL', 'OYSN']
+const POSSIBLE = ['GAGO', 'GAMB', 'HAAX', 'HSFS', 'HSNN', 'HSOB', 'OSKL', 'OYSN', 'OYTZ']
 /** OurAirports'ta tarifesiz, kapanış tablosuyla listeye giren 23 havalimanı (D-110). */
 const UNSCHEDULED = [
   ...['FZMA', 'UKBB', 'UKDD', 'UKDE', 'UKDR', 'UKFF', 'UKHH', 'UKKK', 'UKLI', 'UKLL', 'UKLN'],
@@ -102,7 +102,7 @@ describe('CIVIL_FLIGHT_CLOSURES (savaş nedeniyle kapalı havalimanları, D-110;
       expect(year, icao).toBeLessThanOrEqual(2026)
     }
     expect(civilFlightClosure('UKBB')).toEqual({ since: '2022-02-24', certainty: 'confirmed' })
-    expect(civilFlightClosure('OYTZ')).toEqual({ since: '2015-10', certainty: 'confirmed' })
+    expect(civilFlightClosure('OYTZ')).toEqual({ since: '2015-10', certainty: 'possible' })
     expect(civilFlightClosure('FZNA')?.since).toBe('2025-01-27')
     expect(civilFlightClosure('FZMA')?.since).toBe('2025-02-14')
     expect(civilFlightClosure('OSLK')?.since).toBe('2024-12-08')
@@ -117,7 +117,7 @@ describe('CIVIL_FLIGHT_CLOSURES (savaş nedeniyle kapalı havalimanları, D-110;
     }
   })
 
-  it('not türü: 27 kesin, 8 belirsiz', () => {
+  it('not türü: 26 kesin, 9 belirsiz', () => {
     const by = (certainty: string) =>
       Object.entries(CIVIL_FLIGHT_CLOSURES)
         .filter(([, closure]) => closure.certainty === certainty)
@@ -125,8 +125,8 @@ describe('CIVIL_FLIGHT_CLOSURES (savaş nedeniyle kapalı havalimanları, D-110;
         .sort()
     expect(by('confirmed')).toEqual(CONFIRMED.toSorted())
     expect(by('possible')).toEqual(POSSIBLE.toSorted())
-    expect(CONFIRMED).toHaveLength(27)
-    expect(POSSIBLE).toHaveLength(8)
+    expect(CONFIRMED).toHaveLength(26)
+    expect(POSSIBLE).toHaveLength(9)
     // Ukrayna ve Rusya'nın 23 kaydı 2022-02-24'ten beri kesin.
     for (const icao of CONFIRMED.filter((code) => /^U[KRU]/.test(code))) {
       expect(civilFlightClosure(icao), icao).toEqual({

@@ -480,8 +480,8 @@ describe('AirportView: diğer ülkelerdeki havalimanı (D-080, D-106)', () => {
     expect(closed).toHaveLength(35)
     expect(
       closed.filter((a) => civilClosureNote(a.icao, 'en', templates)?.startsWith('p ')),
-    ).toHaveLength(8)
-    expect(civilClosureNote('OYTZ', 'tr', templates)).toBe('c 2015’ten')
+    ).toHaveLength(9)
+    expect(civilClosureNote('OYTZ', 'tr', templates)).toBe('p 2015’ten')
   })
 
   it('Kiev Borispil (UKBB): Ukrayna sayfası, yer, yerel saat ve pistler (D-110)', () => {

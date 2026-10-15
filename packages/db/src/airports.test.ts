@@ -591,7 +591,8 @@ describe('yurt dışı kayıtları', () => {
     ]
     const selected = selectListedAirports(rows, { ...EQUATOR, enabledRing: 5 })
     expect(selected.map((a) => a.icao).sort()).toEqual(['UKBB', 'UKLL'])
-    // `scheduled` OurAirports değeridir (API sözleşmesi değişmez, D-090): uçuş evresi kullanmaz.
+    // `scheduled` OurAirports değeridir (API sözleşmesi değişmez, D-090): uçuş evresinin merkeze
+    // göre kuralları kullanmaz (pist hizası kuralı kullanır).
     expect(selected.every((a) => !a.scheduled)).toBe(true)
     // Halka süzgeci geçerlidir.
     expect(selectListedAirports(rows, { ...EQUATOR, enabledRing: 0 })).toEqual([])

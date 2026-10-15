@@ -168,11 +168,6 @@ describe('i18n', () => {
       format(template, { since: formatSinceYear(year, locale) })
     const confirmed: [number, string, string][] = [
       [
-        2015,
-        'Savaş nedeniyle sivil uçuşlara kapalı (2015’ten beri)',
-        'Closed to civil flights because of the war (since 2015)',
-      ],
-      [
         2022,
         'Savaş nedeniyle sivil uçuşlara kapalı (2022’den beri)',
         'Closed to civil flights because of the war (since 2022)',
@@ -193,6 +188,11 @@ describe('i18n', () => {
       expect(note(en.airport.civilClosure, year, 'en')).toBe(enText)
     }
     const possible: [number, string, string][] = [
+      [
+        2015,
+        'Savaş nedeniyle sivil uçuşlara kapalı olabilir (2015’ten beri)',
+        'May be closed to civil flights because of the war (since 2015)',
+      ],
       [
         2023,
         'Savaş nedeniyle sivil uçuşlara kapalı olabilir (2023’ten beri)',

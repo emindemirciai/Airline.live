@@ -272,7 +272,10 @@ export const COUNTRY_TIME_ZONES: Readonly<Record<string, string>> = {
  * - Ukrayna (D-110): tzdb `zone.tab`'a göre Kırım (UA-43) ve Sivastopol (UA-40)
  *   Europe/Simferopol (bütün yıl UTC+3), öbür bölgeler Kiev saati (UTC+2, yazın UTC+3). Ad
  *   `Intl`'in yazımıdır: Europe/Kiev (tzdb'de Europe/Kyiv; ICU `resolvedOptions()` onu Europe/Kiev
- *   verir). İşgal altındaki bölgeler tzdb'de Europe/Kyiv'dedir; oralarda listelenen havalimanı yok.
+ *   verir). Kırım'ın dilimi tzdb'nin fiilî saatidir (Simferopol listede, D-110). Kırım dışındaki
+ *   işgal altındaki bölgeler (Donetsk, Luhansk, Zaporijya ve Herson oblastlarının bir kısmı)
+ *   tzdb'de Europe/Kyiv'dedir; oralarda listelenen havalimanı yok (Zaporijya ve Herson
+ *   havalimanları Ukrayna denetimindedir).
  *   Ülkenin 27 ISO kodunun hepsi ve OurAirports'un Rivne kodu (UA-19; ISO UA-56) yazılıdır;
  *   OurAirports kodu değiştirirse dilim kaybolmaz. Harkiv'in OurAirports bölgesi "atanmamış"tır
  *   (UA-U-A): havalimanı kuralı (UKHH).

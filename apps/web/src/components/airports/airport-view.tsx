@@ -115,9 +115,11 @@ const displacedFt = (end: RunwayDetail['ends'][number]) =>
  * yazılır; Türkiye'ye göre bir satır yoktur (D-106). "… ilindeki diğer havalimanları" cümlesi yalnızca
  * Türkiye'dedir. "En yakın havalimanları" listesi Türkiye'yi ve diğer ülkeleri karışık içerebilir.
  *
- * Sivil uçuşlara kapalı olabilecek havalimanı (kullanıcı kararı 2026-10-04, D-090; Krasnodar,
- * Gelencik, Elista, Voronej): başlığın altında kehribar not (`role="note"`), harita penceresiyle aynı
- * metin. Not yalnız görünür metindir; başlık, açıklama ve JSON-LD değişmez.
+ * Savaş nedeniyle sivil uçuşlara kapalı havalimanı (kapanış tablosu `CIVIL_FLIGHT_CLOSURES`, D-110;
+ * ilk tablo D-090): başlığın altında kehribar not (`role="note"`), harita penceresiyle aynı metin;
+ * kesin kayıtta "Savaş nedeniyle sivil uçuşlara kapalı (<yıl>’den beri)", belirsiz kayıtta "… kapalı
+ * olabilir (…)". Sayfa başlığı canlı trafik vaat etmez (`airportTitle` → `titleOutside`), açıklamanın
+ * son cümlesi nottur (`airportDescription`); JSON-LD değişmez.
  */
 export function AirportView({ locale, app, airport, airports, weather }: AirportViewProps) {
   const messages = getMessages(locale)

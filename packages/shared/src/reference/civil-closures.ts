@@ -48,14 +48,17 @@ export interface CivilFlightClosure {
   readonly certainty: CivilFlightClosureCertainty
 }
 
-/** Ukrayna hava sahası ve Rosaviatsiya'nın güney Rusya kısıtlaması: 2022-02-24'ten beri, kesin. */
+/**
+ * Ukrayna hava sahası ve Rosaviatsiya'nın güney ve orta Rusya kısıtlaması: 2022-02-24'ten beri,
+ * kesin.
+ */
 const WAR_2022: CivilFlightClosure = { since: '2022-02-24', certainty: 'confirmed' }
 /** Sudan savaşı (2023-04-15'ten beri); yalnız haber ve dolaylı kanıt. */
 const SUDAN_2023: CivilFlightClosure = { since: '2023-04-15', certainty: 'possible' }
 /** Mali: Sky Mali seferleri 2026-04-28'de askıya aldı; dönüş bulunamadı. */
 const MALI_2026: CivilFlightClosure = { since: '2026-04-28', certainty: 'possible' }
 
-/** Kanonik ICAO → kapanış bilgisi; ICAO'ya göre sıralı (35 kayıt: 27 kesin, 8 belirsiz). */
+/** Kanonik ICAO → kapanış bilgisi; ICAO'ya göre sıralı (35 kayıt: 26 kesin, 9 belirsiz). */
 export const CIVIL_FLIGHT_CLOSURES: Readonly<Record<string, CivilFlightClosure>> = {
   // Bukavu Kavumu (BKY), Kongo DC; M23 havalimanını aldı. MONUSCO, BM Güvenlik Konseyi 2026-03-26
   FZMA: { since: '2025-02-14', certainty: 'confirmed' },
@@ -79,8 +82,9 @@ export const CIVIL_FLIGHT_CLOSURES: Readonly<Record<string, CivilFlightClosure>>
   OSLK: { since: '2024-12-08', certainty: 'confirmed' },
   // Sana (SAH), Yemen; Yemenia'nın son uçağı vuruldu, resmî kapanış ilanı yok
   OYSN: { since: '2025-05-28', certainty: 'possible' },
-  // Taiz (TAI), Yemen; cephe hattı. CAMA; il seferleri 2026-02-01'den beri Muha'dan (Saba)
-  OYTZ: { since: '2015-10', certainty: 'confirmed' },
+  // Taiz (TAI), Yemen; cephe hattı. CAMA (Sana, 2021-07-31: 2015-10'dan beri hizmet dışı); 12 aydan
+  // yeni kaynak yok, il seferlerinin 2026-02-01'den beri Muha'dan yapılması (Saba) dolaylı
+  OYTZ: { since: '2015-10', certainty: 'possible' },
   // Kiev Borispil (KBP), Ukrayna; EASA CZIB-2022-01R14, NOTAM UKBV A0081/26
   UKBB: WAR_2022,
   // Dnipro (DNK), Ukrayna; EASA CZIB, NOTAM
@@ -89,7 +93,8 @@ export const CIVIL_FLIGHT_CLOSURES: Readonly<Record<string, CivilFlightClosure>>
   UKDE: WAR_2022,
   // Kriviy Rih (KWG), Ukrayna; EASA CZIB, NOTAM
   UKDR: WAR_2022,
-  // Simferopol (SIP), Kırım; Ukrayna NOTAM'ı (UKFV FIR) ve Rosaviatsiya kısıtlaması
+  // Simferopol (SIP), Kırım; Rosaviatsiya kısıtlaması (2022-02-24: sivil seferin fiilen durduğu
+  // gün) ve Ukrayna NOTAM'ı (UKFV FIR). Ukrayna havalimanını 2014-03'ten beri kapalı sayar
   UKFF: WAR_2022,
   // Harkiv (HRK), Ukrayna; EASA CZIB, NOTAM
   UKHH: WAR_2022,
