@@ -139,7 +139,7 @@ Compose servisinin Domains sekmesinde her satır için HTTPS açık, sertifika L
 - `LEGACY_API_HOSTS` (yeni satır): `api.havayolu.live`
 - `ANALYZE_URL`: `https://analiz.havayolu.live` → `https://analiz.airline.live`
 - `ANALYZE_SITE_ID`: `havayolu.live` → `airline.live`
-- sonra, ayrı adımda ((b2) doğrulandıktan sonra): `CONTACT_EMAIL=info@airline.live`
+- sonra, ayrı adımda ((b2) doğrulandıktan sonra ve ACTIVATION 2. adımdaki açılış kapısı tamamlanınca, D-115): `CONTACT_EMAIL=info@airline.live`
 
 Aynen kalanlar (dokunma):
 

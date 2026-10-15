@@ -53,6 +53,8 @@ Durumlar: `[ ]` başlamadı, `[~]` sürüyor, `[k]` kod bitti ve kullanıcı do�
 | M6j.2 | 5. halkanın ölçeği (halka 4'te kalır): web belleğinde havalimanı listesi, API gövde önbelleği, `include=map`, 180. meridyen, istek üzerine pist uçları, METAR/TAF kaydı yalnız tarayıcıda, paylaşım görseli sınırı, toplu havada `format=raw` zorunlu, AWC ilk çalışma, llms.txt belleği (D-109) | `p1/m6j2-ring5-scale` | [ ] | — |
 | M6j.3 | 5. halka (dünyanın geri kalanı, ABD dahil; 2.026 havalimanı, 3.266 listelenen; D-110'la): adlar, tek ad parçası, arama dilimleri, halkanın açılması, ülke adları, düşük yakınlaştırmada küçük pinler, metinler, e2e (D-109) | `p1/m6j3-ring5` | [ ] | — |
 | M7c | Kapsama ölçümü yedek yolu (`coverage:probe`) | `p1/m7c-coverage-probe` | [ ] | — |
+| M7d.1 | Aşamalı canlı açılış, 1. aşama: yalnız havayolu (D-115): kaynakta süzme (worker), canlı katman anahtarı ve işlem kaydı, kullanım koşullarının mutlak olmayan gizlilik cümlesi, API'de ODbL | `p1/m7d1-live-airline-only` | [~] kod ve yerel kontroller bitti (2026-10-15, v0.26.0); orkestratörün yayın adımı (0.25.2'nin `releasedAt`'i, README, PR, CI) ve kullanıcı doğrulaması (ACTIVATION "M7d.1 yayın doğrulaması", 2. adımdaki açılış kapısı) bekliyor | — |
+| M7d.2 | Künye, gizlilik ve gizleme talebi | `p1/m7d2-kunye-gizlilik` | [ ] | — |
 
 ## M0 — Repo iskeleti ve yerel test ortamı
 **Dizinler:**
@@ -2375,3 +2377,59 @@ Kullanıcı isteği (2026-10-15): üretimde `curl -I` + `Upgrade: websocket` API
 - Site (Next 16.3.6 standalone, 3100): düz HEAD `/` 200; Upgrade'li HEAD ve GET `/`, GET `/havalimanlari` → curl 52 (boş yanıt); GET `/olmayan-yol-xyz` ve `/_next/static/nope.js` → curl 28 (10 sn'de yanıt yok); `--max-time 200` ile de 200 sn boyunca yanıt gelmedi, soket açık kaldı.
 - `npx vitest run src/live/ws-upgrade.test.ts src/net/legacy-host.test.ts` → 16/16. Düzeltmenin iki katmanı ayrı ayrı geri alınınca: yol düzeltmesi yokken 9/10 düşer ve vitest `client.socket.ping is not a function` yakalanmayan hatasını raporlar; sunucu seçeneği yokken 7/10 düşer.
 - `pnpm ci:full` (2026-10-15, Docker'da `dev:infra`, `db:migrate` sonrası) → çıkış 0: `ci:local` (format, EOL, `changelog:check` v0.25.2, `typecheck:scripts`, `typecheck:e2e`, `lint:e2e`, `db:check`, `test:scripts` 39, turbo lint/typecheck/test/build 31/31; testler web 973, shared 765, tools 383, api 314 (yeni 10), worker 304, providers 135, i18n 101, db 85, geo 36), `compose:guard`, `test:integration` (db 109, api 31, worker 18, tools 14), `test:migration-upgrade` (8 → 8), `test:e2e` 144 passed (6,8 dk).
+
+## M7d.1 — Aşamalı canlı açılış, 1. aşama: yalnız havayolu (D-115)
+Onay: 2026-10-15 kullanıcı (hukuki araştırma raporundan sonra, AskUserQuestion): açılış biçimi "Aşamalı: önce yalnız havayolu (Önerilen)"; künye adresi "Önce avukata soracağım"; avukat incelemesi "Açılıştan sonra". Kural ayrıntıları, tablolar ve öbür seçimler orkestratör varsayılanıdır (D-115; itiraz edilebilir).
+
+Sürüm v0.26.0 (MINOR). Dal `p1/m7d1-live-airline-only` (`C:/PROJELER/havayolu-global`), `b14561d`'den (v0.25.1); işe başlarken `origin/main` (`e1852d2`, v0.25.2, D-113) birleştirme commit'iyle alındı. Karar D-115. Canlı uçaklar üretimde kapalı kalır (`CONTACT_EMAIL` girilmedi); açılış kapısı ACTIVATION 2. adımdadır.
+
+**Kapsam:**
+- **Kaynakta süzme (K1-lite):** saf kural `packages/providers/src/live-scope.ts` (`publishDecision`, `airlineDesignatorsFrom`, `AIRLINE_CALLSIGN`), herkese açık tablolar `live-scope-designators.ts` (222 reddedilen ICAO işletmeci kodu, 10 charter izin listesi), `sameIdentity` (`aircraft.ts`). `packages/db` `loadAirlineDesignatorRows` (IATA şartı olmadan). Worker `PublishGate` (`apps/worker/src/ingest/publish.ts`: çağrı kodu hafızası, yayından çekme, anonim sayaçlar); `processStates` yalnız yayınlananları `redis-live`'a, uçuş kaydına ve ize yazar; `LiveWriter.remove` ve `writeLiveUpdates(…, remove)`; engel listesi kaynakta da (redis-queue, 5 sn / 30 sn); işletmeci tablosu açılışta ve tikte (boşken 10 sn, doluyken 6 sa).
+- **Kapsam env'i:** `LIVE_AIRCRAFT_SCOPE` (`airline` | `all`), `effectiveLiveScope`: üretimde her değer `airline` (başkası bir uyarıyla yok sayılır, worker düşmez), geliştirme ve testte boşsa `all`, geçersizse açılış hatası. `.env.example` ve `deploy/dokploy.env.example` `airline`; `smoke:live` `airline`'a sabitler.
+- **Canlı katman anahtarı (K2-lite):** migration `0008_live_layer_admin_actions` (`live_layer_state`, `admin_actions`); `packages/db/src/live-layer.ts`; `clearLiveAircraft`. Worker 2 sn'de bir okur, kapanınca yazımları bitirip canlı uçakları siler, kapalıyken her turda siler ve hiçbir şey yazmaz (çekim sürer). API `PeriodicSync` (BlocklistSync onun alt sınıfı), `LiveLayerSync` (2 sn, ilk okumaya kadar canlı veri yok), `LiveCache` `layer` seçeneği ve `statusChanged`, WS merkezi durum turunda abone herkese tam görüntü; `GET`/`PUT /v1/admin/live-layer`. Admin sayfası `/admin/canli-katman` (telefon; işlem kaydı tablosu), gezinmede "Canlı katman"; haritada "Canlı uçak katmanı şu an kapalı" uyarısı (`status.layer`).
+- **Kullanım koşulları (Ş1):** `privacy.military` dört yerde (TR/EN, Hakkında ve Kullanım koşulları) mutlak olmayan cümleyle; yürürlük tarihi 2026-10-15'te kalır. "Bize bildirin (e-posta)" cümlesi M7d.2'de.
+- **ODbL (K5-lite):** `/v1/live`, `/v1/search` ve WS tam görüntüsü `license`, `licenseUrl`, `attribution` taşır (`LIVE_DATA_LICENSE`, `@havayolu/shared`); `status.layer` her yanıtta; OpenAPI `info.license` ve açıklama.
+- **İkinci hat:** API'nin askerî ve bayrağı bilinmeyen gizlemesi, PIA/LADD maskelemesi ve engel listesi değişmedi.
+- **Belgeler:** D-115; RUNBOOK "Resmî talep ya da erişim engeli kararı geldi (5651 8/A, 9/A)" ve "Canlı katmanı kapatma"; ACTIVATION 2. adım açılış kapısına dönüştü (CONTACT_EMAIL en son), (f) ve (b2) satırları, "M7d.1 yayın doğrulaması"; `docs/spec/domain.md` "Canlı yayın kapsamı ve canlı katman (D-115)" ve Saklama; `docs/spec/data-sources.md` §1 ve §4; `docs/DEPLOY_DOKPLOY.md` §6 satırı; araştırma kopyası `docs/research/2026-10-15-canli-ucak-hukuk/` (`rapor-tr.md`, `synthesis.md`, `critique.md`; aday tescil listesi alınmadı).
+- **Yapılmayanlar (bu kilometre taşında):** README (yayın adımında orkestratör), 0.25.x kayıtları (0.25.2'nin `releasedAt`'i yayın adımında), CLAUDE.md'nin "Gizlilik" bölümüne 1. aşama satırı (kullanıcının dosyası; öneri olarak iletilir).
+
+**Dosyalar:**
+- `packages/providers/src/live-scope.ts`, `live-scope-designators.ts`, `aircraft.ts`, `index.ts`; testler `live-scope.test.ts`, `live-scope-designators.test.ts`, `aircraft.test.ts`
+- `packages/db/src/schema.ts`, `live-layer.ts`, `live.ts`, `airlines.ts`, `index.ts`; `packages/db/drizzle/0008_live_layer_admin_actions.sql`, `meta/0008_snapshot.json`, `meta/_journal.json`; testler `live.test.ts`, `live.int.test.ts`, `live-layer.int.test.ts`, `airlines.int.test.ts`, `migrate.int.test.ts`
+- `apps/worker/src/env.ts`, `index.ts`, `ingest/index.ts`, `ingest/publish.ts`; testler `env.test.ts`, `ingest/publish.test.ts`, `ingest/index.test.ts`, `ingest/ingest.int.test.ts`
+- `packages/shared/src/live.ts`
+- `apps/api/src/app.ts`, `index.ts`, `admin/live-layer.ts`, `live/periodic-sync.ts`, `live/blocklist-sync.ts`, `live/live-layer-sync.ts`, `live/cache.ts`, `live/types.ts`, `live/routes.ts`, `live/ws-hub.ts`, `live/ws-protocol.ts`; testler `admin/live-layer.test.ts`, `live/periodic-sync.test.ts`, `live/license.test.ts`, `live/cache.test.ts`, `live/routes.test.ts`, `live/ws.test.ts`, `app.test.ts`, `test/helpers.ts`, `live/test/ws-fakes.ts`
+- `apps/web/src/app/admin/canli-katman/{page.tsx,actions.ts,layer-form.tsx,live-layer-view.tsx}` + `actions.test.ts`, `live-layer-view.test.ts`; `apps/web/src/app/admin/{admin-nav.tsx,page.tsx}`, `kapsama/page.tsx`; `apps/web/src/lib/{live-layer.ts,admin-api.ts}`; `apps/web/src/lib/live/validate.ts` (+ test); `apps/web/src/components/map/panels/status-strip.tsx` (+ `panels.test.ts`); `apps/web/src/components/about/about-content.test.ts`; `apps/web/src/app/globals.css`
+- `packages/i18n/src/messages/tr.ts`, `en.ts`
+- `tools/src/live/smoke.ts`, `smoke.test.ts`
+- `.env.example`, `deploy/dokploy.env.example`
+- `packages/shared/src/changelog/entries.ts`, kök `package.json`, `CHANGELOG.md`
+
+**Kabul komutları:**
+- `pnpm format`, `pnpm lint`, `pnpm typecheck`, `pnpm typecheck:scripts`, `pnpm test`, `pnpm typecheck:e2e`, `pnpm lint:e2e`, `pnpm check:eol`, `pnpm db:check`, `pnpm test:scripts`, `pnpm changelog`, `pnpm changelog:check` → yeşil (0.25.2'nin `releasedAt`'i yazılana kadar bilinen iki kırmızı test hariç)
+- CI'da: `test-integration` (yeni `live-layer.int.test.ts`, `ingest.int.test.ts`'in üç yeni testi, `airlines.int.test.ts`, `live.int.test.ts`) ve `e2e` (beklenti değişikliği yok: replay uçakları HYS işletmeci koduyla kuralı geçer)
+- Bu oturumda çalıştırılmayanlar (kurallar): `gh`, `docker`, entegrasyon testleri, e2e, `pnpm dev`, canlı araçlar, port açan her şey
+- **Kullanıcıya bağlı (`[k]`):** ACTIVATION → "M7d.1 yayın doğrulaması" ve 2. adımdaki açılış kapısı (c)–(g)
+
+**Çıktı kaydı (2026-10-15, yerel):**
+- **Dal:** `git merge --no-ff origin/main` (`e1852d2`, v0.25.2, D-113) → `047dcb5`, çakışma yok.
+- **Migration:** `pnpm --filter @havayolu/db db:generate --name live_layer_admin_actions` → `0008_live_layer_admin_actions.sql` (iki tablo, `admin_actions_at_idx`, üç denetim); başa Türkçe açıklama eklendi; `pnpm db:check` → "No schema changes", boş fark.
+- **VRS denetimi (fixture, `deny.py` ve testler):** 222 reddedilen kod, tekil, hepsi fixture'da (askerî 108, devlet 37, polis/sınır 26, uçuş kontrolü 15, ambulans/kurtarma 27, iş jeti/VIP 9); `.*` desenli 287 kod, izin listesinden sonra 277 `non_airline`, 23'ü reddedilenlerle örtüşür; 5.904 işletmeci kodu (1.378'i IATA'lı); yinelenen ICAO yok. LTFM 40 nm gerçek yanıtında (2026-09-27) 18 uçağın 16'sı yayınlanır: `4baac9` `no_callsign`, `4bbd2c` (TCOIL, LADD) `pia_ladd`. Korunan 34 havayolu (THY, PGT, TKJ, SXS, CAI … RBG) `airline` ve yayınlanır.
+- `pnpm format`, `pnpm lint` (9/9), `pnpm typecheck` (9/9), `pnpm typecheck:scripts`, `pnpm typecheck:e2e`, `pnpm lint:e2e`, `pnpm check:eol` ("Satır sonları LF"), `pnpm db:check`, `pnpm test:scripts` (39/39), `pnpm changelog` (47 sürüm), `pnpm changelog:check` (v0.26.0) → yeşil.
+- `pnpm turbo run test --force --continue` → providers 154 (önce 135), db 88 (85), worker 319 (304), api 332 (314), web 987/988 (973), shared 764/765, tools 383, i18n 101, geo 36. İki kırmızı test 0.25.2'nin `releasedAt`'inin henüz yazılmamasından gelir (`changelog.test.ts` "en yeni dışında her sürümde var", `changelog-content.test.ts` "her sürümün saati var"); yayın adımında v0.25.2 GitHub Release anı yazılınca geçer (D-091, M6i.3'teki gibi).
+- `pnpm --filter @havayolu/web build` → yeşil (`ƒ /admin/canli-katman`); `turbo run build` api, worker, db → yeşil.
+- Yazılan ama burada çalıştırılmayan entegrasyon testleri (CI): `packages/db` `live-layer.int.test.ts` (5), `live.int.test.ts` (+2), `airlines.int.test.ts` (+2), `migrate.int.test.ts` (9 migration); worker `ingest.int.test.ts` (+3: airline kapsamı ve engel listesi, katman kapanıp açılınca, kapalı açılış).
+- Çalıştırılmayanlar (kurallar): `gh`, `docker`, `pnpm test:integration`, `pnpm test:migration-upgrade`, `pnpm test:e2e`, `pnpm ci:full`, `pnpm dev`, canlı araçlar. e2e beklentisi değişmedi: replay uçakları (HYS001…008/091/092, HYS "HiSky Europe", IATA H4; A3/A5; dbFlags 0) kuralı geçer; yeni veritabanında işletmeci tablosu `jobs` rolünün fixture içe aktarımından sonra (≤ 10 sn gecikmeyle) dolar, `app.setup.ts`'in 150 sn beklemesi yeter.
+- **Smoke notu:** `smoke:live` artık yalnız havayolu uçaklarını yayınlar; `SMOKE_MIN_AIRCRAFT=50` eşiğinin Türkiye bbox'ında tutması beklenir (THY ve PGT ağırlıklı trafik), kullanıcının sonraki smoke koşusunda görülür.
+
+## M7d.2 — Künye, gizlilik ve gizleme talebi
+Onay: M7d.1 ile aynı (2026-10-15; künye adresi "Önce avukata soracağım", avukat incelemesi "Açılıştan sonra"). Planlandı, uygulanmadı. Sürüm v0.27.0 (MINOR), dal `p1/m7d2-kunye-gizlilik`.
+
+**Kapsam (öneri):**
+- **İletişim / künye sayfası (rapor Ş2):** env'den gelen alanlar (ad, adres türü avukattan sonra seçilir, e-posta, telefon); alt bilgide Hostinger satırı (yer sağlayıcı; her sayfada, ana sayfa dahil); TR ve EN; alt bilgiden ve harita atfından bağlantı. Env tanımsızsa sayfa temiz kapanır (ACTIVATION adımı).
+- **`/gizlilik` ve çerez aydınlatması taslağı (Ş4):** veri sorumlusu, amaçlar ve hukuki sebepler, aktarımlar, haklar ve başvuru yolu, her çerez ve yerel depolama öğesi; avukat onayı sonra.
+- **Gizleme talebi yolu (K4):** form ya da e-posta, ücretsiz, rutin tescil belgesi istenmez; engel hex'e ve tescile uygulanır.
+- **`privacy.report` cümlesi:** "Görünmemesi gereken bir uçak görürseniz bize bildirin ({email})", yalnız e-posta tanımlıyken gösterilir (`{email}` yer tutucusu; Hakkında ve llms.txt'nin e-postasız testleri buna göre değişir).
+- **Önerilen:** telefondan kullanılan admin hex engel listesi sayfası (bugün liste yalnız API'den yönetilir; VIP listesi ve gizleme talepleri için gerekir).
+
+**Kabul komutları (taslak):** M7d.1'deki yerel kontroller; künye env'i yokken sayfanın kapalı kalması; e2e'de alt bilgi bağlantısı.

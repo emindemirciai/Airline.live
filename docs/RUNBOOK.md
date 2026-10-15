@@ -137,3 +137,29 @@ API bunlardan birinde 500 veriyor ya da istekten sonra yeniden başlıyorsa önc
 - **Eşleşmeyen yol** (`/olmayan-yol`, olmayan `/_next/static/…`): yanıt gelmez, bağlantı istemci ya da Traefik bırakana kadar açık kalır.
 
 Bu Next 16'nın iç davranışıdır (`next/dist/server/lib/router-server.js` → `upgradeHandler`) ve yamalanmaz. Tarayıcılar site host'una Upgrade göndermez (canlı veri `wss://api.airline.live/v1/ws`), kullanıcı etkisi yoktur. Site için Upgrade'li isteğin 502'si alarm değildir; izleme aracı siteyi düz `GET` ya da `HEAD` ile denetler. `hy-web`'de açık bağlantı sayısı bu yüzden büyürse D-113'teki değerlendirilmiş seçenek (açılışta `shouldUpgradeCallback: () => false`) kullanıcı kararıyla uygulanır.
+
+## Resmî talep ya da erişim engeli kararı geldi (5651 8/A, 9/A)
+**Belirti:** Siber Güvenlik Başkanlığı, bir sulh ceza hâkimliği, savcılık, KVK Kurumu, MSB ya da MİT'ten yazı ya da e-posta; e-postayla, KEP'le ya da Hostinger bildirimiyle gelir. Metinde "8/A", "9/A", "erişimin engellenmesi" ya da "içeriğin çıkarılması" geçer.
+
+**Ne olur:** Süre bildirimden itibaren **4 saattir**. Kaçırılırsa para cezası gelir (8/A: kanunda 50.000–500.000 TL) ve alan adının ya da IP'nin tamamı engellenebilir. VPS paylaşıldığı için öbür projeler de etkilenebilir. Hukuki ayrıntı: `docs/research/2026-10-15-canli-ucak-hukuk/rapor-tr.md` (K2), D-115.
+
+1. **Göndereni ve kanalı doğrula; bağlantılara tıklama.** Otomatik kapatma bilerek yoktur: sahte bir e-posta siteyi durduramamalı. Emin değilsen 2. adımı yine yap (kapatmak geri alınabilir).
+2. **Canlı katmanı kapat:** admin → **Canlı katman** (aşağıdaki bölüm). Neden alanına karar sayısını ve tarihini yaz. Doğrula: `curl -s "https://api.airline.live/v1/live?bbox=25,35,45,43"` → `status.layer` `"off"`, `aircraft` boş.
+3. **Karar tek bir uçağı ya da adresi hedefliyorsa** (`/?hex=…`, ileride `/ucus/<id>`): uçağın hex'ini engel listesine ekle (`POST /v1/admin/blocklist`, gövde `{ "hexes": ["<hex>"] }`, yönetici oturumuyla; panel sayfası M7d.2'de gelir). Liste her kanalda en geç 30 sn'de uygulanır. Katmanı ancak kararı avukatla okuduktan sonra yeniden aç.
+4. **Kaydet** (repo dışında, değiştirmeden): ekleriyle tam metin ve e-posta başlıkları, alınma anı (saat dilimiyle), okunma anı ve atılan her adım. Admin işlem kaydı kimin, ne zaman ve hangi nedenle bastığını kendisi tutar.
+5. **Talepten sonra seçerek silme yok (TCK 281).** Yazılı otomatik saklama kuralları çalışmaya devam eder. Yalnız talebin açıkça istediği silinir ve neyin silindiği kaydedilir. Kayıtları dondurmaya avukatla karar ver.
+6. **Kimi ara:** avukat (ACTIVATION); bildirim Hostinger üzerinden geldiyse Hostinger desteği. Bilgi taleplerini (7545 md. 16, MİT Kanunu md. 28) avukatla ve süresinde yanıtla.
+7. **Tam durdurma:** Dokploy'da `hy-worker-rt`'yi durdur; veri çekimi de durur. Alan adı ya da IP kararı öbür projeleri etkileyebilir: Hostinger'la konuş.
+8. **Kapsam belirsizse katmanı kapalı tut;** varsayılan eylem budur.
+
+## Canlı katmanı kapatma
+**Ne zaman:** resmî talep (yukarıdaki bölüm); kriz (terör saldırısı, darbe girişimi, askerî uçak kazası, sınır ötesi harekât, OHAL, seferberlik, mahkeme yayın yasağı); görünmemesi gereken bir uçak görüldü (tek uçaksa hex engeli yeter, onu kullan); süzgecin bozulduğundan şüphe.
+
+1. `https://admin.airline.live` → **Canlı katman** (telefondan çalışır; giriş gerekir).
+2. Neden alanını doldur (isteğe bağlı; kim ve ne zaman kendiliğinden yazılır).
+3. **Canlı katmanı kapat**'a bas. Birkaç saniye içinde: harita "Canlı uçak katmanı şu an kapalı" uyarısını gösterir; `/v1/live` ve arama `status.layer: "off"` ile boş döner; WS istemcileri boş tam görüntü alır; worker `redis-live`'ı temizler, uçuş kaydı ve iz yazmayı durdurur. Veri çekimi ve sağlık kaydı sürer (admin Servisler ve `/durum` doğru kalır).
+4. **Canlı katmanı aç** geri alır: uçaklar bir sonraki çekimle (genellikle saniyeler, en çok ~1 dk) gelir. Katman 30 dk içinde açılırsa açık kalan uçuş kayıtları sürer.
+5. Durum veritabanındadır (`live_layer_state`) ve yeniden başlatmalarda korunur. `admin_actions` silinmez.
+6. **Panel açılmıyorsa:** Dokploy'da `hy-worker-rt`'yi durdur; harita en geç 120 sn'de boşalır. Veritabanına elle yazmak DUR-SOR 4'tür ve kullanıcı izni ister.
+
+Not: yalnız kapatma yetkisi olan ikinci bir kişi (rapor K2) sonraya kaldı; bugün tek yönetici vardır.
