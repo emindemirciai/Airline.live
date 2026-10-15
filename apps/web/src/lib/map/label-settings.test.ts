@@ -37,7 +37,7 @@ const throwing = {
 }
 
 describe('etiket ayarı', () => {
-  it('varsayılan: uçaklar Tam, havalimanları Simge ve kod, ülke adları Göster (D-084, D-095, D-113)', () => {
+  it('varsayılan: uçaklar Tam, havalimanları Simge ve kod, ülke adları Göster (D-084, D-095, D-114)', () => {
     expect(DEFAULT_LABEL_SETTINGS).toEqual({
       selected: 'full',
       others: 'full',
@@ -79,7 +79,7 @@ describe('etiket ayarı', () => {
     expect(JSON.parse(storage.data.get(LABEL_SETTINGS_KEY) ?? '{}')).toEqual(DEFAULT_LABEL_SETTINGS)
   })
 
-  describe('eski kayıtlar (v0.18.1–v0.25.1, `airports` alanı; D-084 → D-113)', () => {
+  describe('eski kayıtlar (v0.18.1–v0.25.1, `airports` alanı; D-084 → D-114)', () => {
     it('legacyAirportDisplay: Gizle (pin kalıyordu) → Simge; Kod ve "Kod ve ad" → Simge ve kod', () => {
       expect(legacyAirportDisplay('hidden')).toBe('icon')
       expect(legacyAirportDisplay('code')).toBe('icon-code')

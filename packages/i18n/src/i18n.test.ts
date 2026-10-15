@@ -95,7 +95,7 @@ describe('i18n', () => {
     // Ülke adları (D-095): Gizle / Göster; ipucu adların uzaklaşınca göründüğünü söyler.
     expect(map.labels.countries).toBe('Ülke adları')
     expect(map.labels.countryModes).toEqual({ hidden: 'Gizle', shown: 'Göster' })
-    // Havalimanları (D-084, D-113): pinler ve kodları tek satırda; ayrı simge satırı ve not yok.
+    // Havalimanları (D-084, D-114): pinler ve kodları tek satırda; ayrı simge satırı ve not yok.
     expect(map.labels.airports).toBe('Havalimanları')
     expect(map.labels.airportModes).toEqual({
       hidden: 'Gizle',

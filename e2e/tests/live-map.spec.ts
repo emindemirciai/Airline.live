@@ -4,7 +4,7 @@
 // seçili uçağın etiketi ve simgesi listenin altında kalmaz → arama (her yerdeki) uçağı bulur →
 // /?hex= ile doğrudan açılış aynı uçağı seçer → etiket ayarı (uçaklar, havalimanları ve ülke adları,
 // D-084, D-095) cihazda saklanır → havalimanları Gizle / Simge / Simge ve kod; Gizle'de pin ve kod
-// yok, açık pencerenin ve `?havalimani=` hedefinin pini çizilir, eski kayıt Simge okunur (D-113) →
+// yok, açık pencerenin ve `?havalimani=` hedefinin pini çizilir, eski kayıt Simge okunur (D-114) →
 // askerî hava üslerinin pini, kodu ve liste satırı yoktur,
 // `?havalimani=<üs>` bilinmeyen kod gibidir (D-103, D-107) → ülke adları uzaklaşınca sınırlarının
 // içinde, pinlerden uzak boş yerde yazılır (D-096, D-099), havalimanı olmayan ülkeler de (D-100),
@@ -417,7 +417,7 @@ test('etiket ayarı cihazda saklanır ve yeniden açılışta geri gelir; harita
   await expect(countries.getByRole('radio', { name: 'Gizle' })).toBeChecked()
 })
 
-test('havalimanları Simge ve kod ya da Simge; cihazda saklanır; Simge ve kod’da kutu, Simge’de pin tıklanır (D-084, D-113)', async ({
+test('havalimanları Simge ve kod ya da Simge; cihazda saklanır; Simge ve kod’da kutu, Simge’de pin tıklanır (D-084, D-114)', async ({
   page,
 }) => {
   // `?havalimani=LTFM` haritayı IST'de z10'da açar. Tek sayfa yüklemesi ve bir yenileme: her
@@ -439,7 +439,7 @@ test('havalimanları Simge ve kod ya da Simge; cihazda saklanır; Simge ve kod�
       return raw === null ? null : (JSON.parse(raw) as unknown)
     }, LABEL_SETTINGS_KEY)
 
-  // Pinler ve kodları tek satırda üç seçenek (D-113; "Kod ve ad" 2026-10-04'te kaldırıldı, ad
+  // Pinler ve kodları tek satırda üç seçenek (D-114; "Kod ve ad" 2026-10-04'te kaldırıldı, ad
   // havalimanı penceresindedir). Varsayılan Simge ve kod (D-084'ün Kod'u, kullanıcı kararı
   // 2026-10-03): z10'da da IST kutusunda yalnız kod; tıklanınca pencere.
   await button.click()
@@ -539,7 +539,7 @@ async function nextFrames(page: Page): Promise<void> {
   )
 }
 
-test.describe('havalimanları Gizle / Simge / Simge ve kod (D-113)', () => {
+test.describe('havalimanları Gizle / Simge / Simge ve kod (D-114)', () => {
   // MapLibre `prefers-reduced-motion`'da kamera geçişlerini anında yapar: aramadan ya da
   // `?havalimani=` ile havalimanına gidince pinin ucu hemen harita ortasındadır.
   test.use({ reducedMotion: 'reduce' })
@@ -890,7 +890,7 @@ test.describe('ülke adları (D-095, D-096, D-099, D-100)', () => {
 
   test.beforeEach(async ({ context }) => {
     // v0.18.1 kaydı (ülke alanı yok): ülke adları Göster okunur. Eski `airports: 'hidden'` Simge
-    // okunur (D-113): pinler çizili, kodlar gizli; pin ucundaki kesiti ve pin tıklamasını kod kutusu
+    // okunur (D-114): pinler çizili, kodlar gizli; pin ucundaki kesiti ve pin tıklamasını kod kutusu
     // etkilemez.
     await context.addInitScript((key) => {
       window.localStorage.setItem(
@@ -981,7 +981,7 @@ test.describe('ülke adları (D-095, D-096, D-099, D-100)', () => {
           LABEL_SETTINGS_KEY,
         ),
       )
-      // Kayıt yeni biçimde yazılır: eski `airports: 'hidden'` Simge'dir (D-113).
+      // Kayıt yeni biçimde yazılır: eski `airports: 'hidden'` Simge'dir (D-114).
       .toEqual({ selected: 'full', others: 'hidden', airportDisplay: 'icon', countries: 'hidden' })
     await expect(async () => {
       expect(await pinPixels(page, ika)).toEqual(shown)

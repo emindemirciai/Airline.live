@@ -287,7 +287,7 @@ describe('layoutAirportChips', () => {
     expect(chip?.x).toBeLessThan(395)
   })
 
-  it('showsAirportChips: kod yalnız Simge ve kod’da, yakınlaştırma eşiğiyle (D-084, D-113)', () => {
+  it('showsAirportChips: kod yalnız Simge ve kod’da, yakınlaştırma eşiğiyle (D-084, D-114)', () => {
     const frame = (airportDisplay: LabelSettings['airportDisplay'], zoom: number) => ({
       zoom,
       airports: [at('IST', 'large_airport', 100, 100)],
@@ -368,7 +368,7 @@ describe('LabelPainter.airportHitTest', () => {
     expect(painter.airportHitTest(112, 100)).toBeNull()
   })
 
-  describe('havalimanları ayarı (D-084, D-113)', () => {
+  describe('havalimanları ayarı (D-084, D-114)', () => {
     /** Çizilen yazıları kaydeden sahte bağlam. */
     function recordingCanvas(texts: string[]): HTMLCanvasElement {
       const ctx = new Proxy(

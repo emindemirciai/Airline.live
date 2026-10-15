@@ -1465,7 +1465,7 @@ body:has(.map-page) .site-footer {
 
 /*
  * Seçenekler eşit genişlikte satırı doldurur: uçaklarda ve havalimanlarında üç, ülke adlarında iki
- * (D-084, D-095, D-113). Dar sütunda iki satıra kırılan seçenek ("Simge ve kod") 36 px'e sığar.
+ * (D-084, D-095, D-114). Dar sütunda iki satıra kırılan seçenek ("Simge ve kod") 36 px'e sığar.
  */
 .map-seg {
   display: grid;

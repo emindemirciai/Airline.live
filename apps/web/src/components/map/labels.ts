@@ -11,7 +11,7 @@
  *   bulamazsa hariç) IST kodunu örtmez. Kodlar birbirini de örtmez; diğer kodların üstüne uçak
  *   etiketleri gelebilir. Çizilen kodun kutusu tıklanabilir (`airportHitTest`):
  *   havalimanı penceresini açar (M6c).
- * - Havalimanları ayarı (`settings.airportDisplay`, D-084, D-113): IATA kodu yalnız Simge ve kod'da
+ * - Havalimanları ayarı (`settings.airportDisplay`, D-084, D-114): IATA kodu yalnız Simge ve kod'da
  *   yazılır. Simge'de kod yazılmaz, pinler (GL katmanı) görünür ve tıklanır kalır. Gizle'de pin de
  *   kod da yoktur: çizime yalnız açık pencerenin ve `?havalimani=` hedefinin havalimanı girer
  *   (map-controller.ts → `drawnAirports`), onların da yalnız pini. Haritada havalimanı adı yazılmaz:
@@ -334,7 +334,7 @@ export function layoutAirportChips(
 
 /**
  * Bu yakınlaştırma ve ayarla havalimanı kodu yazılabilir mi: ayar Simge ve kod (D-084'ün Kod'u,
- * D-113) ve yakınlaştırma yeterli. Simge ve Gizle'de hiçbir kod yazılmaz; Gizle'de çizilen tek tük
+ * D-114) ve yakınlaştırma yeterli. Simge ve Gizle'de hiçbir kod yazılmaz; Gizle'de çizilen tek tük
  * havalimanının (açık pencere, `?havalimani=` hedefi) da yalnız pini çizilir. Değilse çizim
  * havalimanlarını ekrana izdüşürmez (map-controller.ts `screenAirports`).
  */

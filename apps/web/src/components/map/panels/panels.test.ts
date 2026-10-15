@@ -545,7 +545,7 @@ describe('LabelSettingsControl', () => {
   })
 })
 
-describe('LabelSettingsPanel (D-084, D-113)', () => {
+describe('LabelSettingsPanel (D-084, D-114)', () => {
   const render = (value: LabelSettings, messages = tr.labels) =>
     renderToStaticMarkup(
       createElement(LabelSettingsPanel, { id: 'labels', value, onChange: noop, messages }),
@@ -584,7 +584,7 @@ describe('LabelSettingsPanel (D-084, D-113)', () => {
       'Havalimanları',
       'Ülke adları',
     ])
-    // Havalimanları (D-113): pinler ve kodları tek satırda, Gizle önce; varsayılan Simge ve kod.
+    // Havalimanları (D-114): pinler ve kodları tek satırda, Gizle önce; varsayılan Simge ve kod.
     expect(found[2]?.options.map((o) => [o.mode, o.text, o.checked])).toEqual([
       ['hidden', 'Gizle', false],
       ['icon', 'Simge', false],
@@ -609,7 +609,7 @@ describe('LabelSettingsPanel (D-084, D-113)', () => {
     }
     expect(checkedMode(found[0])).toBe('full')
     expect(checkedMode(found[1])).toBe('short')
-    // Ayrı "Havalimanı simgeleri" satırı ve not yok (ilk tasarım, D-113 → Seçilmeyenler).
+    // Ayrı "Havalimanı simgeleri" satırı ve not yok (ilk tasarım, D-114 → Seçilmeyenler).
     expect(textOf(html)).not.toContain('Havalimanı simgeleri')
     expect(html).not.toContain('map-labels__note')
     expect(html).not.toContain('aria-describedby')

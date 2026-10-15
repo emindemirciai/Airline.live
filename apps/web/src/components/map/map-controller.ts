@@ -8,7 +8,7 @@
  * penceresini açar; boş harita pencereyi kapatır. Öncelik `resolveHit`'tedir (D-079). Pencerenin dayanağı `trackPoint` ile izlenir:
  * yer yalnızca haritanın kendi `render` olayında hesaplanır, çizim döngüsüne iş eklenmez.
  *
- * Havalimanları Gizle'deyken (D-113) pinler ve kodlar çizilmez ve tıklanmaz, imleç değişmez:
+ * Havalimanları Gizle'deyken (D-114) pinler ve kodlar çizilmez ve tıklanmaz, imleç değişmez:
  * havalimanı kaynağına ve kod çizimine yalnız açık pencerenin ve `?havalimani=` hedefinin
  * havalimanı girer (`drawnAirports`); pencere kapanınca onunki de kalkar.
  *
@@ -188,7 +188,7 @@ export const NO_INSETS: Readonly<MapInsets> = Object.freeze({ bottom: 0, left: 0
 
 const NO_AIRPORTS: readonly Airport[] = Object.freeze([])
 
-/** Havalimanları Gizle'deyken de çizilen havalimanları (D-113). */
+/** Havalimanları Gizle'deyken de çizilen havalimanları (D-114). */
 export interface KeptAirports {
   /**
    * Açık havalimanı penceresinin ICAO kodu (yoksa null): pencere "Havalimanları" listesinden,
@@ -200,7 +200,7 @@ export interface KeptAirports {
 }
 
 /**
- * Haritada çizilen havalimanları (pin kaynağı ve kod çizimi, D-113). Simge ve Simge ve kod'da liste
+ * Haritada çizilen havalimanları (pin kaynağı ve kod çizimi, D-114). Simge ve Simge ve kod'da liste
  * kendisidir (aynı başvuru). Gizle'de hiçbiri çizilmez; yalnız açık pencerenin havalimanı (pencere
  * kapanana kadar) ve `?havalimani=` hedefi (parametre adresteyken) çizilir, listedeki sırayla:
  * pencerenin dayanağı ve bağlantının gösterdiği havalimanı haritada görünür kalır, pinleri tıklanır.
@@ -251,7 +251,7 @@ export const NO_PANELS: readonly ScreenRect[] = Object.freeze([])
 
 /**
  * React'ten gelen, çizimi etkileyen durum. `popupIcao` ve `linkIcao` (`KeptAirports`) havalimanları
- * Gizle'deyken de çizilen havalimanlarıdır (D-113).
+ * Gizle'deyken de çizilen havalimanlarıdır (D-114).
  */
 export interface MapViewState extends KeptAirports {
   selectedHex: string | null
@@ -329,7 +329,7 @@ export function iconScaleAt(
 
 /**
  * Çizimi etkileyen durum değişmedi mi (`update` aynı durumda hiçbir şey yapmaz). Etiket ayarının
- * bütün alanları karşılaştırılır; havalimanları ayarı da yeniden çizim ister (D-084, D-113). Açık
+ * bütün alanları karşılaştırılır; havalimanları ayarı da yeniden çizim ister (D-084, D-114). Açık
  * pencere ve `?havalimani=` hedefi de karşılaştırılır: Gizle'de onların havalimanı çizilir.
  */
 export function sameViewState(a: MapViewState, b: MapViewState): boolean {
@@ -443,7 +443,7 @@ export class MapController {
     this.state = next
     const map = this.map
     // Pin kaynağı yalnız çizilen havalimanları değişince yenilenir: liste, havalimanları ayarı ya da
-    // (Gizle'de) açık pencere ve `?havalimani=` hedefi (D-113). Simge ile Simge ve kod arasında liste
+    // (Gizle'de) açık pencere ve `?havalimani=` hedefi (D-114). Simge ile Simge ve kod arasında liste
     // aynıdır, yalnız kodlar yeniden çizilir. Katmanlar hazır değilse `installOverlays` güncel listeyi
     // ekler.
     const drawn = drawnAirports(next.airports, next.labelSettings, next)

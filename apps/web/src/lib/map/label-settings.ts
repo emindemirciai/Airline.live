@@ -1,7 +1,7 @@
 /**
  * Etiket ayarı (domain.md → Harita etiketleri): seçili uçak ve diğer uçaklar için ayrı ayrı
  * Gizle / Kısa / Tam (varsayılan ikisi için de Tam); havalimanları için tek ayar Gizle / Simge /
- * Simge ve kod (varsayılan Simge ve kod; kullanıcı istekleri 2026-10-15, D-113); ülke adları için
+ * Simge ve kod (varsayılan Simge ve kod; kullanıcı istekleri 2026-10-15, D-114); ülke adları için
  * Gizle / Göster (varsayılan Göster, D-095). Cihazda (localStorage) saklanır. Depolama kapalı ya da
  * bozuk olabilir (gizli pencere, silinmiş site verisi): her erişim korunur, okunamayan değer
  * varsayılana döner.
@@ -16,7 +16,7 @@
 import type { LabelMode } from './label-text'
 
 /**
- * Havalimanları (D-113): Gizle → ne pin ne kod; Simge → pin, kod yok (D-084'ün eski Gizle'si);
+ * Havalimanları (D-114): Gizle → ne pin ne kod; Simge → pin, kod yok (D-084'ün eski Gizle'si);
  * Simge ve kod → pin ve IATA kodu (z ≥ 5). Gizle'de yalnız açık pencerenin ve `?havalimani=`
  * hedefinin havalimanı çizilir (map-controller.ts → `drawnAirports`).
  */
@@ -63,7 +63,7 @@ export function isCountryLabelMode(value: unknown): value is CountryLabelMode {
 }
 
 /**
- * v0.18.1–v0.25.1 kayıtlarındaki `airports` alanının karşılığı (D-113): `'hidden'` (o sürümlerde pin
+ * v0.18.1–v0.25.1 kayıtlarındaki `airports` alanının karşılığı (D-114): `'hidden'` (o sürümlerde pin
  * kalıyordu) → Simge; `'code'` ve kaldırılan "Kod ve ad"ın `'name'`'i → Simge ve kod. Başka değer ya
  * da alan yoksa undefined (varsayılan geçerli olur).
  */

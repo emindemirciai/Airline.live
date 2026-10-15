@@ -20,7 +20,7 @@ export interface LabelSettingsControlProps {
 /**
  * "Etiketler" düğmesi ve açılır ayar paneli: seçili uçak ve diğer uçaklar için ayrı ayrı Gizle,
  * Kısa ya da Tam; havalimanları için tek satırda Gizle, Simge ya da Simge ve kod (pinler ve kodları
- * birlikte, D-084, D-113); ülke adları için Gizle ya da Göster (D-095). Denetimli bileşendir; saklama
+ * birlikte, D-084, D-114); ülke adları için Gizle ya da Göster (D-095). Denetimli bileşendir; saklama
  * (`hy:map:labels`) üst bileşenin işidir. Panel Escape'le ve dışına tıklanınca kapanır; Escape odağı
  * düğmeye geri verir ve tüketilir.
  */
@@ -82,7 +82,7 @@ export interface LabelSettingsPanelProps extends LabelSettingsControlProps {
 
 /**
  * Açık panelin içeriği: başlık, dört seçenek grubu ve ipucu. Havalimanlarının pinleri ve kodları tek
- * gruptadır (kullanıcı isteği 2026-10-15, D-113): Gizle (ne pin ne kod), Simge (pin), Simge ve kod.
+ * gruptadır (kullanıcı isteği 2026-10-15, D-114): Gizle (ne pin ne kod), Simge (pin), Simge ve kod.
  */
 export function LabelSettingsPanel({ id, value, onChange, messages }: LabelSettingsPanelProps) {
   const titleId = useId()

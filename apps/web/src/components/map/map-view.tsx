@@ -36,9 +36,9 @@ export interface MapViewProps {
   mapLabel: string
   store: AircraftStore
   airports: readonly Airport[]
-  /** Açık havalimanı penceresinin ICAO kodu: havalimanları Gizle'deyken de çizilir (D-113). */
+  /** Açık havalimanı penceresinin ICAO kodu: havalimanları Gizle'deyken de çizilir (D-114). */
   popupIcao: string | null
-  /** Adresteki `?havalimani=` hedefinin ICAO kodu: havalimanları Gizle'deyken de çizilir (D-113). */
+  /** Adresteki `?havalimani=` hedefinin ICAO kodu: havalimanları Gizle'deyken de çizilir (D-114). */
   linkIcao: string | null
   selectedHex: string | null
   following: boolean

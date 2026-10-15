@@ -964,7 +964,7 @@ export const tr = {
       short: 'Kısa',
       full: 'Tam',
       /**
-       * Havalimanları (D-084, D-113): simgeler (pinler) ve kodları tek satırda. Gizle → ne pin ne kod;
+       * Havalimanları (D-084, D-114): simgeler (pinler) ve kodları tek satırda. Gizle → ne pin ne kod;
        * Simge → pin, kod yok; Simge ve kod → pin ve IATA kodu (varsayılan).
        */
       airports: 'Havalimanları',

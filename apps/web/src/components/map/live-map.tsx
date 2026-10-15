@@ -98,7 +98,7 @@ export interface LiveMapProps {
   /**
    * Açılışta ortalanacak havalimanı (`/?havalimani=LTFM`, ICAO ya da IATA), biçimi doğrulanmış.
    * Paylaşılan uçak (`?hex=`) varsa ya da kullanıcı haritayı önce kendisi kullanırsa kamera onu yok
-   * sayar. Havalimanları Gizle'deyken bu havalimanının pini yine çizilir (D-113).
+   * sayar. Havalimanları Gizle'deyken bu havalimanının pini yine çizilir (D-114).
    */
   initialAirport: string | null
   /**
@@ -224,7 +224,7 @@ export function LiveMap({
   const [airports, setAirports] = useState<readonly MapAirport[]>(NO_AIRPORTS)
   /**
    * Açık havalimanı penceresinin ICAO kodu. Havalimanları Gizle'deyken haritada bu havalimanının pini
-   * pencere kapanana kadar çizilir (D-113): pencere listeden, aramadan ya da Gizle'den önce pinle
+   * pencere kapanana kadar çizilir (D-114): pencere listeden, aramadan ya da Gizle'den önce pinle
    * açılmış olabilir.
    */
   const [popupIcao, setPopupIcao] = useState<string | null>(null)
@@ -431,7 +431,7 @@ export function LiveMap({
   const popupAirport =
     popupIcao === null ? undefined : airports.find((airport) => airport.icao === popupIcao)
   const popupOpen = popupAirport !== undefined
-  // `?havalimani=` hedefi (ICAO ya da IATA; D-113): parametre adresteyken havalimanları Gizle'de de
+  // `?havalimani=` hedefi (ICAO ya da IATA; D-114): parametre adresteyken havalimanları Gizle'de de
   // pini çizilir. Parametre sayfanın adresinden gelir ve uçak seçimi onu adresten silmez (`hexUrl`).
   // Listede olmayan kod (askerî üs, D-107) çizilmez.
   const linkIcao =

@@ -134,7 +134,7 @@ describe('resolveHit: tıklama önceliği (D-079)', () => {
   })
 })
 
-describe('sameViewState (D-084, D-113)', () => {
+describe('sameViewState (D-084, D-114)', () => {
   const base: MapViewState = {
     selectedHex: null,
     following: false,
@@ -175,7 +175,7 @@ describe('sameViewState (D-084, D-113)', () => {
   })
 })
 
-describe('drawnAirports: havalimanları Gizle / Simge / Simge ve kod (D-113)', () => {
+describe('drawnAirports: havalimanları Gizle / Simge / Simge ve kod (D-114)', () => {
   const ltfm = { icao: 'LTFM', iata: 'IST', lat: 41.26, lon: 28.73 } as Airport
   const ltfj = { icao: 'LTFJ', iata: 'SAW', lat: 40.9, lon: 29.31 } as Airport
   const egll = { icao: 'EGLL', iata: 'LHR', lat: 51.47, lon: -0.45 } as Airport
