@@ -2260,7 +2260,7 @@ Sürüm v0.25.1: birleştirmede `origin/main`'deki ilk boş PATCH (main 2026-10-
 ## M6j.2 — 5. halkanın ölçeği (halka 4'te kalır)
 Onay: M6j.1 ile aynı (2026-10-06 kullanıcı: "halkalar peşpeşe gelsin"; "TÜM HAVALİMANLARINI ne zaman ekleriz?"). Seçimler orkestratör varsayılanıdır (D-109'daki bölünme; ayrıntılar ve gerekçeler D-111'de).
 
-Hedef sürüm MINOR (yayın adımında). Dal `p1/m6j2-ring5-scale`, M6j.1'in fixture commit'inden (`C:/PROJELER/havayolu-ring5b`); M6j.1'i merge commit'le izler. `ENABLED_AIRPORT_RING` 4 kalır.
+Hedef sürüm MINOR: 0.26.0 (main v0.25.0–v0.25.3'ü kullandı; birleştirme 2026-10-16). Dal `p1/m6j2-ring5-scale`, M6j.1'in fixture commit'inden (`C:/PROJELER/havayolu-ring5b`); M6j.1'i merge commit'le izler. `ENABLED_AIRPORT_RING` 4 kalır.
 
 **Kapsam (son tasarım §5):**
 1. Web'in havalimanı listesi sunucu belleğinde (`cache: 'no-store'`; 3.600 sn, süre dolunca eski liste hemen, arkada tek yükleme; başarısız yenilemede eski liste, 60 sn sonra yeniden; boş liste 60 sn; hiç yüklenmemişse hata ve 500). React `cache()` kalır.
@@ -2280,7 +2280,7 @@ Hedef sürüm MINOR (yayın adımında). Dal `p1/m6j2-ring5-scale`, M6j.1'in fix
 - `pnpm --filter @havayolu/web test` → bellek önbelleği (tek yükleme, süre sonrası eski liste hemen, boş liste 60 sn, soğuk hata, `next.revalidate` yok); 180°: 179,5° D ve −179,5°'de z5 kamera NAN, TBU, APW, WLS; istek üzerine uçlar (havalimanı başına bir istek); sunucu çizimi kayıt istemez, ada yükleniyor durumu sonra kaydı gösterir; paylaşım görseli 256 ve ağsız glif testi; llms.txt yenileme başına bir kez; `lazy-chunks.test.ts`
 - `pnpm --filter @havayolu/worker test`, `@havayolu/providers` → 4. halkada METAR 16, TAF 7; 3.241 sentetik istasyonda 41 ve 17; 2.064 yeni istasyonlu ilk çalışma 359 istek, aralık ≥ 700 ms
 - `pnpm build` → `/` ilk yükleme farkı ≤ +512 B; `/istasyon/[icao]` ve `/havalimanlari` farkları
-- M6j.1'in sekiz denetimi; birleştiricide `pnpm test:integration` (`include=map` 4. halkada 56 + 1.161; hava 400; worker 1.217 istasyon), `pnpm ci:full`, PR CI
+- M6j.1'in sekiz denetimi; birleştiricide `pnpm test:integration` (`include=map` 4. halkada 56 + 1.184, D-110; hava 400; worker 1.240 istasyon), `pnpm ci:full`, PR CI
 - **Kullanıcıya bağlı (`[k]`):** haritanın ilk açılışında havalimanları ~90 KB brotli; istasyon sayfasında kayıt yüklemeden sonra; `scope=listed` `format=raw`'sız 400; `/istasyon/EGLL/opengraph-image`; worker günlüğünde METAR 16, TAF 7
 
 **Dosyalar:**
@@ -2302,6 +2302,11 @@ Hedef sürüm MINOR (yayın adımında). Dal `p1/m6j2-ring5-scale`, M6j.1'in fix
 - `pnpm turbo run test --force` → web 982, shared 743, tools 383, worker 304, api 300, providers 136, i18n 101, db 84, geo 36 (M6j.1'in 4. halka birleştirmesinde web 949, worker 303, api 290, providers 135; öbürleri aynı). 1 sn'yi aşan testler (yerel): `airports-cache-size` 1,2 ve 3,1 sn, `airport-aliases` 1,2 sn, paylaşım görseli örneklemi 2,1 sn, `ws.test` 3,0 sn; hepsinin açık süre sınırı vardı, yeni sınır eklenmedi (D-105).
 - `pnpm format`, `pnpm lint` (9/9), `pnpm typecheck` (9/9), `pnpm typecheck:scripts`, `pnpm typecheck:e2e`, `pnpm lint:e2e`, `pnpm check:eol`, `pnpm db:check` (boş fark) → yeşil.
 - Çalıştırılmayanlar: `pnpm test:integration`, `pnpm test:migration-upgrade`, `pnpm test:e2e`, `pnpm ci:full` (Docker ve 3100/4100/4200/4300; birleştiricide); e2e ve entegrasyon beklentileri güncellendi (`include=map` 1.217 ve uçlar 1.–3. halkada, `identAlias`; hava 400; sunucu HTML'inde kayıt yok, tarayıcıda gelir).
+
+**Birleştirme kaydı (2026-10-16, v0.26.0):** `origin/main` (`084873a`, v0.25.3) dala merge commit'le birleşti (`918b107`; 16 çakışma). Çözümler ve yeniden ölçümler D-111 → "`origin/main` ile birleşme"de: D-114'ün `drawnAirports`'u ile 180. meridyen sarması birlikte, kapanış notu `include=map` kaydında, 4. halka 1.240 (`include=map` 539.115 B, brotli 91.886), 5. halka 3.266 (1.172.725 B, brotli 187.790; pistli liste 2.987.429 B), AWC sentetik 3.264 istasyonla ilk çalışma 363 istek. RUNBOOK'ta main'in güncellediği "METAR/TAF kaydı sunucu çiziminde alınamıyor" bölümü yine kalktı; ACTIVATION'daki M6j.2 satırı yeni adreslere (`airline.live`, `curl -sL`), 1.240'a ve 0.26.0'a göre yazıldı (bozuk satır sonu ve kaçışsız `|` düzeldi). Sürüm 0.26.0, changelog girdisi ve 0.25.3'ün `releasedAt`'i (2026-10-15T17:08:53Z) yazıldı; README yayın adımında.
+- `pnpm turbo run test --force` → web 1.030, shared 765, tools 383, api 324, worker 305, providers 136, i18n 103, db 85, geo 36. İlk tam koşuda API'nin `src/net/legacy-host.test.ts` WebSocket testi (main'den, D-112) yük altında 5 sn sınırını aştı; tek başına (1,9 sn), API paketi tek başına ve ikinci tam koşuda yeşil.
+- `pnpm format`, `pnpm lint` (9/9), `pnpm typecheck` (9/9), `pnpm typecheck:scripts`, `pnpm typecheck:e2e`, `pnpm lint:e2e`, `pnpm check:eol`, `pnpm db:check` (boş fark), `pnpm test:scripts` (39), `pnpm changelog:check` → yeşil.
+- Çalıştırılmayanlar: `pnpm test:integration`, `pnpm test:migration-upgrade`, `pnpm test:e2e`, `pnpm ci:full` (Docker ve portlar; birleştiricide).
 
 ## M6j.3 — 5. halka açılır (dünyanın geri kalanı, ABD dahil)
 Onay: M6j.1 ile aynı (2026-10-06 kullanıcı: "halkalar peşpeşe gelsin"; "TÜM HAVALİMANLARINI ne zaman ekleriz?"). Adların derlemesi depo dışındadır (`C:/PROJELER/havayolu-data/ring5-names/`; hazırlık, dondurma ve pilot şimdi, ana dalga 4. halka yayındayken); ad yazım soruları S1–S8 varsayılanlarıyla (D-109; S1 M6j.1'de uygulandı).
