@@ -13,6 +13,7 @@ import {
   airportDistrict,
   airportLocality,
   airportRingLimitKm,
+  civilFlightClosure,
   ENABLED_AIRPORT_RING,
   provinceName,
   TURKEY_COUNTRY,
@@ -20,6 +21,7 @@ import {
   type Locale,
   type RunwayDetail,
 } from '@havayolu/shared'
+import { civilClosureNote, civilClosureTemplates } from './civil-closure'
 
 /**
  * Havalimanı sayfalarının veriden kurulan metinleri ve biçimleyicileri (M6b). Saf modül: sayfa,
@@ -191,14 +193,17 @@ export function longestRunway(airport: AirportDetail): RunwayDetail | null {
 }
 
 /**
- * Sayfa başlığı (şablon " · havayolu" ekler): "İstanbul Havalimanı (IST/LTFM) canlı hava trafiği ve
+ * Sayfa başlığı (şablon " · Airline.live" ekler): "İstanbul Havalimanı (IST/LTFM) canlı hava trafiği ve
  * pistler". Havalimanı canlı veri çekim alanının dışındaysa (`covered` false; lib/airports.ts →
  * `isInLiveCoverage`, açıklamadaki gibi) canlı trafik vaat etmez: "Viyana Havalimanı (VIE/LOWW):
- * pistler ve havalimanı bilgileri" (D-106).
+ * pistler ve havalimanı bilgileri" (D-106). Savaş nedeniyle kapalı havalimanı (kapanış tablosu,
+ * D-110) alanın içinde olsa da aynı kalıpla yazılır: "Kiev Borispil Havalimanı (KBP/UKBB): pistler ve
+ * havalimanı bilgileri" (kapsama dürüstlüğü; Kamışlı alanın içindedir).
  */
 export function airportTitle(airport: AirportDetail, locale: Locale, covered: boolean): string {
   const t = getMessages(locale).seo.airport
-  return format(covered ? t.title : t.titleOutside, {
+  const live = covered && civilFlightClosure(airport.icao) === undefined
+  return format(live ? t.title : t.titleOutside, {
     name: airportName(airport, locale),
     iata: airport.iata,
     icao: airport.icao,
@@ -209,7 +214,8 @@ export function airportTitle(airport: AirportDetail, locale: Locale, covered: bo
  * Arama sonucu açıklaması, veriden: il (yakın ülkelerde ülke), pist sayısı ve en uzun pist, rakım.
  * Tarife, rötar ya da hava durumu vaat etmez (M6b brief §b, §i). Havalimanı canlı veri çekim
  * alanının dışındaysa (`covered` false; lib/airports.ts → `isInLiveCoverage`) çevredeki uçakları da
- * vaat etmez.
+ * vaat etmez. Savaş nedeniyle kapalı havalimanında (D-110) son cümle sayfadaki nottur: "… rakım
+ * 130 m. Savaş nedeniyle sivil uçuşlara kapalı (2022’den beri)."
  */
 export function airportDescription(
   airport: AirportDetail,
@@ -232,7 +238,12 @@ export function airportDescription(
   }
   const name = airportName(airport, locale)
   const place = airportPlace(airport, locale)
-  const live = covered ? t.liveCovered : t.liveOutside
+  const closure = civilClosureNote(
+    airport.icao,
+    locale,
+    civilClosureTemplates(getMessages(locale).airport),
+  )
+  const live = closure !== null ? `${closure}.` : covered ? t.liveCovered : t.liveOutside
   return facts.length > 0
     ? format(t.description, { name, place, facts: facts.join('; '), live })
     : format(t.descriptionNoFacts, { name, place, live })

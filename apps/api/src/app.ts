@@ -15,13 +15,15 @@ import type { SessionStore } from './auth/session-store'
 import type { Env } from './env'
 import { registerLiveRoutes } from './live/routes'
 import type { LiveSource } from './live/types'
-import { registerLiveWs } from './live/ws'
+import { isLiveWsUpgrade, registerLiveWs } from './live/ws'
 import { clientIp } from './net/client-ip'
+import { registerLegacyHostRedirect } from './net/legacy-host'
 import { registerAirportRoutes, type AirportRouteOptions } from './reference/airports'
 import { registerWeatherRoutes, type WeatherRouteOptions } from './reference/weather'
 
 export interface VersionInfo {
-  app: 'havayolu'
+  /** Marka adı (`APP_NAME`, D-112). */
+  app: string
   version: string
   gitSha: string
   buildTime: string | null
@@ -94,8 +96,13 @@ export async function buildApp(env: Env, deps: AppDeps): Promise<FastifyInstance
             redact: ['req.headers.authorization', 'req.headers.cookie', '*.token', '*.password'],
           },
     trustProxy: env.TRUSTED_PROXY_CIDRS.length > 0 ? env.TRUSTED_PROXY_CIDRS : false,
+    // Yalnızca canlı veri el sıkışması `upgrade` olayına ayrılır; `Upgrade` başlıklı başka her istek
+    // sıradan HTTP isteğidir (D-113, live/ws.ts).
+    http: { shouldUpgradeCallback: isLiveWsUpgrade },
   })
 
+  // İlk kanca: eski API alan adları her şeyden önce yeni host'a 308 ile gider (D-112).
+  registerLegacyHostRedirect(app, env)
   await app.register(helmet, { global: true })
   // 1 KB'tan büyük yanıt gövdeleri br ya da gzip ile sıkıştırılır (toplu hava ~1,3 MB → ~0,1 MB).
   // İstek gövdeleri açılmaz: API yalnız küçük JSON alır, sıkıştırılmış gövde açılınca şişebilir.
@@ -124,7 +131,7 @@ export async function buildApp(env: Env, deps: AppDeps): Promise<FastifyInstance
   })
   await app.register(swagger, {
     openapi: {
-      info: { title: 'havayolu API', version: currentVersion() },
+      info: { title: `${env.APP_NAME} API`, version: currentVersion() },
       tags: [
         { name: 'system', description: 'Sağlık ve sürüm' },
         { name: 'auth', description: 'Yönetici oturumu (platform-admin sözleşmesi)' },
@@ -141,7 +148,7 @@ export async function buildApp(env: Env, deps: AppDeps): Promise<FastifyInstance
   })
 
   const versionInfo: VersionInfo = {
-    app: 'havayolu',
+    app: env.APP_NAME,
     version: currentVersion(),
     gitSha: env.GIT_SHA,
     buildTime: env.BUILD_TIME ?? null,

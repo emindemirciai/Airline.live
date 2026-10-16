@@ -66,6 +66,6 @@ describe('safeLogicalPath', () => {
   it('yüzde kodlu bölü işareti yolun parçası olarak kalır (şemasız adres olmaz)', () => {
     const path = safeLogicalPath('/en/%2F%2Fevil.example')
     expect(path).toBe('/%2F%2Fevil.example')
-    expect(new URL(path, 'https://havayolu.live').host).toBe('havayolu.live')
+    expect(new URL(path, 'https://airline.live').host).toBe('airline.live')
   })
 })

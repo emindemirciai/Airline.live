@@ -474,7 +474,7 @@ export class FlightPhaseTracker {
         airport.endsMissing = false
       }
     }
-    // Izgara liste başına bir kez kurulur (4. halkada 1.217 havalimanı, ~0,2 ms).
+    // Izgara liste başına bir kez kurulur (4. halkada 1.240 havalimanı; ~0,2 ms 1.217 ile ölçüldü).
     this.airports = new PointGrid(prepared)
     this.byIcao = new Map(prepared.map((airport) => [airport.ref.icao, airport]))
     this.entries.clear()

@@ -46,9 +46,9 @@ describe('airportOgContent', () => {
   it('kodlar, resmî Türkçe ad, il ve alan adı (dilden bağımsız)', () => {
     const ltfj = AIRPORTS.find((a) => a.icao === 'LTFJ')
     expect(ltfj).toBeDefined()
-    expect(airportOgContent(ltfj!, 'havayolu', 'havayolu.live')).toEqual({
+    expect(airportOgContent(ltfj!, 'havayolu', 'airline.live')).toEqual({
       app: 'havayolu',
-      host: 'havayolu.live',
+      host: 'airline.live',
       codes: 'SAW · LTFJ',
       name: 'İstanbul Sabiha Gökçen Uluslararası Havalimanı',
       location: 'İstanbul, Türkiye',
@@ -120,7 +120,7 @@ describe('renderAirportOgPng', () => {
   // Görselin metinleri ve aynı alanlarda İngilizce ad ve yer satırı: listelenen ve 5. halkanın bütün
   // adları, şehirleri ve ülkeleri iki dilde, katlanmış olarak (D-111).
   const contents = [...AIRPORTS, ...FOREIGN, ...RING5].flatMap((airport) => {
-    const tr = airportOgContent(airport, 'havayolu', 'havayolu.live')
+    const tr = airportOgContent(airport, 'havayolu', 'airline.live')
     return [
       tr,
       {
@@ -155,7 +155,7 @@ describe('renderAirportOgPng', () => {
   it('5. halkanın Vietnamca adı katlanır ve ağa çıkmadan çizilir; katlanmasa Satori Google Fonts’a giderdi (D-111)', async () => {
     const vvpq = RING5.find((a) => a.icao === 'VVPQ')
     expect(vvpq).toBeDefined()
-    const content = airportOgContent(vvpq!, 'havayolu', 'havayolu.live')
+    const content = airportOgContent(vvpq!, 'havayolu', 'airline.live')
     expect(content.name).not.toMatch(/[ốế]/u)
     expect(airportName(vvpq!, 'tr')).toMatch(/ố/u)
     expect(pngSize(await renderAirportOgPng(content))).toEqual({ width: 1200, height: 630 })

@@ -3,15 +3,17 @@ import { describe, expect, it } from 'vitest'
 import { sourceNoticeComment, sourceNoticeLines } from './source-notice'
 
 describe('sayfa kaynağı bildirimi', () => {
-  it('sahibi, repoyu, MIT şartını ve markanın kapsam dışı olduğunu iki dilde yazar', () => {
-    const text = sourceNoticeLines('havayolu').join('\n')
-    expect(text).toContain(`© ${PROJECT.copyrightYear} ${PROJECT.owner}`)
-    expect(text).toContain(PROJECT.repoUrl)
+  it('sahibi, MIT şartını ve markanın kapsam dışı olduğunu iki dilde yazar', () => {
+    const text = sourceNoticeLines('Airline.live').join('\n')
+    expect(text).toContain(`Airline.live · © ${PROJECT.copyrightYear} ${PROJECT.owner}`)
+    expect(text).toContain(PROJECT.ownerUrl)
+    // Repo gizlidir ve iç adını taşır (D-068, D-112): adresi sayfa kaynağına yazılmaz.
+    expect(text).not.toMatch(/github\.com\/[^/\s]+\/[^/\s]+/)
     expect(text).toContain('MIT lisansıyla')
     expect(text).toContain('MIT License')
     expect(text).toContain('5846')
-    expect(text).toContain('“havayolu” adı ve logosu')
-    expect(text).toContain('The “havayolu” name and logo')
+    expect(text).toContain('“Airline.live” adı ve logosu')
+    expect(text).toContain('The “Airline.live” name and logo')
     // MIT'in tek şartı kopyalar ve önemli bölümler içindir; kullanım şarta bağlanmaz.
     expect(text).toContain('tüm kopyaları ya da önemli bölümleri')
     expect(text).toContain('All copies or substantial portions')

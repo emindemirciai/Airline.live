@@ -33,7 +33,7 @@ Sunucu: Hostinger **KVM 2** (2 vCPU, 8 GB RAM, 100 GB NVMe). Üzerinde Dokploy �
   - `docker-compose.dev.yml` altyapıyı sağlar: PostGIS, iki Redis, Mailpit, MinIO; yerel portları CLAUDE.md'dekilerdir. Uygulamalar yerelde `pnpm dev` ile çalışır.
 - **Adlar ve ağ:**
   - Servis adları `hy-` önekiyle projeye özgüdür; paylaşılan `dokploy-network`'te ad çakışması olmaz.
-  - **Traefik etiketi yazılmaz, `dokploy-network` tanımlanmaz.** Domain'ler Dokploy arayüzünden eklenir (`hy-web` → `WEB_HOST` port 3000, `hy-api` → `API_HOST` port 4000); etiketleri Dokploy ekler.
+  - **Traefik etiketi yazılmaz, `dokploy-network` tanımlanmaz.** Domain'ler Dokploy arayüzünden eklenir (`hy-web` → `WEB_HOST` ve `ADMIN_HOST` port 3000, `hy-api` → `API_HOST` port 4000); etiketleri Dokploy ekler. Eski alan adları (D-112: `LEGACY_WEB_HOSTS` ve `LEGACY_ADMIN_HOSTS` → `hy-web`, `LEGACY_API_HOSTS` → `hy-api`) aynı servislerde ve sertifikalı kalır; uygulama onları 308 ile yeni host'a yönlendirir.
   - `ports` yerine `expose` kullanılır. Postgres ve Redis dışarı port açmaz.
 - **Env:**
   - Her uygulama servisi `env_file: [{path: .env, required: false}]` kullanır; eksik değişkeni zod açılışta yakalar. Böylece CI'daki `docker compose config` `.env` olmadan çalışır.
@@ -122,7 +122,7 @@ Sunucu: Hostinger **KVM 2** (2 vCPU, 8 GB RAM, 100 GB NVMe). Üzerinde Dokploy �
 - **GitHub secrets:** `DOKPLOY_URL` (HTTPS panel adresi; `http://IP:3000` değil), `DOKPLOY_API_TOKEN`, `DOKPLOY_COMPOSE_ID`. **GitHub variables:** `WEB_URL`, `API_URL`, `DEPLOY_ENABLED`.
 - **Action sürümleri (node24):** `actions/checkout@v7`, `actions/setup-node@v7`, `pnpm/action-setup@v6`, `docker/setup-buildx-action@v4`, `docker/login-action@v4`, `docker/metadata-action@v6`, `docker/build-push-action@v7`. Üçüncü taraf action'lar commit SHA ile sabitlenir.
 
-**`rollback.yml`** (`workflow_dispatch`, girdi `sha`, 7–40 onaltılık karakter; girdi kabuğa yalnızca env ile geçer): önce üç `sha-<7>` imajının da var olduğunu doğrular (biri yoksa hiçbir etiket taşınmaz), sonra `docker buildx imagetools create` ile `:main` olarak yeniden etiketler ve aynı deploy ve doğrulama adımlarını her zaman yayın yaparak çalıştırır (`deploy-prod` sırasında; `SKIP_UNCHANGED` yok). Sonraki birleşme canlıdan farkı yayınlar; sorunlu değişiklik önce bir PR ile geri alınmalıdır. Beklenen SHA kısa verilebilir; doğrulama baş eşleşmesiyle yapılır. Migration'lar geri alınmaz. Dokploy compose dosyasını `main`'in ucundan klonlar, yani eski imajlar güncel compose ile çalışır.
+**`rollback.yml`** (`workflow_dispatch`, girdi `sha`, 7–40 onaltılık karakter; girdi kabuğa yalnızca env ile geçer): önce üç `sha-<7>` imajının da var olduğunu doğrular (biri yoksa hiçbir etiket taşınmaz), sonra `docker buildx imagetools create` ile `:main` olarak yeniden etiketler ve aynı deploy ve doğrulama adımlarını her zaman yayın yaparak çalıştırır (`deploy-prod` sırasında; `SKIP_UNCHANGED` yok). Sonraki birleşme canlıdan farkı yayınlar; sorunlu değişiklik önce bir PR ile geri alınmalıdır. Beklenen SHA kısa verilebilir; doğrulama baş eşleşmesiyle yapılır. Migration'lar geri alınmaz. Dokploy compose dosyasını `main`'in ucundan klonlar, yani eski imajlar güncel compose ile çalışır. v0.25.0'dan eski bir imaj `LEGACY_*_HOSTS`'u tanımaz: env girildikten sonra ona dönmek eski alan adlarının 308'lerini kapatır (D-112, DEPLOY_DOKPLOY §12).
 
 **`actionlint`** (CI işi): `rhysd/actionlint:1.7.12` imajı digest'iyle sabitlenerek çalıştırılır; `run:` betikleri shellcheck'ten de geçer.
 

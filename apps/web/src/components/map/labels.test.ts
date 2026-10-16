@@ -287,17 +287,19 @@ describe('layoutAirportChips', () => {
     expect(chip?.x).toBeLessThan(395)
   })
 
-  it('showsAirportChips: Gizle ve Kod ile yakınlaştırma eşiği (D-084)', () => {
-    const frame = (airports: LabelSettings['airports'], zoom: number) => ({
+  it('showsAirportChips: kod yalnız Simge ve kod’da, yakınlaştırma eşiğiyle (D-084, D-114)', () => {
+    const frame = (airportDisplay: LabelSettings['airportDisplay'], zoom: number) => ({
       zoom,
       airports: [at('IST', 'large_airport', 100, 100)],
-      settings: { ...DEFAULT_LABEL_SETTINGS, airports },
+      settings: { ...DEFAULT_LABEL_SETTINGS, airportDisplay },
     })
     expect(AIRPORT_LABEL_MIN_ZOOM).toBe(5)
-    expect(showsAirportChips(frame('code', 5))).toBe(true)
-    expect(showsAirportChips(frame('code', 4.99))).toBe(false)
+    expect(showsAirportChips(frame('icon-code', 5))).toBe(true)
+    expect(showsAirportChips(frame('icon-code', 4.99))).toBe(false)
+    expect(showsAirportChips(frame('icon', 12))).toBe(false)
+    // Gizle'de çizilen tek tük havalimanının (açık pencere, `?havalimani=`) da kodu yazılmaz.
     expect(showsAirportChips(frame('hidden', 12))).toBe(false)
-    expect(showsAirportChips({ ...frame('code', 8), airports: [] })).toBe(false)
+    expect(showsAirportChips({ ...frame('icon-code', 8), airports: [] })).toBe(false)
   })
 })
 
@@ -366,7 +368,7 @@ describe('LabelPainter.airportHitTest', () => {
     expect(painter.airportHitTest(112, 100)).toBeNull()
   })
 
-  describe('havalimanı etiketi ayarı (D-084)', () => {
+  describe('havalimanları ayarı (D-084, D-114)', () => {
     /** Çizilen yazıları kaydeden sahte bağlam. */
     function recordingCanvas(texts: string[]): HTMLCanvasElement {
       const ctx = new Proxy(
@@ -385,14 +387,18 @@ describe('LabelPainter.airportHitTest', () => {
       return { width: 0, height: 0, getContext: () => ctx } as unknown as HTMLCanvasElement
     }
     const draw = (
-      airports: LabelSettings['airports'],
+      airportDisplay: LabelSettings['airportDisplay'],
       zoom: number,
       locale: 'tr' | 'en' = 'tr',
     ) => {
       const texts: string[] = []
       const painter = new LabelPainter(recordingCanvas(texts))
       painter.resize(400, 300, 1)
-      painter.draw({ ...frame(zoom), locale, settings: { ...DEFAULT_LABEL_SETTINGS, airports } })
+      painter.draw({
+        ...frame(zoom),
+        locale,
+        settings: { ...DEFAULT_LABEL_SETTINGS, airportDisplay },
+      })
       return { painter, texts }
     }
     const pin = pinGeometry(100, 100, DEFAULT_PIN_SCALE)
@@ -400,20 +406,24 @@ describe('LabelPainter.airportHitTest', () => {
     const onCode = { x: pin.headX + pin.headRadius + 8, y: pin.headY }
     const beside = { x: pin.headX + pin.headRadius + 60, y: pin.headY }
 
-    it('Gizle: kod çizilmez, kod tıklaması yoktur (pin GL katmanındadır)', () => {
-      const { painter, texts } = draw('hidden', 10)
-      expect(texts).toEqual([])
-      expect(painter.airportHitTest(onCode.x, onCode.y)).toBeNull()
+    it('Simge ve Gizle: kod çizilmez, kod tıklaması yoktur (pin GL katmanındadır)', () => {
+      // Gizle'de çerçeveye yalnız istisna havalimanı (açık pencere, `?havalimani=`) girer; onun da
+      // kodu yazılmaz.
+      for (const airportDisplay of ['icon', 'hidden'] as const) {
+        const { painter, texts } = draw(airportDisplay, 10)
+        expect(texts, airportDisplay).toEqual([])
+        expect(painter.airportHitTest(onCode.x, onCode.y), airportDisplay).toBeNull()
+      }
     })
 
-    it('Kod: her yakınlaştırmada ve iki dilde yalnız IATA kodu; ad yazılmaz, kodun yanı tıklanmaz', () => {
+    it('Simge ve kod: her yakınlaştırmada ve iki dilde yalnız IATA kodu; ad yazılmaz, kodun yanı tıklanmaz', () => {
       for (const [zoom, locale] of [
         [5, 'tr'],
         [7, 'tr'],
         [10, 'tr'],
         [14, 'en'],
       ] as const) {
-        const { painter, texts } = draw('code', zoom, locale)
+        const { painter, texts } = draw('icon-code', zoom, locale)
         expect(texts, `z${zoom} ${locale}`).toEqual(['IST'])
         expect(painter.airportHitTest(onCode.x, onCode.y)).toBe('LTFM')
         expect(painter.airportHitTest(beside.x, beside.y)).toBeNull()
@@ -422,7 +432,7 @@ describe('LabelPainter.airportHitTest', () => {
   })
 })
 
-describe('listelenen havalimanları z5’te (4. halka, 1.217 havalimanı; D-090, D-102, D-107)', () => {
+describe('listelenen havalimanları z5’te (4. halka, 1.240 havalimanı; D-090, D-102, D-107, D-110)', () => {
   // Web Mercator, z5: kodların yazıldığı en uzak yakınlaştırma (AIRPORT_LABEL_MIN_ZOOM), görünümdeki
   // havalimanı sayısı en büyüktür. Kod yerleşimi haritanın her `render` olayında yalnız
   // görünümdekilere yapılır (`screenAirports`). 3. halkada 2560×1440 görünüm bütün listeyi (498)
@@ -434,8 +444,11 @@ describe('listelenen havalimanları z5’te (4. halka, 1.217 havalimanı; D-090,
   // havalimanıdır (4. halkada 949); MapLibre z5'te 2560×1440'ta 488 havalimanı, 466 kod, ~0,5 ms.
   const ZOOM = AIRPORT_LABEL_MIN_ZOOM
   const VIEW = { width: 2560, height: 1440 }
-  /** 2560×1440 görünümdeki havalimanları (1.217 listelenenden). */
-  const SCREEN_AIRPORTS = 909
+  /**
+   * 2560×1440 görünümdeki havalimanları (1.240 listelenenden; D-110'dan önce 1.217'den 909, savaş
+   * nedeniyle kapalı 23 havalimanından Bukavu dışındaki 22'si görünümde).
+   */
+  const SCREEN_AIRPORTS = 931
   const world = 256 * 2 ** ZOOM
   const project = (lat: number, lon: number) => {
     const sin = Math.sin((lat * Math.PI) / 180)
@@ -454,10 +467,10 @@ describe('listelenen havalimanları z5’te (4. halka, 1.217 havalimanı; D-090,
     .filter(({ x, y }) => x >= 0 && x <= VIEW.width && y >= 0 && y <= VIEW.height)
 
   it('görünümdekiler; kodlar birbirini örtmez, görünümden taşmaz, her havalimanına en çok bir kod', () => {
-    expect(listed).toHaveLength(1217)
+    expect(listed).toHaveLength(1240)
     expect(screen).toHaveLength(SCREEN_AIRPORTS)
-    // 1.–3. halkanın hepsi görünümdedir.
-    expect(screen.filter(({ airport }) => airport.ring <= 3)).toHaveLength(498)
+    // 1.–3. halkanın hepsi görünümdedir (498 ve savaş kapanışlarının 22'si, D-110).
+    expect(screen.filter(({ airport }) => airport.ring <= 3)).toHaveLength(520)
     const chips = layoutAirportChips(screen, VIEW, measure)
     expect(chips.length).toBeGreaterThan(50)
     expect(new Set(chips.map((chip) => chip.icao)).size).toBe(chips.length)

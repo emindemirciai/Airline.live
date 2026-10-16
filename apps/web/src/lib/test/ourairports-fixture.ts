@@ -67,8 +67,9 @@ function parseCsv(text: string): Row[] {
 }
 
 /**
- * Dosya başına bir kez ayrıştırılır (D-109): fixture 5. halkayla 3.624 havalimanı ve 4.604 pist
- * satırıdır; her çağrıda yeniden ayrıştırmak test dosyası başına yüzlerce milisaniye ekliyordu.
+ * Dosya başına bir kez ayrıştırılır (D-109): fixture 5. halkayla ve kapanış bloğuyla (D-110) 3.647
+ * havalimanı ve 4.632 pist satırıdır; her çağrıda yeniden ayrıştırmak test dosyası başına yüzlerce
+ * milisaniye ekliyordu.
  */
 const parsed = new Map<string, Row[]>()
 

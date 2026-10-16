@@ -4,6 +4,7 @@ import { sql } from 'drizzle-orm'
 import postgres from 'postgres'
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import {
+  CIVIL_FLIGHT_CLOSURE_ICAOS,
   findAirportDetail,
   listAirportDetails,
   listAirportsWithIata,
@@ -255,7 +256,7 @@ describe('listListedAirports (D-080)', () => {
     expect(await listListedAirportDetails(database.db, RINGS)).toEqual([])
   })
 
-  it('fixture, içe aktarım süzgeciyle: 56 Türkiye (askerî üsler hariç, D-107) + 75 yurt dışı (1. halka) = 131, IATA sırasıyla', async () => {
+  it('fixture, içe aktarım süzgeciyle: 56 Türkiye (askerî üsler hariç, D-107) + 77 yurt dışı (1. halka; savaş nedeniyle kapalı Simferopol ve Anapa dahil, D-110) = 133, IATA sırasıyla', async () => {
     const rows = readFixture()
     // Gökçeada, Selçuk-Efes, Bodrum-İmsık, Aydın Çıldır, Adana Şakirpaşa: tarifesiz küçük alanlar,
     // yalnızca uzaklık referansı.
@@ -273,14 +274,19 @@ describe('listListedAirports (D-080)', () => {
 
     expect(list.map((a) => a.icao)).not.toContain('LTFK')
     const foreign = list.filter((a) => a.country !== 'TR')
-    expect(foreign).toHaveLength(75)
-    expect(list).toHaveLength(131)
+    expect(foreign).toHaveLength(77)
+    expect(list).toHaveLength(133)
     for (const airport of foreign) {
       expect(airport.ring, airport.icao).toBe(1)
       expect(airport.distanceToTrKm, airport.icao).toBeLessThanOrEqual(500)
       expect(['large_airport', 'medium_airport']).toContain(airport.type)
-      expect(airport.scheduled, airport.icao).toBe(true)
+      // Tarifeli ya da kapanış tablosunda (D-110; SQL ön süzgeci tarifesizleri de getirir).
+      expect(
+        airport.scheduled || CIVIL_FLIGHT_CLOSURE_ICAOS.includes(airport.icao),
+        airport.icao,
+      ).toBe(true)
     }
+    expect(foreign.filter((a) => !a.scheduled).map((a) => a.icao)).toEqual(['URKA', 'UKFF'])
     // Atina'nın uzaklığı İzmir Adnan Menderes'e ölçülür; Çiğli üssü (275 km) referans değildir (D-107).
     expect(list.find((a) => a.icao === 'LGAV')).toMatchObject({
       iata: 'ATH',
@@ -332,16 +338,16 @@ describe('listListedAirports (D-080)', () => {
     expect(wider.filter((a) => a.country === 'TR')).toHaveLength(56)
   })
 
-  it('2. halka açık (M6g, D-088): 56 + 75 + 89 = 220; İskenderiye HEBA, Ben Gurion 500 km 2. halkada', async () => {
+  it('2. halka açık (M6g, D-088): 56 + 77 + 104 = 237 (savaş kapanışlarıyla, D-110); İskenderiye HEBA, Ben Gurion 500 km 2. halkada', async () => {
     await database.db.insert(airports).values(readFixture())
     const list = await listListedAirports(database.db, { ...RINGS, enabledRing: 2 })
-    expect(list).toHaveLength(220)
-    expect(new Set(list.map((a) => a.icao)).size).toBe(220)
-    expect(new Set(list.map((a) => a.iata)).size).toBe(220)
+    expect(list).toHaveLength(237)
+    expect(new Set(list.map((a) => a.icao)).size).toBe(237)
+    expect(new Set(list.map((a) => a.iata)).size).toBe(237)
     const foreign = list.filter((a) => a.country !== 'TR')
-    expect(foreign.filter((a) => a.ring === 1)).toHaveLength(75)
+    expect(foreign.filter((a) => a.ring === 1)).toHaveLength(77)
     const ringTwo = foreign.filter((a) => a.ring === 2)
-    expect(ringTwo).toHaveLength(89)
+    expect(ringTwo).toHaveLength(104)
     for (const airport of ringTwo) {
       // Uzaklık tam km'ye yuvarlıdır; halka yuvarlanmamış uzaklıktan (Ben Gurion 500,44 km).
       expect(airport.distanceToTrKm, airport.icao).toBeGreaterThanOrEqual(500)
@@ -365,18 +371,18 @@ describe('listListedAirports (D-080)', () => {
     expect(await findAirportDetail(database.db, 'HEAX', RINGS)).toBeNull()
   })
 
-  it('3. halka açık (M6h, D-090): 56 + 75 + 89 + 278 = 498; Viyana, UZxx kodları, ad temizliği', async () => {
+  it('3. halka açık (M6h, D-090): 56 + 77 + 104 + 283 = 520 (savaş kapanışlarıyla, D-110); Viyana, UZxx kodları, ad temizliği', async () => {
     await database.db.insert(airports).values(readFixture())
     const list = await listListedAirports(database.db, { ...RINGS, enabledRing: 3 })
-    expect(list).toHaveLength(498)
-    expect(new Set(list.map((a) => a.icao)).size).toBe(498)
-    expect(new Set(list.map((a) => a.iata)).size).toBe(498)
+    expect(list).toHaveLength(520)
+    expect(new Set(list.map((a) => a.icao)).size).toBe(520)
+    expect(new Set(list.map((a) => a.iata)).size).toBe(520)
     const foreign = list.filter((a) => a.country !== 'TR')
-    expect(foreign).toHaveLength(442)
-    expect(foreign.filter((a) => a.ring === 1)).toHaveLength(75)
-    expect(foreign.filter((a) => a.ring === 2)).toHaveLength(89)
+    expect(foreign).toHaveLength(464)
+    expect(foreign.filter((a) => a.ring === 1)).toHaveLength(77)
+    expect(foreign.filter((a) => a.ring === 2)).toHaveLength(104)
     const ringThree = foreign.filter((a) => a.ring === 3)
-    expect(ringThree).toHaveLength(278)
+    expect(ringThree).toHaveLength(283)
     for (const airport of ringThree) {
       // En yakını Gachsaran 1.006 km: 1.000 km sınırında yuvarlama vakası yok.
       expect(airport.distanceToTrKm, airport.icao).toBeGreaterThan(1000)
@@ -415,15 +421,18 @@ describe('listListedAirports (D-080)', () => {
     expect(vienna).toMatchObject({ icao: 'LOWW', ring: 3, nearestTr: { icao: 'LTFK' } })
   })
 
-  it('4. halka açık (D-101; uygulamada M6i.2’den beri açık, D-102): 56 + 75 + 89 + 278 + 719 = 1.217; Kihihi (UG-0002) dört karakterli ICAO kuralıyla dışarıda', async () => {
+  it('4. halka açık (D-101; uygulamada M6i.2’den beri açık, D-102): 56 + 77 + 104 + 283 + 720 = 1.240 (savaş kapanışlarıyla, D-110); Kihihi (UG-0002) dört karakterli ICAO kuralıyla dışarıda', async () => {
     await database.db.insert(airports).values(readFixture())
     const list = await listListedAirports(database.db, { ...RINGS, enabledRing: 4 })
-    expect(list).toHaveLength(1217)
-    expect(new Set(list.map((a) => a.icao)).size).toBe(1217)
+    expect(list).toHaveLength(1240)
+    expect(new Set(list.map((a) => a.icao)).size).toBe(1240)
     const foreign = list.filter((a) => a.country !== 'TR')
     expect([1, 2, 3, 4].map((ring) => foreign.filter((a) => a.ring === ring).length)).toEqual([
-      75, 89, 278, 719,
+      77, 104, 283, 720,
     ])
+    // SQL ön süzgeci kapanış tablosunun 35 kaydını getirir; 23'ü OurAirports'ta tarifesizdir.
+    expect(foreign.filter((a) => CIVIL_FLIGHT_CLOSURE_ICAOS.includes(a.icao))).toHaveLength(35)
+    expect(foreign.filter((a) => !a.scheduled)).toHaveLength(23)
     for (const airport of list) expect(airport.icao).toMatch(/^[A-Z0-9]{4}$/)
     expect(list.map((a) => a.icao)).not.toContain('UG-0002')
     expect(list.map((a) => a.iata)).not.toContain('KHX')
@@ -441,18 +450,18 @@ describe('listListedAirports (D-080)', () => {
     expect(uganda.find((a) => a.iata === 'KHX')).toMatchObject({ icao: 'UG-0002', ring: 4 })
     const details = await listListedAirportDetails(database.db, { ...RINGS, enabledRing: 4 })
     expect(details.map((a) => a.icao)).toEqual(list.map((a) => a.icao))
-    // 3. halkanın listesi (D-107'den sonra 498) 4. halka açılınca değişmez.
+    // 3. halkanın listesi (D-107'den sonra 498, savaş kapanışlarıyla 520) 4. halka açılınca değişmez.
     const ringThree = await listListedAirports(database.db, { ...RINGS, enabledRing: 3 })
-    expect(ringThree).toHaveLength(498)
+    expect(ringThree).toHaveLength(520)
     expect(list.filter((a) => a.ring <= 3).map((a) => a.icao)).toEqual(ringThree.map((a) => a.icao))
   })
 
-  it('5. halka açık bağlamla (D-109; uygulamada halka 4): 3.243; dışlananlar yok; adres takma adları', async () => {
+  it('5. halka açık bağlamla (D-109; uygulamada halka 4): 3.266 (D-110); dışlananlar yok; adres takma adları', async () => {
     await database.db.insert(airports).values(readFixture())
     const list = await listListedAirports(database.db, { ...RINGS, enabledRing: 5 })
-    expect(list).toHaveLength(3243)
+    expect(list).toHaveLength(3266)
     expect([0, 1, 2, 3, 4, 5].map((ring) => list.filter((a) => a.ring === ring).length)).toEqual([
-      56, 75, 89, 278, 719, 2026,
+      56, 77, 104, 283, 720, 2026,
     ])
     // Dört karakterli ICAO kuralı (WKK, KHX, LSG), askerî liste (PWAK, YBOK, PKWA) ve aday olmayan
     // dışlama örnekleri (Le Bourget LBG tarifesiz; Thohoyandou THY içe aktarılmaz).
@@ -525,11 +534,12 @@ describe('listListedAirports (D-080)', () => {
     ])
   })
 
-  it('uzaklık referansı küçük alanlar olmadan (M6d öncesi süzgeç) 1. halka daralır: 56 + 72', async () => {
+  it('uzaklık referansı küçük alanlar olmadan (M6d öncesi süzgeç) 1. halka daralır: 56 + 74 (D-110 savaş kapanışları UKFF ve URKA dahil)', async () => {
     await database.db.insert(airports).values(readFixture({ turkishIata: false }))
     const list = await listListedAirports(database.db, RINGS)
     expect(list.filter((a) => a.country === 'TR')).toHaveLength(56)
-    expect(list.filter((a) => a.country !== 'TR')).toHaveLength(72)
+    expect(list.filter((a) => a.country !== 'TR')).toHaveLength(74)
+    expect(list.map((a) => a.icao)).toEqual(expect.arrayContaining(['UKFF', 'URKA']))
     for (const icao of ['BKPR', 'LGPZ', 'LYNI']) {
       expect(
         list.map((a) => a.icao),

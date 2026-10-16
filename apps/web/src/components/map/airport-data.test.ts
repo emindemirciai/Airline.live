@@ -292,8 +292,8 @@ describe('fetchMapAirports', () => {
     // Haritanın kaydı (D-111): pencerenin alanları ve pist uzunlukları, uçlar 1.–3. halkada.
     expect(String(url)).toBe('http://localhost:4100/v1/airports?scope=listed&include=map')
     expect(init?.signal).toBe(controller.signal)
-    expect(String(mapAirportsUrl('https://api.havayolu.live'))).toBe(
-      'https://api.havayolu.live/v1/airports?scope=listed&include=map',
+    expect(String(mapAirportsUrl('https://api.airline.live'))).toBe(
+      'https://api.airline.live/v1/airports?scope=listed&include=map',
     )
   })
 

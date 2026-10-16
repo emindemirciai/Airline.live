@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:1.7
-# havayolu worker imajı (hy-worker-rt, hy-worker-bg ve hy-migrate aynı imajı kullanır).
+# Airline.live worker imajı (hy-worker-rt, hy-worker-bg ve hy-migrate aynı imajı kullanır).
 # Derleme bağlamı: repo kökü (docker build -f apps/worker/Dockerfile .).
 FROM node:24-slim AS base
 ENV CI=true

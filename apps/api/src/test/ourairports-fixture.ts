@@ -11,8 +11,9 @@ import { AIRPORT_RINGS_KM } from '@havayolu/shared'
 /**
  * Commit'li OurAirports fixture'ı (tools/fixtures/README.md; 2026-10-01 kopyası), veritabanındaki
  * gibi: içe aktarım çözümleyicisi (`parseAirports`, `parseRunways`), kimlik sırası, satır biçimi
- * `@havayolu/db`'nin okuduğu gibi. 5. halkayla 3.624 havalimanı ve 4.604 pist satırıdır; test dosyası
- * başına bir kez ayrıştırılır (D-109: her testte yeniden ayrıştırmak dosyayı saniyelerce yavaşlatır).
+ * `@havayolu/db`'nin okuduğu gibi. 5. halkayla ve kapanış bloğuyla (D-110) 3.647 havalimanı ve
+ * 4.632 pist satırıdır; test dosyası başına bir kez ayrıştırılır (D-109: her testte yeniden
+ * ayrıştırmak dosyayı saniyelerce yavaşlatır).
  */
 export interface ApiFixture {
   airportRows: AirportDetailSourceRow[]

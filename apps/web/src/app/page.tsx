@@ -11,7 +11,7 @@ import { pageMetadata } from '@/lib/seo/metadata'
 import { websiteGraph } from '@/lib/seo/structured-data'
 
 /**
- * Kök yolda başlık şablonu (`%s · havayolu`, layout.tsx) uygulanmaz: şablon yalnızca alt yollara
+ * Kök yolda başlık şablonu (`%s · Airline.live`, layout.tsx) uygulanmaz: şablon yalnızca alt yollara
  * geçer. Aynı biçim burada açıkça kurulur. Kanonik adres her zaman `/` (EN `/en`) olur: `?hex=` ve
  * `?havalimani=` aynı sayfanın görünümleridir (M6b brief §b).
  */

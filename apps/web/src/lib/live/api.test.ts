@@ -35,11 +35,11 @@ describe('fetchSearch', () => {
 
   it('2xx olmayan yanıtta durum koduyla ApiError fırlatır', async () => {
     mockFetch(429, { error: 'rate_limited' })
-    const error = await fetchSearch('https://api.havayolu.live', 'THY974').catch((e: unknown) => e)
+    const error = await fetchSearch('https://api.airline.live', 'THY974').catch((e: unknown) => e)
     expect(error).toBeInstanceOf(ApiError)
     expect((error as ApiError).status).toBe(429)
     mockFetch(503, { error: 'live_unavailable', message: '' })
-    await expect(fetchSearch('https://api.havayolu.live', 'x')).rejects.toMatchObject({
+    await expect(fetchSearch('https://api.airline.live', 'x')).rejects.toMatchObject({
       name: 'ApiError',
       status: 503,
     })
@@ -55,7 +55,7 @@ describe('fetchSearch', () => {
     ]) {
       mockFetch(200, body)
       await expect(
-        fetchSearch('https://api.havayolu.live', 'x'),
+        fetchSearch('https://api.airline.live', 'x'),
         JSON.stringify(body),
       ).rejects.toBeInstanceOf(ApiError)
     }
@@ -68,6 +68,6 @@ describe('fetchSearch', () => {
         throw new TypeError('Failed to fetch')
       }),
     )
-    await expect(fetchSearch('https://api.havayolu.live', 'x')).rejects.toBeInstanceOf(TypeError)
+    await expect(fetchSearch('https://api.airline.live', 'x')).rejects.toBeInstanceOf(TypeError)
   })
 })

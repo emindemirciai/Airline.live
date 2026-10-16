@@ -12,11 +12,12 @@
  * listesinin tahmini durumu (D-085, lib/map/flight-phase.ts) için gereken ad, yön ve eşik tutulur.
  *
  * Ölçek (D-111): `include=map` kaydı pencerenin alanlarını ve pist uzunluklarını taşır; pist uçları
- * yalnız 1.–3. halkada (canlı veri kapsaması, D-073) gelir. 4. halkada 1.217 havalimanı ~0,53 MB
- * ham, ~90 KB brotli (önce pistli liste ~1,05 MB, ~183 KB); 5. halkada 3.243 havalimanı ~1,16 MB,
- * ~185 KB. Uçsuz bir havalimanının uçları, listedeki bir uçak evre yarıçapına girince tek
- * havalimanı ucundan oturumda bir kez istenir (`fetchAirportRunways`, use-flight-phases.ts): izlenen
- * uçak (D-073) JFK'ye inerken de pist etiketi çıkar. Noktalar tek GeoJSON kaynağıdır; etiket tuvali
+ * yalnız 1.–3. halkada (canlı veri kapsaması, D-073) gelir. 4. halkada 1.240 havalimanı (savaş
+ * kapanışlarıyla, D-110) ~0,54 MB ham, ~92 KB brotli (önce pistli liste ~1,07 MB; brotli ~183 KB,
+ * 1.217 havalimanıyla ölçüldü); 5. halkada 3.266 havalimanı ~1,17 MB, ~188 KB. Uçsuz bir
+ * havalimanının uçları, listedeki bir uçak evre yarıçapına girince tek havalimanı ucundan oturumda
+ * bir kez istenir (`fetchAirportRunways`, use-flight-phases.ts): izlenen uçak (D-073) JFK'ye inerken
+ * de pist etiketi çıkar. Noktalar tek GeoJSON kaynağıdır; etiket tuvali
  * her `render` olayında görünümdeki havalimanlarına kod yerleştirir (labels.ts →
  * `layoutAirportChips`, ızgaralı dizin). Görünür alana göre yükleme dünya geneli canlı veriyle
  * değerlendirilir.

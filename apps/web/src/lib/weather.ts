@@ -20,8 +20,8 @@ import { createMemoryCache } from './memory-cache'
  *   (listelenen havalimanları: Türkiye ve Türkiye dışındakiler, D-080; ham biçim D-101). API hiçbir
  *   raporu çözümlemez; sayfa yalnız çizdiği havalimanını paylaşılan görünümlerle çözer
  *   (`toAirportWeather`: METAR, süresi dolmamış TAF'lar ve yürürlükteki TAF seçimi; API'nin tam
- *   biçimiyle aynı kayıt). 4. halkada (1.217 istasyon) ham gövde istasyon başına ~0,9 KB, toplam
- *   ~1,1 MB'tır; tam biçim ~4 MB olurdu. **Next veri önbelleğinde değil, web sunucusunun
+ *   biçimiyle aynı kayıt). 4. halkada (1.217 istasyonla ölçüldü; D-110'la 1.240) ham gövde istasyon başına
+ *   ~0,9 KB, toplam ~1,1 MB'tır; tam biçim ~4 MB olurdu. **Next veri önbelleğinde değil, web sunucusunun
  *   belleğinde** 60 sn tutulur (`createMemoryCache`, tek kayıt): Next veri önbelleği gövdeyi base64
  *   saklar ve kaydı 2 MiB'ta keser (D-088); sınırı aşan yanıt önbelleğe alınmaz ve her sayfa çizimi
  *   API'ye giderdi (web konteynerinin API kovası 60/dk, D-060). API'ye dakikada en çok bir istek
@@ -32,7 +32,7 @@ import { createMemoryCache } from './memory-cache'
  * METAR/TAF kaydını (`/v1/airports/<ICAO>/weather/history`) sunucu istemez (D-111): ada onu açılışta
  * tarayıcıdan, ziyaretçinin kendi hız sınırı kovasıyla alır ve 5 dakikada bir tazeler
  * (airport-weather-live.tsx). Önce web kaydı sunucuda ister ve Next veri önbelleğinde 30 dk tutardı
- * (D-102): 5. halkada 3.241 istasyonla tam bir tarama web konteynerinin bu rotadaki kovasını
+ * (D-102): 5. halkada 3.264 istasyonla (D-110) tam bir tarama web konteynerinin bu rotadaki kovasını
  * (dakikada 60) aşar ve kayıtlar (istasyon başına ~70 KB) konteynerin diskinde birikirdi.
  * JavaScript'siz ziyaretçi kaydı görmez; güncel METAR ve TAF sunucu çiziminde vardır.
  *

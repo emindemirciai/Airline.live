@@ -11,8 +11,10 @@
  *   bulamazsa hariç) IST kodunu örtmez. Kodlar birbirini de örtmez; diğer kodların üstüne uçak
  *   etiketleri gelebilir. Çizilen kodun kutusu tıklanabilir (`airportHitTest`):
  *   havalimanı penceresini açar (M6c).
- * - Havalimanı etiketi ayarı (`settings.airports`, D-084): Gizle → kod yazılmaz (pinler GL
- *   katmanındadır, görünür ve tıklanır kalır); Kod → IATA kodu. Haritada havalimanı adı yazılmaz:
+ * - Havalimanları ayarı (`settings.airportDisplay`, D-084, D-114): IATA kodu yalnız Simge ve kod'da
+ *   yazılır. Simge'de kod yazılmaz, pinler (GL katmanı) görünür ve tıklanır kalır. Gizle'de pin de
+ *   kod da yoktur: çizime yalnız açık pencerenin ve `?havalimani=` hedefinin havalimanı girer
+ *   (map-controller.ts → `drawnAirports`), onların da yalnız pini. Haritada havalimanı adı yazılmaz:
  *   ad, pin ya da koda tıklanınca açılan havalimanı penceresindedir (kullanıcı isteği 2026-10-04).
  * - Uçak etiketleri etiket ayarına göre kurulur (seçili uçak `selected`, diğerleri `others`;
  *   Gizle → etiket yok, simge yine engel sayılır), `layoutLabels` ile çakışmasız yerleşir.
@@ -288,8 +290,8 @@ export function layoutAirportChips(
   const placed: PlacedAirportChip[] = []
   // Yerleşmiş kodlar ızgaralı dizinde (D-090): z5'te 400–503 görünür havalimanıyla yerleşim
   // doğrusal taramada 1,4–3,4 ms, dizinle 1,1–1,3 ms sürer (Node, medyan); sonuç aynıdır.
-  // 4. halkada 2560×1440 görünümde 909 havalimanı (1.217 listelenenden; labels.test.ts,
-  // D-102, D-107).
+  // 4. halkada 2560×1440 görünümde 931 havalimanı (1.240 listelenenden; labels.test.ts,
+  // D-102, D-107, D-110).
   const placedRects = new RectObstacles(view)
   const overlaps = (x: number, y: number, w: number, h: number) =>
     placedRects.hits(
@@ -331,17 +333,19 @@ export function layoutAirportChips(
 }
 
 /**
- * Bu yakınlaştırma ve ayarla havalimanı kodu yazılabilir mi: ayar Gizle değil ve yakınlaştırma
- * yeterli. Değilse çizim havalimanlarını ekrana izdüşürmez (map-controller.ts `screenAirports`).
+ * Bu yakınlaştırma ve ayarla havalimanı kodu yazılabilir mi: ayar Simge ve kod (D-084'ün Kod'u,
+ * D-114) ve yakınlaştırma yeterli. Simge ve Gizle'de hiçbir kod yazılmaz; Gizle'de çizilen tek tük
+ * havalimanının (açık pencere, `?havalimani=` hedefi) da yalnız pini çizilir. Değilse çizim
+ * havalimanlarını ekrana izdüşürmez (map-controller.ts `screenAirports`).
  */
 export function airportChipsEnabled(
   zoom: number,
-  settings: Pick<LabelSettings, 'airports'>,
+  settings: Pick<LabelSettings, 'airportDisplay'>,
 ): boolean {
-  return settings.airports !== 'hidden' && zoom >= AIRPORT_LABEL_MIN_ZOOM
+  return settings.airportDisplay === 'icon-code' && zoom >= AIRPORT_LABEL_MIN_ZOOM
 }
 
-/** Kodlar yazılır mı: ayar Gizle değil, yakınlaştırma yeterli ve görünümde havalimanı var. */
+/** Kodlar yazılır mı: ayar Simge ve kod, yakınlaştırma yeterli ve görünümde havalimanı var. */
 export function showsAirportChips(
   frame: Pick<LabelFrame, 'zoom' | 'airports' | 'settings'>,
 ): boolean {

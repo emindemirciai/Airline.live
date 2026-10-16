@@ -40,9 +40,9 @@ describe('checkLocalDbGate', () => {
   })
 
   it.each([
-    'postgres://havayolu:gizli-parola@db.havayolu.live:5432/app',
+    'postgres://havayolu:gizli-parola@db.airline.live:5432/app',
     'postgres://u:p@10.0.0.5:5432/app',
-    'postgres://u:p@localhost.havayolu.live/app',
+    'postgres://u:p@localhost.airline.live/app',
     'postgres://u:p@127.0.0.2/app',
   ])('yerel olmayan adres ret: %s', (url) => {
     expect(refusals({ DATABASE_URL: url, APP_ENV: 'production' })).toEqual([
@@ -53,14 +53,14 @@ describe('checkLocalDbGate', () => {
 
   it('ret iletileri adres, kullanıcı ya da parola içermez', () => {
     const gate = checkLocalDbGate({
-      DATABASE_URL: 'postgres://kullanici:gizli-parola@db.havayolu.live:5432/app',
+      DATABASE_URL: 'postgres://kullanici:gizli-parola@db.airline.live:5432/app',
       APP_ENV: 'production',
     })
     expect(gate.ok).toBe(false)
     const text = gate.ok ? '' : gate.refusals.map(localDbRefusalText).join('\n')
     expect(text).toContain('DATABASE_URL yerel değil')
     expect(text).toContain('APP_ENV development ya da test olmalı')
-    for (const secret of ['gizli-parola', 'kullanici', 'db.havayolu.live', '5432']) {
+    for (const secret of ['gizli-parola', 'kullanici', 'db.airline.live', '5432']) {
       expect(text).not.toContain(secret)
     }
   })

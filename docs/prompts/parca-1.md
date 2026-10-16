@@ -97,6 +97,7 @@ Her kilometre taşı ayrı bir dal ve PR'dır (CLAUDE.md → Git ve yayın). Pla
      - `hy-api` → `api.havayolu.live` (port 4000)
 
      Hepsinde HTTPS + Let's Encrypt açıktır. Domain değişikliğinden sonra yeniden deploy edilir.
+     - **2026-10-15 (D-112):** güncel değerler `airline.live`, `www.airline.live`, `api.airline.live`, `admin.airline.live`, `analiz.airline.live`; yukarıdaki dört havayolu.live alan adı 308'ler için Dokploy'da bağlı kalır (ACTIVATION → "Marka geçişi: Airline.live", DEPLOY_DOKPLOY.md §6). `POSTGRES_DB`/`POSTGRES_USER` iç addır ve değişmez.
   7b. **Analiz uygulaması:** Aynı Dokploy projesinde ikinci bir Compose uygulaması oluşturulur (kendi README'sindeki gibi): repo `emindemirciai/Analyze.Your.Site-Siteni-Analiz-Et-`, servis `analyze`, port 3000, domain `ANALYZE_HOST`. Env bloğu `deploy/analiz.env.example`'da bu projenin değerleriyle hazırdır:
       - `ANALYZE_SITE_ID=${WEB_HOST}`
       - `ANALYZE_AUTH_MODE=platform-admin`, `ANALYZE_AUTH_API_URL=https://${API_HOST}`

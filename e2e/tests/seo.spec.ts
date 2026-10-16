@@ -28,6 +28,8 @@ import {
 } from '../html'
 import {
   API_URL,
+  APP_NAME,
+  APP_NAME_PATTERN,
   enPath,
   fetchRaw,
   GPTBOT_USER_AGENT,
@@ -44,6 +46,7 @@ import {
   UNLISTED_FOREIGN_AIRPORT,
   sitePath,
   STATIC_PUBLIC_PATHS,
+  WAR_CLOSURE_AIRPORT,
   WEB_HOST,
 } from '../support'
 
@@ -63,7 +66,7 @@ function istanbulDate(ms: number): string {
 }
 
 const STATION_PATH = `/istasyon/${PRIMARY_AIRPORT.icao}`
-const SUFFIX = ' · havayolu'
+const SUFFIX = ` · ${APP_NAME}`
 
 function exactTitle(title: string): RegExp {
   return new RegExp(`^${title.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`)
@@ -77,7 +80,7 @@ interface PublicPage {
   jsonLd: string[]
 }
 
-/** Başlıklar i18n'deki `seo.*` metinleridir; düzen şablonu " · havayolu" ekler (ana sayfa mutlaktır). */
+/** Başlıklar i18n'deki `seo.*` metinleridir; düzen şablonu " · <APP_NAME>" ekler (ana sayfa mutlaktır). */
 const PUBLIC_PAGES: PublicPage[] = [
   {
     path: '/',
@@ -98,8 +101,12 @@ const PUBLIC_PAGES: PublicPage[] = [
   {
     path: STATION_PATH,
     title: {
-      tr: /^İstanbul Havalimanı \(IST\/LTFM\) canlı hava trafiği ve pistler · havayolu$/,
-      en: /^Istanbul Airport \(IST\/LTFM\) live air traffic and runways · havayolu$/,
+      tr: new RegExp(
+        `^İstanbul Havalimanı \\(IST/LTFM\\) canlı hava trafiği ve pistler · ${APP_NAME_PATTERN}$`,
+      ),
+      en: new RegExp(
+        `^Istanbul Airport \\(IST/LTFM\\) live air traffic and runways · ${APP_NAME_PATTERN}$`,
+      ),
     },
     jsonLd: ['WebPage', 'Airport', 'BreadcrumbList'],
   },
@@ -265,13 +272,13 @@ test.describe('genel sayfalar', () => {
     const { html } = await inspect(request, '/')
     const nodes = jsonLdNodes(html)
     const website = nodesOfType(nodes, 'WebSite')[0]
-    expect(website?.name).toBe('havayolu')
+    expect(website?.name).toBe(APP_NAME)
     expect(sitePath(String(website?.url), 'WebSite.url')).toBe('/')
     expect(website?.inLanguage).toEqual(['tr', 'en'])
     // Google site içi arama kutusunu 2024-11-21'de kaldırdı; SearchAction eklenmez.
     expect(nodesOfType(nodes, 'SearchAction')).toHaveLength(0)
     const organization = nodesOfType(nodes, 'Organization')[0]
-    expect(organization?.name).toBe('havayolu')
+    expect(organization?.name).toBe(APP_NAME)
     expect(organization?.logo, 'Organization.logo').toBeTruthy()
   })
 })
@@ -361,11 +368,11 @@ test.describe('kök dosyalar', () => {
     expect(body).toContain('xmlns:xhtml="http://www.w3.org/1999/xhtml"')
     const entries = parseSitemap(body)
 
-    // Havalimanları: Türkiye'nin dizine eklenen 56'sı ve diğer ülkelerdeki 1.161'i (1.–4. halka;
-    // D-080, D-084, D-088, D-090, D-102): (1.217 + 5) × 2 = 2.444 adres (50.000 sınırının çok
-    // altında).
+    // Havalimanları: Türkiye'nin dizine eklenen 56'sı ve diğer ülkelerdeki 1.184'ü (1.–4. halka,
+    // savaş nedeniyle kapalı 23 havalimanı dahil; D-080, D-084, D-088, D-090, D-102, D-110):
+    // (1.240 + 5) × 2 = 2.490 adres (50.000 sınırının çok altında).
     expect(entries).toHaveLength((INDEXABLE_LISTED_AIRPORT_COUNT + STATIC_PUBLIC_PATHS.length) * 2)
-    expect(entries).toHaveLength(2444)
+    expect(entries).toHaveLength(2490)
     const byLoc = new Map(entries.map((entry) => [entry.loc, entry]))
     expect(byLoc.size, 'yinelenen adres yok').toBe(entries.length)
     const paths = entries.map((entry) => sitePath(entry.loc, 'loc'))
@@ -374,6 +381,8 @@ test.describe('kök dosyalar', () => {
     const ring2Path = `/istasyon/${RING2_AIRPORT.icao}`
     const kktcPath = `/istasyon/${KKTC_AIRPORT.icao}`
     const ring4Path = `/istasyon/${RING4_AIRPORT.icao}`
+    // Savaş nedeniyle kapalı, OurAirports'ta tarifesiz Kiev Borispil dizine eklenir (D-110).
+    const warPath = `/istasyon/${WAR_CLOSURE_AIRPORT.icao}`
     for (const path of [
       ...STATIC_PUBLIC_PATHS,
       STATION_PATH,
@@ -381,6 +390,7 @@ test.describe('kök dosyalar', () => {
       ring2Path,
       kktcPath,
       ring4Path,
+      warPath,
     ]) {
       expect(paths).toContain(path)
       expect(paths).toContain(enPath(path))
@@ -462,7 +472,7 @@ test.describe('kök dosyalar', () => {
     const { response, body } = await fetchRaw(request, '/llms.txt')
     expect(response.status()).toBe(200)
     expect(response.headers()['content-type']).toMatch(/^text\/plain;\s*charset=utf-8/i)
-    expect(body.startsWith('# havayolu\n')).toBe(true)
+    expect(body.startsWith(`# ${APP_NAME}\n`)).toBe(true)
     expect(body).toMatch(/^> \S/m)
     // E-posta adresi ya da kişisel veri yoktur.
     expect(body).not.toMatch(/[^\s@()]+@[^\s@()]+\.[a-z]{2,}/i)
@@ -490,6 +500,11 @@ test.describe('kök dosyalar', () => {
     for (const { icao } of MILITARY_AIRFIELDS) expect(icaos.has(icao), icao).toBe(false)
     expect(icaos.has(UNLISTED_FOREIGN_AIRPORT.icao)).toBe(false)
     expect(icaos.has(RING4_AIRPORT.icao)).toBe(true)
+    // Savaş nedeniyle kapalı havalimanının satırı Türkçe notu taşır (D-110).
+    const warLine = airportLines.find((line) =>
+      line.includes(`(${WAR_CLOSURE_AIRPORT.iata}/${WAR_CLOSURE_AIRPORT.icao})`),
+    )
+    expect(warLine).toContain('Savaş nedeniyle sivil uçuşlara kapalı (2022’den beri)')
     expect(body).not.toContain(NON_ICAO_AIRPORT.ident)
     expect(body).not.toContain(`(${NON_ICAO_AIRPORT.iata}/`)
     // Diğer ülkelerdekiler ayrı bir bölümdedir (D-080): başlık Türkiye listesinden sonra gelir; Atina
@@ -528,7 +543,7 @@ test.describe('kök dosyalar', () => {
       lang?: string
       icons?: { src: string; sizes?: string; type?: string }[]
     }
-    expect(manifest.name).toBe('havayolu')
+    expect(manifest.name).toBe(APP_NAME)
     expect(manifest.start_url).toBe('/')
     expect(manifest.lang).toBe('tr')
     const sizes = (manifest.icons ?? []).map((icon) => icon.sizes)

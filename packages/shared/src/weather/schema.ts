@@ -90,10 +90,10 @@ export type CompassPoint16 = (typeof COMPASS_POINTS_16)[number]
  * Etkili rüzgârın şiddeti (D-083), zayıftan güçlüye; rüzgâr satırı bu düzeylerde vurgulanır. Vurgu
  * eşiği ortalama ≥ 17 kt (MGM Beaufort 5) ya da hamle ≥ 25 kt'dir (kullanıcı kararı 2026-10-03);
  * MGM meydan uyarısı eşiği (ortalama ≥ 20 kt ya da hamle ≥ 30 kt) `gusts` ve üstüdür
- * (`isStrongWind`). Adlar MGM Beaufort ıskalasından, hamle karşılıkları Met Office'in fırtına
- * tanımından gelir (`windLevel`). `gusty`: hamle 25–29 kt, ortalama 17 kt'nin altında ("Hamleli
- * rüzgâr"); `fresh`: ortalama 17–19 kt ("Sert rüzgâr"); `gusts`: yalnız hamle meydan uyarısı
- * eşiğini aştı ("Kuvvetli hamle").
+ * (`isStrongWind`). Eşikler MGM Beaufort ıskalasından (arayüz adları sade, D-116), hamle
+ * karşılıkları Met Office'in fırtına tanımından gelir (`windLevel`). `gusty`: hamle 25–29 kt,
+ * ortalama 17 kt'nin altında ("Hamleli rüzgâr"); `fresh`: ortalama 17–19 kt ("Sert rüzgâr");
+ * `gusts`: yalnız hamle meydan uyarısı eşiğini aştı ("Kuvvetli hamle").
  */
 export const WIND_LEVELS = [
   'gusty',
@@ -124,7 +124,7 @@ export type LightWind = (typeof LIGHT_WINDS)[number]
  * derecelendirilmiş), zayıftan güçlüye; `windTier`. Rüzgâr varsa satır her zaman renklidir, basamağın
  * adı da yazılır (etiket ya da değer):
  * - `calm` açık yeşil: sakin ya da gösterilen hız (ve hamle) ≤ 10 km/sa (`LightWind`);
- * - `breeze` limon yeşili: gösterilen hız 11–19 km/sa ("Tatlı rüzgâr");
+ * - `breeze` limon yeşili: gösterilen hız 11–19 km/sa ("Hafif-orta rüzgâr");
  * - `moderate` sarı: 20 km/sa ve üstü, `fresh` eşiğinin altında ("Orta rüzgâr");
  * - `fresh` kehribar: `gusty`, `fresh` düzeyleri (ortalama 17–19 kt ya da hamle 25–29 kt);
  * - `strong` turuncu: `gusts`, `strong`, `nearGale` (MGM meydan uyarısı eşiğinden 34 kt'nin altına);
@@ -344,7 +344,7 @@ export const WeatherFlagsSchema = z.object({
   unknownPrecipitation: z.boolean(),
   /** Toz, kum, toz/kum hortumu, kum/toz fırtınası. */
   dustSand: z.boolean(),
-  /** Duman, volkanik kül, ani sert rüzgâr (SQ), hortum (FC). */
+  /** Duman, volkanik kül, ani kuvvetli rüzgâr (SQ), hortum (FC). */
   otherPhenomena: z.boolean(),
   /** Havalimanı çevresinde sağanak (VCSH). */
   vicinityShowers: z.boolean(),

@@ -6,6 +6,7 @@ import { expect, test as setup } from '@playwright/test'
 import {
   AIRPORT_COUNT,
   API_URL,
+  APP_NAME,
   LISTED_AIRPORT_COUNT,
   PRIMARY_AIRPORT,
   PRIMARY_WEATHER,
@@ -13,12 +14,12 @@ import {
   RING1_AIRPORT,
 } from '../support'
 
-setup('uygulama havayolu ve replay verisi API’de', async ({ request }) => {
+setup('uygulama bu proje ve replay verisi API’de', async ({ request }) => {
   setup.setTimeout(240_000)
   const version = await request.get('/api/version')
   expect(version.status(), 'GET /api/version').toBe(200)
   const body = (await version.json()) as { app?: unknown }
-  expect(body.app, '3100 portundaki uygulama').toBe('havayolu')
+  expect(body.app, '3100 portundaki uygulama').toBe(APP_NAME)
 
   await expect
     .poll(
@@ -68,8 +69,8 @@ setup('havalimanı referans verisi API’de', async ({ request }) => {
     .toBe(AIRPORT_COUNT)
 
   // Listelenen havalimanları (M6d, D-080; M6g, D-088; M6h, D-090; M6i.2, D-102): Türkiye + 1.–4.
-  // halka (1.217; askerî hava üsleri yok, D-107). Sayfalar, site haritası ve harita bu listeyi
-  // kullanır; halka üyeliği API'de hesaplanıp önbelleğe alınır. Yerel veritabanı eski bir içe
+  // halka (1.240; askerî hava üsleri yok, D-107; savaş nedeniyle kapalı 23 havalimanı dahil,
+  // D-110). Sayfalar, site haritası ve harita bu listeyi kullanır; halka üyeliği API'de hesaplanıp önbelleğe alınır. Yerel veritabanı eski bir içe
   // aktarımı tutuyorsa (sayı eski halkanın sayısıdır) iki OurAirports satırı `reference_sources`'ta
   // sıfırlanır; web'in geliştirme veri önbelleği (`apps/web/.next/dev/cache/fetch-cache`) de eski
   // listeyi 1 saat sunabilir (M6h kaydı).

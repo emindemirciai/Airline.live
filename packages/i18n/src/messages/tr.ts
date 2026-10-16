@@ -124,11 +124,14 @@ export const tr = {
     /** Türkiye dışındaki havalimanı (M6d): yerleşim ve ülke; yerleşim yoksa yalnızca ülke yazılır. */
     locationAbroad: '{city}, {country}',
     /**
-     * Sivil uçuşlara kapalı olabilecek havalimanı (kullanıcı kararı 2026-10-04, D-090;
-     * `civilFlightClosure`): sayfada başlığın altında. `{since}`: yıl, ekiyle (`formatSinceYear`:
-     * "2022’den").
+     * Savaş nedeniyle sivil uçuşlara kapalı havalimanı (D-110; ilk metin D-090,
+     * `civilFlightClosure`): sayfada başlığın altında, havalimanı listesinde adın altında, arama
+     * sonucu açıklamasında. Kesin kayıt (`certainty: 'confirmed'`). `{since}`: yıl, ekiyle
+     * (`formatSinceYear`: "2022’den").
      */
-    civilClosure: 'Sivil uçuşlara kapalı olabilir ({since} beri)',
+    civilClosure: 'Savaş nedeniyle sivil uçuşlara kapalı ({since} beri)',
+    /** Belirsiz kayıt (`certainty: 'possible'`, D-110): durum kesin değil. */
+    civilClosurePossible: 'Savaş nedeniyle sivil uçuşlara kapalı olabilir ({since} beri)',
     lead: {
       runwaysOne: 'Havalimanında tek pist var: {length} uzunluğundaki {designator}.',
       runwaysMany: 'Havalimanında {count} pist var; en uzunu {length} ile {designator}.',
@@ -447,7 +450,7 @@ export const tr = {
       DRDU: 'Yerde sürüklenen toz',
       DRSA: 'Yerde sürüklenen kum',
       PO: 'Toz ya da kum hortumu',
-      SQ: 'Ani ve sert rüzgâr',
+      SQ: 'Ani kuvvetli rüzgâr',
       FC: 'Hortum bulutu',
       FC_heavy: 'Hortum',
       SS: 'Kum fırtınası',
@@ -490,32 +493,37 @@ export const tr = {
       light: 'Hafif rüzgâr',
       /**
        * Derecelendirilmiş rüzgâr renkleri (kullanıcı isteği 2026-10-04, D-083): gösterilen hız 11–19
-       * km/sa limon yeşili satırda "Tatlı rüzgâr", 20 km/sa ve üstü (ortalama 17 kt, hamle 25 kt
-       * eşiğinin altında) sarı satırda "Orta rüzgâr". Adlar MGM Beaufort 3 ve 4'ündür; 6 kt (11
-       * km/sa, 3 m/s) MGM'de Beaufort 2 "Hafif Rüzgâr"dır ama burada "Tatlı rüzgâr" olur, çünkü 10/11
+       * km/sa limon yeşili satırda "Hafif-orta rüzgâr", 20 km/sa ve üstü (ortalama 17 kt, hamle 25 kt
+       * eşiğinin altında) sarı satırda "Orta rüzgâr". Basamaklar MGM Beaufort 3 ve 4'üne denk düşer;
+       * 6 kt (11 km/sa, 3 m/s) MGM'de Beaufort 2'dir ama burada "Hafif-orta rüzgâr" olur, çünkü 10/11
        * km/sa sınırı kullanıcının hafif rüzgâr kuralıdır (2026-10-03). Rüzgâr kesmesi satırı kehribar
-       * yaptığında yazılmaz.
+       * yaptığında yazılmaz. Adlar sadedir (D-116): MGM'nin Beaufort 3 adı "Tatlı Rüzgâr" yerine
+       * "Hafif-orta rüzgâr" (ASCII kısa çizgi: hafif ile orta arası).
        */
-      breeze: 'Tatlı rüzgâr',
+      breeze: 'Hafif-orta rüzgâr',
       moderate: 'Orta rüzgâr',
       /**
        * Etkili rüzgârın şiddeti (D-083): rüzgâr satırının etiketi ve TAF öğesi. Satırın vurgu eşiği
        * ortalama ≥ 17 kt (MGM Beaufort 5) ya da hamle ≥ 25 kt'dir (kullanıcı kararı 2026-10-03); TAF
        * öğesi MGM meydan uyarısı eşiğiyle seçilir (ortalama ≥ 20 kt ya da hamle ≥ 30 kt, `gusts` ve
-       * üstü). Adlar MGM Beaufort ıskalasındandır. `gusty`: hamle 25–29 kt; `fresh`: ortalama 17–19
-       * kt; `gusts`: yalnız hamle meydan uyarısı eşiğini aştı.
+       * üstü). Eşikler MGM Beaufort ıskalasındandır; adların çoğu MGM'nin Beaufort adlarıdır, dördü
+       * sade ifade için değişti (D-116; dördüncüsü yukarıdaki `breeze`): Beaufort 7, 10 ve 12'nin MGM
+       * adları ("Fırtınamsı Rüzgâr", "Tam Fırtına", "Harikeyn (Orkan)") yerine "Çok kuvvetli
+       * rüzgâr", "Şiddetli fırtına" ve "Kasırga şiddetinde rüzgâr" (bir rüzgâr şiddetidir, tropik
+       * siklon ya da hortum değildir). `gusty`: hamle 25–29 kt; `fresh`: ortalama 17–19 kt; `gusts`:
+       * yalnız hamle meydan uyarısı eşiğini aştı.
        */
       level: {
         gusty: 'Hamleli rüzgâr',
         fresh: 'Sert rüzgâr',
         gusts: 'Kuvvetli hamle',
         strong: 'Kuvvetli rüzgâr',
-        nearGale: 'Fırtınamsı rüzgâr',
+        nearGale: 'Çok kuvvetli rüzgâr',
         gale: 'Fırtına',
         severeGale: 'Kuvvetli fırtına',
-        storm: 'Tam fırtına',
+        storm: 'Şiddetli fırtına',
         violentStorm: 'Çok şiddetli fırtına',
-        hurricane: 'Harikeyn (orkan)',
+        hurricane: 'Kasırga şiddetinde rüzgâr',
       },
     },
     /** Sade görünümde 8 yön; uzman ayrıntılarında derece de yazılır. */
@@ -839,7 +847,7 @@ export const tr = {
     /** Atıf satırındaki kullanım koşulları bağlantısı (E204 §3.1c.5, D-075). */
     termsLink: 'Koşullar',
     /**
-     * Atıf şeridinin başındaki site künyesinin ("havayolu v0.16.1") erişilebilir adı; bağlantı
+     * Atıf şeridinin başındaki site künyesinin ("Airline.live v0.16.1") erişilebilir adı; bağlantı
      * Yenilikler sayfasına gider (D-089). `{credit}` görünen metindir ve adın başında kalır (WCAG 2.5.3).
      */
     siteCreditLabel: '{credit}, yenilikler',
@@ -962,11 +970,15 @@ export const tr = {
       hidden: 'Gizle',
       short: 'Kısa',
       full: 'Tam',
-      /** Havalimanı etiketleri (D-084): Gizle / Kod; pinler her zaman görünür. */
+      /**
+       * Havalimanları (D-084, D-114): simgeler (pinler) ve kodları tek satırda. Gizle → ne pin ne kod;
+       * Simge → pin, kod yok; Simge ve kod → pin ve IATA kodu (varsayılan).
+       */
       airports: 'Havalimanları',
       airportModes: {
         hidden: 'Gizle',
-        code: 'Kod',
+        icon: 'Simge',
+        'icon-code': 'Simge ve kod',
       },
       /** Ülke adları (D-095): Gizle / Göster; varsayılan Göster. */
       countries: 'Ülke adları',
@@ -1024,8 +1036,9 @@ export const tr = {
       observed: 'Gözlem {time}',
       loading: 'Hava durumu yükleniyor…',
       unavailable: 'Hava durumu şu an alınamıyor.',
-      /** Sivil uçuşlara kapalı olabilecek havalimanı (D-090); sayfadaki notla aynı metin. */
-      civilClosure: 'Sivil uçuşlara kapalı olabilir ({since} beri)',
+      /** Savaş nedeniyle kapalı havalimanı (D-110); sayfadaki notlarla aynı metinler. */
+      civilClosure: 'Savaş nedeniyle sivil uçuşlara kapalı ({since} beri)',
+      civilClosurePossible: 'Savaş nedeniyle sivil uçuşlara kapalı olabilir ({since} beri)',
       openAirportPage: 'Havalimanı sayfası →',
       close: 'Kapat',
       /** Pencerenin parçası yüklenemedi (D-101; listedekiyle aynı neden). */
@@ -1363,7 +1376,7 @@ export const tr = {
   },
   /** Sayfa kaynağında (Sayfa kaynağını görüntüle) görünen bildirim; ekranda gösterilmez. */
   legal: {
-    owner: '{app} · © {year} {owner} ({ownerUrl}) · Kaynak kodu: {repoUrl}',
+    owner: '{app} · © {year} {owner} ({ownerUrl})',
     license:
       'Bu yazılımın kodu MIT lisansıyla lisanslanmıştır. Kodun tüm kopyaları ya da önemli bölümleri telif bildirimini ve MIT lisans metnini (LICENSE) içermek zorundadır.',
     violation:

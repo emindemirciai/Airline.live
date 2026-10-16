@@ -60,12 +60,12 @@ const AIRPORTS = [
 /** Bölüm başlıkları (D-088'deki "Türkiye dışındaki" başlığı D-106 ile değişti). */
 const TURKEY_HEADING = '## Türkiye’deki havalimanları / Airports in Türkiye'
 const FOREIGN_HEADING = '## Diğer ülkelerdeki havalimanları / Airports in other countries'
-const HOST = 'https://havayolu.live'
+const HOST = 'https://airline.live'
 
 beforeEach(() => {
   vi.stubEnv('APP_ENV', 'test')
   vi.stubEnv('APP_NAME', 'havayolu')
-  vi.stubEnv('WEB_HOST', 'havayolu.live')
+  vi.stubEnv('WEB_HOST', 'airline.live')
   getAirports.mockResolvedValue(AIRPORTS)
 })
 

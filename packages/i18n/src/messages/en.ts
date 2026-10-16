@@ -91,7 +91,8 @@ export const en: Messages = {
     country: 'Türkiye',
     location: '{province}, Türkiye',
     locationAbroad: '{city}, {country}',
-    civilClosure: 'May be closed to civil flights (since {since})',
+    civilClosure: 'Closed to civil flights because of the war (since {since})',
+    civilClosurePossible: 'May be closed to civil flights because of the war (since {since})',
     lead: {
       runwaysOne: 'The airport has a single runway, {designator}, {length} long.',
       runwaysMany: 'The airport has {count} runways; the longest is {designator} at {length}.',
@@ -789,7 +790,8 @@ export const en: Messages = {
       airports: 'Airports',
       airportModes: {
         hidden: 'Hide',
-        code: 'Code',
+        icon: 'Icon',
+        'icon-code': 'Icon and code',
       },
       countries: 'Country names',
       countryModes: {
@@ -835,7 +837,8 @@ export const en: Messages = {
       observed: 'Observed {time}',
       loading: 'Loading weather…',
       unavailable: 'Weather is unavailable right now.',
-      civilClosure: 'May be closed to civil flights (since {since})',
+      civilClosure: 'Closed to civil flights because of the war (since {since})',
+      civilClosurePossible: 'May be closed to civil flights because of the war (since {since})',
       openAirportPage: 'Airport page →',
       close: 'Close',
       loadFailed:
@@ -1155,7 +1158,7 @@ export const en: Messages = {
     },
   },
   legal: {
-    owner: '{app} · © {year} {owner} ({ownerUrl}) · Source code: {repoUrl}',
+    owner: '{app} · © {year} {owner} ({ownerUrl})',
     license:
       'The code of this software is licensed under the MIT License. All copies or substantial portions of the code must include the copyright notice and the MIT license text (LICENSE).',
     violation:

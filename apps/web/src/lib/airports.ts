@@ -1,7 +1,12 @@
 import 'server-only'
 import { distanceKm } from '@havayolu/geo'
 import { coveragePlan, planCoversPoint, type PlannedCircle } from '@havayolu/geo/coverage'
-import { airportNameSource, type AirportDetail, type AirportNameSource } from '@havayolu/shared'
+import {
+  airportNameSource,
+  civilFlightClosure,
+  type AirportDetail,
+  type AirportNameSource,
+} from '@havayolu/shared'
 import { cache } from 'react'
 import { z } from 'zod'
 // Göreli yollar: vitest `@/` takma adını çözmez; bu modül ve onu kullanan SEO dosyaları testte yüklenir.
@@ -19,9 +24,9 @@ export { isTurkish } from '../components/airports/airport-text'
  *
  * - **Web sunucusunun belleğinde** (`createMemoryCache`, D-111), Next veri önbelleğinde değil: Next
  *   kaydı gövdeyi base64 saklar ve 2 MiB'ı aşan kaydı yazmaz (geliştirmede hata, üretimde her çizim
- *   önbelleksiz istek); 5. halkada (3.243 havalimanı) gövde ~3 MB, kayıt sınırın %189'u olurdu.
- *   İstek `cache: 'no-store'` ile gider. 4. halkada gövde ~1,05 MB, ayrıştırılmış liste ~1,4 MB
- *   bellek; 5. halkada ~2,97 MB ve ~3,9 MB.
+ *   önbelleksiz istek); 5. halkada (3.266 havalimanı, D-110) gövde ~3 MB, kayıt sınırın %190'ı
+ *   olurdu. İstek `cache: 'no-store'` ile gider. 4. halkada (1.240 havalimanı) gövde ~1,07 MB,
+ *   ayrıştırılmış liste ~1,4 MB bellek; 5. halkada ~2,99 MB ve ~3,9 MB.
  * - **1 saat taze** (`AIRPORTS_TTL_MS`; içe aktarım günde bir çalışır, API'nin kendi 10 dk önbelleği
  *   de vardır). Süre dolunca eldeki liste **hemen** verilir ve arkada tek yükleme başlar
  *   (stale-while-revalidate, tek uçuş): hiçbir çizim saatlik yenilemeyi (5. halkada API ~54–82 ms,
@@ -226,14 +231,17 @@ const CIVIL_NAME_SOURCES: ReadonlySet<AirportNameSource> = new Set(['dhmi', 'ope
  * (Siirt, Kocaeli). Kalanlar (adı doğrulanmamış, tarifesiz ve istasyon olmayan yeni kayıtlar)
  * `noindex, follow` alır ve site haritasına girmez; askerî hava üsleri D-107'den beri listede
  * yoktur (sayfaları 404), D-084'te bu kuralla dışarıda kalıyorlardı. Yakın ülkelerdeki listelenen
- * havalimanları aday kuralı gereği tarifelidir (`isForeignCandidate`), hepsi dizine eklenir
- * (D-080).
+ * havalimanları aday kuralı gereği tarifeli ya da kapanış tablosundadır (`isForeignCandidate`),
+ * hepsi dizine eklenir (D-080). Savaş nedeniyle kapalı havalimanı (`civilFlightClosure`, D-110)
+ * OurAirports'ta tarifesiz görünse de dizine eklenir: kapanış tablosu kaynaklı ve küratörlüdür,
+ * sayfanın notu durumu açıklar, sayfa tarife vaat etmez.
  */
 export function isIndexable(airport: AirportDetail): boolean {
   return (
     airport.scheduled ||
     airport.station !== null ||
-    CIVIL_NAME_SOURCES.has(airportNameSource(airport.icao))
+    CIVIL_NAME_SOURCES.has(airportNameSource(airport.icao)) ||
+    civilFlightClosure(airport.icao) !== undefined
   )
 }
 

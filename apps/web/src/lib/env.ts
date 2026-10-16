@@ -1,5 +1,13 @@
 import 'server-only'
-import { withoutEnvPlaceholders } from '@havayolu/shared'
+import {
+  DEFAULT_APP_NAME,
+  hostMatches,
+  isLegacyHostEntry,
+  normalizeHost,
+  PUBLIC_HOST,
+  splitHostList,
+  withoutEnvPlaceholders,
+} from '@havayolu/shared'
 import { z } from 'zod'
 
 const emptyToUndefined = (value: unknown) =>
@@ -15,9 +23,22 @@ const booleanFlag = (fallback: boolean) =>
       .transform((value) => (value === undefined ? fallback : value === 'true' || value === '1')),
   )
 
-/** Şemasız genel host: `api.havayolu.live`, `localhost:4100`, `[::1]:4100`. */
-const PUBLIC_HOST =
-  /^(?:\[[0-9A-Fa-f:.]+\]|[A-Za-z0-9](?:[A-Za-z0-9.-]*[A-Za-z0-9])?)(?::\d{1,5})?$/
+/**
+ * Eski alan adları (D-112): virgülle ayrılmış, şemasız, tam alan adları; boş = yönlendirme yok. Proxy
+ * aynı listeyi hoşgörüyle okur (lib/legacy-host.ts); buradaki sıkı doğrulama hatalı yazımı açılışta
+ * yakalar.
+ */
+const legacyHostList = z.preprocess(
+  splitHostList,
+  z.array(
+    z
+      .string()
+      .refine(
+        isLegacyHostEntry,
+        'şemasız ve yolsuz tam alan adı olmalı (ör. old.example ya da www.old.example); IP adresi ve tek parçalı ad (localhost, hy-api) olamaz',
+      ),
+  ),
+)
 
 /**
  * Harita stili: aynı sitedeki bir yol (`/test-style.json`) ya da mutlak http(s) adresi.
@@ -35,16 +56,56 @@ const styleUrl = z
 /** ArcGIS API anahtarı; karo adresine sorgu parametresi olarak girer. */
 const ESRI_API_KEY = /^[A-Za-z0-9._~+/=-]+$/
 
+/** `<meta …>` ya da `<meta … />`: etiketin öznitelik bölümü (büyük-küçük harf fark etmez). */
+const META_TAG = /^<meta(?=[\s/>])([\s\S]*?)\/?>$/i
+/** Tek öznitelik: ad, isteğe bağlı `=` ve çift tırnaklı, tek tırnaklı ya da tırnaksız değer. */
+const META_ATTRIBUTE = /\s*([^\s"'<>/=]+)(?:\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'=<>`]+)))?/y
+
+/**
+ * Doğrulama değeri olarak yapıştırılmış tam meta etiketinin `content` değeri (D-117): Search
+ * Console, Bing ve Yandex etiketin tamamını verir (`<meta name="google-site-verification"
+ * content="…" />`). Öznitelik sırası ve tırnak biçimi fark etmez; `content` adı büyük-küçük harfe
+ * bakmaz. Etiket değilse, öznitelikleri çözülemiyorsa ya da `content` yoksa undefined: değer olduğu
+ * gibi doğrulanır ve reddedilir.
+ */
+export function metaTagContent(value: string): string | undefined {
+  const tag = META_TAG.exec(value)
+  if (!tag) return undefined
+  const attributes = tag[1] ?? ''
+  let end = 0
+  let content: string | undefined
+  for (;;) {
+    META_ATTRIBUTE.lastIndex = end
+    const attribute = META_ATTRIBUTE.exec(attributes)
+    if (!attribute) break
+    end = META_ATTRIBUTE.lastIndex
+    if (content === undefined && attribute[1]?.toLowerCase() === 'content') {
+      content = attribute[2] ?? attribute[3] ?? attribute[4] ?? ''
+    }
+  }
+  if (attributes.slice(end).trim() !== '') return undefined
+  return content?.trim()
+}
+
 /**
  * Arama motoru site doğrulama kodu (Google Search Console, Bing Webmaster, Yandex Webmaster): meta
- * etiketinin yalnızca `content` değeri. Kullanıcı üretir (ACTIVATION); tanımsızsa etiket çıkmaz.
+ * etiketinin `content` değeri. Kullanıcı üretir (ACTIVATION); tanımsızsa etiket çıkmaz. Etiketin
+ * tamamı yapıştırılırsa `content` değeri alınır (D-117); değer yine kod biçiminde olmalıdır, değilse
+ * açılış hata verir.
  */
 const siteVerification = z.preprocess(
-  emptyToUndefined,
+  (value) => {
+    const defined = emptyToUndefined(value)
+    if (typeof defined !== 'string') return defined
+    const trimmed = defined.trim()
+    return metaTagContent(trimmed) ?? trimmed
+  },
   z
     .string()
-    .trim()
-    .regex(/^[A-Za-z0-9_-]{1,128}$/, 'yalnızca harf, rakam, _ ve - (en fazla 128 karakter)')
+    .regex(
+      /^[A-Za-z0-9_-]{1,128}$/,
+      'yalnızca harf, rakam, _ ve - (en fazla 128 karakter) ya da bu content değerini taşıyan meta etiketi',
+    )
     .optional(),
 )
 
@@ -63,7 +124,7 @@ const ServerEnvFields = z.object({
       .string()
       .trim()
       .toLowerCase()
-      .regex(PUBLIC_HOST, 'şemasız host olmalı (ör. havayolu.live ya da localhost:3100)')
+      .regex(PUBLIC_HOST, 'şemasız host olmalı (ör. airline.live ya da localhost:3100)')
       .optional(),
   ),
   ADMIN_HOST: z.preprocess(emptyToUndefined, z.string().trim().optional()),
@@ -75,7 +136,7 @@ const ServerEnvFields = z.object({
     z
       .string()
       .trim()
-      .regex(PUBLIC_HOST, 'şemasız host olmalı (ör. api.havayolu.live ya da localhost:4100)')
+      .regex(PUBLIC_HOST, 'şemasız host olmalı (ör. api.airline.live ya da localhost:4100)')
       .default('localhost:4100'),
   ),
   MAP_STYLE_URL: z.preprocess(emptyToUndefined, styleUrl.default('/test-style.json')),
@@ -96,16 +157,72 @@ const ServerEnvFields = z.object({
   GOOGLE_SITE_VERIFICATION: siteVerification,
   BING_SITE_VERIFICATION: siteVerification,
   YANDEX_VERIFICATION: siteVerification,
+  // Eski alan adları (D-112): bu host'lara gelen her istek yol ve sorgusuyla 308 alır; web host'ları
+  // https://<WEB_HOST>'a (www dahil; ör. old.example,www.old.example), admin host'ları
+  // https://<ADMIN_HOST>'a. Boşsa yönlendirme yoktur.
+  LEGACY_WEB_HOSTS: legacyHostList,
+  LEGACY_ADMIN_HOSTS: legacyHostList,
 })
 
-/** WEB_HOST üretimde zorunludur: kanonik adresler, site haritası ve robots.txt onunla mutlak yazılır. */
+type LegacyListKey = 'LEGACY_WEB_HOSTS' | 'LEGACY_ADMIN_HOSTS'
+
+/**
+ * - WEB_HOST üretimde zorunludur: kanonik adresler, site haritası ve robots.txt onunla mutlak yazılır.
+ * - Eski host listesi hedefi ister (web listesi WEB_HOST'u, admin listesi ADMIN_HOST'u) ve yeni
+ *   host'ları (WEB_HOST, www.WEB_HOST, ADMIN_HOST, API_HOST) kapsayamaz; iki liste ortak host
+ *   taşıyamaz. Aksi hâlde yönlendirme döngüye girer ya da canlı bir host'u kapatırdı.
+ */
 const ServerEnvSchema = ServerEnvFields.superRefine((env, ctx) => {
   if (env.APP_ENV === 'production' && !env.WEB_HOST) {
     ctx.addIssue({
       code: 'custom',
       path: ['WEB_HOST'],
-      message: 'üretimde zorunlu (ör. havayolu.live)',
+      message: 'üretimde zorunlu (ör. airline.live)',
     })
+  }
+  const targets: Record<LegacyListKey, ['WEB_HOST' | 'ADMIN_HOST', string | undefined]> = {
+    LEGACY_WEB_HOSTS: ['WEB_HOST', env.WEB_HOST],
+    LEGACY_ADMIN_HOSTS: ['ADMIN_HOST', env.ADMIN_HOST],
+  }
+  const current = [
+    env.WEB_HOST,
+    env.WEB_HOST ? `www.${env.WEB_HOST}` : undefined,
+    env.ADMIN_HOST,
+    env.API_HOST,
+  ]
+    .map((host) => normalizeHost(host))
+    .filter(Boolean)
+  for (const key of ['LEGACY_WEB_HOSTS', 'LEGACY_ADMIN_HOSTS'] as const) {
+    const [targetKey, target] = targets[key]
+    const list = env[key]
+    if (list.length > 0 && !normalizeHost(target)) {
+      ctx.addIssue({
+        code: 'custom',
+        path: [key],
+        message: `${targetKey} tanımlı olmalı (eski host'lar ona yönlenir)`,
+      })
+    }
+    for (const entry of list) {
+      const covered = current.find((host) => hostMatches(entry, host))
+      if (covered) {
+        ctx.addIssue({
+          code: 'custom',
+          path: [key],
+          message: `${entry} yeni host'u (${covered}) kapsıyor; yönlendirme döngüye girer`,
+        })
+      }
+    }
+  }
+  for (const entry of env.LEGACY_WEB_HOSTS) {
+    if (
+      env.LEGACY_ADMIN_HOSTS.some((other) => hostMatches(entry, other) || hostMatches(other, entry))
+    ) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['LEGACY_ADMIN_HOSTS'],
+        message: `${entry} iki listede birden var (LEGACY_WEB_HOSTS ve LEGACY_ADMIN_HOSTS)`,
+      })
+    }
   }
 })
 
@@ -124,8 +241,8 @@ export function getServerEnv(): ServerEnv {
   return result.data
 }
 
-/** Marka adı (D-059). APP_NAME ile değiştirilebilir. */
-export const DEFAULT_APP_NAME = 'havayolu'
+/** Marka adı (D-112, `@havayolu/shared`). APP_NAME ile değiştirilebilir. */
+export { DEFAULT_APP_NAME }
 
 export function appName(env: ServerEnv): string {
   return env.APP_NAME && env.APP_NAME.length > 0 ? env.APP_NAME : DEFAULT_APP_NAME

@@ -209,9 +209,9 @@ describe('getWeather', () => {
     }
   })
 
-  it('1.217 istasyonun (4. halka) gövdesi bellekte tek kez ayrıştırılır (2 MiB öğe sınırı yok)', async () => {
+  it('1.240 istasyonun (4. halka, D-110) gövdesi bellekte tek kez ayrıştırılır (2 MiB öğe sınırı yok)', async () => {
     const station = fixtureRawWeather('LTFM')
-    const stations = Array.from({ length: 1_217 }, (_, i) => ({
+    const stations = Array.from({ length: 1_240 }, (_, i) => ({
       ...station,
       icao: `X${i.toString(36).toUpperCase().padStart(3, '0')}`,
     }))
@@ -220,8 +220,8 @@ describe('getWeather', () => {
       () => new Response(body, { status: 200, headers: { 'content-type': 'application/json' } }),
     )
     const { getWeather } = await freshWeatherModule()
-    expect((await getWeather())?.stations.size).toBe(1_217)
-    expect((await getWeather())?.stations.size).toBe(1_217)
+    expect((await getWeather())?.stations.size).toBe(1_240)
+    expect((await getWeather())?.stations.size).toBe(1_240)
     expect(calls).toHaveLength(1)
   })
 })
