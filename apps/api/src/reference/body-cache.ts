@@ -7,7 +7,7 @@ import type { FastifyBaseLogger, FastifyReply, FastifyRequest } from 'fastify'
  * (`cachedReader`'ın değeri) her yenilemede yenidir; gövde nesne başına bir kez metne çevrilir ve
  * sıkıştırılmış biçimleri (brotli kalite 11, gzip 9) zaman uyumsuz zlib'le (iş parçacığı havuzunda)
  * bir kez kurulur. Böylece istek başına serileştirme ve sıkıştırma yoktur: 5. halkada 3.243
- * havalimanının pistli listesi istek başına ~54 ms serileştirme ve ~28 ms brotli 4 ederdi; brotli 11
+ * havalimanının (D-110'la 3.266) pistli listesi istek başına ~54 ms serileştirme ve ~28 ms brotli 4 ederdi; brotli 11
  * olay döngüsünde ~5 sn sürerdi.
  *
  * - **Sıkıştırılmamış gövde** değer ilk görüldüğünde eşzamanlı yazılır (yenileme başına bir kez).

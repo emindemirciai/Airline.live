@@ -9,7 +9,7 @@ import { siteUrl } from '../../lib/seo/metadata'
 /**
  * Kurulan metin liste başına (D-111): havalimanı listesi web belleğindedir ve yüklemeler arasında
  * aynı dizidir (`getAirports`); metin liste yenilenince (saatte bir) yeniden kurulur. 5. halkada
- * (3.243 havalimanı) kurulum ~54 ms'dir, her istekte tekrarlanmaz. Anahtar adres ve site adıdır
+ * (3.243 havalimanıyla ölçüldü; D-110'la 3.266) kurulum ~54 ms'dir, her istekte tekrarlanmaz. Anahtar adres ve site adıdır
  * (çalışma zamanı ortamı). Eski liste çöpe gidince metni de gider.
  */
 const built = new WeakMap<readonly AirportDetail[], { key: string; body: string }>()

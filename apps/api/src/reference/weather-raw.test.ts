@@ -208,7 +208,7 @@ describe('GET /v1/weather?format=raw (D-101)', () => {
 })
 
 // ---------------------------------------------------------------------------------------------
-// Ölçek (D-101): 4. halkada 1.217 istasyon (D-102, D-107), 5. halkada 3.241 (D-111). Bütçeler
+// Ölçek (D-101): 4. halkada 1.240 istasyon (D-102, D-107, D-110), 5. halkada 3.264 (D-111). Bütçeler
 // istasyon başınadır.
 
 /**
@@ -324,7 +324,7 @@ function productionLike(
 }
 
 /**
- * Ham biçimde istasyon başına bütçe (D-111; 4. halkada 980 B idi): 5. halkada 3.241 istasyonla gövde
+ * Ham biçimde istasyon başına bütçe (D-111; 4. halkada 980 B idi): 5. halkada 3.264 istasyonla gövde
  * 4,2 MB'ın altında kalır.
  */
 const RAW_BYTES_PER_STATION = 1_250
@@ -334,9 +334,13 @@ const RAW_BYTES_RING5 = 4_200_000
  * buradaki veri ~3,6 KB (METAR'larından biri TREND taşır). Ham biçim ~0,9 KB'tır.
  */
 const FULL_BYTES_PER_STATION = 3_800
-const RING4_STATIONS = 1_217
-/** 5. halka açılınca hava durumu istasyonları (3.243 listelenen; CAJ4 ve CAT4'ün METAR kodu yok). */
-const RING5_STATIONS = 3_241
+/** 4. halkanın hava durumu istasyonları (1.240 listelenen, savaş kapanışlarıyla, D-110). */
+const RING4_STATIONS = 1_240
+/**
+ * 5. halka açılınca hava durumu istasyonları (3.266 listelenen, D-110; CAJ4 ve CAT4'ün METAR kodu
+ * yok).
+ */
+const RING5_STATIONS = 3_264
 
 const decodeSpies = (): WeatherViews & {
   metarView: ReturnType<typeof vi.fn>
@@ -346,7 +350,7 @@ const decodeSpies = (): WeatherViews & {
   tafView: vi.fn(() => null),
 })
 
-describe('ölçek: 4. halkada 1.217, 5. halkada 3.241 istasyon (D-101, D-102, D-111)', () => {
+describe('ölçek: 4. halkada 1.240, 5. halkada 3.264 istasyon (D-101, D-102, D-110, D-111)', () => {
   it('ham gövde: 5. halkada istasyon başına ≤ 1.250 B, toplam < 4,2 MB (1.–4. halka Türkiye boyunda, 5. halka ABD boyunda raporlar)', async () => {
     const { icaos, records } = productionLike(RING5_STATIONS, RING4_STATIONS)
     expect(records.tafs.length / icaos.length).toBeCloseTo(3.4, 1)
@@ -356,7 +360,8 @@ describe('ölçek: 4. halkada 1.217, 5. halkada 3.241 istasyon (D-101, D-102, D-
     expect(rawBody.stations).toHaveLength(RING5_STATIONS)
     expect(rawBody.stations.every((s) => s.metar !== null)).toBe(true)
     expect(rawBody.stations.reduce((n, s) => n + s.tafs.length, 0)).toBe(records.tafs.length)
-    // Ölçüm (2026-10-08): 3.448.925 B, istasyon başına 1.064 B (4. halkanın raporları ~891 B).
+    // Ölçüm (2026-10-16): 3.470.024 B, istasyon başına 1.063 B (4. halkanın raporları ~891 B; 3.241
+    // istasyonla 3.448.925 B).
     const rawBytes = Buffer.byteLength(raw.body)
     expect(rawBytes / RING5_STATIONS).toBeLessThanOrEqual(RAW_BYTES_PER_STATION)
     expect(rawBytes).toBeLessThan(RAW_BYTES_RING5)
@@ -387,7 +392,7 @@ describe('ölçek: 4. halkada 1.217, 5. halkada 3.241 istasyon (D-101, D-102, D-
     )
   })
 
-  it('ham gövde çözümleme yapmaz ve doğrusal büyür (2.434 / 1.217 istasyon süresi < 3 kat)', () => {
+  it('ham gövde çözümleme yapmaz ve doğrusal büyür (2.480 / 1.240 istasyon süresi < 3 kat)', () => {
     const small = productionLike(RING4_STATIONS)
     const large = productionLike(RING4_STATIONS * 2)
     const views = decodeSpies()

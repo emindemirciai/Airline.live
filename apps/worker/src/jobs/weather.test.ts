@@ -526,13 +526,14 @@ describe('runWeatherMetar', () => {
     ])
   })
 
-  it('5. halka ölçeği (3.241 sentetik istasyon, D-111): geri doldurma sınırı yok; 2.064 yeni istasyonlu ilk çalışma 359 istek, sonra 41', async () => {
-    // 5. halkanın hava istasyonları 3.241'dir (CAJ4 ve CAT4'ün dört harfli METAR kodu yok). Yayın
-    // anında son 24 saatte kaydı olan 1.177 istasyon olağan 2 saatle (80 × 14 + 57 = 15 istek),
-    // kaydı olmayan 2.064 istasyon 24 saatle 6'şarlı (344 × 6 = 344 istek) istenir: ilk çalışma 359
-    // istek, 700 ms aralıkla en az ~251 sn (aralık providers testinde sahte saatle). Sınır konmaz:
+  it('5. halka ölçeği (3.264 sentetik istasyon, D-111): geri doldurma sınırı yok; 2.087 yeni istasyonlu ilk çalışma 363 istek, sonra 41', async () => {
+    // 5. halkanın hava istasyonları 3.264'tür (3.266 listelenen, savaş kapanışlarıyla, D-110; CAJ4 ve
+    // CAT4'ün dört harfli METAR kodu yok). Yayın anında son 24 saatte kaydı olan 1.177 istasyon
+    // olağan 2 saatle (80 × 14 + 57 = 15 istek), kaydı olmayan 2.087 istasyon 24 saatle 6'şarlı
+    // (6 × 347 + 5: 348 istek) istenir: ilk çalışma 363 istek, 700 ms aralıkla en az ~254 sn (aralık
+    // providers testinde sahte saatle). D-110'dan önce 3.241 istasyonla 2.064 yeni, 359 istek. Sınır konmaz:
     // bir sınır, istasyonları `backfilled`'e yazdığı için kalanları hiç doldurmazdı (eleştiri F3).
-    const stations = Array.from({ length: 3241 }, (_, i) => {
+    const stations = Array.from({ length: 3264 }, (_, i) => {
       const letter = (n: number) => String.fromCharCode(65 + (Math.floor(i / 26 ** n) % 26))
       return `X${letter(2)}${letter(1)}${letter(0)}`
     })
@@ -548,7 +549,7 @@ describe('runWeatherMetar', () => {
       return new Response('[]', { status: 200, headers: { 'content-type': 'application/json' } })
     }) as typeof globalThis.fetch
     const client = createAviationWeatherClient({
-      userAgent: 'havayolu/0.25.0 (+https://havayolu.live)',
+      userAgent: 'havayolu/0.26.0 (+https://airline.live)',
       fetch,
       now: () => FIXTURE_NOW.getTime(),
       minIntervalMs: 0,
@@ -562,27 +563,28 @@ describe('runWeatherMetar', () => {
         now,
         backfilled,
       })
-    expect(await run()).toMatchObject({ status: 200, stations: 3241, requests: 359 })
+    expect(await run()).toMatchObject({ status: 200, stations: 3264, requests: 363 })
     expect(requests.map((u) => u.searchParams.get('hours'))).toEqual([
       ...Array.from({ length: 15 }, () => '2'),
-      ...Array.from({ length: 344 }, () => String(AWC_METAR_MAX_HOURS)),
+      ...Array.from({ length: 348 }, () => String(AWC_METAR_MAX_HOURS)),
     ])
     expect(requests.map((u) => u.searchParams.get('ids')?.split(',').length)).toEqual([
       ...Array.from({ length: 14 }, () => 80),
       57,
-      ...Array.from({ length: 344 }, () => 6),
+      ...Array.from({ length: 347 }, () => 6),
+      5,
     ])
-    expect(backfilled.size).toBe(3241)
+    expect(backfilled.size).toBe(3264)
 
-    // Sonraki çalışmalar olağan: 41 METAR isteği (80 × 40 + 41).
+    // Sonraki çalışmalar olağan: 41 METAR isteği (80 × 40 + 64).
     requests.length = 0
-    expect(await run()).toMatchObject({ status: 200, stations: 3241, requests: 41 })
+    expect(await run()).toMatchObject({ status: 200, stations: 3264, requests: 41 })
     expect(requests.map((u) => u.searchParams.get('ids')?.split(',').length)).toEqual([
       ...Array.from({ length: 40 }, () => 80),
-      41,
+      64,
     ])
 
-    // TAF: 17 istek (200 × 16 + 41). Kararlı durumda saatte 12 × 41 + 4 × 17 = 560 istek.
+    // TAF: 17 istek (200 × 16 + 64). Kararlı durumda saatte 12 × 41 + 4 × 17 = 560 istek.
     requests.length = 0
     const taf = await runWeatherTaf({
       store,
@@ -591,10 +593,10 @@ describe('runWeatherMetar', () => {
       log,
       now: () => FIXTURE_NOW,
     })
-    expect(taf).toMatchObject({ status: 200, stations: 3241, requests: 17 })
+    expect(taf).toMatchObject({ status: 200, stations: 3264, requests: 17 })
     expect(requests.map((u) => u.searchParams.get('ids')?.split(',').length)).toEqual([
       ...Array.from({ length: 16 }, () => 200),
-      41,
+      64,
     ])
     expect(12 * 41 + 4 * 17).toBe(560)
   })
