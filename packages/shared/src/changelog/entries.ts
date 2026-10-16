@@ -12,8 +12,31 @@ import type { ChangelogEntry } from './types'
  */
 export const CHANGELOG: readonly ChangelogEntry[] = [
   {
+    version: '0.26.0',
+    date: '2026-10-16',
+    title: {
+      tr: 'Daha hızlı harita ve havalimanı sayfaları',
+      en: 'Faster map and airport pages',
+    },
+    items: [
+      {
+        tr: 'Canlı harita açılırken havalimanı listesini yarı boyutta indiriyor; harita, özellikle yavaş bağlantılarda daha çabuk açılıyor.',
+        en: 'The live map now downloads the airport list at half the size when it opens, so the map opens faster, especially on slow connections.',
+      },
+      {
+        tr: 'Havalimanı sayfaları, havalimanları listesi ve paylaşım görselleri daha hızlı hazırlanıyor. Sayfaların görünümü ve içeriği aynı.',
+        en: 'Airport pages, the airport list and share images are prepared faster. The pages look and read the same.',
+      },
+    ],
+    tryLinks: [
+      { path: '/', label: { tr: 'Canlı harita', en: 'Live map' } },
+      { path: '/havalimanlari', label: { tr: 'Havalimanları', en: 'Airports' } },
+    ],
+  },
+  {
     version: '0.25.3',
     date: '2026-10-15',
+    releasedAt: '2026-10-15T17:08:53Z',
     title: {
       tr: 'Havalimanı simgeleri de gizlenebilir',
       en: 'Airport icons can be hidden too',

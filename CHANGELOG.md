@@ -8,7 +8,27 @@
 
 ---
 
-## v0.25.3 — 2026-10-15
+## v0.26.0 — 2026-10-16
+
+### Türkçe
+**Daha hızlı harita ve havalimanı sayfaları**
+
+- Canlı harita açılırken havalimanı listesini yarı boyutta indiriyor; harita, özellikle yavaş bağlantılarda daha çabuk açılıyor.
+- Havalimanı sayfaları, havalimanları listesi ve paylaşım görselleri daha hızlı hazırlanıyor. Sayfaların görünümü ve içeriği aynı.
+
+Dene: [Canlı harita](/) · [Havalimanları](/havalimanlari)
+
+### English
+**Faster map and airport pages**
+
+- The live map now downloads the airport list at half the size when it opens, so the map opens faster, especially on slow connections.
+- Airport pages, the airport list and share images are prepared faster. The pages look and read the same.
+
+Try it: [Live map](/) · [Airports](/havalimanlari)
+
+---
+
+## v0.25.3 — 2026-10-15 20:08 (UTC+3)
 
 ### Türkçe
 **Havalimanı simgeleri de gizlenebilir**
