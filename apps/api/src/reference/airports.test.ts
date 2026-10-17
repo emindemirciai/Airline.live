@@ -805,7 +805,12 @@ describe('scope=listed hazır gövdeler (D-111)', () => {
     expect(JSON.parse(decode(cold))).toEqual({ scope: 'listed', airports: [ath] })
     expect(compress).toHaveBeenCalledTimes(2)
     release()
-    const first = (await compress.mock.results[0]?.value) as Buffer
+    // Gövdeler brotli ve gzip birlikte bitince yayımlanır: ikisi de beklenir (yavaş CI'da gzip
+    // brotli'den sonra bitebilir).
+    const [first] = (await Promise.all(compress.mock.results.slice(0, 2).map((r) => r.value))) as [
+      Buffer,
+      Buffer,
+    ]
     await nextTurn()
     expect(Buffer.compare((await br()).rawPayload, first)).toBe(0)
 
@@ -832,7 +837,10 @@ describe('scope=listed hazır gövdeler (D-111)', () => {
     expect((await inject(app, url)).json()).toEqual({ scope: 'listed', airports: [ath, ist] })
     expect(compress).toHaveBeenCalledTimes(4)
     finish()
-    const second = (await compress.mock.results[2]?.value) as Buffer
+    const [second] = (await Promise.all(compress.mock.results.slice(2, 4).map((r) => r.value))) as [
+      Buffer,
+      Buffer,
+    ]
     await nextTurn()
     const fresh = await br()
     expect(Buffer.compare(fresh.rawPayload, second)).toBe(0)
