@@ -116,7 +116,17 @@ export interface PhaseAirportInput {
    * Uşak) durum yalnızca pist hizasından çıkar.
    */
   scheduled: boolean
-  runways: readonly { ends?: readonly PhaseRunwayEndInput[] }[]
+  /**
+   * Pistler. `ends` alanı yoksa liste uçları taşımadı (haritanın listesinde 4. halkadan itibaren,
+   * `include=map`, D-111): uçak evre yarıçapına girince izleyici uçları ister
+   * (`setMissingEndsHandler`, `setRunwayEnds`).
+   */
+  runways: readonly PhaseRunwayInput[]
+}
+
+/** Pist girdisi: uçlar (alan yoksa bilinmiyor; boş dizi uçsuz pist). */
+export interface PhaseRunwayInput {
+  ends?: readonly PhaseRunwayEndInput[]
 }
 
 export interface PhaseAirportRef {
@@ -158,6 +168,8 @@ interface PreparedAirport {
   scheduled: boolean
   cosLat: number
   ends: PreparedEnd[]
+  /** Listenin uçları taşımadığı ve uçları henüz eklenmemiş havalimanı (D-111). */
+  endsMissing: boolean
 }
 
 interface Kinematics {
@@ -182,9 +194,9 @@ interface AlignedEnd {
   thresholdKm: number
 }
 
-function prepareAirport(input: PhaseAirportInput): PreparedAirport {
+function prepareEnds(runways: readonly PhaseRunwayInput[]): PreparedEnd[] {
   const ends: PreparedEnd[] = []
-  for (const runway of input.runways) {
+  for (const runway of runways) {
     for (const end of runway.ends ?? []) {
       ends.push({
         ident: end.ident.trim() === '' ? null : end.ident.trim(),
@@ -193,13 +205,18 @@ function prepareAirport(input: PhaseAirportInput): PreparedAirport {
       })
     }
   }
+  return ends
+}
+
+function prepareAirport(input: PhaseAirportInput): PreparedAirport {
   return {
     ref: { icao: input.icao, iata: input.iata },
     arp: { lat: input.lat, lon: input.lon },
     elevationFt: input.elevationFt ?? 0,
     scheduled: input.scheduled,
     cosLat: Math.cos((input.lat * Math.PI) / 180),
-    ends,
+    ends: prepareEnds(input.runways),
+    endsMissing: input.runways.some((runway) => runway.ends === undefined),
   }
 }
 
@@ -423,6 +440,13 @@ interface Entry {
  * Kararlılık: yeni durum ya da havalimanı, örnek zamanıyla 5 sn sürünce gösterilir; o süre içinde
  * gösterilen durum korunur, uzaklığı ve yerden yüksekliği yeni örnekle güncellenir. Yeni görülen
  * uçağın ilk durumu beklemeden gösterilir.
+ *
+ * İstek üzerine pist uçları (D-111): listesi uçları taşımayan bir havalimanının (haritanın listesinde
+ * 4. halkadan itibaren) 35 km'sine (`APPROACH_EXIT_RADIUS_KM`, pist hizasının arandığı yarıçap)
+ * havadaki bir uçak girince izleyici havalimanını bildirir (`setMissingEndsHandler`; uçlar gelene kadar her
+ * yeni örnekte, isteği atan tekilleştirir); getirilen uçlar `setRunwayEnds` ile eklenir ve sonraki
+ * örnekten itibaren pist hizası denetlenir. İzleyici IO yapmaz; isteği harita atar
+ * (use-flight-phases.ts).
  */
 export class FlightPhaseTracker {
   private airports: AirportGrid = new PointGrid<PreparedAirport>([])
@@ -431,6 +455,9 @@ export class FlightPhaseTracker {
   private readonly entries = new Map<string, Entry>()
   private readonly listeners = new Set<() => void>()
   private revision = 0
+  /** Getirilen uçlar (liste yeniden verilirse yeniden uygulanır). */
+  private readonly fetchedEnds = new Map<string, PreparedEnd[]>()
+  private onMissingEnds: ((icao: string) => void) | null = null
 
   /**
    * Havalimanlarını değiştirir ve bütün durumları siler (sonraki `observe` uçakları baştan
@@ -440,12 +467,42 @@ export class FlightPhaseTracker {
     if (list === this.source) return
     this.source = list
     const prepared = list.map(prepareAirport)
+    for (const airport of prepared) {
+      const fetched = this.fetchedEnds.get(airport.ref.icao)
+      if (fetched !== undefined && airport.endsMissing) {
+        airport.ends = fetched
+        airport.endsMissing = false
+      }
+    }
     // Izgara liste başına bir kez kurulur (4. halkada 1.240 havalimanı; ~0,2 ms 1.217 ile ölçüldü).
     this.airports = new PointGrid(prepared)
     this.byIcao = new Map(prepared.map((airport) => [airport.ref.icao, airport]))
     this.entries.clear()
     this.revision += 1
     for (const listener of [...this.listeners]) listener()
+  }
+
+  /**
+   * Uçları listede olmayan havalimanının 35 km'sine havadaki bir uçak girince havalimanının ICAO'suyla
+   * çağrılacak işlev: uçlar `setRunwayEnds` ile gelene kadar o yarıçaptaki her yeni örnekte (işlev
+   * isteği tekilleştirir). null: bildirim yok, yakın havalimanı da aranmaz.
+   */
+  setMissingEndsHandler(handler: ((icao: string) => void) | null): void {
+    this.onMissingEnds = handler
+  }
+
+  /**
+   * Havalimanının tek havalimanı ucundan getirilen pistleri (D-111): uçları eklenir, sonraki
+   * örneklerde pist hizası denetlenir. Liste değişse de korunur. Havalimanı listede yoksa yalnız
+   * saklanır.
+   */
+  setRunwayEnds(icao: string, runways: readonly PhaseRunwayInput[]): void {
+    const ends = prepareEnds(runways)
+    this.fetchedEnds.set(icao, ends)
+    const airport = this.byIcao.get(icao)
+    if (airport === undefined) return
+    airport.ends = ends
+    airport.endsMissing = false
   }
 
   /** Havalimanı listesi her değiştiğinde artar (React `useSyncExternalStore` için). */
@@ -474,10 +531,20 @@ export class FlightPhaseTracker {
       seen.add(ac.hex)
       const entry = this.entries.get(ac.hex)
       if (entry !== undefined && ac.t <= entry.t) continue
+      if (this.onMissingEnds !== null && !ac.gnd) this.reportMissingEnds(ac, this.onMissingEnds)
       this.entries.set(ac.hex, this.step(entry, ac))
     }
     if (this.entries.size !== seen.size) {
       for (const hex of this.entries.keys()) if (!seen.has(hex)) this.entries.delete(hex)
+    }
+  }
+
+  /** Uçağın pist hizası yarıçapındaki uçsuz havalimanlarını bildirir. */
+  private reportMissingEnds(ac: PhaseSample, notify: (icao: string) => void): void {
+    for (const near of nearbyAirports(this.airports, { lat: ac.lat, lon: ac.lon })) {
+      if (near.airport.endsMissing && near.distanceKm <= APPROACH_EXIT_RADIUS_KM) {
+        notify(near.airport.ref.icao)
+      }
     }
   }
 

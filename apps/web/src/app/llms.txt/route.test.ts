@@ -1,5 +1,7 @@
 import type * as AirportsModule from '../../lib/airports'
+import type * as LlmsModule from '../../lib/seo/llms'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { buildLlmsTxt } from '../../lib/seo/llms'
 import { airportFixture, runwayFixture } from '../../lib/test/airport-fixture'
 import { GET } from './route'
 
@@ -11,6 +13,11 @@ vi.mock('../../lib/airports', async (importOriginal) => ({
   ...(await importOriginal<typeof AirportsModule>()),
   getAirports,
 }))
+// Kurulum sayılır (D-111: liste başına bir kez); içerik gerçek işlevden gelir.
+vi.mock('../../lib/seo/llms', async (importOriginal) => {
+  const actual = await importOriginal<typeof LlmsModule>()
+  return { ...actual, buildLlmsTxt: vi.fn(actual.buildLlmsTxt) }
+})
 
 const AIRPORTS = [
   airportFixture({
@@ -196,5 +203,22 @@ describe('GET /llms.txt', () => {
   it('e-posta ya da kişisel veri içermez', async () => {
     const { text } = await llms()
     expect(text).not.toMatch(/@[a-z0-9-]+\.[a-z]/i)
+  })
+
+  it('metin liste başına bir kez kurulur; liste yenilenince ya da adres değişince yeniden (D-111)', async () => {
+    const list = AIRPORTS.slice(0, 3)
+    getAirports.mockResolvedValue(list)
+    const build = vi.mocked(buildLlmsTxt)
+    build.mockClear()
+    const first = (await llms()).text
+    for (let i = 0; i < 5; i++) expect((await llms()).text).toBe(first)
+    expect(build).toHaveBeenCalledTimes(1)
+    // Web belleğindeki liste yenilendi: yeni dizi.
+    getAirports.mockResolvedValue([...list])
+    expect((await llms()).text).toBe(first)
+    expect(build).toHaveBeenCalledTimes(2)
+    vi.stubEnv('WEB_HOST', 'example.test')
+    expect((await llms()).text).toContain('https://example.test/')
+    expect(build).toHaveBeenCalledTimes(3)
   })
 })

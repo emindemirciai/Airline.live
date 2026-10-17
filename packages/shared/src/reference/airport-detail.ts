@@ -99,3 +99,80 @@ export interface ListedAirportDetailsResponse {
   scope: AirportListScope
   airports: AirportDetail[]
 }
+
+/**
+ * Haritanın listesinde (`include=map`, D-111) pist uçları bu halkaya kadar gelir: canlı veri
+ * kapsaması (D-073) 1.–3. halkadadır, uçak listesinin pist hizası (D-085) yalnız orada her zaman
+ * gerekir. Daha uzaktaki havalimanının uçlarını harita gerekince tek havalimanı ucundan ister.
+ */
+export const AIRPORT_MAP_ENDS_MAX_RING = 3
+
+/** Haritanın pist ucu: ad, yön ve eşik (kaydırılmış eşik mesafesi gelmez; eşik zaten kaydırılmıştır). */
+export type AirportMapRunwayEnd = Pick<
+  RunwayEnd,
+  'ident' | 'trueBearingDeg' | 'thresholdLat' | 'thresholdLon'
+>
+
+/** Haritanın pisti: uzunluk; uçlar yalnız `AIRPORT_MAP_ENDS_MAX_RING`'e kadar. */
+export interface AirportMapRunway {
+  lengthFt: number | null
+  /** Alçak ve yüksek numaralı uç; 4. halkadan itibaren alan yoktur. */
+  ends?: [AirportMapRunwayEnd, AirportMapRunwayEnd]
+}
+
+/**
+ * `GET /v1/airports?…&include=map` kaydı (D-111): haritanın penceresinin alanları (`Airport` + bölge,
+ * yerleşim, adres takma adı) ve pistler. En yakın Türkiye havalimanı, istasyon, veri tarihi ve pistin
+ * kimliği, genişliği, kaplaması ve ışığı gelmez (sayfalar `include=runways` ister).
+ */
+export interface AirportMapEntry extends Airport {
+  isoRegion: string
+  municipality: string | null
+  identAlias?: string
+  runways: AirportMapRunway[]
+}
+
+/** `GET /v1/airports?scope=listed&include=map`. */
+export interface ListedAirportMapResponse {
+  scope: AirportListScope
+  airports: AirportMapEntry[]
+}
+
+/** Ayrıntı kaydından haritanın kaydı; uçlar yalnız `AIRPORT_MAP_ENDS_MAX_RING`'e kadar. */
+export function toAirportMapEntry(airport: AirportDetail): AirportMapEntry {
+  const withEnds = airport.ring <= AIRPORT_MAP_ENDS_MAX_RING
+  return {
+    icao: airport.icao,
+    iata: airport.iata,
+    name: airport.name,
+    city: airport.city,
+    lat: airport.lat,
+    lon: airport.lon,
+    elevationFt: airport.elevationFt,
+    type: airport.type,
+    scheduled: airport.scheduled,
+    country: airport.country,
+    ring: airport.ring,
+    distanceToTrKm: airport.distanceToTrKm,
+    isoRegion: airport.isoRegion,
+    municipality: airport.municipality,
+    ...(airport.identAlias === undefined ? {} : { identAlias: airport.identAlias }),
+    runways: airport.runways.map((runway) =>
+      withEnds
+        ? {
+            lengthFt: runway.lengthFt,
+            ends: [mapRunwayEnd(runway.ends[0]), mapRunwayEnd(runway.ends[1])],
+          }
+        : { lengthFt: runway.lengthFt },
+    ),
+  }
+}
+
+function mapRunwayEnd(end: RunwayEnd): AirportMapRunwayEnd {
+  return {
+    ident: end.ident,
+    trueBearingDeg: end.trueBearingDeg,
+    thresholdLat: end.thresholdLat,
+    thresholdLon: end.thresholdLon,
+  }
+}

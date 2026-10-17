@@ -1,16 +1,20 @@
 import {
   AIRPORT_LIST_SCOPES,
+  AIRPORT_MAP_ENDS_MAX_RING,
   airportRingLimitKm,
   ENABLED_AIRPORT_RING,
+  toAirportMapEntry,
   type Airport,
   type AirportDetail,
   type AirportDetailsResponse,
   type AirportListScope,
+  type AirportMapEntry,
   type AirportsResponse,
   type ListedAirportDetailsResponse,
   type ListedAirportsResponse,
 } from '@havayolu/shared'
 import type { FastifyInstance } from 'fastify'
+import { createBodyCache, sendCachedBody, type CompressBody } from './body-cache'
 import { CACHE_RETRY_MS, cachedReader } from './cache'
 
 export interface AirportRouteOptions {
@@ -37,6 +41,11 @@ export interface AirportRouteOptions {
   now?: () => number
   /** Önbellek başına anahtar sınırı (varsayılan `AIRPORTS_CACHE_MAX_ENTRIES`; testte küçük). */
   cacheMaxEntries?: number
+  /**
+   * `scope=listed` gövdelerinin sıkıştırıcısı (varsayılan `compressBody`: brotli 11 ve gzip 9,
+   * zaman uyumsuz zlib; D-111). Testte sayaç.
+   */
+  compressBody?: CompressBody
 }
 
 /** IP başına hız sınırı (`/v1/search` ile aynı düzen). */
@@ -58,8 +67,12 @@ export const AIRPORTS_RETRY_MS = CACHE_RETRY_MS
 export const AIRPORTS_CACHE_MAX_ENTRIES = 1_024
 /** Tarayıcı önbelleği: 5 dk. */
 export const AIRPORTS_CACHE_CONTROL = 'public, max-age=300'
-/** `include` değerleri: bugün yalnızca pistler (havalimanı sayfaları). */
-export const AIRPORTS_INCLUDE = ['runways'] as const
+/**
+ * `include` değerleri: `runways` (havalimanı sayfaları: bölge, istasyon, veri tarihi ve pistler) ve
+ * `map` (canlı harita: pencerenin alanları ve pist uzunlukları, uçlar yalnız 1.–3. halkada; D-111).
+ */
+export const AIRPORTS_INCLUDE = ['runways', 'map'] as const
+export type AirportsInclude = (typeof AIRPORTS_INCLUDE)[number]
 
 /** ISO 3166-1 alpha-2, büyük harf. */
 export const COUNTRY = /^[A-Z]{2}$/
@@ -81,7 +94,7 @@ export const AIRPORT_ERRORS = {
   },
   badInclude: {
     error: 'bad_include',
-    message: 'include yalnızca runways olabilir.',
+    message: 'include yalnızca runways ya da map olabilir.',
   },
   badCode: {
     error: 'bad_code',
@@ -254,12 +267,69 @@ const airportSchema = {
   properties: airportProperties,
 } as const
 
+const mapRunwayEndSchema = {
+  type: 'object',
+  required: ['ident', 'trueBearingDeg', 'thresholdLat', 'thresholdLon'],
+  properties: {
+    ident: runwayEndSchema.properties.ident,
+    trueBearingDeg: runwayEndSchema.properties.trueBearingDeg,
+    thresholdLat: runwayEndSchema.properties.thresholdLat,
+    thresholdLon: runwayEndSchema.properties.thresholdLon,
+  },
+} as const
+
+const mapRunwaySchema = {
+  type: 'object',
+  required: ['lengthFt'],
+  properties: {
+    lengthFt: runwaySchema.properties.lengthFt,
+    ends: {
+      type: 'array',
+      description: `Alçak ve yüksek numaralı uç: yalnız ${AIRPORT_MAP_ENDS_MAX_RING}. halkaya kadar (canlı veri kapsaması); daha uzakta alan yoktur, uçlar /v1/airports/<kod> ile alınır`,
+      items: mapRunwayEndSchema,
+      minItems: 2,
+      maxItems: 2,
+    },
+  },
+} as const
+
+const mapProperties = {
+  isoRegion: detailProperties.isoRegion,
+  municipality: detailProperties.municipality,
+  identAlias: detailProperties.identAlias,
+  runways: {
+    type: 'array',
+    description: 'Açık pistler, pist adına göre: uzunluk ve (yakın halkalarda) uçlar',
+    items: mapRunwaySchema,
+  },
+} as const
+
+/** `AirportMapEntry` (`@havayolu/shared`; `include=map`, D-111). */
+const airportMapSchema = {
+  type: 'object',
+  required: [
+    ...airportRequired,
+    ...Object.keys(mapProperties).filter((key) => key !== 'identAlias'),
+  ],
+  properties: { ...airportProperties, ...mapProperties },
+} as const
+
 /** OpenAPI belgesi için liste öğesi: ayrıntı alanları isteğe bağlıdır. */
 const airportListItemSchema = {
   type: 'object',
-  description: 'Ayrıntı alanları (isoRegion … runways) yalnızca include=runways ile gelir',
+  description:
+    'Ayrıntı alanları (isoRegion … runways) yalnızca include=runways ile gelir. include=map yalnızca isoRegion, municipality, identAlias ve runways (uzunluk, 1.–3. halkada uçlar) taşır',
   required: airportRequired,
-  properties: { ...airportProperties, ...detailProperties },
+  properties: {
+    ...airportProperties,
+    ...detailProperties,
+    runways: {
+      type: 'array',
+      description:
+        'include=runways: açık pistler (bütün alanlar); include=map: uzunluk ve yakın halkalarda uçlar',
+      items: { anyOf: [runwaySchema, mapRunwaySchema] },
+    },
+  },
 } as const
 
 /** `AirportDetail` (`@havayolu/shared`). */
@@ -312,8 +382,23 @@ const documentedListResponse = {
  */
 const plainListSchema = countryListResponse(airportSchema)
 const detailListSchema = countryListResponse(airportDetailSchema)
+const mapListSchema = countryListResponse(airportMapSchema)
 const plainScopeSchema = scopeListResponse(airportSchema)
 const detailScopeSchema = scopeListResponse(airportDetailSchema)
+const mapScopeSchema = scopeListResponse(airportMapSchema)
+
+/** Harita kaydı (`include=map`) okuyucunun değeri başına bir kez kurulur (gövde önbelleği nesneye bakar). */
+const mapEntries = new WeakMap<readonly AirportDetail[], AirportMapEntry[]>()
+function mapView<T extends { airports: AirportDetail[] }>(
+  value: T,
+): Omit<T, 'airports'> & { airports: AirportMapEntry[] } {
+  let airports = mapEntries.get(value.airports)
+  if (airports === undefined) {
+    airports = value.airports.map(toAirportMapEntry)
+    mapEntries.set(value.airports, airports)
+  }
+  return { ...value, airports }
+}
 
 export const errorSchema = {
   type: 'object',
@@ -331,8 +416,14 @@ const listTtl = (airports: readonly unknown[]) =>
  *   havalimanları ve açık halkalardaki yurt dışı havalimanları (harita).
  * - `include=runways`: aynı liste pistler, istasyon ve veri tarihiyle (web'in havalimanı sayfaları,
  *   site haritası ve llms.txt `scope=listed&include=runways` çağrısından beslenir).
- * - `GET /v1/airports/:code`: tek havalimanı, ICAO ya da IATA koduyla (API ve mobil istemciler).
+ * - `include=map` (D-111): canlı haritanın kaydı (`toAirportMapEntry`): pencerenin alanları ve pist
+ *   uzunlukları; pist uçları yalnız 1.–3. halkada. 4. halkada gövde ~90 KB brotli (pistli liste
+ *   ~140 KB brotli 11, istek anında brotli 4 ile ~183 KB).
+ * - `GET /v1/airports/:code`: tek havalimanı, ICAO ya da IATA koduyla (API ve mobil istemciler;
+ *   harita uçsuz havalimanının uçlarını buradan alır).
  * Ülke, kapsam ya da kod başına 10 dk süreç içi önbellek (boş liste ve bulunamayan kod 1 dk).
+ * `scope=listed` yanıtlarının gövdeleri okuyucunun değeri başına bir kez metne çevrilir ve
+ * sıkıştırılır (body-cache.ts, D-111).
  */
 export function registerAirportRoutes(
   app: FastifyInstance,
@@ -344,6 +435,7 @@ export function registerAirportRoutes(
     find = null,
     now = Date.now,
     cacheMaxEntries: maxEntries = AIRPORTS_CACHE_MAX_ENTRIES,
+    compressBody,
   }: AirportRouteOptions,
 ): void {
   const loadList = cachedReader<AirportsResponse>({
@@ -394,6 +486,19 @@ export function registerAirportRoutes(
     what: 'airport',
     maxEntries,
   })
+  // `scope=listed` gövdeleri biçim başına bir kez (okuyucunun değeri başına; D-111).
+  const bodyCache = <V extends object>(what: string) =>
+    createBodyCache<V>({
+      log: app.log,
+      what,
+      now,
+      ...(compressBody ? { compress: compressBody } : {}),
+    })
+  const listedBodies = {
+    plain: bodyCache<ListedAirportsResponse>('listed airports body'),
+    runways: bodyCache<ListedAirportDetailsResponse>('listed airport details body'),
+    map: bodyCache<ListedAirportDetailsResponse>('listed airport map body'),
+  }
 
   app.get(
     '/v1/airports',
@@ -411,8 +516,7 @@ export function registerAirportRoutes(
             include: {
               type: 'string',
               enum: [...AIRPORTS_INCLUDE],
-              description:
-                'runways: bölge, istasyon, veri tarihi ve açık pistler de gelir (havalimanı sayfaları)',
+              description: `runways: bölge, istasyon, veri tarihi ve açık pistler de gelir (havalimanı sayfaları). map: canlı haritanın alanları (bölge, yerleşim, adres takma adı, pist uzunlukları; pist uçları yalnız ${AIRPORT_MAP_ENDS_MAX_RING}. halkaya kadar)`,
             },
           },
         },
@@ -434,7 +538,7 @@ export function registerAirportRoutes(
         reply.header('cache-control', 'no-store')
         return reply.code(400).send(selection.error)
       }
-      if (include !== undefined && include !== 'runways') {
+      if (include !== undefined && !(AIRPORTS_INCLUDE as readonly unknown[]).includes(include)) {
         reply.header('cache-control', 'no-store')
         return reply.code(400).send(AIRPORT_ERRORS.badInclude)
       }
@@ -444,29 +548,55 @@ export function registerAirportRoutes(
           .code(400)
           .send('scope' in selection ? AIRPORT_ERRORS.badScope : AIRPORT_ERRORS.badCountry)
       }
-      const withRunways = include === 'runways'
-      let loaded: { value: unknown } | null
-      let schema: Record<string, unknown>
-      if ('scope' in selection) {
-        loaded = withRunways
-          ? await loadListedDetails(selection.scope)
-          : await loadListed(selection.scope)
-        schema = withRunways ? detailScopeSchema : plainScopeSchema
-      } else {
-        loaded = withRunways
-          ? await loadDetails(selection.country)
-          : await loadList(selection.country)
-        schema = withRunways ? detailListSchema : plainListSchema
-      }
-      if (loaded === null) {
+      const variant = include as AirportsInclude | undefined
+      const unavailable = () => {
         reply.header('cache-control', 'no-store')
         return reply.code(503).send(AIRPORT_ERRORS.unavailable)
       }
+      const serializer = (schema: Record<string, unknown>) =>
+        reply.compileSerializationSchema(schema, '200') as (value: unknown) => string
+
+      if ('scope' in selection) {
+        // Hazır gövde (D-111): okuyucunun değeri başına bir serileştirme ve sıkıştırma.
+        if (variant === undefined) {
+          const loaded = await loadListed(selection.scope)
+          if (loaded === null) return unavailable()
+          const serialize = serializer(plainScopeSchema)
+          reply.header('cache-control', AIRPORTS_CACHE_CONTROL)
+          return sendCachedBody(request, reply, listedBodies.plain.get(loaded.value, serialize))
+        }
+        const loaded = await loadListedDetails(selection.scope)
+        if (loaded === null) return unavailable()
+        reply.header('cache-control', AIRPORTS_CACHE_CONTROL)
+        if (variant === 'map') {
+          const serialize = serializer(mapScopeSchema)
+          return sendCachedBody(
+            request,
+            reply,
+            listedBodies.map.get(loaded.value, (value) => serialize(mapView(value))),
+          )
+        }
+        const serialize = serializer(detailScopeSchema)
+        return sendCachedBody(request, reply, listedBodies.runways.get(loaded.value, serialize))
+      }
+
+      let loaded: { value: unknown } | null
+      let schema: Record<string, unknown>
+      if (variant === undefined) {
+        loaded = await loadList(selection.country)
+        schema = plainListSchema
+      } else {
+        const details = await loadDetails(selection.country)
+        loaded =
+          details === null || variant === 'runways' ? details : { value: mapView(details.value) }
+        schema = variant === 'runways' ? detailListSchema : mapListSchema
+      }
+      if (loaded === null) return unavailable()
       reply.header('cache-control', AIRPORTS_CACHE_CONTROL)
       // Özel serileştiricide Fastify içerik türünü kendisi yazmaz.
       return reply
         .type('application/json; charset=utf-8')
-        .serializer(reply.compileSerializationSchema(schema, '200'))
+        .serializer(serializer(schema))
         .send(loaded.value)
     },
   )

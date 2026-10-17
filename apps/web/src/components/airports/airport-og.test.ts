@@ -1,7 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { foldOgText } from '../../lib/seo/og-glyphs'
 import { guardNetwork } from '../../lib/seo/test/network-guard'
-import { fixtureListedAirports, fixtureTurkishAirports } from '../../lib/test/ourairports-fixture'
+import {
+  fixtureForeignCandidates,
+  fixtureListedAirports,
+  fixtureTurkishAirports,
+} from '../../lib/test/ourairports-fixture'
 import { airportOgContent, renderAirportOgPng, type AirportOgContent } from './airport-og'
+import { airportLocation, airportName } from './airport-text'
 
 vi.mock('server-only', () => ({}))
 
@@ -11,6 +17,11 @@ const AIRPORTS = fixtureTurkishAirports()
  * D-102).
  */
 const FOREIGN = fixtureListedAirports().filter((a) => a.country !== 'TR')
+/**
+ * 5. halkanın fixture adayları (halka kapalı, adlar M6j.3'te): kaynak adlarında yazı tiplerinin
+ * kapsamadığı harfler vardır (Vietnamca "Phú Quốc", D-111).
+ */
+const RING5 = fixtureForeignCandidates().filter((a) => a.ring === 5)
 
 /** PNG imzası ve IHDR'deki genişlik/yükseklik. */
 function pngSize(buffer: ArrayBuffer): { width: number; height: number } {
@@ -106,9 +117,19 @@ function glyphCover(contents: readonly AirportOgContent[]): AirportOgContent[] {
 }
 
 describe('renderAirportOgPng', () => {
-  const contents = [...AIRPORTS, ...FOREIGN].map((airport) =>
-    airportOgContent(airport, 'havayolu', 'airline.live'),
-  )
+  // Görselin metinleri ve aynı alanlarda İngilizce ad ve yer satırı: listelenen ve 5. halkanın bütün
+  // adları, şehirleri ve ülkeleri iki dilde, katlanmış olarak (D-111).
+  const contents = [...AIRPORTS, ...FOREIGN, ...RING5].flatMap((airport) => {
+    const tr = airportOgContent(airport, 'havayolu', 'airline.live')
+    return [
+      tr,
+      {
+        ...tr,
+        name: foldOgText(airportName(airport, 'en')),
+        location: foldOgText(airportLocation(airport, 'en')),
+      },
+    ]
+  })
   const sample = glyphCover(contents)
 
   it('örneklem bütün listenin karakterlerini taşır ve listeden küçüktür', () => {
@@ -130,4 +151,26 @@ describe('renderAirportOgPng', () => {
     }
     expect(network.networkCalls()).toEqual([])
   }, 60_000)
+
+  it('5. halkanın Vietnamca adı katlanır ve ağa çıkmadan çizilir; katlanmasa Satori Google Fonts’a giderdi (D-111)', async () => {
+    const vvpq = RING5.find((a) => a.icao === 'VVPQ')
+    expect(vvpq).toBeDefined()
+    const content = airportOgContent(vvpq!, 'havayolu', 'airline.live')
+    expect(content.name).not.toMatch(/[ốế]/u)
+    expect(airportName(vvpq!, 'tr')).toMatch(/ố/u)
+    expect(pngSize(await renderAirportOgPng(content))).toEqual({ width: 1200, height: 630 })
+    expect(network.networkCalls()).toEqual([])
+    // Denetimin kendisi: katlanmamış ad yazı tipi indirmeye kalkar (istek testte engellenir; Satori
+    // başarısız indirmeyi günlüğe yazar, test çıktısına düşmesin).
+    const quiet = [vi.spyOn(console, 'error'), vi.spyOn(console, 'warn'), vi.spyOn(console, 'log')]
+    for (const spy of quiet) spy.mockImplementation(() => undefined)
+    try {
+      await renderAirportOgPng({ ...content, name: airportName(vvpq!, 'tr') }).catch(
+        () => undefined,
+      )
+    } finally {
+      for (const spy of quiet) spy.mockRestore()
+    }
+    expect(network.networkCalls().some((url) => url.includes('fonts.googleapis.com'))).toBe(true)
+  }, 30_000)
 })

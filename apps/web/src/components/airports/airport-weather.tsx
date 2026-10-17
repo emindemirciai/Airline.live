@@ -13,9 +13,10 @@ export interface AirportWeatherSectionProps {
 }
 
 /**
- * Havalimanı sayfasının hava durumu ve METAR/TAF kaydı bölümleri (M6c). Sunucuda toplu hava durumu
- * (ham biçim, web belleğinde 60 sn, D-090, D-101; yalnız bu havalimanı çözülür) ve havalimanının 24
- * saatlik kaydı (30 dk önbellek, D-102) okunur; hata sayfaya taşınmaz.
+ * Havalimanı sayfasının hava durumu ve METAR/TAF kaydı bölümleri (M6c). Sunucuda yalnız toplu hava
+ * durumu okunur (ham biçim, web belleğinde 60 sn, D-090, D-101; yalnız bu havalimanı çözülür); hata
+ * sayfaya taşınmaz. 24 saatlik kaydı ada açılışta tarayıcıdan alır (D-111): sunucu çiziminde kayıt
+ * bölümü "yükleniyor" der.
  * Bölümler istemci adasında çizilir ve açık sekmede tazelenir. Sayfa bunu Suspense içinde verir.
  * Saatler havalimanının yerel saatidir (`airportTimeZone`, D-084); farklarını sunucu çizim anının
  * ±48 saati için hesaplar ve adaya verir (`utcOffsetTable`, D-109: tarayıcının tz verisi eskiyse de
@@ -27,7 +28,7 @@ export async function AirportWeatherSection({
   airport,
   apiBaseUrl,
 }: AirportWeatherSectionProps) {
-  const { bulk, history, renderedAt } = await getAirportWeatherPage(airport.icao)
+  const { bulk, renderedAt } = await getAirportWeatherPage()
   const timeZone = airportTimeZone(airport)
   return (
     <AirportWeatherLive
@@ -39,7 +40,6 @@ export async function AirportWeatherSection({
       lon={airport.lon}
       apiBaseUrl={apiBaseUrl}
       initialWeather={stationWeather(bulk, airport.icao)}
-      initialHistory={history}
       renderedAt={renderedAt}
       timeZone={timeZone}
       utcOffsets={timeZone === null ? null : utcOffsetTable(timeZone, renderedAt)}

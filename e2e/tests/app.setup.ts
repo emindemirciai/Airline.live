@@ -152,14 +152,15 @@ setup('hava durumu verisi API’de', async ({ request }) => {
     )
     .toContain(PRIMARY_WEATHER.latestMetarGroups[0])
 
-  // Havalimanı sayfaları listelenen havalimanlarının toplu yanıtını kullanır (`scope=listed`, ayrı
-  // önbellek kaydı): 1. halkadaki fixture istasyonu da görünmeli. Harita penceresi 3. halkadan beri
+  // Havalimanı sayfaları listelenen havalimanlarının toplu yanıtını ham biçimde kullanır
+  // (`scope=listed&format=raw`, ayrı önbellek kaydı; tam biçim 400, D-111): 1. halkadaki fixture
+  // istasyonu da görünmeli. Harita penceresi 3. halkadan beri
   // tek havalimanını ister (`/v1/airports/<ICAO>/weather`, D-090).
   await expect
     .poll(
       async () => {
         const response = await request
-          .get(`${API_URL}/v1/weather?scope=listed`, { failOnStatusCode: false })
+          .get(`${API_URL}/v1/weather?scope=listed&format=raw`, { failOnStatusCode: false })
           .catch(() => null)
         if (!response?.ok()) return null
         const data = (await response.json()) as {
@@ -169,7 +170,7 @@ setup('hava durumu verisi API’de', async ({ request }) => {
         return typeof station?.metar?.raw === 'string' ? station.metar.raw : null
       },
       {
-        message: `Toplu hava durumu yanıtında ${RING1_AIRPORT.icao}'ın METAR'ı yok (GET /v1/weather?scope=listed)`,
+        message: `Toplu hava durumu yanıtında ${RING1_AIRPORT.icao}'ın METAR'ı yok (GET /v1/weather?scope=listed&format=raw)`,
         timeout: 90_000,
         intervals: [3_000],
       },
