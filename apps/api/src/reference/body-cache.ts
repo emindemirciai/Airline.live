@@ -11,13 +11,13 @@ import type { FastifyBaseLogger, FastifyReply, FastifyRequest } from 'fastify'
  * olay döngüsünde ~5 sn sürerdi.
  *
  * - **Sıkıştırılmamış gövde** değer ilk görüldüğünde eşzamanlı yazılır (yenileme başına bir kez).
- * - **Sıkıştırılmış gövdeler** kurulurken önceki değerin sıkıştırılmış gövdeleri sunulur (veri günde
- *   bir değişir; önceki liste ~10 dk eskidir). Yeni metin öncekiyle bayt bayt aynıysa sıkıştırma
- *   yeniden yapılmaz, öncekiler kullanılır.
- * - **Soğuk açılışta** (sıkıştırılmış gövde hiç yokken) `null` döner: istek eski yoldan gider,
- *   `@fastify/compress` gövdeyi istek anında brotli 4 ya da gzip ile sıkıştırır.
+ * - **Sıkıştırılmış gövdeler** kurulana kadar `encoded` `null` döner: istek soğuk yoldan gider,
+ *   `@fastify/compress` yeni gövdeyi istek anında brotli 4 ya da gzip ile sıkıştırır (5. halkada
+ *   ~28 ms, birkaç saniye boyunca). Önceki değerin gövdesi sunulmaz: eski liste `max-age` süresince
+ *   tarayıcıda ve web'in saatlik okumasında kalırdı, istemciler kodlamaya göre farklı liste görürdü.
+ *   Yeni metin öncekiyle bayt bayt aynıysa sıkıştırma yeniden yapılmaz, öncekiler kullanılır.
  * - Sıkıştırma başarısızsa günlüğe yazılır ve `CACHE_BUILD_RETRY_MS` sonra yeniden denenir; o sürede
- *   önceki gövdeler, yoksa soğuk yol.
+ *   soğuk yol.
  */
 
 export const BODY_ENCODINGS = ['br', 'gzip'] as const
@@ -49,7 +49,7 @@ export const compressBody: CompressBody = (encoding, body) =>
 /** Bir değerin gövdeleri: sıkıştırılmamış her zaman, sıkıştırılmışlar kurulduysa. */
 export interface CachedBodies {
   identity: Buffer
-  /** Bu değerin (ya da kurulurken öncekinin) sıkıştırılmış gövdeleri; soğuk açılışta null. */
+  /** Bu değerin sıkıştırılmış gövdeleri; kurulana kadar null (soğuk yol). */
   encoded: Readonly<Record<BodyEncoding, Buffer>> | null
 }
 
@@ -81,8 +81,6 @@ export function createBodyCache<V extends object>({
   now = Date.now,
 }: BodyCacheOptions): BodyCache<V> {
   let current: Generation<V> | null = null
-  /** Son tamamlanan sıkıştırılmış gövdeler (yenisi kurulurken sunulur). */
-  let lastEncoded: Readonly<Record<BodyEncoding, Buffer>> | null = null
 
   const build = (generation: Generation<V>) => {
     generation.building = true
@@ -91,7 +89,6 @@ export function createBodyCache<V extends object>({
         generation.building = false
         if (br === undefined || gzip === undefined) return
         generation.encoded = { br, gzip }
-        if (current === generation) lastEncoded = generation.encoded
       },
       (error: unknown) => {
         generation.building = false
@@ -124,7 +121,7 @@ export function createBodyCache<V extends object>({
       ) {
         build(current)
       }
-      return { identity: current.identity, encoded: current.encoded ?? lastEncoded }
+      return { identity: current.identity, encoded: current.encoded }
     },
   }
 }

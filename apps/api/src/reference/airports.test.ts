@@ -786,7 +786,7 @@ describe('scope=listed hazır gövdeler (D-111)', () => {
     }
   })
 
-  it('sıkıştırma zaman uyumsuzdur: sürerken istekler beklemez; okuyucu yenilenince önceki gövdeler sunulur, aynı metin yeniden sıkıştırılmaz', async () => {
+  it('sıkıştırma zaman uyumsuzdur: sürerken istekler beklemez ve yeni listeyi alır; aynı metin yeniden sıkıştırılmaz', async () => {
     let release: () => void = () => undefined
     const gate = new Promise<void>((resolve) => {
       release = resolve
@@ -814,7 +814,8 @@ describe('scope=listed hazır gövdeler (D-111)', () => {
     expect(Buffer.compare((await br()).rawPayload, first)).toBe(0)
     expect(compress).toHaveBeenCalledTimes(2)
 
-    // Veri değişti: yenisi kurulurken önceki sıkıştırılmış gövde sunulur; düz gövde hemen yenidir.
+    // Veri değişti: yenisi kurulurken önceki sıkıştırılmış gövde sunulmaz; yeni liste soğuk yoldan
+    // (eklentinin istek anındaki sıkıştırması) gelir, düz gövde de hemen yenidir.
     list = [ath, ist]
     clock += AIRPORTS_CACHE_MS
     let finish: () => void = () => undefined
@@ -825,7 +826,9 @@ describe('scope=listed hazır gövdeler (D-111)', () => {
       await pending
       return compressBody(encoding, body)
     })
-    expect(Buffer.compare((await br()).rawPayload, first)).toBe(0)
+    const building = await br()
+    expect(Buffer.compare(building.rawPayload, first)).not.toBe(0)
+    expect(JSON.parse(decode(building))).toEqual({ scope: 'listed', airports: [ath, ist] })
     expect((await inject(app, url)).json()).toEqual({ scope: 'listed', airports: [ath, ist] })
     expect(compress).toHaveBeenCalledTimes(4)
     finish()
