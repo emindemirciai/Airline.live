@@ -12,8 +12,44 @@ import type { ChangelogEntry } from './types'
  */
 export const CHANGELOG: readonly ChangelogEntry[] = [
   {
+    version: '0.27.0',
+    date: '2026-10-19',
+    title: {
+      tr: 'Dünyanın her yerinden havalimanları listede',
+      en: 'Airports from all over the world are listed',
+    },
+    items: [
+      {
+        tr: 'Listeye 2.026 havalimanı daha eklendi; artık 3.266 havalimanı var. ABD, Kanada, Latin Amerika, Doğu ve Güneydoğu Asya, Avustralya, Pasifik adaları ve güney Afrika’daki havalimanlarının sayfası, pistleri, yerel saati ve hava durumu hazır; 118 ülke ve bölge ilk kez listede.',
+        en: '2,026 more airports are listed, 3,266 in total. Airports in the United States, Canada, Latin America, East and Southeast Asia, Australia, the Pacific islands and southern Africa now have their page, runways, local time and weather; 118 countries and territories appear for the first time.',
+      },
+      {
+        tr: 'Adlar ve şehirler Türkçe ve İngilizce derlendi; Türkçede şehir önde gelir ve yerleşik Türkçe yer adları kullanılır (New York John F. Kennedy, Pekin Başkent, Sidney Kingsford Smith, Meksiko Benito Juárez).',
+        en: 'Names and cities are written in Turkish and English; English names are the airports’ own names (John F. Kennedy International Airport, Beijing Capital International Airport).',
+      },
+      {
+        tr: 'Haritadaki arama yeni havalimanlarını da adıyla, şehriyle ve koduyla bulur; kodu değişen havalimanının eski kodu da çalışır: “SPIM” Lima’yı açar.',
+        en: 'The map search finds the new airports by name, city and code too; an airport’s old code still works: “SPIM” opens Lima.',
+      },
+      {
+        tr: 'Dünyanın tamamına bakarken havalimanı işaretleri biraz daha küçük; harita kalabalıklaşmaz, hiçbir havalimanı gizlenmez. Çok havalimanı olan ABD’nin adı uzaktan bakınca Alaska’da yazılır.',
+        en: 'When you look at the whole world, airport pins are a little smaller so the map does not get crowded; no airport is hidden. With so many airports, the UNITED STATES name is written over Alaska when zoomed far out.',
+      },
+      {
+        tr: 'Canlı uçak verisi şimdilik Türkiye ve çevresinden çekildiği için bu havalimanlarının çevresindeki uçaklar haritada görünmez; sayfalarında bu yazar.',
+        en: 'Live aircraft data is still fetched only over Türkiye and the surrounding area, so aircraft around these airports do not appear on the map; their pages say so.',
+      },
+    ],
+    tryLinks: [
+      { path: '/istasyon/KJFK', label: { tr: 'New York JFK', en: 'New York JFK' } },
+      { path: '/istasyon/YSSY', label: { tr: 'Sidney', en: 'Sydney' } },
+      { path: '/havalimanlari', label: { tr: 'Havalimanları', en: 'Airports' } },
+    ],
+  },
+  {
     version: '0.26.0',
-    date: '2026-10-17',
+    date: '2026-10-18',
+    releasedAt: '2026-10-18T00:33:53Z',
     title: {
       tr: 'Daha hızlı harita ve havalimanı sayfaları',
       en: 'Faster map and airport pages',
