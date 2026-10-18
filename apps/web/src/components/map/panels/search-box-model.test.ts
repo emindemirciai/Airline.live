@@ -382,15 +382,10 @@ describe.each(['tr', 'en'] as const)('searchStatusText (%s)', (locale) => {
       t,
       locale,
     )
-    const km = airportRingLimitKm(ENABLED_AIRPORT_RING)
-    if (km === null) {
-      expect(coverage).toBe(t.airportNotFound)
-    } else {
-      expect(coverage).toBe(
-        `${t.airportNotFound} ${t.airportCoverage.replace('{km}', locale === 'tr' ? '5.000 km' : '5,000 km')}`,
-      )
-      expect(km).toBe(5000)
-    }
+    // 5. halkayla (D-109) bütün halkalar açık: kapsama cümlesi yazılmaz (4. halkada "… en fazla
+    // 5.000 km olan …").
+    expect(airportRingLimitKm(ENABLED_AIRPORT_RING)).toBeNull()
+    expect(coverage).toBe(t.airportNotFound)
   })
 
   it('yazarken: öneri sayısı; liste kesildiyse ilk kaçı', () => {

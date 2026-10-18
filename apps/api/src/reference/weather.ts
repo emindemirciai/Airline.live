@@ -124,8 +124,8 @@ export const WEATHER_HISTORY_CACHE_WINDOWS = [
  * karşılıyordu (498 × 2 = 996, askerî üsler çıkmadan önce 503 × 2 = 1.006; D-080, D-088, D-090,
  * D-107; 2. halkada 512'ydi). Belleği asıl sınırlayan bayt bütçesidir (24 MB): 24 saatlik pencereler
  * ~50–100 KB'tır, bütçeye en çok ~480 pencere sığar; 168 saatlik pencereler (0,5–0,7 MB) bütçeden
- * atılır. 4. halkada (1.240 × 2 = 2.480, D-110; önce 1.217 × 2 = 2.434) değişmedi (D-101, D-102): bütçe anahtar sınırından önce
- * dolar.
+ * atılır. 4. halkada (1.240 × 2 = 2.480, D-110; önce 1.217 × 2 = 2.434) ve 5. halkada (3.266 × 2 =
+ * 6.532, D-118) değişmedi (D-101, D-102): bütçe anahtar sınırından önce dolar.
  */
 export const WEATHER_HISTORY_CACHE_MAX_ENTRIES = 1024
 /**

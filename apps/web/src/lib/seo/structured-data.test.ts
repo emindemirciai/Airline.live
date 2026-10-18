@@ -167,8 +167,7 @@ describe('airportNode', () => {
       addressCountry: 'GB',
     })
     expect(airportNode(heathrow, 'en').address).toMatchObject({ addressLocality: 'London' })
-    // Tabloda olmayan yabancı havalimanı (5. halka): Türkçe sayfada yerleşim yazılmaz, İngilizcede
-    // temizse yazılır.
+    // 5. halka (D-109): şehir tablodan, iki dilde.
     const jfk = airportFixture({
       icao: 'KJFK',
       isoRegion: 'US-NY',
@@ -178,9 +177,24 @@ describe('airportNode', () => {
     })
     expect(airportNode(jfk, 'tr').address).toEqual({
       '@type': 'PostalAddress',
+      addressLocality: 'New York',
       addressCountry: 'US',
     })
     expect(airportNode(jfk, 'en').address).toMatchObject({ addressLocality: 'New York' })
+    // Tabloda olmayan yabancı havalimanı (bütün halkalar açık; listelenmeyen Le Bourget): Türkçe
+    // sayfada yerleşim yazılmaz, İngilizcede temizse yazılır.
+    const lfpb = airportFixture({
+      icao: 'LFPB',
+      isoRegion: 'FR-IDF',
+      municipality: 'Paris',
+      country: 'FR',
+      ring: 4,
+    })
+    expect(airportNode(lfpb, 'tr').address).toEqual({
+      '@type': 'PostalAddress',
+      addressCountry: 'FR',
+    })
+    expect(airportNode(lfpb, 'en').address).toMatchObject({ addressLocality: 'Paris' })
   })
 
   it('Ercan (LCEN): gösterilen ülke KKTC, ISO kodu yok; addressCountry yazılmaz (CY yazılmaz)', () => {

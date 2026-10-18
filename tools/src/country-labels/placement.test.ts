@@ -273,7 +273,8 @@ describe('yerleşim tablosu (D-096, D-099, D-100)', { timeout: 120_000 }, () => 
       farSafetyKm: 2.5,
       clearMaxDelayZooms: CLEAR_MAX_DELAY_ZOOMS,
       crowdedMaxDelayZooms: CROWDED_MAX_DELAY_ZOOMS,
-      airportPins: 1240,
+      airportPins: 3266,
+      airportPinMinZoom: 4,
       airportCodeMinZoom: 5,
       airportCodeSides: ['right', 'left'],
       capitalAnchored: ['CY'],
@@ -317,7 +318,7 @@ describe('yerleşim tablosu (D-096, D-099, D-100)', { timeout: 120_000 }, () => 
     for (const label of ALL_SHOWN) {
       expect(Math.abs(label.lon), label.code).toBeLessThanOrEqual(180)
     }
-    expect(COUNTRY_LABEL_PLACEMENTS.tr.FJ?.regular?.[0]).toBe(177.96)
+    expect(COUNTRY_LABEL_PLACEMENTS.tr.FJ?.regular?.[0]).toBe(177.76)
     expect(inputOf('US').safetyKm).toBe(FAR_SAFETY_KM)
     expect(inputOf('TR').safetyKm).toBe(SAFETY_KM)
     expect(inputOf('CN').safetyKm).toBe(SAFETY_KM)
@@ -410,7 +411,7 @@ describe('yerleşim tablosu (D-096, D-099, D-100)', { timeout: 120_000 }, () => 
     }
   })
 
-  it('gecikme: boş yer için ad en çok 1,5 kademe geç belirir (İTALYA); 66 ülkede bir bileşim en erkenden geç (4. halkanın pinleriyle, D-102)', () => {
+  it('gecikme: boş yer için ad en çok 1,5 kademe geç belirir (İTALYA, ABD); 100 ülkede bir bileşim en erkenden geç (5. halkanın pinleriyle, D-109)', () => {
     const delays: Record<string, number> = {}
     for (const detail of result.details) {
       const delay = Math.max(
@@ -421,11 +422,17 @@ describe('yerleşim tablosu (D-096, D-099, D-100)', { timeout: 120_000 }, () => 
       )
       if (delay > 0) delays[detail.code] = delay
     }
+    // 5. halkanın 2.026 pini (M6j.3, D-109) 34 ülkeyi daha geciktirir (KOLOMBİYA ve PAPUA YENİ GİNE
+    // 1,25; ABD Türkçe geniş haritada 1,5) ve üçünün gecikmesini artırır (JAPONYA 0,25'ten 1'e,
+    // KÜBA 0,25'ten 0,75'e, SRİ LANKA 0,25'ten 0,5'e; Avrupa ve Orta Doğu değişmez). Pinler z3'te
+    // küçülür ama model z4'ün pinini sayar (D-118): gecikmeler pin boyu yüzünden değişmez.
     // v0.22.5'te (3. halkanın 498 pini) 39 ülkeydi; 4. halkanın 719 pini 27 ülkeyi daha geciktirir
     // (ETİYOPYA 1,25; BURKİNA FASO 1) ve üçünün gecikmesini artırır (KONGO DC ve BİRLEŞİK KRALLIK
     // 0,25'ten 1'e, TACİKİSTAN 0,25'ten 0,5'e). İTALYA'nın 1,5'i değişmez.
     expect(delays).toEqual({
       AF: 0.25,
+      AO: 0.5,
+      AR: 0.75,
       AT: 0.5,
       BA: 0.75,
       BD: 0.5,
@@ -434,62 +441,94 @@ describe('yerleşim tablosu (D-096, D-099, D-100)', { timeout: 120_000 }, () => 
       BG: 0.5,
       BI: 0.5,
       BJ: 0.25,
+      BO: 0.75,
       BT: 0.25,
       CD: 1,
       CF: 0.25,
       CH: 0.5,
       CI: 0.25,
       CL: 0.25,
-      CU: 0.25,
+      CO: 1.25,
+      CR: 0.75,
+      CU: 0.75,
       CY: 0.5,
       DE: 0.75,
       DJ: 0.25,
       DK: 0.25,
+      DO: 0.25,
+      EC: 0.5,
       EG: 0.5,
       EH: 0.75,
       ER: 0.5,
       ES: 0.25,
       ET: 1.25,
       FI: 0.5,
+      FJ: 0.75,
       GA: 0.25,
       GB: 1,
       GE: 0.75,
+      GF: 0.25,
       GH: 0.5,
+      GN: 0.25,
       GR: 0.5,
+      GW: 0.25,
       HR: 0.5,
       HU: 0.75,
+      ID: 0.75,
       IE: 0.25,
       IN: 0.25,
       IQ: 0.5,
       IS: 0.25,
       IT: 1.5,
       JO: 0.25,
-      JP: 0.25,
+      JP: 1,
       KE: 0.25,
       KG: 0.25,
+      KH: 0.5,
+      KR: 0.75,
       KW: 0.25,
-      LK: 0.25,
+      LA: 0.5,
+      LK: 0.5,
       MA: 0.5,
+      MG: 0.25,
+      MM: 1,
       MN: 0.5,
       MW: 0.25,
+      MX: 0.25,
+      MZ: 0.25,
       NA: 0.25,
       NG: 0.25,
       NL: 0.25,
       NO: 0.5,
+      NZ: 0.25,
       OM: 0.25,
+      PA: 0.25,
+      PE: 0.75,
+      PG: 1.25,
       PK: 0.5,
       PL: 0.75,
+      PR: 0.5,
       RO: 0.75,
       RS: 0.25,
       RW: 0.25,
       SA: 0.75,
       SK: 0.75,
+      SL: 0.25,
+      SN: 0.25,
       SS: 0.25,
+      SV: 0.5,
+      TH: 1,
       TJ: 0.5,
       TR: 0.25,
+      TW: 0.25,
       TZ: 0.25,
+      US: 1.5,
       UZ: 0.25,
+      VE: 0.5,
+      VN: 0.25,
       YE: 0.25,
+      ZA: 0.25,
+      ZM: 0.5,
       ZW: 0.25,
     })
   })
@@ -646,7 +685,7 @@ describe('yerleşim tablosu (D-096, D-099, D-100)', { timeout: 120_000 }, () => 
     }
   })
 
-  it('görsel merkez (4. halkanın pinleriyle, D-102): D-095’in 59 ülkesinden 4’ünün adı tam kutupta (TÜRKİYE dahil, D-103), çapanın kutba uzaklığı ortanca 38 km, en çok 810 km (KAZAKİSTAN); bütün dünyada 23 ülke kutupta, ortanca 52 km, en çok 1.228 km (MALEZYA)', () => {
+  it('görsel merkez (5. halkanın pinleriyle, D-109): D-095’in 59 ülkesinden 4’ünün adı tam kutupta (TÜRKİYE dahil, D-103), çapanın kutba uzaklığı ortanca 38 km, en çok 810 km (KAZAKİSTAN); bütün dünyada 11 ülke kutupta, ortanca 62 km, en çok 4.751 km (ABD)', () => {
     const all = result.details
       .filter((detail) => detail.kind !== 'hidden')
       .map((detail) => {
@@ -660,12 +699,13 @@ describe('yerleşim tablosu (D-096, D-099, D-100)', { timeout: 120_000 }, () => 
       })
       .sort((a, b) => a[1] - b[1])
     expect(all).toHaveLength(164)
-    // v0.22.5'te (3. halkanın pinleri) 36 ülke kutuptaydı, ortanca 37 km.
-    expect(all.filter(([, km]) => km === 0)).toHaveLength(23)
-    expect(Math.round(all[Math.floor(all.length / 2)]?.[1] ?? NaN)).toBe(52)
-    // Malezya'da ad Borneo'da (Sarawak) en erken sığar; kutup Malakka Yarımadası'ndadır (Pahang).
-    expect(all.at(-1)?.[0]).toBe('MY')
-    expect(Math.round(all.at(-1)?.[1] ?? NaN)).toBe(1228)
+    // v0.22.5'te (3. halkanın pinleri) 36 ülke kutuptaydı, ortanca 37 km; 4. halkayla 23, 52 km.
+    expect(all.filter(([, km]) => km === 0)).toHaveLength(11)
+    expect(Math.round(all[Math.floor(all.length / 2)]?.[1] ?? NaN)).toBe(62)
+    // ABD'nin 501 pini (5. halka) arasında İngilizce ad en erken Alaska'da sığar (z3,5; ilk satır
+    // `detail.placements`'ın ilk dolu bileşimidir); 4. halkada en uzak Malezya'ydı (1.228 km).
+    expect(all.at(-1)?.[0]).toBe('US')
+    expect(Math.round(all.at(-1)?.[1] ?? NaN)).toBe(4751)
     const distances = all.filter(([code]) => Object.hasOwn(COUNTRY_AREA_OVERRIDES_KM2, code))
     expect(distances).toHaveLength(56)
     // RUSYA kutbundan kuzeye kaydı (Kirov pini, D-102).

@@ -766,10 +766,13 @@ describe('fixture: listelenen her havalimanının dilimi var', () => {
         ),
       )
       .filter((r) => airportRing(distanceToTurkey(r)) <= ENABLED_AIRPORT_RING)
-    // M6i.2'den beri 1.–4. halka açık: 75 + 89 + 278 + 719 (D-088, D-090, D-102) ve savaş nedeniyle
-    // kapalı 23 havalimanı (D-110); 1.–3. halka `expected` tablosunda, 4. halka
-    // `RING_FOUR_ZONES`'ta, kapanış tablosunun tarifesizleri `WAR_CLOSURE_ZONES`'tadır.
-    expect(listed).toHaveLength(1184)
+      // Askerî liste (D-107, D-109): Wake, Kwajalein ve Oakey listelenmez.
+      .filter((r) => !isMilitaryAirfield(icaoOf(r)))
+    // M6j.3'ten beri bütün halkalar açık: 75 + 89 + 278 + 719 + 2.026 (D-088, D-090, D-102, D-109)
+    // ve savaş nedeniyle kapalı 23 havalimanı (D-110); 1.–3. halka `expected` tablosunda, 4. halka
+    // `RING_FOUR_ZONES`'ta, 5. halka `RING_FIVE_ZONES`'ta, kapanış tablosunun tarifesizleri
+    // `WAR_CLOSURE_ZONES`'tadır.
+    expect(listed).toHaveLength(3210)
     for (const r of listed) {
       const airport = fixtureAirport(r)
       const zone = airportTimeZone(airport)
@@ -777,6 +780,7 @@ describe('fixture: listelenen her havalimanının dilimi var', () => {
       expect(zone, airport.icao).toBe(
         expectedByIcao.get(airport.icao)?.zone ??
           ringFourZone(airport.icao) ??
+          ringFiveZone(airport.icao) ??
           warClosureByIcao.get(airport.icao)?.zone,
       )
     }
@@ -1716,7 +1720,14 @@ const RING_FIVE_REGION_RULES = {
   US: 51,
 }
 
-describe('5. halka saat dilimleri (D-109; halka kapalı, M6j.1)', () => {
+/** 5. halka adayının beklenen dilimi (`RING_FIVE_ZONES`); tabloda yoksa undefined. */
+function ringFiveZone(icao: string): string | undefined {
+  return Object.entries(RING_FIVE_ZONES).find(([, chunks]) =>
+    chunks.some((chunk) => chunk.split(' ').includes(icao)),
+  )?.[0]
+}
+
+describe("5. halka saat dilimleri (D-109; halka M6j.3'te açıldı)", () => {
   const ringFive = rows
     .filter((r) => r.get('iso_country') !== 'TR')
     .filter((r) =>

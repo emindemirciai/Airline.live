@@ -43,7 +43,8 @@ import {
   RING3_AIRPORT,
   RING4_AIRPORT,
   NON_ICAO_AIRPORT,
-  UNLISTED_FOREIGN_AIRPORT,
+  RING5_AIRPORT,
+  UNLISTED_FOREIGN_AIRPORTS,
   sitePath,
   STATIC_PUBLIC_PATHS,
   WAR_CLOSURE_AIRPORT,
@@ -368,11 +369,11 @@ test.describe('kök dosyalar', () => {
     expect(body).toContain('xmlns:xhtml="http://www.w3.org/1999/xhtml"')
     const entries = parseSitemap(body)
 
-    // Havalimanları: Türkiye'nin dizine eklenen 56'sı ve diğer ülkelerdeki 1.184'ü (1.–4. halka,
-    // savaş nedeniyle kapalı 23 havalimanı dahil; D-080, D-084, D-088, D-090, D-102, D-110):
-    // (1.240 + 5) × 2 = 2.490 adres (50.000 sınırının çok altında).
+    // Havalimanları: Türkiye'nin dizine eklenen 56'sı ve diğer ülkelerdeki 3.210'u (1.–5. halka,
+    // savaş nedeniyle kapalı 23 havalimanı dahil; D-080, D-084, D-088, D-090, D-102, D-109,
+    // D-110): (3.266 + 5) × 2 = 6.542 adres (50.000 sınırının altında; 4. halkada 2.490).
     expect(entries).toHaveLength((INDEXABLE_LISTED_AIRPORT_COUNT + STATIC_PUBLIC_PATHS.length) * 2)
-    expect(entries).toHaveLength(2490)
+    expect(entries).toHaveLength(6542)
     const byLoc = new Map(entries.map((entry) => [entry.loc, entry]))
     expect(byLoc.size, 'yinelenen adres yok').toBe(entries.length)
     const paths = entries.map((entry) => sitePath(entry.loc, 'loc'))
@@ -381,6 +382,7 @@ test.describe('kök dosyalar', () => {
     const ring2Path = `/istasyon/${RING2_AIRPORT.icao}`
     const kktcPath = `/istasyon/${KKTC_AIRPORT.icao}`
     const ring4Path = `/istasyon/${RING4_AIRPORT.icao}`
+    const ring5Path = `/istasyon/${RING5_AIRPORT.icao}`
     // Savaş nedeniyle kapalı, OurAirports'ta tarifesiz Kiev Borispil dizine eklenir (D-110).
     const warPath = `/istasyon/${WAR_CLOSURE_AIRPORT.icao}`
     for (const path of [
@@ -390,6 +392,7 @@ test.describe('kök dosyalar', () => {
       ring2Path,
       kktcPath,
       ring4Path,
+      ring5Path,
       warPath,
     ]) {
       expect(paths).toContain(path)
@@ -409,9 +412,9 @@ test.describe('kök dosyalar', () => {
         `/istasyon/${icao}`,
         enPath(`/istasyon/${icao}`),
       ]),
-      // Fixture'da olup listelenmeyen uzak havalimanı (D-080) ve dört karakterli ICAO'su olmayan
-      // Kihihi (D-101).
-      `/istasyon/${UNLISTED_FOREIGN_AIRPORT.icao}`,
+      // Fixture'da olup listelenmeyen havalimanları (D-109: Le Bourget, Thohoyandou) ve dört
+      // karakterli ICAO'su olmayan Kihihi (D-101).
+      ...UNLISTED_FOREIGN_AIRPORTS.map(({ icao }) => `/istasyon/${icao}`),
       `/istasyon/${NON_ICAO_AIRPORT.ident}`,
       `/istasyon/${NON_ICAO_AIRPORT.iata}`,
     ]) {
@@ -498,8 +501,9 @@ test.describe('kök dosyalar', () => {
     expect(icaos.size).toBe(INDEXABLE_LISTED_AIRPORT_COUNT)
     expect(icaos.has(PRIMARY_AIRPORT.icao)).toBe(true)
     for (const { icao } of MILITARY_AIRFIELDS) expect(icaos.has(icao), icao).toBe(false)
-    expect(icaos.has(UNLISTED_FOREIGN_AIRPORT.icao)).toBe(false)
+    for (const { icao } of UNLISTED_FOREIGN_AIRPORTS) expect(icaos.has(icao), icao).toBe(false)
     expect(icaos.has(RING4_AIRPORT.icao)).toBe(true)
+    expect(icaos.has(RING5_AIRPORT.icao)).toBe(true)
     // Savaş nedeniyle kapalı havalimanının satırı Türkçe notu taşır (D-110).
     const warLine = airportLines.find((line) =>
       line.includes(`(${WAR_CLOSURE_AIRPORT.iata}/${WAR_CLOSURE_AIRPORT.icao})`),
@@ -510,15 +514,20 @@ test.describe('kök dosyalar', () => {
     // Diğer ülkelerdekiler ayrı bir bölümdedir (D-080): başlık Türkiye listesinden sonra gelir; Atina
     // (1. halka), Kahire (2. halka), Viyana (3. halka) ve Londra (4. halka) satırları o bölümdedir.
     // Başlık D-106'dan beri "Diğer ülkelerdeki havalimanları"dır (D-088'de "Türkiye dışındaki");
-    // kapsam 4. halkadan beri 5.000 km'dir (D-102).
+    // 5. halkadan beri bütün halkalar açık, uzaklık sınırı yazılmaz (D-109; 4. halkada 5.000 km).
     const lines = body.split('\n')
     const foreignHeading = lines.indexOf(
       '## Diğer ülkelerdeki havalimanları / Airports in other countries',
     )
     expect(foreignHeading, 'diğer ülkelerdekiler başlığı').toBeGreaterThan(0)
     expect(body).not.toMatch(/[Yy]akın ülke|neighbouring/)
-    expect(body).toContain('uzaklığı en fazla 5.000 km olan')
-    expect(body).toContain('at most 5,000 km from the nearest airport in Türkiye')
+    expect(body).toContain(
+      'Havalimanı listesinde Türkiye’nin IATA kodlu havalimanları ile diğer ülkelerin IATA kodlu büyük ve orta boy havalimanları yer alır.',
+    )
+    expect(body).toContain(
+      'The airport list includes airports in Türkiye with an IATA code and large and medium airports with an IATA code in other countries.',
+    )
+    expect(body).not.toMatch(/en fazla [\d.]+ km|at most [\d,]+ km/)
     const ring1Line = lines.findIndex((line) => line.includes(`/istasyon/${RING1_AIRPORT.icao})`))
     const ring2Line = lines.findIndex((line) => line.includes(`/istasyon/${RING2_AIRPORT.icao})`))
     const ring3Line = lines.findIndex((line) => line.includes(`/istasyon/${RING3_AIRPORT.icao})`))

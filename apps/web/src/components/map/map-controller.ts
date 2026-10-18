@@ -233,7 +233,7 @@ export function sameAirportList(a: readonly Airport[], b: readonly Airport[]): b
  * Havalimanı kodlarının çizim girdisi: görünümdeki havalimanları ekran konumlarıyla (`airports`
  * çizilen havalimanlarıdır, `drawnAirports`). Kod yazılmayacaksa (yakınlaştırma
  * `AIRPORT_LABEL_MIN_ZOOM`'un altında ya da ayar Simge ve kod değil) hiçbir havalimanı izdüşürülmez:
- * her karede bütün liste (4. halkada 1.240 havalimanı, D-110) boşuna izdüşürülürdü (D-101). Uçak
+ * her karede bütün liste (5. halkada 3.266 havalimanı, D-118) boşuna izdüşürülürdü (D-101). Uçak
  * etiketleri bundan etkilenmez. Boylam kameranın ortasına en yakın dünya kopyasına sarılır
  * (`nearestWorldLon`, D-111): 180. meridyenin öbür yanındaki havalimanının kodu da pininin yanında
  * çizilir.

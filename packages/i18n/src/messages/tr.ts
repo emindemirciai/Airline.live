@@ -105,9 +105,9 @@ export const tr = {
       heading: 'Diğer ülkelerdeki havalimanları',
       scope:
         'Şimdilik Türkiye’deki en yakın havalimanına uzaklığı en fazla {km} olan, IATA kodlu büyük ve orta boy havalimanları yer alır; bazı havalimanları listelenmez.',
-      /** Bütün halkalar açıksa (uzaklık sınırı yok). */
+      /** Bütün halkalar açıksa (uzaklık sınırı yok; M6j.3'ten beri, D-109). */
       scopeAll:
-        'IATA kodlu büyük ve orta boy havalimanları yer alır; bazı havalimanları listelenmez.',
+        'Listede IATA kodlu büyük ve orta boy havalimanları yer alır; bazı havalimanları listelenmez.',
       coverage:
         'Canlı uçak verisi şimdilik yalnızca Türkiye ve çevresinden çekilir: bu havalimanlarının çoğu bu alanın dışındadır ve çevrelerindeki uçaklar canlı haritada görünmeyebilir. Her havalimanının sayfası bunu ayrıca belirtir.',
       caption: 'Diğer ülkelerdeki havalimanları, ülke adına göre sıralı',

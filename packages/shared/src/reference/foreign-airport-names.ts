@@ -1,5 +1,6 @@
 import type { Locale, LocalizedText } from '../locale'
 import { RING4_AIRPORT_CITIES, RING4_AIRPORT_NAMES } from './foreign-airport-names-r4'
+import { RING5_AIRPORT_CITIES, RING5_AIRPORT_NAMES } from './foreign-airport-names-r5'
 
 /** İki dilde ad ya da yer adı tablosu (ICAO kodu → ad). */
 type LocalizedTable = Readonly<Record<string, LocalizedText>>
@@ -684,6 +685,7 @@ const RING1_3_AIRPORT_NAMES: LocalizedTable = {
 export const FOREIGN_AIRPORT_NAMES: LocalizedTable = /*#__PURE__*/ (() => ({
   ...RING1_3_AIRPORT_NAMES,
   ...RING4_AIRPORT_NAMES,
+  ...RING5_AIRPORT_NAMES,
 }))()
 
 /** Tablodaki kayıt; kod tabloda yoksa undefined. ICAO kırpılıp büyük harfe çevrilir. */
@@ -1196,6 +1198,7 @@ const RING1_3_AIRPORT_CITIES: LocalizedTable = {
 export const FOREIGN_AIRPORT_CITIES: LocalizedTable = /*#__PURE__*/ (() => ({
   ...RING1_3_AIRPORT_CITIES,
   ...RING4_AIRPORT_CITIES,
+  ...RING5_AIRPORT_CITIES,
 }))()
 
 /** Şehir tablosundaki kayıt; kod tabloda yoksa undefined. ICAO kırpılıp büyük harfe çevrilir. */

@@ -20,7 +20,12 @@ import {
   type SyntheticEvent,
 } from 'react'
 // Göreli yollar: vitest `@/` takma adını çözmez (panel testleri bu dosyayı yükler).
-import { whenIdle, type IdleScheduler } from '../../../lib/idle'
+import {
+  sliceTimeRemaining,
+  whenIdle,
+  type IdleDeadlineLike,
+  type IdleScheduler,
+} from '../../../lib/idle'
 import { ApiError, fetchSearch } from '../../../lib/live/api'
 import type { MapAirport } from '../airport-data'
 import { withImportFallback } from '../chunk-fallback'
@@ -68,10 +73,13 @@ export function preloadAirportSearch(): void {
 }
 
 /**
- * Dizini boşta kurar (D-108): parça geldikten sonra ayrı bir boşta işte, liste ve dil başına bir kez
- * (`buildAirportSearch` saklar; kutunun kurulumu yalnız saklananı bulur). Kutunun ilk odağı ya da
- * dokunması (telefonda klavye açılırken) kurulumu beklemez. Dönen fonksiyon iptal eder (efektin
- * temizliği). `load` ve `scheduler` testte değiştirilir.
+ * Dizini boşta kurar (D-108): parça geldikten sonra ayrı boşta işlerde, liste ve dil başına bir kez
+ * (`buildAirportSearch` saklar; kutunun kurulumu yalnız saklananı bulur). Kurulum dilimlidir (M6j.3):
+ * her boşta iş tarayıcının verdiği süre kadar ilerler (`builder.prepare`, `sliceTimeRemaining`),
+ * bitmediyse sonraki boşta işe kalır; 5. halkanın 3.266 havalimanında hiçbir dilim uzun görev olmaz.
+ * Kutunun ilk odağı ya da dokunması (telefonda klavye açılırken) kurulumu beklemez; yarım kurulumu
+ * kutu kendisi bitirir. Dilimli kurulumu olmayan yükleyici (kodla arama yedeği) tek boşta işte kurar.
+ * Dönen fonksiyon iptal eder (efektin temizliği). `load` ve `scheduler` testte değiştirilir.
  */
 export function prebuildAirportSearch(
   airports: readonly MapAirport[],
@@ -83,7 +91,18 @@ export function prebuildAirportSearch(
   let cancelBuild: (() => void) | null = null
   const cancelLoad = whenIdle(() => {
     void load().then((build) => {
-      if (active) cancelBuild = whenIdle(() => void build(airports, locale), scheduler)
+      if (!active) return
+      const prepare = build.prepare
+      if (prepare === undefined) {
+        cancelBuild = whenIdle(() => void build(airports, locale), scheduler)
+        return
+      }
+      const slice = (deadline?: IdleDeadlineLike) => {
+        if (!active) return
+        if (prepare(airports, locale, sliceTimeRemaining(deadline))) return
+        cancelBuild = whenIdle(slice, scheduler)
+      }
+      cancelBuild = whenIdle(slice, scheduler)
     })
   }, scheduler)
   return () => {

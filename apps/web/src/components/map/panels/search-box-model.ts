@@ -53,11 +53,20 @@ export interface AirportSearchResult {
 /** Haritanın havalimanları üzerinde kurulmuş arama. */
 export type AirportSearch = (query: string) => AirportSearchResult
 
-/** Aramayı kurar (havalimanı listesi ve sayfanın dili). */
-export type AirportSearchBuilder = (
-  airports: readonly MapAirport[],
-  locale: Locale,
-) => AirportSearch
+/**
+ * Aramayı kurar (havalimanı listesi ve sayfanın dili). `prepare` varsa kurulum boşta dilimlerle
+ * yapılabilir (M6j.3, D-108; `prebuildAirportSearch`): her çağrı `timeRemaining()` (ms) bitene kadar
+ * ilerler, kurulum bitince true döner; sonraki `builder(...)` çağrısı kurulan aramayı verir. Kodla
+ * arama yedeğinde (`codeOnlyAirportSearch`) yoktur: kurulum tek adımdır.
+ */
+export interface AirportSearchBuilder {
+  (airports: readonly MapAirport[], locale: Locale): AirportSearch
+  prepare?: (
+    airports: readonly MapAirport[],
+    locale: Locale,
+    timeRemaining: () => number,
+  ) => boolean
+}
 
 export const NO_AIRPORT_RESULTS: AirportSearchResult = {
   rows: [],

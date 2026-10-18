@@ -77,7 +77,9 @@ export const en: Messages = {
       heading: 'Airports in other countries',
       scope:
         'For now, the list includes large and medium airports with an IATA code at most {km} from the nearest airport in Türkiye; some airports are not listed.',
-      scopeAll: 'Large and medium airports with an IATA code; some airports are not listed.',
+      /** All rings are open (no distance limit; D-109). */
+      scopeAll:
+        'The list includes large and medium airports with an IATA code; some airports are not listed.',
       coverage:
         'Live aircraft data is currently fetched only over Türkiye and the surrounding area: most of these airports are outside that area, so aircraft around them may not appear on the live map. Each airport’s page says so as well.',
       caption: 'Airports in other countries, sorted by country name',

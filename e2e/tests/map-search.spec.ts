@@ -117,10 +117,16 @@ test('ad, şehir ve kodla arama; askerî üsler bulunmaz; Enter tam kodu açar, 
   await expect(options(page).filter({ hasText: 'LTBL' })).toHaveCount(0)
 
   // Askerî hava üsleri (D-107): kodu, adı ya da yeriyle hiçbir şey bulunmaz.
-  for (const query of ['LTBL', 'IGL', 'Çiğli', 'İncirlik']) {
+  for (const query of ['LTBL', 'Çiğli', 'İncirlik']) {
     await input.fill(query)
     await expect(input, query).toHaveAttribute('aria-expanded', 'false')
   }
+  // 5. halkayla (D-109) "IGL" yalnız sözcük başıyla sivil Cajamarca'yı (CJA, "… Armando Revoredo
+  // Iglesias") önerir; Çiğli'nin üssü (LTBL) listede yoktur.
+  await input.fill('IGL')
+  await expect(option(page, 'CJA')).toBeVisible()
+  await expect(options(page)).toHaveCount(1)
+  await expect(options(page).filter({ hasText: 'LTBL' })).toHaveCount(0)
   for (const base of MILITARY_AIRFIELDS) {
     for (const query of [base.icao, base.iata]) {
       await input.fill(query)

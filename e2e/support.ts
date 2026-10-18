@@ -54,30 +54,45 @@ export const AIRPORT_COUNT = 56
 export const INDEXABLE_AIRPORT_COUNT = 56
 
 /**
- * Türkiye dışındaki listelenen havalimanları (M6d, D-080; M6g, D-088; M6h, D-090; M6i.2, D-102):
- * 1.–4. halka, yani IATA kodlu en yakın Türkiye havalimanına en çok 5.000 km olan, OurAirports'ta
- * tarifeli seferi kayıtlı ya da savaş nedeniyle kapalı (kapanış tablosu, D-110), dört karakterli
- * ICAO'su olan büyük ve orta boy havalimanları. Fixture'a 2026-10-01 indirmesinden eklenen 75 + 89
- * + 275 + 716 havalimanı, kapanış bloğunun 23 tarifesiz havalimanı (1. halkada 2, 2. halkada 15, 3.
- * halkada 5, 4. halkada 1) ve fixture'ın uzak örneklerinden 3. halkadaki Frankfurt, Dubai ve Doha
- * Hamad ile 4. halkadaki Londra Heathrow, Paris Charles de Gaulle, Amsterdam ve Madrid bu
- * kuraldadır ve hepsi dizine eklenir. New York JFK (5. halka) ve dört karakterli ICAO'su olmayan
- * Kihihi (UG-0002, IATA KHX; D-101) listelenmez.
+ * Türkiye dışındaki listelenen havalimanları (M6d, D-080; M6g, D-088; M6h, D-090; M6i.2, D-102;
+ * M6j.3, D-109): bütün halkalar (1.–5.), yani OurAirports'ta tarifeli seferi kayıtlı ya da savaş
+ * nedeniyle kapalı (kapanış tablosu, D-110), dört karakterli ICAO'su olan büyük ve orta boy
+ * havalimanları; yurt dışı askerî listedeki üç alan (D-109) hariç. Fixture'a 2026-10-01
+ * indirmesinden eklenen 75 + 89 + 275 + 716 + 2.030 havalimanı, kapanış bloğunun 23 tarifesiz
+ * havalimanı (1. halkada 2, 2. halkada 15, 3. halkada 5, 4. halkada 1) ve fixture'ın uzak
+ * örneklerinden 3. halkadaki Frankfurt, Dubai ve Doha Hamad, 4. halkadaki Londra Heathrow, Paris
+ * Charles de Gaulle, Amsterdam ve Madrid ile 5. halkadaki New York JFK bu kuraldadır ve hepsi dizine
+ * eklenir. Dört karakterli ICAO'su olmayan Kihihi (UG-0002, KHX), Aleknagik (5A8, WKK) ve Leshan
+ * (CN-0249, LSG; D-101) listelenmez.
  */
 export const RING1_AIRPORT_COUNT = 77
 export const RING2_AIRPORT_COUNT = 104
 export const RING3_AIRPORT_COUNT = 283
 export const RING4_AIRPORT_COUNT = 720
+export const RING5_AIRPORT_COUNT = 2026
 export const FOREIGN_AIRPORT_COUNT =
-  RING1_AIRPORT_COUNT + RING2_AIRPORT_COUNT + RING3_AIRPORT_COUNT + RING4_AIRPORT_COUNT
+  RING1_AIRPORT_COUNT +
+  RING2_AIRPORT_COUNT +
+  RING3_AIRPORT_COUNT +
+  RING4_AIRPORT_COUNT +
+  RING5_AIRPORT_COUNT
 /**
- * `GET /v1/airports?scope=listed`: 56 Türkiye + 1.184 Türkiye dışı = 1.240 (D-110'dan önce 1.217;
- * D-107'den önce 61 Türkiye, 1.222).
+ * `GET /v1/airports?scope=listed`: 56 Türkiye + 3.210 Türkiye dışı = 3.266 (4. halkada 1.240;
+ * D-110'dan önce 1.217; D-107'den önce 61 Türkiye, 1.222).
  */
 export const LISTED_AIRPORT_COUNT = AIRPORT_COUNT + FOREIGN_AIRPORT_COUNT
-/** Dizine eklenen havalimanı sayfaları: Türkiye'nin 56'sı ve Türkiye dışındakilerin hepsi (1.240). */
+/** Dizine eklenen havalimanı sayfaları: Türkiye'nin 56'sı ve Türkiye dışındakilerin hepsi (3.266). */
 export const INDEXABLE_LISTED_AIRPORT_COUNT = INDEXABLE_AIRPORT_COUNT + FOREIGN_AIRPORT_COUNT
-/** Halkaların üst sınırları, km (`AIRPORT_RINGS_KM`; D-080). */
+/**
+ * Hava durumu istasyonu olmayan listelenen havalimanları (D-109, D-111): ICAO'ları dört harf değil
+ * (rakamlı; AWC yalnız dört harfli istasyon tanır). Toplu hava `scope=listed` 3.264 istasyondur.
+ */
+export const NON_WEATHER_STATION_AIRPORTS = ['CAJ4', 'CAT4'] as const
+export const WEATHER_STATION_COUNT = LISTED_AIRPORT_COUNT - NON_WEATHER_STATION_AIRPORTS.length
+/**
+ * Halkaların üst sınırları, km (`AIRPORT_RINGS_KM`; D-080); 5. halkanın üst sınırı yoktur, alt
+ * sınırı 4. halkanınkidir (en yakını Xining, 5.003 km).
+ */
 export const RING_LIMITS_KM = { 1: 500, 2: 1000, 3: 2000, 4: 5000 } as const
 
 /**
@@ -186,33 +201,57 @@ export const RING4_AIRPORT = {
   timeZone: 'Europe/London',
 } as const
 /**
- * Referans fixture'ında olan ama listelenmeyen uzak havalimanı (New York JFK; 5. halka): sayfası
- * 404'tür.
+ * 5. halkadan örnek havalimanı (D-109): New York JFK (Türkiye'deki en yakın IATA kodlu alana
+ * ~7.900 km). OurAirports ülkesi US; saat dilimi America/New_York (bölge kuralı US-NY). Canlı veri
+ * çekim alanının dışındadır: başlık canlı trafik vaat etmez (D-106). `/istasyon/JFK` 308 ile
+ * `/istasyon/KJFK`'ye gider.
  */
-export const UNLISTED_FOREIGN_AIRPORT = { icao: 'KJFK', iata: 'JFK' } as const
+export const RING5_AIRPORT = {
+  icao: 'KJFK',
+  iata: 'JFK',
+  country: 'US',
+  countryTr: 'Amerika Birleşik Devletleri',
+  countryEn: 'United States',
+  nameTr: 'New York John F. Kennedy Havalimanı',
+  nameEn: 'John F. Kennedy International Airport',
+  cityTr: 'New York',
+  timeZone: 'America/New_York',
+} as const
 /**
- * 4. halkada olup dört karakterli kanonik ICAO'su olmadığı için listelenmeyen havalimanı (D-101):
- * Kihihi'nin Savannah pisti, OurAirports kimliği UG-0002, IATA KHX. `/istasyon/KHX` yönlendirmeden
+ * Referans fixture'ında olan ama listelenmeyen havalimanları (D-109'un dışlama örnekleri): Paris-Le
+ * Bourget (LFPB, LBG; büyük, tarifesiz: içe aktarılır, aday değildir) ve Thohoyandou (FATH, THY;
+ * küçük, tarifesiz: içe aktarılmaz). Sayfaları ICAO ve IATA koduyla yönlendirmesiz 404'tür; "THY"
+ * hiçbir zaman havalimanı kodu değildir.
+ */
+export const UNLISTED_FOREIGN_AIRPORTS = [
+  { icao: 'LFPB', iata: 'LBG' },
+  { icao: 'FATH', iata: 'THY' },
+] as const
+/**
+ * Dört karakterli kanonik ICAO'su olmadığı için listelenmeyen havalimanı (D-101): Kihihi'nin
+ * Savannah pisti, OurAirports kimliği UG-0002, IATA KHX (4. halka). `/istasyon/KHX` yönlendirmeden
  * 404'tür (`/istasyon/UG-0002`'ye 308 olmaz); liste, toplu hava, site haritası ve llms.txt onu
- * taşımaz.
+ * taşımaz. 5. halkada aynı kuralla Aleknagik (5A8, WKK) ve Leshan (CN-0249, LSG):
+ * `NON_ICAO_IATA_CODES`.
  */
 export const NON_ICAO_AIRPORT = { ident: 'UG-0002', iata: 'KHX' } as const
+export const NON_ICAO_IATA_CODES = ['KHX', 'WKK', 'LSG'] as const
 /**
  * Adres takma adı (D-109): Semerkant'ın OurAirports kimliği eski UTSS kodudur, kanonik ICAO'su
  * UZSS. `/istasyon/UTSS` 308 ile `/istasyon/UZSS`'e gider; `GET /v1/airports/UTSS` UZSS kaydını
- * verir. `closedRingAlias`: 5. halkanın takma adı (Lima SPIM → SPJC), halka kapalıyken sayfada 404;
- * `notAlias`: Timika'nın kimliği, ama başka bir OurAirports satırının ICAO'su (WABP), hiçbir yerde
- * takma ad değildir.
+ * verir. `ring5Alias`: 5. halkanın takma adı (Lima SPIM → SPJC; M6j.1'de halka kapalıyken 404,
+ * M6j.3'ten beri 308); `notAlias`: Timika'nın kimliği, ama başka bir OurAirports satırının ICAO'su
+ * (WABP), hiçbir yerde takma ad değildir.
  */
 export const IDENT_ALIAS_AIRPORT = {
   alias: 'UTSS',
   icao: 'UZSS',
-  closedRingAlias: 'SPIM',
+  ring5Alias: { alias: 'SPIM', icao: 'SPJC' },
   notAlias: 'WABP',
 } as const
 /**
  * 5. halkanın askerî listesi (D-109): adı yalnız askerî üç alan (Wake PWAK/AWK, Oakey YBOK/OKY,
- * Kwajalein PKWA/KWA). Halka açılınca da listelenmez; bugün 5. halka kapalı olduğu için zaten 404.
+ * Kwajalein PKWA/KWA). Halka açıkken de (M6j.3) listelenmez: sayfaları ICAO ve IATA koduyla 404.
  */
 export const FOREIGN_MILITARY_AIRFIELDS = ['PWAK', 'YBOK', 'PKWA'] as const
 /** Sitemap'teki havalimanı dışı sayfalar; her birinin `/en` ikizi de vardır (D-076). */
