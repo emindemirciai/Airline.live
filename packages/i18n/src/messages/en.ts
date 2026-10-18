@@ -604,6 +604,7 @@ export const en: Messages = {
       countOne: '{count} report',
       countMany: '{count} reports',
       empty: 'No reports recorded in the last 24 hours.',
+      loading: 'Loading the report log…',
       unavailable: 'The report log is unavailable right now.',
       older: 'Reports are kept for 30 days; the last 7 days {link}.',
       olderLink: 'are available from the API',

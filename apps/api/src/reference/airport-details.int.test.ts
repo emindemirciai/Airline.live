@@ -16,6 +16,7 @@ import {
 import { bearingDifference, distanceKm, initialBearing, type LatLon } from '@havayolu/geo'
 import { parseAirports, parseRunways, type RunwayRow } from '@havayolu/providers'
 import {
+  AIRPORT_MAP_ENDS_MAX_RING,
   AIRPORT_RING_CONFIG,
   AIRPORT_RINGS_KM,
   airportCountryName,
@@ -30,9 +31,11 @@ import {
   ourAirportsIcao,
   provinceName,
   runwaySurfaceKey,
+  toAirportMapEntry,
   type AirportDetail,
   type AirportDetailsResponse,
   type ListedAirportDetailsResponse,
+  type ListedAirportMapResponse,
 } from '@havayolu/shared'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { testApp } from '../test/helpers'
@@ -316,6 +319,24 @@ describe('havalimanı ayrıntıları (gerçek PostgreSQL, OurAirports fixture)',
         await instance.inject({ method: 'GET', url: '/v1/airports?scope=listed' })
       ).json() as { scope: string; airports: { icao: string }[] }
       expect(plain.airports.map((a) => a.icao)).toEqual(body.airports.map((a) => a.icao))
+
+      // Haritanın kaydı (`include=map`, D-111): aynı 56 + 1.184 havalimanı (D-110), aynı sırayla;
+      // pist uçları yalnız 1.–3. halkada, takma ad (D-109) olduğu gibi.
+      const map = (
+        await instance.inject({ method: 'GET', url: '/v1/airports?scope=listed&include=map' })
+      ).json() as ListedAirportMapResponse
+      expect(map.scope).toBe('listed')
+      expect(map.airports).toHaveLength(56 + 1184)
+      expect(map.airports).toEqual(body.airports.map(toAirportMapEntry))
+      for (const airport of map.airports) {
+        const withEnds = airport.ring <= AIRPORT_MAP_ENDS_MAX_RING
+        for (const runway of airport.runways) {
+          expect(runway.ends !== undefined, airport.icao).toBe(withEnds)
+        }
+      }
+      expect(map.airports.filter((a) => a.identAlias !== undefined).length).toBe(
+        body.airports.filter((a) => a.identAlias !== undefined).length,
+      )
 
       const ringLimitKm: Record<number, number> = { 1: 500, 2: 1000, 3: 2000, 4: 5000 }
       const unknownSurfaces: string[] = []

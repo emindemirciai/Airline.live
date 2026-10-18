@@ -1,4 +1,5 @@
 // Yalnızca testlerde kullanılan yardımcılar (üretim kodu bunları import edemez).
+import { createRequire } from 'node:module'
 import {
   EMPTY_AIRLINE_CODES,
   REFERENCE_SOURCES,
@@ -337,4 +338,25 @@ export async function login(app: Awaited<ReturnType<typeof testApp>>['app']) {
     payload: { email: ADMIN_EMAIL, password: ADMIN_SETUP_TOKEN },
   })
   return (res.json() as { token: string }).token
+}
+
+export type Validate = ((data: unknown) => boolean) & { errors?: unknown }
+export interface AjvLike {
+  compile(schema: object): Validate
+}
+
+/**
+ * Ajv ve ajv-formats, Fastify'ın kendi doğrulayıcısının (@fastify/ajv-compiler) bağımlılıklarıdır;
+ * pakete yeni bağımlılık eklenmez, aynı kurulumdan çözülür. OpenAPI gidiş-dönüş testleri yanıtları
+ * `/openapi.json` şemalarıyla bununla doğrular.
+ */
+export function fastifyAjv(): AjvLike {
+  const fromApi = createRequire(import.meta.url)
+  const fromFastify = createRequire(fromApi.resolve('fastify'))
+  const fromCompiler = createRequire(fromFastify.resolve('@fastify/ajv-compiler'))
+  const Ajv = (fromCompiler('ajv') as { default: new (options: object) => AjvLike }).default
+  const addFormats = (fromCompiler('ajv-formats') as { default: (ajv: AjvLike) => void }).default
+  const ajv = new Ajv({ strict: false, allErrors: true })
+  addFormats(ajv)
+  return ajv
 }

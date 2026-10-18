@@ -744,6 +744,8 @@ export const tr = {
       countOne: '{count} rapor',
       countMany: '{count} rapor',
       empty: 'Son 24 saatte kayıtlı rapor yok.',
+      /** Kayıt yalnız tarayıcıdan gelir (D-111): sunucu çizimi ve ilk istek bitene kadar. */
+      loading: 'Rapor kaydı yükleniyor…',
       unavailable: 'Rapor kaydı şu an alınamıyor.',
       /** `{link}`: API adresi (son 7 gün, JSON). */
       older: 'Raporlar 30 gün saklanır; son 7 günün kaydı {link}.',

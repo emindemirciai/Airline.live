@@ -8,7 +8,31 @@
 
 ---
 
-## v0.25.3 — 2026-10-15
+## v0.26.0 — 2026-10-17
+
+### Türkçe
+**Daha hızlı harita ve havalimanı sayfaları**
+
+- Canlı harita açılırken havalimanı listesini yarı boyutta indiriyor; harita, özellikle yavaş bağlantılarda daha çabuk açılıyor.
+- Havalimanı sayfaları, havalimanları listesi ve paylaşım görselleri daha hızlı hazırlanıyor.
+- Havalimanı sayfasındaki son 24 saatin METAR/TAF kaydı artık sayfa açıldıktan sonra yükleniyor; sayfanın geri kalanı daha çabuk görünüyor.
+- API: listelenen havalimanlarının toplu hava durumu (`/v1/weather?scope=listed`) artık `format=raw` parametresini istiyor.
+
+Dene: [Canlı harita](/) · [Havalimanları](/havalimanlari)
+
+### English
+**Faster map and airport pages**
+
+- The live map now downloads the airport list at half the size when it opens, so the map opens faster, especially on slow connections.
+- Airport pages, the airport list and share images are prepared faster.
+- The last 24 hours of METAR/TAF on an airport page now load after the page opens, so the rest of the page shows sooner.
+- API: the bulk weather for listed airports (`/v1/weather?scope=listed`) now requires the `format=raw` parameter.
+
+Try it: [Live map](/) · [Airports](/havalimanlari)
+
+---
+
+## v0.25.3 — 2026-10-15 20:08 (UTC+3)
 
 ### Türkçe
 **Havalimanı simgeleri de gizlenebilir**

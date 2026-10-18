@@ -12,49 +12,51 @@ import { z } from 'zod'
 // Göreli yollar: vitest `@/` takma adını çözmez; bu modül ve onu kullanan SEO dosyaları testte yüklenir.
 import { isTurkish } from '../components/airports/airport-text'
 import { getServerEnv } from './env'
+import { createMemoryCache } from './memory-cache'
 
 export { isTurkish } from '../components/airports/airport-text'
 
 /**
  * Havalimanı sayfalarının (M6b) tek veri çağrısı: `GET /v1/airports?scope=listed&include=runways`.
  * "Listelenen havalimanları" (D-080): IATA kodlu Türkiye havalimanları ve açık halkalardaki
- * (`ENABLED_AIRPORT_RING`) yakın ülke havalimanları; halka üyeliğini API hesaplar. Sayfa, üst veri,
+ * (`ENABLED_AIRPORT_RING`) yurt dışı havalimanları; halka üyeliğini API hesaplar. Sayfa, üst veri,
  * site haritası, llms.txt ve paylaşım görseli hepsi bu listeden türetilir.
  *
- * - Next veri önbelleği: 1 saat (`revalidate`), etiket `airports`. İçe aktarım günde bir çalışır;
- *   API'nin kendi 10 dk önbelleği de vardır. Saatte bir istek, web konteynerinin API'deki tek hız
- *   sınırı kovasını (60/dk, D-060) hiçbir koşulda zorlamaz.
- * - İstemci başlıkları (X-Forwarded-For, CF-Connecting-IP) **iletilmez**: Next önbellek anahtarı
- *   istek başlıklarını içerir (next/dist/server/lib/incremental-cache → generateCacheKey); iletilse
- *   önbellek ziyaretçi başına bölünürdü.
- * - Boyut (4. halka, D-102; savaş kapanışlarıyla, D-110): 1.240 havalimanı ve pistleri 1,07 MB;
- *   Next'in önbellek kaydı (gövde base64) 1,43 MB, 2 MiB öğe sınırının %68'i (geliştirmede sınır
- *   aşılırsa hata, üretimde önbelleksiz istek). API'nin `airports-cache-size.test.ts` testi kaydın
- *   sınırın %85'inin altında kaldığını fixture'dan denetler; 5. halkada sınır kırılır (D-101).
- * - Ayrıştırma önbellek kaydı başına bir kez: Next her çizimde kaydın gövdesini yeniden verir;
- *   gövdenin JSON'u ve denetimi (`parseAirportsBody`) 4. halkada çizim başına ~12 ms'dir (JSON ~6,
- *   zod ~5; 3. halkada ~5). Ayrıştırılan liste pencere başına bellekte tutulur ve gelen gövde
- *   bir öncekiyle aynı metinse yeniden kullanılır (~2 ms: base64 çözme ve metin karşılaştırması;
- *   D-102). Kayıt yenilenip gövde değişince yeniden ayrıştırılır; Next'in önbellek davranışı
- *   (süre, etiket, hatada eski kayıt) değişmez. Dönen dizi istekler arasında paylaşılır, salt
- *   okunurdur (`readonly`).
+ * - **Web sunucusunun belleğinde** (`createMemoryCache`, D-111), Next veri önbelleğinde değil: Next
+ *   kaydı gövdeyi base64 saklar ve 2 MiB'ı aşan kaydı yazmaz (geliştirmede hata, üretimde her çizim
+ *   önbelleksiz istek); 5. halkada (3.266 havalimanı, D-110) gövde ~3 MB, kayıt sınırın %190'ı
+ *   olurdu. İstek `cache: 'no-store'` ile gider. 4. halkada (1.240 havalimanı) gövde ~1,07 MB,
+ *   ayrıştırılmış liste ~1,4 MB bellek; 5. halkada ~2,99 MB ve ~3,9 MB.
+ * - **1 saat taze** (`AIRPORTS_TTL_MS`; içe aktarım günde bir çalışır, API'nin kendi 10 dk önbelleği
+ *   de vardır). Süre dolunca eldeki liste **hemen** verilir ve arkada tek yükleme başlar
+ *   (stale-while-revalidate, tek uçuş): hiçbir çizim saatlik yenilemeyi (5. halkada API ~54–82 ms,
+ *   aktarım ve ~39 ms ayrıştırma) beklemez. API'ye saatte bir istek gider; web konteynerinin API'deki
+ *   tek hız sınırı kovası (60/dk, D-060) zorlanmaz.
+ * - **Yenileme başarısızsa** eldeki liste yaş sınırı olmadan kullanılır (Next'in eski kaydı sunması
+ *   gibi) ve 60 sn sonra yeniden denenir (`AIRPORTS_RETRY_MS`).
+ * - **Boş liste** (ilk kurulumda içe aktarım bitmeden) yalnız 60 sn tutulur
+ *   (`AIRPORTS_EMPTY_REVALIDATE_S`); içe aktarım bitince sayfalar bir dakika içinde dolar.
+ * - **Liste hiç yüklenmemişse** (sürecin ilk çizimi) çizim yüklemeyi bekler; yükleme başarısızsa
+ *   hata fırlatılır ve sayfa 500 verir (yumuşak 404 değil). Sonraki çizim beklemeden yeniden dener.
+ * - Gövde yükleme başına bir kez ayrıştırılır (`parseAirportsBody`; 4. halkada JSON ~6 ms, zod
+ *   ~5 ms; 5. halkada toplam ~39 ms). Dönen dizi istekler arasında paylaşılır, salt okunurdur
+ *   (`readonly`); bir sonraki yüklemeye kadar aynı dizidir (llms.txt bu yüzden yükleme başına bir
+ *   kez kurulur, D-111).
+ * - İstemci başlıkları (X-Forwarded-For, CF-Connecting-IP) iletilmez: istek ziyaretçi adına değil,
+ *   sunucunun kendisi içindir.
  * - İstek başına tek çağrı: React `cache()`.
- * - Next yalnızca 200 yanıtı önbelleğe alır; API ulaşılamazsa sayfa 500 verir (yumuşak 404 değil),
- *   önbellekte eski kopya varsa o sunulur.
- * - Boş liste (ilk kurulumda içe aktarım bitmeden) saatlik kayıtta kalabilir; o durumda liste kısa
- *   süreli (1 dk) ikinci bir önbellek kaydından okunur. Hiçbir çizim önbelleksiz istek atmaz: API'ye
- *   en çok dakikada bir istek gider ve içe aktarım bitince sayfalar bir dakika içinde dolar.
+ * - Web tek süreçtir; birden çok kopya çalışırsa her biri saatte bir istek atar.
  */
 
 /** Listenin kapsamı (`GET /v1/airports?scope=listed`, D-080); hava durumu da aynı kapsamla istenir. */
 export const AIRPORTS_SCOPE = 'listed'
-/** Next veri önbelleği süresi, saniye. */
-export const AIRPORTS_REVALIDATE_S = 3600
-/** Saatlik kayıttaki liste boşsa kullanılan kısa süreli önbellek kaydının süresi, saniye. */
+/** Listenin web belleğinde taze kaldığı süre, ms (D-111; önce Next veri önbelleğinde 3.600 sn). */
+export const AIRPORTS_TTL_MS = 3_600_000
+/** Boş liste (ilk kurulumda içe aktarım bitmeden) bu kadar tutulur, saniye. */
 export const AIRPORTS_EMPTY_REVALIDATE_S = 60
-/** `revalidateTag` ile elle tazelemek için önbellek etiketi. */
-export const AIRPORTS_CACHE_TAG = 'airports'
-/** API yanıt vermezse sayfa bu kadar bekler. */
+/** Başarısız yenilemeden sonra yeniden deneme için en kısa süre, ms. */
+export const AIRPORTS_RETRY_MS = 60_000
+/** API yanıt vermezse yükleme bu kadar bekler. */
 export const AIRPORTS_TIMEOUT_MS = 8000
 
 /** ICAO kodu adreste büyük harflidir (D-076). */
@@ -139,45 +141,36 @@ export function parseAirportsBody(body: unknown): AirportDetail[] {
   return airports
 }
 
-/** Önbellek kaydını ayıran istek başlığı; API bu başlığı okumaz. */
-export const AIRPORTS_CACHE_WINDOW_HEADER = 'x-hy-cache-window'
-
-/**
- * Önbellek penceresi başına son ayrıştırılan liste ve gövdesi: Next'in veri önbelleği aynı gövdeyi
- * verdikçe JSON ve zod yeniden çalışmaz (D-102).
- */
-const parsedByWindow = new Map<number, { text: string; airports: readonly AirportDetail[] }>()
-
-/**
- * Önbellekli liste isteği. Next veri önbelleğinin anahtarı `revalidate` süresini içermez, istek
- * başlıklarını içerir (`incremental-cache/index.js` → `generateCacheKey`). Pencere bu yüzden bir
- * başlıkla anahtara girer: saatlik ve dakikalık kayıtlar birbirini ezmez.
- */
-async function fetchAirports(url: string, revalidateS: number): Promise<readonly AirportDetail[]> {
-  const response = await fetch(url, {
-    next: { revalidate: revalidateS, tags: [AIRPORTS_CACHE_TAG] },
-    headers: { accept: 'application/json', [AIRPORTS_CACHE_WINDOW_HEADER]: String(revalidateS) },
+/** Listeyi API'den yükler (Next veri önbelleği yok); HTTP hatası ya da bozuk zarf hata fırlatır. */
+async function loadAirports(): Promise<readonly AirportDetail[]> {
+  const response = await fetch(airportsUrl(getServerEnv().API_INTERNAL_URL), {
+    cache: 'no-store',
+    headers: { accept: 'application/json' },
     signal: AbortSignal.timeout(AIRPORTS_TIMEOUT_MS),
   })
   if (!response.ok) throw new Error(`airports request failed: HTTP ${response.status}`)
-  const text = await response.text()
-  const memo = parsedByWindow.get(revalidateS)
-  if (memo?.text === text) return memo.airports
-  const airports: readonly AirportDetail[] = parseAirportsBody(JSON.parse(text) as unknown)
-  parsedByWindow.set(revalidateS, { text, airports })
-  return airports
+  return parseAirportsBody((await response.json()) as unknown)
 }
 
+/** Listenin süreç içi önbelleği (modül düzeyi; bütün sayfalar paylaşır, D-111). */
+const airportsCache = createMemoryCache<readonly AirportDetail[]>({
+  load: loadAirports,
+  ttlMs: (airports) =>
+    airports.length === 0 ? AIRPORTS_EMPTY_REVALIDATE_S * 1000 : AIRPORTS_TTL_MS,
+  retryMs: AIRPORTS_RETRY_MS,
+  maxStaleMs: Number.POSITIVE_INFINITY,
+  staleWhileRevalidate: true,
+})
+
 /**
- * Listelenen havalimanları (Türkiye ve yakın ülkeler), pistleri ve istasyon bilgisiyle. Saatlik
- * kayıttaki liste boşsa (ilk kurulumda içe aktarım bitmeden alınmış) dakikalık kayda bakılır;
- * önbelleksiz istek atılmaz. Saatlik kayıt süresi dolunca kendiliğinden dolu listeyle yenilenir.
+ * Listelenen havalimanları (Türkiye ve yurt dışı), pistleri ve istasyon bilgisiyle. Liste hiç
+ * yüklenemediyse hata fırlatır (sayfa 500); eldeki liste süresi dolmuş olsa da beklemeden verilir.
  */
 export const getAirports = cache(async (): Promise<readonly AirportDetail[]> => {
-  const url = airportsUrl(getServerEnv().API_INTERNAL_URL)
-  const cached = await fetchAirports(url, AIRPORTS_REVALIDATE_S)
-  if (cached.length > 0) return cached
-  return fetchAirports(url, AIRPORTS_EMPTY_REVALIDATE_S)
+  const airports = await airportsCache()
+  // Sınırsız eski kullanımda null yalnız hiç yüklenmemiş listede olabilir; o yol zaten fırlatır.
+  if (airports === null) throw new Error('airports are not loaded')
+  return airports
 })
 
 /** ICAO koduyla (büyük-küçük harf fark etmez) tek havalimanı; yoksa undefined. */

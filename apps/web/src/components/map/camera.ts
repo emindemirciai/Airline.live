@@ -56,7 +56,18 @@ export const SELECT_MIN_ZOOM = 8
 export const AIRPORT_MIN_ZOOM = 10
 
 export interface MapViewport {
+  /** MapLibre'nin sarılmamış sınırları: 180. meridyende batı 170, doğu 190 olabilir. */
   bounds: Bbox
   center: { lat: number; lon: number }
   zoom: number
+}
+
+/**
+ * Boylamın kameranın ortasına en yakın dünya kopyası (180. meridyen, D-111): `lon` 360'ın katı
+ * kadar kaydırılır, sonuç `centerLon ± 180` içindedir. MapLibre'nin `project`'i boylamı sarmaz:
+ * 179,5° D'ye bakan kamerada Tonga'nın −175,15°'si ekranın 15.000 px solunda çıkar, pini ise
+ * 184,85°'de çizilir. Kodlar ve pencere izdüşümden önce bununla sarılır.
+ */
+export function nearestWorldLon(lon: number, centerLon: number): number {
+  return lon + 360 * Math.round((centerLon - lon) / 360)
 }

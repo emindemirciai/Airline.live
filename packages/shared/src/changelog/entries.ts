@@ -12,8 +12,39 @@ import type { ChangelogEntry } from './types'
  */
 export const CHANGELOG: readonly ChangelogEntry[] = [
   {
+    version: '0.26.0',
+    date: '2026-10-17',
+    title: {
+      tr: 'Daha hızlı harita ve havalimanı sayfaları',
+      en: 'Faster map and airport pages',
+    },
+    items: [
+      {
+        tr: 'Canlı harita açılırken havalimanı listesini yarı boyutta indiriyor; harita, özellikle yavaş bağlantılarda daha çabuk açılıyor.',
+        en: 'The live map now downloads the airport list at half the size when it opens, so the map opens faster, especially on slow connections.',
+      },
+      {
+        tr: 'Havalimanı sayfaları, havalimanları listesi ve paylaşım görselleri daha hızlı hazırlanıyor.',
+        en: 'Airport pages, the airport list and share images are prepared faster.',
+      },
+      {
+        tr: 'Havalimanı sayfasındaki son 24 saatin METAR/TAF kaydı artık sayfa açıldıktan sonra yükleniyor; sayfanın geri kalanı daha çabuk görünüyor.',
+        en: 'The last 24 hours of METAR/TAF on an airport page now load after the page opens, so the rest of the page shows sooner.',
+      },
+      {
+        tr: 'API: listelenen havalimanlarının toplu hava durumu (`/v1/weather?scope=listed`) artık `format=raw` parametresini istiyor.',
+        en: 'API: the bulk weather for listed airports (`/v1/weather?scope=listed`) now requires the `format=raw` parameter.',
+      },
+    ],
+    tryLinks: [
+      { path: '/', label: { tr: 'Canlı harita', en: 'Live map' } },
+      { path: '/havalimanlari', label: { tr: 'Havalimanları', en: 'Airports' } },
+    ],
+  },
+  {
     version: '0.25.3',
     date: '2026-10-15',
+    releasedAt: '2026-10-15T17:08:53Z',
     title: {
       tr: 'Havalimanı simgeleri de gizlenebilir',
       en: 'Airport icons can be hidden too',

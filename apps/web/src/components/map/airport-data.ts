@@ -1,27 +1,32 @@
 /**
  * Haritanın havalimanı verisi (M6c, M6d): listelenen havalimanları, yani IATA kodlu Türkiye
- * havalimanları ve açık halkalardaki yakın ülke havalimanları (D-080), tek istekte:
- * `GET /v1/airports?scope=listed&include=runways`. Listede askerî hava üssü yoktur (D-107);
+ * havalimanları ve açık halkalardaki yurt dışı havalimanları (D-080), tek istekte:
+ * `GET /v1/airports?scope=listed&include=map` (D-111). Listede askerî hava üssü yoktur (D-107);
  * canlı harita listeyi yüklerken yine savunma süzgecinden geçirir (`mapShownAirports`,
  * `@havayolu/shared`; D-103). Noktalar ve IATA kodları bu listeden çizilir; havalimanı penceresi
  * (airport-popup.tsx) aynı kayıttaki il ya da ülke, rakım ve pistleri gösterir. Uçak listesinin
  * tahmini durumu ve konumu (D-085) ve `?havalimani=` hedefi (`airportLinkCenter`) aynı listeyi
  * kullanır.
  * Yanıt tarayıcıda savunmacı biçimde denetlenir (bozuk kayıt atlanır, lib/live/validate.ts ile aynı
- * yaklaşım) ve yalnızca haritanın kullandığı alanlar tutulur: kaplama ve istasyon ayarları belleğe
- * alınmaz. Pist uçlarından yalnızca uçak listesinin tahmini durumu (D-085, lib/map/flight-phase.ts)
- * için gereken ad, yön ve eşik tutulur.
+ * yaklaşım) ve yalnızca haritanın kullandığı alanlar tutulur. Pist uçlarından yalnızca uçak
+ * listesinin tahmini durumu (D-085, lib/map/flight-phase.ts) için gereken ad, yön ve eşik tutulur.
  *
- * Ölçek (4. halka, D-102; D-110): 1.240 havalimanının yanıtı ~1,07 MB'tır (sıkıştırmasız; 3. halkada 498
- * havalimanıyla ~0,45 MB), harita açılışında bir kez indirilir; noktalar tek GeoJSON kaynağıdır.
- * Etiket tuvali her `render` olayında görünümdeki havalimanlarına kod yerleştirir (labels.ts →
- * `layoutAirportChips`, ızgaralı dizin). Görünür alana göre yükleme 5. halkada değerlendirilir
- * (D-101).
+ * Ölçek (D-111): `include=map` kaydı pencerenin alanlarını ve pist uzunluklarını taşır; pist uçları
+ * yalnız 1.–3. halkada (canlı veri kapsaması, D-073) gelir. 4. halkada 1.240 havalimanı (savaş
+ * kapanışlarıyla, D-110) ~0,54 MB ham, ~92 KB brotli (önce pistli liste ~1,07 MB; brotli ~183 KB,
+ * 1.217 havalimanıyla ölçüldü); 5. halkada 3.266 havalimanı ~1,17 MB, ~188 KB. Uçsuz bir
+ * havalimanının uçları, listedeki bir uçak evre yarıçapına girince tek havalimanı ucundan oturumda
+ * bir kez istenir (`fetchAirportRunways`, use-flight-phases.ts): izlenen uçak (D-073) JFK'ye inerken
+ * de pist etiketi çıkar. Noktalar tek GeoJSON kaynağıdır; etiket tuvali
+ * her `render` olayında görünümdeki havalimanlarına kod yerleştirir (labels.ts →
+ * `layoutAirportChips`, ızgaralı dizin). Görünür alana göre yükleme dünya geneli canlı veriyle
+ * değerlendirilir.
  */
 import type { Airport, Bbox } from '@havayolu/shared'
 import { ApiError } from '../../lib/live/api'
 import { isAirport, isObject } from '../../lib/live/validate'
 import { findAirportByCode } from '../../lib/map/url-state'
+import { nearestWorldLon } from './camera'
 
 /**
  * Pistin bir ucu, uçak listesinin pist hizası denetimi için (D-085): ad, bu uçtan karşı uca gerçek
@@ -41,8 +46,9 @@ export interface MapRunway {
   /** Pist uzunluğu, ft; kaynakta yoksa null. */
   lengthFt: number | null
   /**
-   * Yönü ve eşiği bilinen uçlar (`toMapAirport` her zaman doldurur; yön ya da eşiği eksik uç
-   * atlanır). Alan yoksa pist hizası denetlenmez; pencere yalnızca uzunluğu kullanır.
+   * Yönü ve eşiği bilinen uçlar (yön ya da eşiği eksik uç atlanır). Alan yoksa liste uçları
+   * taşımadı (4. halkadan itibaren, `include=map`, D-111): uçlar gerekince tek havalimanı ucundan
+   * istenir, o zamana kadar pist hizası denetlenmez. Pencere yalnızca uzunluğu kullanır.
    */
   ends?: readonly MapRunwayEnd[]
 }
@@ -71,9 +77,8 @@ const isCoordinate = (value: unknown, limit: number): value is number =>
   typeof value === 'number' && Number.isFinite(value) && Math.abs(value) <= limit
 
 /**
- * Pist uçları hoşgörüyle okunur: alan yoksa ya da dizi değilse boş liste, yönü ya da eşiği eksik ya
- * da bozuk uç atlanır. Havalimanı ve pist bu yüzden düşmez (pencere pist uçlarından önceki API ile de
- * çalışır).
+ * Pist uçları hoşgörüyle okunur: dizi değilse boş liste, yönü ya da eşiği eksik ya da bozuk uç
+ * atlanır. Havalimanı ve pist bu yüzden düşmez (pencere pist uçlarından önceki API ile de çalışır).
  */
 function runwayEndsOf(ends: unknown): MapRunwayEnd[] {
   if (!Array.isArray(ends)) return []
@@ -143,10 +148,11 @@ export function toMapAirport(value: unknown): MapAirport | null {
   for (const runway of runways as unknown[]) {
     if (!isObject(runway) || !isLength(runway.lengthFt)) return null
     // Sıfır ya da eksi uzunluk kaynakta eksik değerdir; kayıt düşmez, uzunluk bilinmiyor sayılır.
-    parsed.push({
-      lengthFt: runway.lengthFt !== null && runway.lengthFt > 0 ? runway.lengthFt : null,
-      ends: runwayEndsOf(runway.ends),
-    })
+    const lengthFt = runway.lengthFt !== null && runway.lengthFt > 0 ? runway.lengthFt : null
+    // Uç alanı yoksa liste uçları taşımadı (D-111): alan yazılmaz, uçlar gerekince istenir.
+    parsed.push(
+      runway.ends === undefined ? { lengthFt } : { lengthFt, ends: runwayEndsOf(runway.ends) },
+    )
   }
   return {
     icao: value.icao,
@@ -170,13 +176,13 @@ export function toMapAirport(value: unknown): MapAirport | null {
 }
 
 /**
- * Liste adresi: listelenen havalimanları (D-080), pistlerle birlikte (sayfalarla aynı liste; API'de
- * önbellekli).
+ * Liste adresi: listelenen havalimanları (D-080), haritanın kaydıyla (`include=map`, D-111; API'de
+ * hazır, sıkıştırılmış gövde).
  */
 export function mapAirportsUrl(apiBaseUrl: string): URL {
   const url = new URL('/v1/airports', apiBaseUrl)
   url.searchParams.set('scope', 'listed')
-  url.searchParams.set('include', 'runways')
+  url.searchParams.set('include', 'map')
   return url
 }
 
@@ -211,6 +217,30 @@ export async function fetchMapAirports(
 }
 
 /**
+ * Tek havalimanının pistleri uçlarıyla (`GET /v1/airports/<ICAO>`, D-111): haritanın listesinde
+ * uçları gelmeyen havalimanı için uçak listesinin pist hizası. Yanıt başarısız ya da bozuksa null
+ * (kesilen istek fırlatır).
+ */
+export async function fetchAirportRunways(
+  apiBaseUrl: string,
+  icao: string,
+  signal?: AbortSignal,
+): Promise<readonly MapRunway[] | null> {
+  try {
+    const response = await fetch(new URL(`/v1/airports/${encodeURIComponent(icao)}`, apiBaseUrl), {
+      signal,
+      headers: { accept: 'application/json' },
+    })
+    if (!response.ok) return null
+    const airport = toMapAirport((await response.json()) as unknown)
+    return airport?.icao === icao ? airport.runways : null
+  } catch (error) {
+    if (signal?.aborted) throw error
+    return null
+  }
+}
+
+/**
  * `?havalimani=` hedefinin merkezi: kod (ICAO ya da IATA) haritanın listesinde aranır; harita oraya
  * gider (havalimanı sayfasındaki "Canlı haritada aç" bağlantısı). `?havalimani=` hiçbir
  * havalimanında pencere açmaz. Kod listede yoksa null: askerî hava üsleri listede olmadığı için
@@ -242,7 +272,9 @@ export const AIRPORT_LIST_LIMIT = 12
 /**
  * Görünümdeki havalimanları, görünümün ortasına uzaklığa göre (yakın önce; eşitse IATA sırası),
  * en fazla `limit`. Havalimanı penceresinin klavye ve ekran okuyucu yolu bu listedir: pinler ve
- * kodlar haritada çizilir, odak alamaz (D-078).
+ * kodlar haritada çizilir, odak alamaz (D-078). MapLibre'nin sınırları sarılmamıştır (180.
+ * meridyende batı 170, doğu 190; D-111): boylam karşılaştırmadan önce `[batı, batı + 360)`
+ * aralığına, uzaklık için kameranın dünya kopyasına getirilir.
  */
 export function airportsInView(
   airports: readonly MapAirport[],
@@ -251,15 +283,13 @@ export function airportsInView(
 ): MapAirport[] {
   const { bounds, center } = viewport
   const cos = Math.cos((center.lat * Math.PI) / 180)
-  const distance = (a: MapAirport) => Math.hypot((a.lon - center.lon) * cos, a.lat - center.lat)
+  const distance = (a: MapAirport) =>
+    Math.hypot((nearestWorldLon(a.lon, center.lon) - center.lon) * cos, a.lat - center.lat)
+  const west = bounds.minLon
+  const span = bounds.maxLon - west
+  const inLon = (lon: number) => span >= 360 || (((lon - west) % 360) + 360) % 360 <= span
   return airports
-    .filter(
-      (a) =>
-        a.lat >= bounds.minLat &&
-        a.lat <= bounds.maxLat &&
-        a.lon >= bounds.minLon &&
-        a.lon <= bounds.maxLon,
-    )
+    .filter((a) => a.lat >= bounds.minLat && a.lat <= bounds.maxLat && inLon(a.lon))
     .map((airport) => ({ airport, distance: distance(airport) }))
     .sort(
       (a, b) =>

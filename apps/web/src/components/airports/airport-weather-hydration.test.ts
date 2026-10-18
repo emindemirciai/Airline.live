@@ -3,7 +3,7 @@ import { utcOffsetTable, type UtcOffsetTable } from '@havayolu/shared'
 import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { FIXTURE_NOW, fixtureHistory, fixtureWeather } from '../../lib/test/weather-fixture'
+import { FIXTURE_NOW, fixtureWeather } from '../../lib/test/weather-fixture'
 
 /**
  * Sunucunun fark tablosu (D-109): havalimanı sayfasının adası yerel saatleri sunucunun hesapladığı
@@ -71,7 +71,6 @@ async function renderIsland(
       lon: -123.18,
       apiBaseUrl: API,
       initialWeather: shift(fixtureWeather('LGAV'), days),
-      initialHistory: shift(fixtureHistory('LGAV'), days),
       renderedAt,
       timeZone,
       utcOffsets,

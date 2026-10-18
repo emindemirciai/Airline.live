@@ -441,7 +441,7 @@ export function LiveMap({
   // Listenin tahmini durumları (D-085): depo değiştikçe sınıflandırılır, çizimde yalnızca okunur.
   // Konum ve durum listelenen havalimanlarına göre yazılır; askerî üs yoktur (D-107): üssün
   // yakınındaki uçak en yakın sivil havalimanına göre yazılır ("ADB, 25 km").
-  const phases = useFlightPhases(store, airports)
+  const phases = useFlightPhases(store, airports, config.apiBaseUrl)
   // Haritanın üstündeki paneller: seçili uçağın etiketi bunların altında kalmaz (D-085). Kart açılıp
   // kapanınca panel kümesi değişir.
   const panels = useMapPanels(rootRef, cardOpen)
