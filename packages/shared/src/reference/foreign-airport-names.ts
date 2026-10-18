@@ -75,7 +75,8 @@ type LocalizedTable = Readonly<Record<string, LocalizedText>>
  *   Rostov-na-Donu Platov), yön niteleyicisi atılır (Kursk, "East"; İvanovo emsali).
  *
  * 4. halkanın 720 adı ayrı dosyadadır (`foreign-airport-names-r4.ts`, D-102); oradaki başlık bu
- * kurallara 4. halkanın eklediklerini yazar.
+ * kurallara 4. halkanın eklediklerini yazar. 5. halkanın 2.026 adı da ayrı dosyadadır
+ * (`foreign-airport-names-r5.ts`, D-109, D-118; depo dışındaki taslakla bayt bayt aynı).
  */
 const RING1_3_AIRPORT_NAMES: LocalizedTable = {
   BKPR: {
@@ -670,12 +671,14 @@ const RING1_3_AIRPORT_NAMES: LocalizedTable = {
 
 /**
  * Türkiye dışındaki listelenen havalimanlarının (D-080) Türkçe ve İngilizce görünen adları: 1.–3.
- * halkanın 464'ü (yukarıda) ve 4. halkanın (≤ 5.000 km, D-102) 720'si (`RING4_AIRPORT_NAMES`),
- * toplam 1.184 (savaş nedeniyle kapalı 23 havalimanıyla, D-110); anahtar kanonik ICAO'dur. Dört
+ * halkanın 464'ü (yukarıda), 4. halkanın (≤ 5.000 km, D-102) 720'si (`RING4_AIRPORT_NAMES`) ve 5.
+ * halkanın (dünyanın geri kalanı, D-109) 2.026'sı (`RING5_AIRPORT_NAMES`), toplam 3.210 (savaş
+ * nedeniyle kapalı 23 havalimanıyla, D-110); anahtar kanonik ICAO'dur. Dört
  * karakterli ICAO'su olmayan Kihihi (UG-0002, IATA KHX) listede olmadığı için tabloda da yoktur
  * (D-101).
  *
- * Tabloda olmayan yurt dışı havalimanı (sonraki halkalar) `translatedAirportName` kuralıyla
+ * Tabloda olmayan yurt dışı havalimanı (listelenmeyen ya da sonradan içe aktarılan satırlar, ör.
+ * LFPB) `translatedAirportName` kuralıyla
  * Türkçeleştirilir ("International Airport" → "Uluslararası Havalimanı", "Airport" → "Havalimanı").
  *
  * Birleşik tablo `#__PURE__` işaretli bir fonksiyon içinde kurulur: yayma (`...`) paketleyiciye yan
@@ -1191,9 +1194,9 @@ const RING1_3_AIRPORT_CITIES: LocalizedTable = {
 }
 
 /**
- * `FOREIGN_AIRPORT_NAMES`'teki 1.184 havalimanının hizmet verdiği şehir, iki dilde: 1.–3. halka
- * (yukarıda) ve 4. halka (`RING4_AIRPORT_CITIES`, D-102). Birleşik tablo da `#__PURE__` işaretli
- * kurulur (D-101).
+ * `FOREIGN_AIRPORT_NAMES`'teki 3.210 havalimanının hizmet verdiği şehir, iki dilde: 1.–3. halka
+ * (yukarıda), 4. halka (`RING4_AIRPORT_CITIES`, D-102) ve 5. halka (`RING5_AIRPORT_CITIES`, D-109).
+ * Birleşik tablo da `#__PURE__` işaretli kurulur (D-101).
  */
 export const FOREIGN_AIRPORT_CITIES: LocalizedTable = /*#__PURE__*/ (() => ({
   ...RING1_3_AIRPORT_CITIES,

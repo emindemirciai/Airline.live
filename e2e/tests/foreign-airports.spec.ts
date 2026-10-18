@@ -376,7 +376,7 @@ test.describe('API', () => {
       ).toBe(false)
     }
     expect(stations.some((station) => station.icao === RING5_AIRPORT.icao)).toBe(true)
-    expect(stations.every((station) => /^[A-Z0-9]{4}$/.test(String(station.icao)))).toBe(true)
+    expect(stations.every((station) => /^[A-Z]{4}$/.test(String(station.icao)))).toBe(true)
     for (const station of RING1_WEATHER_AIRPORTS) {
       const entry = stations.find((item) => item.icao === station)
       expect(String(entry?.metar?.raw), `${station}: METAR`).toContain(station)
@@ -440,8 +440,12 @@ test.describe('havalimanı listesi', () => {
       await expect(newYork).toHaveCount(1)
       await expect(newYork).toContainText(copy.ring5Name)
       await expect(newYork).toContainText(copy.ring5Country)
-      // Dört karakterli ICAO'su olmayan Kihihi (KHX) tabloda yoktur (D-101).
-      await expect(rows.filter({ hasText: NON_ICAO_AIRPORT.iata })).toHaveCount(0)
+      // Dört karakterli ICAO'su olmayan Kihihi (KHX) tabloda yoktur (D-101). Kod hücresi tam
+      // eşleşmeyle aranır: satır metninde "KHX" 5. halkanın Hilton Head'inin (KHXD) ICAO'sunda da
+      // geçer (D-118).
+      await expect(
+        rows.locator('td.mono', { hasText: new RegExp(`^${NON_ICAO_AIRPORT.iata}$`) }),
+      ).toHaveCount(0)
 
       const href = locale === 'tr' ? STATION_PATH : enPath(STATION_PATH)
       await athens.locator(`a[href="${href}"]`).click()

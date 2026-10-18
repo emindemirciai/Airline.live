@@ -21,6 +21,7 @@ import {
 } from 'react'
 // Göreli yollar: vitest `@/` takma adını çözmez (panel testleri bu dosyayı yükler).
 import {
+  nextTask,
   sliceTimeRemaining,
   whenIdle,
   type IdleDeadlineLike,
@@ -76,7 +77,9 @@ export function preloadAirportSearch(): void {
  * Dizini boşta kurar (D-108): parça geldikten sonra ayrı boşta işlerde, liste ve dil başına bir kez
  * (`buildAirportSearch` saklar; kutunun kurulumu yalnız saklananı bulur). Kurulum dilimlidir (M6j.3):
  * her boşta iş tarayıcının verdiği süre kadar ilerler (`builder.prepare`, `sliceTimeRemaining`),
- * bitmediyse sonraki boşta işe kalır; 5. halkanın 3.266 havalimanında hiçbir dilim uzun görev olmaz.
+ * bitmediyse sonraki boşta işe kalır (`requestIdleCallback` olmayan tarayıcıda, Safari ve iOS, ilk
+ * dilim `IDLE_FALLBACK_DELAY_MS` sonra, sonrakiler 10 ms'lik dilimlerle bir sonraki görevde,
+ * `nextTask`; D-118); 5. halkanın 3.266 havalimanında masaüstünde hiçbir dilim uzun görev olmaz.
  * Kutunun ilk odağı ya da dokunması (telefonda klavye açılırken) kurulumu beklemez; yarım kurulumu
  * kutu kendisi bitirir. Dilimli kurulumu olmayan yükleyici (kodla arama yedeği) tek boşta işte kurar.
  * Dönen fonksiyon iptal eder (efektin temizliği). `load` ve `scheduler` testte değiştirilir.
@@ -100,7 +103,10 @@ export function prebuildAirportSearch(
       const slice = (deadline?: IdleDeadlineLike) => {
         if (!active) return
         if (prepare(airports, locale, sliceTimeRemaining(deadline))) return
-        cancelBuild = whenIdle(slice, scheduler)
+        // Tarayıcı boşta süre vermediyse (yedek zamanlayıcı: Safari, iOS) sonraki dilim bir sonraki
+        // görevdedir, 1 sn sonra değil; `requestIdleCallback` her zaman `IdleDeadline` verir.
+        cancelBuild =
+          deadline === undefined ? nextTask(() => slice(), scheduler) : whenIdle(slice, scheduler)
       }
       cancelBuild = whenIdle(slice, scheduler)
     })

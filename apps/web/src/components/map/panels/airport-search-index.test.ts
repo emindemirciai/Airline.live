@@ -1,7 +1,15 @@
 import {
+  AIRPORT_SEARCH_MIN_SLICE_ENTRIES,
   AIRPORT_SEARCH_PLACES,
+  AIRPORT_SEARCH_STOP_WORDS,
+  airportDisplayName,
+  airportLocality,
+  airportOfficialName,
+  airportSearchPlaces,
+  foldSearchText,
   isMilitaryAirfield,
   MILITARY_AIRFIELD_ICAOS,
+  provinceName,
 } from '@havayolu/shared'
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
@@ -351,10 +359,20 @@ describe('havalimanı araması: fixture listesi (D-108)', () => {
       expect(listed(enter('turkis', search))).toEqual(['HSA', 'ECN'])
       // Türkçe harfli 3 harf tam kod değildir: "küt" Kutaisi'yi (KUT) açmaz.
       expect(listed(enter('küt', search))).toEqual(['KZR', 'KUT', 'DPS', 'LSR', 'WDH', 'UKX'])
-      // 5. halkayla (D-109) "sab" Saba'nın (SAB) tam kodudur: uçak yoksa Enter onu açar ("AJA"
-      // gibi); "gok" yine yalnız liste.
-      expect(opened(enter('sab', search))).toBe('SAB')
+      // 5. halkayla (D-109) "sab" Saba'nın (SAB) ve "cap" Cap-Haïtien'in (CAP) tam kodudur; sorgu
+      // Sabiha Gökçen'in ve Kapadokya'nın da adıdır: Enter havalimanını açmaz, liste gösterir
+      // (`turkeyNameMatch`, D-118). "gok" yine yalnız liste.
+      expect(listed(enter('sab', search))).toEqual([
+        ...['SAB', 'SAW', 'AFZ', 'SEB', 'SBT', 'AEP', 'ANF', 'YBX'],
+      ])
+      expect(listed(enter('cap', search))?.slice(0, 2)).toEqual(['CAP', 'NAV'])
+      expect(listed(enter('den', search))?.slice(0, 2)).toEqual(['DEN', 'DNZ'])
+      expect(listed(enter('sin', search))?.slice(0, 2)).toEqual(['SIN', 'NOP'])
       expect(listed(enter('gok', search))).toEqual(['SAW'])
+      // 1.–4. halkada da (v0.26.0'da açılıyordu): "bod" Bordeaux'yu (BOD) değil listeyi, Bodrum ikinci.
+      expect(listed(enter('bod', search))?.slice(0, 2)).toEqual(['BOD', 'BJV'])
+      // "kut" Kutaisi'nin (KUT) kodu ve Kütahya'nın (Zafer, KZR) başı.
+      expect(listed(enter('kut', search))?.slice(0, 2)).toEqual(['KUT', 'KZR'])
       expect(listed(enter('ant', search))).toEqual([
         ...['AYT', 'GZT', 'GZP', 'HTY', 'PNR', 'TNR', 'SCU', 'GUM'],
       ])
@@ -367,9 +385,66 @@ describe('havalimanı araması: fixture listesi (D-108)', () => {
       expect(opened(enter('Delhi', search))).toBe('DEL')
       // 5. halka: tam kod ve adres takma adı açılır (Lima SPIM → SPJC).
       expect(opened(enter('JFK', search))).toBe('JFK')
+      expect(opened(enter('jfk', search))).toBe('JFK')
       expect(opened(enter('SPIM', search))).toBe('LIM')
       expect(opened(enter('TRK', search))).toBe('TRK')
+      expect(opened(enter('KJFK', search))).toBe('JFK')
+      for (const code of ['AJA', 'GJT', 'ACT']) expect(opened(enter(code, search)), code).toBe(code)
+      // Türkiye'nin kodları her zaman açılır.
+      for (const code of ['SAW', 'ADB', 'AYT', 'ESB', 'LTFJ']) {
+        expect(opened(enter(code, search)), code).not.toBeNull()
+      }
       expect(listed(enter('New York', search))).toEqual(['LGA', 'JFK', 'SWF', 'ART'])
+    }
+  })
+
+  it('Enter (uçak yok): Türkiye havalimanlarının ad ve yer sözcüklerinin 3–4 harfli başı hiçbir zaman yurt dışındaki bir havalimanını açmaz (D-118)', () => {
+    const NO_AIRCRAFT: AircraftLookup = { status: 'ok', kind: 'callsign', results: [] }
+    const stop = new Set(AIRPORT_SEARCH_STOP_WORDS)
+    const turkey = AIRPORTS.filter((a) => a.country === 'TR')
+    const prefixes = new Set<string>()
+    for (const a of turkey) {
+      const texts = [
+        ...(['tr', 'en'] as const).flatMap((l) => [
+          airportDisplayName(a, l),
+          airportLocality(a, l),
+          provinceName(a.isoRegion, l),
+        ]),
+        airportOfficialName(a.icao),
+        a.name,
+        a.municipality,
+        a.city,
+        ...airportSearchPlaces(a.icao),
+      ]
+      for (const text of texts) {
+        for (const word of foldSearchText(text ?? '').split(' ')) {
+          if (stop.has(word) || !/^[a-z]+$/.test(word)) continue
+          for (const length of [3, 4])
+            if (word.length >= length) prefixes.add(word.slice(0, length))
+        }
+      }
+    }
+    expect(prefixes.size).toBeGreaterThan(150)
+    const opensAbroad: string[] = []
+    for (const search of [tr, en]) {
+      for (const query of prefixes) {
+        const outcome = submitOutcome({
+          query,
+          aircraft: NO_AIRCRAFT,
+          airports: search(query),
+          airportsLoaded: true,
+        })
+        if (outcome.type === 'airport' && outcome.airport.country !== 'TR') opensAbroad.push(query)
+      }
+    }
+    expect(opensAbroad).toEqual([])
+    // Ölçüt gerçekten sınanıyor: bu sorguların ilk satırı yurt dışındaki bir havalimanının tam kodudur.
+    for (const query of ['sin', 'den', 'bur', 'ord', 'dal', 'can', 'mel', 'pol', 'bod', 'agr']) {
+      expect(prefixes.has(query), query).toBe(true)
+      const [first] = tr(query).rows
+      expect(first?.match, query).toBe('code')
+      expect(first?.airport.country, query).not.toBe('TR')
+      expect(tr(query).turkeyNameMatch, query).toBe(true)
     }
   })
 
@@ -438,7 +513,13 @@ describe('havalimanı araması: fixture listesi (D-108)', () => {
   })
 
   it('rakamlı sorgu ad aramaz; tek karakter hiçbir şey bulmaz', () => {
-    expect(tr('TK1985')).toEqual({ rows: [], total: 0, queryLetters: 2, degraded: false })
+    expect(tr('TK1985')).toEqual({
+      rows: [],
+      total: 0,
+      queryLetters: 2,
+      degraded: false,
+      turkeyNameMatch: false,
+    })
     expect(tr('i').rows).toEqual([])
     expect(tr('havalimanı').rows).toEqual([])
   })
@@ -506,24 +587,45 @@ describe('havalimanı araması: dilimli kurulum (M6j.3, D-108)', () => {
     'Türkiye',
   ]
 
-  it('3.266 havalimanında boşta dilimlerle kurulur; hiçbir dilim 50 ms’yi aşmaz; sonuç tek seferlik kurulumla aynı', () => {
+  it('3.266 havalimanında boşta dilimlerle kurulur; dilim süre bitince durur; sonuç tek seferlik kurulumla aynı', () => {
+    // Saatsiz, sayan süre (D-118): her dilimde süre EXTRA soruda biter. Duvar saatiyle ölçen eski
+    // test yük altında dilimi 50 ms'nin üstünde ölçebiliyordu.
+    const EXTRA = 100
     // Yeni bir dizi: önceki testlerin sakladığı arama kullanılmaz.
     const airports = [...AIRPORTS]
-    const slices: number[] = []
+    let slices = 0
     let done = false
     while (!done) {
-      const start = performance.now()
-      done = prepareAirportSearch(airports, 'tr', () => 8 - (performance.now() - start))
-      slices.push(performance.now() - start)
-      expect(slices.length).toBeLessThan(10_000)
+      let left = EXTRA
+      done = prepareAirportSearch(airports, 'tr', () => left--)
+      slices++
+      expect(slices).toBeLessThan(10_000)
     }
-    expect(slices.length).toBeGreaterThan(1)
-    expect(Math.max(...slices)).toBeLessThanOrEqual(50)
+    expect(slices).toBeGreaterThan(10)
     // Kurulan arama saklanır; tek seferlik kurulum (başka dizi) aynı sonucu verir.
     const sliced = buildAirportSearch(airports, 'tr')
     expect(prepareAirportSearch(airports, 'tr', () => 0)).toBe(true)
     expect(buildAirportSearch(airports, 'tr')).toBe(sliced)
     const oneShot = buildAirportSearch([...AIRPORTS], 'tr')
+    for (const query of QUERIES) expect(sliced(query), query).toEqual(oneShot(query))
+  })
+
+  it('süre yoksa: Collator, ülke adları ve sıralama ayrı dilimlerdir; sonra her dilim AIRPORT_SEARCH_MIN_SLICE_ENTRIES kayıt', () => {
+    // İlk `Intl` nesneleri ICU'yu açar (Node 24 masaüstünde Collator ~12 ms, ilk DisplayNames ~8 ms,
+    // sıralama ~5 ms): üçü bir dilimde ~30 ms'lik görev olurdu (D-118).
+    const airports = [...AIRPORTS]
+    const results: boolean[] = []
+    while (results.at(-1) !== true) {
+      results.push(prepareAirportSearch(airports, 'en', () => 0))
+      expect(results.length).toBeLessThan(10_000)
+    }
+    const n = airports.length
+    const m = AIRPORT_SEARCH_MIN_SLICE_ENTRIES
+    // 3 bölünemez evre + kayıtlar (son kayıt dilimi motorun dizinine de 32 kayıt işler) + dizin.
+    expect(results).toHaveLength(3 + Math.ceil(n / m) + Math.ceil((n - m) / m))
+    expect(results.slice(0, -1).every((ready) => !ready)).toBe(true)
+    const sliced = buildAirportSearch(airports, 'en')
+    const oneShot = buildAirportSearch([...AIRPORTS], 'en')
     for (const query of QUERIES) expect(sliced(query), query).toEqual(oneShot(query))
   })
 

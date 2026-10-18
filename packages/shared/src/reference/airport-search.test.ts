@@ -575,19 +575,22 @@ describe('dilimli kurulum (M6j.3, D-108)', () => {
   )
   const QUERIES = ['ABC', 'abcville', 'testkent', 'ciftland', 'bölge 7', 'ad 12', 'zzz', 'oddland']
 
-  it('3.266 sentetik havalimanında hiçbir dilim 50 ms’yi aşmaz; dizin tek seferlik kurulumla aynı', () => {
+  it('dilim süre bitince durur (en az AIRPORT_SEARCH_MIN_SLICE_ENTRIES kayıttan sonra); dizin tek seferlik kurulumla aynı', () => {
+    // Saatsiz, sayan süre (D-118): `step` `timeRemaining()`'i yalnız en az 32 kayıttan sonra sorar;
+    // süre EXTRA soruda biter, böylece her dilim tam 32 + EXTRA kayıt işler. Duvar saatiyle ölçen
+    // eski test yük altında (bütün paketler birlikte) dilimi 50 ms'nin üstünde ölçüyordu.
+    const EXTRA = 100
     const builder = airportSearchIndexBuilder(synthetic)
-    const slices: number[] = []
+    let slices = 0
     let index = null
-    // Tarayıcının boşta süresi gibi: her dilim 8 ms.
     while (index === null) {
-      const start = performance.now()
-      index = builder.step(() => 8 - (performance.now() - start))
-      slices.push(performance.now() - start)
-      expect(slices.length).toBeLessThan(10_000)
+      let left = EXTRA
+      index = builder.step(() => left--)
+      slices++
+      expect(slices).toBeLessThan(10_000)
     }
-    expect(slices.length).toBeGreaterThan(1)
-    expect(Math.max(...slices)).toBeLessThanOrEqual(50)
+    expect(slices).toBe(Math.ceil(3_266 / (AIRPORT_SEARCH_MIN_SLICE_ENTRIES + EXTRA)))
+    expect(slices).toBe(25)
     expect(index.size).toBe(3_266)
     // Bittikten sonra aynı dizin.
     expect(builder.step(() => 0)).toBe(index)

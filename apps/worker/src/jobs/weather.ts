@@ -30,7 +30,12 @@ import {
   type SkippedEntry,
   type TafReport,
 } from '@havayolu/providers'
-import { AIRPORT_RING_CONFIG, decodeMetar, errorMessage } from '@havayolu/shared'
+import {
+  AIRPORT_RING_CONFIG,
+  decodeMetar,
+  errorMessage,
+  isWeatherStationIcao,
+} from '@havayolu/shared'
 import { UnrecoverableError } from 'bullmq'
 import type { Logger } from 'pino'
 
@@ -40,8 +45,9 @@ import type { Logger } from 'pino'
  * sınırına göre gruplara böler (olağan 2 saatlik METAR'da 80 istasyon: 5. halkayla 3.264 istasyon 41
  * istek, D-109, D-111; 4. halkada 1.240 istasyon 16 istek, D-102, D-107, D-110; TAF'ta istekte en çok
  * 200 istasyon: 5. halkada 17, 4. halkada yedi istek) ve iki isteğin başlangıcı
- * arasında en az 700 ms bekler (`AWC_MIN_REQUEST_INTERVAL_MS`; saatte ~220 istek, anlık en çok
- * dakikada ~86).
+ * arasında en az 700 ms bekler (`AWC_MIN_REQUEST_INTERVAL_MS`; 5. halkada saatte ~560 istek, 12 × 41
+ * METAR + 4 × 17 TAF; 4. halkada ~220; anlık en çok dakikada ~86). İstasyon dört harfli ICAO
+ * kodudur (`isWeatherStationIcao`; GPS ya da yerel kodlar sorgulanmaz).
  * Yayından sonraki ilk METAR çalışmasında listeye yeni giren istasyonlar 24 saatle istenir
  * (`fetchMetars`; 4. halkanın 719 istasyonu 6'şarlı 120 istek, kaydı olan 498 istasyonun olağan 7
  * isteğiyle birlikte 127 istek, aralıkla en az ~88 sn; 5. halkada 3.264 istasyonla (D-110) 348
@@ -62,8 +68,6 @@ import type { Logger } from 'pino'
 export const RATE_LIMIT_BLOCK_SEC = 600
 /** 403 sonrası bekleme (sn). */
 export const FORBIDDEN_BLOCK_SEC = 3_600
-/** METAR ve TAF istasyonu: dört harfli ICAO kodu (GPS ya da yerel kodlar sorgulanmaz). */
-const ICAO_STATION = /^[A-Z]{4}$/
 const DAY_MS = 86_400_000
 
 /** Kaynağın bir çağrıda verdiği raporlar (AWC istemcisi ya da fixture). */
@@ -111,7 +115,7 @@ export function metarLookbackHours(lastCheckedAt: Date | null, now: Date): numbe
  * havalimanı (ör. `TR-0042`) atlanır: AWC yalnızca ICAO istasyonu tanır.
  */
 export function weatherStations(airports: readonly { icao: string }[]): string[] {
-  return [...new Set(airports.map((a) => a.icao))].filter((icao) => ICAO_STATION.test(icao))
+  return [...new Set(airports.map((a) => a.icao))].filter(isWeatherStationIcao)
 }
 
 /** İşlerin veritabanı erişimi; testte bellek içi sahte uygulama verilir. */

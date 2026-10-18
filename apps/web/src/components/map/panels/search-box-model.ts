@@ -48,6 +48,14 @@ export interface AirportSearchResult {
   queryLetters: number
   /** Ad parçası yüklenemedi: yalnız tam kodla arandı (`codeOnlyAirportSearch`). */
   degraded: boolean
+  /**
+   * İlk satır yurt dışındaki bir havalimanının tam koduyken sorgu Türkiye'deki bir havalimanının da
+   * adına ya da yerine uyuyor mu (başlangıç ya da sözcük basamağında; listedeki 8 satırla sınırlı
+   * değil, bütün eşleşmelerde): "den" Denver'ın (DEN) kodu ve Denizli'nin başı. Enter o zaman
+   * havalimanını açmaz, listeyi gösterir (`submitOutcome`, D-118). Öbür durumlarda ve yalnız kodla
+   * aramada false.
+   */
+  turkeyNameMatch: boolean
 }
 
 /** Haritanın havalimanları üzerinde kurulmuş arama. */
@@ -73,6 +81,7 @@ export const NO_AIRPORT_RESULTS: AirportSearchResult = {
   total: 0,
   queryLetters: 0,
   degraded: false,
+  turkeyNameMatch: false,
 }
 
 /**
@@ -98,7 +107,9 @@ export const codeOnlyAirportSearch: AirportSearchBuilder = (airports) => {
     const key = airportCodeKey(query)
     const queryLetters = letterCount(key)
     const airport = key.length >= 3 && key.length <= 4 ? byCode(key) : undefined
-    if (airport === undefined) return { rows: [], total: 0, queryLetters, degraded: true }
+    if (airport === undefined) {
+      return { rows: [], total: 0, queryLetters, degraded: true, turkeyNameMatch: false }
+    }
     const row: AirportSearchRow = {
       airport,
       code: airport.iata || airport.icao,
@@ -106,7 +117,7 @@ export const codeOnlyAirportSearch: AirportSearchBuilder = (airports) => {
       place: '',
       match: 'code',
     }
-    return { rows: [row], total: 1, queryLetters, degraded: true }
+    return { rows: [row], total: 1, queryLetters, degraded: true, turkeyNameMatch: false }
   }
 }
 
@@ -300,7 +311,10 @@ export type SubmitOutcome =
  *    dolgu sözcükleri sayılmaz) → havalimanı açılır. "THY", "THY airport" ve "THY h" Sfaks Thyna'yı,
  *    "gok" Sabiha Gökçen'i açmaz: 5. kurala gider (tek satırlık liste). Ülke adıyla tek eşleşme de
  *    açılmaz: "turkish" ("Turkish Airlines" yazılırken) Ercan'ı (KKTC'nin İngilizce uzun adı)
- *    yalnız tek satırlık listede gösterir.
+ *    yalnız tek satırlık listede gösterir. Yurt dışındaki bir havalimanının tam kodu, sorgu
+ *    Türkiye'deki bir havalimanının adına ya da yerine de uyuyorsa açılmaz (`turkeyNameMatch`,
+ *    D-118): "den" Denver'ı, "sin" Singapur'u, "sab" Saba'yı açmaz, liste gösterilir (önce kodun
+ *    havalimanı, sonra Denizli, Sinop, Sabiha Gökçen). "IST", "ESB", "JFK", "AJA" açılır.
  * 3. Uçak yok ve havalimanı yok → bulunamadı (uçak araması atlandıysa havalimanı metni; değilse
  *    uçak metni, sefer no notu ve rakamsız sorguda havalimanı ipucu; havalimanı metnine ve ipucuna
  *    kapsama cümlesi eklenir). Uçak araması atlandı ve havalimanı listesi yüklenmedi → hata (hiçbir
@@ -323,7 +337,7 @@ export function submitOutcome({
   const noAircraft =
     aircraft.status === 'skipped' || (aircraft.status === 'ok' && aircraft.results.length === 0)
   const opensAirport =
-    firstAirport?.match === 'code' ||
+    (firstAirport?.match === 'code' && !airports.turkeyNameMatch) ||
     (airports.total === 1 &&
       firstAirport?.match !== 'country' &&
       airports.queryLetters >= AIRPORT_OPEN_MIN_LETTERS)

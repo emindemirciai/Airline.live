@@ -2,6 +2,7 @@ import { PROVIDER_LICENSES } from '@havayolu/providers'
 import {
   AirportWeatherSchema,
   IcaoSchema,
+  isWeatherStationIcao,
   inForceTafs,
   toAirportMetar,
   toAirportTaf,
@@ -444,8 +445,10 @@ export function registerWeatherRoutes(
           : async (key) => {
               const read = bulkStations(key)
               if (read === null) throw new Error(`no station reader for ${key}`)
-              // ICAO'su olmayan (GPS kodu ya da OurAirports kimliğiyle listelenen) havalimanı atlanır.
-              const icaos = (await read()).map((s) => s.icao).filter(isIcao)
+              // METAR/TAF istasyonu olmayan havalimanı atlanır: dört harfli ICAO kodu yoksa (GPS
+              // kodu, OurAirports kimliği ya da Transport Canada'nın CAJ4 ve CAT4'ü gibi rakamlı kod;
+              // worker'ın istasyon kuralı, `isWeatherStationIcao`, D-118).
+              const icaos = (await read()).map((s) => s.icao).filter(isWeatherStationIcao)
               const at = new Date(now())
               const records =
                 icaos.length === 0 ? { metars: [], tafs: [] } : await latest(icaos, at)
@@ -651,7 +654,7 @@ export function registerWeatherRoutes(
         tags: ['weather'],
         summary: 'Ülkenin ya da listelenen havalimanlarının güncel havası (METAR/TAF)',
         description:
-          "Listedeki her havalimanı için bir kayıt, liste sırasıyla; raporu olmayan havalimanında metar null. Varsayılan biçim (full) çözümlenmiştir ve tafs yalnız yürürlükteki TAF'lardır: kalan geçerliliği daha yeni TAF'larca kapsanan eski TAF'lar METAR/TAF kaydındadır. format=raw hiçbir raporu çözümlemez: en yeni METAR/SPECI ve süresi dolmamış bütün TAF'lar ham metin ve zamanlarıyla gelir (yürürlük seçimi okuyandadır). scope=listed yalnız format=raw ile istenir (yoksa 400 format_required); country isteği iki biçimi de verir. Kaynak: aviationweather.gov (NOAA Aviation Weather Center); resmî brifing yerine geçmez.",
+          "Listedeki METAR/TAF istasyonu olan (dört harfli ICAO kodlu) her havalimanı için bir kayıt, liste sırasıyla; raporu olmayan havalimanında metar null. Rakamlı kodla listelenen havalimanı (ör. Kanada'nın CAJ4 ve CAT4'ü) yanıtta yoktur. Varsayılan biçim (full) çözümlenmiştir ve tafs yalnız yürürlükteki TAF'lardır: kalan geçerliliği daha yeni TAF'larca kapsanan eski TAF'lar METAR/TAF kaydındadır. format=raw hiçbir raporu çözümlemez: en yeni METAR/SPECI ve süresi dolmamış bütün TAF'lar ham metin ve zamanlarıyla gelir (yürürlük seçimi okuyandadır). scope=listed yalnız format=raw ile istenir (yoksa 400 format_required); country isteği iki biçimi de verir. Kaynak: aviationweather.gov (NOAA Aviation Weather Center); resmî brifing yerine geçmez.",
         querystring: {
           type: 'object',
           properties: {

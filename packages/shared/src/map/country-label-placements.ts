@@ -42,7 +42,7 @@ export const COUNTRY_LABEL_PLACEMENT_PARAMS = {
   airportCodeMinZoom: 5,
   airportCodeSides: ['right', 'left'],
   capitalAnchored: ['CY'],
-  anchorRegions: { RU: [-180, -90, 60, 90] },
+  anchorRegions: { RU: [-180, -90, 60, 90], US: [-125, 24, -66, 50] },
   fitZoomStep: 0.25,
 } as const
 
@@ -538,8 +538,8 @@ export const COUNTRY_LABEL_PLACEMENTS: Readonly<
     UM: { name: 'ABD KÜÇÜK HARİCİ ADALARI', regular: null, compact: null },
     US: {
       name: 'AMERİKA BİRLEŞİK DEVLETLERİ',
-      regular: [-158.51, 68.97, 4.5],
-      compact: [-158.51, 68.97, 4],
+      regular: [-116.23, 41.89, 3.25],
+      compact: [-116.23, 41.89, 3],
     },
     UY: { name: 'URUGUAY', regular: [-55.92, -33.48, 4.5], compact: [-55.92, -33.48, 4] },
     UZ: { name: 'ÖZBEKİSTAN', regular: [63, 42.3, 4.5], compact: [63, 42.3, 4.25] },
@@ -806,7 +806,7 @@ export const COUNTRY_LABEL_PLACEMENTS: Readonly<
     UA: { name: 'UKRAINE', regular: [32.49, 49.4, 3.5], compact: [32.49, 49.4, 3.5] },
     UG: { name: 'UGANDA', regular: [31.8, -0.3, 4.5], compact: [31.8, -0.3, 4] },
     UM: { name: 'US OUTLYING ISLANDS', regular: null, compact: null },
-    US: { name: 'UNITED STATES', regular: [-158.51, 68.97, 3.5], compact: [-158.51, 68.97, 3] },
+    US: { name: 'UNITED STATES', regular: [-116.23, 41.89, 3], compact: [-116.23, 41.89, 3] },
     UY: { name: 'URUGUAY', regular: [-55.92, -33.48, 4.5], compact: [-55.92, -33.48, 4] },
     UZ: { name: 'UZBEKISTAN', regular: [63, 42.3, 4.5], compact: [63, 42.3, 4.25] },
     VA: { name: 'VATICAN CITY', regular: null, compact: null },

@@ -367,16 +367,17 @@ describe('yerleşim tablosu (D-096, D-099, D-100)', { timeout: 120_000 }, () => 
     }
   })
 
-  it('çapa kuralı: ülke başına tek ortak nokta; boş yerde en erkenin ≤ 1,5, boş yer yoksa ≤ 0,25 gerisinde; 160 ülke boş yerde, TÜRKİYE, HİNDİSTAN ve NİJERYA kalabalıkta (4. halka, D-102), KIBRIS başkentte', () => {
+  it('çapa kuralı: ülke başına tek ortak nokta; boş yerde en erkenin ≤ 1,5, boş yer yoksa ≤ 0,25 gerisinde; 159 ülke boş yerde, TÜRKİYE, HİNDİSTAN ve NİJERYA (4. halka, D-102) ve ABD (kıta ABD’si, D-118) kalabalıkta, KIBRIS başkentte', () => {
     const byKind = (kind: CountryPlacementDetail['kind']) =>
       result.details.filter((detail) => detail.kind === kind).map((detail) => detail.code)
     expect(byKind('hidden')).toEqual(NEVER)
     // 4. halkanın pinleriyle (D-102) HİNDİSTAN (105 havalimanı) ve NİJERYA (24) da kalabalık:
     // ızgaranın her noktasında kutuya pin ya da kod girer (v0.22.5'te yalnız TÜRKİYE).
-    expect(byKind('crowded')).toEqual(['IN', 'NG', 'TR'])
+    // ABD'nin adı kıta ABD'sinde aranır (D-118): 501 pin arasında orada boş yer yoktur.
+    expect(byKind('crowded')).toEqual(['IN', 'NG', 'TR', 'US'])
     expect(byKind('capital')).toEqual(['CY'])
     expect(byKind('per-combination')).toEqual([])
-    expect(byKind('clear')).toHaveLength(160)
+    expect(byKind('clear')).toHaveLength(159)
     // Izgarasının hiçbir noktası ülkenin içinde olmayan tek ülke Vatikan (kutbu yok).
     expect(result.details.filter((detail) => detail.pole === null).map((d) => d.code)).toEqual([
       'VA',
@@ -411,7 +412,7 @@ describe('yerleşim tablosu (D-096, D-099, D-100)', { timeout: 120_000 }, () => 
     }
   })
 
-  it('gecikme: boş yer için ad en çok 1,5 kademe geç belirir (İTALYA, ABD); 100 ülkede bir bileşim en erkenden geç (5. halkanın pinleriyle, D-109)', () => {
+  it('gecikme: boş yer için ad en çok 1,5 kademe geç belirir (İTALYA); 100 ülkede bir bileşim en erkenden geç (5. halkanın pinleriyle, D-109)', () => {
     const delays: Record<string, number> = {}
     for (const detail of result.details) {
       const delay = Math.max(
@@ -423,9 +424,10 @@ describe('yerleşim tablosu (D-096, D-099, D-100)', { timeout: 120_000 }, () => 
       if (delay > 0) delays[detail.code] = delay
     }
     // 5. halkanın 2.026 pini (M6j.3, D-109) 34 ülkeyi daha geciktirir (KOLOMBİYA ve PAPUA YENİ GİNE
-    // 1,25; ABD Türkçe geniş haritada 1,5) ve üçünün gecikmesini artırır (JAPONYA 0,25'ten 1'e,
-    // KÜBA 0,25'ten 0,75'e, SRİ LANKA 0,25'ten 0,5'e; Avrupa ve Orta Doğu değişmez). Pinler z3'te
-    // küçülür ama model z4'ün pinini sayar (D-118): gecikmeler pin boyu yüzünden değişmez.
+    // 1,25; ABD kıta ABD'sinde kalabalık kuralıyla 0,25, D-118; Alaska'daki boş yerde 1,5'ti) ve
+    // üçünün gecikmesini artırır (JAPONYA 0,25'ten 1'e, KÜBA 0,25'ten 0,75'e, SRİ LANKA 0,25'ten
+    // 0,5'e; Avrupa ve Orta Doğu değişmez). Pinler z3'te küçülür ama model z4'ün pinini sayar
+    // (D-118): gecikmeler pin boyu yüzünden değişmez.
     // v0.22.5'te (3. halkanın 498 pini) 39 ülkeydi; 4. halkanın 719 pini 27 ülkeyi daha geciktirir
     // (ETİYOPYA 1,25; BURKİNA FASO 1) ve üçünün gecikmesini artırır (KONGO DC ve BİRLEŞİK KRALLIK
     // 0,25'ten 1'e, TACİKİSTAN 0,25'ten 0,5'e). İTALYA'nın 1,5'i değişmez.
@@ -522,7 +524,7 @@ describe('yerleşim tablosu (D-096, D-099, D-100)', { timeout: 120_000 }, () => 
       TR: 0.25,
       TW: 0.25,
       TZ: 0.25,
-      US: 1.5,
+      US: 0.25,
       UZ: 0.25,
       VE: 0.5,
       VN: 0.25,
@@ -604,7 +606,10 @@ describe('yerleşim tablosu (D-096, D-099, D-100)', { timeout: 120_000 }, () => 
     // (ULWU) yeni çapanın kuzeyindedir, kutuya girmez.
     // İTALYA Po ovası (LIMP) yerine Alpler'de (Trentino): Orta İtalya'da Pescara'nın (PSR) sola geçen
     // kodu adın köşesine değiyordu.
-    expect(COUNTRY_LABEL_ANCHOR_REGIONS).toEqual({ RU: [-180, -90, 60, 90] })
+    expect(COUNTRY_LABEL_ANCHOR_REGIONS).toEqual({
+      RU: [-180, -90, 60, 90],
+      US: [-125, 24, -66, 50],
+    })
     for (const locale of ['tr', 'en'] as const) {
       for (const layout of ['regular', 'compact'] as const) {
         const placement = COUNTRY_LABEL_PLACEMENTS[locale].RU?.[layout]
@@ -685,7 +690,34 @@ describe('yerleşim tablosu (D-096, D-099, D-100)', { timeout: 120_000 }, () => 
     }
   })
 
-  it('görsel merkez (5. halkanın pinleriyle, D-109): D-095’in 59 ülkesinden 4’ünün adı tam kutupta (TÜRKİYE dahil, D-103), çapanın kutba uzaklığı ortanca 38 km, en çok 810 km (KAZAKİSTAN); bütün dünyada 11 ülke kutupta, ortanca 62 km, en çok 4.751 km (ABD)', () => {
+  it('ABD (D-118): ad dört bileşimde kıta ABD’sinin bölgesinde ve sınırın içinde, Alaska’da değil; bölgede boş yer yok, kalabalık kuralıyla en az çakışan nokta', () => {
+    const detail = detailOf('US')
+    const region = COUNTRY_LABEL_ANCHOR_REGIONS.US
+    if (!region) throw new Error('US region')
+    const [west, south, east, north] = region
+    expect(detail.kind).toBe('crowded')
+    const shape = shapes.get('US') as ProjectedShape
+    for (const [k, placement] of detail.placements.entries()) {
+      if (!placement) throw new Error(`US ${k}`)
+      const [lon, lat] = placement
+      expect(lon, `US ${k}`).toBeGreaterThanOrEqual(west)
+      expect(lon, `US ${k}`).toBeLessThanOrEqual(east)
+      expect(lat, `US ${k}`).toBeGreaterThanOrEqual(south)
+      expect(lat, `US ${k}`).toBeLessThanOrEqual(north)
+      expect(shape.contains(mercatorX(lon), mercatorY(lat)), `US ${k}`).toBe(true)
+    }
+    for (const locale of ['tr', 'en'] as const) {
+      for (const layout of ['regular', 'compact'] as const) {
+        const placement = COUNTRY_LABEL_PLACEMENTS[locale].US?.[layout]
+        expect(placement?.slice(0, 2), `${locale} ${layout}`).toEqual([-116.23, 41.89])
+      }
+    }
+    // Türkçe geniş haritada z3,25'ten, öbürlerinde z3'ten yazılır (Alaska'da z4,5 ve z3,5'ti).
+    expect(detail.placements.map((placement) => placement?.[2])).toEqual([3.25, 3, 3, 3])
+    expect(detail.overlaps).toEqual([71, 55, 27, 16])
+  })
+
+  it('görsel merkez (5. halkanın pinleriyle, D-109): D-095’in 59 ülkesinden 4’ünün adı tam kutupta (TÜRKİYE dahil, D-103), çapanın kutba uzaklığı ortanca 38 km, en çok 810 km (KAZAKİSTAN); bütün dünyada 11 ülke kutupta, ortanca 62 km, en çok 1.447 km (ABD)', () => {
     const all = result.details
       .filter((detail) => detail.kind !== 'hidden')
       .map((detail) => {
@@ -702,10 +734,11 @@ describe('yerleşim tablosu (D-096, D-099, D-100)', { timeout: 120_000 }, () => 
     // v0.22.5'te (3. halkanın pinleri) 36 ülke kutuptaydı, ortanca 37 km; 4. halkayla 23, 52 km.
     expect(all.filter(([, km]) => km === 0)).toHaveLength(11)
     expect(Math.round(all[Math.floor(all.length / 2)]?.[1] ?? NaN)).toBe(62)
-    // ABD'nin 501 pini (5. halka) arasında İngilizce ad en erken Alaska'da sığar (z3,5; ilk satır
-    // `detail.placements`'ın ilk dolu bileşimidir); 4. halkada en uzak Malezya'ydı (1.228 km).
+    // ABD'nin adı kıta ABD'sinin bölgesinde (D-118), 501 pin arasında en az çakışan noktadadır
+    // (Nevada'nın kuzeyi); kutup bölgenin görsel merkezidir. Bölge kuralından önce ad Alaska'daydı
+    // (4.751 km); 4. halkada en uzak Malezya'ydı (1.228 km).
     expect(all.at(-1)?.[0]).toBe('US')
-    expect(Math.round(all.at(-1)?.[1] ?? NaN)).toBe(4751)
+    expect(Math.round(all.at(-1)?.[1] ?? NaN)).toBe(1447)
     const distances = all.filter(([code]) => Object.hasOwn(COUNTRY_AREA_OVERRIDES_KM2, code))
     expect(distances).toHaveLength(56)
     // RUSYA kutbundan kuzeye kaydı (Kirov pini, D-102).

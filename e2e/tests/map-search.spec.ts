@@ -153,12 +153,16 @@ test('ad, şehir ve kodla arama; askerî üsler bulunmaz; Enter tam kodu açar, 
   // 3 harfle tek ad eşleşmesi Enter'da açılmaz: "THY" (havayolu kodu) Sfaks Thyna'yı, "gok" Sabiha
   // Gökçen'i yalnız listede gösterir ("açmak için seç"; uçak da bulunduysa "birini seç"); kullanıcı
   // seçer. Dolgu sözcüğü harf saymaz ("THY airport" yine 3 harftir); ülke adıyla tek eşleşme de
-  // açılmaz ("turkish" Ercan'ı, KKTC'nin İngilizce uzun adıyla bulur).
+  // açılmaz ("turkish" Ercan'ı, KKTC'nin İngilizce uzun adıyla bulur). Yurt dışındaki bir
+  // havalimanının tam kodu Türkiye'deki bir havalimanının adına da uyuyorsa açılmaz (D-118): "den"
+  // Denver'ı (KDEN) değil listeyi, Denizli'yle; "sab" Saba'yı (TNCS) değil listeyi, Sabiha Gökçen'le.
   for (const [query, code] of [
     ['THY', 'SFA'],
     ['THY airport', 'SFA'],
     ['gok', 'SAW'],
     ['turkish', 'ECN'],
+    ['den', 'DNZ'],
+    ['sab', 'SAW'],
   ] as const) {
     await input.fill(query)
     await input.press('Enter')
@@ -169,6 +173,8 @@ test('ad, şehir ve kodla arama; askerî üsler bulunmaz; Enter tam kodu açar, 
   await expect(popup(page, 'DTTX')).toHaveCount(0)
   await expect(popup(page, 'LTFJ')).toHaveCount(0)
   await expect(popup(page, 'LCEN')).toHaveCount(0)
+  await expect(popup(page, 'KDEN')).toHaveCount(0)
+  await expect(popup(page, 'TNCS')).toHaveCount(0)
 
   // Yurt dışı: Türkçe adla.
   await input.fill('Atina')

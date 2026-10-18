@@ -48,6 +48,17 @@ export function whenIdle(
 }
 
 /**
+ * İşi bir sonraki görevde çalıştırır (`setTimeout(task, 0)`); dönen fonksiyon iptal eder. Dilimli
+ * işin yedek zamanlayıcıdaki sonraki dilimleri içindir: `requestIdleCallback` olmayan tarayıcıda
+ * (Safari, iOS'taki bütün tarayıcılar) her dilim `IDLE_FALLBACK_DELAY_MS` beklemesin (D-118). İş
+ * yine dilimlerle bölünür; dilimler arasında tarayıcı çizer ve olayları işler.
+ */
+export function nextTask(task: () => void, scheduler: IdleScheduler = window): () => void {
+  const handle = scheduler.setTimeout(task, 0)
+  return () => scheduler.clearTimeout(handle)
+}
+
+/**
  * Bir dilimin kalan süresi, ms: tarayıcı boşta süre verdiyse onunki; vermediyse (yedek zamanlayıcı)
  * ya da süre dolduğu için zorla çalıştıysa dilimin başından `IDLE_FORCED_SLICE_MS`. `now` testte
  * değiştirilir.

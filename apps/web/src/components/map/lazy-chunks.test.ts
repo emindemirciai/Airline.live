@@ -3,7 +3,12 @@ import { getMessages } from '@havayolu/i18n'
 import { createElement, type ComponentType } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import type { IdleDeadlineLike, IdleScheduler } from '../../lib/idle'
+import {
+  IDLE_FALLBACK_DELAY_MS,
+  IDLE_FORCED_SLICE_MS,
+  type IdleDeadlineLike,
+  type IdleScheduler,
+} from '../../lib/idle'
 import type { MapAirport } from './airport-data'
 import {
   AirportListPanelUnavailable,
@@ -384,6 +389,68 @@ describe('parça yüklenemezse (D-101): yedek bileşen, hata ekranı yok', () =>
     await runIdle()
     expect(prepare).toHaveBeenCalledTimes(1)
     expect(queue.size).toBe(0)
+  })
+
+  it('requestIdleCallback yoksa (Safari, iOS; D-118): yükleme ve ilk dilim 1 sn sonra, sonraki dilimler bir sonraki görevde; iptal bekleyeni siler', async () => {
+    const timers = new Map<number, { task: () => void; ms: number }>()
+    const delays: number[] = []
+    let next = 0
+    const scheduler: IdleScheduler = {
+      setTimeout: (task, ms) => {
+        next += 1
+        timers.set(next, { task, ms })
+        delays.push(ms)
+        return next
+      },
+      clearTimeout: (handle) => {
+        timers.delete(handle)
+      },
+    }
+    const runTimers = async () => {
+      const due = [...timers.values()]
+      timers.clear()
+      for (const { task } of due) task()
+      await new Promise((resolve) => setTimeout(resolve, 0))
+    }
+    const airports = [{ icao: 'LTFM', iata: 'IST' } as MapAirport]
+    let slicesLeft = 3
+    const prepare = vi.fn(
+      (_airports: readonly MapAirport[], _locale: string, left: () => number) => {
+        // Boşta süre yok: dilim en çok `IDLE_FORCED_SLICE_MS` (10 ms) kullanır.
+        expect(left()).toBeLessThanOrEqual(IDLE_FORCED_SLICE_MS)
+        slicesLeft -= 1
+        return slicesLeft === 0
+      },
+    )
+    const build = Object.assign(
+      vi.fn(() => () => NO_AIRPORT_RESULTS),
+      { prepare },
+    ) as AirportSearchBuilder
+    const load = vi.fn(() => Promise.resolve(build))
+
+    prebuildAirportSearch(airports, 'tr', load, scheduler)
+    await runTimers()
+    expect(load).toHaveBeenCalledTimes(1)
+    for (const expected of [1, 2, 3]) {
+      await runTimers()
+      expect(prepare).toHaveBeenCalledTimes(expected)
+    }
+    expect(timers.size).toBe(0)
+    // Yükleme ve ilk dilim yedeğin gecikmesiyle; sonraki iki dilim 0 ms ile.
+    expect(delays).toEqual([IDLE_FALLBACK_DELAY_MS, IDLE_FALLBACK_DELAY_MS, 0, 0])
+
+    // İptal, bekleyen sonraki dilimi siler.
+    prepare.mockClear()
+    slicesLeft = 10
+    const cancel = prebuildAirportSearch(airports, 'en', load, scheduler)
+    await runTimers()
+    await runTimers()
+    expect(prepare).toHaveBeenCalledTimes(1)
+    expect(timers.size).toBe(1)
+    cancel()
+    expect(timers.size).toBe(0)
+    await runTimers()
+    expect(prepare).toHaveBeenCalledTimes(1)
   })
 
   it('yedekler ilk pakettedir: tembel modülleri yalnız tür olarak import eder', () => {

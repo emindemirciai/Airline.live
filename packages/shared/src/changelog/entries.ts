@@ -28,12 +28,12 @@ export const CHANGELOG: readonly ChangelogEntry[] = [
         en: 'Names and cities are written in Turkish and English; English names are the airports’ own names (John F. Kennedy International Airport, Beijing Capital International Airport).',
       },
       {
-        tr: 'Haritadaki arama yeni havalimanlarını da adıyla, şehriyle ve koduyla bulur; kodu değişen havalimanının eski kodu da çalışır: “SPIM” Lima’yı açar.',
-        en: 'The map search finds the new airports by name, city and code too; an airport’s old code still works: “SPIM” opens Lima.',
+        tr: 'Haritadaki arama yeni havalimanlarını da adıyla, şehriyle ve koduyla bulur; kodu değişen havalimanının eski kodu da çalışır: “SPIM” Lima’yı açar. Üç harf hem yurt dışındaki bir havalimanının kodu hem Türkiye’deki bir havalimanının adının başıysa (“den”: Denver ve Denizli) Enter haritayı başka bir kıtaya götürmez, listeyi gösterir.',
+        en: 'The map search finds the new airports by name, city and code too; an airport’s old code still works: “SPIM” opens Lima. When three letters are both a foreign airport’s code and the start of a Turkish airport’s name (“den”: Denver and Denizli), Enter shows the list instead of moving the map to another continent.',
       },
       {
-        tr: 'Dünyanın tamamına bakarken havalimanı işaretleri biraz daha küçük; harita kalabalıklaşmaz, hiçbir havalimanı gizlenmez. Çok havalimanı olan ABD’nin adı uzaktan bakınca Alaska’da yazılır.',
-        en: 'When you look at the whole world, airport pins are a little smaller so the map does not get crowded; no airport is hidden. With so many airports, the UNITED STATES name is written over Alaska when zoomed far out.',
+        tr: 'Dünyanın tamamına bakarken havalimanı işaretleri biraz daha küçük; harita kalabalıklaşmaz, hiçbir havalimanı gizlenmez. ABD’nin adı ülkenin batısında, havalimanı işaretlerinin altında yazılır.',
+        en: 'When you look at the whole world, airport pins are a little smaller so the map does not get crowded; no airport is hidden. The UNITED STATES name is written in the west of the country, under the airport pins.',
       },
       {
         tr: 'Canlı uçak verisi şimdilik Türkiye ve çevresinden çekildiği için bu havalimanlarının çevresindeki uçaklar haritada görünmez; sayfalarında bu yazar.',

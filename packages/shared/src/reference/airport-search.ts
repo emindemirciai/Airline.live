@@ -21,10 +21,12 @@
  *   atılır, Türkçe klavyenin İ ve ı harfleri I ve i olur: "İST" IST'dir). Başka bir harf kod
  *   olamaz: "küt" Kutaisi'nin KUT kodu değil, Kütahya'nın (Zafer) ve Kutaisi'nin adının başıdır.
  * - **3 harfli sorgu** da aynı basamaklarla aranır: tam kod önce, sonra adın ya da yerin başı ve
- *   sözcük başı ("sab" ve "gok" Sabiha Gökçen, "ant" Antalya). Havayolu kodu biçimindeki sorgu
- *   ("THY") bir sözcük başını da bulabilir (Sfaks Thyna); bu bir öneri listesidir. Enter'da
- *   havalimanının doğrudan açılması arama kutusunun kuralıdır (`search-box-model.ts`
- *   `submitOutcome`, D-108): tam kod ya da aranan sorgunun en az 4 harfiyle tek eşleşme. Aranan
+ *   sözcük başı ("gok" Sabiha Gökçen, "ant" Antalya; 5. halkayla "sab" önce Saba'nın SAB kodu, sonra
+ *   Sabiha Gökçen). Havayolu kodu biçimindeki sorgu ("THY") bir sözcük başını da bulabilir (Sfaks
+ *   Thyna); bu bir öneri listesidir. Enter'da havalimanının doğrudan açılması arama kutusunun
+ *   kuralıdır (`search-box-model.ts` `submitOutcome`, D-108, D-118): tam kod (yurt dışındaki bir
+ *   havalimanının kodu, sorgu Türkiye'deki bir havalimanının adına da uyuyorsa değil: "den", "sab")
+ *   ya da aranan sorgunun en az 4 harfiyle tek eşleşme. Aranan
  *   sorgunun harf sayısı sonuçla döner (`queryLetters`): dolgu sözcükleri ve yedekte atılan yarım
  *   dolgu sözcüğü sayılmaz ("THY airport" ve "THY h" 3 harftir).
  * - **Rakamlı ya da hex sorgu** (`airportQueryKind` → `code`) yalnız tam kod arar: "TK1985" ya da
