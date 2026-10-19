@@ -291,9 +291,12 @@ function productionLike(
   longFrom = Number.POSITIVE_INFINITY,
 ): { icaos: string[]; records: WeatherRecords } {
   const { t0, t1, t2, t3, t4 } = PROD_TAFS
+  // Dört İngilizce harf (X + üç harf, 17.576 kod): toplu yanıt yalnız METAR/TAF istasyonlarını
+  // yazar (`isWeatherStationIcao`, D-118); rakamlı kod atlanırdı.
   const icaos = Array.from(
     { length: count },
-    (_, i) => `X${i.toString(36).toUpperCase().padStart(3, '0')}`,
+    (_, i) =>
+      `X${[2, 1, 0].map((k) => String.fromCharCode(65 + (Math.floor(i / 26 ** k) % 26))).join('')}`,
   )
   const metars: MetarRecord[] = []
   const tafs: TafRecord[] = []

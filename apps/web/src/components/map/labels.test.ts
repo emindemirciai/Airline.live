@@ -432,7 +432,7 @@ describe('LabelPainter.airportHitTest', () => {
   })
 })
 
-describe('listelenen havalimanları z5’te (4. halka, 1.240 havalimanı; D-090, D-102, D-107, D-110)', () => {
+describe('listelenen havalimanları z5’te (5. halka, 3.266 havalimanı; D-090, D-102, D-107, D-109, D-110)', () => {
   // Web Mercator, z5: kodların yazıldığı en uzak yakınlaştırma (AIRPORT_LABEL_MIN_ZOOM), görünümdeki
   // havalimanı sayısı en büyüktür. Kod yerleşimi haritanın her `render` olayında yalnız
   // görünümdekilere yapılır (`screenAirports`). 3. halkada 2560×1440 görünüm bütün listeyi (498)
@@ -445,10 +445,11 @@ describe('listelenen havalimanları z5’te (4. halka, 1.240 havalimanı; D-090,
   const ZOOM = AIRPORT_LABEL_MIN_ZOOM
   const VIEW = { width: 2560, height: 1440 }
   /**
-   * 2560×1440 görünümdeki havalimanları (1.240 listelenenden; D-110'dan önce 1.217'den 909, savaş
-   * nedeniyle kapalı 23 havalimanından Bukavu dışındaki 22'si görünümde).
+   * 2560×1440 görünümdeki havalimanları (3.266 listelenenden; 4. halkada 1.240'tan 931, D-110'dan önce
+   * 1.217'den 909; savaş nedeniyle kapalı 23 havalimanından Bukavu dışındaki 22'si ve 5. halkadan
+   * Dakar görünümde).
    */
-  const SCREEN_AIRPORTS = 931
+  const SCREEN_AIRPORTS = 932
   const world = 256 * 2 ** ZOOM
   const project = (lat: number, lon: number) => {
     const sin = Math.sin((lat * Math.PI) / 180)
@@ -467,10 +468,14 @@ describe('listelenen havalimanları z5’te (4. halka, 1.240 havalimanı; D-090,
     .filter(({ x, y }) => x >= 0 && x <= VIEW.width && y >= 0 && y <= VIEW.height)
 
   it('görünümdekiler; kodlar birbirini örtmez, görünümden taşmaz, her havalimanına en çok bir kod', () => {
-    expect(listed).toHaveLength(1240)
+    expect(listed).toHaveLength(3266)
     expect(screen).toHaveLength(SCREEN_AIRPORTS)
     // 1.–3. halkanın hepsi görünümdedir (498 ve savaş kapanışlarının 22'si, D-110).
     expect(screen.filter(({ airport }) => airport.ring <= 3)).toHaveLength(520)
+    // 5. halkadan görünümde yalnız Dakar Blaise Diagne (GOBD; D-109).
+    expect(
+      screen.filter(({ airport }) => airport.ring === 5).map(({ airport }) => airport.icao),
+    ).toEqual(['GOBD'])
     const chips = layoutAirportChips(screen, VIEW, measure)
     expect(chips.length).toBeGreaterThan(50)
     expect(new Set(chips.map((chip) => chip.icao)).size).toBe(chips.length)

@@ -186,8 +186,10 @@ export interface AirportFeatureProperties {
 
 /**
  * Havalimanları: kırmızı pin (airport-pin.ts), ucu havalimanı referans noktasında (alt kenar +
- * kenar payı kadar kaydırma). Çakışsa da hep çizilir; yakınlaştıkça büyür (z4 0,45 → z15 0,9).
- * Yerli ve yabancı havalimanları aynı pini kullanır. `icon-image` haritaya önceden eklenir.
+ * kenar payı kadar kaydırma). Çakışsa da hep çizilir; yakınlaştıkça büyür (z3 0,30 → z4 0,45 → z15
+ * 0,9). 5. halka açılınca (M6j.3, D-109) düşük yakınlaştırmada pinler küçülür: z3 0,30 (z3'ün
+ * altında da 0,30), z4'ten sonrası değişmedi; her pin kalır, hiçbiri gizlenmez. Yerli ve yabancı
+ * havalimanları aynı pini kullanır. `icon-image` haritaya önceden eklenir.
  */
 export const AIRPORT_LAYER: SymbolLayerStyle = {
   id: AIRPORT_LAYER_ID,
@@ -199,7 +201,7 @@ export const AIRPORT_LAYER: SymbolLayerStyle = {
     'icon-offset': [0, AIRPORT_PIN_MARGIN],
     'icon-allow-overlap': true,
     'icon-ignore-placement': true,
-    'icon-size': ['interpolate', ['linear'], ['zoom'], 4, 0.45, 8, 0.6, 12, 0.8, 15, 0.9],
+    'icon-size': ['interpolate', ['linear'], ['zoom'], 3, 0.3, 4, 0.45, 8, 0.6, 12, 0.8, 15, 0.9],
   },
 }
 

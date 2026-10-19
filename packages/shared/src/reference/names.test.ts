@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest'
 import {
   AIRPORT_NAMES,
   airportDisplayName,
+  FOREIGN_AIRPORT_CITIES,
   FOREIGN_AIRPORT_NAMES,
   ourAirportsIcao,
   REFERENCE_AIRFIELD_NAMES,
@@ -39,21 +40,30 @@ const reference = Object.keys(REFERENCE_AIRFIELD_NAMES)
 const foreign = Object.keys(FOREIGN_AIRPORT_NAMES)
 /**
  * Görünen adı olan bütün havalimanları: 56 Türkiye (askerî hava üsleri tabloda yok, D-107), 5
- * uzaklık referansı, 1.–4. halkanın 1.184'ü (77 + 104 + 283 + 720, D-088, D-090, D-102; savaş
- * nedeniyle kapalı 23 havalimanıyla, D-110).
+ * uzaklık referansı, 1.–5. halkanın 3.210'u (77 + 104 + 283 + 720 + 2.026, D-088, D-090, D-102,
+ * D-109; savaş nedeniyle kapalı 23 havalimanıyla, D-110).
  */
 const all = [...turkish, ...reference, ...foreign]
 
 /** İngilizce cins adları: Türkçe adda bulunmaz (kullanıcı isteği 2026-10-03, D-084). */
 const ENGLISH_GENERIC = /\b(Air ?[Bb]ase|Airport|International|National|Airfield|Heliport|Island)\b/
+/**
+ * Yerleşim adının ayrılmaz parçası olan cins sözcük (5. halka, D-109): Türkçe adda yalnız Türkçe
+ * şehir adının içinde, havalimanı başına (Grand Island ve Island Lake; International Falls).
+ */
+const SETTLEMENT_GENERIC: Readonly<Record<string, string>> = {
+  CYIV: 'Island',
+  KGRI: 'Island',
+  KINL: 'International',
+}
 /** Türkçe cins adları: İngilizce adda bulunmaz. */
 const TURKISH_GENERIC = /Havalimanı|Havaalanı|Hava Üssü|Üssü|Uluslararası|Ulusal/
 
 describe('görünen adların dili (D-084)', () => {
-  it("fixture'daki 1.245 havalimanının her biri fixture'da vardır ve iki dilde adlanır", () => {
+  it("fixture'daki 3.271 havalimanının her biri fixture'da vardır ve iki dilde adlanır", () => {
     expect(turkish).toHaveLength(56)
     expect(reference).toHaveLength(5)
-    expect(foreign).toHaveLength(1184)
+    expect(foreign).toHaveLength(3210)
     for (const icao of all) {
       const name = ourAirportsName.get(icao)
       expect(name, icao).toBeDefined()
@@ -63,11 +73,25 @@ describe('görünen adların dili (D-084)', () => {
     }
   })
 
-  it('Türkçe adda İngilizce cins adı (Air Base, Airbase, Airport, International) yoktur', () => {
+  it('Türkçe adda İngilizce cins adı (Air Base, Airbase, Airport, International) yoktur; yerleşim adının parçası yalnız şehir adında', () => {
     for (const icao of all) {
       const tr = airportDisplayName({ icao, name: ourAirportsName.get(icao) ?? '' }, 'tr')
-      expect(tr, icao).not.toMatch(ENGLISH_GENERIC)
+      const word = SETTLEMENT_GENERIC[icao]
+      if (word === undefined) {
+        expect(tr, icao).not.toMatch(ENGLISH_GENERIC)
+        continue
+      }
+      // Sözcük Türkçe şehir adındadır, şehir adın içindedir; adın geri kalanında cins sözcük yok.
+      const city = FOREIGN_AIRPORT_CITIES[icao]?.tr ?? ''
+      expect(city.split(' '), icao).toContain(word)
+      expect(tr, icao).toContain(city)
+      expect(tr.replace(city, ''), icao).not.toMatch(ENGLISH_GENERIC)
     }
+    expect(Object.keys(SETTLEMENT_GENERIC).map((icao) => FOREIGN_AIRPORT_NAMES[icao]?.tr)).toEqual([
+      'Island Lake Havalimanı',
+      'Grand Island Orta Nebraska Havalimanı',
+      'International Falls Havalimanı',
+    ])
   })
 
   it('İngilizce adda Türkçe cins adı (Havalimanı, Hava Üssü, Uluslararası) yoktur', () => {

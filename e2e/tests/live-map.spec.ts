@@ -32,6 +32,7 @@ import {
   APPROACH_AIRCRAFT,
   countryLabels,
   declineAnalytics,
+  expectPopupFocused,
   FAR_AIRCRAFT,
   hexParam,
   infoCard,
@@ -449,8 +450,7 @@ test('havalimanları Simge ve kod ya da Simge; cihazda saklanır; Simge ve kod�
   await expect(mode('Simge ve kod')).toBeChecked()
   await page.keyboard.press('Escape')
   await clickPrimaryChip(page, popup)
-  await page.keyboard.press('Escape')
-  await expect(popup).toBeHidden()
+  await closeAirportPopup(page, popup)
 
   // Simge (D-084'ün eski Gizle'si) klavyeyle seçilir: ok tuşu yalnız kendi grubunda gezer, uçak
   // grupları değişmez. Kayıt yeni biçimdedir (`airportDisplay`); yanında eski sürümler için
@@ -522,11 +522,8 @@ async function clickPrimaryChip(page: Page, popup: Locator): Promise<void> {
     await page.mouse.click(chip.x, chip.y)
     await expect(popup).toBeVisible({ timeout: 2_000 })
   }).toPass({ timeout: 20_000 })
-  // Açılınca odak pencereye geçer (airport-popup.tsx); Escape onu ancak o zaman kapatır. Yük
-  // altında odak görünürlükten sonra gelebilir: hemen basılan Escape boşa giderdi.
-  await expect
-    .poll(() => popup.evaluate((el) => el.contains(document.activeElement)), { timeout: 5_000 })
-    .toBe(true)
+  // Açılınca odak pencereye geçer; Escape onu ancak o zaman kapatır.
+  await expectPopupFocused(popup)
 }
 
 /**
@@ -654,8 +651,7 @@ test.describe('havalimanları Gizle / Simge / Simge ve kod (D-114)', () => {
     // Arama SAW'ı açar; pencere kapanınca harita SAW'dadır.
     await searchAirport(SAW.iata)
     await expect(sawPopup).toBeVisible({ timeout: 15_000 })
-    await page.keyboard.press('Escape')
-    await expect(anyPopup).toHaveCount(0)
+    await closeAirportPopup(page, anyPopup)
     expect((await airportListCodes(page))[0]).toBe(SAW.iata)
     const saw = await centred(page)
     await expect(async () => {
@@ -714,8 +710,7 @@ test.describe('havalimanları Gizle / Simge / Simge ve kod (D-114)', () => {
     // "Havalimanları" listesi Gizle'de de IST penceresini açar.
     await openFromList(PRIMARY_AIRPORT.iata)
     await expect(istPopup).toBeVisible()
-    await page.keyboard.press('Escape')
-    await expect(anyPopup).toHaveCount(0)
+    await closeAirportPopup(page, anyPopup)
 
     // Arama Gizle'de de SAW'ı açar: pencere açıkken SAW'ın pini çizilir (kodu yazılmaz); pencere
     // kapanınca pin kalkar.
@@ -726,8 +721,7 @@ test.describe('havalimanları Gizle / Simge / Simge ve kod (D-114)', () => {
       expect(await sawAgain.pinRed()).toBeGreaterThanOrEqual(15)
       expect(await paintedPixels(page)).toBe(0)
     }).toPass({ timeout: 15_000 })
-    await page.keyboard.press('Escape')
-    await expect(anyPopup).toHaveCount(0)
+    await closeAirportPopup(page, anyPopup)
     await expect(async () => {
       expect(await sawAgain.pinRed()).toBe(0)
       expect(await paintedPixels(page)).toBe(0)
@@ -739,8 +733,7 @@ test.describe('havalimanları Gizle / Simge / Simge ve kod (D-114)', () => {
     await expect(async () => {
       expect(await sawAgain.pinRed()).toBeGreaterThanOrEqual(15)
     }).toPass({ timeout: 15_000 })
-    await page.keyboard.press('Escape')
-    await expect(anyPopup).toHaveCount(0)
+    await closeAirportPopup(page, anyPopup)
     await expect(async () => {
       expect(await sawAgain.pinRed()).toBe(0)
     }).toPass({ timeout: 10_000 })
@@ -828,8 +821,7 @@ test.describe('havalimanları Gizle / Simge / Simge ve kod (D-114)', () => {
       await page.mouse.click(saw.head.x, saw.head.y)
       await expect(popup).toBeVisible({ timeout: 2_000 })
     }).toPass({ timeout: 15_000 })
-    await page.keyboard.press('Escape')
-    await expect(popup).toBeHidden()
+    await closeAirportPopup(page, popup)
     // Doğru kodda pencerenin kapanması pin kaynağını değiştirmez; hedef unutulsaydı pin bu
     // beklemede kalkardı.
     await settleMap(page)
@@ -1060,8 +1052,7 @@ test.describe('ülke adları (D-095, D-096, D-099, D-100)', () => {
       await expect(popup).toBeVisible({ timeout: 2_000 })
     }).toPass({ timeout: 15_000 })
     await expect(popup).toHaveAttribute('data-icao', 'OIIE')
-    await page.keyboard.press('Escape')
-    await expect(popup).toBeHidden()
+    await closeAirportPopup(page, popup)
 
     // Bir kademe daha uzaklaşınca (z4) AFGANİSTAN, SURİYE (3,75) ve TÜRKİYE (3,25) görünüme girer;
     // ÖZBEKİSTAN'ın (4,5) ve PAKİSTAN'ın (4,75) çapası tuvalin içindedir ama yazılmaz. Bir kademe daha
@@ -1378,4 +1369,14 @@ async function listLayout(page: Page): Promise<{ map: Box; list: Box; overlaps: 
     })
     return { map, list, overlaps }
   })
+}
+
+/**
+ * Havalimanı penceresini tek Escape ile kapatır: önce odağın pencereye geçmesini bekler
+ * (`expectPopupFocused`). Escape yeniden basılmaz; ilk basışı başka bir katman yutarsa test düşer.
+ */
+async function closeAirportPopup(page: Page, popup: Locator): Promise<void> {
+  await expectPopupFocused(popup)
+  await page.keyboard.press('Escape')
+  await expect(popup).toHaveCount(0)
 }

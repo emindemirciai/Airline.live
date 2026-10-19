@@ -8,8 +8,9 @@ import { apiFixture } from '../test/ourairports-fixture'
  * Adres takma adı (D-109): kodu değişen havalimanının OurAirports kimliğindeki eski kod
  * (`identAlias`). `GET /v1/airports/:code` kodu ICAO, IATA ve takma adla çözer
  * (`@havayolu/db` `findAirportDetail`; burada aynı kural fixture satırlarıyla, `findAirportInRows`).
- * Uç halka süzgeci uygulamaz: 5. halka kapalıyken de Lima (SPIM → SPJC) bulunur; sayfalar listelenen
- * havalimanlarıyla sınırlıdır (web yalnız listedeki takma adı yönlendirir).
+ * Uç halka süzgeci uygulamaz (M6j.1'de 5. halka kapalıyken de Lima SPIM → SPJC bulunuyordu); sayfalar
+ * listelenen havalimanlarıyla sınırlıdır (web yalnız listedeki takma adı yönlendirir; M6j.3'ten beri
+ * bütün halkalar açık).
  */
 const apps: { close(): Promise<unknown> }[] = []
 
@@ -35,8 +36,8 @@ async function get(code: string) {
 describe('GET /v1/airports/:code ve adres takma adı (D-109)', () => {
   // Fixture'ı bu dosyada ilk ayrıştıran test: yerelde ~1,2 sn. Süre sınırı yalnız 1 sn'yi aşan
   // fixture testlerinde açıkça yazılır (D-105, D-109).
-  it('4. halka açıkken Semerkant’ın eski kodu UTSS kanonik kaydı (UZSS) verir; kayıt takma adı taşır', async () => {
-    expect(ENABLED_AIRPORT_RING).toBe(4)
+  it('Semerkant’ın eski kodu UTSS kanonik kaydı (UZSS) verir; kayıt takma adı taşır (bütün halkalar açık, D-109)', async () => {
+    expect(ENABLED_AIRPORT_RING).toBe(5)
     for (const code of ['UTSS', 'utss', 'UZSS', 'SKD']) {
       const res = await get(code)
       expect(res.statusCode, code).toBe(200)
@@ -51,11 +52,12 @@ describe('GET /v1/airports/:code ve adres takma adı (D-109)', () => {
     expect(Object.hasOwn(ist.json<AirportDetail>(), 'identAlias')).toBe(false)
   }, 30_000)
 
-  it('5. halkanın fixture satırlarıyla: SPIM → SPJC, KPBI → KDJT; WABP takma ad değildir', async () => {
+  it('5. halka: SPIM → SPJC, KPBI → KDJT, FVHA → FVRG; WABP takma ad değildir', async () => {
     const lima = await get('SPIM')
     expect(lima.statusCode).toBe(200)
     expect(lima.json<AirportDetail>()).toMatchObject({ icao: 'SPJC', iata: 'LIM', ring: 5 })
     expect((await get('KPBI')).json<AirportDetail>()).toMatchObject({ icao: 'KDJT', iata: 'DJT' })
+    expect((await get('FVHA')).json<AirportDetail>()).toMatchObject({ icao: 'FVRG', iata: 'HRE' })
     // WABP Timika'nın (WAYY) OurAirports kimliğidir ama Burumeso pistinin ICAO'sudur: 404.
     const wabp = await get('WABP')
     expect(wabp.statusCode).toBe(404)

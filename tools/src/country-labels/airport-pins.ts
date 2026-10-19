@@ -7,19 +7,19 @@
  *   OurAirports fixture'ına (2026-10-01 kopyası, tools/fixtures/README.md) uygulanır: içe aktarım
  *   süzgeci (`@havayolu/providers` `parseAirports`), kimlik sırası, Türkiye'deki uzaklık
  *   referansları ve halka seçimi (`@havayolu/db` `turkishReferencePoints`, `selectListedAirports`,
- *   `AIRPORT_RING_CONFIG`). Fixture Türkiye'nin bütün satırlarını ve açık halkaların (1.–4.) bütün
- *   yurt dışı adaylarını taşır: liste, üretimin kuralının bu kopyaya uygulanmış hâlidir (1.240 = 56
- *   + 77 + 104 + 283 + 720; savaş nedeniyle kapalı 23 havalimanı kapanış tablosuyla, D-110; askerî
- *   hava üsleri listelenmez, D-107; `listedAirportPins`). Üretim
+ *   `AIRPORT_RING_CONFIG`). Fixture Türkiye'nin bütün satırlarını ve bütün halkaların (1.–5.) bütün
+ *   yurt dışı adaylarını taşır: liste, üretimin kuralının bu kopyaya uygulanmış hâlidir (3.266 = 56
+ *   + 77 + 104 + 283 + 720 + 2.026; savaş nedeniyle kapalı 23 havalimanı kapanış tablosuyla, D-110;
+ *   askerî hava üsleri ve yurt dışı askerî liste listelenmez, D-107, D-109; `listedAirportPins`). Üretim
  *   OurAirports'u her gece yeniden içe aktarır (`reference-import`); tarifeli sefer, tür, IATA kodu
  *   ya da konum değişirse üretimin listesi fixture'dan ayrılabilir. Bunu hiçbir test yakalamaz:
  *   kullanıcı iki listeyi elle karşılaştırır (ACTIVATION "Ülke adlarının engelleri"), ayrılık varsa
- *   fixture onayla tazelenir ve tablo yeniden üretilir. Halka açılınca da fixture genişler ve tablo
- *   yeniden üretilir (M6i.2, D-102) (airport-pins.test.ts açık halkayı denetler).
+ *   fixture onayla tazelenir ve tablo yeniden üretilir. Halka açılınca da tablo yeniden üretilir (M6i.2,
+ *   D-102; M6j.3'te son halka, D-118) (airport-pins.test.ts açık halkayı denetler).
  * - **Haritadaki pinler** (`mapAirportPins`): liste, web haritasının savunma süzgecinden
  *   (`@havayolu/shared` `mapShownAirports`, D-103) geçerek. D-107'den beri liste askerî hava üssü
- *   taşımadığı için süzgeç bir şey çıkarmaz; engeller listenin kendisidir: 1.240 havalimanı
- *   (Türkiye 56).
+ *   taşımadığı için süzgeç bir şey çıkarmaz; engeller listenin kendisidir: 3.266 havalimanı
+ *   (Türkiye 56; M6j.3, D-118).
  * - **Pin:** bitmap kutusu (airport-pin.ts): 24 × 32 görünüm kutusu + her yana 3 birim pay; katman
  *   alt kenarı noktaya bağlar ve `icon-offset` ile 3 birim aşağı kaydırır (`AIRPORT_LAYER`; ofset
  *   `icon-size` ile çarpılır). Ucu noktadadır; kutu noktaya göre [−15s, +15s] × [−35s, +3s] px, s
@@ -173,9 +173,25 @@ export function chipLeftBoxPx(zoom: number): GlyphBox | null {
   return { left: -right.right, top: right.top, right: -right.left, bottom: right.bottom }
 }
 
-/** Bir havalimanının engel kutuları, px, noktaya göre: pin ve z5'ten kodun sağ ve sol kutusu. */
+/** Bir havalimanının engel kutuları, px, noktaya göre: pin (z4'ün altında z4 boyunda, D-118) ve z5'ten kodun sağ ve sol kutusu. */
 export function obstacleBoxesPx(zoom: number): GlyphBox[] {
-  return [pinBoxPx(zoom), chipBoxPx(zoom), chipLeftBoxPx(zoom)].filter((box) => box !== null)
+  return [obstaclePinBoxPx(zoom), chipBoxPx(zoom), chipLeftBoxPx(zoom)].filter(
+    (box) => box !== null,
+  )
+}
+
+/**
+ * Engel modelinde pinin en küçük yakınlaştırması (D-118): z4'ün altında pin engeli z4'teki boyuyla
+ * sayılır. Harita 5. halkayla (M6j.3, D-109) pini z3'te 0,30'a küçültür (z4'te 0,45, sonrası
+ * aynı); model z4'ün 0,45'ini kullanır. Modelin pini çizilen pinden küçük değildir (aynı noktada,
+ * aynı uçta): hiçbir ad çizilen bir pine girmez. Yerleşim tablosu pin boyu yüzünden değişmez;
+ * pinlerin küçülmesi yalnız harita içindir.
+ */
+export const OBSTACLE_PIN_MIN_ZOOM = 4
+
+/** Engel modelindeki pin kutusu, px: z4'ün altında z4'ün kutusu, sonra `pinBoxPx` (D-118). */
+export function obstaclePinBoxPx(zoom: number): GlyphBox {
+  return pinBoxPx(Math.max(zoom, OBSTACLE_PIN_MIN_ZOOM))
 }
 
 /** Kutu, z0 izdüşüm birimi (dünya): [x1, y1, x2, y2]. */
