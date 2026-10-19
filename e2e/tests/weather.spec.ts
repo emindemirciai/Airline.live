@@ -38,6 +38,7 @@ import {
   API_URL,
   declineAnalytics,
   enPath,
+  expectPopupFocused,
   FAR_AIRCRAFT,
   fetchRaw,
   infoCard,
@@ -658,9 +659,10 @@ test.describe('kaldırılan bilgiler', () => {
     expect(response.status()).toBe(200)
     const airportLines = body.split('\n').filter((line) => /\/istasyon\/[A-Z0-9]{4}\)/.test(line))
     expect(airportLines.length).toBeGreaterThan(0)
-    for (const line of airportLines) {
-      expect(line).not.toMatch(/izlenen istasyon|İzlenen istasyon|tarifeli/)
-    }
+    expect(
+      airportLines.filter((line) => /izlenen istasyon|İzlenen istasyon|tarifeli/.test(line)),
+      'llms.txt: havalimanı satırında izlenen istasyon ya da tarifeli sözü',
+    ).toEqual([])
   })
 })
 
@@ -893,6 +895,7 @@ test.describe('harita: havalimanı penceresi', () => {
     const popup = airportPopup(page)
     await clickPrimaryChip(page)
     await expect(popup).toHaveAttribute('data-icao', icao)
+    await expectPopupFocused(popup)
     await page.keyboard.press('Escape')
     await expect(popup).toBeHidden()
   })
@@ -932,6 +935,7 @@ test.describe('harita: havalimanı penceresi', () => {
         () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
       )
       expect(overflow).toBeLessThanOrEqual(0)
+      await expectPopupFocused(popup)
       await page.keyboard.press('Escape')
       await expect(popup).toBeHidden()
     })

@@ -193,6 +193,30 @@ function row(scope: Locator, label: string): Locator {
     .locator('xpath=following-sibling::dd[1]')
 }
 
+/**
+ * Uzaklık halkaya uyuyor mu (`distanceToTrKm` tam km'ye yuvarlıdır).
+ * - 2. halka: halka tam uzaklıktandır, yuvarlanan değer sınıra iner: 500,44 km → 500 (LLBG).
+ * - 3. halka: en yakını Gachsaran, 1.006 km; 1.000 km sınırında yuvarlama vakası yoktur.
+ * - 4. halka: en yakını Barselona, 2.003 km; en uzağı Ulan Batur, 4.981 km (D-102).
+ * - 5. halka: sınırı yoktur; en yakını Xining, 5.003 km, en uzağı Atuona, 17.767 km (D-109).
+ */
+function withinRing(ring: unknown, km: number): boolean {
+  switch (ring) {
+    case 1:
+      return km > 0 && km <= RING_LIMITS_KM[1]
+    case 2:
+      return km >= RING_LIMITS_KM[1] && km <= RING_LIMITS_KM[2]
+    case 3:
+      return km > RING_LIMITS_KM[2] && km <= RING_LIMITS_KM[3]
+    case 4:
+      return km > RING_LIMITS_KM[3] && km <= RING_LIMITS_KM[4]
+    case 5:
+      return km > RING_LIMITS_KM[4]
+    default:
+      return false
+  }
+}
+
 test.describe('API', () => {
   test('scope=listed: 56 Türkiye + 3.210 Türkiye dışı havalimanı (77 + 104 + 283 + 720 + 2.026; savaş kapanışlarıyla, D-110); halka ve uzaklık; ICAO’suz ve listelenmeyen havalimanı yok', async ({
     request,
@@ -215,38 +239,34 @@ test.describe('API', () => {
       expect(foreign.filter((airport) => airport.ring === 3)).toHaveLength(RING3_AIRPORT_COUNT)
       expect(foreign.filter((airport) => airport.ring === 4)).toHaveLength(RING4_AIRPORT_COUNT)
       expect(foreign.filter((airport) => airport.ring === 5)).toHaveLength(RING5_AIRPORT_COUNT)
+      // Kayıt başına denetim düz koşuldur, sonuç tek `expect`le doğrulanır: kayıt başına `expect`
+      // (5. halkayla üç yanıtta ~52.000 çağrı) testin süresini aşıyordu. Hata iletisi bozuk kayıtların
+      // hepsini birden listeler.
+      const problems: string[] = []
       for (const airport of turkey) {
-        expect(airport.ring, `${String(airport.icao)}: halka`).toBe(0)
-        expect(airport.distanceToTrKm, `${String(airport.icao)}: uzaklık`).toBeNull()
+        const label = String(airport.icao)
+        if (airport.ring !== 0) problems.push(`${label}: halka ${String(airport.ring)}`)
+        if (airport.distanceToTrKm !== null) {
+          problems.push(`${label}: uzaklık ${String(airport.distanceToTrKm)}`)
+        }
       }
       for (const airport of foreign) {
         const label = String(airport.icao)
-        expect([1, 2, 3, 4, 5], `${label}: halka`).toContain(airport.ring)
-        expect(typeof airport.distanceToTrKm, `${label}: uzaklık`).toBe('number')
-        const km = airport.distanceToTrKm as number
-        if (airport.ring === 1) {
-          expect(km, label).toBeGreaterThan(0)
-          expect(km, label).toBeLessThanOrEqual(RING_LIMITS_KM[1])
-        } else if (airport.ring === 2) {
-          // Halka tam uzaklıktandır, `distanceToTrKm` tam km'ye yuvarlıdır: 500,44 km → 500 (LLBG).
-          expect(km, label).toBeGreaterThanOrEqual(RING_LIMITS_KM[1])
-          expect(km, label).toBeLessThanOrEqual(RING_LIMITS_KM[2])
-        } else if (airport.ring === 3) {
-          // 3. halkanın en yakını Gachsaran, 1.006 km: 1.000 km sınırında yuvarlama vakası yoktur.
-          expect(km, label).toBeGreaterThan(RING_LIMITS_KM[2])
-          expect(km, label).toBeLessThanOrEqual(RING_LIMITS_KM[3])
-        } else if (airport.ring === 4) {
-          // 4. halkanın en yakını Barselona, 2.003 km; en uzağı Ulan Batur, 4.981 km (D-102).
-          expect(km, label).toBeGreaterThan(RING_LIMITS_KM[3])
-          expect(km, label).toBeLessThanOrEqual(RING_LIMITS_KM[4])
-        } else {
-          // 5. halkanın sınırı yoktur; en yakını Xining, 5.003 km, en uzağı Atuona, 17.767 km (D-109).
-          expect(km, label).toBeGreaterThan(RING_LIMITS_KM[4])
+        const km = airport.distanceToTrKm
+        if (typeof km !== 'number') {
+          problems.push(`${label}: uzaklık ${String(km)}`)
+        } else if (!withinRing(airport.ring, km)) {
+          problems.push(`${label}: halka ${String(airport.ring)}, ${km} km`)
         }
-        expect(airport.country, `${label}: ülke kodu`).toMatch(/^[A-Z]{2}$/)
+        if (typeof airport.country !== 'string' || !/^[A-Z]{2}$/.test(airport.country)) {
+          problems.push(`${label}: ülke kodu ${String(airport.country)}`)
+        }
         // Değişmez kural (D-101): listelenen her havalimanının dört karakterli ICAO'su vardır.
-        expect(airport.icao, `${label}: ICAO`).toMatch(/^[A-Z0-9]{4}$/)
+        if (typeof airport.icao !== 'string' || !/^[A-Z0-9]{4}$/.test(airport.icao)) {
+          problems.push(`${label}: ICAO`)
+        }
       }
+      expect(problems, `${path}: halka, uzaklık, ülke kodu ve ICAO`).toEqual([])
       const athens = airports.find((airport) => airport.icao === icao)
       expect(athens?.iata).toBe(iata)
       expect(athens?.country).toBe(RING1_AIRPORT.country)
@@ -313,10 +333,11 @@ test.describe('API', () => {
         const ring4 = airports.find((airport) => airport.icao === RING4_AIRPORT.icao)
         expect(ring4?.runways?.length ?? 0).toBeGreaterThan(0)
         expect(ring4?.runways?.some((runway) => 'ends' in runway)).toBe(false)
-        for (const airport of airports) {
-          const withEnds = (airport.runways ?? []).some((runway) => 'ends' in runway)
-          if (withEnds) expect([0, 1, 2, 3], String(airport.icao)).toContain(airport.ring)
-        }
+        const farWithEnds = airports
+          .filter((airport) => (airport.runways ?? []).some((runway) => 'ends' in runway))
+          .filter((airport) => ![0, 1, 2, 3].includes(airport.ring as number))
+          .map((airport) => String(airport.icao))
+        expect(farWithEnds, 'pist uçları yalnız 0.–3. halkada').toEqual([])
         // Arama takma adı tam kod olarak bulur (D-109): kayıt takma adı taşır.
         expect(
           airports.find((airport) => airport.icao === IDENT_ALIAS_AIRPORT.icao)?.identAlias,

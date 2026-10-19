@@ -422,34 +422,66 @@ test.describe('kök dosyalar', () => {
     }
     expect(paths.filter((p) => /\/(admin|api|dil)(\/|$)|\?/.test(p))).toEqual([])
 
+    // Adres başına denetim (hreflang ve aşağıda lastmod) düz koşuldur, sonuç tek `expect`le doğrulanır:
+    // adres başına `expect` (5. halkayla 6.542 adreste iki döngüde ~59.000 çağrı) testin süresini
+    // aşıyordu. Hata iletisi bozuk adreslerin hepsini değerleriyle birlikte listeler.
+    const alternatesKey = (alternates: Record<string, string>) =>
+      JSON.stringify(
+        Object.keys(alternates)
+          .sort()
+          .map((key) => [key, alternates[key]]),
+      )
+    const hreflangProblems: string[] = []
     for (const entry of entries) {
-      expect(Object.keys(entry.alternates).sort(), entry.loc).toEqual(['en', 'tr', 'x-default'])
-      expect(entry.alternates['x-default'], entry.loc).toBe(entry.alternates.en)
-      expect([entry.alternates.tr, entry.alternates.en], entry.loc).toContain(entry.loc)
+      const locales = Object.keys(entry.alternates).sort().join(',')
+      if (locales !== 'en,tr,x-default') hreflangProblems.push(`${entry.loc}: hreflang ${locales}`)
+      const { tr, en } = entry.alternates
+      const fallback = entry.alternates['x-default']
+      if (fallback !== en) {
+        hreflangProblems.push(
+          `${entry.loc}: x-default (${String(fallback)}) en (${String(en)}) değil`,
+        )
+      }
+      if (entry.loc !== tr && entry.loc !== en) {
+        hreflangProblems.push(
+          `${entry.loc}: kendi adresi tr (${String(tr)}) ya da en (${String(en)}) değil`,
+        )
+      }
+      const own = alternatesKey(entry.alternates)
       for (const locale of ['tr', 'en'] as const) {
-        const twin = byLoc.get(entry.alternates[locale] ?? '')
-        expect(twin, `${entry.loc} → ${locale}`).toBeDefined()
-        expect(twin?.alternates, `${entry.loc} ↔ ${locale}`).toEqual(entry.alternates)
+        const target = entry.alternates[locale]
+        const twin = byLoc.get(target ?? '')
+        if (twin === undefined) {
+          hreflangProblems.push(`${entry.loc} → ${locale} (${String(target)}): ikiz yok`)
+        } else if (alternatesKey(twin.alternates) !== own) {
+          hreflangProblems.push(
+            `${entry.loc} ↔ ${locale}: karşılıklı değil: ${own} ≠ ${alternatesKey(twin.alternates)}`,
+          )
+        }
       }
     }
+    expect(hreflangProblems, 'karşılıklı hreflang').toEqual([])
 
     // lastmod yalnızca doğrulanabilir tarihse yazılır (verinin değişme anı), istek anı değildir.
     const now = Date.now()
+    const today = istanbulDate(now)
+    const lastmodProblems: string[] = []
     for (const entry of entries) {
       if (entry.lastmod === undefined) continue
       const time = Date.parse(entry.lastmod)
-      expect(Number.isNaN(time), `${entry.loc}: lastmod`).toBe(false)
-      if (DATE_ONLY.test(entry.lastmod)) {
+      if (Number.isNaN(time)) {
+        lastmodProblems.push(`${entry.loc}: lastmod (${entry.lastmod}) okunamıyor`)
+      } else if (DATE_ONLY.test(entry.lastmod)) {
         // Yalnızca gün (sürüm ve yürürlük tarihi) İstanbul takvimindedir; `Date.parse` onu UTC gece
         // yarısı okur ve 00:00–03:00 arasında "gelecekte" sayardı. Gün, İstanbul'daki bugünle kıyaslanır.
-        expect(
-          entry.lastmod <= istanbulDate(now),
-          `${entry.loc}: lastmod (${entry.lastmod}) gelecekte değil`,
-        ).toBe(true)
-      } else {
-        expect(time, `${entry.loc}: lastmod gelecekte değil`).toBeLessThanOrEqual(now)
+        if (entry.lastmod > today) {
+          lastmodProblems.push(`${entry.loc}: lastmod (${entry.lastmod}) gelecekte`)
+        }
+      } else if (time > now) {
+        lastmodProblems.push(`${entry.loc}: lastmod (${entry.lastmod}) gelecekte`)
       }
     }
+    expect(lastmodProblems, 'lastmod okunur ve gelecekte değil').toEqual([])
     const lastmodOf = (path: string) =>
       entries.find((entry) => sitePath(entry.loc, 'loc') === path)?.lastmod
     const stationTimes = entries
@@ -482,9 +514,10 @@ test.describe('kök dosyalar', () => {
 
     // Bütün bağlantılar mutlaktır; site dışı olanlar veri kaynaklarıdır (ADSB.lol, ODbL, OurAirports).
     const links = markdownLinks(body)
-    for (const link of links) {
-      expect(link.href, `llms.txt ${link.label}`).toMatch(/^https?:\/\//)
-    }
+    expect(
+      links.filter((link) => !/^https?:\/\//.test(link.href)).map((link) => link.label),
+      'llms.txt: göreli bağlantı',
+    ).toEqual([])
     const paths = links
       .filter((link) => new URL(link.href).host === WEB_HOST)
       .map((link) => sitePath(link.href, `llms.txt ${link.label}`))

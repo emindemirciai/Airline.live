@@ -516,6 +516,16 @@ export async function expectRedirect(
   return response
 }
 
+/**
+ * Havalimanı penceresinin odağı almasını bekler. Pencere açılınca odağı kendine taşır ve Escape
+ * dinleyicisini bağlar; ikisi aynı effect turundadır (airport-popup.tsx). Yük altında pencere
+ * görünür olduğunda bu tur henüz çalışmamış olabilir ve hemen basılan Escape boşa gider. Odak
+ * penceredeyse dinleyici de bağlıdır: tek Escape pencereyi kapatmalıdır.
+ */
+export async function expectPopupFocused(popup: Locator): Promise<void> {
+  await expect.poll(() => popup.evaluate((el) => el.contains(document.activeElement))).toBe(true)
+}
+
 /** Canlı haritanın arama kutusu (D-108): ARIA 1.2 combobox, `role="search"` formunun içinde. */
 export function searchInput(page: Page): Locator {
   return page.getByRole('search').getByRole('combobox')

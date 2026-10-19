@@ -11,6 +11,7 @@ import { expect, test, type Locator, type Page } from '@playwright/test'
 import {
   airportListCodes,
   declineAnalytics,
+  expectPopupFocused,
   infoCard,
   MILITARY_AIRFIELDS,
   openMap,
@@ -90,6 +91,7 @@ test('"esenboğa": öneri listesinden klavyeyle seçilir; harita ESB’ye gider,
   expect(new URL(page.url()).searchParams.has('havalimani')).toBe(false)
 
   // Pencere odaklıdır; Escape kapatır ve odak arama kutusuna döner (WCAG 2.4.3).
+  await expectPopupFocused(popup(page, 'LTAC'))
   await page.keyboard.press('Escape')
   await expect(popup(page)).toHaveCount(0)
   await expect(input).toBeFocused()
