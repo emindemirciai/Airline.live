@@ -92,7 +92,7 @@ pnpm dev
 - `docs/DECISIONS.md`: kararlar ve gerekçeleri
 
 ### İstatistik (v0.27.0)
-Git'te 722 dosya, **168.428 satır**. Bunun 155.638 satırı kod (TypeScript, TSX, CSS, JS), 9.221 satırı belgedir. Lockfile, `docs/research/` ve elle yazılmayan veri (fixture CSV ve JSON dosyaları, drizzle şema snapshot'ları) hariç tutulur. Güncel değer için `pnpm stats` çalıştır.
+Git'te 722 dosya, **168.503 satır**. Bunun 155.711 satırı kod (TypeScript, TSX, CSS, JS), 9.223 satırı belgedir. Lockfile, `docs/research/` ve elle yazılmayan veri (fixture CSV ve JSON dosyaları, drizzle şema snapshot'ları) hariç tutulur. Güncel değer için `pnpm stats` çalıştır.
 
 | Alan | Satır |
 |---|---|
@@ -107,7 +107,7 @@ Git'te 722 dosya, **168.428 satır**. Bunun 155.638 satırı kod (TypeScript, TS
 | packages/providers | 4.499 |
 | scripts | 2.268 |
 | packages/geo | 786 |
-| diğer (kök, deploy, .claude, .github) | 11.590 |
+| diğer (kök, deploy, .claude, .github) | 11.665 |
 
 ### Lisans, veri ve atıflar
 - Kod [MIT lisansı](LICENSE) ile lisanslanmıştır: © 2026 [emindemirciai](https://github.com/emindemirciai). Kodun tüm kopyaları ya da önemli bölümleri telif bildirimini ve lisans metnini içermek zorundadır; bunlar olmadan kopyalamak ya da dağıtmak lisans ve telif hakkı ihlalidir. **Airline.live** adı ve logosu MIT kapsamında değildir, hakları saklıdır. Aynı bildirim sitenin sayfa kaynağında da yer alır.
@@ -205,7 +205,7 @@ Then open `http://localhost:3100/` (live map), `/havalimanlari`, `/istasyon/LTFM
 - `docs/DECISIONS.md`: decisions and rationale
 
 ### Stats (v0.27.0)
-722 files and **168,428 lines** in git: 155,638 lines of code (TypeScript, TSX, CSS, JS) and 9,221 lines of documentation. The lockfile, `docs/research/` and generated data (fixture CSV and JSON files, drizzle schema snapshots) are excluded. Run `pnpm stats` for current numbers.
+722 files and **168,503 lines** in git: 155,711 lines of code (TypeScript, TSX, CSS, JS) and 9,223 lines of documentation. The lockfile, `docs/research/` and generated data (fixture CSV and JSON files, drizzle schema snapshots) are excluded. Run `pnpm stats` for current numbers.
 
 ### License, data and attribution
 - Code is licensed under the [MIT License](LICENSE): © 2026 [emindemirciai](https://github.com/emindemirciai). All copies or substantial portions of the code must include the copyright notice and license text; copying or distributing without them infringes the license and the copyright. The **Airline.live** name and logo are not covered by the MIT License; rights reserved. The same notice appears in the page source of the site.
