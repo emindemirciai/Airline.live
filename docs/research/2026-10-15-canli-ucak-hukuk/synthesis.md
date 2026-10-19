@@ -235,7 +235,7 @@ Emsaller:
 - **Varsayılan gizli olacaklar:** Cumhurbaşkanlığı ve VIP filo, MİT, EGM, Jandarma, Sahil Güvenlik, gümrük. Orman yangını uçakları avukata sorulur (E3).
 - **Aday tescil listesi:** repoya alınmadı (D-115: tescil ve hex listeleri repoda, imajda ve istemcide tutulmaz; liste kullanıcıdadır).
 - **Engel nasıl kurulur:**
-  - Hex'ler VRS standing-data'dan çevrimdışı eşleştirilir.
+  - Hex'ler VRS standing-data'dan çevrimdışı eşleştirilir. (Repo kopyasına not, 2026-10-19: projenin VRS verisinde tescil–hex eşlemesi yoktur; uygulanan yöntem ACTIVATION 2. adım (e)'dedir.)
   - Engel hem tescile hem hex'e uygulanır.
   - Bu uçaklar için geçmiş iz ve bildirim tutulmaz.
 - **Çağrı koduna güvenilmez:** TC-ATA 2016'da THY çağrı koduyla uçtu.

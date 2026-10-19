@@ -16,13 +16,16 @@
       "env": ["APP_ENV", "GIT_SHA", "BUILD_TIME"]
     },
     "lint": {
-      "outputs": []
+      "outputs": [],
+      "inputs": ["$TURBO_DEFAULT$", "$TURBO_ROOT$/packages/*/src/**"]
     },
     "typecheck": {
-      "outputs": []
+      "outputs": [],
+      "inputs": ["$TURBO_DEFAULT$", "$TURBO_ROOT$/packages/*/src/**"]
     },
     "test": {
-      "outputs": []
+      "outputs": [],
+      "inputs": ["$TURBO_DEFAULT$", "$TURBO_ROOT$/packages/*/src/**"]
     },
     "@havayolu/tools#test": {
       "outputs": [],

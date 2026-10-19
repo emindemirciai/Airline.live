@@ -64,6 +64,15 @@ describe('AboutContent', () => {
     expect(body).toContain(
       'Canlı haritada yalnız bilinen bir havayolu çağrı koduyla uçan uçaklar gösterilir. Askerî, devlet ve özel uçakları tespit kurallarımızla göstermemeye çalışırız; bu kurallar kusursuz değildir.',
     )
+    // Ş1 (D-115): İngilizcesi de mutlak değildir; eski mutlak cümle iki dilde de dönmez.
+    expect(text(render('en'))).toContain(
+      'The live map shows only aircraft flying under a known airline callsign. We use detection rules to try to keep military, state and private aircraft off the site; these rules are not perfect.',
+    )
+    for (const locale of LOCALES) {
+      expect(text(render(locale)), locale).not.toMatch(
+        /Askeri uçaklar haritada|Military aircraft are not shown/i,
+      )
+    }
     expect(body).toContain('PIA ya da LADD')
     expect(body).toContain('engel listesine')
     expect(body).toContain('yaklaşık 20 sn')

@@ -349,6 +349,18 @@ export const E2E_ADMIN = {
 } as const
 
 /**
+ * Test yöneticisiyle `/admin/giris`'ten giriş yapar; yönetim ana sayfasına dönülür. Oturum çerezi
+ * yalnızca `/admin` yolundadır: aynı bağlamdaki harita sekmesi etkilenmez.
+ */
+export async function adminLogin(page: Page): Promise<void> {
+  await page.goto('/admin/giris')
+  await page.getByLabel('E-posta').fill(E2E_ADMIN.email)
+  await page.getByLabel('Kurulum anahtarı').fill(E2E_ADMIN.setupToken)
+  await page.getByRole('button', { name: 'Giriş yap' }).click()
+  await expect(page).toHaveURL(/\/admin$/)
+}
+
+/**
  * Kapsama raporu fixture'ı (`pnpm --filter @havayolu/tools arrival-fixture`, D-098): LTAI'ye üç
  * kapanmış sentetik varış, biri yerde örneğiyle (tools/src/arrival-report/fixture.ts). Replay
  * LTAI'ye yaklaşma uçurmadığı için istasyonun satırı yalnızca bu fixture'dan gelir.
