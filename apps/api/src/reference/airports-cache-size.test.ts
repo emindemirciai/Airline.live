@@ -20,9 +20,9 @@ import { compressBody, type BodyEncoding } from './body-cache'
  *
  * Test, commit'li OurAirports fixture'ından (2026-10-01 kopyası) listeyi üretimdeki gibi kurar (içe
  * aktarım çözümleyicisi, liste kuralı, ayrıntı kaydı, API'nin serileştiricisi ve gövde önbelleği)
- * ve açık halkada (4; 1.240 havalimanı, savaş kapanışlarıyla, D-110) ve 5. halka açık bağlamla
- * (3.266 havalimanı) ölçer. Brotli boyutları önbellekli gövdenindir
- * (kalite 11, D-111); istek anındaki brotli 4 daha büyüktür.
+ * ve açık halkada (M6j.3'ten beri 5; 3.266 havalimanı, savaş kapanışlarıyla, D-109, D-110) ve 4.
+ * halka bağlamla (1.240 havalimanı) ölçer. Brotli boyutları önbellekli gövdenindir (kalite 11,
+ * D-111); istek anındaki brotli 4 daha büyüktür.
  */
 
 /** Pistli listenin (sayfalar) gövde bütçesi: 5. halkada ölçülen 2.987.429 B'a pay. */
@@ -95,9 +95,9 @@ async function measure(details: AirportDetail[], include: 'runways' | 'map', bro
 
 describe('gövde bütçeleri: listelenen havalimanları (D-111)', () => {
   // Fixture'ı bu dosyada ilk ayrıştıran test (yerelde ~1 sn): açık süre sınırı (D-105, D-109).
-  it('pistli liste: 4. halkada 1.240 havalimanı; 5. halka açık bağlamla 3.266 havalimanı ≤ 3,5 MB', async () => {
-    expect(ENABLED_AIRPORT_RING).toBe(4)
-    expect(AIRPORT_RING_CONFIG.enabledRing).toBe(4)
+  it('pistli liste: açık halkada (5) 3.266 havalimanı ≤ 3,5 MB; 4. halka bağlamla 1.240 havalimanı', async () => {
+    expect(ENABLED_AIRPORT_RING).toBe(5)
+    expect(AIRPORT_RING_CONFIG.enabledRing).toBe(5)
     const ring4 = await measure(fixtureDetails(4), 'runways', false)
     expect(ring4.airports).toBe(1240)
     // Ölçüm (2026-10-16, fixture; savaş kapanışlarıyla, D-110): 1.072.446 B. Önce (2026-10-08;
@@ -105,8 +105,8 @@ describe('gövde bütçeleri: listelenen havalimanları (D-111)', () => {
     expect(ring4.bytes / ring4.airports).toBeLessThan(1000)
     const ring5 = await measure(fixtureDetails(5), 'runways', false)
     expect(ring5.airports).toBe(3266)
-    // Ölçüm: 2.987.429 B (3.243 havalimanıyla 2.968.051 B; ABD ve Kanada havalimanlarının pistleri
-    // çok; KORD kaydı 3,3 KB).
+    // Ölçüm (2026-10-19, M6j.3): 2.987.429 B (3.243 havalimanıyla 2.968.051 B; ABD ve Kanada
+    // havalimanlarının pistleri çok; KORD kaydı 3,3 KB).
     expect(ring5.bytes).toBeLessThanOrEqual(RUNWAYS_BODY_BUDGET)
     expect(ring5.bytes).toBeGreaterThan(ring4.bytes * 2)
   }, 30_000)
@@ -122,8 +122,8 @@ describe('gövde bütçeleri: listelenen havalimanları (D-111)', () => {
   it('haritanın listesi (include=map): 5. halkada ≤ 1,2 MB ham ve ≤ 190 KB brotli; 4. halkada ≤ 95 KB brotli', async () => {
     const ring4 = await measure(fixtureDetails(4), 'map', true)
     expect(ring4.airports).toBe(1240)
-    // Ölçüm (2026-10-16, D-110'la): 539.115 B ham, 91.886 B brotli 11; 5. halkada 1.172.725 ve
-    // 187.790 B. Önce (2026-10-08; 1.217 ve 3.243 havalimanı) 525.947 ve 89.683 B; 1.159.557 ve
+    // Ölçüm (2026-10-16, D-110'la; 2026-10-19'da M6j.3 ile aynı: adlar API gövdesinde yoktur):
+    // 539.115 B ham, 91.886 B brotli 11; 5. halkada 1.172.725 ve 187.790 B (bütçe payı %1,2). Önce (2026-10-08; 1.217 ve 3.243 havalimanı) 525.947 ve 89.683 B; 1.159.557 ve
     // 185.611 B.
     expect(ring4.brotliBytes).toBeLessThanOrEqual(MAP_BROTLI_BUDGET_RING4)
     const ring5 = await measure(fixtureDetails(5), 'map', true)

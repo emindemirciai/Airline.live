@@ -1112,7 +1112,7 @@ const fixtureRunways: RunwaySourceRow[] = readFixtureCsv('runways.csv')
     leLatitudeDeg: number(r.get('le_latitude_deg')),
     heLatitudeDeg: number(r.get('he_latitude_deg')),
   }))
-/** Bütün halkalar açık bağlam (5. halka, D-109): uygulamada açık halka hâlâ 4'tür. */
+/** Bütün halkalar açık bağlam (5. halka, D-109): uygulamada da açık halka 5'tir (M6j.3, D-118). */
 const fixtureContext: ListingContext = {
   turkey: turkishReferencePoints(fixtureAirports),
   ringsKm: RINGS_KM,
@@ -1353,10 +1353,10 @@ describe('fixture: adres takma adları (D-109)', () => {
   it('tek havalimanı: ICAO, IATA ve takma ad; askerî alan ve başka satırın ICAO’su bulunmaz', async () => {
     const find = (code: string) =>
       findAirportInRows(fixtureAirports, fixtureRunways, [], code, fixtureContext)
-    // 4. halka açıkken (uygulama): Semerkant'ın eski kodu.
+    // 1.–4. halka: Semerkant'ın eski kodu.
     expect(await find('UTSS')).toMatchObject({ icao: 'UZSS', iata: 'SKD', identAlias: 'UTSS' })
     expect(await find('utss')).toMatchObject({ icao: 'UZSS' })
-    // 5. halka (halka süzgeci yok): Lima, Palm Beach, Harare.
+    // 5. halka: Lima, Palm Beach, Harare.
     expect(await find('SPIM')).toMatchObject({ icao: 'SPJC', iata: 'LIM', ring: 5 })
     expect(await find('KPBI')).toMatchObject({ icao: 'KDJT', iata: 'DJT' })
     expect(await find('FVHA')).toMatchObject({ icao: 'FVRG', iata: 'HRE' })

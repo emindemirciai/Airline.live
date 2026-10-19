@@ -5,7 +5,7 @@
  * havalimanının güncel havası, `GET /v1/airports/<ICAO>/weather` (havalimanı sayfasının adasıyla aynı
  * uç nokta ve aynı denetim, `../airports/weather-client`). Pencere yalnız kendi havalimanını gösterir;
  * listelenen bütün istasyonların toplu yanıtı (`/v1/weather?scope=listed`; 3. halkada ~500 istasyonla
- * 1,4–2,4 MB, 4. halkada 1.240 istasyon, sıkıştırmasız) tek bir havalimanı için indirilmez (yanıt
+ * 1,4–2,4 MB; 5. halkada 3.264 istasyon, ham biçimde ~3,5 MB, sıkıştırmasız) tek bir havalimanı için indirilmez (yanıt
  * ~3–7 KB).
  *
  * İstek ilk pencere açılışında atılır (harita açılışında değil); pencere açıkken ve sayfa görünürken

@@ -2,8 +2,10 @@ import { describe, expect, it } from 'vitest'
 import {
   AIRPORT_SEARCH_LIMIT,
   AIRPORT_SEARCH_MIN_LENGTH,
+  AIRPORT_SEARCH_MIN_SLICE_ENTRIES,
   AIRPORT_SEARCH_STOP_WORDS,
   airportQueryKind,
+  airportSearchIndexBuilder,
   createAirportSearchIndex,
   foldSearchText,
   searchAirportIndex,
@@ -546,5 +548,73 @@ describe('searchAirportIndex', () => {
     )
     expect(searchAirportIndex(index, 'ciftland').total).toBe(1_750)
     expect(searchAirportIndex(index, 'nowhere').total).toBe(0)
+  })
+})
+
+describe('dilimli kurulum (M6j.3, D-108)', () => {
+  const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
+  const code = (i: number, length: number) =>
+    Array.from(
+      { length },
+      (_, k) => letters[Math.floor(i / 26 ** (length - 1 - k)) % 26] ?? 'A',
+    ).join('')
+  /** 5. halkanın büyüklüğünde sentetik liste: 3.266 havalimanı, dört ad ve iki yer. */
+  const synthetic = Array.from({ length: 3_266 }, (_, i) =>
+    entry(
+      `Z${code(i, 3)}`,
+      code(i, 3),
+      [
+        `Testkent ${code(i, 3).toLowerCase()}ville Havalimanı`,
+        `Testkent ${code(i, 3).toLowerCase()}ville International Airport`,
+        `Ad ${i} Kişi Soyadı`,
+        `Testkent Airport ${i}`,
+      ],
+      [`${code(i, 3).toLowerCase()}ville`, `Bölge ${i % 50}`],
+      [i % 2 === 0 ? 'Çiftland' : 'Tekland', i % 2 === 0 ? 'Evenland' : 'Oddland'],
+    ),
+  )
+  const QUERIES = ['ABC', 'abcville', 'testkent', 'ciftland', 'bölge 7', 'ad 12', 'zzz', 'oddland']
+
+  it('dilim süre bitince durur (en az AIRPORT_SEARCH_MIN_SLICE_ENTRIES kayıttan sonra); dizin tek seferlik kurulumla aynı', () => {
+    // Saatsiz, sayan süre (D-118): `step` `timeRemaining()`'i yalnız en az 32 kayıttan sonra sorar;
+    // süre EXTRA soruda biter, böylece her dilim tam 32 + EXTRA kayıt işler. Duvar saatiyle ölçen
+    // eski test yük altında (bütün paketler birlikte) dilimi 50 ms'nin üstünde ölçüyordu.
+    const EXTRA = 100
+    const builder = airportSearchIndexBuilder(synthetic)
+    let slices = 0
+    let index = null
+    while (index === null) {
+      let left = EXTRA
+      index = builder.step(() => left--)
+      slices++
+      expect(slices).toBeLessThan(10_000)
+    }
+    expect(slices).toBe(Math.ceil(3_266 / (AIRPORT_SEARCH_MIN_SLICE_ENTRIES + EXTRA)))
+    expect(slices).toBe(25)
+    expect(index.size).toBe(3_266)
+    // Bittikten sonra aynı dizin.
+    expect(builder.step(() => 0)).toBe(index)
+    const oneShot = createAirportSearchIndex(synthetic)
+    for (const query of QUERIES) {
+      expect(searchAirportIndex(index, query, 50), query).toEqual(
+        searchAirportIndex(oneShot, query, 50),
+      )
+    }
+    expect(searchAirportIndex(index, 'testkent').total).toBe(3_266)
+  })
+
+  it('kalan süre hiç yoksa da her dilim en az AIRPORT_SEARCH_MIN_SLICE_ENTRIES kayıt işler', () => {
+    const builder = airportSearchIndexBuilder(synthetic)
+    let steps = 0
+    let index = null
+    while (index === null) {
+      index = builder.step(() => 0)
+      steps++
+    }
+    expect(AIRPORT_SEARCH_MIN_SLICE_ENTRIES).toBe(32)
+    expect(steps).toBe(Math.ceil(3_266 / AIRPORT_SEARCH_MIN_SLICE_ENTRIES))
+    expect(searchAirportIndex(index, 'ABC').hits[0]).toEqual({ value: 'ZABC', match: 'code' })
+    // Boş liste ilk adımda biter.
+    expect(airportSearchIndexBuilder([]).step(() => 0)?.size).toBe(0)
   })
 })

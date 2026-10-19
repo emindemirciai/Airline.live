@@ -285,13 +285,19 @@ describe('resolveAirportCode', () => {
       ['UTTT', 'UZTT'],
       ['LELO', 'LERJ'],
       ['VA1G', 'VERW'],
+      // 5. halka (M6j.3, D-109): Lima, Palm Beach, Harare.
+      ['SPIM', 'SPJC'],
+      ['spim', 'SPJC'],
+      ['KPBI', 'KDJT'],
+      ['FVHA', 'FVRG'],
     ] as const) {
       expect(resolveAirportCode(code, listed), code).toEqual({ kind: 'redirect', icao })
     }
-    // 1.–4. halkada 29 takma ad; her biri listelenen bir havalimanınındır ve hiçbir listelenen
-    // havalimanının ICAO'su değildir.
+    // 1.–4. halkada 29, 5. halkada 23 takma ad; her biri listelenen bir havalimanınındır ve hiçbir
+    // listelenen havalimanının ICAO'su değildir.
     const aliased = listed.filter((airport) => airport.identAlias !== undefined)
-    expect(aliased).toHaveLength(29)
+    expect(aliased).toHaveLength(52)
+    expect(aliased.filter((airport) => airport.ring === 5)).toHaveLength(23)
     const icaos = new Set(listed.map((airport) => airport.icao))
     for (const airport of aliased) {
       expect(icaos.has(airport.identAlias ?? ''), airport.icao).toBe(false)
@@ -300,9 +306,9 @@ describe('resolveAirportCode', () => {
         icao: airport.icao,
       })
     }
-    // Listelenmeyen havalimanının takma adı yönlenmez (5. halka kapalı: Lima SPIM → SPJC, Palm
-    // Beach KPBI → KDJT); başka bir satırın ICAO'su olan kimlik takma ad değildir (WABP).
-    for (const code of ['SPIM', 'KPBI', 'WABP']) {
+    // Başka bir satırın ICAO'su olan kimlik takma ad değildir (WABP: Timika WAYY'nin kimliği,
+    // Burumeso'nun ICAO'su); listelenmeyen havalimanının kodu yönlenmez (Le Bourget, Thohoyandou).
+    for (const code of ['WABP', 'LFPB', 'LBG', 'FATH', 'THY']) {
       expect(resolveAirportCode(code, listed), code).toEqual({ kind: 'not_found' })
     }
   })

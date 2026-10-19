@@ -6,12 +6,16 @@ import {
   airportLocality,
   airportOfficialName,
   airportSearchPlaces,
+  AIRPORT_SEARCH_MIN_SLICE_ENTRIES,
+  airportSearchIndexBuilder,
+  countryName,
   countrySearchAliases,
-  createAirportSearchIndex,
   mapShownAirports,
   provinceName,
   searchAirportIndex,
   type AirportSearchEntry,
+  type AirportSearchIndex,
+  type AirportSearchIndexBuilder,
   type Locale,
 } from '@havayolu/shared'
 import type { MapAirport } from '../airport-data'
@@ -39,6 +43,12 @@ import type { AirportSearch, AirportSearchRow } from './search-box-model'
  *   savunma amaçlıdır.
  * - Dizin (havalimanı listesi, dil) başına bir kez kurulur ve saklanır; satırın metinleri ilk
  *   gösterildiğinde bir kez hesaplanır.
+ * - **Dilimli kurulum** (M6j.3, D-108, D-118): harita hazır olunca boşta kurulum
+ *   `prepareAirportSearch` ile `requestIdleCallback` dilimlerinde yapılır (`Intl` nesneleri ve
+ *   sıralama ayrı dilimlerde, kayıtlar ve motorun dizini dilimli; 5. halkanın 3.266 havalimanında
+ *   tek seferde masaüstünde ~55 ms, düşük güçlü telefonda birkaç katı; yeni süreçte 8 ms'lik
+ *   dilimlerle 9–10 dilim, en uzunu ~15 ms). Yarım kalmış kurulumu `buildAirportSearch` (kutunun
+ *   odağı, ilk gönderim) bekletmeden tek seferde bitirir; sonuç tek seferlik kurulumunkiyle aynıdır.
  */
 
 const INTL_LOCALE: Record<Locale, string> = { tr: 'tr-TR', en: 'en-GB' }
@@ -51,35 +61,129 @@ const TYPE_ORDER: Record<MapAirport['type'], number> = {
 const TURKEY = 'TR'
 
 const cache = new WeakMap<readonly MapAirport[], Map<Locale, AirportSearch>>()
+/** Yarım kalmış dilimli kurulumlar (liste ve dil başına). */
+const pending = new WeakMap<readonly MapAirport[], Map<Locale, SearchBuild>>()
 
 /** Listedeki havalimanları üzerinde arama (liste ve dil başına bir kez kurulur). */
 export function buildAirportSearch(airports: readonly MapAirport[], locale: Locale): AirportSearch {
+  const search = advance(airports, locale, () => Number.POSITIVE_INFINITY)
+  if (search === null) throw new Error('airport search: one-shot build did not finish')
+  return search
+}
+
+/**
+ * Aramayı dilimle kurar (boşta; `timeRemaining` tarayıcının `IdleDeadline.timeRemaining`'i gibi, ms):
+ * kurulum bittiyse (ya da zaten kuruluysa) true. Bitmediyse sonraki çağrı kaldığı yerden sürer.
+ */
+export function prepareAirportSearch(
+  airports: readonly MapAirport[],
+  locale: Locale,
+  timeRemaining: () => number,
+): boolean {
+  return advance(airports, locale, timeRemaining) !== null
+}
+
+buildAirportSearch.prepare = prepareAirportSearch
+
+function advance(
+  airports: readonly MapAirport[],
+  locale: Locale,
+  timeRemaining: () => number,
+): AirportSearch | null {
   let byLocale = cache.get(airports)
   if (byLocale === undefined) {
     byLocale = new Map()
     cache.set(airports, byLocale)
   }
-  let search = byLocale.get(locale)
-  if (search === undefined) {
-    search = createSearch(airports, locale)
-    byLocale.set(locale, search)
+  const ready = byLocale.get(locale)
+  if (ready !== undefined) return ready
+  let builds = pending.get(airports)
+  if (builds === undefined) {
+    builds = new Map()
+    pending.set(airports, builds)
   }
+  let build = builds.get(locale)
+  if (build === undefined) {
+    build = startSearch(airports, locale)
+    builds.set(locale, build)
+  }
+  const search = build.step(timeRemaining)
+  if (search === null) return null
+  builds.delete(locale)
+  byLocale.set(locale, search)
   return search
 }
 
 const nonEmpty = (values: readonly (string | null | undefined)[]): string[] =>
   values.filter((value): value is string => typeof value === 'string' && value.trim() !== '')
 
+/** Dilimli kurulumun adımı: bitince arama, yoksa null. */
+interface SearchBuild {
+  step(timeRemaining: () => number): AirportSearch | null
+}
+
 /**
- * Dizinin kayıtları, aramanın sabit sırasıyla. Geçici yapılar (sıralamanın görünen adları, ülke
- * adlarının önbelleği) bu fonksiyonun içinde kalır: kurulan arama onları tutmaz (3.500 havalimanında
- * bellek).
+ * Aramanın dilimli kurulumu, evreler sırayla: (1) sayfanın dilinin `Intl.Collator`'ı, (2) iki dilin
+ * ülke adlarının `Intl.DisplayNames`'i (`countryName`), (3) sıralama (görünen adlarla), (4) dizinin
+ * kayıtları (adlar, yerler, ülkeler; dilimli), (5) motorun dizini (dilimli,
+ * `airportSearchIndexBuilder`). İlk üç evre bölünemez; her biri ayrı dilimdir ve süre kalmadıysa
+ * dilim orada biter: tarayıcıda ilk `Intl` nesnesi ICU'yu açar (Node 24 masaüstünde Collator
+ * ~12 ms, ilk DisplayNames ~8 ms, sıralama ~5 ms), üçü bir dilimde ~30 ms'lik görev olurdu (M6j.3,
+ * D-118). Tek seferlik kurulumda (`timeRemaining` sonsuz) evreler arka arkaya çalışır. Geçici yapılar
+ * (sıralamanın görünen adları, ülke adlarının önbelleği) kurulumun içinde kalır: kurulan arama onları
+ * tutmaz (3.500 havalimanında bellek).
  */
-function searchEntries(
+function startSearch(airports: readonly MapAirport[], locale: Locale): SearchBuild {
+  let collator: Intl.Collator | null = null
+  let countriesReady = false
+  let sorted: readonly MapAirport[] | null = null
+  let entryOf: ((a: MapAirport) => AirportSearchEntry<MapAirport>) | null = null
+  const entries: AirportSearchEntry<MapAirport>[] = []
+  let indexBuilder: AirportSearchIndexBuilder<MapAirport> | null = null
+  return {
+    step(timeRemaining) {
+      if (collator === null) {
+        collator = new Intl.Collator(INTL_LOCALE[locale])
+        if (timeRemaining() <= 0) return null
+      }
+      if (!countriesReady) {
+        // Kayıtlar iki dilde ülke adı yazar: iki dilin `Intl.DisplayNames`'i burada kurulur.
+        for (const l of LOCALES) countryName(TURKEY, l)
+        countriesReady = true
+        if (timeRemaining() <= 0) return null
+      }
+      if (sorted === null) {
+        sorted = sortedAirports(airports, locale, collator)
+        entryOf = searchEntry()
+        if (timeRemaining() <= 0) return null
+      }
+      let processed = 0
+      while (
+        entryOf !== null &&
+        entries.length < sorted.length &&
+        (processed < AIRPORT_SEARCH_MIN_SLICE_ENTRIES || timeRemaining() > 0)
+      ) {
+        entries.push(entryOf(sorted[entries.length] as MapAirport))
+        processed++
+      }
+      if (entries.length < sorted.length) return null
+      entryOf = null
+      indexBuilder ??= airportSearchIndexBuilder(entries)
+      const index = indexBuilder.step(timeRemaining)
+      return index === null ? null : createSearch(index, locale)
+    },
+  }
+}
+
+/**
+ * Havalimanları aramanın sabit sırasıyla: İstanbul Havalimanı, Türkiye, tarifeli sefer, büyüklük,
+ * Türkiye'ye uzaklık, görünen ad (sayfanın dilinin alfabesiyle), ICAO. Askerî hava üsleri yoktur.
+ */
+function sortedAirports(
   airports: readonly MapAirport[],
   locale: Locale,
-): AirportSearchEntry<MapAirport>[] {
-  const collator = new Intl.Collator(INTL_LOCALE[locale])
+  collator: Intl.Collator,
+): MapAirport[] {
   const keyed = mapShownAirports(airports).map((a) => ({ a, name: airportDisplayName(a, locale) }))
   keyed.sort(
     ({ a, name: aName }, { a: b, name: bName }) =>
@@ -91,7 +195,11 @@ function searchEntries(
       collator.compare(aName, bName) ||
       (a.icao < b.icao ? -1 : a.icao > b.icao ? 1 : 0),
   )
+  return keyed.map(({ a }) => a)
+}
 
+/** Dizinin kaydını kuran işlev; ülke adlarının önbelleği kurulum boyunca yaşar. */
+function searchEntry(): (a: MapAirport) => AirportSearchEntry<MapAirport> {
   // Ülke adları ülke koduna göre (görünümü havalimanına bağlı olanlarda ICAO'ya göre) bir kez.
   // Yalnız aranan ülke adları ("Turkey") ülke koduna bağlıdır; Ercan (KKTC) onları almaz.
   const countryNames = new Map<string, readonly string[]>()
@@ -114,7 +222,7 @@ function searchEntries(
     return names
   }
 
-  return keyed.map(({ a }): AirportSearchEntry<MapAirport> => ({
+  return (a): AirportSearchEntry<MapAirport> => ({
     value: a,
     iata: a.iata,
     icao: a.icao,
@@ -133,7 +241,7 @@ function searchEntries(
       a.city,
     ]),
     countries: countriesOf(a),
-  }))
+  })
 }
 
 /** Satırın metinleri sayfanın dilinde (bir kez, ilk gösterildiğinde). */
@@ -145,8 +253,7 @@ function searchRow(a: MapAirport, locale: Locale): Omit<AirportSearchRow, 'match
   return { airport: a, code: a.iata || a.icao, name: airportDisplayName(a, locale), place }
 }
 
-function createSearch(airports: readonly MapAirport[], locale: Locale): AirportSearch {
-  const index = createAirportSearchIndex(searchEntries(airports, locale))
+function createSearch(index: AirportSearchIndex<MapAirport>, locale: Locale): AirportSearch {
   const rows = new Map<MapAirport, Omit<AirportSearchRow, 'match'>>()
   const rowOf = (a: MapAirport): Omit<AirportSearchRow, 'match'> => {
     let row = rows.get(a)
@@ -159,11 +266,29 @@ function createSearch(airports: readonly MapAirport[], locale: Locale): AirportS
 
   return (query) => {
     const { hits, total, queryLetters } = searchAirportIndex(index, query)
+    const [first] = hits
     return {
       rows: hits.map((hit) => ({ ...rowOf(hit.value), match: hit.match })),
       total,
       queryLetters,
       degraded: false,
+      turkeyNameMatch:
+        first !== undefined &&
+        first.match === 'code' &&
+        first.value.country !== TURKEY &&
+        matchesTurkeyName(index, query),
     }
   }
+}
+
+/**
+ * Sorgu Türkiye'deki bir havalimanının adına ya da yerine uyuyor mu (başlangıç ya da sözcük
+ * basamağı; `AirportSearchResult.turkeyNameMatch`, D-118). Bütün eşleşmelere bakar: listenin 8
+ * satırına sığmayan eşleşme de sayılır ("mel" Van Ferit Melen'i sözcük basamağında, Melbourne'lerin
+ * arkasında bulur). Yalnız ilk sonuç yurt dışındaki bir havalimanının tam koduyken çağrılır.
+ */
+function matchesTurkeyName(index: AirportSearchIndex<MapAirport>, query: string): boolean {
+  return searchAirportIndex(index, query, Number.POSITIVE_INFINITY).hits.some(
+    (hit) => hit.value.country === TURKEY && (hit.match === 'start' || hit.match === 'words'),
+  )
 }

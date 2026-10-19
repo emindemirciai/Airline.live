@@ -20,6 +20,7 @@ import { AIRPORT_LABEL_MIN_ZOOM } from './labels'
 import {
   drawnAirports,
   iconScaleAt,
+  lonLatWindow,
   mapPadding,
   NO_INSETS,
   NO_PANELS,
@@ -454,6 +455,92 @@ describe('screenAirports: havalimanı izdüşümü yalnız kod yazılacaksa (D-1
         expect(x, `${airport.iata} @ ${centerLon}`).toBeLessThanOrEqual(width)
       }
     }
+  })
+})
+
+describe('screenAirports: coğrafi ön süzgeç (D-118)', () => {
+  // MapLibre'nin izdüşümü gibi (Web Mercator, dünya 512 × 2^z px, kuzey yukarı, sarılmamış boylam).
+  const width = 1280
+  const height = 800
+  const zoom = 7
+  const camera = (centerLon: number, centerLat: number, z = zoom) => {
+    const world = 512 * 2 ** z
+    const mercatorY = (lat: number) => {
+      const sin = Math.sin((lat * Math.PI) / 180)
+      return (0.5 - Math.log((1 + sin) / (1 - sin)) / (4 * Math.PI)) * world
+    }
+    const latOf = (y: number) =>
+      (Math.atan(Math.sinh(Math.PI * (1 - (2 * y) / world))) * 180) / Math.PI
+    const cy = mercatorY(centerLat)
+    const project = vi.fn(([lon, lat]: [number, number]) => ({
+      x: ((lon - centerLon) / 360) * world + width / 2,
+      y: mercatorY(lat) - cy + height / 2,
+    }))
+    const unproject = ([x, y]: [number, number]) => ({
+      lng: centerLon + ((x - width / 2) / world) * 360,
+      lat: latOf(y - height / 2 + cy),
+    })
+    const margin = 48
+    const inView = (x: number, y: number) =>
+      x >= -margin && y >= -margin && x <= width + margin && y <= height + margin
+    const near = lonLatWindow(
+      unproject([-margin - 1, -margin - 1]),
+      unproject([width + margin + 1, height + margin + 1]),
+    )
+    return { project, inView, near }
+  }
+  const settings = { airportDisplay: 'icon-code' } as const
+  // İstanbul, Ankara, Londra, New York, Sidney; Fiji ve Tonga (180. meridyenin iki yanı).
+  const airports = [
+    { icao: 'LTFM', lat: 41.26, lon: 28.73 },
+    { icao: 'LTFJ', lat: 40.9, lon: 29.31 },
+    { icao: 'LTAC', lat: 40.13, lon: 32.99 },
+    { icao: 'EGLL', lat: 51.47, lon: -0.45 },
+    { icao: 'KJFK', lat: 40.64, lon: -73.78 },
+    { icao: 'YSSY', lat: -33.95, lon: 151.18 },
+    { icao: 'NFFN', lat: -17.755, lon: 177.443 },
+    { icao: 'NFTF', lat: -21.241, lon: -175.15 },
+  ] as Airport[]
+
+  it('yalnız penceredekiler izdüşürülür; sonuç süzgeçsizle aynı', () => {
+    const { project, inView, near } = camera(29, 41)
+    const filtered = screenAirports(project, airports, zoom, settings, inView, 29, near)
+    expect(project).toHaveBeenCalledTimes(2)
+    expect(project.mock.calls.map(([[lon]]) => lon)).toEqual([28.73, 29.31])
+    project.mockClear()
+    const all = screenAirports(project, airports, zoom, settings, inView, 29)
+    expect(project).toHaveBeenCalledTimes(airports.length)
+    expect(filtered).toEqual(all)
+    expect(filtered.map((item) => item.airport.icao)).toEqual(['LTFM', 'LTFJ'])
+  })
+
+  it('180. meridyen: 179,5° D ve −179,5°’ye bakan kamerada Fiji ve Tonga geçer; sonuç süzgeçsizle aynı', () => {
+    for (const centerLon of [179.5, -179.5]) {
+      const { project, inView, near } = camera(centerLon, -19.5, 5)
+      const filtered = screenAirports(project, airports, 5, settings, inView, centerLon, near)
+      expect(project, String(centerLon)).toHaveBeenCalledTimes(2)
+      const all = screenAirports(project, airports, 5, settings, inView, centerLon)
+      expect(filtered, String(centerLon)).toEqual(all)
+      expect(filtered.map((item) => item.airport.icao)).toEqual(['NFFN', 'NFTF'])
+    }
+  })
+
+  it('lonLatWindow: boylam sarılır, enlem sınırlıdır; açıklık 360°’ye ulaşırsa her yer geçer', () => {
+    const pacific = lonLatWindow({ lng: 170, lat: 10 }, { lng: 190, lat: -30 })
+    expect(pacific(-175, -20)).toBe(true)
+    expect(pacific(175, -20)).toBe(true)
+    expect(pacific(185 - 360, 0)).toBe(true)
+    expect(pacific(160, -20)).toBe(false)
+    expect(pacific(-160, -20)).toBe(false)
+    expect(pacific(175, 11)).toBe(false)
+    expect(pacific(175, -31)).toBe(false)
+    const negative = lonLatWindow({ lng: -190, lat: 10 }, { lng: -170, lat: -30 })
+    expect(negative(175, 0)).toBe(true)
+    expect(negative(-175, 0)).toBe(true)
+    expect(negative(0, 0)).toBe(false)
+    const world = lonLatWindow({ lng: -200, lat: 85 }, { lng: 200, lat: -85 })
+    expect(world(0, 0)).toBe(true)
+    expect(world(-179, 84)).toBe(true)
   })
 })
 

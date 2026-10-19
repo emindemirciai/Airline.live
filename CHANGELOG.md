@@ -8,7 +8,33 @@
 
 ---
 
-## v0.26.0 — 2026-10-17
+## v0.27.0 — 2026-10-19
+
+### Türkçe
+**Dünyanın her yerinden havalimanları listede**
+
+- Listeye 2.026 havalimanı daha eklendi; artık 3.266 havalimanı var. ABD, Kanada, Latin Amerika, Doğu ve Güneydoğu Asya, Avustralya, Pasifik adaları ve güney Afrika’daki havalimanlarının sayfası, pistleri, yerel saati ve hava durumu hazır; 118 ülke ve bölge ilk kez listede.
+- Adlar ve şehirler Türkçe ve İngilizce derlendi; Türkçede şehir önde gelir ve yerleşik Türkçe yer adları kullanılır (New York John F. Kennedy, Pekin Başkent, Sidney Kingsford Smith, Meksiko Benito Juárez).
+- Haritadaki arama yeni havalimanlarını da adıyla, şehriyle ve koduyla bulur; kodu değişen havalimanının eski kodu da çalışır: “SPIM” Lima’yı açar. Üç harf hem yurt dışındaki bir havalimanının kodu hem Türkiye’deki bir havalimanının adının başıysa (“den”: Denver ve Denizli) Enter haritayı başka bir kıtaya götürmez, listeyi gösterir.
+- Dünyanın tamamına bakarken havalimanı işaretleri biraz daha küçük; harita kalabalıklaşmaz, hiçbir havalimanı gizlenmez. ABD’nin adı ülkenin batısında, havalimanı işaretlerinin altında yazılır.
+- Canlı uçak verisi şimdilik Türkiye ve çevresinden çekildiği için bu havalimanlarının çevresindeki uçaklar haritada görünmez; sayfalarında bu yazar.
+
+Dene: [New York JFK](/istasyon/KJFK) · [Sidney](/istasyon/YSSY) · [Havalimanları](/havalimanlari)
+
+### English
+**Airports from all over the world are listed**
+
+- 2,026 more airports are listed, 3,266 in total. Airports in the United States, Canada, Latin America, East and Southeast Asia, Australia, the Pacific islands and southern Africa now have their page, runways, local time and weather; 118 countries and territories appear for the first time.
+- Names and cities are written in Turkish and English; English names are the airports’ own names (John F. Kennedy International Airport, Beijing Capital International Airport).
+- The map search finds the new airports by name, city and code too; an airport’s old code still works: “SPIM” opens Lima. When three letters are both a foreign airport’s code and the start of a Turkish airport’s name (“den”: Denver and Denizli), Enter shows the list instead of moving the map to another continent.
+- When you look at the whole world, airport pins are a little smaller so the map does not get crowded; no airport is hidden. The UNITED STATES name is written in the west of the country, under the airport pins.
+- Live aircraft data is still fetched only over Türkiye and the surrounding area, so aircraft around these airports do not appear on the map; their pages say so.
+
+Try it: [New York JFK](/istasyon/KJFK) · [Sydney](/istasyon/YSSY) · [Airports](/havalimanlari)
+
+---
+
+## v0.26.0 — 2026-10-18 03:33 (UTC+3)
 
 ### Türkçe
 **Daha hızlı harita ve havalimanı sayfaları**

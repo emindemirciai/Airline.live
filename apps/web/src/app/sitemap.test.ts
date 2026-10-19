@@ -4,6 +4,7 @@ import type * as AirportsModule from '../lib/airports'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { SITEMAP_PAGES } from '../lib/seo/sitemap'
 import { airportFixture } from '../lib/test/airport-fixture'
+import { fixtureListedAirports } from '../lib/test/ourairports-fixture'
 import { TERMS_EFFECTIVE_DATE } from '../lib/terms'
 import sitemap from './sitemap'
 
@@ -162,5 +163,22 @@ describe('sitemap.xml', () => {
     vi.stubEnv('WEB_HOST', 'localhost:3100')
     const entries = await sitemap()
     expect(entries[0]?.url).toBe('http://localhost:3100/')
+  })
+})
+
+describe('sitemap.xml: fixture’ın bütün listesi (M6j.3, D-109)', () => {
+  it('(3.266 dizine eklenen havalimanı + 5 sayfa) × 2 = 6.542 adres; 50.000 sınırının altında', async () => {
+    const listed = fixtureListedAirports()
+    expect(listed).toHaveLength(3266)
+    getAirports.mockResolvedValue(listed)
+    const entries = await sitemap()
+    expect(entries).toHaveLength(6542)
+    expect(entries.length).toBeLessThan(50_000)
+    const urls = new Set(entries.map((e) => e.url))
+    expect(urls.size).toBe(entries.length)
+    for (const icao of ['KJFK', 'SPJC', 'YSSY', 'UKBB']) {
+      expect(urls.has(`${BASE}/istasyon/${icao}`), icao).toBe(true)
+      expect(urls.has(`${BASE}/en/istasyon/${icao}`), icao).toBe(true)
+    }
   })
 })

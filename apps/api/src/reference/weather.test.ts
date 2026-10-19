@@ -381,6 +381,26 @@ describe('GET /v1/weather?scope=listed (D-080)', () => {
     expect(weather.listedStations).toHaveBeenCalledTimes(1)
   })
 
+  it('dört harfli ICAO kodu olmayan havalimanı (Transport Canada CAJ4, CAT4) toplu yanıta girmez; worker’ın istasyon kuralı (D-118)', async () => {
+    const weather = readers(allRecords)
+    weather.listedStations.mockResolvedValue([
+      { icao: 'LTFM' },
+      { icao: 'CAJ4' },
+      { icao: 'CAT4' },
+      { icao: 'KJFK' },
+    ])
+    weather.stations.mockResolvedValue([{ icao: 'CYVR' }, { icao: 'CAJ4' }])
+    const { get } = await setup(weather)
+    const listed = (
+      await get('/v1/weather?scope=listed&format=raw')
+    ).json() as WeatherBulkRawResponse
+    expect(listed.stations.map((s) => s.icao)).toEqual(['LTFM', 'KJFK'])
+    expect(weather.latest).toHaveBeenCalledWith(['LTFM', 'KJFK'], new Date(NOW))
+    // Ülkeyle toplu yanıt da aynı kuralla.
+    const canada = (await get('/v1/weather?country=CA')).json() as WeatherBulkResponse
+    expect(canada.stations.map((s) => s.icao)).toEqual(['CYVR'])
+  })
+
   it('scope=listed yalnız format=raw ile (D-111): biçimsiz ya da tam biçim 400 format_required; okuyucuya gidilmez; ülke iki biçimi de verir', async () => {
     const weather = readers(allRecords)
     const { get } = await setup(weather)

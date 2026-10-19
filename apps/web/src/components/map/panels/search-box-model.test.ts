@@ -41,7 +41,8 @@ const result = (
   total = rows.length,
   degraded = false,
   queryLetters = 0,
-): AirportSearchResult => ({ rows, total, queryLetters, degraded })
+  turkeyNameMatch = false,
+): AirportSearchResult => ({ rows, total, queryLetters, degraded, turkeyNameMatch })
 
 const aircraft = (hex: string, cs: string): PublicAircraft => ({ hex, cs }) as PublicAircraft
 const AJA123 = aircraft('4bb001', 'AJA123')
@@ -105,6 +106,24 @@ describe('submitOutcome: gönderimin kuralları (D-108)', () => {
     expect(
       submitOutcome(input('İST', SKIPPED, result([row(IST, 'code'), row(SAW, 'start')], 4))),
     ).toEqual({ type: 'airport', airport: IST })
+  })
+
+  it('2: yurt dışındaki havalimanının tam kodu Türkiye’deki bir havalimanının adına da uyuyorsa açılmaz → liste (D-118)', () => {
+    // "sab": Saba'nın (TNCS) kodu ve Sabiha Gökçen'in adı; motor `turkeyNameMatch` der.
+    const SAB = { ...airport('TNCS', 'SAB'), country: 'BQ' } as MapAirport
+    const sab = result([row(SAB, 'code'), row(SAW, 'start')], 2, false, 3, true)
+    for (const lookup of [ok(), SKIPPED]) {
+      expect(submitOutcome(input('sab', lookup, sab))).toEqual({
+        type: 'list',
+        airports: sab.rows,
+        airportTotal: 2,
+        aircraft: [],
+        aircraftFailure: null,
+      })
+    }
+    // Ad eşleşmesi yoksa tam kod yine açılır ("AJA").
+    const aja = result([row(AJA, 'code')], 1, false, 3, false)
+    expect(submitOutcome(input('AJA', ok(), aja))).toEqual({ type: 'airport', airport: AJA })
   })
 
   it('2: tek havalimanı ve aranan sorguda en az 4 harf → havalimanı açılır', () => {
@@ -382,15 +401,10 @@ describe.each(['tr', 'en'] as const)('searchStatusText (%s)', (locale) => {
       t,
       locale,
     )
-    const km = airportRingLimitKm(ENABLED_AIRPORT_RING)
-    if (km === null) {
-      expect(coverage).toBe(t.airportNotFound)
-    } else {
-      expect(coverage).toBe(
-        `${t.airportNotFound} ${t.airportCoverage.replace('{km}', locale === 'tr' ? '5.000 km' : '5,000 km')}`,
-      )
-      expect(km).toBe(5000)
-    }
+    // 5. halkayla (D-109) bütün halkalar açık: kapsama cümlesi yazılmaz (4. halkada "… en fazla
+    // 5.000 km olan …").
+    expect(airportRingLimitKm(ENABLED_AIRPORT_RING)).toBeNull()
+    expect(coverage).toBe(t.airportNotFound)
   })
 
   it('yazarken: öneri sayısı; liste kesildiyse ilk kaçı', () => {
@@ -460,6 +474,7 @@ describe('codeOnlyAirportSearch: ad parçası yüklenemezse yalnız tam kod', ()
         total: 1,
         queryLetters: letters,
         degraded: true,
+        turkeyNameMatch: false,
       })
     }
   })

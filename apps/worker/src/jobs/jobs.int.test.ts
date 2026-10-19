@@ -107,9 +107,10 @@ describe('bakım işleri (gerçek PostgreSQL + Redis, BullMQ)', () => {
 
       // Hava durumu açılışta, referans içe aktarımından sonra fixture'dan (zamanı kaydırılarak)
       // yazılır: 20 istasyon (14 Türkiye, 6 1. halka), raporu olmayan LTBQ yok; LTFM'nin 3 günlük
-      // geçmişi. İstasyon listesi listelenen havalimanlarıdır (Türkiye, 1.–4. halka: 56 + 77 + 104 +
-      // 283 + 720 = 1.240; D-080, D-088, D-090, D-102; askerî hava üsleri yok, D-107; savaş
-      // nedeniyle kapalı 23 havalimanı dahil, D-110). İskenderiye
+      // geçmişi. İstasyon listesi listelenen havalimanlarıdır (Türkiye, 1.–5. halka: 56 + 77 + 104 +
+      // 283 + 720 + 2.026 = 3.266; D-080, D-088, D-090, D-102, D-109; askerî hava üsleri ve askerî
+      // liste yok, D-107; savaş nedeniyle kapalı 23 havalimanı dahil, D-110); dört harfli ICAO'su
+      // olmayan CAJ4 ve CAT4 istasyon değildir: 3.264 istasyon. İskenderiye
       // OurAirports'taki HEAX koduyla değil HEBA ile, Özbekistan'ın istasyonları OurAirports kimliği
       // (UTxx) değil ICAO'suyla (UZxx) istenir.
       await waitFor(async () => {
@@ -120,8 +121,12 @@ describe('bakım işleri (gerçek PostgreSQL + Redis, BullMQ)', () => {
       expect(weather.metar).toMatchObject({ origin: 'fixture', lastError: null, skippedCount: 0 })
       expect(weather.taf).toMatchObject({ origin: 'fixture', lastError: null })
       const listed = await databaseWeatherStore(database).stations()
-      expect(listed).toHaveLength(1240)
+      expect(listed).toHaveLength(3264)
       expect(listed).toEqual(expect.arrayContaining(['UKBB', 'UKFF', 'URRP', 'FZMA']))
+      // 5. halka (D-109): New York, Lima, Palm Beach (KDJT, eski KPBI); CAJ4, CAT4 ve askerî liste yok.
+      expect(listed).toEqual(expect.arrayContaining(['KJFK', 'SPJC', 'KDJT', 'YSSY', 'PHNL']))
+      for (const icao of ['CAJ4', 'CAT4', 'PWAK', 'PKWA', 'YBOK', 'SPIM', 'KPBI'])
+        expect(listed).not.toContain(icao)
       for (const icao of ['LTAG', 'LTAH', 'LTBG', 'LTBI', 'LTBL'])
         expect(listed).not.toContain(icao)
       expect(listed).toEqual(
@@ -134,7 +139,6 @@ describe('bakım işleri (gerçek PostgreSQL + Redis, BullMQ)', () => {
       // 4. halka (D-102); dört karakterli ICAO'su olmayan Kihihi (UG-0002) istasyon değildir.
       expect(listed).toEqual(expect.arrayContaining(['EGLL', 'LFPG', 'VIDP', 'ZMCK', 'ZWWW']))
       expect(listed).not.toContain('UG-0002')
-      expect(listed).not.toContain('KJFK')
       expect(weather.metar?.stationCount).toBe(listed.length)
       expect(weather.taf?.stationCount).toBe(listed.length)
       const stations = await database.sql<{ station_icao: string; n: number }[]>`
@@ -277,7 +281,7 @@ describe("referans içe aktarımı (commit'li fixture)", () => {
     })
   })
 
-  it('içe aktarımdan sonra kayma satırı (D-109): açık halkada 1.240 (D-110), sapma yok', async () => {
+  it('içe aktarımdan sonra kayma satırı (D-109): açık halkada (5) 3.266 (D-110), sapma yok', async () => {
     const result = await runReferenceImport({
       db: database.db,
       fetcher: fixtures,
@@ -288,7 +292,7 @@ describe("referans içe aktarımı (commit'li fixture)", () => {
     })
     expect(result.ourairports.status).toBe('not_modified')
     expect(result.drift).toMatchObject({
-      listed: 1240,
+      listed: 3266,
       withoutTimeZone: { count: 0 },
       unknownSurfaces: { count: 0 },
       duplicateIata: { count: 0 },

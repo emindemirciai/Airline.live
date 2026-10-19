@@ -16,6 +16,7 @@ import {
 import { parseAirports } from '@havayolu/providers'
 import {
   AIRPORT_RING_CONFIG,
+  isWeatherStationIcao,
   AirportWeatherSchema,
   toAirportWeather,
   WeatherBulkRawResponseSchema,
@@ -215,7 +216,15 @@ describe('hava durumu uçları (gerçek PostgreSQL)', () => {
     const body = res.json() as WeatherBulkRawResponse
     expect(WeatherBulkRawResponseSchema.parse(body)).toEqual(body)
     const listed = await listListedAirports(database.db, AIRPORT_RING_CONFIG)
-    expect(body.stations.map((s) => s.icao)).toEqual(listed.map((a) => a.icao))
+    // Yalnız METAR/TAF istasyonları (dört harfli ICAO; D-118): 5. halkada Transport Canada kodlu
+    // CAJ4 ve CAT4 listelenir ama toplu havaya girmez (worker'ın `weatherStations` kuralı).
+    expect(body.stations.map((s) => s.icao)).toEqual(
+      listed.map((a) => a.icao).filter((icao) => isWeatherStationIcao(icao)),
+    )
+    expect(listed.map((a) => a.icao)).toEqual(expect.arrayContaining(['CAJ4', 'CAT4']))
+    expect(body.stations.map((s) => s.icao)).not.toContain('CAJ4')
+    expect(body.stations.map((s) => s.icao)).not.toContain('CAT4')
+    expect(body.stations).toHaveLength(listed.length - 2)
     expect(body.stations.length).toBeGreaterThan(56)
     for (const icao of ['LTAG', 'LTAH', 'LTBG', 'LTBI', 'LTBL']) {
       expect(

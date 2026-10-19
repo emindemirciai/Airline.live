@@ -133,10 +133,15 @@ export type CountryLabelAnchorRegion = readonly [
  * yakın; görsel merkez bölgenin içindeki, ülkenin sınırına ve bölgenin kenarına en uzak nokta).
  * RUSYA / RUSSIA Avrupa Rusyası'nda, Urallar'ın batısında (60° D'nin batısı; orkestratör varsayılanı,
  * itiraz edilebilir): bütün Rusya'nın görsel merkezi Orta Sibirya'dadır ve Türkiye ya da Avrupa
- * merkezli görünümde z3–4'te ad görünmezdi.
+ * merkezli görünümde z3–4'te ad görünmezdi. AMERİKA BİRLEŞİK DEVLETLERİ / UNITED STATES kıta ABD'sinde
+ * (48 eyalet, [−125, 24, −66, 50]; M6j.3, D-118): 5. halkanın 501 pini arasında adın en erken sığdığı
+ * boş yer Alaska'nın kuzeyiydi; ad kıta ABD'sine bakan hiçbir yakınlaştırmada görünmezdi. Bölgede
+ * boş yer yoktur: ad kalabalık kuralıyla en az çakışan noktadadır (TÜRKİYE, HİNDİSTAN, NİJERYA gibi;
+ * pinler adın üstünde çizilir).
  */
 export const COUNTRY_LABEL_ANCHOR_REGIONS: Readonly<Record<string, CountryLabelAnchorRegion>> = {
   RU: [-180, -90, 60, 90],
+  US: [-125, 24, -66, 50],
 }
 
 /** Adı başkentinde sabit ülkenin başkenti: adı (yalnızca okuyan için) ve şehir merkezi (0,01°). */

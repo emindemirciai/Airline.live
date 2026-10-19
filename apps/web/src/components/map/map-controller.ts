@@ -229,14 +229,38 @@ export function sameAirportList(a: readonly Airport[], b: readonly Airport[]): b
   return a === b || (a.length === b.length && a.every((airport, i) => airport === b[i]))
 }
 
+/** Coğrafi süzgeç: her havalimanı geçer (görünüm bütün dünyayı kapsıyor ya da süzgeç yok). */
+const EVERYWHERE = (): boolean => true
+
+/**
+ * Görünümün coğrafi penceresi (izdüşümden önceki ön süzgeç, D-118): haritanın paylı kuzeybatı ve
+ * güneydoğu köşelerinin konumu (`map.unproject`; boylam sarılmamış). Harita kuzeye bakar ve eğilmez
+ * (döndürme ve eğim kapalı): ekran dikdörtgeni boylamda ve enlemde bir penceredir. Boylam testi
+ * 180. meridyende de doğrudur (`((lon − batı) mod 360) ≤ açıklık`, `airportsInView` gibi); açıklık
+ * 360°'ye ulaşırsa her havalimanı geçer.
+ */
+export function lonLatWindow(
+  northWest: { lng: number; lat: number },
+  southEast: { lng: number; lat: number },
+): (lon: number, lat: number) => boolean {
+  const span = southEast.lng - northWest.lng
+  if (!(span < 360)) return EVERYWHERE
+  return (lon, lat) =>
+    lat <= northWest.lat &&
+    lat >= southEast.lat &&
+    (((lon - northWest.lng) % 360) + 360) % 360 <= span
+}
+
 /**
  * Havalimanı kodlarının çizim girdisi: görünümdeki havalimanları ekran konumlarıyla (`airports`
  * çizilen havalimanlarıdır, `drawnAirports`). Kod yazılmayacaksa (yakınlaştırma
  * `AIRPORT_LABEL_MIN_ZOOM`'un altında ya da ayar Simge ve kod değil) hiçbir havalimanı izdüşürülmez:
- * her karede bütün liste (4. halkada 1.240 havalimanı, D-110) boşuna izdüşürülürdü (D-101). Uçak
- * etiketleri bundan etkilenmez. Boylam kameranın ortasına en yakın dünya kopyasına sarılır
- * (`nearestWorldLon`, D-111): 180. meridyenin öbür yanındaki havalimanının kodu da pininin yanında
- * çizilir.
+ * her karede bütün liste (5. halkada 3.266 havalimanı, D-118) boşuna izdüşürülürdü (D-101). Yazılacaksa
+ * yalnız görünümün coğrafi penceresindekiler (`near`, `lonLatWindow`) izdüşürülür: z5'te Türkiye'ye
+ * bakan 2560×1440 görünümde 3.266'nın ~490'ı (`labels.test.ts`), daha yakında daha azı (D-118);
+ * kesin sınır izdüşümden sonraki `inView`'dur. Uçak etiketleri bundan etkilenmez. Boylam kameranın ortasına en yakın dünya
+ * kopyasına sarılır (`nearestWorldLon`, D-111): 180. meridyenin öbür yanındaki havalimanının kodu da
+ * pininin yanında çizilir.
  */
 export function screenAirports(
   project: (lngLat: [number, number]) => { x: number; y: number },
@@ -245,10 +269,12 @@ export function screenAirports(
   settings: Pick<LabelSettings, 'airportDisplay'>,
   inView: (x: number, y: number) => boolean,
   centerLon: number,
+  near: (lon: number, lat: number) => boolean = EVERYWHERE,
 ): ScreenAirport[] {
   if (!airportChipsEnabled(zoom, settings)) return []
   const screen: ScreenAirport[] = []
   for (const airport of airports) {
+    if (!near(airport.lon, airport.lat)) continue
     const { x, y } = project([nearestWorldLon(airport.lon, centerLon), airport.lat])
     if (inView(x, y)) screen.push({ airport, x, y })
   }
@@ -1011,6 +1037,11 @@ export class MapController {
     }
     const selectedHex = this.state.selectedHex
     const settings = this.state.labelSettings
+    // Coğrafi ön süzgeç yalnız kodlar yazılacaksa kurulur; pencere `inView`'dan 1 px geniştir.
+    const edge = LABEL_MARGIN + 1
+    const near = airportChipsEnabled(zoom, settings)
+      ? lonLatWindow(map.unproject([-edge, -edge]), map.unproject([width + edge, height + edge]))
+      : undefined
     const airports = screenAirports(
       (lngLat) => map.project(lngLat),
       this.drawn,
@@ -1018,6 +1049,7 @@ export class MapController {
       settings,
       inView,
       map.getCenter().lng,
+      near,
     )
     // İz yalnızca kodların engelidir: kod yazılmayacaksa (Simge, Gizle, uzak görünüm) hesaplanmaz.
     const trail =

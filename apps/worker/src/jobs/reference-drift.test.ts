@@ -19,6 +19,7 @@ import {
   type DriftAirport,
   type ReferenceDrift,
 } from './reference-drift'
+import { weatherStations } from './weather'
 
 /**
  * Commit'li OurAirports fixture'ı (2026-10-01 kopyası; 1.–5. halka) veritabanındaki gibi: içe
@@ -74,11 +75,11 @@ function listingDrift(enabledRing: number) {
 const zero = { count: 0, examples: [] }
 
 describe('referans verisi kayması (D-109)', () => {
-  it('fixture, açık halka (4): 1.240 listelenen (savaş kapanışlarıyla, D-110), sapma yok', () => {
-    expect(AIRPORT_RING_CONFIG.enabledRing).toBe(4)
-    const drift = referenceDrift(listingDrift(4))
+  it('fixture, açık halka (5): 3.266 listelenen (savaş kapanışlarıyla, D-110), sapma yok (M6j.3, D-109)', () => {
+    expect(AIRPORT_RING_CONFIG.enabledRing).toBe(5)
+    const drift = referenceDrift(listingDrift(5))
     expect(drift).toEqual({
-      listed: 1240,
+      listed: 3266,
       withoutTimeZone: zero,
       unknownSurfaces: zero,
       duplicateIata: zero,
@@ -89,22 +90,37 @@ describe('referans verisi kayması (D-109)', () => {
     expect(hasDrift(drift)).toBe(false)
   })
 
-  it('fixture, 5. halka açık bağlamla: 3.266 (D-110); adları M6j.3 getirir, öbür sapmalar yok', () => {
-    const drift = referenceDrift(listingDrift(5))
-    expect(drift.listed).toBe(3266)
-    // Saat dilimi, kaplama, IATA ve ICAO kuralları 5. halkada da tam (M6j.1).
+  it('fixture, 4. halka bağlamla: 1.240; 5. halkanın 2.026 küratörlü adı listede değil, öbür sapmalar yok', () => {
+    const drift = referenceDrift(listingDrift(4))
+    expect(drift.listed).toBe(1240)
     for (const key of [
       'withoutTimeZone',
       'unknownSurfaces',
       'duplicateIata',
-      'curatedNotListed',
+      'withoutCuratedName',
       'icaoCollisions',
     ] as const) {
       expect(drift[key], key).toEqual(zero)
     }
-    // 2.026 havalimanının küratörlü adı henüz yok (5. halkanın ad tablosu M6j.3'te).
-    expect(drift.withoutCuratedName.count).toBe(2026)
-    expect(drift.withoutCuratedName.examples).toHaveLength(DRIFT_EXAMPLES)
+    // Halka kapalıyken (ör. 4. halkaya geri alınan bir sürüm) 5. halkanın adları listede olmayan
+    // küratörlü adlar olarak sayılır.
+    expect(drift.curatedNotListed.count).toBe(2026)
+    expect(drift.curatedNotListed.examples).toHaveLength(DRIFT_EXAMPLES)
+  })
+
+  it('hava durumu istasyonları (D-109, D-111): 3.266 listelenenden 3.264; dört harfli olmayan CAJ4 ve CAT4 istasyon değildir', () => {
+    const listed = listingDrift(5).airports
+    expect(listed).toHaveLength(3266)
+    const stations = weatherStations(listed)
+    expect(stations).toHaveLength(3264)
+    expect(
+      listed
+        .map((a) => a.icao)
+        .filter((icao) => !stations.includes(icao))
+        .sort(),
+    ).toEqual(['CAJ4', 'CAT4'])
+    // 4. halka bağlamla 1.240 istasyon (D-110).
+    expect(weatherStations(listingDrift(4).airports)).toHaveLength(1240)
   })
 
   it('her sayım kendi sapmasını sayar; örnekler sıralı ve en çok 10', () => {
@@ -197,7 +213,7 @@ describe('referans verisi kayması (D-109)', () => {
 
   it('günlük satırı: yedi sayım tek satırda; sapma yoksa info, varsa warn', () => {
     const log = { info: vi.fn(), warn: vi.fn() }
-    const clean = referenceDrift(listingDrift(4))
+    const clean = referenceDrift(listingDrift(5))
     logReferenceDrift(log, clean)
     expect(log.warn).not.toHaveBeenCalled()
     expect(log.info).toHaveBeenCalledTimes(1)
@@ -214,7 +230,8 @@ describe('referans verisi kayması (D-109)', () => {
         'icaoCollisions',
       ].sort(),
     )
-    logReferenceDrift(log, referenceDrift(listingDrift(5)))
+    // 4. halka bağlamla 5. halkanın adları listede değildir: sapma, warn.
+    logReferenceDrift(log, referenceDrift(listingDrift(4)))
     expect(log.warn).toHaveBeenCalledTimes(1)
     expect(log.warn.mock.calls[0]?.[1]).toBe('referans verisi kayması')
   })
