@@ -1,5 +1,9 @@
 import { hasDbFlag, sameIdentity, type AircraftState, type PositionSource } from './aircraft'
-import { CHARTER_AIRLINE_ALLOW, DENIED_DESIGNATORS } from './live-scope-designators'
+import {
+  BUSINESS_JET_TYPES,
+  CHARTER_AIRLINE_ALLOW,
+  DENIED_DESIGNATORS,
+} from './live-scope-designators'
 
 /**
  * Canlı yayın kapsamı ve kuralı (D-115, aşamalı açılış 1. aşama). Kural worker'da, kaynakta
@@ -14,7 +18,12 @@ import { CHARTER_AIRLINE_ALLOW, DENIED_DESIGNATORS } from './live-scope-designat
 export const LIVE_SCOPES = ['airline', 'all'] as const
 export type LiveScope = (typeof LIVE_SCOPES)[number]
 
-export { CHARTER_AIRLINE_ALLOW, DENIED_DESIGNATORS, type DenyGroup } from './live-scope-designators'
+export {
+  BUSINESS_JET_TYPES,
+  CHARTER_AIRLINE_ALLOW,
+  DENIED_DESIGNATORS,
+  type DenyGroup,
+} from './live-scope-designators'
 
 /** Yayınlanmama nedeni (İngilizce kod; sayaçlarda ve loglarda yalnızca sayısı tutulur). */
 export const DROP_REASONS = [
@@ -34,6 +43,8 @@ export const DROP_REASONS = [
   'unknown_designator',
   'non_airline_operator',
   'small_non_scheduled',
+  'unknown_type_non_scheduled',
+  'business_jet_type',
 ] as const
 export type DropReason = (typeof DROP_REASONS)[number]
 
@@ -60,10 +71,42 @@ export interface AirlineDesignatorRow {
 }
 
 const ICAO_DESIGNATOR = /^[A-Z]{3}$/
-/** VRS'te "işletmecinin bütün uçuşları" deseni. */
-const ALL_FLIGHTS = '.*'
+/**
+ * VRS'te "işletmecinin bütün uçuşları" deseni (`.*`); çapalı ve `+`'lı yazımları da aynı anlama
+ * gelir (yazım değişirse iş jeti işletmecileri sessizce `airline` sayılmasın).
+ */
+const ALL_FLIGHTS: ReadonlySet<string> = new Set(['.*', '^.*$', '.+', '^.+$'])
 
-const isAllFlights = (pattern: string | null) => pattern !== null && pattern.trim() === ALL_FLIGHTS
+const isAllFlights = (pattern: string | null) => pattern !== null && ALL_FLIGHTS.has(pattern.trim())
+
+/**
+ * `non_airline` işletmeci sayısının alt sınırı (2026-10-15 fixture'ı: 277). VRS'in desen sütunu
+ * kaybolur, adı ya da yazımı değişirse bütün iş jeti işletmecileri sessizce `airline` sayılırdı
+ * (D-115): üretimde bu sayının altına düşen tablo kabul edilmez.
+ */
+export const MIN_NON_AIRLINE_DESIGNATORS = 200
+/** Yeni tablodaki `non_airline` sayısı son iyi tablonun en az bu oranı olmalıdır. */
+export const NON_AIRLINE_KEEP_RATIO = 0.8
+
+export function nonAirlineCount(map: AirlineDesignators): number {
+  let n = 0
+  for (const d of map.values()) if (d.operator === 'non_airline') n += 1
+  return n
+}
+
+/**
+ * Yeni işletmeci tablosu şüpheli mi? `non_airline` sayısı `minimum`'un ya da son iyi tablodaki
+ * sayının %80'inin altındaysa evet: çağıran son iyi tabloyu korur (yoksa boş kalır, hiçbir şey
+ * yayınlanmaz) ve uyarır. Boş tablo şüpheli sayılmaz; boş tabloyla zaten hiçbir şey yayınlanmaz.
+ */
+export function suspectDesignatorTable(
+  next: AirlineDesignators,
+  opts: { previousNonAirline: number; minimum: number },
+): boolean {
+  if (next.size === 0) return false
+  const floor = Math.max(opts.minimum, Math.floor(NON_AIRLINE_KEEP_RATIO * opts.previousNonAirline))
+  return nonAirlineCount(next) < floor
+}
 
 /**
  * VRS satırlarından işletmeci kodu tablosu. `CharterFlightPattern` ya da
@@ -94,11 +137,42 @@ export function airlineDesignatorsFrom(rows: readonly AirlineDesignatorRow[]): A
 
 /**
  * Havayolu çağrı kodu: üç harfli ICAO işletmeci kodu + rakamla başlayan en çok dört karakterli
- * uçuş tanıtıcısı (toplam en çok 7, ICAO). Rakam şartı tescil biçimli çağrı kodlarını ayırır
- * (TCOIL, N123AB, HBJFA); API'nin yalnız rakamlı sefer no kuralı burada kullanılmaz, gerçek trafik
- * harf de taşır (THY2NP, PGT15UE, CAI5A).
+ * uçuş tanıtıcısı (toplam en çok 7, ICAO). Rakam şartı çoğu tescil biçimli çağrı kodunu ayırır
+ * (TCOIL, N123AB, HBJFA); harf + rakam biçimli tescilleri olan ülkeler ayrıca denetlenir
+ * (`REGISTRATION_SHAPED`). API'nin yalnız rakamlı sefer no kuralı burada kullanılmaz, gerçek
+ * trafik harf de taşır (THY2NP, PGT15UE, CAI5A).
  */
 export const AIRLINE_CALLSIGN = /^([A-Z]{3})([0-9][A-Z0-9]{0,3})$/
+
+/**
+ * Tescili ülke işareti + seri harfi + rakam olan ülkeler: tescil çağrı kodu olarak gönderilince
+ * havayolu çağrı kodu biçimine uyar (UP-A2001 → UPA2001, EZ-A777 → EZA777) ve ön ek VRS'te bir
+ * işletmeci kodu olabilir (UPA Air Foyle, EZA Eznis Airways). Uçağın ICAO 24-bit adresi o ülkenin
+ * bloğundaysa (ICAO Ek 10 Cilt III, Tablo 9-1; hiçbir uçağı tek başına tanımlamaz) ülke işaretiyle
+ * başlayan çağrı kodu tescil sayılır, tescil bilinmese de: devlet ve VIP uçakları açık
+ * veritabanlarında sık eksiktir. Seri harfi denetlenmez (bütün seriler, kapalı varsayım). O ülkenin
+ * havayolları başka kodlarla uçar (Air Astana KZR, Türkmenistan TUA, Vietnam Airlines HVN,
+ * Philippine Airlines PAL); tek istisna Küba'dır: Cubana'nın (CUB) Küba adresli uçakları da düşer
+ * (kapsama alanının dışında; bir CU-B serisi olup olmadığı doğrulanamadı). Başka ülkenin uçağı bu
+ * kuraldan etkilenmez.
+ */
+const REGISTRATION_SHAPED: readonly { mark: string; from: number; to: number }[] = [
+  { mark: 'UP', from: 0x683000, to: 0x6833ff }, // Kazakistan, UP-A2001
+  { mark: 'EZ', from: 0x601800, to: 0x601bff }, // Türkmenistan, EZ-A777
+  { mark: 'RP', from: 0x758000, to: 0x75ffff }, // Filipinler, RP-C1234
+  { mark: 'CU', from: 0x0b0000, to: 0x0b0fff }, // Küba, CU-T1240
+  { mark: 'VN', from: 0x888000, to: 0x88ffff }, // Vietnam, VN-A321
+]
+
+const HEX_ADDRESS = /^[0-9a-f]{6}$/i
+
+function registrationShaped(hex: string, callsign: string): boolean {
+  if (!HEX_ADDRESS.test(hex)) return false
+  const address = Number.parseInt(hex, 16)
+  return REGISTRATION_SHAPED.some(
+    (block) => address >= block.from && address <= block.to && callsign.startsWith(block.mark),
+  )
+}
 
 /** ICAO dışı adres taşıyan konum kaynakları (TIS-B/ADS-R `*_other`, iz dosyası). */
 const NON_ICAO_SOURCES: ReadonlySet<PositionSource> = new Set([
@@ -120,7 +194,14 @@ function normalizedCategory(category: string | null): string | null {
 
 export type PublishState = Pick<
   AircraftState,
-  'hex' | 'nonIcao' | 'callsign' | 'registration' | 'category' | 'dbFlags' | 'positionSource'
+  | 'hex'
+  | 'nonIcao'
+  | 'callsign'
+  | 'registration'
+  | 'typeCode'
+  | 'category'
+  | 'dbFlags'
+  | 'positionSource'
 >
 
 export interface PublishContext {
@@ -139,7 +220,9 @@ export interface PublishContext {
  * Örnek yayınlanabilir mi? Yayınlanabilirse null, değilse ilk tutmayan kuralın nedeni. Sıra:
  * engel listesi ve askerî bit her iki kapsamda; `all` kapsamında burada biter. `airline`
  * kapsamında sonra bayraklar (bilinmeyen, ilginç, PIA/LADD), ICAO dışı adres, kategori, çağrı
- * kodu biçimi, reddedilen işletmeci kodu ve VRS sınıfı (bilinmeyen kod da yayınlanmaz).
+ * kodu biçimi, tescil biçimli çağrı kodu, reddedilen işletmeci kodu, VRS sınıfı (bilinmeyen kod da
+ * yayınlanmaz), IATA kodu olmayan işletmecinin küçük, kategorisiz ya da tipi bilinmeyen uçağı ve
+ * iş jeti tipi. Kural kapalı varsayımla çalışır: emin olunamayan uçak yayınlanmaz.
  */
 export function publishDecision(state: PublishState, ctx: PublishContext): DropReason | null {
   if (ctx.blocklist === null) return 'blocklist_unavailable'
@@ -168,14 +251,21 @@ export function publishDecision(state: PublishState, ctx: PublishContext): DropR
   if (state.registration !== null && sameIdentity(callsign, state.registration)) {
     return 'callsign_is_registration'
   }
+  if (registrationShaped(state.hex, callsign)) return 'callsign_is_registration'
   if (DENIED_DESIGNATORS.has(designator)) return 'denied_designator'
   if (ctx.designators.size === 0) return 'designators_unavailable'
   const known = ctx.designators.get(designator)
   if (known === undefined) return 'unknown_designator'
   if (known.operator === 'non_airline') return 'non_airline_operator'
-  // Tarifesiz ICAO koduyla uçan hafif ve küçük iş jetleri (büyük iş jeti A3 açık risktir, D-115).
-  if (category !== null && SMALL_CATEGORIES.has(category) && !known.iata) {
-    return 'small_non_scheduled'
+  const typeCode = state.typeCode?.trim().toUpperCase() ?? ''
+  if (!known.iata) {
+    // Tarifesiz ICAO koduyla uçan hafif ve küçük iş jetleri; kategorisi olmayan (A0, yalnız Mode
+    // S ya da MLAT) uçak da küçük sayılır (kapalı varsayım, D-115).
+    if (category === null || SMALL_CATEGORIES.has(category)) return 'small_non_scheduled'
+    // Tipi bilinmeyen uçağın iş jeti olup olmadığı anlaşılamaz (kapalı varsayım).
+    if (typeCode === '') return 'unknown_type_non_scheduled'
   }
+  // İş jeti tipleri işletmeci kodundan bağımsız düşer.
+  if (BUSINESS_JET_TYPES.has(typeCode)) return 'business_jet_type'
   return null
 }

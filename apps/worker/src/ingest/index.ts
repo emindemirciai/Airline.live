@@ -66,7 +66,7 @@ import {
   type PlannedCircle,
   type PlannedRequest,
 } from './plan'
-import { PublishGate } from './publish'
+import { designatorFloor, PublishGate } from './publish'
 import { AdaptiveRateController, type CircuitState, type OutcomeKind } from './rate'
 import {
   FreshnessTracker,
@@ -646,12 +646,34 @@ export async function startIngest(deps: IngestDeps): Promise<IngestHandle> {
 
   // 2c. Havayolu işletmeci kodları (VRS, yalnızca `airline` kapsamında). Okunamazsa ya da tablo
   // boşsa (VRS henüz içe aktarılmadı) hiçbir örnek yayınlanmaz; 10 sn'de bir yeniden denenir.
+  // `non_airline` sayısı üretimde 200'ün ya da son iyi tablonun %80'inin altına düşen tablo
+  // şüphelidir (VRS'in desen sütunu kayboldu ya da yazımı değişti): son iyi tablo kalır, yoksa
+  // hiçbir şey yayınlanmaz (D-115).
+  const minimumNonAirline = designatorFloor(env.APP_ENV)
   let designatorsLoadedAt = now()
   const refreshDesignators = async () => {
     designatorsLoadedAt = now()
     try {
       const before = gate.designatorCount()
-      gate.setDesignators(airlineDesignatorsFrom(await loadAirlineDesignatorRows(sql)))
+      const offer = gate.offerDesignators(
+        airlineDesignatorsFrom(await loadAirlineDesignatorRows(sql)),
+        minimumNonAirline,
+      )
+      if (!offer.accepted) {
+        warnThrottled(
+          'designators-suspect',
+          {
+            nonAirline: offer.nonAirline,
+            previousNonAirline: offer.previousNonAirline,
+            minimum: minimumNonAirline,
+            designators: before,
+          },
+          before === 0
+            ? 'VRS non-airline designators are too few; nothing is published until a sound table loads'
+            : 'VRS non-airline designators dropped sharply; keeping the last table',
+        )
+        return
+      }
       const count = gate.designatorCount()
       if (count === 0) {
         warnThrottled(
@@ -660,7 +682,10 @@ export async function startIngest(deps: IngestDeps): Promise<IngestHandle> {
           'no airline designators yet; nothing is published until the VRS import runs',
         )
       } else if (before === 0) {
-        log.info({ designators: count }, 'airline designators loaded; publishing enabled')
+        log.info(
+          { designators: count, nonAirline: offer.nonAirline },
+          'airline designators loaded; publishing enabled',
+        )
       }
     } catch (error) {
       warnThrottled(
@@ -918,7 +943,9 @@ export async function startIngest(deps: IngestDeps): Promise<IngestHandle> {
         invalidHex += states.length - valid.length
         warnThrottled('invalid-hex', { dropped: invalidHex }, 'samples with malformed hex dropped')
       }
-      // Bayraklar her örnekten öğrenilir (yayınlanmayanlardan da); karar ondan sonra verilir.
+      // Bayraklar, çağrı kodu, tescil, tip ve kategori her örnekten öğrenilir (yayınlanmayanlardan
+      // ve `LatestStore`'un eski diye reddettiklerinden de); karar ondan sonra verilir.
+      gate.observe(valid, now())
       const accepted = store.accept(valid, now())
       if (accepted.length === 0) return
       const { publish, withdraw } = gate.split(accepted, now())

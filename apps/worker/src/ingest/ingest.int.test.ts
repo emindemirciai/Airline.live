@@ -797,7 +797,7 @@ describe('yayın kuralı ve canlı katman (D-115)', () => {
     await database.sql`truncate live_layer_state, admin_actions`
   })
 
-  it('airline kapsamı: yalnızca havayolu uçağı yazılır; tescil çağrı kodlu, helikopter, PIA ve engelli uçak hiçbir yere yazılmaz', async () => {
+  it('airline kapsamı: yalnızca havayolu uçağı yazılır; tescil çağrı kodlu, helikopter, PIA, iş jeti ve engelli uçak hiçbir yere yazılmaz', async () => {
     const clock = testClock()
     const receiver = await serve((req, res) => {
       if (req.url !== '/data/aircraft.json') {
@@ -810,6 +810,8 @@ describe('yayın kuralı ve canlı katman (D-115)', () => {
         readsb('fe0103', 'HYT103  ', { t: 'EC35', category: 'A7' }),
         readsb('fe0104', 'HYT104  ', { dbFlags: 4 }),
         readsb('fe0105', 'HYT105  '),
+        // İş jeti tipi havayolu çağrı koduyla da yayınlanmaz (tip readsb'nin `t` alanından).
+        readsb('fe0106', 'HYT106  ', { t: 'GLF6' }),
       ]
       res
         .writeHead(200, { 'content-type': 'application/json' })
@@ -824,7 +826,7 @@ describe('yayın kuralı ve canlı katman (D-115)', () => {
       WORKER_SERVICE_NAME: 'worker-test',
       LIVE_AIRCRAFT_SCOPE: 'airline',
     })
-    const dropped = ['fe0102', 'fe0103', 'fe0104', 'fe0105']
+    const dropped = ['fe0102', 'fe0103', 'fe0104', 'fe0105', 'fe0106']
     try {
       await withIngest(
         {
@@ -854,13 +856,14 @@ describe('yayın kuralı ve canlı katman (D-115)', () => {
           >`select hex from flights order by hex`
           expect(flights.map((f) => f.hex)).toEqual(['fe0101'])
           const stats = ingest.stats()
-          expect(stats).toMatchObject({ scope: 'airline', layer: 'on', aircraft: 5 })
+          expect(stats).toMatchObject({ scope: 'airline', layer: 'on', aircraft: 6 })
           expect(stats.published).toBeGreaterThan(0)
           expect(stats.dropped).toMatchObject({
             callsign_pattern: expect.any(Number) as number,
             category: expect.any(Number) as number,
             pia_ladd: expect.any(Number) as number,
             blocklisted: expect.any(Number) as number,
+            business_jet_type: expect.any(Number) as number,
           })
         },
       )

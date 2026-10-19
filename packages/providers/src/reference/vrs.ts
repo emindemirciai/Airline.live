@@ -1,4 +1,4 @@
-import { iterateCsvRecords } from './csv'
+import { iterateCsv, iterateCsvRecords } from './csv'
 import { rowHash, type ParseResult, type SkippedRow } from './ourairports'
 
 /** VRS standing-data havayolları (CC0; data-sources.md §4). Aynada yoktur, GitHub raw kullanılır. */
@@ -21,7 +21,32 @@ const text = (value: string | undefined): string | null => {
   return trimmed === '' ? null : trimmed
 }
 
+/**
+ * Beklenen sütunlar (schema-01). Biri eksikse ya da adı değiştiyse dosya reddedilir: eksik
+ * sütun her satırda `null` okunur ve ör. `CharterFlightPattern` kaybolursa bütün iş jeti
+ * işletmecileri sessizce `airline` sayılırdı (D-115). Hata içe aktarımı durdurur; tablo ve son
+ * iyi desenler değişmez.
+ */
+export const VRS_AIRLINE_COLUMNS = [
+  'Code',
+  'Name',
+  'ICAO',
+  'IATA',
+  'PositioningFlightPattern',
+  'CharterFlightPattern',
+] as const
+
+export class VrsSchemaError extends Error {
+  constructor(readonly missing: readonly string[]) {
+    super(`VRS airlines.csv is missing columns: ${missing.join(', ')}`)
+    this.name = 'VrsSchemaError'
+  }
+}
+
 export function parseAirlines(csv: string): ParseResult<AirlineRow> {
+  const header = new Set<string>(iterateCsv(csv).next().value ?? [])
+  const missing = VRS_AIRLINE_COLUMNS.filter((name) => !header.has(name))
+  if (missing.length > 0) throw new VrsSchemaError(missing)
   const rows: AirlineRow[] = []
   const skipped: SkippedRow[] = []
   const seen = new Set<string>()
