@@ -962,4 +962,61 @@ describe('yayın kuralı ve canlı katman (D-115)', () => {
       expect(await redis.zcard(LIVE_KEYS.seen)).toBe(0)
     })
   })
+
+  it('katman açık açılırsa da önceki süreçten kalan canlı uçaklar silinir; kural dışı uçak geri gelmez', async () => {
+    // Önceki süreç (ör. `all` kapsamı ya da daha gevşek bir kural) havayolu dışı bir uçak yazmış.
+    const t = String(Date.now())
+    await redis.zadd(LIVE_KEYS.seen, t, 'fe0401')
+    await redis.geoadd(LIVE_KEYS.geo, 28.9, 41.0, 'fe0401')
+    await redis.hset(LIVE_KEYS.aircraft('fe0401'), 'd', '{}', 't', t)
+    const clock = testClock()
+    const receiver = await serve((_req, res) => {
+      res.writeHead(200, { 'content-type': 'application/json' }).end(
+        JSON.stringify({
+          now: clock.now() / 1000,
+          messages: 1000,
+          aircraft: [
+            readsb('fe0401', 'TCOIL   ', { r: 'TC-OIL', t: 'FA7X', category: 'A2' }),
+            readsb('fe0402', 'HYT402  '),
+          ],
+        }),
+      )
+    })
+    const { log } = captureLog()
+    const env = parseEnv({
+      APP_ENV: 'test',
+      EXTERNAL_PROVIDERS_DISABLED: 'true',
+      LOCAL_RECEIVER_URLS: `${receiver.url}/data/aircraft.json`,
+      WORKER_SERVICE_NAME: 'worker-test',
+      LIVE_AIRCRAFT_SCOPE: 'airline',
+    })
+    try {
+      await withIngest(
+        {
+          env,
+          log,
+          now: clock.now,
+          fetch: localOnlyFetch,
+          timers: FAST_TIMERS,
+          redisQueue: queue,
+        },
+        async (ingest) => {
+          expect(ingest.stats().layer).toBe('on')
+          // Silme döngülerden önce biter: `startIngest` döndüğünde eski kayıt yoktur.
+          expect(await redis.exists(LIVE_KEYS.aircraft('fe0401'))).toBe(0)
+          expect(await redis.zscore(LIVE_KEYS.seen, 'fe0401')).toBeNull()
+          expect(await redis.zscore(LIVE_KEYS.geo, 'fe0401')).toBeNull()
+          await waitFor('airline aircraft published', async () => {
+            return (await redis.exists(LIVE_KEYS.aircraft('fe0402'))) === 1
+          })
+          // Birkaç alıcı turu daha: kural dışı uçak yeniden yazılmaz.
+          await new Promise((resolve) => setTimeout(resolve, 600))
+          expect(await redis.exists(LIVE_KEYS.aircraft('fe0401'))).toBe(0)
+          expect(await redis.zrange(LIVE_KEYS.seen, '0', '-1')).toEqual(['fe0402'])
+        },
+      )
+    } finally {
+      await receiver.close()
+    }
+  })
 })

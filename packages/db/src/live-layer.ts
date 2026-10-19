@@ -6,7 +6,8 @@ import type postgres from 'postgres'
  * - `live_layer_state` tek satırdır; satır yoksa katman açıktır (varsayılan: kullanıcı anahtara
  *   basana kadar hiçbir şey değişmez).
  * - Her başarılı değişiklik (durum aynı kalsa da) `admin_actions`'a aynı işlemde yazılır: "kim, ne
- *   zaman bastı" kaydı eksiksiz olur. Kayıt silinmez ve kırpılmaz.
+ *   zaman bastı" kaydı eksiksiz olur. Bu modül kaydı silmez ve kırpmaz; saklama kuralı D-115'tedir
+ *   (K7).
  *
  * Zaman ISO metni + `::timestamptz` olarak gider, epoch ms olarak döner (Drizzle'ın verdiği
  * istemcide de aynı çalışır).

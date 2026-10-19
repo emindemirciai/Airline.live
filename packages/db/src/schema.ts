@@ -481,7 +481,8 @@ export const liveLayerState = pgTable(
 
 /**
  * Yönetici işlem kaydı (D-115): kim, ne zaman, ne yaptı, isteğe bağlı neden. Özen yükümlülüğünün
- * kanıtıdır, silinmez ve kırpılmaz. IP adresi yazılmaz; "kim" yöneticinin kendi adresidir.
+ * kanıtıdır; saklama kuralı D-115'tedir (K7). IP adresi yazılmaz; "kim" yöneticinin kendi
+ * adresidir.
  */
 export const adminActions = pgTable(
   'admin_actions',

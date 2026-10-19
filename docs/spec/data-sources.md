@@ -100,7 +100,7 @@ Durum geçişleri `provider_health`'e yazılır.
   - lat/lon 60 sn'den eskiyse gelmez; yerine `lastPosition {lat, lon, nic, rc, seen_pos}` gelir. Bu yalnızca bayat uçağı göstermek içindir, **olay tespitinde kullanılmaz**. `rr_lat`/`rr_lon` atılır.
   - `type` konum kaynağını söyler: `adsb_icao`, `adsb_icao_nt`, `mlat`, `tisb_*`, `adsr_*`, `adsc`, `mode_s`, `other`.
   - `squawk` string'dir.
-  - `dbFlags` yoksa 0'dır; bitler 1 askeri, 2 ilginç, 4 PIA, 8 LADD (ör. 3 = askeri + ilginç). Bit testiyle okunur. 1. aşamada (D-115) worker bayrağı bilinmeyen ya da 1, 2, 4 veya 8 bitinden biri set olan uçağı hiç yazmaz; API'deki gizleme ikinci hattır.
+  - `dbFlags` yoksa 0'dır; bitler 1 askeri, 2 ilginç, 4 PIA, 8 LADD (ör. 3 = askeri + ilginç). Bit testiyle okunur. Kalıcı yayın kuralıyla (D-115) worker bayrağı bilinmeyen ya da 1, 2, 4 veya 8 bitinden biri set olan uçağı hiç yazmaz; API'deki gizleme ikinci hattır.
 - **Ek alanlar** (Uzman görünüm ve motor için): `ias`, `tas`, `mach`, `wd`, `ws`, `oat`, `tat`, `nav_qnh` (hPa), `nav_altitude_mcp`, `nav_modes` (ör. `approach`), `baro_rate`, `geom_rate`, `track`, `true_heading`, `category`, `emergency`.
 
 ## 2. Kendi alıcı (opsiyonel; kullanıcı şu an kurmuyor, D-006)

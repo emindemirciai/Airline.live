@@ -6,13 +6,13 @@ import {
 } from './live-scope-designators'
 
 /**
- * Canlı yayın kapsamı ve kuralı (D-115, aşamalı açılış 1. aşama). Kural worker'da, kaynakta
+ * Canlı yayın kapsamı ve kuralı (D-115, kalıcı kural). Kural worker'da, kaynakta
  * uygulanır: yayınlanmayan uçak `redis-live`'a, uçuş kaydına, ize ve bildirime hiç girmez. Saf
  * modüldür (IO yok); işletmeci kodları dışarıdan verilir (`airlineDesignatorsFrom`).
  *
  * - `airline`: yalnızca bilinen bir havayolu çağrı koduyla (ICAO işletmeci kodu + uçuş tanıtıcısı)
  *   uçan uçaklar yayınlanır; askerî, devlet ve özel uçaklar, PIA/LADD, helikopter, planör ve iş
- *   jeti işletmecileri yayınlanmaz. Üretimde 1. aşamada tek geçerli kapsamdır.
+ *   jeti işletmecileri yayınlanmaz. Üretimde tek geçerli kapsamdır (kalıcı kural).
  * - `all`: süzgeçsiz (yalnızca engel listesi ve askerî bit); yalnızca geliştirme ve test.
  */
 export const LIVE_SCOPES = ['airline', 'all'] as const

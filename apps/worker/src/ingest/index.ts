@@ -561,12 +561,12 @@ export async function startIngest(deps: IngestDeps): Promise<IngestHandle> {
     log.warn(fields, message)
   }
 
-  // 0. Yayın kapsamı (D-115): üretimde 1. aşamada her değer `airline` sayılır.
+  // 0. Yayın kapsamı (D-115): üretimde her değer `airline` sayılır (kalıcı kural).
   const scoped = effectiveLiveScope(env)
   if (scoped.warning !== null) {
     log.warn(
       { requested: scoped.requested },
-      'LIVE_AIRCRAFT_SCOPE ignored: production stage 1 publishes airline aircraft only',
+      'LIVE_AIRCRAFT_SCOPE ignored: production publishes airline aircraft only',
     )
   }
   const gate = new PublishGate({ scope: scoped.scope })
@@ -1482,6 +1482,11 @@ export async function startIngest(deps: IngestDeps): Promise<IngestHandle> {
   }
 
   // --- Başlat --------------------------------------------------------------------------------
+  // Önceki süreçten kalan canlı uçaklar açılışta silinir (kapalı varsayım, D-115): yeni süreç
+  // onları yayınlananlar kümesinde bilmez; kural artık tutmasa da yayından çekemezdi. Katman
+  // açıksa uçaklar ilk turda yeniden yayınlanır. Döngülerden önce çalışır: bu sürecin hiçbir
+  // yazımını silmez.
+  await clearLive()
   const loops: Promise<void>[] = [
     every('health', timers.healthMs, health, true),
     every('tick', timers.tickMs, tick, true),
@@ -1511,9 +1516,6 @@ export async function startIngest(deps: IngestDeps): Promise<IngestHandle> {
     },
     'ingest started',
   )
-  // Katman kapalı açıldıysa önceki süreçten kalan canlı uçaklar bir kez silinir (tik her turda
-  // yeniden siler).
-  if (!gate.layerOn()) await clearLive()
 
   const stats = (): IngestStats => ({
     aircraft: store.size(),

@@ -187,8 +187,8 @@ export async function sweepLive(redis: Redis, now: number): Promise<number> {
 }
 
 /**
- * Canlı katman kapatıldı (D-115): bütün canlı uçakları siler (`seen`, `geo`, her `hy:ac:{hex}`
- * hash'i ve `hy:ac:updates` stream'i). Sağlayıcı durumu, bölge tazeliği, kapsama planı ve
+ * Canlı katman kapatıldı ya da worker'ın ingest'i açılıyor (D-115): bütün canlı uçakları siler
+ * (`seen`, `geo`, her `hy:ac:{hex}` hash'i ve `hy:ac:updates` stream'i). Sağlayıcı durumu, bölge tazeliği, kapsama planı ve
  * yapılandırılmış sağlayıcılar kalır (admin ve `/durum` doğru kalsın). Silinen uçak sayısını
  * döndürür; küme boşsa ucuzdur (kapalıyken her turda yeniden çağrılır).
  */

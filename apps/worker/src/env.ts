@@ -136,7 +136,7 @@ const EnvSchema = z.object({
   WATCH_HEX_LIST: watchHexList,
   /**
    * Canlı uçak yayın kapsamı (D-115): `airline` | `all`. Enum değildir: üretimde hiçbir değer
-   * worker'ı düşürmez, `effectiveLiveScope` 1. aşamada her değeri `airline` sayar. Geliştirme ve
+   * worker'ı düşürmez, `effectiveLiveScope` her değeri `airline` sayar (kalıcı kural). Geliştirme ve
    * testte geçersiz değer açılışta hata verir (`parseEnv`).
    */
   LIVE_AIRCRAFT_SCOPE: z.preprocess(emptyToUndefined, z.string().optional()),

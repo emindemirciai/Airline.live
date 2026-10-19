@@ -20,8 +20,8 @@ export const CHANGELOG: readonly ChangelogEntry[] = [
     },
     items: [
       {
-        tr: 'Kullanım koşullarındaki ve Hakkında sayfasındaki uçak gizliliği maddesi yenilendi. Canlı harita açıldığında önce yalnız havayolu çağrı koduyla uçan uçaklar görünecek; askerî, devlet ve özel uçakları tespit kurallarımızla göstermemeye çalışıyoruz ve bu kuralların kusursuz olmadığını açıkça yazıyoruz.',
-        en: 'The aircraft privacy section of the terms of use and the About page has new wording. When the live map opens, it will first show only aircraft flying under an airline callsign; we use detection rules to try to keep military, state and private aircraft off the site, and we now say plainly that these rules are not perfect.',
+        tr: 'Kullanım koşullarındaki ve Hakkında sayfasındaki uçak gizliliği maddesi yenilendi. Canlı harita açıldığında yalnız bilinen bir havayolu çağrı koduyla uçan uçaklar görünecek; askerî, devlet ve özel uçakları tespit kurallarımızla göstermemeye çalışıyoruz ve bu kuralların kusursuz olmadığını açıkça yazıyoruz.',
+        en: 'The aircraft privacy section of the terms of use and the About page has new wording. When the live map opens, it will show only aircraft flying under a known airline callsign; we use detection rules to try to keep military, state and private aircraft off the site, and we now say plainly that these rules are not perfect.',
       },
       {
         tr: 'Canlı uçaklar henüz açık değil; açılış için hazırlıklar sürüyor.',
