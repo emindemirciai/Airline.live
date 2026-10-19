@@ -507,6 +507,30 @@ describe('istekler arası en kısa aralık (D-090)', () => {
     expect(perMinute(starts)).toBe(86)
   })
 
+  it('5. halkanın ilk çalışması (D-111): 15 olağan + 348 doldurma = 363 istek, 700 ms arayla 253,4 sn, dakikada en çok 86', async () => {
+    const drive = fakeClock()
+    const perMinute = (list: number[]) =>
+      Math.max(...list.map((start) => list.filter((t) => t >= start && t < start + 60_000).length))
+    // 3.264 istasyon (savaş kapanışlarıyla, D-110; önce 3.241): kaydı olan 1.177'si olağan 2 saatle,
+    // kaydı olmayan 2.087'si 24 saatle (worker aynı istemciyle sırayla ister, weather.ts →
+    // fetchMetars). Geri doldurma sınırı yoktur.
+    const ids = stationIds(3264)
+    const { fetch, starts } = timedFetch()
+    const awc = timedClient(fetch)
+    const [normal, filled] = await drive(
+      (async () => [
+        await awc.metars(ids.slice(0, 1177)),
+        await awc.metars(ids.slice(1177), { hours: AWC_METAR_MAX_HOURS }),
+      ])(),
+    )
+    expect([normal.requests, filled.requests]).toEqual([15, 348])
+    expect(starts).toHaveLength(363)
+    const gaps = starts.slice(1).map((start, i) => start - (starts[i] ?? NaN))
+    expect(Math.min(...gaps)).toBeGreaterThanOrEqual(AWC_MIN_REQUEST_INTERVAL_MS)
+    expect((starts.at(-1) ?? NaN) - (starts[0] ?? NaN)).toBe(362 * AWC_MIN_REQUEST_INTERVAL_MS)
+    expect(perMinute(starts)).toBe(86)
+  })
+
   it('minIntervalMs 0 beklemez; negatif değer 0 sayılır', async () => {
     const drive = fakeClock()
     for (const minIntervalMs of [0, -5]) {

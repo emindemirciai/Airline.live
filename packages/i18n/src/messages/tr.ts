@@ -105,9 +105,9 @@ export const tr = {
       heading: 'Diğer ülkelerdeki havalimanları',
       scope:
         'Şimdilik Türkiye’deki en yakın havalimanına uzaklığı en fazla {km} olan, IATA kodlu büyük ve orta boy havalimanları yer alır; bazı havalimanları listelenmez.',
-      /** Bütün halkalar açıksa (uzaklık sınırı yok). */
+      /** Bütün halkalar açıksa (uzaklık sınırı yok; M6j.3'ten beri, D-109). */
       scopeAll:
-        'IATA kodlu büyük ve orta boy havalimanları yer alır; bazı havalimanları listelenmez.',
+        'Listede IATA kodlu büyük ve orta boy havalimanları yer alır; bazı havalimanları listelenmez.',
       coverage:
         'Canlı uçak verisi şimdilik yalnızca Türkiye ve çevresinden çekilir: bu havalimanlarının çoğu bu alanın dışındadır ve çevrelerindeki uçaklar canlı haritada görünmeyebilir. Her havalimanının sayfası bunu ayrıca belirtir.',
       caption: 'Diğer ülkelerdeki havalimanları, ülke adına göre sıralı',
@@ -744,6 +744,8 @@ export const tr = {
       countOne: '{count} rapor',
       countMany: '{count} rapor',
       empty: 'Son 24 saatte kayıtlı rapor yok.',
+      /** Kayıt yalnız tarayıcıdan gelir (D-111): sunucu çizimi ve ilk istek bitene kadar. */
+      loading: 'Rapor kaydı yükleniyor…',
       unavailable: 'Rapor kaydı şu an alınamıyor.',
       /** `{link}`: API adresi (son 7 gün, JSON). */
       older: 'Raporlar 30 gün saklanır; son 7 günün kaydı {link}.',

@@ -2,7 +2,8 @@
 //   pnpm exec tsx scripts/make-reference-fixtures.mts <ham-dosya-klasörü> [çıktı-klasörü]
 // Klasörde OurAirports airports.csv + runways.csv ve VRS airlines.csv bulunur (indirme bir kez,
 // kullanıcı onayıyla yapılır; CLAUDE.md DUR-SOR 6). Çıktı varsayılan olarak tools/fixtures'tır.
-// 2026-10-01 indirmesinin kalıcı kopyası depo dışındadır: C:/PROJELER/havayolu-data/ourairports-2026-10-01
+// 2026-10-01 indirmesinin kalıcı kopyası depo dışındadır: C:/PROJELER/Airline.live2/data/ourairports-2026-10-01
+// (önce C:/PROJELER/havayolu-data/…)
 // (SHA256SUMS ile; tools/fixtures/README.md). Bugünkü fixture o klasörden bayt bayt aynı üretilir.
 // Alt küme: Türkiye'deki bütün kayıtlar ve FIXTURE_EXTRA_AIRPORTS (pistlerinin hepsiyle), ardından
 // Türkiye dışı adaylar halka halka: önce 1., sonra 2., 3., 4. ve 5. halka (açık pistleriyle; D-080,

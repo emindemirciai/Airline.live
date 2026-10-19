@@ -561,15 +561,20 @@ describe('AirportView: diğer ülkelerdeki havalimanı (D-080, D-106)', () => {
     expect(text(renderAirport('LGTS', 'tr', LISTED))).toContain(
       'Türkçe ad: Selanik Makedonya Havalimanı (Türkçe yer adıyla derlendi, resmî ad değildir) · İngilizce ad: OurAirports',
     )
-    // Ad tablosunda olmayan havalimanı (5. halka; Roma Fiumicino 3. halkayla tabloya girdi, D-090).
+    // 5. halkayla (D-109) listelenen her havalimanı ad tablosundadır: New York JFK de.
+    expect(text(renderAirport('KJFK', 'tr', LISTED))).toContain(
+      'Türkçe ad: New York John F. Kennedy Havalimanı (Türkçe yer adıyla derlendi, resmî ad değildir) · İngilizce ad: OurAirports',
+    )
+    // Ad tablosunda olmayan havalimanı (OurAirports'a sonradan eklenen bir kayıt gibi; burada
+    // listelenmeyen Paris-Le Bourget).
     const unknown = airportFixture({
-      icao: 'KJFK',
-      iata: 'JFK',
-      name: 'John F Kennedy International Airport',
-      country: 'US',
-      isoRegion: 'US-NY',
-      ring: 5,
-      distanceToTrKm: 7911,
+      icao: 'LFPB',
+      iata: 'LBG',
+      name: 'Paris-Le Bourget International Airport',
+      country: 'FR',
+      isoRegion: 'FR-IDF',
+      ring: 4,
+      distanceToTrKm: 2240,
     })
     const html = renderToStaticMarkup(
       createElement(AirportView, {
@@ -579,7 +584,7 @@ describe('AirportView: diğer ülkelerdeki havalimanı (D-080, D-106)', () => {
         airports: [...AIRPORTS, unknown],
       }),
     )
-    expect(html).toContain('<h1>John F Kennedy Uluslararası Havalimanı <span')
+    expect(html).toContain('<h1>Paris-Le Bourget Uluslararası Havalimanı <span')
     expect(text(html)).toContain('Ad: OurAirports (“Airport” Türkçede “Havalimanı” olarak yazılır)')
   })
 })
@@ -589,18 +594,18 @@ describe('AirportsView', () => {
     return renderToStaticMarkup(createElement(AirportsView, { locale, app: 'havayolu', airports }))
   }
 
-  it('liste sayfasının açıklaması 4. halkayla da 70–170 karakter (1.240 = 56 + 1.184; D-102, D-106, D-107, D-110)', () => {
+  it('liste sayfasının açıklaması 5. halkayla da 70–170 karakter (3.266 = 56 + 3.210; D-102, D-106, D-107, D-109, D-110)', () => {
     const counts = airportCounts(LISTED)
-    expect(counts).toEqual({ count: 56, foreign: 1184 })
+    expect(counts).toEqual({ count: 56, foreign: 3210 })
     // Açıklama ve özet tek toplam sayı yazar, dilin binlik ayırıcısıyla (D-106).
-    const grouped = { tr: '1.240', en: '1,240' } as const
+    const grouped = { tr: '3.266', en: '3,266' } as const
     const lengths = { tr: 150, en: 154 } as const
     for (const locale of ['tr', 'en'] as const) {
       const count = formatCount(counts.count + counts.foreign, locale)
       expect(count, locale).toBe(grouped[locale])
       const description = format(getMessages(locale).seo.airports.description, { count })
       expect(description, locale).toContain(grouped[locale])
-      expect(description, locale).not.toContain('1240')
+      expect(description, locale).not.toContain('3266')
       expect(description.length, `${locale}: ${description}`).toBe(lengths[locale])
       expect(description.length, `${locale}: ${description}`).toBeGreaterThanOrEqual(70)
       expect(description.length, `${locale}: ${description}`).toBeLessThanOrEqual(170)
@@ -693,17 +698,25 @@ describe('AirportsView', () => {
       /<a href="\/istasyon\/LGAV">Atina Eleftherios Venizelos Havalimanı<\/a><\/th><td>Yunanistan<\/td><td class="mono">ATH<\/td><td class="mono">LGAV<\/td><td class="num">4\.\d{3} m<\/td><\/tr>/,
     )
     expect(foreign).toContain('<td>KKTC</td>')
-    // Ülke sırası Türkçe alfabeyle; ilk ülke Afganistan (3. halkadan beri), son Yunanistan.
+    // Ülke sırası Türkçe alfabeyle; 5. halkadan beri ilk ülke ABD Virjin Adaları, son Zimbabve (3.
+    // halkadan 4. halkaya kadar Afganistan ve Yunanistan).
     const countries = [...foreign.matchAll(/<\/a><\/th><td>([^<]+)<\/td>/g)].map((m) => m[1])
-    expect(countries[0]).toBe('Afganistan')
-    expect(countries.at(-1)).toBe('Yunanistan')
+    expect(countries[0]).toBe('ABD Virjin Adaları')
+    expect(countries.at(-1)).toBe('Zimbabve')
+    // Türkçe alfabe: Amerika Birleşik Devletleri ABD Virjin Adaları'ndan, Yunanistan Vietnam'dan sonra.
+    expect(countries.indexOf('Amerika Birleşik Devletleri')).toBeGreaterThan(
+      countries.lastIndexOf('ABD Virjin Adaları'),
+    )
+    expect(countries.indexOf('Yunanistan')).toBeGreaterThan(countries.lastIndexOf('Vietnam'))
     const body = text(html)
     // Özet tek toplam sayı yazar, binlik ayraçlı (D-106): Türkiye'deki 56 ve diğer ülkelerdekiler.
     expect(LISTED).toHaveLength(56 + FOREIGN.length)
     expect(body).toContain(`Listede ${formatCount(LISTED.length, 'tr')} havalimanı var;`)
+    // 5. halkayla (D-109) bütün halkalar açık: uzaklık sınırı yazılmaz (`listedRadiusKm() === null`).
     expect(body).toContain(
-      'Türkiye’deki en yakın havalimanına uzaklığı en fazla 5.000 km olan, IATA kodlu büyük ve orta boy havalimanları yer alır; bazı havalimanları listelenmez.',
+      'Listede IATA kodlu büyük ve orta boy havalimanları yer alır; bazı havalimanları listelenmez.',
     )
+    expect(body).not.toMatch(/en fazla [\d.]+ km|Şimdilik Türkiye’deki en yakın/)
     // OurAirports'un tarifeli sefer bilgisi gösterilmez (D-078, kullanıcı kararı).
     expect(body).not.toMatch(/tarifeli sefer|tarifesiz/i)
     expect(body).toContain('Canlı uçak verisi şimdilik yalnızca Türkiye ve çevresinden çekilir')
@@ -735,9 +748,13 @@ describe('AirportsView', () => {
     const countries = [...foreign.matchAll(/<\/a><\/th><td>([^<]+)<\/td>/g)].map((m) => m[1])
     expect(countries[0]).toBe(airportCountry(byIcao('OAHR'), 'en'))
     expect(countries[0]).toBe('Afghanistan')
+    expect(countries.at(-1)).toBe('Zimbabwe')
     expect(text(html)).toContain(`The list has ${formatCount(LISTED.length, 'en')} airports;`)
     expect(text(html)).not.toContain('Distance to Türkiye')
-    expect(text(html)).toContain('at most 5,000 km from the nearest airport in Türkiye')
+    expect(text(html)).toContain(
+      'The list includes large and medium airports with an IATA code; some airports are not listed.',
+    )
+    expect(text(html)).not.toMatch(/at most [\d,]+ km/)
     expect(text(html)).not.toMatch(/neighbouring/)
   })
 

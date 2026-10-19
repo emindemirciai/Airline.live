@@ -211,11 +211,22 @@ export function airportTitle(airport: AirportDetail, locale: Locale, covered: bo
 }
 
 /**
+ * Arama sonucu açıklamasının en çok uzunluğu, karakter (arama motorlarının kestiği uzunluk; testler
+ * 70–170 ister).
+ */
+export const AIRPORT_DESCRIPTION_MAX_LENGTH = 170
+
+/**
  * Arama sonucu açıklaması, veriden: il (yakın ülkelerde ülke), pist sayısı ve en uzun pist, rakım.
  * Tarife, rötar ya da hava durumu vaat etmez (M6b brief §b, §i). Havalimanı canlı veri çekim
  * alanının dışındaysa (`covered` false; lib/airports.ts → `isInLiveCoverage`) çevredeki uçakları da
  * vaat etmez. Savaş nedeniyle kapalı havalimanında (D-110) son cümle sayfadaki nottur: "… rakım
  * 130 m. Savaş nedeniyle sivil uçuşlara kapalı (2022’den beri)."
+ *
+ * Uzun adlı havalimanında metin `AIRPORT_DESCRIPTION_MAX_LENGTH`'i aşarsa önce rakım, yine aşarsa
+ * en uzun pistin uzunluğu düşer (5. halka, D-109; ör. "São Paulo/Guarulhos–Governor André Franco
+ * Montoro International Airport"). Ad kısaltılmaz: İngilizce ad kaynak addır. 1.–4. halkanın
+ * metinleri sınırın altındadır ve değişmez.
  */
 export function airportDescription(
   airport: AirportDetail,
@@ -223,19 +234,8 @@ export function airportDescription(
   covered: boolean,
 ): string {
   const t = getMessages(locale).seo.airport
-  const facts: string[] = []
   const count = airport.runways.length
   const longest = longestRunway(airport)
-  if (count === 1 && longest) {
-    facts.push(format(t.runwaysOne, { length: formatMeters(longest.lengthFt, locale) }))
-  } else if (count > 1 && longest) {
-    facts.push(format(t.runwaysMany, { count, length: formatMeters(longest.lengthFt, locale) }))
-  } else if (count > 0) {
-    facts.push(format(t.runwaysCount, { count }))
-  }
-  if (airport.elevationFt !== null) {
-    facts.push(format(t.elevation, { elevation: formatMeters(airport.elevationFt, locale) }))
-  }
   const name = airportName(airport, locale)
   const place = airportPlace(airport, locale)
   const closure = civilClosureNote(
@@ -244,9 +244,28 @@ export function airportDescription(
     civilClosureTemplates(getMessages(locale).airport),
   )
   const live = closure !== null ? `${closure}.` : covered ? t.liveCovered : t.liveOutside
-  return facts.length > 0
-    ? format(t.description, { name, place, facts: facts.join('; '), live })
-    : format(t.descriptionNoFacts, { name, place, live })
+  const text = (withElevation: boolean, withLength: boolean): string => {
+    const facts: string[] = []
+    const length = longest && withLength ? formatMeters(longest.lengthFt, locale) : null
+    if (count === 1 && length !== null) {
+      facts.push(format(t.runwaysOne, { length }))
+    } else if (count > 1 && length !== null) {
+      facts.push(format(t.runwaysMany, { count, length }))
+    } else if (count > 0) {
+      facts.push(format(t.runwaysCount, { count }))
+    }
+    if (withElevation && airport.elevationFt !== null) {
+      facts.push(format(t.elevation, { elevation: formatMeters(airport.elevationFt, locale) }))
+    }
+    return facts.length > 0
+      ? format(t.description, { name, place, facts: facts.join('; '), live })
+      : format(t.descriptionNoFacts, { name, place, live })
+  }
+  const full = text(true, true)
+  if (full.length <= AIRPORT_DESCRIPTION_MAX_LENGTH) return full
+  const withoutElevation = text(false, true)
+  if (withoutElevation.length <= AIRPORT_DESCRIPTION_MAX_LENGTH) return withoutElevation
+  return text(false, false)
 }
 
 /**

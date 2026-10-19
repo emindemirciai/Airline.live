@@ -43,7 +43,8 @@ import {
   RING3_AIRPORT,
   RING4_AIRPORT,
   NON_ICAO_AIRPORT,
-  UNLISTED_FOREIGN_AIRPORT,
+  RING5_AIRPORT,
+  UNLISTED_FOREIGN_AIRPORTS,
   sitePath,
   STATIC_PUBLIC_PATHS,
   WAR_CLOSURE_AIRPORT,
@@ -368,11 +369,11 @@ test.describe('kök dosyalar', () => {
     expect(body).toContain('xmlns:xhtml="http://www.w3.org/1999/xhtml"')
     const entries = parseSitemap(body)
 
-    // Havalimanları: Türkiye'nin dizine eklenen 56'sı ve diğer ülkelerdeki 1.184'ü (1.–4. halka,
-    // savaş nedeniyle kapalı 23 havalimanı dahil; D-080, D-084, D-088, D-090, D-102, D-110):
-    // (1.240 + 5) × 2 = 2.490 adres (50.000 sınırının çok altında).
+    // Havalimanları: Türkiye'nin dizine eklenen 56'sı ve diğer ülkelerdeki 3.210'u (1.–5. halka,
+    // savaş nedeniyle kapalı 23 havalimanı dahil; D-080, D-084, D-088, D-090, D-102, D-109,
+    // D-110): (3.266 + 5) × 2 = 6.542 adres (50.000 sınırının altında; 4. halkada 2.490).
     expect(entries).toHaveLength((INDEXABLE_LISTED_AIRPORT_COUNT + STATIC_PUBLIC_PATHS.length) * 2)
-    expect(entries).toHaveLength(2490)
+    expect(entries).toHaveLength(6542)
     const byLoc = new Map(entries.map((entry) => [entry.loc, entry]))
     expect(byLoc.size, 'yinelenen adres yok').toBe(entries.length)
     const paths = entries.map((entry) => sitePath(entry.loc, 'loc'))
@@ -381,6 +382,7 @@ test.describe('kök dosyalar', () => {
     const ring2Path = `/istasyon/${RING2_AIRPORT.icao}`
     const kktcPath = `/istasyon/${KKTC_AIRPORT.icao}`
     const ring4Path = `/istasyon/${RING4_AIRPORT.icao}`
+    const ring5Path = `/istasyon/${RING5_AIRPORT.icao}`
     // Savaş nedeniyle kapalı, OurAirports'ta tarifesiz Kiev Borispil dizine eklenir (D-110).
     const warPath = `/istasyon/${WAR_CLOSURE_AIRPORT.icao}`
     for (const path of [
@@ -390,6 +392,7 @@ test.describe('kök dosyalar', () => {
       ring2Path,
       kktcPath,
       ring4Path,
+      ring5Path,
       warPath,
     ]) {
       expect(paths).toContain(path)
@@ -409,9 +412,9 @@ test.describe('kök dosyalar', () => {
         `/istasyon/${icao}`,
         enPath(`/istasyon/${icao}`),
       ]),
-      // Fixture'da olup listelenmeyen uzak havalimanı (D-080) ve dört karakterli ICAO'su olmayan
-      // Kihihi (D-101).
-      `/istasyon/${UNLISTED_FOREIGN_AIRPORT.icao}`,
+      // Fixture'da olup listelenmeyen havalimanları (D-109: Le Bourget, Thohoyandou) ve dört
+      // karakterli ICAO'su olmayan Kihihi (D-101).
+      ...UNLISTED_FOREIGN_AIRPORTS.map(({ icao }) => `/istasyon/${icao}`),
       `/istasyon/${NON_ICAO_AIRPORT.ident}`,
       `/istasyon/${NON_ICAO_AIRPORT.iata}`,
     ]) {
@@ -419,34 +422,66 @@ test.describe('kök dosyalar', () => {
     }
     expect(paths.filter((p) => /\/(admin|api|dil)(\/|$)|\?/.test(p))).toEqual([])
 
+    // Adres başına denetim (hreflang ve aşağıda lastmod) düz koşuldur, sonuç tek `expect`le doğrulanır:
+    // adres başına `expect` (5. halkayla 6.542 adreste iki döngüde ~59.000 çağrı) testin süresini
+    // aşıyordu. Hata iletisi bozuk adreslerin hepsini değerleriyle birlikte listeler.
+    const alternatesKey = (alternates: Record<string, string>) =>
+      JSON.stringify(
+        Object.keys(alternates)
+          .sort()
+          .map((key) => [key, alternates[key]]),
+      )
+    const hreflangProblems: string[] = []
     for (const entry of entries) {
-      expect(Object.keys(entry.alternates).sort(), entry.loc).toEqual(['en', 'tr', 'x-default'])
-      expect(entry.alternates['x-default'], entry.loc).toBe(entry.alternates.en)
-      expect([entry.alternates.tr, entry.alternates.en], entry.loc).toContain(entry.loc)
+      const locales = Object.keys(entry.alternates).sort().join(',')
+      if (locales !== 'en,tr,x-default') hreflangProblems.push(`${entry.loc}: hreflang ${locales}`)
+      const { tr, en } = entry.alternates
+      const fallback = entry.alternates['x-default']
+      if (fallback !== en) {
+        hreflangProblems.push(
+          `${entry.loc}: x-default (${String(fallback)}) en (${String(en)}) değil`,
+        )
+      }
+      if (entry.loc !== tr && entry.loc !== en) {
+        hreflangProblems.push(
+          `${entry.loc}: kendi adresi tr (${String(tr)}) ya da en (${String(en)}) değil`,
+        )
+      }
+      const own = alternatesKey(entry.alternates)
       for (const locale of ['tr', 'en'] as const) {
-        const twin = byLoc.get(entry.alternates[locale] ?? '')
-        expect(twin, `${entry.loc} → ${locale}`).toBeDefined()
-        expect(twin?.alternates, `${entry.loc} ↔ ${locale}`).toEqual(entry.alternates)
+        const target = entry.alternates[locale]
+        const twin = byLoc.get(target ?? '')
+        if (twin === undefined) {
+          hreflangProblems.push(`${entry.loc} → ${locale} (${String(target)}): ikiz yok`)
+        } else if (alternatesKey(twin.alternates) !== own) {
+          hreflangProblems.push(
+            `${entry.loc} ↔ ${locale}: karşılıklı değil: ${own} ≠ ${alternatesKey(twin.alternates)}`,
+          )
+        }
       }
     }
+    expect(hreflangProblems, 'karşılıklı hreflang').toEqual([])
 
     // lastmod yalnızca doğrulanabilir tarihse yazılır (verinin değişme anı), istek anı değildir.
     const now = Date.now()
+    const today = istanbulDate(now)
+    const lastmodProblems: string[] = []
     for (const entry of entries) {
       if (entry.lastmod === undefined) continue
       const time = Date.parse(entry.lastmod)
-      expect(Number.isNaN(time), `${entry.loc}: lastmod`).toBe(false)
-      if (DATE_ONLY.test(entry.lastmod)) {
+      if (Number.isNaN(time)) {
+        lastmodProblems.push(`${entry.loc}: lastmod (${entry.lastmod}) okunamıyor`)
+      } else if (DATE_ONLY.test(entry.lastmod)) {
         // Yalnızca gün (sürüm ve yürürlük tarihi) İstanbul takvimindedir; `Date.parse` onu UTC gece
         // yarısı okur ve 00:00–03:00 arasında "gelecekte" sayardı. Gün, İstanbul'daki bugünle kıyaslanır.
-        expect(
-          entry.lastmod <= istanbulDate(now),
-          `${entry.loc}: lastmod (${entry.lastmod}) gelecekte değil`,
-        ).toBe(true)
-      } else {
-        expect(time, `${entry.loc}: lastmod gelecekte değil`).toBeLessThanOrEqual(now)
+        if (entry.lastmod > today) {
+          lastmodProblems.push(`${entry.loc}: lastmod (${entry.lastmod}) gelecekte`)
+        }
+      } else if (time > now) {
+        lastmodProblems.push(`${entry.loc}: lastmod (${entry.lastmod}) gelecekte`)
       }
     }
+    expect(lastmodProblems, 'lastmod okunur ve gelecekte değil').toEqual([])
     const lastmodOf = (path: string) =>
       entries.find((entry) => sitePath(entry.loc, 'loc') === path)?.lastmod
     const stationTimes = entries
@@ -479,9 +514,10 @@ test.describe('kök dosyalar', () => {
 
     // Bütün bağlantılar mutlaktır; site dışı olanlar veri kaynaklarıdır (ADSB.lol, ODbL, OurAirports).
     const links = markdownLinks(body)
-    for (const link of links) {
-      expect(link.href, `llms.txt ${link.label}`).toMatch(/^https?:\/\//)
-    }
+    expect(
+      links.filter((link) => !/^https?:\/\//.test(link.href)).map((link) => link.label),
+      'llms.txt: göreli bağlantı',
+    ).toEqual([])
     const paths = links
       .filter((link) => new URL(link.href).host === WEB_HOST)
       .map((link) => sitePath(link.href, `llms.txt ${link.label}`))
@@ -498,8 +534,9 @@ test.describe('kök dosyalar', () => {
     expect(icaos.size).toBe(INDEXABLE_LISTED_AIRPORT_COUNT)
     expect(icaos.has(PRIMARY_AIRPORT.icao)).toBe(true)
     for (const { icao } of MILITARY_AIRFIELDS) expect(icaos.has(icao), icao).toBe(false)
-    expect(icaos.has(UNLISTED_FOREIGN_AIRPORT.icao)).toBe(false)
+    for (const { icao } of UNLISTED_FOREIGN_AIRPORTS) expect(icaos.has(icao), icao).toBe(false)
     expect(icaos.has(RING4_AIRPORT.icao)).toBe(true)
+    expect(icaos.has(RING5_AIRPORT.icao)).toBe(true)
     // Savaş nedeniyle kapalı havalimanının satırı Türkçe notu taşır (D-110).
     const warLine = airportLines.find((line) =>
       line.includes(`(${WAR_CLOSURE_AIRPORT.iata}/${WAR_CLOSURE_AIRPORT.icao})`),
@@ -510,15 +547,20 @@ test.describe('kök dosyalar', () => {
     // Diğer ülkelerdekiler ayrı bir bölümdedir (D-080): başlık Türkiye listesinden sonra gelir; Atina
     // (1. halka), Kahire (2. halka), Viyana (3. halka) ve Londra (4. halka) satırları o bölümdedir.
     // Başlık D-106'dan beri "Diğer ülkelerdeki havalimanları"dır (D-088'de "Türkiye dışındaki");
-    // kapsam 4. halkadan beri 5.000 km'dir (D-102).
+    // 5. halkadan beri bütün halkalar açık, uzaklık sınırı yazılmaz (D-109; 4. halkada 5.000 km).
     const lines = body.split('\n')
     const foreignHeading = lines.indexOf(
       '## Diğer ülkelerdeki havalimanları / Airports in other countries',
     )
     expect(foreignHeading, 'diğer ülkelerdekiler başlığı').toBeGreaterThan(0)
     expect(body).not.toMatch(/[Yy]akın ülke|neighbouring/)
-    expect(body).toContain('uzaklığı en fazla 5.000 km olan')
-    expect(body).toContain('at most 5,000 km from the nearest airport in Türkiye')
+    expect(body).toContain(
+      'Havalimanı listesinde Türkiye’nin IATA kodlu havalimanları ile diğer ülkelerin IATA kodlu büyük ve orta boy havalimanları yer alır.',
+    )
+    expect(body).toContain(
+      'The airport list includes airports in Türkiye with an IATA code and large and medium airports with an IATA code in other countries.',
+    )
+    expect(body).not.toMatch(/en fazla [\d.]+ km|at most [\d,]+ km/)
     const ring1Line = lines.findIndex((line) => line.includes(`/istasyon/${RING1_AIRPORT.icao})`))
     const ring2Line = lines.findIndex((line) => line.includes(`/istasyon/${RING2_AIRPORT.icao})`))
     const ring3Line = lines.findIndex((line) => line.includes(`/istasyon/${RING3_AIRPORT.icao})`))

@@ -420,53 +420,55 @@ test.describe('tarayıcıda', () => {
     // WCAG 2.1 SC 1.4.11 (odak göstergesi). "Açık turkuaz" tek temadır (D-081): halka sayfa ve panel
     // zemininde #0a6e78'dir (5,45 ve 5,98:1), başlık şeridinde beyazdır (4,57:1). Sarı işaret rengi
     // açık zeminde 1,6:1 kalırdı.
-    const targets: [string, string][] = [
-      ['/havalimanlari', 'main .table-wrap'],
-      ['/havalimanlari', 'main nav a'],
-      [STATION_PATH, `main a[href="/?havalimani=${icao}"]`],
-      ['/havalimanlari', 'header.site-header nav a'],
+    // Sayfa her renk tercihinde bir kez yüklenir, hedefler sırayla odaklanır: liste 5. halkayla 3.266
+    // satırdır ve hedef başına yükleme testin süresine yaklaşıyordu.
+    const targets: [string, string[]][] = [
+      ['/havalimanlari', ['main .table-wrap', 'main nav a', 'header.site-header nav a']],
+      [STATION_PATH, [`main a[href="/?havalimani=${icao}"]`]],
     ]
     for (const colorScheme of ['light', 'dark'] as const) {
       await page.emulateMedia({ colorScheme })
-      for (const [path, selector] of targets) {
+      for (const [path, selectors] of targets) {
         await page.goto(path)
-        // Klavye kullanımı: sonraki odak da `:focus-visible` sayılır.
-        await page.keyboard.press('Tab')
-        const target = page.locator(selector).first()
-        await target.focus()
-        const style = await target.evaluate((element) => {
-          // Kart ve tablo zemini (`--surface`): değişken rengi hesaplanmış `rgb()` olarak okunur.
-          const probe = document.createElement('div')
-          probe.style.backgroundColor = 'var(--surface)'
-          document.body.append(probe)
-          const surface = getComputedStyle(probe).backgroundColor
-          probe.remove()
-          const computed = getComputedStyle(element)
-          const pageBackground = getComputedStyle(document.body).backgroundColor
-          // Başlık şeridindeki bağlantının zemini şerittir; diğerleri sayfa ve panel zeminindedir.
-          const header = element.closest('.site-header')
-          return {
-            focusVisible: element.matches(':focus-visible'),
-            outlineStyle: computed.outlineStyle,
-            outlineWidth: Number.parseFloat(computed.outlineWidth),
-            outline: computed.outlineColor,
-            pageBackground,
-            backgrounds: header
-              ? [getComputedStyle(header).backgroundColor]
-              : [pageBackground, surface],
+        for (const selector of selectors) {
+          // Klavye kullanımı: sonraki odak da `:focus-visible` sayılır.
+          await page.keyboard.press('Tab')
+          const target = page.locator(selector).first()
+          await target.focus()
+          const style = await target.evaluate((element) => {
+            // Kart ve tablo zemini (`--surface`): değişken rengi hesaplanmış `rgb()` olarak okunur.
+            const probe = document.createElement('div')
+            probe.style.backgroundColor = 'var(--surface)'
+            document.body.append(probe)
+            const surface = getComputedStyle(probe).backgroundColor
+            probe.remove()
+            const computed = getComputedStyle(element)
+            const pageBackground = getComputedStyle(document.body).backgroundColor
+            // Başlık şeridindeki bağlantının zemini şerittir; diğerleri sayfa ve panel zeminindedir.
+            const header = element.closest('.site-header')
+            return {
+              focusVisible: element.matches(':focus-visible'),
+              outlineStyle: computed.outlineStyle,
+              outlineWidth: Number.parseFloat(computed.outlineWidth),
+              outline: computed.outlineColor,
+              pageBackground,
+              backgrounds: header
+                ? [getComputedStyle(header).backgroundColor]
+                : [pageBackground, surface],
+            }
+          })
+          const label = `${colorScheme} ${path} ${selector}`
+          // Tek tema: koyu tercihte de sayfa zemini açık turkuazdır (#eaf7f8).
+          expect(style.pageBackground, label).toBe('rgb(234, 247, 248)')
+          expect(style.focusVisible, label).toBe(true)
+          expect(style.outlineStyle, label).toBe('solid')
+          expect(style.outlineWidth, label).toBeGreaterThanOrEqual(2)
+          for (const background of style.backgrounds) {
+            expect(
+              contrastRatio(style.outline, background),
+              `${label} / ${background}`,
+            ).toBeGreaterThanOrEqual(3)
           }
-        })
-        const label = `${colorScheme} ${path} ${selector}`
-        // Tek tema: koyu tercihte de sayfa zemini açık turkuazdır (#eaf7f8).
-        expect(style.pageBackground, label).toBe('rgb(234, 247, 248)')
-        expect(style.focusVisible, label).toBe(true)
-        expect(style.outlineStyle, label).toBe('solid')
-        expect(style.outlineWidth, label).toBeGreaterThanOrEqual(2)
-        for (const background of style.backgrounds) {
-          expect(
-            contrastRatio(style.outline, background),
-            `${label} / ${background}`,
-          ).toBeGreaterThanOrEqual(3)
         }
       }
     }

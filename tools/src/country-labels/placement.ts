@@ -49,7 +49,12 @@ import type {
   CountryLabelPlacement,
   CountryLabelPlacementRow,
 } from '@havayolu/shared/country-label-placements'
-import { AIRPORT_CHIP_MIN_ZOOM, worldBoxAt, type AirportObstacles } from './airport-pins'
+import {
+  AIRPORT_CHIP_MIN_ZOOM,
+  OBSTACLE_PIN_MIN_ZOOM,
+  worldBoxAt,
+  type AirportObstacles,
+} from './airport-pins'
 import {
   latitudeOf,
   mercatorX,
@@ -131,6 +136,7 @@ export function placementParams(obstacles: AirportObstacles) {
     clearMaxDelayZooms: CLEAR_MAX_DELAY_ZOOMS,
     crowdedMaxDelayZooms: CROWDED_MAX_DELAY_ZOOMS,
     airportPins: obstacles.airports.length,
+    airportPinMinZoom: OBSTACLE_PIN_MIN_ZOOM,
     airportCodeMinZoom: AIRPORT_CHIP_MIN_ZOOM,
     airportCodeSides: ['right', 'left'],
     capitalAnchored: [...CAPITAL_ANCHORED_CODES],

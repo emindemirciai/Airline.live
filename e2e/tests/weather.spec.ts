@@ -4,7 +4,8 @@
 // - havalimanı sayfası TR ve EN: rüzgâr, yağmur, kar, gök gürültüsü ve sis satırları her zaman açıkça
 //   yazılır; sıcaklık başlığın yanında ayrı kutucuktur, sayıdan önce "·" ya da "–" yoktur; var olan
 //   olayın satırı vurguludur, simgeler ekran okuyucudan gizlidir; uzman ayrıntısında ham METAR;
-//   METAR/TAF kaydı en yenisi önce; "Sefer sayısı, rötar ve iptal" bölümü; hava durumu başlık,
+//   METAR/TAF kaydı en yenisi önce, yalnız tarayıcıda yüklenir (sunucu HTML'inde "yükleniyor",
+//   M6j.2, D-111); "Sefer sayısı, rötar ve iptal" bölümü; hava durumu başlık,
 //   açıklama ve JSON-LD'ye girmez
 // - kaldırılan iki bilgi ("Tarifeli sefer (OurAirports)", "İzlenen istasyon") hiçbir sayfada yok
 // - harita: IST koduna ya da pinine tıklayınca havalimanı penceresi açılır (apronda yerdeki uçaklar
@@ -37,6 +38,7 @@ import {
   API_URL,
   declineAnalytics,
   enPath,
+  expectPopupFocused,
   FAR_AIRCRAFT,
   fetchRaw,
   infoCard,
@@ -151,6 +153,8 @@ const COPY = {
     sunset: /Gün batımı \d{2}:\d{2}/,
     expert: 'Ayrıntılar (uzman)',
     logCaption: /son 24 saatin raporları/,
+    /** Kayıt yalnız tarayıcıdan gelir (D-111): sunucu HTML'inde bölüm bunu yazar. */
+    logLoading: 'Rapor kaydı yükleniyor…',
     schedule: 'Sefer sayısı, rötar ve iptal',
     scheduleBody: 'Bu bilgiler henüz yok.',
     aboutPath: '/hakkinda',
@@ -200,6 +204,7 @@ const COPY = {
     sunset: /Sunset \d{2}:\d{2}/,
     expert: 'Details (expert)',
     logCaption: /reports from the last 24 hours/,
+    logLoading: 'Loading the report log…',
     schedule: 'Flight counts, delays and cancellations',
     scheduleBody: 'Not available yet.',
     aboutPath: '/en/hakkinda',
@@ -452,6 +457,22 @@ test.describe('havalimanı sayfası', () => {
       )
     })
 
+    test(`${copy.path}: METAR/TAF kaydı sunucu HTML’inde yok, tarayıcıda yüklenir (D-111)`, async ({
+      page,
+      request,
+    }) => {
+      // Sunucu çizimi kaydı istemez: bölüm ve başlığı vardır, satır yoktur, "yükleniyor" yazar.
+      const { response, body } = await fetchRaw(request, copy.path)
+      expect(response.status(), copy.path).toBe(200)
+      expect(body).toContain('id="airport-weather-log"')
+      expect(body).toContain(copy.logLoading)
+      expect(body).not.toContain('weather-log-time')
+      // Tarayıcıda ada kaydı açılışta ister; tablo gelir, "yükleniyor" kalkar.
+      await page.goto(copy.path)
+      await expect(logTable(page, locale)).toBeVisible()
+      await expect(page.locator('main')).not.toContainText(copy.logLoading)
+    })
+
     test(`${copy.path}: sefer sayısı, rötar ve iptal bilgisinin olmadığı açıkça yazılır`, async ({
       page,
     }) => {
@@ -638,9 +659,10 @@ test.describe('kaldırılan bilgiler', () => {
     expect(response.status()).toBe(200)
     const airportLines = body.split('\n').filter((line) => /\/istasyon\/[A-Z0-9]{4}\)/.test(line))
     expect(airportLines.length).toBeGreaterThan(0)
-    for (const line of airportLines) {
-      expect(line).not.toMatch(/izlenen istasyon|İzlenen istasyon|tarifeli/)
-    }
+    expect(
+      airportLines.filter((line) => /izlenen istasyon|İzlenen istasyon|tarifeli/.test(line)),
+      'llms.txt: havalimanı satırında izlenen istasyon ya da tarifeli sözü',
+    ).toEqual([])
   })
 })
 
@@ -873,6 +895,7 @@ test.describe('harita: havalimanı penceresi', () => {
     const popup = airportPopup(page)
     await clickPrimaryChip(page)
     await expect(popup).toHaveAttribute('data-icao', icao)
+    await expectPopupFocused(popup)
     await page.keyboard.press('Escape')
     await expect(popup).toBeHidden()
   })
@@ -912,6 +935,7 @@ test.describe('harita: havalimanı penceresi', () => {
         () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
       )
       expect(overflow).toBeLessThanOrEqual(0)
+      await expectPopupFocused(popup)
       await page.keyboard.press('Escape')
       await expect(popup).toBeHidden()
     })

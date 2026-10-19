@@ -16,6 +16,7 @@ import {
 import { parseAirports } from '@havayolu/providers'
 import {
   AIRPORT_RING_CONFIG,
+  isWeatherStationIcao,
   AirportWeatherSchema,
   toAirportWeather,
   WeatherBulkRawResponseSchema,
@@ -29,7 +30,7 @@ import {
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { testApp } from '../test/helpers'
 import { AIRPORT_ERRORS } from './airports'
-import { WEATHER_CACHE_CONTROL } from './weather'
+import { WEATHER_CACHE_CONTROL, WEATHER_ERRORS } from './weather'
 
 // Gerçek PostgreSQL (yerelde `pnpm dev:infra`, CI'da dev compose); bu teste ait veritabanı.
 // Havalimanları commit'li OurAirports alt kümesinden; hava raporları elle yazılmış, sentetiktir ve
@@ -209,13 +210,21 @@ describe('hava durumu uçları (gerçek PostgreSQL)', () => {
     expect(withMetar.sort()).toEqual(['LTBA', 'LTCW', 'LTFM'])
   })
 
-  it('GET /v1/weather?scope=listed: Türkiye ve açık halkalar, liste sırasıyla; yurt dışı raporları', async () => {
-    const res = await get('/v1/weather?scope=listed')
+  it('GET /v1/weather?scope=listed&format=raw: Türkiye ve açık halkalar, liste sırasıyla; yurt dışı raporları; biçimsiz 400 (D-111)', async () => {
+    const res = await get('/v1/weather?scope=listed&format=raw')
     expect(res.statusCode).toBe(200)
-    const body = res.json() as WeatherBulkResponse
-    expect(WeatherBulkResponseSchema.parse(body)).toEqual(body)
+    const body = res.json() as WeatherBulkRawResponse
+    expect(WeatherBulkRawResponseSchema.parse(body)).toEqual(body)
     const listed = await listListedAirports(database.db, AIRPORT_RING_CONFIG)
-    expect(body.stations.map((s) => s.icao)).toEqual(listed.map((a) => a.icao))
+    // Yalnız METAR/TAF istasyonları (dört harfli ICAO; D-118): 5. halkada Transport Canada kodlu
+    // CAJ4 ve CAT4 listelenir ama toplu havaya girmez (worker'ın `weatherStations` kuralı).
+    expect(body.stations.map((s) => s.icao)).toEqual(
+      listed.map((a) => a.icao).filter((icao) => isWeatherStationIcao(icao)),
+    )
+    expect(listed.map((a) => a.icao)).toEqual(expect.arrayContaining(['CAJ4', 'CAT4']))
+    expect(body.stations.map((s) => s.icao)).not.toContain('CAJ4')
+    expect(body.stations.map((s) => s.icao)).not.toContain('CAT4')
+    expect(body.stations).toHaveLength(listed.length - 2)
     expect(body.stations.length).toBeGreaterThan(56)
     for (const icao of ['LTAG', 'LTAH', 'LTBG', 'LTBI', 'LTBL']) {
       expect(
@@ -233,15 +242,22 @@ describe('hava durumu uçları (gerçek PostgreSQL)', () => {
     expect(ecn.icao).toBe('LCEN')
     expect(ecn.entries.map((e) => e.raw)).toEqual([metars[8]?.raw])
     expect((await get('/v1/weather?scope=listed&country=TR')).statusCode).toBe(400)
+    // Tam biçim yalnız ülke isteğinde (D-111): listelenen bütün havalimanlarının çözümlenmiş
+    // yanıtı 5. halkada ~15,8 MB olurdu.
+    for (const url of ['/v1/weather?scope=listed', '/v1/weather?scope=listed&format=full']) {
+      const rejected = await get(url)
+      expect(rejected.statusCode, url).toBe(400)
+      expect(rejected.json(), url).toEqual(WEATHER_ERRORS.rawRequired)
+    }
   })
 
-  it('GET /v1/weather?scope=listed&format=raw (D-101): ham kayıtların çözümü tam biçimle aynı', async () => {
-    const res = await get('/v1/weather?scope=listed&format=raw')
+  it('GET /v1/weather?country=TR&format=raw (D-101): ham kayıtların çözümü tam biçimle aynı', async () => {
+    const res = await get('/v1/weather?country=TR&format=raw')
     expect(res.statusCode).toBe(200)
     expect(res.headers['cache-control']).toBe(WEATHER_CACHE_CONTROL)
     const raw = res.json() as WeatherBulkRawResponse
     expect(WeatherBulkRawResponseSchema.parse(raw)).toEqual(raw)
-    const full = (await get('/v1/weather?scope=listed')).json() as WeatherBulkResponse
+    const full = (await get('/v1/weather?country=TR')).json() as WeatherBulkResponse
     expect(raw.stations.map((s) => s.icao)).toEqual(full.stations.map((s) => s.icao))
     // Ham biçim süresi dolmamış bütün TAF'ları taşır (LTFM'de yerini yenisine bırakmış olan da).
     expect(raw.stations.find((s) => s.icao === 'LTFM')?.tafs.length).toBeGreaterThan(1)

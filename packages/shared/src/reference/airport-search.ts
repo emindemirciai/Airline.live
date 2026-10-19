@@ -21,10 +21,12 @@
  *   atılır, Türkçe klavyenin İ ve ı harfleri I ve i olur: "İST" IST'dir). Başka bir harf kod
  *   olamaz: "küt" Kutaisi'nin KUT kodu değil, Kütahya'nın (Zafer) ve Kutaisi'nin adının başıdır.
  * - **3 harfli sorgu** da aynı basamaklarla aranır: tam kod önce, sonra adın ya da yerin başı ve
- *   sözcük başı ("sab" ve "gok" Sabiha Gökçen, "ant" Antalya). Havayolu kodu biçimindeki sorgu
- *   ("THY") bir sözcük başını da bulabilir (Sfaks Thyna); bu bir öneri listesidir. Enter'da
- *   havalimanının doğrudan açılması arama kutusunun kuralıdır (`search-box-model.ts`
- *   `submitOutcome`, D-108): tam kod ya da aranan sorgunun en az 4 harfiyle tek eşleşme. Aranan
+ *   sözcük başı ("gok" Sabiha Gökçen, "ant" Antalya; 5. halkayla "sab" önce Saba'nın SAB kodu, sonra
+ *   Sabiha Gökçen). Havayolu kodu biçimindeki sorgu ("THY") bir sözcük başını da bulabilir (Sfaks
+ *   Thyna); bu bir öneri listesidir. Enter'da havalimanının doğrudan açılması arama kutusunun
+ *   kuralıdır (`search-box-model.ts` `submitOutcome`, D-108, D-118): tam kod (yurt dışındaki bir
+ *   havalimanının kodu, sorgu Türkiye'deki bir havalimanının adına da uyuyorsa değil: "den", "sab")
+ *   ya da aranan sorgunun en az 4 harfiyle tek eşleşme. Aranan
  *   sorgunun harf sayısı sonuçla döner (`queryLetters`): dolgu sözcükleri ve yedekte atılan yarım
  *   dolgu sözcüğü sayılmaz ("THY airport" ve "THY h" 3 harftir).
  * - **Rakamlı ya da hex sorgu** (`airportQueryKind` → `code`) yalnız tam kod arar: "TK1985" ya da
@@ -185,12 +187,29 @@ function unique(values: Iterable<string>): string[] {
 }
 
 /**
- * Dizini kurar; çağıranın sırası korunur (bir basamağın içindeki sonuç sırası budur). Her kayıt için
- * metinler bir kez katlanır; 3.500 havalimanında kurulum bir kezlik ve kısadır.
+ * Dilimli kurulumun bir dilimde en az işlediği kayıt: boşta süre kalmasa da (`timeRemaining()` 0)
+ * kurulum ilerler. 32 kayıt masaüstünde ~1 ms'dir.
  */
-export function createAirportSearchIndex<T>(
+export const AIRPORT_SEARCH_MIN_SLICE_ENTRIES = 32
+
+/**
+ * Dizinin dilimli kurulumu (`airportSearchIndexBuilder`; M6j.3, D-108): `step` her çağrıda kayıtları
+ * sırayla işler, `timeRemaining()` sıfıra inince (en az `AIRPORT_SEARCH_MIN_SLICE_ENTRIES` kayıttan
+ * sonra) durur ve null döner; son kayıt işlenince dizini döndürür (sonraki çağrılar aynı dizini).
+ * `timeRemaining` tarayıcının `IdleDeadline.timeRemaining`'i gibidir (ms).
+ */
+export interface AirportSearchIndexBuilder<T> {
+  step(timeRemaining: () => number): AirportSearchIndex<T> | null
+}
+
+/**
+ * Dizini dilimlerle kuran nesne: çağıranın sırası korunur (bir basamağın içindeki sonuç sırası
+ * budur). Her kayıt için metinler bir kez katlanır. Dilimli kurulumun dizini tek seferlik kurulumunkiyle
+ * aynıdır (`createAirportSearchIndex` aynı kurucuyu tek dilimde çalıştırır).
+ */
+export function airportSearchIndexBuilder<T>(
   entries: readonly AirportSearchEntry<T>[],
-): AirportSearchIndex<T> {
+): AirportSearchIndexBuilder<T> {
   // Aynı metin (ülke, il, şehir adı) birçok kayıtta geçer: kurulum boyunca bir kez katlanır.
   const folded = new Map<string, readonly string[]>()
   const tokensOf = (text: string): readonly string[] => {
@@ -212,7 +231,7 @@ export function createAirportSearchIndex<T>(
     }
     return text
   }
-  const items = entries.map((entry): IndexedAirport<T> => {
+  const indexed = (entry: AirportSearchEntry<T>): IndexedAirport<T> => {
     const texts = unique([...entry.names, ...entry.places])
     const phrases = unique(texts.map((text) => tokensOf(text).join(' '))).filter(Boolean)
     const codes = [entry.iata, entry.icao].map((code) => foldSearchText(code)).filter(Boolean)
@@ -226,9 +245,38 @@ export function createAirportSearchIndex<T>(
       words: ` ${words.join(' ')}`,
       countryWords: countryWordsOf(entry.countries),
     }
-  })
-  const index: AirportSearchIndex<T> = Object.freeze({ size: items.length })
-  INDEX_ITEMS.set(index, items)
+  }
+  const items: IndexedAirport<T>[] = []
+  let index: AirportSearchIndex<T> | null = null
+  return {
+    step(timeRemaining) {
+      if (index !== null) return index
+      let processed = 0
+      while (
+        items.length < entries.length &&
+        (processed < AIRPORT_SEARCH_MIN_SLICE_ENTRIES || timeRemaining() > 0)
+      ) {
+        items.push(indexed(entries[items.length] as AirportSearchEntry<T>))
+        processed++
+      }
+      if (items.length < entries.length) return null
+      index = Object.freeze({ size: items.length })
+      INDEX_ITEMS.set(index, items)
+      return index
+    },
+  }
+}
+
+/**
+ * Dizini tek seferde kurar; çağıranın sırası korunur. Web'in boşta kurulumu dilimlidir
+ * (`airportSearchIndexBuilder`; 5. halkanın 3.266 havalimanında kayıtlar ve dizin birlikte masaüstünde
+ * ~55 ms, 8 ms'lik dilimlerle 7 dilim).
+ */
+export function createAirportSearchIndex<T>(
+  entries: readonly AirportSearchEntry<T>[],
+): AirportSearchIndex<T> {
+  const index = airportSearchIndexBuilder(entries).step(() => Number.POSITIVE_INFINITY)
+  if (index === null) throw new Error('airport search index: one-shot build did not finish')
   return index
 }
 

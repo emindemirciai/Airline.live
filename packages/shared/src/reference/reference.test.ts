@@ -175,16 +175,17 @@ describe('AIRPORT_NAMES', () => {
     expect(airportDisplayName(cov, 'tr')).toBe('Çukurova Uluslararası Havalimanı')
     // Tabloda olmayan havalimanı (ör. OurAirports'a sonradan eklenen ya da sonraki halkalardaki)
     // OurAirports adıyla görünür; Türkçede "Airport" kuralla "Havalimanı" olur (D-080).
-    // 4. halka açıldı (D-102): Heathrow tablodadır; tabloda olmayan örnek 5. halkadan.
+    // 5. halka açıldı (M6j.3, D-109): Heathrow ve Los Angeles tablodadır; tabloda olmayan örnek
+    // listelenmeyen Paris-Le Bourget'dir (tarifesiz, D-109'un dışlama örneği).
     expect(airportDisplayName({ icao: 'EGLL', name: 'London Heathrow Airport' }, 'tr')).toBe(
       'Londra Heathrow Havalimanı',
     )
-    expect(airportDisplayName({ icao: 'KLAX', name: 'Los Angeles Airport' }, 'tr')).toBe(
-      'Los Angeles Havalimanı',
-    )
-    expect(airportDisplayName({ icao: 'KLAX', name: 'Los Angeles Airport' }, 'en')).toBe(
-      'Los Angeles Airport',
-    )
+    const lax = { icao: 'KLAX', name: 'Los Angeles International Airport' }
+    expect(airportDisplayName(lax, 'tr')).toBe('Los Angeles Havalimanı')
+    expect(airportDisplayName(lax, 'en')).toBe('Los Angeles International Airport')
+    const lfpb = { icao: 'LFPB', name: 'Paris-Le Bourget International Airport' }
+    expect(airportDisplayName(lfpb, 'tr')).toBe('Paris-Le Bourget Uluslararası Havalimanı')
+    expect(airportDisplayName(lfpb, 'en')).toBe('Paris-Le Bourget International Airport')
     expect(airportDisplayName({ icao: 'LTZZ', name: 'Yozgat Airport' }, 'tr')).toBe(
       'Yozgat Havalimanı',
     )

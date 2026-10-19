@@ -40,8 +40,8 @@ export interface AirportListControlProps {
  * okuyucu yoludur (WCAG 2.1.1, D-078). Liste Escape'le ve dışına tıklanınca kapanır; Escape'i
  * kendisi tüketir (açık havalimanı penceresi kapanmaz).
  *
- * Düğme sunucuda çizilir; panel (havalimanı adlarıyla) ayrı parçadadır (D-101): 4. halkanın ad
- * tabloları haritanın ilk paketine girmez. Parça harita hazır olunca boşta önceden istenir
+ * Düğme sunucuda çizilir; panel (havalimanı adlarıyla) ayrı parçadadır (D-101): 1.–5. halkanın ad
+ * tabloları haritanın ilk paketine girmez (tek tembel parça, `airport-lazy.ts`, D-108). Parça harita hazır olunca boşta önceden istenir
  * (`preloadAirportListPanel`, live-map.tsx); düğmenin üstüne gelmek ya da odaklanmak da ister.
  */
 export function AirportListControl({

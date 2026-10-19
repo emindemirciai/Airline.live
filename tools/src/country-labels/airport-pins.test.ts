@@ -28,7 +28,9 @@ import {
   chipLeftBoxPx,
   listedAirportPins,
   mapAirportPins,
+  OBSTACLE_PIN_MIN_ZOOM,
   obstacleBoxesPx,
+  obstaclePinBoxPx,
   pinBoxPx,
   pinScaleAt,
   readOurAirportsFixture,
@@ -71,9 +73,12 @@ function woffTable(buffer: Buffer, tag: string): Buffer {
   throw new Error(`${tag} missing`)
 }
 
-/** Kaba tarama: her havalimanının pin ve iki kod kutusu ayrı ayrı denetlenir. */
+/**
+ * Kaba tarama: her havalimanının pin ve iki kod kutusu ayrı ayrı denetlenir (pin engel modelinin
+ * boyunda: z4'ün altında z4'ünkü, D-118).
+ */
 function bruteHits(box: WorldBox, zoom: number): { count: number; icaos: string[] } {
-  const parts = [pinBoxPx(zoom), chipBoxPx(zoom), chipLeftBoxPx(zoom)].filter(
+  const parts = [obstaclePinBoxPx(zoom), chipBoxPx(zoom), chipLeftBoxPx(zoom)].filter(
     (part) => part !== null,
   )
   let count = 0
@@ -89,18 +94,26 @@ function bruteHits(box: WorldBox, zoom: number): { count: number; icaos: string[
 }
 
 describe('listelenen havalimanları (D-080, D-099)', () => {
-  it('üretimdeki liste: 1.240 havalimanı (Türkiye 56, 1. halka 77, 2. halka 104, 3. halka 283, 4. halka 720; savaş kapanışlarıyla, D-110), askerî üsler yok (D-107), ICAO sırasıyla', () => {
-    // Halka açılınca fixture yeni halkanın adaylarıyla genişler ve tablo yeniden üretilir (M6i.2'de
-    // 4. halka, D-102).
-    expect(ENABLED_AIRPORT_RING).toBe(4)
-    expect(PINS).toHaveLength(1240)
-    const byRing = [0, 1, 2, 3, 4].map((ring) => PINS.filter((pin) => pin.ring === ring).length)
-    expect(byRing).toEqual([56, 77, 104, 283, 720])
+  it('üretimdeki liste: 3.266 havalimanı (Türkiye 56, 1. halka 77, 2. halka 104, 3. halka 283, 4. halka 720, 5. halka 2.026; savaş kapanışlarıyla, D-110), askerî üsler ve askerî liste yok (D-107, D-109), ICAO sırasıyla', () => {
+    // Halka açılınca tablo yeni halkanın pinleriyle yeniden üretilir (M6i.2'de 4. halka, D-102;
+    // M6j.3'te 5. halka, bütün halkalar açık, D-109).
+    expect(ENABLED_AIRPORT_RING).toBe(5)
+    expect(PINS).toHaveLength(3266)
+    const byRing = [0, 1, 2, 3, 4, 5].map((ring) => PINS.filter((pin) => pin.ring === ring).length)
+    expect(byRing).toEqual([56, 77, 104, 283, 720, 2026])
     const icaos = PINS.map((pin) => pin.icao)
     expect(icaos).toEqual([...icaos].sort())
-    expect(new Set(icaos).size).toBe(1240)
+    expect(new Set(icaos).size).toBe(3266)
     for (const icao of ['LTFM', 'LTAC', 'OIIE', 'LIMP', 'UUEE', 'HEBA', 'EGLL', 'VIDP', 'ZMCK'])
       expect(icaos).toContain(icao)
+    for (const icao of ['KJFK', 'SPJC', 'YSSY', 'PHNL', 'SCIP', 'NTAT', 'FHAW', 'KBLV'])
+      expect(icaos).toContain(icao)
+    // Dört karakterli ICAO kuralı (D-101): Aleknagik (5A8, WKK) ve Leshan (CN-0249, LSG) yok.
+    for (const iata of ['WKK', 'LSG'])
+      expect(
+        PINS.some((pin) => pin.iata === iata),
+        iata,
+      ).toBe(false)
     // Ukrayna'da ilk kez pin var (D-110): 16 havalimanı, Kırım dahil.
     expect(icaos.filter((icao) => icao.startsWith('UK'))).toHaveLength(16)
     for (const icao of ['UKBB', 'UKFF', 'URRP', 'FZMA']) expect(icaos).toContain(icao)
@@ -110,10 +123,12 @@ describe('listelenen havalimanları (D-080, D-099)', () => {
     expect(PINS.some((pin) => pin.iata === 'KHX')).toBe(false)
   })
 
-  it('haritadaki pinler (D-103, D-107): listenin kendisi; savunma süzgeci (`mapShownAirports`) bir şey çıkarmaz; 1.240 havalimanı (Türkiye 56)', () => {
-    expect(MAP_PINS).toHaveLength(1240)
-    const byRing = [0, 1, 2, 3, 4].map((ring) => MAP_PINS.filter((pin) => pin.ring === ring).length)
-    expect(byRing).toEqual([56, 77, 104, 283, 720])
+  it('haritadaki pinler (D-103, D-107): listenin kendisi; savunma süzgeci (`mapShownAirports`) bir şey çıkarmaz; 3.266 havalimanı (Türkiye 56)', () => {
+    expect(MAP_PINS).toHaveLength(3266)
+    const byRing = [0, 1, 2, 3, 4, 5].map(
+      (ring) => MAP_PINS.filter((pin) => pin.ring === ring).length,
+    )
+    expect(byRing).toEqual([56, 77, 104, 283, 720, 2026])
     const icaos = MAP_PINS.map((pin) => pin.icao)
     expect(icaos).toEqual([...icaos].sort())
     expect(MAP_PINS).toEqual(PINS)
@@ -132,6 +147,8 @@ describe('pin ve kod kutusu (D-099)', () => {
       'interpolate',
       ['linear'],
       ['zoom'],
+      3,
+      0.3,
       4,
       0.45,
       8,
@@ -143,9 +160,11 @@ describe('pin ve kod kutusu (D-099)', () => {
     ])
     expect(AIRPORT_LAYER.layout['icon-anchor']).toBe('bottom')
     expect(AIRPORT_LAYER.layout['icon-offset']).toEqual([0, 3])
-    expect([pinScaleAt(3), pinScaleAt(4), pinScaleAt(6), pinScaleAt(8)]).toEqual([
-      0.45, 0.45, 0.525, 0.6,
+    // 5. halkayla düşük yakınlaştırmada pin küçülür (M6j.3, D-109): z3 0,30, z4'ten sonrası aynı.
+    expect([pinScaleAt(2), pinScaleAt(3), pinScaleAt(3.5), pinScaleAt(4)]).toEqual([
+      0.3, 0.3, 0.375, 0.45,
     ])
+    expect([pinScaleAt(6), pinScaleAt(8)]).toEqual([0.525, 0.6])
     const box = pinBoxPx(4)
     expect(box.left).toBeCloseTo(-6.75, 9)
     expect(box.top).toBeCloseTo(-15.75, 9)
@@ -180,6 +199,23 @@ describe('pin ve kod kutusu (D-099)', () => {
     // Engel kutuları: z5'in altında yalnız pin; z5'ten pin, sağdaki ve soldaki kod.
     expect(obstacleBoxesPx(4.75)).toEqual([pinBoxPx(4.75)])
     expect(obstacleBoxesPx(6)).toEqual([pinBoxPx(6), chipBoxPx(6), chipLeftBoxPx(6)])
+  })
+
+  it('engel modelinde pin z4’ün altında z4 boyundadır; çizilen pin hiçbir yakınlaştırmada modelinkinden büyük değildir (D-118)', () => {
+    expect(OBSTACLE_PIN_MIN_ZOOM).toBe(4)
+    for (const zoom of [2, 3, 3.5, 3.95]) {
+      expect(obstacleBoxesPx(zoom), String(zoom)).toEqual([pinBoxPx(4)])
+      expect(pinScaleAt(zoom), String(zoom)).toBeLessThan(pinScaleAt(4))
+    }
+    for (let zoom = 0; zoom <= 8; zoom += 0.25) {
+      const drawn = pinBoxPx(zoom)
+      const model = obstaclePinBoxPx(zoom)
+      expect(model.left, String(zoom)).toBeLessThanOrEqual(drawn.left)
+      expect(model.top, String(zoom)).toBeLessThanOrEqual(drawn.top)
+      expect(model.right, String(zoom)).toBeGreaterThanOrEqual(drawn.right)
+      expect(model.bottom, String(zoom)).toBeGreaterThanOrEqual(drawn.bottom)
+      if (zoom >= 4) expect(model, String(zoom)).toEqual(drawn)
+    }
   })
 
   it('sabitler web’in labels.ts’iyle ve IBM Plex Mono 500’ün dosyasıyla aynı', () => {

@@ -68,9 +68,9 @@ setup('havalimanı referans verisi API’de', async ({ request }) => {
     )
     .toBe(AIRPORT_COUNT)
 
-  // Listelenen havalimanları (M6d, D-080; M6g, D-088; M6h, D-090; M6i.2, D-102): Türkiye + 1.–4.
-  // halka (1.240; askerî hava üsleri yok, D-107; savaş nedeniyle kapalı 23 havalimanı dahil,
-  // D-110). Sayfalar, site haritası ve harita bu listeyi kullanır; halka üyeliği API'de hesaplanıp önbelleğe alınır. Yerel veritabanı eski bir içe
+  // Listelenen havalimanları (M6d, D-080; M6g, D-088; M6h, D-090; M6i.2, D-102; M6j.3, D-109):
+  // Türkiye + 1.–5. halka (3.266; askerî hava üsleri ve yurt dışı askerî liste yok, D-107, D-109;
+  // savaş nedeniyle kapalı 23 havalimanı dahil, D-110). Sayfalar, site haritası ve harita bu listeyi kullanır; halka üyeliği API'de hesaplanıp önbelleğe alınır. Yerel veritabanı eski bir içe
   // aktarımı tutuyorsa (sayı eski halkanın sayısıdır) iki OurAirports satırı `reference_sources`'ta
   // sıfırlanır; web'in geliştirme veri önbelleği (`apps/web/.next/dev/cache/fetch-cache`) de eski
   // listeyi 1 saat sunabilir (M6h kaydı).
@@ -86,7 +86,7 @@ setup('havalimanı referans verisi API’de', async ({ request }) => {
       },
       {
         message:
-          'API listelenen havalimanlarını (Türkiye + 1.–4. halka) döndürmedi (GET /v1/airports?scope=listed)',
+          'API listelenen havalimanlarını (Türkiye + 1.–5. halka) döndürmedi (GET /v1/airports?scope=listed)',
         timeout: 90_000,
         intervals: [3_000],
       },
@@ -152,14 +152,15 @@ setup('hava durumu verisi API’de', async ({ request }) => {
     )
     .toContain(PRIMARY_WEATHER.latestMetarGroups[0])
 
-  // Havalimanı sayfaları listelenen havalimanlarının toplu yanıtını kullanır (`scope=listed`, ayrı
-  // önbellek kaydı): 1. halkadaki fixture istasyonu da görünmeli. Harita penceresi 3. halkadan beri
+  // Havalimanı sayfaları listelenen havalimanlarının toplu yanıtını ham biçimde kullanır
+  // (`scope=listed&format=raw`, ayrı önbellek kaydı; tam biçim 400, D-111): 1. halkadaki fixture
+  // istasyonu da görünmeli. Harita penceresi 3. halkadan beri
   // tek havalimanını ister (`/v1/airports/<ICAO>/weather`, D-090).
   await expect
     .poll(
       async () => {
         const response = await request
-          .get(`${API_URL}/v1/weather?scope=listed`, { failOnStatusCode: false })
+          .get(`${API_URL}/v1/weather?scope=listed&format=raw`, { failOnStatusCode: false })
           .catch(() => null)
         if (!response?.ok()) return null
         const data = (await response.json()) as {
@@ -169,7 +170,7 @@ setup('hava durumu verisi API’de', async ({ request }) => {
         return typeof station?.metar?.raw === 'string' ? station.metar.raw : null
       },
       {
-        message: `Toplu hava durumu yanıtında ${RING1_AIRPORT.icao}'ın METAR'ı yok (GET /v1/weather?scope=listed)`,
+        message: `Toplu hava durumu yanıtında ${RING1_AIRPORT.icao}'ın METAR'ı yok (GET /v1/weather?scope=listed&format=raw)`,
         timeout: 90_000,
         intervals: [3_000],
       },

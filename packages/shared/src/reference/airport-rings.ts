@@ -19,11 +19,13 @@ export const AIRPORT_RINGS_KM = [500, 1000, 2000, 5000] as const
 export const AIRPORT_RING_COUNT = AIRPORT_RINGS_KM.length + 1
 
 /**
- * Açık olan en uzak halka: M6i.2'den (D-102) beri 4. halka, ≤ 5.000 km (M6d'de 1. halka, ≤ 500 km;
- * M6g'de 2. halka, ≤ 1.000 km; M6h'de 3. halka, ≤ 2.000 km). Üretim veritabanı bütün adayları zaten
- * tutar (içe aktarım süzgeci halkaya bakmaz); halkayı açmak için veri migration'ı gerekmez.
+ * Açık olan en uzak halka: M6j.3'ten (D-109) beri 5. halka, dünyanın geri kalanı: bütün halkalar
+ * açıktır ve `airportRingLimitKm(ENABLED_AIRPORT_RING)` null'dır (M6d'de 1. halka, ≤ 500 km; M6g'de
+ * 2. halka, ≤ 1.000 km; M6h'de 3. halka, ≤ 2.000 km; M6i.2'de 4. halka, ≤ 5.000 km). Üretim
+ * veritabanı bütün adayları zaten tutar (içe aktarım süzgeci halkaya bakmaz); halkayı açmak için
+ * veri migration'ı gerekmez.
  */
-export const ENABLED_AIRPORT_RING: number = 4
+export const ENABLED_AIRPORT_RING: number = 5
 
 /** Türkiye'nin ISO 3166-1 alpha-2 kodu (OurAirports `iso_country`); Türkiye havalimanları halka 0. */
 export const TURKEY_COUNTRY = 'TR'

@@ -4,9 +4,10 @@
  * - Yurt dışında adı yalnız askerî olan ve tarifeli sivil seferi güvenilir olmayan üç alan (5.
  *   halka, D-109): Bucholz Ordu Hava Alanı (PKWA, Kwajalein), Wake Adası (PWAK) ve Oakey Ordu
  *   Havacılık Merkezi (YBOK). OurAirports üçünü tarifeli orta havalimanı diye kaydeder; D-080 kuralı
- *   onları 5. halkaya aday yapardı. Halka 4'te kaldıkça hiçbir sayfada görünmezler; liste halka
- *   açılmadan önce yazılır. Yurt dışındaki ortak sivil-askerî havalimanları (tarifeli sivil seferi
- *   olan; D-103: Ascension FHAW, MidAmerica KBLV) sivildir, burada yoktur.
+ *   onları 5. halkaya aday yapardı. M6j.3'ten beri 5. halka açıktır; bu liste onları her kanalda
+ *   dışarıda tutar (liste halka açılmadan önce yazıldı). Yurt dışındaki ortak sivil-askerî
+ *   havalimanları (tarifeli sivil seferi olan; D-103: Ascension FHAW, MidAmerica KBLV) sivildir,
+ *   burada yoktur.
  *
  * Sunucu onları listelemez ve Türkiye'deki uzaklık referansı saymaz (`@havayolu/db`
  * `MILITARY_AIRFIELD_ICAOS`, aynı liste; db shared'a bağımlı olmadığı için kendi kopyasını taşır,

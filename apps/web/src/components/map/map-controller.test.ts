@@ -8,12 +8,19 @@ import {
 } from '@havayolu/shared'
 import { describe, expect, it, vi } from 'vitest'
 import { clampViewport } from '../../lib/live/connection'
-import { INITIAL_BOUNDS, INITIAL_MAX_ZOOM, initialZoom, PRIMARY_AIRPORT_VIEW } from './camera'
+import {
+  INITIAL_BOUNDS,
+  INITIAL_MAX_ZOOM,
+  initialZoom,
+  nearestWorldLon,
+  PRIMARY_AIRPORT_VIEW,
+} from './camera'
 import { DEFAULT_LABEL_SETTINGS } from '../../lib/map/label-settings'
 import { AIRPORT_LABEL_MIN_ZOOM } from './labels'
 import {
   drawnAirports,
   iconScaleAt,
+  lonLatWindow,
   mapPadding,
   NO_INSETS,
   NO_PANELS,
@@ -282,17 +289,24 @@ describe('drawnAirports: havalimanları Gizle / Simge / Simge ve kod (D-114)', (
     // Gizle: istisnalar pin kaynağındadır ama kodları yazılmaz, izdüşüm de yapılmaz.
     expect(drawnAirports(airports, hidden, both)).toEqual([ltfm, ltfj])
     expect(
-      screenAirports(project, drawnAirports(airports, hidden, both), 9, hidden, inView),
+      screenAirports(project, drawnAirports(airports, hidden, both), 9, hidden, inView, 28.75),
     ).toEqual([])
     // Simge: bütün pinler, hiçbir kod.
     const icon = { airportDisplay: 'icon' } as const
-    expect(screenAirports(project, drawnAirports(airports, icon, both), 9, icon, inView)).toEqual(
-      [],
-    )
+    expect(
+      screenAirports(project, drawnAirports(airports, icon, both), 9, icon, inView, 28.75),
+    ).toEqual([])
     expect(project).not.toHaveBeenCalled()
     // Simge ve kod: görünümdekilerin kodu.
     const codes = { airportDisplay: 'icon-code' } as const
-    const screen = screenAirports(project, drawnAirports(airports, codes, none), 9, codes, inView)
+    const screen = screenAirports(
+      project,
+      drawnAirports(airports, codes, none),
+      9,
+      codes,
+      inView,
+      28.75,
+    )
     expect(screen.map((item) => item.airport.icao)).toEqual(['LTFM', 'LTFJ'])
     expect(project).toHaveBeenCalledTimes(3)
   })
@@ -367,21 +381,183 @@ describe('screenAirports: havalimanı izdüşümü yalnız kod yazılacaksa (D-1
   it('z4 ya da ayar Simge ya da Gizle: hiçbir havalimanı izdüşürülmez', () => {
     expect(AIRPORT_LABEL_MIN_ZOOM).toBe(5)
     const { project, inView } = setup()
-    expect(screenAirports(project, airports, 4, DEFAULT_LABEL_SETTINGS, inView)).toEqual([])
+    expect(screenAirports(project, airports, 4, DEFAULT_LABEL_SETTINGS, inView, 28.75)).toEqual([])
     expect(
-      screenAirports(project, airports, 4.99, { airportDisplay: 'icon-code' }, inView),
+      screenAirports(project, airports, 4.99, { airportDisplay: 'icon-code' }, inView, 28.75),
     ).toEqual([])
-    expect(screenAirports(project, airports, 9, { airportDisplay: 'icon' }, inView)).toEqual([])
-    expect(screenAirports(project, airports, 9, { airportDisplay: 'hidden' }, inView)).toEqual([])
+    expect(screenAirports(project, airports, 9, { airportDisplay: 'icon' }, inView, 28.75)).toEqual(
+      [],
+    )
+    expect(
+      screenAirports(project, airports, 9, { airportDisplay: 'hidden' }, inView, 28.75),
+    ).toEqual([])
     expect(project).not.toHaveBeenCalled()
   })
 
   it('z5 ve ayar Simge ve kod: her havalimanı bir kez izdüşürülür, görünümdekiler döner', () => {
     const { project, inView } = setup()
-    const screen = screenAirports(project, airports, 5, { airportDisplay: 'icon-code' }, inView)
+    const screen = screenAirports(
+      project,
+      airports,
+      5,
+      { airportDisplay: 'icon-code' },
+      inView,
+      28.75,
+    )
     expect(project).toHaveBeenCalledTimes(3)
     expect(screen.map((item) => item.airport.icao)).toEqual(['LTFM', 'LTBA'])
     expect(screen[0]?.x).toBeCloseTo(287.3, 6)
     expect(screen[0]?.y).toBeCloseTo(412.6, 6)
+  })
+
+  it('180. meridyen (D-111): 179,5° D ve −179,5°’de z5 kamerada Fiji, Tonga, Samoa ve Wallis kodları görünümde', () => {
+    // MapLibre'nin izdüşümü gibi (Web Mercator, dünya 512 × 2^z px) ve onun gibi boylamı sarmadan:
+    // 179,5° D'ye bakan kamerada sarılmamış Tonga (−175,15°) x = −15.501 px'e düşerdi (MapLibre
+    // 6.11.2 `MercatorTransform` ile aynı sayı); pini 184,85°'de çizilir.
+    const width = 1280
+    const height = 800
+    const world = 512 * 2 ** 5
+    const mercatorY = (lat: number) => {
+      const sin = Math.sin((lat * Math.PI) / 180)
+      return (0.5 - Math.log((1 + sin) / (1 - sin)) / (4 * Math.PI)) * world
+    }
+    const camera = (centerLon: number) => ({
+      project: ([lon, lat]: [number, number]) => ({
+        x: ((lon - centerLon) / 360) * world + width / 2,
+        y: mercatorY(lat) - mercatorY(-17) + height / 2,
+      }),
+      inView: (x: number, y: number) => x >= 0 && x <= width && y >= 0 && y <= height,
+    })
+    const pacific = [
+      { icao: 'NFFN', iata: 'NAN', lat: -17.755, lon: 177.443 },
+      { icao: 'NFTF', iata: 'TBU', lat: -21.241, lon: -175.15 },
+      { icao: 'NSFA', iata: 'APW', lat: -13.83, lon: -172.008 },
+      { icao: 'NLWW', iata: 'WLS', lat: -13.238, lon: -176.199 },
+    ] as Airport[]
+    const unwrapped = camera(179.5).project([-175.15, -21.241])
+    expect(Math.round(unwrapped.x)).toBe(-15501)
+    for (const centerLon of [179.5, -179.5]) {
+      const { project, inView } = camera(centerLon)
+      const screen = screenAirports(
+        project,
+        pacific,
+        5,
+        { airportDisplay: 'icon-code' },
+        inView,
+        centerLon,
+      )
+      expect(
+        screen.map((item) => item.airport.iata),
+        String(centerLon),
+      ).toEqual(['NAN', 'TBU', 'APW', 'WLS'])
+      for (const { airport, x } of screen) {
+        expect(x, `${airport.iata} @ ${centerLon}`).toBeGreaterThanOrEqual(0)
+        expect(x, `${airport.iata} @ ${centerLon}`).toBeLessThanOrEqual(width)
+      }
+    }
+  })
+})
+
+describe('screenAirports: coğrafi ön süzgeç (D-118)', () => {
+  // MapLibre'nin izdüşümü gibi (Web Mercator, dünya 512 × 2^z px, kuzey yukarı, sarılmamış boylam).
+  const width = 1280
+  const height = 800
+  const zoom = 7
+  const camera = (centerLon: number, centerLat: number, z = zoom) => {
+    const world = 512 * 2 ** z
+    const mercatorY = (lat: number) => {
+      const sin = Math.sin((lat * Math.PI) / 180)
+      return (0.5 - Math.log((1 + sin) / (1 - sin)) / (4 * Math.PI)) * world
+    }
+    const latOf = (y: number) =>
+      (Math.atan(Math.sinh(Math.PI * (1 - (2 * y) / world))) * 180) / Math.PI
+    const cy = mercatorY(centerLat)
+    const project = vi.fn(([lon, lat]: [number, number]) => ({
+      x: ((lon - centerLon) / 360) * world + width / 2,
+      y: mercatorY(lat) - cy + height / 2,
+    }))
+    const unproject = ([x, y]: [number, number]) => ({
+      lng: centerLon + ((x - width / 2) / world) * 360,
+      lat: latOf(y - height / 2 + cy),
+    })
+    const margin = 48
+    const inView = (x: number, y: number) =>
+      x >= -margin && y >= -margin && x <= width + margin && y <= height + margin
+    const near = lonLatWindow(
+      unproject([-margin - 1, -margin - 1]),
+      unproject([width + margin + 1, height + margin + 1]),
+    )
+    return { project, inView, near }
+  }
+  const settings = { airportDisplay: 'icon-code' } as const
+  // İstanbul, Ankara, Londra, New York, Sidney; Fiji ve Tonga (180. meridyenin iki yanı).
+  const airports = [
+    { icao: 'LTFM', lat: 41.26, lon: 28.73 },
+    { icao: 'LTFJ', lat: 40.9, lon: 29.31 },
+    { icao: 'LTAC', lat: 40.13, lon: 32.99 },
+    { icao: 'EGLL', lat: 51.47, lon: -0.45 },
+    { icao: 'KJFK', lat: 40.64, lon: -73.78 },
+    { icao: 'YSSY', lat: -33.95, lon: 151.18 },
+    { icao: 'NFFN', lat: -17.755, lon: 177.443 },
+    { icao: 'NFTF', lat: -21.241, lon: -175.15 },
+  ] as Airport[]
+
+  it('yalnız penceredekiler izdüşürülür; sonuç süzgeçsizle aynı', () => {
+    const { project, inView, near } = camera(29, 41)
+    const filtered = screenAirports(project, airports, zoom, settings, inView, 29, near)
+    expect(project).toHaveBeenCalledTimes(2)
+    expect(project.mock.calls.map(([[lon]]) => lon)).toEqual([28.73, 29.31])
+    project.mockClear()
+    const all = screenAirports(project, airports, zoom, settings, inView, 29)
+    expect(project).toHaveBeenCalledTimes(airports.length)
+    expect(filtered).toEqual(all)
+    expect(filtered.map((item) => item.airport.icao)).toEqual(['LTFM', 'LTFJ'])
+  })
+
+  it('180. meridyen: 179,5° D ve −179,5°’ye bakan kamerada Fiji ve Tonga geçer; sonuç süzgeçsizle aynı', () => {
+    for (const centerLon of [179.5, -179.5]) {
+      const { project, inView, near } = camera(centerLon, -19.5, 5)
+      const filtered = screenAirports(project, airports, 5, settings, inView, centerLon, near)
+      expect(project, String(centerLon)).toHaveBeenCalledTimes(2)
+      const all = screenAirports(project, airports, 5, settings, inView, centerLon)
+      expect(filtered, String(centerLon)).toEqual(all)
+      expect(filtered.map((item) => item.airport.icao)).toEqual(['NFFN', 'NFTF'])
+    }
+  })
+
+  it('lonLatWindow: boylam sarılır, enlem sınırlıdır; açıklık 360°’ye ulaşırsa her yer geçer', () => {
+    const pacific = lonLatWindow({ lng: 170, lat: 10 }, { lng: 190, lat: -30 })
+    expect(pacific(-175, -20)).toBe(true)
+    expect(pacific(175, -20)).toBe(true)
+    expect(pacific(185 - 360, 0)).toBe(true)
+    expect(pacific(160, -20)).toBe(false)
+    expect(pacific(-160, -20)).toBe(false)
+    expect(pacific(175, 11)).toBe(false)
+    expect(pacific(175, -31)).toBe(false)
+    const negative = lonLatWindow({ lng: -190, lat: 10 }, { lng: -170, lat: -30 })
+    expect(negative(175, 0)).toBe(true)
+    expect(negative(-175, 0)).toBe(true)
+    expect(negative(0, 0)).toBe(false)
+    const world = lonLatWindow({ lng: -200, lat: 85 }, { lng: 200, lat: -85 })
+    expect(world(0, 0)).toBe(true)
+    expect(world(-179, 84)).toBe(true)
+  })
+})
+
+describe('nearestWorldLon (180. meridyen, D-111)', () => {
+  it('boylam kameranın ortasına en yakın dünya kopyasına kayar (360’ın katı kadar)', () => {
+    expect(nearestWorldLon(-175.15, 179.5)).toBeCloseTo(184.85, 9)
+    expect(nearestWorldLon(177.443, -179.5)).toBeCloseTo(-182.557, 9)
+    expect(nearestWorldLon(28.75, 28.75)).toBe(28.75)
+    expect(nearestWorldLon(-0.45, 28.75)).toBe(-0.45)
+    // Sarılmamış kamera (MapLibre `getCenter`, 540° D) da çalışır.
+    expect(nearestWorldLon(28.75, 540)).toBeCloseTo(388.75, 9)
+    for (const centerLon of [-540, -179.5, 0, 179.5, 359]) {
+      for (const lon of [-180, -175.15, 0, 177.443, 180]) {
+        const wrapped = nearestWorldLon(lon, centerLon)
+        expect(Math.abs(wrapped - centerLon)).toBeLessThanOrEqual(180)
+        expect((((wrapped - lon) % 360) + 360) % 360).toBeCloseTo(0, 9)
+      }
+    }
   })
 })

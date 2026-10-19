@@ -1,3 +1,4 @@
+import type { WeatherHistoryResponse } from '@havayolu/shared'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { fixtureHistory, fixtureWeather } from '../../lib/test/weather-fixture'
 import {
@@ -5,12 +6,15 @@ import {
   airportWeatherUrl,
   fetchAirportWeather,
   fetchWeatherHistory,
-  initialSuccessAt,
-  WEATHER_REFRESH_MS,
-  WEATHER_STALE_ON_MOUNT_MS,
-  WEATHER_RETRY_MS,
-  weatherRefreshDue,
 } from './weather-client'
+import {
+  initialWeatherAt,
+  WEATHER_REFRESH_MS,
+  WEATHER_RETRY_MS,
+  WEATHER_STALE_ON_MOUNT_MS,
+  weatherRefreshDue,
+  WeatherRefresher,
+} from './weather-refresh'
 
 afterEach(() => {
   vi.unstubAllGlobals()
@@ -27,59 +31,24 @@ describe('adresler', () => {
   })
 })
 
-describe('initialSuccessAt: sunucu çiziminin tazeliği', () => {
+describe('initialWeatherAt: sunucu çizimindeki güncel havanın tazeliği', () => {
   const server = Date.parse('2026-01-15T13:00:00Z')
   const iso = (ms: number) => new Date(ms).toISOString()
   // Cihaz saati 2 saat geri: sonuç cihazın Date.now saatindedir, yaş sunucu saatiyle ölçülür.
   const local = server - 2 * 3_600_000
+  const at = (weatherGeneratedAt: string | null) =>
+    initialWeatherAt({ weatherGeneratedAt, serverNow: server, localNow: local })
 
-  it('ikisi de taze: başarılı istek sayılır (yaşı kadar önce)', () => {
-    expect(
-      initialSuccessAt({
-        weatherGeneratedAt: iso(server - 30_000),
-        historyGeneratedAt: iso(server - 50_000),
-        serverNow: server,
-        localNow: local,
-      }),
-    ).toBe(local - 50_000)
+  it('taze: üretildiği an (yaşı kadar önce); açılıştaki istek yalnız kaydı alır (D-111)', () => {
+    expect(at(iso(server - 30_000))).toBe(local - 30_000)
+    // Sunucu saati üretim anından gerideyse yaş sıfırdır.
+    expect(at(iso(server + 5_000))).toBe(local)
   })
 
-  it('güncel hava taze ama kayıt eski (ayrı önbellek): hemen yenilenir', () => {
-    expect(
-      initialSuccessAt({
-        weatherGeneratedAt: iso(server - 10_000),
-        historyGeneratedAt: iso(server - 20 * 3_600_000),
-        serverNow: server,
-        localNow: local,
-      }),
-    ).toBeNull()
-    expect(
-      initialSuccessAt({
-        weatherGeneratedAt: iso(server - 10_000),
-        historyGeneratedAt: iso(server - WEATHER_STALE_ON_MOUNT_MS),
-        serverNow: server,
-        localNow: local,
-      }),
-    ).toBeNull()
-  })
-
-  it('eksik ya da bozuk veri: hemen yenilenir', () => {
-    expect(
-      initialSuccessAt({
-        weatherGeneratedAt: null,
-        historyGeneratedAt: iso(server),
-        serverNow: server,
-        localNow: local,
-      }),
-    ).toBeNull()
-    expect(
-      initialSuccessAt({
-        weatherGeneratedAt: iso(server),
-        historyGeneratedAt: 'bozuk',
-        serverNow: server,
-        localNow: local,
-      }),
-    ).toBeNull()
+  it('eski, eksik ya da bozuk: null (ada açılışta güncel havayı da ister)', () => {
+    expect(at(iso(server - WEATHER_STALE_ON_MOUNT_MS))).toBeNull()
+    expect(at(null)).toBeNull()
+    expect(at('bozuk')).toBeNull()
   })
 })
 
@@ -115,5 +84,115 @@ describe('istekler', () => {
       throw new DOMException('aborted', 'AbortError')
     })
     await expect(fetchAirportWeather(API, 'LTFM', controller.signal)).rejects.toThrow()
+  })
+})
+
+describe('WeatherRefresher: kayıt yalnız tarayıcıda (D-111)', () => {
+  const START = Date.parse('2026-01-15T13:00:00Z')
+
+  function setup(freshWeatherAt: number | null) {
+    let clock = START
+    const fetchWeather = vi.fn(async (_api: string, icao: string, _signal: AbortSignal) =>
+      fixtureWeather(icao),
+    )
+    const fetchHistory = vi.fn(
+      async (
+        _api: string,
+        icao: string,
+        _signal: AbortSignal,
+      ): Promise<WeatherHistoryResponse | null> => fixtureHistory(icao),
+    )
+    const apply = vi.fn()
+    const refresher = new WeatherRefresher({
+      apiBaseUrl: API,
+      icao: 'LTFM',
+      freshWeatherAt,
+      apply,
+      fetchWeather,
+      fetchHistory,
+      now: () => clock,
+    })
+    return {
+      refresher,
+      fetchWeather,
+      fetchHistory,
+      apply,
+      advance: (ms: number) => {
+        clock += ms
+      },
+    }
+  }
+
+  it('güncel hava tazeyse açılışta yalnız kayıt; sonraki yenileme havanın yaşına göre ikisini birden ister', async () => {
+    const weatherAt = START - 30_000
+    const { refresher, fetchWeather, fetchHistory, apply, advance } = setup(weatherAt)
+    await refresher.check()
+    expect(fetchWeather).not.toHaveBeenCalled()
+    expect(fetchHistory).toHaveBeenCalledTimes(1)
+    expect(fetchHistory.mock.calls[0]?.slice(0, 2)).toEqual([API, 'LTFM'])
+    expect(apply).toHaveBeenCalledWith({ weather: null, history: fixtureHistory('LTFM') })
+    // Güncel hava 5 dakikalık olana kadar yeni istek yok.
+    advance(WEATHER_REFRESH_MS - 30_000 - 1)
+    expect(refresher.check()).toBeNull()
+    advance(1)
+    await refresher.check()
+    expect(fetchWeather).toHaveBeenCalledTimes(1)
+    expect(fetchHistory).toHaveBeenCalledTimes(2)
+    expect(apply).toHaveBeenLastCalledWith({
+      weather: fixtureWeather('LTFM'),
+      history: fixtureHistory('LTFM'),
+    })
+  })
+
+  it('güncel hava eski ya da yoksa açılışta ikisi birden; 5 dakikada bir yenilenir', async () => {
+    const { refresher, fetchWeather, fetchHistory, advance } = setup(null)
+    await refresher.check()
+    expect([fetchWeather.mock.calls.length, fetchHistory.mock.calls.length]).toEqual([1, 1])
+    advance(WEATHER_REFRESH_MS - 1)
+    expect(refresher.check()).toBeNull()
+    advance(1)
+    await refresher.check()
+    expect([fetchWeather.mock.calls.length, fetchHistory.mock.calls.length]).toEqual([2, 2])
+  })
+
+  it('kayıt alınamazsa sonuç yine bildirilir (bölüm "alınamıyor" der); en erken 1 dk sonra ikisi birden yeniden', async () => {
+    const { refresher, fetchWeather, fetchHistory, apply, advance } = setup(START)
+    fetchHistory.mockResolvedValueOnce(null)
+    await refresher.check()
+    expect(apply).toHaveBeenLastCalledWith({ weather: null, history: null })
+    advance(WEATHER_RETRY_MS - 1)
+    expect(refresher.check()).toBeNull()
+    advance(1)
+    await refresher.check()
+    expect(fetchWeather).toHaveBeenCalledTimes(1)
+    expect(apply).toHaveBeenLastCalledWith({
+      weather: fixtureWeather('LTFM'),
+      history: fixtureHistory('LTFM'),
+    })
+    // Ağ hatası da bildirilir.
+    fetchHistory.mockRejectedValueOnce(new TypeError('fetch failed'))
+    advance(WEATHER_REFRESH_MS)
+    await refresher.check()
+    expect(apply).toHaveBeenLastCalledWith({ weather: null, history: null })
+  })
+
+  it('kapatılınca süren istek kesilir, sonucu uygulanmaz ve yeni istek gitmez', async () => {
+    const { refresher, fetchHistory, apply, advance } = setup(null)
+    const signals: AbortSignal[] = []
+    fetchHistory.mockImplementationOnce(
+      (_api, _icao, signal) =>
+        new Promise((_resolve, reject) => {
+          signals.push(signal)
+          signal.addEventListener('abort', () => reject(new DOMException('aborted', 'AbortError')))
+        }),
+    )
+    const pending = refresher.check()
+    refresher.destroy()
+    await pending
+    expect(signals[0]?.aborted).toBe(true)
+    expect(apply).not.toHaveBeenCalled()
+    advance(WEATHER_REFRESH_MS)
+    expect(refresher.check()).toBeNull()
+    expect(fetchHistory).toHaveBeenCalledTimes(1)
   })
 })

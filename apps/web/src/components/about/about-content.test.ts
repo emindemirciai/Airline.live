@@ -95,13 +95,13 @@ describe('AboutContent', () => {
     expect(text(render('tr', STATIONS, null))).not.toContain('çekim alanının dışında kalan')
   })
 
-  it('liste kuralı şimdilik 5.000 km; canlı veri alanı açıkça yazılır (D-080, D-090, D-102, D-106)', () => {
+  it('liste kuralı: bütün halkalar açık, uzaklık sınırı yazılmaz; canlı veri alanı açıkça yazılır (D-080, D-090, D-102, D-106, D-109)', () => {
     const tr = text(render('tr'))
     expect(tr).toContain(
       'Havalimanları: listedeki her havalimanının kodları, pistleri ve en yakın havalimanları.',
     )
     expect(tr).toContain(
-      'Havalimanı listesinde şimdilik Türkiye’nin IATA kodlu havalimanları ile diğer ülkelerin, Türkiye’deki en yakın havalimanına uzaklığı en fazla 5.000 km olan, IATA kodlu büyük ve orta boy havalimanları yer alır. Diğer ülkelerdeki havalimanlarının çoğu canlı veri çekim alanının dışındadır',
+      'Havalimanı listesinde Türkiye’nin IATA kodlu havalimanları ile diğer ülkelerin IATA kodlu büyük ve orta boy havalimanları yer alır. Diğer ülkelerdeki havalimanlarının çoğu canlı veri çekim alanının dışındadır',
     )
     // Kapsama dürüstlüğü (D-106): canlı veri alanı ürün tercihi değil, bugünkü sınır olarak yazılır.
     expect(tr).toContain('Canlı uçak verisi şimdilik yalnızca Türkiye ve çevresinden çekilir')
@@ -110,7 +110,11 @@ describe('AboutContent', () => {
     // OurAirports'un tarifeli sefer bilgisi gösterilmez (D-078, kullanıcı kararı).
     expect(tr).not.toMatch(/tarifeli sefer/i)
     const en = text(render('en'))
-    expect(en).toContain('at most 5,000 km from the nearest airport in Türkiye.')
+    expect(en).toContain(
+      'The airport list includes airports in Türkiye with an IATA code and large and medium airports with an IATA code in other countries.',
+    )
+    // 4. halkada liste kuralı uzaklıkla yazılıyordu ("en fazla 5.000 km"); 5. halkayla sınır yok.
+    for (const body of [tr, en]) expect(body).not.toMatch(/en fazla [\d.]+ km|at most [\d,]+ km/)
     expect(en).toContain('for every listed airport.')
     expect(en).toContain(
       'Live aircraft data is currently fetched only over Türkiye and the surrounding area',

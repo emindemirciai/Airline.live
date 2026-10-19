@@ -42,6 +42,20 @@ const byIcao = (icao: string) => {
   return airport
 }
 
+/**
+ * Şehir adının ayrılmaz parçası olan "Island" (5. halka, D-109): Grand Island ve Island Lake iki
+ * dilde, West Island (Cocos Keeling Adaları) iki dilde; İngilizcede Union Island, Hamilton Island ve
+ * Chatham Islands.
+ */
+const ISLAND_CITY: Readonly<Record<string, readonly string[]>> = {
+  CYIV: ['tr', 'en'],
+  KGRI: ['tr', 'en'],
+  NZCI: ['en'],
+  TVSU: ['en'],
+  YBHM: ['en'],
+  YPCC: ['tr', 'en'],
+}
+
 describe('fixture', () => {
   it('IATA kodlu 56 Türkiye havalimanı (askerî üsler yok, D-107), 51 tarifeli (M6b brief §g)', () => {
     expect(AIRPORTS).toHaveLength(56)
@@ -49,19 +63,23 @@ describe('fixture', () => {
     expect(AIRPORTS.every((a) => a.runways.length > 0)).toBe(true)
   })
 
-  it('1.–4. halka: Türkiye dışındaki 1.184 havalimanı 5.000 km içinde, tarifeli ya da kapanış tablosunda ve Türkçe adlı (D-080, D-088, D-090, D-102, D-110)', () => {
+  it('1.–5. halka: Türkiye dışındaki 3.210 havalimanı, tarifeli ya da kapanış tablosunda ve Türkçe adlı (D-080, D-088, D-090, D-102, D-109, D-110)', () => {
     const ring1 = FOREIGN.filter((a) => a.ring === 1)
     const ring2 = FOREIGN.filter((a) => a.ring === 2)
     const ring3 = FOREIGN.filter((a) => a.ring === 3)
     const ring4 = FOREIGN.filter((a) => a.ring === 4)
+    const ring5 = FOREIGN.filter((a) => a.ring === 5)
     expect(ring1).toHaveLength(77)
     expect(ring2).toHaveLength(104)
     expect(ring3).toHaveLength(283)
     expect(ring4).toHaveLength(720)
-    expect(FOREIGN).toHaveLength(ring1.length + ring2.length + ring3.length + ring4.length)
-    expect(FOREIGN).toHaveLength(1184)
+    expect(ring5).toHaveLength(2026)
+    expect(FOREIGN).toHaveLength(
+      ring1.length + ring2.length + ring3.length + ring4.length + ring5.length,
+    )
+    expect(FOREIGN).toHaveLength(3210)
     expect(LISTED).toHaveLength(AIRPORTS.length + FOREIGN.length)
-    expect(LISTED).toHaveLength(1240)
+    expect(LISTED).toHaveLength(3266)
     // Savaş nedeniyle kapalı 23 havalimanı OurAirports'ta tarifesizdir; kapanış tablosuyla listelenir.
     expect(FOREIGN.every((a) => a.scheduled || civilFlightClosure(a.icao) !== undefined)).toBe(true)
     expect(FOREIGN.filter((a) => !a.scheduled)).toHaveLength(23)
@@ -80,12 +98,24 @@ describe('fixture', () => {
     expect(ring4.every((a) => (a.distanceToTrKm ?? Infinity) <= 5000)).toBe(true)
     expect(byIcao('LEBL')).toMatchObject({ ring: 4, distanceToTrKm: 2003 })
     expect(byIcao('ZMCK')).toMatchObject({ ring: 4, distanceToTrKm: 4981 })
+    // 5. halka 5.000 km'nin dışındadır (en yakını Xining, 5.003 km; en uzağı Atuona, 17.767 km).
+    expect(ring5.every((a) => (a.distanceToTrKm ?? -1) > 5000)).toBe(true)
+    expect(byIcao('ZLXN')).toMatchObject({ ring: 5, distanceToTrKm: 5003 })
+    expect(byIcao('NTAT')).toMatchObject({ ring: 5, distanceToTrKm: 17767 })
     // Fixture'ın uzak örneklerinden Frankfurt, Dubai ve Doha Hamad 3. halkada; Heathrow, Paris
-    // Charles de Gaulle, Amsterdam ve Madrid 4. halkadadır ve listelenir. New York JFK 5. halkadadır.
+    // Charles de Gaulle, Amsterdam ve Madrid 4. halkada; New York JFK 5. halkadadır ve listelenir.
     for (const icao of ['EDDF', 'OMDB', 'OTHH']) expect(byIcao(icao).ring).toBe(3)
     for (const icao of ['EGLL', 'LFPG', 'EHAM', 'LEMD']) expect(byIcao(icao).ring).toBe(4)
-    // Kihihi (UG-0002, IATA KHX) dört karakterli ICAO taşımaz ve listelenmez (D-101).
-    for (const icao of ['KJFK', 'UG-0002']) {
+    expect(byIcao('KJFK')).toMatchObject({ ring: 5, country: 'US', iata: 'JFK' })
+    // Kihihi (UG-0002, KHX), Aleknagik (5A8, WKK) ve Leshan (CN-0249, LSG) dört karakterli ICAO
+    // taşımaz ve listelenmez (D-101); askerî listedeki üç alan da (D-109).
+    for (const iata of ['KHX', 'WKK', 'LSG', 'AWK', 'OKY', 'KWA']) {
+      expect(
+        LISTED.some((a) => a.iata === iata),
+        iata,
+      ).toBe(false)
+    }
+    for (const icao of ['UG-0002', '5A8', 'CN-0249']) {
       expect(
         LISTED.some((a) => a.icao === icao),
         icao,
@@ -248,9 +278,14 @@ describe('yer: il ya da ülke (D-080)', () => {
       const city = foreignAirportCity(airport.icao)
       for (const locale of LOCALES) {
         const line = airportLocation(airport, locale)
-        expect(line, airport.icao).not.toMatch(/Türkiye|\{|\(/)
-        // Şehir adında "Island" yoktur; ülke adında olabilir (Faroe Islands, 4. halka).
-        expect(city?.[locale], airport.icao).not.toMatch(/Island/)
+        expect(line, airport.icao).not.toMatch(/Türkiye|\{/)
+        // Ayraç şehirde yoktur; ülkenin CLDR adında olabilir ("Cocos (Keeling) Adaları", 5. halka).
+        expect(city?.[locale], airport.icao).not.toMatch(/\(/)
+        // Şehir adında "Island" yalnız aşağıdakilerde; ülke adında olabilir (Faroe Islands, 4.
+        // halka; Solomon Islands, 5. halka).
+        if (ISLAND_CITY[airport.icao]?.includes(locale) !== true) {
+          expect(city?.[locale], airport.icao).not.toMatch(/Island/)
+        }
         expect(line, airport.icao).toBe(`${city?.[locale]}, ${airportCountry(airport, locale)}`)
       }
     }
@@ -258,22 +293,30 @@ describe('yer: il ya da ülke (D-080)', () => {
     expect(airportLocation(byIcao('EGLL'), 'tr')).toBe('Londra, Birleşik Krallık')
     expect(airportLocation(byIcao('EGLL'), 'en')).toBe('London, United Kingdom')
     expect(airportLocation(byIcao('EKVG'), 'en')).toBe('Vágar, Faroe Islands')
-    // Tabloda olmayan yabancı havalimanı (sonraki halkalar): Türkçe sayfada yalnızca ülke, İngilizce
-    // sayfada temiz OurAirports yerleşimi.
-    const jfk = airportFixture({
-      icao: 'KJFK',
-      country: 'US',
-      isoRegion: 'US-NY',
-      municipality: 'New York',
-      ring: 5,
+    // 5. halka (D-109): küratörlü şehir, exonym yalnız kendi ülkesinde.
+    expect(airportLocation(byIcao('KJFK'), 'tr')).toBe('New York, Amerika Birleşik Devletleri')
+    expect(airportLocation(byIcao('KJFK'), 'en')).toBe('New York, United States')
+    expect(airportLocation(byIcao('YSSY'), 'tr')).toBe('Sidney, Avustralya')
+    expect(airportLocation(byIcao('YSSY'), 'en')).toBe('Sydney, Australia')
+    expect(airportLocation(byIcao('SCIP'), 'tr')).toBe('Paskalya Adası, Şili')
+    expect(airportLocation(byIcao('SCIP'), 'en')).toBe('Rapa Nui, Chile')
+    // Tabloda olmayan yabancı havalimanı (bütün halkalar açık: listelenmeyen bir kayıt): Türkçe
+    // sayfada yalnızca ülke, İngilizce sayfada temiz OurAirports yerleşimi.
+    const lfpb = airportFixture({
+      icao: 'LFPB',
+      country: 'FR',
+      isoRegion: 'FR-IDF',
+      municipality: 'Paris',
+      ring: 4,
     })
-    expect(airportLocation(jfk, 'tr')).toBe('Amerika Birleşik Devletleri')
-    expect(airportLocation(jfk, 'en')).toBe('New York, United States')
+    expect(airportLocation(lfpb, 'tr')).toBe('Fransa')
+    expect(airportLocation(lfpb, 'en')).toBe('Paris, France')
   })
 
-  it('açık halkaların sınırı ortak yapılandırmadan gelir (4. halka 5.000 km, D-102)', () => {
-    expect(listedRadiusKm()).toBe(AIRPORT_RINGS_KM[ENABLED_AIRPORT_RING - 1])
-    expect(listedRadiusKm()).toBe(5000)
+  it('açık halkaların sınırı ortak yapılandırmadan gelir; 5. halka açıkken sınır yoktur (D-109)', () => {
+    expect(ENABLED_AIRPORT_RING).toBe(5)
+    expect(AIRPORT_RINGS_KM[ENABLED_AIRPORT_RING - 1]).toBeUndefined()
+    expect(listedRadiusKm()).toBeNull()
   })
 })
 
@@ -317,6 +360,46 @@ describe('başlık ve açıklama: fixture’daki her havalimanı', () => {
     expect(airportDescription(noFacts, 'tr', true)).toBe(
       'LTXX Havalimanı, İstanbul. Çevredeki uçaklar canlı haritada görünür; tarife bilgisi içermez.',
     )
+  })
+
+  it('170 karakteri aşan açıklamada önce rakım, sonra en uzun pistin uzunluğu düşer; 1.–4. halka değişmez (D-109)', () => {
+    const elevationWord = { tr: 'rakım', en: 'elevation' } as const
+    const dropped = new Set<string>()
+    for (const airport of LISTED) {
+      const longest = longestRunway(airport)
+      for (const locale of LOCALES) {
+        for (const covered of [true, false]) {
+          const description = airportDescription(airport, locale, covered)
+          const elevation =
+            airport.elevationFt === null
+              ? null
+              : `${elevationWord[locale]} ${formatMeters(airport.elevationFt, locale)}`
+          const length = longest ? formatMeters(longest.lengthFt, locale) : null
+          const hasElevation = elevation !== null && description.includes(elevation)
+          const hasLength = length !== null && description.includes(length)
+          if ((elevation !== null && !hasElevation) || (length !== null && !hasLength)) {
+            dropped.add(airport.icao)
+            // Yalnız 5. halkada; önce rakım düşer, pist uzunluğu rakım düştükten sonra.
+            expect(airport.ring, airport.icao).toBe(5)
+            if (length !== null && !hasLength) expect(hasElevation, airport.icao).toBe(false)
+          }
+        }
+      }
+    }
+    // 5. halkanın 66 havalimanında en az bir metin (iki dil, canlı kapsamalı ve kapsamasız) rakımı
+    // ya da pist uzunluğunu düşürür: 53 ABD havalimanı, SBGR, SBSG, MSLP, WPDB…
+    expect(dropped.size).toBe(66)
+    expect([...dropped].filter((icao) => icao.startsWith('K'))).toHaveLength(53)
+    // Örnek: São Paulo-Guarulhos'un İngilizce adı uzundur; rakım düşer, pistler kalır.
+    const sbgr = airportDescription(byIcao('SBGR'), 'en', false)
+    expect(sbgr.length).toBeLessThanOrEqual(170)
+    expect(sbgr).toMatch(
+      /^São Paulo\/Guarulhos–Governor André Franco Montoro International Airport, /,
+    )
+    expect(sbgr).not.toMatch(/elevation/)
+    expect(sbgr).toMatch(/runways, longest /)
+    // 1.–4. halkada metin tam biçimdedir (rakım ve en uzun pist).
+    expect(airportDescription(byIcao('EGLL'), 'en', false)).toMatch(/longest [\d,]+ m; elevation /)
   })
 
   it('çekim alanının dışındaki havalimanı çevredeki uçakları vaat etmez', () => {
@@ -412,11 +495,13 @@ describe('sortByCountry', () => {
     const rows = sortByCountry(FOREIGN, 'tr')
     const countries = rows.map((a) => airportCountry(a, 'tr'))
     expect(countries).toEqual(countries.toSorted((a, b) => collator.compare(a, b)))
-    // 3. halkadan beri ilk ülke Afganistan'dır (D-090; 2. halkada Arnavutluk, 1. halkada Azerbaycan).
-    expect(countries[0]).toBe('Afganistan')
-    // Türk alfabesi: Irak I'dan, İran İ'den sonra gelir; Yunanistan en sondadır.
+    // 5. halkadan beri ilk ülke ABD Virjin Adaları'dır (D-109; 3. halkada Afganistan, 2. halkada
+    // Arnavutluk, 1. halkada Azerbaycan); Türk alfabesinde Zimbabve en sondadır.
+    expect(countries[0]).toBe('ABD Virjin Adaları')
+    expect(countries.indexOf('Afganistan')).toBeGreaterThan(0)
+    // Türk alfabesi: Irak I'dan, İran İ'den sonra gelir.
     expect(countries.indexOf('İran')).toBeGreaterThan(countries.lastIndexOf('Irak'))
-    expect(countries.at(-1)).toBe('Yunanistan')
+    expect(countries.at(-1)).toBe('Zimbabve')
     const greece = rows.filter((a) => a.country === 'GR').map((a) => airportName(a, 'tr'))
     expect(greece).toEqual(greece.toSorted((a, b) => collator.compare(a, b)))
     const en = sortByCountry(FOREIGN, 'en').map((a) => airportCountry(a, 'en'))

@@ -2,6 +2,7 @@ import { PROVIDER_LICENSES } from '@havayolu/providers'
 import {
   AirportWeatherSchema,
   IcaoSchema,
+  isWeatherStationIcao,
   inForceTafs,
   toAirportMetar,
   toAirportTaf,
@@ -124,8 +125,8 @@ export const WEATHER_HISTORY_CACHE_WINDOWS = [
  * karşılıyordu (498 × 2 = 996, askerî üsler çıkmadan önce 503 × 2 = 1.006; D-080, D-088, D-090,
  * D-107; 2. halkada 512'ydi). Belleği asıl sınırlayan bayt bütçesidir (24 MB): 24 saatlik pencereler
  * ~50–100 KB'tır, bütçeye en çok ~480 pencere sığar; 168 saatlik pencereler (0,5–0,7 MB) bütçeden
- * atılır. 4. halkada (1.240 × 2 = 2.480, D-110; önce 1.217 × 2 = 2.434) değişmedi (D-101, D-102): bütçe anahtar sınırından önce
- * dolar.
+ * atılır. 4. halkada (1.240 × 2 = 2.480, D-110; önce 1.217 × 2 = 2.434) ve 5. halkada (3.266 × 2 =
+ * 6.532, D-118) değişmedi (D-101, D-102): bütçe anahtar sınırından önce dolar.
  */
 export const WEATHER_HISTORY_CACHE_MAX_ENTRIES = 1024
 /**
@@ -153,6 +154,16 @@ export const WEATHER_ERRORS = {
   badFormat: {
     error: 'bad_format',
     message: `format ${WEATHER_BULK_FORMATS.join(' ya da ')} olmalı (varsayılan full).`,
+  },
+  /**
+   * `scope=listed` yalnız ham biçimle (D-111): listelenen bütün havalimanlarının çözümlenmiş toplu
+   * yanıtı 4. halkada ~4,4 MB, 5. halkada ~15,8 MB'tır ve önbellek her dolduğunda olay döngüsünü
+   * ~0,5 sn tutardı. Web ham biçimi ister; tam biçim ülke isteğinde (`country=XX`) kalır.
+   */
+  rawRequired: {
+    error: 'format_required',
+    message:
+      'scope=listed yalnızca format=raw ile istenebilir; çözümlenmiş biçim için country kullanın.',
   },
 } as const
 
@@ -399,7 +410,8 @@ interface CachedHistory {
  * Hava durumu uçları (aviationweather.gov METAR/TAF; worker yazar, API okurken çözümler):
  * - `GET /v1/weather?country=TR` ya da `?scope=listed` (D-080): listedeki her havalimanı için güncel
  *   hava. `format=raw` (D-101) raporları çözümlemeden verir; web sunucusu bunu ister ve yalnız
- *   çizdiği havalimanını çözümler (`toAirportWeather`).
+ *   çizdiği havalimanını çözümler (`toAirportWeather`). `scope=listed` yalnız ham biçimledir
+ *   (D-111; tam biçim 400).
  * - `GET /v1/airports/:code/weather`: tek havalimanı (tarayıcı yenilemesi, API ve mobil).
  * - `GET /v1/airports/:code/weather/history?hours=24`: METAR/SPECI/TAF kaydı, en yeni önce.
  * Yanıtlar 60 sn süreç içinde tutulur; veritabanı okunamazsa eldeki kopya, o da yoksa 503.
@@ -433,8 +445,10 @@ export function registerWeatherRoutes(
           : async (key) => {
               const read = bulkStations(key)
               if (read === null) throw new Error(`no station reader for ${key}`)
-              // ICAO'su olmayan (GPS kodu ya da OurAirports kimliğiyle listelenen) havalimanı atlanır.
-              const icaos = (await read()).map((s) => s.icao).filter(isIcao)
+              // METAR/TAF istasyonu olmayan havalimanı atlanır: dört harfli ICAO kodu yoksa (GPS
+              // kodu, OurAirports kimliği ya da Transport Canada'nın CAJ4 ve CAT4'ü gibi rakamlı kod;
+              // worker'ın istasyon kuralı, `isWeatherStationIcao`, D-118).
+              const icaos = (await read()).map((s) => s.icao).filter(isWeatherStationIcao)
               const at = new Date(now())
               const records =
                 icaos.length === 0 ? { metars: [], tafs: [] } : await latest(icaos, at)
@@ -640,7 +654,7 @@ export function registerWeatherRoutes(
         tags: ['weather'],
         summary: 'Ülkenin ya da listelenen havalimanlarının güncel havası (METAR/TAF)',
         description:
-          "Listedeki her havalimanı için bir kayıt, liste sırasıyla; raporu olmayan havalimanında metar null. Varsayılan biçim (full) çözümlenmiştir ve tafs yalnız yürürlükteki TAF'lardır: kalan geçerliliği daha yeni TAF'larca kapsanan eski TAF'lar METAR/TAF kaydındadır. format=raw hiçbir raporu çözümlemez: en yeni METAR/SPECI ve süresi dolmamış bütün TAF'lar ham metin ve zamanlarıyla gelir (yürürlük seçimi okuyandadır). Kaynak: aviationweather.gov (NOAA Aviation Weather Center); resmî brifing yerine geçmez.",
+          "Listedeki METAR/TAF istasyonu olan (dört harfli ICAO kodlu) her havalimanı için bir kayıt, liste sırasıyla; raporu olmayan havalimanında metar null. Rakamlı kodla listelenen havalimanı (ör. Kanada'nın CAJ4 ve CAT4'ü) yanıtta yoktur. Varsayılan biçim (full) çözümlenmiştir ve tafs yalnız yürürlükteki TAF'lardır: kalan geçerliliği daha yeni TAF'larca kapsanan eski TAF'lar METAR/TAF kaydındadır. format=raw hiçbir raporu çözümlemez: en yeni METAR/SPECI ve süresi dolmamış bütün TAF'lar ham metin ve zamanlarıyla gelir (yürürlük seçimi okuyandadır). scope=listed yalnız format=raw ile istenir (yoksa 400 format_required); country isteği iki biçimi de verir. Kaynak: aviationweather.gov (NOAA Aviation Weather Center); resmî brifing yerine geçmez.",
         querystring: {
           type: 'object',
           properties: {
@@ -649,7 +663,7 @@ export function registerWeatherRoutes(
               type: 'string',
               enum: [...WEATHER_BULK_FORMATS],
               description:
-                'full (varsayılan): çözümlenmiş raporlar. raw: yalnız ham metin ve kayıt zamanları (istasyon başına ~0,9 KB)',
+                'full (varsayılan): çözümlenmiş raporlar (yalnız country isteğinde). raw: yalnız ham metin ve kayıt zamanları (istasyon başına ~0,9 KB); scope=listed için zorunlu',
             },
           },
         },
@@ -681,6 +695,9 @@ export function registerWeatherRoutes(
           400,
           'scope' in selection ? AIRPORT_ERRORS.badScope : AIRPORT_ERRORS.badCountry,
         )
+      }
+      if ('scope' in selection && bulkFormat !== 'raw') {
+        return fail(reply, 400, WEATHER_ERRORS.rawRequired)
       }
       const key = 'scope' in selection ? LISTED_KEY : selection.country
       if (bulkStations(key) === null) return fail(reply, 503, WEATHER_ERRORS.unavailable)

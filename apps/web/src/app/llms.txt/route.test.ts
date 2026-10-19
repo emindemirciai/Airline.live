@@ -1,6 +1,9 @@
 import type * as AirportsModule from '../../lib/airports'
+import type * as LlmsModule from '../../lib/seo/llms'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { buildLlmsTxt } from '../../lib/seo/llms'
 import { airportFixture, runwayFixture } from '../../lib/test/airport-fixture'
+import { fixtureListedAirports } from '../../lib/test/ourairports-fixture'
 import { GET } from './route'
 
 vi.mock('server-only', () => ({}))
@@ -11,6 +14,11 @@ vi.mock('../../lib/airports', async (importOriginal) => ({
   ...(await importOriginal<typeof AirportsModule>()),
   getAirports,
 }))
+// Kurulum sayılır (D-111: liste başına bir kez); içerik gerçek işlevden gelir.
+vi.mock('../../lib/seo/llms', async (importOriginal) => {
+  const actual = await importOriginal<typeof LlmsModule>()
+  return { ...actual, buildLlmsTxt: vi.fn(actual.buildLlmsTxt) }
+})
 
 const AIRPORTS = [
   airportFixture({
@@ -145,10 +153,17 @@ describe('GET /llms.txt', () => {
       `- [Ercan Havalimanı (ECN/LCEN)](${HOST}/istasyon/LCEN): KKTC; 1 pist; English: [Ercan International Airport](${HOST}/en/istasyon/LCEN)`,
       `- [Atina Eleftherios Venizelos Havalimanı (ATH/LGAV)](${HOST}/istasyon/LGAV): Yunanistan; 2 pist; English: [Athens Eleftherios Venizelos International Airport](${HOST}/en/istasyon/LGAV)`,
     ])
-    // Liste kuralı: şimdilik 5.000 km'ye kadar (4. halka, D-102). Kapsama dürüstlüğü (D-106): canlı
-    // veri alanı ayrı satırda yazılır.
-    expect(text).toContain('uzaklığı en fazla 5.000 km olan')
-    expect(text).toContain('at most 5,000 km from the nearest airport in Türkiye')
+    // Liste kuralı: 5. halkadan beri bütün halkalar açık, uzaklık sınırı yazılmaz (D-109; 4. halkada
+    // "en fazla 5.000 km"). Kapsama dürüstlüğü (D-106): canlı veri alanı ayrı satırda yazılır.
+    expect(text).toContain(
+      'Havalimanı listesinde Türkiye’nin IATA kodlu havalimanları ile diğer ülkelerin IATA kodlu büyük ve orta boy havalimanları yer alır.',
+    )
+    expect(text).toContain(
+      'The airport list includes airports in Türkiye with an IATA code and large and medium airports with an IATA code in other countries.',
+    )
+    expect(text).not.toMatch(
+      /en fazla [\d.]+ km|at most [\d,]+ km|şimdilik Türkiye’nin|For now, the airport list/,
+    )
     expect(text).toContain('Canlı uçak verisi şimdilik yalnızca Türkiye ve çevresinden çekilir')
     expect(text).toContain('Live aircraft data is currently fetched only over Türkiye')
     expect(text).not.toMatch(/[Yy]akın ülke|neighbouring/)
@@ -196,5 +211,42 @@ describe('GET /llms.txt', () => {
   it('e-posta ya da kişisel veri içermez', async () => {
     const { text } = await llms()
     expect(text).not.toMatch(/@[a-z0-9-]+\.[a-z]/i)
+  })
+
+  it('metin liste başına bir kez kurulur; liste yenilenince ya da adres değişince yeniden (D-111)', async () => {
+    const list = AIRPORTS.slice(0, 3)
+    getAirports.mockResolvedValue(list)
+    const build = vi.mocked(buildLlmsTxt)
+    build.mockClear()
+    const first = (await llms()).text
+    for (let i = 0; i < 5; i++) expect((await llms()).text).toBe(first)
+    expect(build).toHaveBeenCalledTimes(1)
+    // Web belleğindeki liste yenilendi: yeni dizi.
+    getAirports.mockResolvedValue([...list])
+    expect((await llms()).text).toBe(first)
+    expect(build).toHaveBeenCalledTimes(2)
+    vi.stubEnv('WEB_HOST', 'example.test')
+    expect((await llms()).text).toContain('https://example.test/')
+    expect(build).toHaveBeenCalledTimes(3)
+  })
+})
+
+describe('GET /llms.txt: fixture’ın bütün listesi (M6j.3, D-109)', () => {
+  it('3.266 listelenen havalimanının her biri için tek satır (56 Türkiye + 3.210 diğer ülkelerde)', async () => {
+    const listed = fixtureListedAirports()
+    expect(listed).toHaveLength(3266)
+    getAirports.mockResolvedValue(listed)
+    const { text } = await llms()
+    const lines = text.split('\n')
+    const airportLines = lines.filter((line) =>
+      /^- \[.+\]\(https:\/\/airline\.live\/istasyon\/[A-Z0-9]{4}\)/.test(line),
+    )
+    expect(airportLines).toHaveLength(3266)
+    const foreignStart = lines.indexOf(FOREIGN_HEADING)
+    const foreign = airportLines.filter((line) => lines.indexOf(line) > foreignStart)
+    expect(foreign).toHaveLength(3210)
+    expect(text).toContain(
+      `- [New York John F. Kennedy Havalimanı (JFK/KJFK)](${HOST}/istasyon/KJFK): Amerika Birleşik Devletleri;`,
+    )
   })
 })

@@ -2,8 +2,6 @@ import { airportNameSource } from '@havayolu/shared'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   airportsUrl,
-  getAirport,
-  getAirports,
   isInLiveCoverage,
   isIndexable,
   isMonitoredStation,
@@ -112,85 +110,143 @@ describe('parseAirportsBody', () => {
   })
 })
 
-describe('getAirports', () => {
+describe('getAirports: web belleğinde liste (D-111)', () => {
+  const HOUR = 3_600_000
+  const START = Date.parse('2026-10-08T12:00:00Z')
+
+  /** Modülün bellek önbelleği her testte boş başlasın; saat sahte (`Date`). */
+  async function freshAirports() {
+    vi.useFakeTimers({ toFake: ['Date'], now: START })
+    vi.resetModules()
+    return import('./airports')
+  }
+
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  /** Arka plandaki yüklemenin sözleri çözülsün. */
+  const settle = () => new Promise((resolve) => setImmediate(resolve))
+
   function stubFetch(...bodies: unknown[]) {
     const calls: { url: string; init: RequestInit & { next?: unknown } }[] = []
     let index = 0
     vi.stubGlobal('fetch', async (url: string, init: RequestInit) => {
       calls.push({ url, init })
       const body = bodies[Math.min(index++, bodies.length - 1)]
+      if (body instanceof Response) return body
       return new Response(JSON.stringify(body), { status: 200 })
     })
     return calls
   }
 
-  it('istemci başlığı iletmeden, saatlik önbellek etiketiyle tek istek atar', async () => {
+  it('Next veri önbelleği yok: no-store, revalidate ve istemci başlığı yok; saat içinde tek istek', async () => {
     vi.stubEnv('API_INTERNAL_URL', 'http://api.internal:4000')
-    const calls = stubFetch({ country: 'TR', airports: ALL })
+    const calls = stubFetch({ scope: 'listed', airports: ALL })
+    const { getAirports, AIRPORTS_TTL_MS } = await freshAirports()
+    expect(AIRPORTS_TTL_MS).toBe(HOUR)
     const airports = await getAirports()
     expect(airports).toHaveLength(ALL.length)
     expect(calls).toHaveLength(1)
     const [call] = calls
     expect(call?.url).toBe('http://api.internal:4000/v1/airports?scope=listed&include=runways')
-    expect(call?.init.next).toEqual({ revalidate: 3600, tags: ['airports'] })
-    expect(call?.init.cache).toBeUndefined()
-    // Önbellek anahtarı başlıkları içerir: yalnızca sabit başlıklar gönderilir.
-    expect(call?.init.headers).toEqual({ accept: 'application/json', 'x-hy-cache-window': '3600' })
+    expect(call?.init.cache).toBe('no-store')
+    expect(call?.init.next).toBeUndefined()
+    expect(call?.init.headers).toEqual({ accept: 'application/json' })
+    // Gövde yükleme başına bir kez ayrıştırılır: saat içindeki çizimler aynı diziyi alır.
+    vi.setSystemTime(START + HOUR - 1)
+    expect(await getAirports()).toBe(airports)
+    expect(calls).toHaveLength(1)
   })
 
-  it('saatlik kayıttaki liste boşsa dakikalık önbellek kaydına bakar, önbelleksiz istek atmaz', async () => {
-    const calls = stubFetch({ country: 'TR', airports: [] }, { country: 'TR', airports: [LTFM] })
+  it('aynı anda gelen ilk çizimler tek yüklemeyi bekler', async () => {
+    const calls = stubFetch({ scope: 'listed', airports: ALL })
+    const { getAirports } = await freshAirports()
+    const lists = await Promise.all(Array.from({ length: 20 }, () => getAirports()))
+    expect(new Set(lists).size).toBe(1)
+    expect(calls).toHaveLength(1)
+  })
+
+  it('süre dolunca eldeki liste hemen verilir; arkada tek yükleme, sonraki çizim yeni listeyi alır', async () => {
+    const calls = stubFetch(
+      { scope: 'listed', airports: [LTFM, LGTS] },
+      { scope: 'listed', airports: [LTFM] },
+    )
+    const { getAirports } = await freshAirports()
+    const first = await getAirports()
+    vi.setSystemTime(START + HOUR)
+    const stale = await Promise.all(Array.from({ length: 10 }, () => getAirports()))
+    expect(stale.every((list) => list === first)).toBe(true)
+    expect(calls).toHaveLength(2)
+    await settle()
+    const fresh = await getAirports()
+    expect(fresh.map((a) => a.icao)).toEqual(['LTFM'])
+    expect(calls).toHaveLength(2)
+  })
+
+  it('boş liste yalnız 60 sn tutulur (ilk kurulumda içe aktarım bitmeden)', async () => {
+    const calls = stubFetch(
+      { scope: 'listed', airports: [] },
+      { scope: 'listed', airports: [LTFM] },
+    )
+    const { getAirports, AIRPORTS_EMPTY_REVALIDATE_S } = await freshAirports()
+    expect(AIRPORTS_EMPTY_REVALIDATE_S).toBe(60)
+    expect(await getAirports()).toEqual([])
+    vi.setSystemTime(START + 59_999)
+    expect(await getAirports()).toEqual([])
+    expect(calls).toHaveLength(1)
+    vi.setSystemTime(START + 60_000)
+    expect(await getAirports()).toEqual([])
+    await settle()
     expect((await getAirports()).map((a) => a.icao)).toEqual(['LTFM'])
     expect(calls).toHaveLength(2)
-    const [hourly, minutely] = calls
-    expect(minutely?.init.cache).toBeUndefined()
-    expect(minutely?.init.next).toEqual({ revalidate: 60, tags: ['airports'] })
-    // İki kayıt farklı önbellek anahtarı alır (anahtar başlıkları içerir, `revalidate`'i içermez).
-    expect(minutely?.init.headers).not.toEqual(hourly?.init.headers)
-    expect(calls.every((call) => call.init.cache !== 'no-store')).toBe(true)
   })
 
-  it('iki kayıt da boşsa boş liste döner (sayfa "henüz yüklenmedi" der)', async () => {
-    const calls = stubFetch({ country: 'TR', airports: [] })
-    expect(await getAirports()).toEqual([])
+  it('yenileme başarısızsa eldeki liste yaş sınırı olmadan verilir; 60 sn sonra yeniden denenir', async () => {
+    const calls = stubFetch(
+      { scope: 'listed', airports: ALL },
+      new Response('down', { status: 503 }),
+      { scope: 'listed', airports: [LTFM] },
+    )
+    const { getAirports, AIRPORTS_RETRY_MS } = await freshAirports()
+    expect(AIRPORTS_RETRY_MS).toBe(60_000)
+    const first = await getAirports()
+    vi.setSystemTime(START + HOUR)
+    expect(await getAirports()).toBe(first)
+    await settle()
     expect(calls).toHaveLength(2)
+    vi.setSystemTime(START + HOUR + 59_999)
+    expect(await getAirports()).toBe(first)
+    await settle()
+    expect(calls).toHaveLength(2)
+    vi.setSystemTime(START + 30 * HOUR)
+    expect(await getAirports()).toBe(first)
+    await settle()
+    expect(calls).toHaveLength(3)
+    expect((await getAirports()).map((a) => a.icao)).toEqual(['LTFM'])
   })
 
-  it('API hata dönerse hata fırlatır (yumuşak 404 yerine 500)', async () => {
-    vi.stubGlobal('fetch', async () => new Response('down', { status: 503 }))
+  it('liste hiç yüklenmediyse hata fırlatır (sayfa 500, yumuşak 404 değil); sonraki çizim yeniden dener', async () => {
+    const calls = stubFetch(
+      new Response('down', { status: 503 }),
+      { airports: 'none' },
+      {
+        scope: 'listed',
+        airports: [LTFM],
+      },
+    )
+    const { getAirports } = await freshAirports()
     await expect(getAirports()).rejects.toThrow('HTTP 503')
+    await expect(getAirports()).rejects.toThrow('unexpected shape')
+    expect((await getAirports()).map((a) => a.icao)).toEqual(['LTFM'])
+    expect(calls).toHaveLength(3)
   })
 
   it('getAirport ICAO kodunu büyük-küçük harf fark etmeden bulur', async () => {
-    stubFetch({ country: 'TR', airports: ALL })
+    stubFetch({ scope: 'listed', airports: ALL })
+    const { getAirport } = await freshAirports()
     expect((await getAirport(' ltfj '))?.iata).toBe('SAW')
     expect(await getAirport('ZZZZ')).toBeUndefined()
-  })
-
-  it('aynı gövde bir kez ayrıştırılır; gövde değişince yeniden (D-102)', async () => {
-    const parse = vi.spyOn(JSON, 'parse')
-    try {
-      const calls = stubFetch(
-        { scope: 'listed', airports: [LTFM, LGTS] },
-        { scope: 'listed', airports: [LTFM, LGTS] },
-        { scope: 'listed', airports: [LTFM] },
-      )
-      const first = await getAirports()
-      const second = await getAirports()
-      expect(calls).toHaveLength(2)
-      // Next'in veri önbelleği aynı gövdeyi verdi: JSON ve zod yeniden çalışmaz, dizi aynıdır.
-      expect(second).toBe(first)
-      expect(parse).toHaveBeenCalledTimes(1)
-      const third = await getAirports()
-      expect(third).not.toBe(first)
-      expect(third.map((a) => a.icao)).toEqual(['LTFM'])
-      expect(parse).toHaveBeenCalledTimes(2)
-    } finally {
-      parse.mockRestore()
-    }
-    // Bellekte liste varken bozuk zarf yine hata fırlatır.
-    stubFetch({ airports: 'none' })
-    await expect(getAirports()).rejects.toThrow('unexpected shape')
   })
 })
 
@@ -229,13 +285,19 @@ describe('resolveAirportCode', () => {
       ['UTTT', 'UZTT'],
       ['LELO', 'LERJ'],
       ['VA1G', 'VERW'],
+      // 5. halka (M6j.3, D-109): Lima, Palm Beach, Harare.
+      ['SPIM', 'SPJC'],
+      ['spim', 'SPJC'],
+      ['KPBI', 'KDJT'],
+      ['FVHA', 'FVRG'],
     ] as const) {
       expect(resolveAirportCode(code, listed), code).toEqual({ kind: 'redirect', icao })
     }
-    // 1.–4. halkada 29 takma ad; her biri listelenen bir havalimanınındır ve hiçbir listelenen
-    // havalimanının ICAO'su değildir.
+    // 1.–4. halkada 29, 5. halkada 23 takma ad; her biri listelenen bir havalimanınındır ve hiçbir
+    // listelenen havalimanının ICAO'su değildir.
     const aliased = listed.filter((airport) => airport.identAlias !== undefined)
-    expect(aliased).toHaveLength(29)
+    expect(aliased).toHaveLength(52)
+    expect(aliased.filter((airport) => airport.ring === 5)).toHaveLength(23)
     const icaos = new Set(listed.map((airport) => airport.icao))
     for (const airport of aliased) {
       expect(icaos.has(airport.identAlias ?? ''), airport.icao).toBe(false)
@@ -244,9 +306,9 @@ describe('resolveAirportCode', () => {
         icao: airport.icao,
       })
     }
-    // Listelenmeyen havalimanının takma adı yönlenmez (5. halka kapalı: Lima SPIM → SPJC, Palm
-    // Beach KPBI → KDJT); başka bir satırın ICAO'su olan kimlik takma ad değildir (WABP).
-    for (const code of ['SPIM', 'KPBI', 'WABP']) {
+    // Başka bir satırın ICAO'su olan kimlik takma ad değildir (WABP: Timika WAYY'nin kimliği,
+    // Burumeso'nun ICAO'su); listelenmeyen havalimanının kodu yönlenmez (Le Bourget, Thohoyandou).
+    for (const code of ['WABP', 'LFPB', 'LBG', 'FATH', 'THY']) {
       expect(resolveAirportCode(code, listed), code).toEqual({ kind: 'not_found' })
     }
   })

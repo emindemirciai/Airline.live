@@ -3,7 +3,12 @@ import { getMessages } from '@havayolu/i18n'
 import { createElement, type ComponentType } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import type { IdleScheduler } from '../../lib/idle'
+import {
+  IDLE_FALLBACK_DELAY_MS,
+  IDLE_FORCED_SLICE_MS,
+  type IdleDeadlineLike,
+  type IdleScheduler,
+} from '../../lib/idle'
 import type { MapAirport } from './airport-data'
 import {
   AirportListPanelUnavailable,
@@ -123,7 +128,14 @@ describe('ilk paket: havalimanı adları dinamik parçalarda (D-101)', () => {
     expect(ringFour).toMatch(
       /export const RING4_AIRPORT_CITIES: [^=]+= \{\n {2}[A-Z0-9]{4}: \{ tr: /,
     )
-    for (const text of [foreign, ringFour]) expect(text).not.toMatch(/\bcity\(/)
+    // 5. halkanın tabloları da düz nesnedir (D-109): 1.–5. halka tek tembel parçadadır.
+    const ringFive = source(`${reference}foreign-airport-names-r5.ts`)
+    expect(ringFive).toMatch(/export const RING5_AIRPORT_NAMES: [^=]+= \{\n {2}[A-Z0-9]{4}: \{/)
+    expect(ringFive).toMatch(
+      /export const RING5_AIRPORT_CITIES: [^=]+= \{\n {2}[A-Z0-9]{4}: \{ tr: /,
+    )
+    expect(foreign).toContain("from './foreign-airport-names-r5'")
+    for (const text of [foreign, ringFour, ringFive]) expect(text).not.toMatch(/\bcity\(/)
   })
 
   it('haritanın ilk paketindeki askerî üs kuralı ad tablolarını içe aktarmaz (D-103, D-107)', () => {
@@ -314,6 +326,131 @@ describe('parça yüklenemezse (D-101): yedek bileşen, hata ekranı yok', () =>
     cancelLate()
     await runIdle()
     expect(build).not.toHaveBeenCalled()
+  })
+
+  it('dilimli kurulum (M6j.3): her boşta iş bir dilim; bitmeyen kurulum sonraki boşta işte sürer; iptal durdurur', async () => {
+    const queue = new Map<number, (deadline?: IdleDeadlineLike) => void>()
+    let next = 0
+    const scheduler: IdleScheduler = {
+      requestIdleCallback: (callback) => {
+        next += 1
+        queue.set(next, callback)
+        return next
+      },
+      cancelIdleCallback: (handle) => {
+        queue.delete(handle)
+      },
+      setTimeout: () => 0,
+      clearTimeout: () => undefined,
+    }
+    const deadline: IdleDeadlineLike = { didTimeout: false, timeRemaining: () => 5 }
+    const runIdle = async () => {
+      const tasks = [...queue.values()]
+      queue.clear()
+      for (const task of tasks) task(deadline)
+      await new Promise((resolve) => setTimeout(resolve, 0))
+    }
+    const airports = [{ icao: 'LTFM', iata: 'IST' } as MapAirport]
+    let slicesLeft = 3
+    const prepare = vi.fn(
+      (_airports: readonly MapAirport[], _locale: string, left: () => number) => {
+        expect(left()).toBe(5)
+        slicesLeft -= 1
+        return slicesLeft === 0
+      },
+    )
+    const build = Object.assign(
+      vi.fn(() => () => NO_AIRPORT_RESULTS),
+      { prepare },
+    ) as AirportSearchBuilder
+    const load = vi.fn(() => Promise.resolve(build))
+
+    prebuildAirportSearch(airports, 'tr', load, scheduler)
+    await runIdle()
+    expect(load).toHaveBeenCalledTimes(1)
+    expect(prepare).not.toHaveBeenCalled()
+    for (const expected of [1, 2, 3]) {
+      await runIdle()
+      expect(prepare).toHaveBeenCalledTimes(expected)
+    }
+    // Kurulum bitti: yeni dilim istenmez; tek seferlik kurucu çağrılmaz.
+    expect(queue.size).toBe(0)
+    expect(build).not.toHaveBeenCalled()
+    expect(prepare).toHaveBeenCalledWith(airports, 'tr', expect.any(Function))
+
+    // İptal edilen kurulum sonraki dilimi çalıştırmaz.
+    prepare.mockClear()
+    slicesLeft = 10
+    const cancel = prebuildAirportSearch(airports, 'en', load, scheduler)
+    await runIdle()
+    await runIdle()
+    expect(prepare).toHaveBeenCalledTimes(1)
+    cancel()
+    await runIdle()
+    expect(prepare).toHaveBeenCalledTimes(1)
+    expect(queue.size).toBe(0)
+  })
+
+  it('requestIdleCallback yoksa (Safari, iOS; D-118): yükleme ve ilk dilim 1 sn sonra, sonraki dilimler bir sonraki görevde; iptal bekleyeni siler', async () => {
+    const timers = new Map<number, { task: () => void; ms: number }>()
+    const delays: number[] = []
+    let next = 0
+    const scheduler: IdleScheduler = {
+      setTimeout: (task, ms) => {
+        next += 1
+        timers.set(next, { task, ms })
+        delays.push(ms)
+        return next
+      },
+      clearTimeout: (handle) => {
+        timers.delete(handle)
+      },
+    }
+    const runTimers = async () => {
+      const due = [...timers.values()]
+      timers.clear()
+      for (const { task } of due) task()
+      await new Promise((resolve) => setTimeout(resolve, 0))
+    }
+    const airports = [{ icao: 'LTFM', iata: 'IST' } as MapAirport]
+    let slicesLeft = 3
+    const prepare = vi.fn(
+      (_airports: readonly MapAirport[], _locale: string, left: () => number) => {
+        // Boşta süre yok: dilim en çok `IDLE_FORCED_SLICE_MS` (10 ms) kullanır.
+        expect(left()).toBeLessThanOrEqual(IDLE_FORCED_SLICE_MS)
+        slicesLeft -= 1
+        return slicesLeft === 0
+      },
+    )
+    const build = Object.assign(
+      vi.fn(() => () => NO_AIRPORT_RESULTS),
+      { prepare },
+    ) as AirportSearchBuilder
+    const load = vi.fn(() => Promise.resolve(build))
+
+    prebuildAirportSearch(airports, 'tr', load, scheduler)
+    await runTimers()
+    expect(load).toHaveBeenCalledTimes(1)
+    for (const expected of [1, 2, 3]) {
+      await runTimers()
+      expect(prepare).toHaveBeenCalledTimes(expected)
+    }
+    expect(timers.size).toBe(0)
+    // Yükleme ve ilk dilim yedeğin gecikmesiyle; sonraki iki dilim 0 ms ile.
+    expect(delays).toEqual([IDLE_FALLBACK_DELAY_MS, IDLE_FALLBACK_DELAY_MS, 0, 0])
+
+    // İptal, bekleyen sonraki dilimi siler.
+    prepare.mockClear()
+    slicesLeft = 10
+    const cancel = prebuildAirportSearch(airports, 'en', load, scheduler)
+    await runTimers()
+    await runTimers()
+    expect(prepare).toHaveBeenCalledTimes(1)
+    expect(timers.size).toBe(1)
+    cancel()
+    expect(timers.size).toBe(0)
+    await runTimers()
+    expect(prepare).toHaveBeenCalledTimes(1)
   })
 
   it('yedekler ilk pakettedir: tembel modülleri yalnız tür olarak import eder', () => {

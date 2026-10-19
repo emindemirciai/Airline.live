@@ -171,13 +171,14 @@ describe('havalimanı bilgileri', () => {
     expect(popupTimeZone(NO_ZONE)).toBeNull()
   })
 
-  it('listelenen her havalimanının penceresinde yer ve saat dilimi vardır (4. halka dahil, D-090, D-102)', () => {
-    // API kaydı haritanın okuyucusundan geçer (`toMapAirport`): sayfadaki listeyle aynı 1.240 kayıt
-    // (askerî üsler yok, D-107; savaş nedeniyle kapalı 23 havalimanı dahil, D-110).
+  it('listelenen her havalimanının penceresinde yer ve saat dilimi vardır (5. halka dahil, D-090, D-102, D-109)', () => {
+    // API kaydı haritanın okuyucusundan geçer (`toMapAirport`): sayfadaki listeyle aynı 3.266 kayıt
+    // (askerî üsler ve askerî liste yok, D-107, D-109; savaş nedeniyle kapalı 23 havalimanı dahil,
+    // D-110).
     const listed = fixtureListedAirports().map((airport) => toMapAirport(airport))
     expect(listed.filter((airport) => airport === null)).toEqual([])
     const map = new Map(listed.flatMap((airport) => (airport ? [[airport.icao, airport]] : [])))
-    expect(map.size).toBe(1240)
+    expect(map.size).toBe(3266)
     for (const airport of map.values()) {
       expect(airportPlace(airport, 'tr'), airport.icao).not.toBeNull()
       expect(airportPlace(airport, 'en'), airport.icao).not.toBeNull()
@@ -225,12 +226,45 @@ describe('havalimanı bilgileri', () => {
       ['ZMCK', 'Asia/Ulaanbaatar'],
       ['UNNT', 'Asia/Novosibirsk'],
       ['ZWWW', 'Asia/Shanghai'],
+      // 5. halka (D-109): New York, Sidney, Honolulu, Santiago, Paskalya Adası; Adak (UTC−10/−9).
+      ['KJFK', 'America/New_York'],
+      ['YSSY', 'Australia/Sydney'],
+      ['PHNL', 'Pacific/Honolulu'],
+      ['SCEL', 'America/Santiago'],
+      ['SCIP', 'Pacific/Easter'],
+      ['PADK', 'America/Adak'],
     ] as const) {
       expect(popupTimeZone(of(icao)), icao).toBe(zone)
     }
     expect(airportPlace(of('LOWW'), 'tr')).toBe('Avusturya')
     expect(airportPlace(of('LOWW'), 'en')).toBe('Austria')
     expect(airportPlace(of('EGLL'), 'tr')).toBe('Birleşik Krallık')
+    // 5. halkanın pencereleri: Türkçe ad, ülke ve yerel saat (2026-01-15 12:00 UTC).
+    const noon = Date.UTC(2026, 0, 15, 12, 0)
+    for (const [icao, name, place, clock] of [
+      [
+        'KJFK',
+        'New York John F. Kennedy Havalimanı',
+        'Amerika Birleşik Devletleri',
+        '07:00 (UTC−5)',
+      ],
+      ['YSSY', 'Sidney Kingsford Smith Havalimanı', 'Avustralya', '23:00 (UTC+11)'],
+      [
+        'PHNL',
+        'Honolulu Daniel K. Inouye Havalimanı',
+        'Amerika Birleşik Devletleri',
+        '02:00 (UTC−10)',
+      ],
+      ['SCEL', 'Santiago Comodoro Arturo Merino Benítez Havalimanı', 'Şili', '09:00 (UTC−3)'],
+      ['SCIP', 'Paskalya Adası Mataveri Havalimanı', 'Şili', '07:00 (UTC−5)'],
+    ] as const) {
+      const facts = airportFacts(of(icao), noon, 'tr', tr.map.airportPopup)
+      expect(facts.name, icao).toBe(name)
+      expect(airportPlace(of(icao), 'tr'), icao).toBe(place)
+      const local = facts.rows.find((row) => row.key === 'localTime')
+      expect(local?.value, icao).toBe(clock)
+      expect(facts.closure, icao).toBeNull()
+    }
   })
 
   it('savaş nedeniyle kapalı havalimanında not; diğerlerinde yok (D-110)', () => {

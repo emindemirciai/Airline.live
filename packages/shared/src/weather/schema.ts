@@ -191,6 +191,19 @@ const isoDateTime = z.iso.datetime({ offset: true })
 /** ICAO konum göstergesi (DB kısıtıyla aynı: `^[A-Z0-9]{4}$`). */
 export const IcaoSchema = z.string().regex(/^[A-Z0-9]{4}$/)
 
+/**
+ * METAR ve TAF istasyonunun kodu: dört İngilizce harf. Rakamlı kodla listelenen havalimanı
+ * (Transport Canada'nın CAJ4 ve CAT4'ü, D-109) AWC'den istenmez ve toplu hava yanıtına girmez:
+ * worker'ın istasyon listesi (`weatherStations`) ve API'nin toplu yanıtı (`scope=listed`, ülke)
+ * aynı kuralı kullanır (5. halkada 3.266 listelenen havalimanından 3.264 istasyon, D-118).
+ */
+export const WEATHER_STATION_ICAO = /^[A-Z]{4}$/
+
+/** Kod bir METAR/TAF istasyonu mu (`WEATHER_STATION_ICAO`). */
+export function isWeatherStationIcao(code: string): boolean {
+  return WEATHER_STATION_ICAO.test(code)
+}
+
 /** Bir hava olayı grubu (ör. `-SHRA`, `VCTS`, `RERA`'nın `RA` kısmı). */
 export const WeatherGroupSchema = z.object({
   /** Gruptaki metin, olduğu gibi (`RE` öneki dahil). */
