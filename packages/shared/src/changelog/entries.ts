@@ -13,19 +13,19 @@ import type { ChangelogEntry } from './types'
 export const CHANGELOG: readonly ChangelogEntry[] = [
   {
     version: '0.28.0',
-    date: '2026-10-19',
+    date: '2026-10-20',
     title: {
-      tr: 'Uçak gizliliği maddesi yenilendi',
-      en: 'Aircraft privacy wording updated',
+      tr: 'Canlı uçaklar haritada: yalnız havayolu uçakları',
+      en: 'Live aircraft on the map: airline aircraft only',
     },
     items: [
       {
-        tr: 'Kullanım koşullarındaki ve Hakkında sayfasındaki uçak gizliliği maddesi yenilendi. Canlı harita açıldığında yalnız bilinen bir havayolu çağrı koduyla uçan uçaklar görünecek; askerî, devlet ve özel uçakları tespit kurallarımızla göstermemeye çalışıyoruz ve bu kuralların kusursuz olmadığını açıkça yazıyoruz.',
-        en: 'The aircraft privacy section of the terms of use and the About page has new wording. When the live map opens, it will show only aircraft flying under a known airline callsign; we use detection rules to try to keep military, state and private aircraft off the site, and we now say plainly that these rules are not perfect.',
+        tr: 'Canlı harita açıldı: Türkiye ve çevresinde bilinen bir havayolu çağrı koduyla uçan uçaklar haritada ve uçak listesinde. Veri ADSB.lol’den gelir; kapsama şimdilik Türkiye ve çevresidir.',
+        en: 'The live map is on: aircraft flying under a known airline callsign in and around Türkiye appear on the map and in the aircraft list. Data comes from ADSB.lol; coverage is Türkiye and its surroundings for now.',
       },
       {
-        tr: 'Canlı uçaklar henüz açık değil; açılış için hazırlıklar sürüyor.',
-        en: 'Live aircraft are not switched on yet; preparations for opening continue.',
+        tr: 'Askerî, devlet ve özel uçaklar (iş jetleri dahil) ile kimliği belirsiz uçaklar gösterilmez. Bunları tespit kurallarımızla ayıklıyoruz; kuralların kusursuz olmadığını kullanım koşullarında ve Hakkında sayfasında açıkça yazıyoruz.',
+        en: 'Military, state and private aircraft (business jets included) and unidentified aircraft are not shown. We filter them out with detection rules; the terms of use and the About page say plainly that these rules are not perfect.',
       },
       {
         tr: 'API’nin canlı uçak yanıtları artık verinin lisansını (ODbL 1.0) ve kaynağını (ADSB.lol) da yazıyor.',

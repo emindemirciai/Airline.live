@@ -8,23 +8,23 @@
 
 ---
 
-## v0.28.0 — 2026-10-19
+## v0.28.0 — 2026-10-20
 
 ### Türkçe
-**Uçak gizliliği maddesi yenilendi**
+**Canlı uçaklar haritada: yalnız havayolu uçakları**
 
-- Kullanım koşullarındaki ve Hakkında sayfasındaki uçak gizliliği maddesi yenilendi. Canlı harita açıldığında yalnız bilinen bir havayolu çağrı koduyla uçan uçaklar görünecek; askerî, devlet ve özel uçakları tespit kurallarımızla göstermemeye çalışıyoruz ve bu kuralların kusursuz olmadığını açıkça yazıyoruz.
-- Canlı uçaklar henüz açık değil; açılış için hazırlıklar sürüyor.
+- Canlı harita açıldı: Türkiye ve çevresinde bilinen bir havayolu çağrı koduyla uçan uçaklar haritada ve uçak listesinde. Veri ADSB.lol’den gelir; kapsama şimdilik Türkiye ve çevresidir.
+- Askerî, devlet ve özel uçaklar (iş jetleri dahil) ile kimliği belirsiz uçaklar gösterilmez. Bunları tespit kurallarımızla ayıklıyoruz; kuralların kusursuz olmadığını kullanım koşullarında ve Hakkında sayfasında açıkça yazıyoruz.
 - API’nin canlı uçak yanıtları artık verinin lisansını (ODbL 1.0) ve kaynağını (ADSB.lol) da yazıyor.
 - Yöneticiler canlı uçak katmanını panelden tek dokunuşla kapatıp açabiliyor.
 
 Dene: [Kullanım koşulları](/kullanim-kosullari) · [Hakkında](/hakkinda)
 
 ### English
-**Aircraft privacy wording updated**
+**Live aircraft on the map: airline aircraft only**
 
-- The aircraft privacy section of the terms of use and the About page has new wording. When the live map opens, it will show only aircraft flying under a known airline callsign; we use detection rules to try to keep military, state and private aircraft off the site, and we now say plainly that these rules are not perfect.
-- Live aircraft are not switched on yet; preparations for opening continue.
+- The live map is on: aircraft flying under a known airline callsign in and around Türkiye appear on the map and in the aircraft list. Data comes from ADSB.lol; coverage is Türkiye and its surroundings for now.
+- Military, state and private aircraft (business jets included) and unidentified aircraft are not shown. We filter them out with detection rules; the terms of use and the About page say plainly that these rules are not perfect.
 - The API’s live aircraft responses now also state the data licence (ODbL 1.0) and source (ADSB.lol).
 - Admins can switch the live aircraft layer off and on with one tap in the panel.
 

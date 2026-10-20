@@ -56,8 +56,8 @@ describe('TermsContent', () => {
     expect(html).toContain('href="https://opendatacommons.org/licenses/odbl/1-0/"')
     expect(html).toContain('href="https://adsb.lol"')
     // Yürürlük tarihi metnin son değiştiği sürümün yayın günüdür (D-112, D-115: v0.28.0).
-    expect(html).toMatch(/<time datetime="2026-10-19">/i)
-    expect(html).toContain(locale === 'tr' ? '19 Ekim 2026' : '19 October 2026')
+    expect(html).toMatch(/<time datetime="2026-10-20">/i)
+    expect(html).toContain(locale === 'tr' ? '20 Ekim 2026' : '20 October 2026')
     // Ş1 (D-115): gizlilik cümlesi mutlak değildir; sabit metin, eski mutlak cümle dönmez.
     expect(html).toContain(PRIVACY_SENTENCE[locale])
     expect(html).not.toMatch(OLD_ABSOLUTE_SENTENCE)

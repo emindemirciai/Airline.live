@@ -31,7 +31,18 @@ Her karar tarih, gerekçe ve varsa alternatifiyle yazılır. En yeni karar en ü
   - **Birleştiricide:** `pnpm test:integration` (API `scope=listed` 56 + 3.210, pistsiz 6 + 14, UNK kaplamalı görünür pistler 8 + 6, `/v1/airports/JFK` liste kaydıyla aynı, `/v1/airports/LBG` listede olmayan Le Bourget'yi bulur, takma ad 52; worker 3.264 istasyon ve kayma satırında `listed` 3.266), `pnpm test:e2e` (KJFK sayfaları ve haritası, `/istasyon/JFK` → 308, `/istasyon/SPIM` → 308 SPJC, LFPB, LBG, FATH, THY, YBOK, OKY, WKK, KHX, LSG 404, site haritası 6.542, llms.txt 3.266, toplu hava 3.264 istasyon (inceleme düzeltmesi: API de worker'ın kuralıyla CAJ4 ve CAT4'ü yazmaz, `isWeatherStationIcao`; önce 3.266 veriyordu), "IGL" araması, "den" ve "sab" + Enter liste), `pnpm ci:full`, PR CI; `/havalimanlari` ve `/en/havalimanlari`'nın `next start` ile ham ve sıkıştırılmış boyutu; tarifesiz 5. halka havalimanlarının sayımı (kalıcı kopyadan, yukarıda). Kullanıcıya bağlı denetimler ACTIVATION → "M6j.3 yayın doğrulaması".
 
 ## 2026-10-15 — Aşamalı canlı açılış, 1. aşama: yalnız havayolu
-- **D-115 Canlı uçaklar aşamalı açılır; yalnız bilinen bir havayolu çağrı koduyla uçan uçaklar yayınlanır, bu kalıcı kuraldır (v0.28.0, Parça 1 M7d.1).** Kural worker'da, kaynakta uygulanır: yayınlanmayan uçak `redis-live`'a, uçuş kaydına, ize, olaylara ve bildirimlere hiç girmez; harita, arama, REST, WS ve ileride gelen her kanal yalnız yayınlanmış veriyi okur. Aynı sürümde yönetici için tek dokunuşluk canlı katman anahtarı ve işlem kaydı, kullanım koşullarının mutlak olmayan gizlilik cümlesi ve API'de ODbL bildirimi gelir. Canlı uçaklar üretimde hâlâ kapalıdır (`CONTACT_EMAIL` girilmedi); açılış kapısı ACTIVATION'dadır.
+- **D-115 Canlı uçaklar aşamalı açılır; yalnız bilinen bir havayolu çağrı koduyla uçan uçaklar yayınlanır, bu kalıcı kuraldır (v0.28.0, Parça 1 M7d.1).** Kural worker'da, kaynakta uygulanır: yayınlanmayan uçak `redis-live`'a, uçuş kaydına, ize, olaylara ve bildirimlere hiç girmez; harita, arama, REST, WS ve ileride gelen her kanal yalnız yayınlanmış veriyi okur. Aynı sürümde yönetici için tek dokunuşluk canlı katman anahtarı ve işlem kaydı, kullanım koşullarının mutlak olmayan gizlilik cümlesi ve API'de ODbL bildirimi gelir. Canlı uçaklar v0.28.0'ın deploy'uyla açılır. Kullanıcı 2026-10-20'de künye env'ini (`IMPRINT_NAME`, `IMPRINT_EMAIL`) ve `CONTACT_EMAIL`'i girdi: "imprint name ve mail i ekledim. contact email i de girdim. yayına başlayalım." Bir gün önce de kararları ajana bırakmıştı: "hukukçu tanıdığım yok … uygun olanı sen hazırla. sen bana yol göster."
+  - **Açılış (2026-10-20):** Kapının kodu açılıştan önce yayında olanlardır: kaynakta yalnız havayolu, canlı katman anahtarı, yeni gizlilik cümlesi, ODbL, geri alma koruması (ACTIVATION 2. adım (a)). Kalanlar açılıştan sonra M7d.2'nin üç yayınıyla gelir (D-120):
+    - v0.29.0: 30 günlük saklama tavanı ve yasal bekletme; IP'siz loglar ve hız sınırı
+    - v0.30.0: en çok 3 yönetici, telefondan engel listesi ve tescil engeli
+    - v0.31.0: künye sayfası, `/gizlilik`, gizleme talebi, kullanım koşulları, `/acik-veri`
+
+    Aradaki risk kabul edilir; ajanın değerlendirmesi:
+    - **Saklama:** ilk 30 gün içinde 30 günü aşan kayıt oluşmaz. Budama işi v0.29.0'la bu süre dolmadan gelir.
+    - **IP:** API logu v0.29.0'a kadar istek IP'sini yazar. Docker logu boyutla döner (10 MB × 5).
+    - **Künye:** sayfası v0.31.0'a kadar yoktur (5651 md. 3/2), env değerleri girildi.
+    - **Gizlilik:** `/gizlilik` gelene kadar Hakkında ve kullanım koşullarındaki gizlilik maddeleri geçerlidir.
+    - **Gizleme talebi:** özel uçak, iş jeti ve PIA/LADD uçağı zaten yayınlanmadığı için talep riski düşüktür. Talep gelirse RUNBOOK'taki API yolu (engel listesi) kullanılır.
   - **Onay:** 2026-10-15, hukuki araştırma raporundan sonra kullanıcının üç cevabı (AskUserQuestion):
     - Açılış biçimi: "Aşamalı: önce yalnız havayolu (Önerilen)".
     - Künye adresi: "Önce avukata soracağım".
