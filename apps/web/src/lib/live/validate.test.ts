@@ -37,6 +37,15 @@ describe('isLiveStatus', () => {
     )
     expect(isLiveStatus({ providers: {}, primaryAgeS: '1', newestAgeS: null })).toBe(false)
   })
+
+  it('canlı katman (D-115): yok, on ve off kabul edilir; başka değer reddedilir', () => {
+    const base = { providers: {}, primaryAgeS: null, newestAgeS: null }
+    expect(isLiveStatus(base)).toBe(true)
+    expect(isLiveStatus({ ...base, layer: 'on' })).toBe(true)
+    expect(isLiveStatus({ ...base, layer: 'off' })).toBe(true)
+    expect(isLiveStatus({ ...base, layer: 'maybe' })).toBe(false)
+    expect(isLiveStatus({ ...base, layer: null })).toBe(false)
+  })
 })
 
 describe('isAirport', () => {

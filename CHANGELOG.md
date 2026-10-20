@@ -8,7 +8,31 @@
 
 ---
 
-## v0.27.0 — 2026-10-19
+## v0.28.0 — 2026-10-20
+
+### Türkçe
+**Canlı uçaklar haritada: yalnız havayolu uçakları**
+
+- Canlı harita açıldı: Türkiye ve çevresinde bilinen bir havayolu çağrı koduyla uçan uçaklar haritada ve uçak listesinde. Veri ADSB.lol’den gelir; kapsama şimdilik Türkiye ve çevresidir.
+- Askerî, devlet ve özel uçaklar (iş jetleri dahil) ile kimliği belirsiz uçaklar gösterilmez. Bunları tespit kurallarımızla ayıklıyoruz; kuralların kusursuz olmadığını kullanım koşullarında ve Hakkında sayfasında açıkça yazıyoruz.
+- API’nin canlı uçak yanıtları artık verinin lisansını (ODbL 1.0) ve kaynağını (ADSB.lol) da yazıyor.
+- Yöneticiler canlı uçak katmanını panelden tek dokunuşla kapatıp açabiliyor.
+
+Dene: [Kullanım koşulları](/kullanim-kosullari) · [Hakkında](/hakkinda)
+
+### English
+**Live aircraft on the map: airline aircraft only**
+
+- The live map is on: aircraft flying under a known airline callsign in and around Türkiye appear on the map and in the aircraft list. Data comes from ADSB.lol; coverage is Türkiye and its surroundings for now.
+- Military, state and private aircraft (business jets included) and unidentified aircraft are not shown. We filter them out with detection rules; the terms of use and the About page say plainly that these rules are not perfect.
+- The API’s live aircraft responses now also state the data licence (ODbL 1.0) and source (ADSB.lol).
+- Admins can switch the live aircraft layer off and on with one tap in the panel.
+
+Try it: [Terms of use](/kullanim-kosullari) · [About](/hakkinda)
+
+---
+
+## v0.27.0 — 2026-10-19 19:20 (UTC+3)
 
 ### Türkçe
 **Dünyanın her yerinden havalimanları listede**

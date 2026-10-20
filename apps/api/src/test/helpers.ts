@@ -18,7 +18,7 @@ import type {
   Bbox,
   CoverageState,
   LiveSource,
-  LiveStatus,
+  ServedLiveStatus,
   PublicAircraft,
   TickDiff,
 } from '../live/types'
@@ -253,10 +253,11 @@ export class FakeLiveSource implements LiveSource {
   readonly listeners = new Set<(diff: TickDiff) => void>()
   seqValue = 0
   circles: readonly CoverageCircle[] | null = null
-  statusValue: LiveStatus = {
+  statusValue: ServedLiveStatus = {
     providers: { adsbLol: 'ok' },
     primaryAgeS: 4.2,
     newestAgeS: 1.5,
+    layer: 'on',
   }
 
   constructor(list: readonly PublicAircraft[] = []) {

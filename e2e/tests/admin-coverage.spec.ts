@@ -4,20 +4,12 @@
 // yöneticisi playwright.config.ts'teki webServer ortamından gelir ve `.env`'deki aynı anahtarları
 // ezer; `.env`'in diğer değerleri (ör. DATABASE_URL) okunur, `.env`'e yazılmaz.
 import { readFileSync } from 'node:fs'
-import { expect, test, type Page } from '@playwright/test'
+import { expect, test } from '@playwright/test'
 import { runArrivalFixture } from '../arrival-fixture'
-import { ARRIVAL_FIXTURE, E2E_ADMIN } from '../support'
+import { adminLogin, ARRIVAL_FIXTURE } from '../support'
 
 /** Worker kuyruğu 10 sn'de bir yoklar; hesap yerel veritabanında birkaç saniye sürer. */
 const REPORT_DONE_TIMEOUT_MS = 240_000
-
-async function login(page: Page): Promise<void> {
-  await page.goto('/admin/giris')
-  await page.getByLabel('E-posta').fill(E2E_ADMIN.email)
-  await page.getByLabel('Kurulum anahtarı').fill(E2E_ADMIN.setupToken)
-  await page.getByRole('button', { name: 'Giriş yap' }).click()
-  await expect(page).toHaveURL(/\/admin$/)
-}
 
 test.describe('admin kapsama raporu', () => {
   test.beforeAll(() => {
@@ -42,7 +34,7 @@ test.describe('admin kapsama raporu', () => {
 
   test('24 saatlik rapor: Hazır, LTAI satırı ve Markdown indirmesi', async ({ page }) => {
     test.setTimeout(REPORT_DONE_TIMEOUT_MS + 120_000)
-    await login(page)
+    await adminLogin(page)
     await page.goto('/admin/kapsama')
     await expect(page.getByRole('heading', { level: 1, name: 'Kapsama raporu' })).toBeVisible()
 

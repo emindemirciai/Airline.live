@@ -1,11 +1,15 @@
 import {
   activeStationsWithArp,
   addProviderHourly,
+  clearLiveAircraft,
   createFlight,
   deleteProviderHealth,
   ensureTrackPartitions,
   loadActiveFlights,
+  loadAirlineDesignatorRows,
   loadTrailingGroundStart,
+  readBlocklist,
+  readLiveLayerEnabled,
   recordProviderStatusChange,
   sweepLive,
   writeConfiguredProviders,
@@ -24,6 +28,7 @@ import {
 import { distanceNm } from '@havayolu/geo'
 import {
   AdsbLolError,
+  airlineDesignatorsFrom,
   chunkHexes,
   createAdsbLolClient,
   createLocalReceiverClient,
@@ -35,12 +40,14 @@ import {
   type AdsbLolClient,
   type AdsbLolErrorKind,
   type AircraftState,
+  type DropReason,
+  type LiveScope,
   type LiveSourceId,
   type LocalReceiverClient,
 } from '@havayolu/providers'
 import type { Redis } from 'ioredis'
 import type { Logger } from 'pino'
-import type { Env } from '../env'
+import { effectiveLiveScope, type Env } from '../env'
 import {
   continueFlight,
   decideFlight,
@@ -59,6 +66,7 @@ import {
   type PlannedCircle,
   type PlannedRequest,
 } from './plan'
+import { designatorFloor, PublishGate } from './publish'
 import { AdaptiveRateController, type CircuitState, type OutcomeKind } from './rate'
 import {
   FreshnessTracker,
@@ -81,6 +89,10 @@ import { isDataError, TrackWriter } from './writer'
  * - yazma: iz ve uçuş tamponu (1,5 sn)
  * - sağlık: `redis-live`'a her tur (sağlayıcı durumu, bölge tazeliği, kapsama planı), veritabanına
  *   dakikada bir ve durum değişince
+ *
+ * Yayın kuralı (D-115) kaynakta uygulanır: `PublishGate`'in yayınlamadığı örnek `redis-live`'a,
+ * uçuş kaydına ve ize hiç yazılmaz. Canlı katman (admin anahtarı) kapalıyken hiçbir örnek yazılmaz
+ * ve `redis-live`'daki canlı uçaklar silinir; kaynak okumaları ve sağlık kaydı sürer.
  *
  * Örnek işleme tek sıradadır (iki kaynak aynı hex için aynı anda kayıt açamaz). `redis-live`
  * yazımları bu sırayı ve döngüleri beklemez (`LiveWriter`, `LIVE_WRITE_TIMEOUT_MS`): anlık durum
@@ -114,10 +126,25 @@ const MAX_SLEEP_STEP_MS = 1_000
 const CREATE_FLIGHT_BACKOFF_MS = 10_000
 /** Tekrarlayan uyarıların en sık yazım aralığı. */
 const WARN_INTERVAL_MS = 60_000
+/** Havayolu işletmeci kodları (VRS) boşken yeniden deneme; doluyken yenileme aralığı (D-115). */
+export const DESIGNATORS_RETRY_MS = 10_000
+export const DESIGNATORS_REFRESH_MS = 6 * 3_600_000
+/** Hex engel listesi: ilk başarılı okumaya kadar deneme, sonra yenileme aralığı (API ile aynı). */
+export const BLOCKLIST_RETRY_MS = 5_000
+export const BLOCKLIST_REFRESH_MS = 30_000
+/** Canlı katman anahtarının yoklama aralığı (D-115: kapatma birkaç saniyede uygulanır). */
+export const LIVE_LAYER_POLL_MS = 2_000
+/** Tik içindeki engel listesi ve katman okumalarının üst sınırı (tik donmasın). */
+const CONTROL_READ_TIMEOUT_MS = 2_000
 
 export interface IngestDeps {
   env: Env
   redisLive: Redis
+  /**
+   * Hex engel listesinin deposu (`redis-queue`, D-074). Yoksa (yalnızca test ve araçlar) liste boş
+   * ve yüklenmiş sayılır, API'deki `BlocklistSync` ile aynı anlam.
+   */
+  redisQueue?: Redis
   database: Database
   log: Logger
   version: string
@@ -145,6 +172,14 @@ export interface IngestStats {
   circuit: CircuitState | null
   /** Yazıcı tamponu dolduğu için atılan iz satırları. */
   rowsDropped: number
+  /** Uygulanan yayın kapsamı (D-115). */
+  scope: LiveScope
+  /** Canlı katman anahtarı. */
+  layer: 'on' | 'off'
+  /** Yayınlanan örnekler (açılıştan beri). */
+  published: number
+  /** Nedene göre yayınlanmayan örnekler (açılıştan beri, yalnızca sıfır olmayanlar; anonim). */
+  dropped: Readonly<Partial<Record<DropReason | 'layer_off', number>>>
 }
 
 export interface IngestHandle {
@@ -406,25 +441,41 @@ export async function bounded<T>(promise: Promise<T>, ms: number): Promise<T> {
  * fazla bir yazım yoldadır; yoldayken gelen örnekler hex başına en yenisiyle birikir ve yazım
  * bitince (ya da `timeoutMs` dolunca) tek seferde yazılır. Bekleyen küme uçak sayısıyla sınırlıdır.
  * Hata ve süre aşımı `onError`'a gider.
+ *
+ * `remove` (D-115): yayından çekilen hex'ler. O hex'in bekleyen güncellemesi atılır; silme bir
+ * sonraki yazımda güncellemelerden sonra gider. Sonra gelen `push` silmeyi geri alır (uçak kuralı
+ * yeniden tuttu). Başarısız silme yeniden denenmez: kayıt 120 sn'de süpürülür.
  */
 export class LiveWriter<T extends { hex: string }> {
   private pending = new Map<string, T>()
+  private removals = new Set<string>()
   private running: Promise<void> | null = null
 
   constructor(
-    private readonly write: (list: readonly T[]) => Promise<void>,
+    private readonly write: (updates: readonly T[], removals: readonly string[]) => Promise<void>,
     private readonly onError: (error: unknown, count: number) => void,
     private readonly timeoutMs: number = LIVE_WRITE_TIMEOUT_MS,
   ) {}
 
   push(list: readonly T[]): void {
-    for (const item of list) this.pending.set(item.hex, item)
+    for (const item of list) {
+      this.pending.set(item.hex, item)
+      this.removals.delete(item.hex)
+    }
     this.pump()
   }
 
-  /** Yazılmayı bekleyen uçak sayısı. */
+  remove(hexes: readonly string[]): void {
+    for (const hex of hexes) {
+      this.pending.delete(hex)
+      this.removals.add(hex)
+    }
+    this.pump()
+  }
+
+  /** Yazılmayı bekleyen uçak sayısı (güncelleme ve silme). */
   backlog(): number {
-    return this.pending.size
+    return this.pending.size + this.removals.size
   }
 
   /** Yoldaki ve bekleyen yazımlar bitene (ya da süreleri dolana) kadar bekler. */
@@ -433,23 +484,25 @@ export class LiveWriter<T extends { hex: string }> {
   }
 
   private pump(): void {
-    if (this.running !== null || this.pending.size === 0) return
+    if (this.running !== null || (this.pending.size === 0 && this.removals.size === 0)) return
     const batch = [...this.pending.values()]
+    const removed = [...this.removals]
     this.pending = new Map()
-    this.running = this.run(batch).finally(() => {
+    this.removals = new Set()
+    this.running = this.run(batch, removed).finally(() => {
       this.running = null
       this.pump()
     })
   }
 
-  private async run(batch: readonly T[]): Promise<void> {
+  private async run(batch: readonly T[], removed: readonly string[]): Promise<void> {
     try {
       await bounded(
-        Promise.resolve().then(() => this.write(batch)),
+        Promise.resolve().then(() => this.write(batch, removed)),
         this.timeoutMs,
       )
     } catch (error) {
-      this.onError(error, batch.length)
+      this.onError(error, batch.length + removed.length)
     }
   }
 }
@@ -507,6 +560,17 @@ export async function startIngest(deps: IngestDeps): Promise<IngestHandle> {
     warnedAt.set(key, t)
     log.warn(fields, message)
   }
+
+  // 0. Yayın kapsamı (D-115): üretimde her değer `airline` sayılır (kalıcı kural).
+  const scoped = effectiveLiveScope(env)
+  if (scoped.warning !== null) {
+    log.warn(
+      { requested: scoped.requested },
+      'LIVE_AIRCRAFT_SCOPE ignored: production publishes airline aircraft only',
+    )
+  }
+  const gate = new PublishGate({ scope: scoped.scope })
+  const redisQueue = deps.redisQueue ?? null
 
   // 1. Günün ve ilerideki günlerin partition'ları (bakım işi de açar; burada yalnızca güvence).
   try {
@@ -575,6 +639,88 @@ export async function startIngest(deps: IngestDeps): Promise<IngestHandle> {
   }
 
   applyStations(await activeStationsWithArp(sql))
+
+  // 2b. Canlı katman anahtarı (D-115); okunamazsa açılış durur (veritabanı zaten gerekli).
+  gate.setLayer(await readLiveLayerEnabled(sql))
+  let layerCheckedAt = now()
+
+  // 2c. Havayolu işletmeci kodları (VRS, yalnızca `airline` kapsamında). Okunamazsa ya da tablo
+  // boşsa (VRS henüz içe aktarılmadı) hiçbir örnek yayınlanmaz; 10 sn'de bir yeniden denenir.
+  // `non_airline` sayısı üretimde 200'ün ya da son iyi tablonun %80'inin altına düşen tablo
+  // şüphelidir (VRS'in desen sütunu kayboldu ya da yazımı değişti): son iyi tablo kalır, yoksa
+  // hiçbir şey yayınlanmaz (D-115).
+  const minimumNonAirline = designatorFloor(env.APP_ENV)
+  let designatorsLoadedAt = now()
+  const refreshDesignators = async () => {
+    designatorsLoadedAt = now()
+    try {
+      const before = gate.designatorCount()
+      const offer = gate.offerDesignators(
+        airlineDesignatorsFrom(await loadAirlineDesignatorRows(sql)),
+        minimumNonAirline,
+      )
+      if (!offer.accepted) {
+        warnThrottled(
+          'designators-suspect',
+          {
+            nonAirline: offer.nonAirline,
+            previousNonAirline: offer.previousNonAirline,
+            minimum: minimumNonAirline,
+            designators: before,
+          },
+          before === 0
+            ? 'VRS non-airline designators are too few; nothing is published until a sound table loads'
+            : 'VRS non-airline designators dropped sharply; keeping the last table',
+        )
+        return
+      }
+      const count = gate.designatorCount()
+      if (count === 0) {
+        warnThrottled(
+          'designators-empty',
+          { retrySec: DESIGNATORS_RETRY_MS / 1000 },
+          'no airline designators yet; nothing is published until the VRS import runs',
+        )
+      } else if (before === 0) {
+        log.info(
+          { designators: count, nonAirline: offer.nonAirline },
+          'airline designators loaded; publishing enabled',
+        )
+      }
+    } catch (error) {
+      warnThrottled(
+        'designators',
+        { err: error, designators: gate.designatorCount() },
+        'airline designators could not be loaded; keeping the last table',
+      )
+    }
+  }
+  if (gate.scope === 'airline') await refreshDesignators()
+
+  // 2d. Yöneticinin hex engel listesi (redis-queue, D-074). İlk başarılı okumaya kadar hiçbir örnek
+  // yayınlanmaz (API'deki gibi kapalı varsayım); sonraki okuma hataları son iyi listeyi korur.
+  let blocklistCheckedAt = now()
+  const refreshBlocklist = async () => {
+    blocklistCheckedAt = now()
+    if (redisQueue === null) return
+    try {
+      const list = await bounded(readBlocklist(redisQueue), CONTROL_READ_TIMEOUT_MS)
+      const first = !gate.blocklistLoaded()
+      gate.setBlocklist(list)
+      if (first) log.info({ hexes: list.size }, 'blocklist loaded; publishing enabled')
+    } catch (error) {
+      const loaded = gate.blocklistLoaded()
+      warnThrottled(
+        'blocklist',
+        { err: error, loaded },
+        loaded
+          ? 'blocklist could not be read; keeping the last list'
+          : 'blocklist could not be read; nothing is published until it loads',
+      )
+    }
+  }
+  if (redisQueue === null) gate.setBlocklist(new Set())
+  else await refreshBlocklist()
 
   // 3. Açık uçuş kayıtları: son 30 dk'da görülenler sürer, eskileri kapatılır. Yer bekleme
   // durumu kayıtların iz satırlarından geri kurulur (aynı bekleme yeniden bölünmesin).
@@ -779,7 +925,7 @@ export async function startIngest(deps: IngestDeps): Promise<IngestHandle> {
   // Anlık durum beklenmeden yazılır: harita veritabanı yavaşlasa da güncel kalır, Redis
   // kesintisi de veritabanı yazımını ve kaynak döngülerini yavaşlatmaz.
   const liveWriter = new LiveWriter<AircraftState>(
-    (list) => writeLiveUpdates(redis, list),
+    (list, removals) => writeLiveUpdates(redis, list, removals),
     (error, count) =>
       warnThrottled(
         'live-write',
@@ -797,11 +943,28 @@ export async function startIngest(deps: IngestDeps): Promise<IngestHandle> {
         invalidHex += states.length - valid.length
         warnThrottled('invalid-hex', { dropped: invalidHex }, 'samples with malformed hex dropped')
       }
+      // Bayraklar, çağrı kodu, tescil, tip ve kategori her örnekten öğrenilir (yayınlanmayanlardan
+      // ve `LatestStore`'un eski diye reddettiklerinden de); karar ondan sonra verilir.
+      gate.observe(valid, now())
       const accepted = store.accept(valid, now())
       if (accepted.length === 0) return
-      liveWriter.push(accepted)
-      for (const s of accepted) await applySample(s)
+      const { publish, withdraw } = gate.split(accepted, now())
+      if (withdraw.length > 0) {
+        liveWriter.remove(withdraw)
+        for (const hex of withdraw) endPublishedFlight(hex)
+      }
+      if (publish.length === 0) return
+      liveWriter.push(publish)
+      for (const s of publish) await applySample(s)
     })
+
+  /** Yayından çekilen uçağın açık uçuş kaydı kapanır; kural yeniden tutarsa yeni kayıt açılır. */
+  const endPublishedFlight = (hex: string) => {
+    const flight = flights.get(hex)
+    if (flight !== undefined && flight.id !== null) writer.end(flight.id)
+    flights.delete(hex)
+    cursors.delete(hex)
+  }
 
   /** Aynı anahtarlı `redis-live` çağrısından yoldaki varsa yenisi başlatılmaz (birikmesin). */
   const liveInFlight = new Set<string>()
@@ -825,6 +988,39 @@ export async function startIngest(deps: IngestDeps): Promise<IngestHandle> {
     } catch (error) {
       warnThrottled(key, { err: error, ...fields }, message)
     }
+  }
+
+  const clearLive = () =>
+    liveCall('clear', {}, 'live aircraft could not be cleared', () => clearLiveAircraft(redis))
+
+  /**
+   * Canlı katman anahtarı (D-115). Kapanınca örnek işleme sırasında: kapı kapanır, yoldaki yazımlar
+   * biter, canlı uçaklar silinir. Açılınca bir sonraki çekimle uçaklar geri gelir. Okuma hatası son
+   * durumu korur.
+   */
+  const pollLiveLayer = async () => {
+    let enabled: boolean
+    try {
+      enabled = await bounded(readLiveLayerEnabled(sql), CONTROL_READ_TIMEOUT_MS)
+    } catch (error) {
+      warnThrottled(
+        'live-layer',
+        { err: error, layer: gate.layerOn() ? 'on' : 'off' },
+        'live layer state could not be read; keeping the last state',
+      )
+      return
+    }
+    if (enabled === gate.layerOn()) return
+    if (enabled) {
+      gate.setLayer(true)
+    } else {
+      await exclusive(async () => {
+        gate.setLayer(false)
+        await liveWriter.drain()
+        await clearLive()
+      })
+    }
+    log.info({ layer: enabled ? 'on' : 'off' }, 'live layer changed')
   }
 
   // --- Döngü yardımcıları ------------------------------------------------------------------
@@ -1006,6 +1202,7 @@ export async function startIngest(deps: IngestDeps): Promise<IngestHandle> {
       lastPruneAt = t
       await exclusive(async () => {
         for (const hex of store.prune(t)) cursors.delete(hex)
+        gate.prune(t)
       })
     }
     if (t - lastFlightSweepAt >= FLIGHT_SWEEP_EVERY_MS) {
@@ -1024,6 +1221,20 @@ export async function startIngest(deps: IngestDeps): Promise<IngestHandle> {
     }
     const stationsDue = stationByIcao.size === 0 ? STATIONS_RETRY_MS : STATIONS_REFRESH_MS
     if (t - stationsLoadedAt >= stationsDue) await refreshStations()
+    if (t - layerCheckedAt >= LIVE_LAYER_POLL_MS) {
+      layerCheckedAt = t
+      await pollLiveLayer()
+    }
+    // Kapalıyken her tur: geç gelen (süresi dolmuş sanılan) bir yazım da silinir; boş küme ucuzdur.
+    if (!gate.layerOn()) await clearLive()
+    if (gate.scope === 'airline') {
+      const due = gate.designatorCount() === 0 ? DESIGNATORS_RETRY_MS : DESIGNATORS_REFRESH_MS
+      if (t - designatorsLoadedAt >= due) await refreshDesignators()
+    }
+    if (redisQueue !== null) {
+      const due = gate.blocklistLoaded() ? BLOCKLIST_REFRESH_MS : BLOCKLIST_RETRY_MS
+      if (t - blocklistCheckedAt >= due) await refreshBlocklist()
+    }
   }
 
   // --- Yazma ---------------------------------------------------------------------------------
@@ -1251,6 +1462,10 @@ export async function startIngest(deps: IngestDeps): Promise<IngestHandle> {
           rowsDropped: writer.dropped(),
           rowsRejected: writer.rejected(),
           invalidHex,
+          layer: gate.layerOn() ? 'on' : 'off',
+          published: gate.counters().published,
+          withdrawn: gate.counters().withdrawn,
+          dropped: gate.droppedNonZero(),
         },
         'ingest summary',
       )
@@ -1267,6 +1482,11 @@ export async function startIngest(deps: IngestDeps): Promise<IngestHandle> {
   }
 
   // --- Başlat --------------------------------------------------------------------------------
+  // Önceki süreçten kalan canlı uçaklar açılışta silinir (kapalı varsayım, D-115): yeni süreç
+  // onları yayınlananlar kümesinde bilmez; kural artık tutmasa da yayından çekemezdi. Katman
+  // açıksa uçaklar ilk turda yeniden yayınlanır. Döngülerden önce çalışır: bu sürecin hiçbir
+  // yazımını silmez.
+  await clearLive()
   const loops: Promise<void>[] = [
     every('health', timers.healthMs, health, true),
     every('tick', timers.tickMs, tick, true),
@@ -1291,6 +1511,8 @@ export async function startIngest(deps: IngestDeps): Promise<IngestHandle> {
       stations: [...stationByIcao.keys()],
       activeFlights: flights.size,
       watch: watchList.length,
+      scope: gate.scope,
+      layer: gate.layerOn() ? 'on' : 'off',
     },
     'ingest started',
   )
@@ -1307,6 +1529,10 @@ export async function startIngest(deps: IngestDeps): Promise<IngestHandle> {
     rps: adsbLolConfigured ? rate.rps() : null,
     circuit: adsbLolConfigured ? rate.state().circuit : null,
     rowsDropped: writer.dropped(),
+    scope: gate.scope,
+    layer: gate.layerOn() ? 'on' : 'off',
+    published: gate.counters().published,
+    dropped: gate.droppedNonZero(),
   })
 
   const shutdown = async () => {

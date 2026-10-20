@@ -88,6 +88,21 @@ describe('sistem uç noktaları', () => {
       'get',
       'post',
     ])
+    expect(Object.keys(spec.paths['/v1/admin/live-layer'] ?? {}).sort()).toEqual(['get', 'put'])
+  })
+
+  it('/openapi.json canlı verinin ODbL lisansını ve ADSB.lol atfını yazar (D-115)', async () => {
+    const spec = (await app.inject({ method: 'GET', url: '/openapi.json' })).json() as {
+      info: { description?: string; license?: { name: string; url: string } }
+      tags: { name: string; description: string }[]
+    }
+    expect(spec.info.license).toEqual({
+      name: 'ODbL-1.0',
+      url: 'https://opendatacommons.org/licenses/odbl/1-0/',
+    })
+    expect(spec.info.description).toContain('Open Database License (ODbL) 1.0')
+    expect(spec.info.description).toContain('ADSB.lol')
+    expect(spec.tags.find((t) => t.name === 'live')?.description).toContain('ODbL 1.0')
   })
 
   it('bilinmeyen yol 404 döner', async () => {

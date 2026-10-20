@@ -354,6 +354,74 @@ describe('LiveWriter', () => {
   })
 })
 
+describe('LiveWriter.remove (D-115)', () => {
+  it('bekleyen güncelleme atılır; silme sonraki yazımda gider', async () => {
+    const calls: { updates: string[]; removals: string[] }[] = []
+    const releases: (() => void)[] = []
+    const writer = new LiveWriter<AircraftState>(
+      (updates, removals) => {
+        calls.push({ updates: updates.map((s) => s.hex), removals: [...removals] })
+        return new Promise<void>((resolve) => releases.push(resolve))
+      },
+      () => {
+        throw new Error('no error expected')
+      },
+      60_000,
+    )
+    writer.push([state('aa0001')])
+    await tick()
+    // Yoldaki yazım sürerken aa0001 yeniden gelir, sonra yayından çekilir.
+    writer.push([state('aa0001', { sampleTime: T0 + 1_000 }), state('aa0002')])
+    writer.remove(['aa0001'])
+    expect(writer.backlog()).toBe(2)
+    releases.shift()?.()
+    await tick()
+    await tick()
+    // Boşaltılan tampon çekilen hex'i yeniden eklemez.
+    expect(calls).toEqual([
+      { updates: ['aa0001'], removals: [] },
+      { updates: ['aa0002'], removals: ['aa0001'] },
+    ])
+    releases.shift()?.()
+    await writer.drain()
+  })
+
+  it('silmeden sonra gelen push silmeyi geri alır; yalnızca silme de yazılır', async () => {
+    const calls: { updates: string[]; removals: string[] }[] = []
+    const writer = new LiveWriter<AircraftState>(
+      async (updates, removals) => {
+        calls.push({ updates: updates.map((s) => s.hex), removals: [...removals] })
+      },
+      () => {
+        throw new Error('no error expected')
+      },
+    )
+    writer.remove(['aa0003'])
+    await writer.drain()
+    writer.remove(['aa0004'])
+    writer.push([state('aa0004')])
+    await writer.drain()
+    expect(calls).toEqual([
+      { updates: [], removals: ['aa0003'] },
+      { updates: [], removals: ['aa0004'] },
+      { updates: ['aa0004'], removals: [] },
+    ])
+  })
+
+  it('hata sayısı güncelleme ve silmeleri birlikte sayar', async () => {
+    const errors: number[] = []
+    const writer = new LiveWriter<AircraftState>(
+      async () => {
+        throw new Error('connection refused')
+      },
+      (_error, count) => errors.push(count),
+    )
+    writer.remove(['aa0005', 'aa0006'])
+    await writer.drain()
+    expect(errors).toEqual([2])
+  })
+})
+
 interface WatchSimulation {
   watchRequests: number
   ages: Map<string, number[]>

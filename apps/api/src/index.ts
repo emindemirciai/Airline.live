@@ -14,6 +14,7 @@ import {
   pingRedis,
   readBlocklist,
   readHeartbeats,
+  readLiveLayerEnabled,
   readProviderSummaries,
   redisMemory,
   referenceStatus,
@@ -24,11 +25,13 @@ import {
 import { AIRPORT_RING_CONFIG } from '@havayolu/shared'
 import type { Redis } from 'ioredis'
 import { pgArrivalCoverageStore } from './admin/arrival-coverage'
+import { pgLiveLayerStore } from './admin/live-layer'
 import { buildApp } from './app'
 import { RedisSessionStore } from './auth/session-store'
 import { EnvError, loadDotEnvForDevelopment, parseEnv, type Env } from './env'
 import { BlocklistSync, type BlocklistSyncLog } from './live/blocklist-sync'
 import { LiveCache, type LiveCacheLog } from './live/cache'
+import { LiveLayerSync } from './live/live-layer-sync'
 import { closeLiveSockets } from './live/ws'
 
 /** Havayolu kod eşlemeleri (sefer no) bu aralıkla yeniden okunur. */
@@ -84,7 +87,18 @@ const blocklist = new BlocklistSync({
     warn: (fields, message) => blocklistLog?.warn(fields, message),
   },
 })
-/** Önbellek başladı mı: engel listesi yüklenmiş ve kodlar bir kez denenmiştir. */
+let layerLog: BlocklistSyncLog | null = null
+// Canlı katman anahtarı (D-115): veritabanından 2 sn'de bir; ilk okumaya kadar canlı veri sunulmaz.
+const layerSync = new LiveLayerSync({
+  read: database ? () => readLiveLayerEnabled(database.sql) : null,
+  log: {
+    info: (fields, message) => layerLog?.info(fields, message),
+    warn: (fields, message) => layerLog?.warn(fields, message),
+  },
+})
+/**
+ * Önbellek başladı mı: engel listesi ve katman anahtarı yüklenmiş, kodlar bir kez denenmiştir.
+ */
 let liveRunning = false
 
 const liveCache = redisLiveCache
@@ -92,6 +106,7 @@ const liveCache = redisLiveCache
       redisLive: redisLiveCache,
       codes: () => airlineCodes,
       blocklist: () => blocklist.current(),
+      layer: () => layerSync.current(),
       log: cacheLog,
       pollMs: env.LIVE_POLL_MS,
       // Süreç başına sayaç tabanı: yeniden başlayan API'ye eski `lastSeq` ile gelen istemci tam
@@ -144,6 +159,11 @@ const app = await buildApp(env, {
   blocklistRedis: redisQueue,
   // Kapsama raporu satırları (D-098): API yalnızca `queued` satır yazar ve okur.
   arrivalCoverage: database ? pgArrivalCoverageStore(database.sql) : null,
+  // Canlı katman anahtarı (D-115): değişince API'nin kopyası hemen yenilenir.
+  liveLayerAdmin: {
+    store: database ? pgLiveLayerStore(database.sql) : null,
+    changed: () => void layerSync.refresh(),
+  },
   // Halka ayarı (D-080) tek kaynaktan: `@havayolu/shared` `AIRPORT_RING_CONFIG`.
   airports: {
     list: database
@@ -174,6 +194,7 @@ const app = await buildApp(env, {
 })
 liveLog = app.log.child({ component: 'live-cache' })
 blocklistLog = app.log.child({ component: 'blocklist' })
+layerLog = app.log.child({ component: 'live-layer' })
 
 /** Dolu bir eşleme okundu mu; okunana kadar `AIRLINE_CODES_RETRY_MS` aralığıyla denenir. */
 let airlineCodesReady = false
@@ -198,17 +219,20 @@ const refreshTimers = [
 ]
 for (const timer of refreshTimers) timer.unref()
 let shuttingDown = false
-// Önbellek, engel listesi ilk kez başarıyla okunduktan (5 sn'de bir denenir) ve kodlar bir kez
-// denendikten sonra başlar: engelli uçak açılışta bir an bile görünmez. HTTP bunu beklemez; o ana
+// Önbellek, engel listesi ve canlı katman anahtarı ilk kez başarıyla okunduktan (5 ve 2 sn'de bir
+// denenir) ve kodlar bir kez denendikten sonra başlar: engelli uçak açılışta bir an bile görünmez. HTTP bunu beklemez; o ana
 // kadar canlı uçlar 503/1013, ilk tura kadar /v1/live boş döner.
 blocklist.start()
-const liveStarted = Promise.all([refreshAirlineCodes(), blocklist.whenLoaded()]).then(
-  ([, loaded]) => {
-    if (!loaded || shuttingDown || !liveCache) return
-    liveCache.start()
-    liveRunning = true
-  },
-)
+layerSync.start()
+const liveStarted = Promise.all([
+  refreshAirlineCodes(),
+  blocklist.whenLoaded(),
+  layerSync.whenLoaded(),
+]).then(([, blocklistLoaded, layerLoaded]) => {
+  if (!blocklistLoaded || !layerLoaded || shuttingDown || !liveCache) return
+  liveCache.start()
+  liveRunning = true
+})
 if (!liveCache) app.log.warn('live data disabled: REDIS_LIVE_URL is not set')
 
 if (env.ADMIN_DISABLED_REASON) {
@@ -226,6 +250,7 @@ const shutdown = async (signal: string) => {
     shuttingDown = true
     for (const timer of refreshTimers) clearInterval(timer)
     blocklist.stop()
+    layerSync.stop()
     // WebSocket istemcilerine önce yeniden bağlan mesajı gider (1012); sonra HTTP kapanır.
     await closeLiveSockets()
     await app.close()

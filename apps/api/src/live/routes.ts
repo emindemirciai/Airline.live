@@ -1,4 +1,10 @@
 import type { AirlineCodes } from '@havayolu/db'
+import {
+  LIVE_DATA_LICENSE,
+  type LiveDataLicense,
+  type LiveResponse,
+  type SearchResponse,
+} from '@havayolu/shared'
 import type { FastifyInstance } from 'fastify'
 import { parseBbox } from './bbox'
 import { searchLive } from './search'
@@ -85,7 +91,7 @@ const providerState = { type: 'string', enum: ['ok', 'degraded', 'down'] } as co
 
 const statusSchema = {
   type: 'object',
-  required: ['providers', 'primaryAgeS', 'newestAgeS'],
+  required: ['providers', 'primaryAgeS', 'newestAgeS', 'layer'],
   properties: {
     providers: {
       type: 'object',
@@ -93,8 +99,21 @@ const statusSchema = {
     },
     primaryAgeS: { ...nullable('number'), description: 'Birincil istasyon verisinin yaşı, sn' },
     newestAgeS: { ...nullable('number'), description: 'En yeni örneğin yaşı, sn' },
+    layer: {
+      type: 'string',
+      enum: ['on', 'off'],
+      description: 'Canlı katman anahtarı; off iken hiçbir uçak sunulmaz (D-115)',
+    },
   },
 } as const
+
+/** Canlı uçak verisinin lisansı ve atfı (ODbL 1.0, ADSB.lol; D-115). */
+const licenseProperties = {
+  license: { type: 'string', enum: ['ODbL-1.0'], description: 'Canlı uçak verisinin lisansı' },
+  licenseUrl: { type: 'string', description: 'Lisans metni' },
+  attribution: { type: 'string', enum: ['ADSB.lol'], description: 'Veri kaynağı (atıf)' },
+} as const
+const LICENSE_FIELDS = ['license', 'licenseUrl', 'attribution'] as const
 
 const errorSchema = {
   type: 'object',
@@ -105,6 +124,8 @@ const errorSchema = {
 /**
  * `GET /v1/live?bbox=` (kutudaki anlık görüntü) ve `GET /v1/search?q=` (canlı önbellekte arama).
  * İkisi de `LiveSource`'tan okur; gizlilik ve engel listesi kaynakta uygulanmıştır (D-074).
+ * Canlı katman kapalıyken (D-115) ikisi de 200 ile boş küme ve `status.layer: "off"` döner. Her
+ * yanıt canlı verinin lisansını ve atfını taşır (ODbL 1.0, ADSB.lol).
  */
 export function registerLiveRoutes(
   app: FastifyInstance,
@@ -133,12 +154,13 @@ export function registerLiveRoutes(
         response: {
           200: {
             type: 'object',
-            required: ['seq', 'coverage', 'status', 'aircraft'],
+            required: ['seq', 'coverage', 'status', 'aircraft', ...LICENSE_FIELDS],
             properties: {
               seq: { type: 'integer', description: 'Önbellek sayacı (WS lastSeq ile aynı)' },
               coverage: { type: 'string', enum: ['full', 'partial', 'none', 'unknown'] },
               status: statusSchema,
               aircraft: { type: 'array', items: aircraftSchema },
+              ...licenseProperties,
             },
           },
           400: errorSchema,
@@ -154,12 +176,14 @@ export function registerLiveRoutes(
       if (bbox === null) return reply.code(400).send(LIVE_ERRORS.badBbox)
       const source = available()
       if (source === null) return reply.code(503).send(LIVE_ERRORS.unavailable)
-      return {
+      const body: LiveResponse & LiveDataLicense = {
         seq: source.seq(),
         coverage: source.coverage(bbox),
         status: source.status(),
         aircraft: source.snapshot(bbox),
+        ...LIVE_DATA_LICENSE,
       }
+      return body
     },
   )
 
@@ -179,7 +203,7 @@ export function registerLiveRoutes(
         response: {
           200: {
             type: 'object',
-            required: ['kind', 'results', 'status'],
+            required: ['kind', 'results', 'status', ...LICENSE_FIELDS],
             properties: {
               kind: {
                 type: 'string',
@@ -187,6 +211,7 @@ export function registerLiveRoutes(
               },
               results: { type: 'array', items: aircraftSchema },
               status: statusSchema,
+              ...licenseProperties,
             },
           },
           400: errorSchema,
@@ -204,7 +229,13 @@ export function registerLiveRoutes(
       const source = available()
       if (source === null) return reply.code(503).send(LIVE_ERRORS.unavailable)
       const { kind, results } = searchLive(q, source, codes())
-      return { kind, results, status: source.status() }
+      const body: SearchResponse & LiveDataLicense = {
+        kind,
+        results,
+        status: source.status(),
+        ...LIVE_DATA_LICENSE,
+      }
+      return body
     },
   )
 }

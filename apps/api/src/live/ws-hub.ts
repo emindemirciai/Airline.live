@@ -456,7 +456,11 @@ export class LiveHub {
     if (this.history.length > WS_LIMITS.historyTicks) this.history.shift()
     this.seq = diff.seq
     for (const client of this.clients) {
-      if (client.viewport && !client.closing) this.schedule(client)
+      if (!client.viewport || client.closing) continue
+      // Durum uçaklardan bağımsız değiştiyse (canlı katman, D-115) görünümü boş olan istemci de
+      // haber almalı: boş diff gönderilmez, tam görüntü gönderilir.
+      if (diff.statusChanged) client.needsSnapshot = true
+      this.schedule(client)
     }
   }
 

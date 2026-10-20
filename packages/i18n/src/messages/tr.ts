@@ -823,7 +823,8 @@ export const tr = {
     },
     privacy: {
       heading: 'Uçak gizliliği',
-      military: 'Askeri uçaklar haritada, aramada ve API’de gösterilmez.',
+      military:
+        'Canlı haritada yalnız bilinen bir havayolu çağrı koduyla uçan uçaklar gösterilir. Askerî, devlet ve özel uçakları tespit kurallarımızla göstermemeye çalışırız; bu kurallar kusursuz değildir.',
       registration: 'PIA ya da LADD programındaki uçakların tescili gösterilmez.',
       blocklist:
         'Yöneticinin engel listesine eklediği uçaklar haritada, aramada ve API’de gösterilmez.',
@@ -1008,6 +1009,8 @@ export const tr = {
       reconnecting: 'Bağlantı koptu; yeniden bağlanılıyor…',
       offline:
         'Canlı veri sunucusuna ulaşılamıyor. İnternet bağlantını kontrol et; yeniden denemeye devam ediyoruz.',
+      /** Yönetici canlı katmanı kapattı (D-115). */
+      layerOff: 'Canlı uçak katmanı şu an kapalı; haritada uçak gösterilmiyor.',
       noProvider: 'Canlı veri kaynağı şu an kapalı; haritada uçak görünmüyor.',
       providerDegraded: 'Canlı veri kaynağında yavaşlama var; konumlar gecikmeli gelebilir.',
       providerDown:
@@ -1180,6 +1183,43 @@ export const tr = {
     fetchFailed: 'Servis raporu alınamadı. API’ye ulaşılamıyor olabilir.',
     /** Yönetim sayfaları arasındaki gezinme (Servisler, Kapsama raporu). */
     navLabel: 'Yönetim bölümleri',
+    /**
+     * Canlı katman anahtarı (`/admin/canli-katman`, Parça 1 M7d.1, D-115). Kapalıyken harita, arama
+     * ve API boş döner; worker canlı uçak yazmaz. Kim ve ne zaman işlem kaydına kendiliğinden yazılır.
+     */
+    liveLayer: {
+      title: 'Canlı katman',
+      intro:
+        'Canlı uçak katmanını tek dokunuşla kapatır ve açar. Kapalıyken harita, arama ve API birkaç saniye içinde boşalır, worker canlı uçak yazmaz; veri çekimi ve sağlık kaydı sürer.',
+      state: 'Durum',
+      on: 'Açık',
+      off: 'Kapalı',
+      /** `{time}`: Türkiye saatiyle zaman; `{who}`: yöneticinin e-postası. */
+      lastChange: 'Son değişiklik: {time}, {who}',
+      neverChanged: 'Hiç değiştirilmedi (varsayılan: açık)',
+      reason: 'Neden (isteğe bağlı; ör. karar sayısı)',
+      reasonHint: 'Kim ve ne zaman kendiliğinden yazılır. En çok 500 karakter.',
+      turnOff: 'Canlı katmanı kapat',
+      turnOn: 'Canlı katmanı aç',
+      pending: 'Uygulanıyor…',
+      switchedOff: 'Kapatıldı. Harita, arama ve API birkaç saniye içinde boşalır.',
+      switchedOn: 'Açıldı. Uçaklar bir dakika içinde geri gelir.',
+      noDatabase: 'Veritabanı bağlı değil; anahtar kullanılamıyor.',
+      fetchFailed: 'Canlı katmanın durumu alınamadı. API’ye ulaşılamıyor olabilir.',
+      errors: {
+        invalid: 'Neden en çok 500 karakter olabilir.',
+        no_database: 'Veritabanı bağlı değil; anahtar kullanılamıyor.',
+        unavailable: 'Değişiklik uygulanamadı: API ya da veritabanı yanıt vermiyor. Yeniden dene.',
+      },
+      log: {
+        heading: 'İşlem kaydı',
+        caption: 'Son 20 işlem, en yeni önce',
+        empty: 'Henüz işlem yok.',
+        columns: { at: 'Zaman', actor: 'Kim', action: 'İşlem', reason: 'Neden' },
+        actions: { on: 'Açıldı', off: 'Kapatıldı' },
+        noReason: '—',
+      },
+    },
     /**
      * Kapsama raporu sayfası (`/admin/kapsama`, Parça 1 M7b.2, D-098). Rapor metninin kendisi
      * (Markdown) worker'da Türkçe üretilir; bir belgedir, arayüz metni değildir.
@@ -1362,7 +1402,8 @@ export const tr = {
     },
     privacy: {
       heading: 'Uçak gizliliği',
-      military: 'Askeri uçaklar haritada, aramada ve API’de gösterilmez.',
+      military:
+        'Canlı haritada yalnız bilinen bir havayolu çağrı koduyla uçan uçaklar gösterilir. Askerî, devlet ve özel uçakları tespit kurallarımızla göstermemeye çalışırız; bu kurallar kusursuz değildir.',
       registration: 'PIA ya da LADD programındaki uçakların tescili gösterilmez.',
     },
     code: {

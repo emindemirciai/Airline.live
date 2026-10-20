@@ -168,6 +168,9 @@ export function smokeEnvSource(
     LOCAL_RECEIVER_URLS: '',
     WATCH_HEX_LIST: '',
     WEB_HOST: userAgentWebHost(source.WEB_HOST) ?? '',
+    // Üretimin 1. aşaması gibi yalnız havayolu uçakları (D-115); VRS fixture'ı ingest'ten önce
+    // içe aktarılır, işletmeci kodları hazırdır.
+    LIVE_AIRCRAFT_SCOPE: 'airline',
   }
   const database = present(source.DATABASE_URL)
   if (database !== null) {

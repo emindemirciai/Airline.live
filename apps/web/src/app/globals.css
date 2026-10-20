@@ -2289,3 +2289,70 @@ body:has(.map-page) .site-footer {
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
+
+/*
+ * Canlı katman anahtarı (`/admin/canli-katman`, D-115): durum metinle yazılır (renk yalnızca
+ * destektir); telefonda düğme tam genişliktedir. Tehlike düğmesinde beyaz yazı 6,57:1.
+ */
+.live-layer-status {
+  margin: 0 0 1rem;
+  padding: 0.75rem 1rem;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-left: 4px solid var(--ok);
+  border-radius: var(--radius);
+}
+
+.live-layer-status[data-state='off'] {
+  border-left-color: var(--down);
+}
+
+.live-layer-status p {
+  margin: 0;
+}
+
+.live-layer-state {
+  font-size: 1.15rem;
+}
+
+.live-layer-status .live-layer-result {
+  margin-top: 0.4rem;
+  font-weight: 600;
+}
+
+.live-layer-form {
+  max-width: 36rem;
+  margin-bottom: 1.5rem;
+}
+
+.live-layer-form .hint {
+  margin: 0;
+}
+
+.live-layer-form textarea {
+  width: 100%;
+  min-height: 5rem;
+  padding: 0.45rem 0.7rem;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+  font-weight: 400;
+  resize: vertical;
+}
+
+.live-layer-form textarea:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.live-layer-button {
+  width: 100%;
+}
+
+.button-danger {
+  background: var(--down);
+  border-color: var(--down);
+  color: var(--accent-ink);
+}

@@ -49,8 +49,11 @@ describe('GET /v1/live', () => {
     expect(res.json()).toEqual({
       seq: 42,
       coverage: 'full',
-      status: { providers: { adsbLol: 'ok' }, primaryAgeS: 4.2, newestAgeS: 1.5 },
+      status: { providers: { adsbLol: 'ok' }, primaryAgeS: 4.2, newestAgeS: 1.5, layer: 'on' },
       aircraft: [istanbul],
+      license: 'ODbL-1.0',
+      licenseUrl: 'https://opendatacommons.org/licenses/odbl/1-0/',
+      attribution: 'ADSB.lol',
     })
   })
 
@@ -103,6 +106,9 @@ describe('GET /v1/search', () => {
       kind: 'flight',
       results: [istanbul],
       status: source.statusValue,
+      license: 'ODbL-1.0',
+      licenseUrl: 'https://opendatacommons.org/licenses/odbl/1-0/',
+      attribution: 'ADSB.lol',
     })
   })
 
@@ -197,6 +203,56 @@ describe('gizlilik uçtan uca (LiveCache + REST)', () => {
         const search = await live.inject({ method: 'GET', url: `/v1/search?q=${q}` })
         expect((search.json() as { results: unknown[] }).results, q).toEqual([])
       }
+    } finally {
+      await live.close()
+    }
+  })
+})
+
+describe('canlı katman kapalı (D-115)', () => {
+  it('/v1/live ve /v1/search 200 ile boş küme, status.layer off ve lisans döner', async () => {
+    const states = [aircraftState({ hex: '4bb1a2', callsign: 'THY974', sampleTime: 1_000_000 })]
+    const readers: LiveReaders = {
+      changedSince: async () => states.map((s) => ({ hex: s.hex, sampleTime: s.sampleTime })),
+      aircraftMany: async (_redis, hexes) =>
+        new Map(states.filter((s) => hexes.includes(s.hex)).map((s) => [s.hex, s])),
+      providerLive: async () => null,
+      coverage: async () => null,
+      configuredProviders: async () => null,
+    }
+    let layerOn = true
+    const cache = new LiveCache({
+      redisLive: {} as Redis,
+      codes: () => EMPTY_AIRLINE_CODES,
+      blocklist: () => new Set(),
+      layer: () => layerOn,
+      log: { debug: vi.fn(), info: vi.fn(), warn: vi.fn() },
+      now: () => 1_001_000,
+      readers,
+    })
+    await cache.tick()
+    const { app: live } = await testApp({
+      deps: { live: { source: cache, codes: () => EMPTY_AIRLINE_CODES } },
+    })
+    try {
+      const url = '/v1/live?bbox=28,41,29,42'
+      expect((await live.inject({ method: 'GET', url })).json()).toMatchObject({
+        status: { layer: 'on' },
+        aircraft: [{ hex: '4bb1a2' }],
+      })
+      layerOn = false
+      await cache.tick()
+      const res = await live.inject({ method: 'GET', url })
+      expect(res.statusCode).toBe(200)
+      expect(res.json()).toMatchObject({
+        status: { layer: 'off' },
+        aircraft: [],
+        license: 'ODbL-1.0',
+        attribution: 'ADSB.lol',
+      })
+      const search = await live.inject({ method: 'GET', url: '/v1/search?q=THY974' })
+      expect(search.statusCode).toBe(200)
+      expect(search.json()).toMatchObject({ results: [], status: { layer: 'off' } })
     } finally {
       await live.close()
     }

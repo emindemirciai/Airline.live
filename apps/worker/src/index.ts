@@ -166,7 +166,15 @@ if (roles.includes('ingest')) {
     log.warn({ missing }, 'ingest role skipped: REDIS_LIVE_URL and DATABASE_URL are required')
   } else {
     try {
-      const handle = await startIngest({ env, redisLive, database, log, version })
+      const handle = await startIngest({
+        env,
+        redisLive,
+        // Hex engel listesi kaynakta da uygulanır (D-115).
+        redisQueue: redis ?? undefined,
+        database,
+        log,
+        version,
+      })
       // Açılış sürerken kapanış sinyali geldiyse döngüler hemen durdurulur.
       if (shuttingDown) await closeIngest(handle)
       else ingest = handle

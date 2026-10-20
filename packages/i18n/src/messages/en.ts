@@ -671,7 +671,8 @@ export const en: Messages = {
     },
     privacy: {
       heading: 'Aircraft privacy',
-      military: 'Military aircraft are not shown on the map, in search or in the API.',
+      military:
+        'The live map shows only aircraft flying under a known airline callsign. We use detection rules to try to keep military, state and private aircraft off the site; these rules are not perfect.',
       registration: 'Registrations of aircraft in the PIA or LADD programmes are not shown.',
       blocklist:
         'Aircraft on the administrator’s blocklist are not shown on the map, in search or in the API.',
@@ -817,6 +818,9 @@ export const en: Messages = {
       reconnecting: 'Connection lost; reconnecting…',
       offline:
         'Cannot reach the live data server. Check your internet connection; we keep retrying.',
+      /** Yönetici canlı katmanı kapattı (D-115). */
+      layerOff:
+        'The live aircraft layer is switched off for now; no aircraft are shown on the map.',
       noProvider:
         'The live data source is switched off right now; no aircraft are shown on the map.',
       providerDegraded: 'The live data source is slow; positions may arrive late.',
@@ -975,6 +979,40 @@ export const en: Messages = {
     },
     fetchFailed: 'Could not load the service report. The API may be unreachable.',
     navLabel: 'Admin sections',
+    /** Live layer switch (D-115); the admin panel is Turkish only, the keys mirror `tr`. */
+    liveLayer: {
+      title: 'Live layer',
+      intro:
+        'Switches the live aircraft layer off and on with one tap. While it is off, the map, search and API empty within seconds and the worker writes no live aircraft; fetching and health records continue.',
+      state: 'State',
+      on: 'On',
+      off: 'Off',
+      lastChange: 'Last change: {time}, {who}',
+      neverChanged: 'Never changed (default: on)',
+      reason: 'Reason (optional; e.g. decision number)',
+      reasonHint: 'Who and when are recorded automatically. Up to 500 characters.',
+      turnOff: 'Switch the live layer off',
+      turnOn: 'Switch the live layer on',
+      pending: 'Applying…',
+      switchedOff: 'Switched off. The map, search and API empty within seconds.',
+      switchedOn: 'Switched on. Aircraft come back within a minute.',
+      noDatabase: 'No database is connected; the switch cannot be used.',
+      fetchFailed: 'The live layer state could not be loaded. The API may be unreachable.',
+      errors: {
+        invalid: 'The reason can be up to 500 characters.',
+        no_database: 'No database is connected; the switch cannot be used.',
+        unavailable:
+          'The change could not be applied: the API or database is not responding. Try again.',
+      },
+      log: {
+        heading: 'Action log',
+        caption: 'Last 20 actions, newest first',
+        empty: 'No actions yet.',
+        columns: { at: 'Time', actor: 'Who', action: 'Action', reason: 'Reason' },
+        actions: { on: 'Switched on', off: 'Switched off' },
+        noReason: '—',
+      },
+    },
     coverage: {
       title: 'Coverage report',
       intro:
@@ -1147,7 +1185,8 @@ export const en: Messages = {
     },
     privacy: {
       heading: 'Aircraft privacy',
-      military: 'Military aircraft are not shown on the map, in search or in the API.',
+      military:
+        'The live map shows only aircraft flying under a known airline callsign. We use detection rules to try to keep military, state and private aircraft off the site; these rules are not perfect.',
       registration: 'Registrations of aircraft in the PIA or LADD programmes are not shown.',
     },
     code: {
