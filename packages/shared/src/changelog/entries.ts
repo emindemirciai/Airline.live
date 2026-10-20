@@ -12,8 +12,39 @@ import type { ChangelogEntry } from './types'
  */
 export const CHANGELOG: readonly ChangelogEntry[] = [
   {
+    version: '0.28.0',
+    date: '2026-10-20',
+    title: {
+      tr: 'Canlı uçaklar haritada: yalnız havayolu uçakları',
+      en: 'Live aircraft on the map: airline aircraft only',
+    },
+    items: [
+      {
+        tr: 'Canlı harita açıldı: Türkiye ve çevresinde bilinen bir havayolu çağrı koduyla uçan uçaklar haritada ve uçak listesinde. Veri ADSB.lol’den gelir; kapsama şimdilik Türkiye ve çevresidir.',
+        en: 'The live map is on: aircraft flying under a known airline callsign in and around Türkiye appear on the map and in the aircraft list. Data comes from ADSB.lol; coverage is Türkiye and its surroundings for now.',
+      },
+      {
+        tr: 'Askerî, devlet ve özel uçaklar (iş jetleri dahil) ile kimliği belirsiz uçaklar gösterilmez. Bunları tespit kurallarımızla ayıklıyoruz; kuralların kusursuz olmadığını kullanım koşullarında ve Hakkında sayfasında açıkça yazıyoruz.',
+        en: 'Military, state and private aircraft (business jets included) and unidentified aircraft are not shown. We filter them out with detection rules; the terms of use and the About page say plainly that these rules are not perfect.',
+      },
+      {
+        tr: 'API’nin canlı uçak yanıtları artık verinin lisansını (ODbL 1.0) ve kaynağını (ADSB.lol) da yazıyor.',
+        en: 'The API’s live aircraft responses now also state the data licence (ODbL 1.0) and source (ADSB.lol).',
+      },
+      {
+        tr: 'Yöneticiler canlı uçak katmanını panelden tek dokunuşla kapatıp açabiliyor.',
+        en: 'Admins can switch the live aircraft layer off and on with one tap in the panel.',
+      },
+    ],
+    tryLinks: [
+      { path: '/kullanim-kosullari', label: { tr: 'Kullanım koşulları', en: 'Terms of use' } },
+      { path: '/hakkinda', label: { tr: 'Hakkında', en: 'About' } },
+    ],
+  },
+  {
     version: '0.27.0',
     date: '2026-10-19',
+    releasedAt: '2026-10-19T16:20:24Z',
     title: {
       tr: 'Dünyanın her yerinden havalimanları listede',
       en: 'Airports from all over the world are listed',

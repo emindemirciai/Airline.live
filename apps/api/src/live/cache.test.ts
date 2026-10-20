@@ -77,16 +77,19 @@ function setup(options: { historyTicks?: number; blocklist?: Set<string> } = {})
   const clock = { t: T0 }
   const log = { debug: vi.fn(), info: vi.fn(), warn: vi.fn() }
   const blocklist = options.blocklist ?? new Set<string>()
+  /** Canlı katman anahtarı (D-115); testler değiştirir. */
+  const layer = { on: true }
   const cache = new LiveCache({
     redisLive: {} as Redis,
     codes: testAirlineCodes,
     blocklist: () => blocklist,
+    layer: () => layer.on,
     log,
     now: () => clock.t,
     readers: live.readers,
     ...(options.historyTicks === undefined ? {} : { historyTicks: options.historyTicks }),
   })
-  return { cache, live, clock, log, blocklist }
+  return { cache, live, clock, log, blocklist, layer }
 }
 
 const thy = aircraftState({ hex: '4bb1a2', callsign: 'THY974', sampleTime: T0 - 2_000 })
@@ -331,13 +334,19 @@ describe('LiveCache hata ve durum', () => {
       updatedAt: String(T0 - 1_000),
     })
     live.providers.set('localReceiver', { status: 'ok', updatedAt: String(T0) })
-    expect(cache.status()).toEqual({ providers: {}, primaryAgeS: null, newestAgeS: null })
+    expect(cache.status()).toEqual({
+      providers: {},
+      primaryAgeS: null,
+      newestAgeS: null,
+      layer: 'on',
+    })
     live.put(thy, pgt)
     await cache.tick()
     expect(cache.status()).toEqual({
       providers: { adsbLol: 'degraded', localReceiver: 'ok' },
       primaryAgeS: 13.5,
       newestAgeS: 2,
+      layer: 'on',
     })
     clock.t += 3_000
     expect(cache.status()).toMatchObject({ primaryAgeS: 16.5, newestAgeS: 5 })
@@ -380,6 +389,7 @@ describe('LiveCache hata ve durum', () => {
       // Son bilinen birincil yaş yaşlanmaya devam eder.
       primaryAgeS: 188,
       newestAgeS: null,
+      layer: 'on',
     })
     // Worker dönünce yeniden ok.
     live.providers.set('adsbLol', { status: 'ok', primaryAgeS: '2', updatedAt: String(clock.t) })
@@ -398,6 +408,7 @@ describe('LiveCache hata ve durum', () => {
       providers: { adsbLol: 'down' },
       primaryAgeS: null,
       newestAgeS: null,
+      layer: 'on',
     })
   })
 
@@ -509,5 +520,56 @@ describe('LiveCache hata ve durum', () => {
     expect(first?.seq).toBe(1)
     expect(second).toBeNull()
     expect(live.state.sinceArgs).toHaveLength(1)
+  })
+})
+
+describe('LiveCache canlı katman (D-115)', () => {
+  it('kapanınca görünür küme boşalır: çıkarma farkı statusChanged taşır, durum off', async () => {
+    const { cache, live, layer } = setup()
+    live.put(thy, pgt)
+    await cache.tick()
+    expect(cache.status().layer).toBe('on')
+    layer.on = false
+    const diff = await cache.tick()
+    expect(diff?.statusChanged).toBe(true)
+    expect(diff?.added).toEqual([])
+    expect(diff?.removed.map((r) => r.hex).sort()).toEqual(['4ba9c1', '4bb1a2'])
+    expect(cache.status().layer).toBe('off')
+    expect(cache.snapshot()).toEqual([])
+    expect(cache.get('4bb1a2')).toBeUndefined()
+    // Kapalıyken kayıt gelse de görünmez; fark yoktur.
+    live.put({ ...thy, sampleTime: T0 - 1_000 })
+    expect(await cache.tick()).toBeNull()
+    expect(cache.snapshot()).toEqual([])
+  })
+
+  it('uçak yokken değişim de boş bir fark olarak gönderilir (seq artar)', async () => {
+    const { cache, layer } = setup()
+    expect(await cache.tick()).toBeNull()
+    const seq = cache.seq()
+    const heard: unknown[] = []
+    cache.onTick((d) => heard.push(d))
+    layer.on = false
+    const off = await cache.tick()
+    expect(off).toEqual({ seq: seq + 1, added: [], updated: [], removed: [], statusChanged: true })
+    expect(heard).toHaveLength(1)
+    expect(await cache.tick()).toBeNull()
+    layer.on = true
+    expect((await cache.tick())?.statusChanged).toBe(true)
+    expect(cache.seq()).toBe(seq + 2)
+  })
+
+  it('yeniden açılınca uçaklar eklenir; ilk turdan önceki durum anahtarın kendisidir', async () => {
+    const { cache, live, layer } = setup()
+    layer.on = false
+    expect(cache.status().layer).toBe('off')
+    live.put(thy)
+    // İlk tur: katman kapalı, değişim sayılmaz (önceki tur yok), görünür küme boş.
+    expect(await cache.tick()).toBeNull()
+    layer.on = true
+    const diff = await cache.tick()
+    expect(diff?.statusChanged).toBe(true)
+    expect(hexesOf(diff?.added ?? [])).toEqual(['4bb1a2'])
+    expect(cache.status().layer).toBe('on')
   })
 })

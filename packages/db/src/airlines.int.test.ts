@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import postgres from 'postgres'
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
-import { loadAirlineCodes } from './airlines'
+import { loadAirlineCodes, loadAirlineDesignatorRows } from './airlines'
 import { createDb, type Database } from './client'
 import { runMigrations } from './migrate'
 
@@ -150,5 +150,43 @@ describe('loadAirlineCodes', () => {
     const plain = await loadAirlineCodes(check)
     const wrapped = await loadAirlineCodes(database.sql)
     expect(Object.fromEntries(plain.icaoToIata)).toEqual(Object.fromEntries(wrapped.icaoToIata))
+  })
+})
+
+describe('loadAirlineDesignatorRows', () => {
+  it('IATA kodu olmayan satırlar, düzeltilen ICAO ve VRS desenleri gelir; ICAO’suz satır gelmez', async () => {
+    const dlhCharter = String.raw`^((987\d)|(99\d\d))$`
+    await insertAirlines([airline('THY', 'THY', 'TK'), airline('EAF', 'EAF', null)])
+    await check`
+      insert into airlines (code, name, icao, iata, charter_flight_pattern, positioning_flight_pattern, row_hash)
+      values
+        ('NJE', 'NetJets Europe', 'NJE', null, '.*', null, 'x'),
+        ('DLH', 'Lufthansa', 'DLH', 'LH', ${dlhCharter}, null, 'y'),
+        ('1B', 'Abacus International', null, '1B', null, null, 'z')`
+    await check`
+      insert into airline_overrides (code, icao, iata) values
+        ('EAF', 'eax', null),
+        ('NEW', 'NWX', null),
+        ('BAD', 'B1', null)`
+    const rows = await loadAirlineDesignatorRows(database.sql)
+    const byIcao = new Map(rows.map((r) => [r.icao, r]))
+    expect([...byIcao.keys()].sort()).toEqual(['DLH', 'EAX', 'NJE', 'NWX', 'THY'])
+    expect(byIcao.get('THY')).toEqual({
+      icao: 'THY',
+      iata: 'TK',
+      charterFlightPattern: null,
+      positioningFlightPattern: null,
+    })
+    // Düzeltilen ICAO (küçük harf büyütülür), IATA'sız satır da gelir.
+    expect(byIcao.get('EAX')?.iata).toBeNull()
+    expect(byIcao.get('NJE')?.charterFlightPattern).toBe('.*')
+    expect(byIcao.get('DLH')?.charterFlightPattern).toBe(dlhCharter)
+  })
+
+  it('VRS fixture: IATA şartı olmadan bütün ICAO kodlu satırlar', async () => {
+    await insertAirlines(readVrsFixture())
+    const rows = await loadAirlineDesignatorRows(database.sql)
+    expect(new Set(rows.map((r) => r.icao)).size).toBe(5_904)
+    expect(rows.find((r) => r.icao === 'HVK')).toMatchObject({ iata: null })
   })
 })

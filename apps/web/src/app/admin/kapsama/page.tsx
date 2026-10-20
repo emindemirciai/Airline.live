@@ -54,7 +54,12 @@ export default async function AdminCoveragePage({ searchParams }: PageProps<'/ad
     <article className="page page-wide coverage-page">
       <AdminNav
         current="coverage"
-        labels={{ label: admin.navLabel, services: admin.servicesTitle, coverage: t.title }}
+        labels={{
+          label: admin.navLabel,
+          services: admin.servicesTitle,
+          coverage: t.title,
+          live: admin.liveLayer.title,
+        }}
       />
       <header className="page-header">
         <div>

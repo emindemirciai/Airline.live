@@ -127,3 +127,75 @@ API bunlardan birinde 500 veriyor ya da istekten sonra yeniden başlıyorsa önc
 - **Eşleşmeyen yol** (`/olmayan-yol`, olmayan `/_next/static/…`): yanıt gelmez, bağlantı istemci ya da Traefik bırakana kadar açık kalır.
 
 Bu Next 16'nın iç davranışıdır (`next/dist/server/lib/router-server.js` → `upgradeHandler`) ve yamalanmaz. Tarayıcılar site host'una Upgrade göndermez (canlı veri `wss://api.airline.live/v1/ws`), kullanıcı etkisi yoktur. Site için Upgrade'li isteğin 502'si alarm değildir; izleme aracı siteyi düz `GET` ya da `HEAD` ile denetler. `hy-web`'de açık bağlantı sayısı bu yüzden büyürse D-113'teki değerlendirilmiş seçenek (açılışta `shouldUpgradeCallback: () => false`) kullanıcı kararıyla uygulanır.
+
+## Resmî talep ya da erişim engeli kararı geldi (5651 8/A, 9/A)
+**Belirti:** Siber Güvenlik Başkanlığı, bir sulh ceza hâkimliği, savcılık, KVK Kurumu, MSB ya da MİT'ten yazı ya da e-posta; e-postayla, KEP'le ya da Hostinger bildirimiyle gelir. Metinde "8/A", "9/A", "erişimin engellenmesi" ya da "içeriğin çıkarılması" geçer.
+
+**Ne olur:** Süre bildirimden itibaren **4 saattir**. Kaçırılırsa para cezası gelir (8/A: kanunda 50.000–500.000 TL) ve alan adının ya da IP'nin tamamı engellenebilir. VPS paylaşıldığı için öbür projeler de etkilenebilir. Hukuki ayrıntı: `docs/research/2026-10-15-canli-ucak-hukuk/rapor-tr.md` (K2), D-115.
+
+1. **Göndereni ve kanalı doğrula; bağlantılara tıklama.** Otomatik kapatma bilerek yoktur: sahte bir e-posta siteyi durduramamalı. Emin değilsen 2. adımı yine yap (kapatmak geri alınabilir).
+2. **Canlı katmanı kapat:** admin → **Canlı katman** (aşağıdaki bölüm; panel açılmıyorsa oradaki 6. adım). Neden alanına karar sayısını ve tarihini yaz. Doğrula: `curl -s "https://api.airline.live/v1/live?bbox=25,35,45,43"` → `status.layer` `"off"`, `aircraft` boş.
+3. **Karar tek bir uçağı ya da adresi hedefliyorsa** (`/?hex=…`, ileride `/ucus/<id>`): uçağın hex'ini engel listesine ekle (aşağıdaki "API ile" bölümü; bilgisayar gerekir, admin panel sayfası M7d.2'de gelir). 4 saatlik süre için telefondaki yol 2. adımdır; engel listesi ondan sonra gelir. Liste her kanalda en geç 30 sn'de uygulanır. Katmanı ancak kararı avukatla okuduktan sonra yeniden aç.
+4. **Kaydet** (repo dışında, değiştirmeden): ekleriyle tam metin ve e-posta başlıkları, alınma anı (saat dilimiyle), okunma anı ve atılan her adım. Admin işlem kaydı kimin, ne zaman ve hangi nedenle bastığını kendisi tutar; 30 günden uzun tutulmadığı için (K7) ilgili satırların ekran görüntüsünü de repo dışında sakla.
+5. **Talepten sonra seçerek silme yok (TCK 281).** Yazılı otomatik saklama kuralları çalışmaya devam eder. Yalnız talebin açıkça istediği silinir ve neyin silindiği kaydedilir. Kayıtları dondurmaya avukatla karar ver.
+6. **Kimi ara:** avukat. İletişim bilgisi repoda değildir; nerede kayıtlı olduğunu ACTIVATION'daki "Açılıştan sonra: avukat incelemesi" satırı söyler. Henüz bir avukat yoksa katmanı kapalı tut (8. adım), kayıtları 4. adımdaki gibi sakla ve bir avukatla hemen görüş. Bildirim Hostinger üzerinden geldiyse Hostinger desteği. Bilgi taleplerini (7545 md. 16, MİT Kanunu md. 28) avukatla ve süresinde yanıtla.
+7. **Tam durdurma (veri çekimi de durur):** Dokploy → `havayolu` Compose → Environment'ta `CONTACT_EMAIL`'i boşalt, kaydet ve yeniden deploy et. adsb.lol çekimi durur ve sonraki deploy'larda da durmuş kalır (`LOCAL_RECEIVER_URLS` üretimde boştur, boş kalmalı). Yalnız `hy-worker-rt`'yi durdurmak (Stop) hemen etkilidir ama bir sonraki deploy'da yeniden başlar (aşağıdaki bölümün 6. adımı). `CONTACT_EMAIL`'i ancak kararı avukatla okuduktan sonra geri gir (ACTIVATION 2. adım). Alan adı ya da IP kararı öbür projeleri etkileyebilir: Hostinger'la konuş.
+8. **Kapsam belirsizse katmanı kapalı tut;** varsayılan eylem budur.
+9. **Geri alma bu adımları korumaz:** katman kapalıyken v0.28.0'dan eski bir SHA'ya dönülmez. Eski imajlar canlı katman anahtarını ve yalnız-havayolu süzgecini tanımaz; `rollback.yml` böyle bir hedefi reddeder. İzinle dönmek gerekirse önce `CONTACT_EMAIL`'i boşalt (DEPLOY_DOKPLOY §12).
+
+## Canlı katmanı kapatma
+**Ne zaman:** resmî talep (yukarıdaki bölüm); kriz (terör saldırısı, darbe girişimi, askerî uçak kazası, sınır ötesi harekât, OHAL, seferberlik, mahkeme yayın yasağı); görünmemesi gereken bir uçak görüldü (tek uçaksa hex engeli yeter: aşağıdaki "API ile" bölümü, bilgisayardan; telefondaki hızlı yol katmanı kapatmaktır); süzgecin bozulduğundan şüphe.
+
+1. `https://admin.airline.live` → **Canlı katman** (telefondan çalışır; giriş gerekir). Marka geçişinin (b2) adımından önce panel `https://admin.havayolu.live`'dadır; o zamana kadar yeni adres 404 verir (`ADMIN_HOST` henüz `admin.havayolu.live`, ACTIVATION "Marka geçişi").
+2. Neden alanını doldur (isteğe bağlı; kim ve ne zaman kendiliğinden yazılır).
+3. **Canlı katmanı kapat**'a bas. Birkaç saniye içinde: harita "Canlı uçak katmanı şu an kapalı" uyarısını gösterir; `/v1/live` ve arama `status.layer: "off"` ile boş döner; WS istemcileri boş tam görüntü alır; worker `redis-live`'ı temizler, uçuş kaydı ve iz yazmayı durdurur. Veri çekimi ve sağlık kaydı sürer (admin Servisler ve `/durum` doğru kalır).
+4. **Canlı katmanı aç** geri alır: uçaklar bir sonraki çekimle (genellikle saniyeler, en çok ~1 dk) gelir. Katman 30 dk içinde açılırsa açık kalan uçuş kayıtları sürer.
+5. Durum veritabanındadır (`live_layer_state`); yeniden başlatmalarda ve deploy'larda korunur. `admin_actions` 30 günden uzun tutulmaz (K7, D-115).
+6. **Panel açılmıyorsa:**
+   - **Site ya da panel çalışmıyor, API ve veritabanı çalışıyor** (`curl -s https://api.airline.live/ready | jq '{postgres: .checks.postgres.ok, redisQueue: .checks.redisQueue.ok}'` → ikisi de `true`; HTTP kodu önemli değil: redis-live çalışmıyorken `/ready` 503 döner ama anahtar yine çalışır. `/health` bunu söylemez, yalnız sürecin ayakta olduğunu gösterir): anahtarı API'den kapat (aşağıdaki "API ile" bölümü, `PUT /v1/admin/live-layer`). Bu kalıcıdır: durum veritabanına yazılır. PUT `{"enabled": null, …}` dönerse ya da sonraki `status.layer` birkaç saniye sonra da `"off"` değilse bir sonraki maddeye geç.
+   - **API, veritabanı ya da redis-queue çalışmıyor** (yukarıdaki komut hata verir, boş döner ya da `false` gösterir; redis-queue giriş oturumları içindir): Dokploy'da `hy-worker-rt`'yi durdur (Stop); harita en geç 120 sn'de boşalır. Bu **geçicidir**: durdurulan servis bir sonraki deploy'da (`main`'e her kod birleşmesi, Dokploy'da Deploy ya da Reload, `rollback.yml`) yeniden başlar ve anahtar veritabanında açık kaldığı için yayına döner. Kalıcı olması için hemen ardından Dokploy Environment'ta `CONTACT_EMAIL`'i boşalt ve yeniden deploy et: adsb.lol çekimi durur ve deploy'lardan sonra da durmuş kalır.
+   - Worker yalnız durdurulmuşken (`CONTACT_EMAIL` henüz boşaltılmadan) birleştirme, deploy ve geri alma yapılmaz; ajana da söyle.
+   - Panel ya da API yeniden çalışınca önce katmanı nedeniyle kapat, sonra `CONTACT_EMAIL`'i geri gir ya da worker'ı başlat. Kalıcı olan tek durum veritabanındaki anahtardır.
+   - Veritabanına elle yazmak DUR-SOR 4'tür ve kullanıcı izni ister.
+7. **Geri alma anahtarı korumaz:** v0.28.0'dan eski imajlar anahtarı ve yalnız-havayolu süzgecini tanımaz; kapalı katman sessizce açılır. `rollback.yml` böyle bir hedefi reddeder. İzinle (`allow_pre_live_gate=true`) dönmeden önce `CONTACT_EMAIL`'i boşalt (DEPLOY_DOKPLOY §12).
+
+Not: kullanıcı kararıyla (2026-10-15, rapor K2) admin'de en çok 3 yetkili kişi olacak; bu sonraya kaldı, bugün tek yönetici vardır.
+
+## API ile: katman anahtarı ve engel listesi (bilgisayardan)
+Panelin oturum çerezi bu iş için kullanılamaz (httpOnly, yalnız `/admin` yolunda). API, yönetici girişinin verdiği Bearer belirteciyle çalışır: giriş e-postası `ADMIN_EMAIL`, şifre `ADMIN_SETUP_TOKEN`'dır (parola yöneticinde; panel girişiyle aynı). Giriş dakikada en çok 5 denemedir. Komutlar Git Bash, macOS ya da Linux kabuğu içindir ve `jq` ister. Şifre ekrana ve kabuk geçmişine yazılmaz; JSON gövdesini `jq` kurar.
+
+1. **Giriş:**
+
+   ```bash
+   API=https://api.airline.live
+   read -rp 'ADMIN_EMAIL: ' EMAIL; read -rsp 'ADMIN_SETUP_TOKEN: ' PASS; echo
+   TOKEN=$(jq -n --arg e "$EMAIL" --arg p "$PASS" '{email: $e, password: $p}' \
+     | curl -s -X POST "$API/api/auth/login" -H 'content-type: application/json' -d @- \
+     | jq -r .token)
+   unset PASS
+   [ -n "$TOKEN" ] && [ "$TOKEN" != null ] && echo "giriş tamam" || echo "giriş başarısız (e-posta, şifre ya da 5 deneme sınırı)"
+   ```
+
+2. **Katman anahtarı** (kapatır; açmak için `enabled: true`). Panel düğmesiyle aynı işlemdir ve işlem kaydına yazılır:
+
+   ```bash
+   jq -n --arg r '<karar sayısı ve tarihi>' '{enabled: false, reason: $r}' \
+     | curl -s -X PUT "$API/v1/admin/live-layer" -H "authorization: Bearer $TOKEN" \
+         -H 'content-type: application/json' -d @- | jq '{enabled, updatedAt}'
+   sleep 3   # API anahtarı bir sonraki önbellek turunda (~1 sn) uygular
+   curl -s "$API/v1/live?bbox=25,35,45,43" | jq .status.layer   # → "off"
+   ```
+
+   Hemen bakılırsa birkaç saniye `"on"` görünebilir; tekrar dene.
+
+3. **Engel listesi** (hex 6 onaltılık hane; ICAO dışı adres `~` önekli; tek istekte en çok 1.000; büyük harf küçültülür):
+
+   ```bash
+   curl -s -X POST "$API/v1/admin/blocklist" -H "authorization: Bearer $TOKEN" \
+     -H 'content-type: application/json' -d '{"hexes":["<hex>"]}'      # → {"added":1}; zaten listedeyse 0
+   curl -s "$API/v1/admin/blocklist" -H "authorization: Bearer $TOKEN"   # → {"hexes":[…]}
+   ```
+
+   Çıkarmak için aynı gövdeyle `-X DELETE` (→ `{"removed":1}`). Liste her kanalda en geç 30 sn'de uygulanır; yayındaki uçak yayından bir kez çekilir.
+
+4. **Çıkış:** `curl -s -X POST "$API/api/auth/logout" -H "authorization: Bearer $TOKEN"; unset TOKEN` (204).

@@ -233,6 +233,57 @@ describe('LiveHub', () => {
     expect(hexes(snapshot?.aircraft)).toEqual(['4bb001'])
   })
 
+  it('tam görüntü canlı veri lisansını, atfını ve katman durumunu taşır (D-115)', () => {
+    const { connect, subscribe } = setup()
+    const c = connect()
+    subscribe(c)
+    expect(c.socket.last()).toMatchObject({
+      type: 'snapshot',
+      status: { layer: 'on' },
+      license: 'ODbL-1.0',
+      licenseUrl: 'https://opendatacommons.org/licenses/odbl/1-0/',
+      attribution: 'ADSB.lol',
+    })
+  })
+
+  it('statusChanged turu görünümü boş istemciler dahil herkese tam görüntü gönderir (D-115)', () => {
+    const { source, connect, subscribe } = setup()
+    const ist = connect('203.0.113.1')
+    // Uçaksız görünüm: boş diff gönderilmediği için haberi ancak tam görüntüyle alır.
+    const empty = connect('203.0.113.2')
+    subscribe(ist, V_IST)
+    subscribe(empty, { minLon: 40, minLat: 37, maxLon: 41, maxLat: 38 })
+    vi.advanceTimersByTime(1_000)
+    const before = { ist: ist.socket.frames.length, empty: empty.socket.frames.length }
+    // Katman kapandı: uçaklar çıkar, durum off olur.
+    source.liveStatus = { ...source.liveStatus, layer: 'off' }
+    source.tick({ remove: ['4bb001', '4bb002', '4bb101'], statusChanged: true })
+    expect(ist.socket.frames.length).toBe(before.ist + 1)
+    expect(ist.socket.last()).toMatchObject({
+      type: 'snapshot',
+      seq: 11,
+      status: { layer: 'off' },
+      aircraft: [],
+    })
+    expect(empty.socket.frames.length).toBe(before.empty + 1)
+    expect(empty.socket.last()).toMatchObject({ type: 'snapshot', status: { layer: 'off' } })
+
+    // Uçaksız bir durum turu da (fark boş) tam görüntü gönderir.
+    vi.advanceTimersByTime(1_000)
+    source.liveStatus = { ...source.liveStatus, layer: 'on' }
+    source.tick({ statusChanged: true })
+    expect(empty.socket.last()).toMatchObject({
+      type: 'snapshot',
+      seq: 12,
+      status: { layer: 'on' },
+    })
+    // Sıradan boş olmayan tur görünümü boş istemciye bir şey göndermez.
+    vi.advanceTimersByTime(1_000)
+    const count = empty.socket.frames.length
+    source.tick({ upsert: [{ ...a1, lat: 41.2 }] })
+    expect(empty.socket.frames.length).toBe(count)
+  })
+
   it('diff yalnızca görünümle kesişen hücreleri taşır; değişiklik yoksa mesaj gitmez', () => {
     const { source, connect, subscribe } = setup()
     const ist = connect('203.0.113.1')
@@ -550,7 +601,12 @@ describe('LiveHub', () => {
       status: { primaryAgeS: 4 },
     })
     // Veri kesintisi: tur gelmez, durum değişir.
-    source.liveStatus = { providers: { adsbLol: 'down' }, primaryAgeS: 1_900, newestAgeS: null }
+    source.liveStatus = {
+      providers: { adsbLol: 'down' },
+      primaryAgeS: 1_900,
+      newestAgeS: null,
+      layer: 'on',
+    }
     vi.advanceTimersByTime(30 * 60_000)
     const current = connect('203.0.113.2')
     subscribe(current, V_IST, { lastSeq: 11 })

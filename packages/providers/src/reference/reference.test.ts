@@ -10,7 +10,7 @@ import {
   parseRunways,
   type RunwayRow,
 } from './ourairports'
-import { parseAirlines } from './vrs'
+import { parseAirlines, VrsSchemaError } from './vrs'
 
 // Commit'li alt küme: OurAirports ve VRS'ten 2026-09-27'de alındı; halka satırları 2026-10-01
 // indirmesinden (tools/fixtures/README.md).
@@ -374,5 +374,23 @@ describe('VRS airlines', () => {
     )
     expect(rows.map((r) => r.name)).toEqual(['A'])
     expect(skipped.map((s) => s.line)).toEqual([3, 4])
+  })
+
+  it('beklenen sütunlardan biri eksikse ya da adı değiştiyse dosyayı reddeder (D-115)', () => {
+    // Desen sütunu kaybolursa her satır null okunur ve iş jeti işletmecileri havayolu sayılırdı.
+    expect(() =>
+      parseAirlines(
+        'Code,Name,ICAO,IATA,PositioningFlightPattern,CharterPattern\nNJE,NetJets Europe,NJE,1I,,.*',
+      ),
+    ).toThrow(new VrsSchemaError(['CharterFlightPattern']))
+    expect(() => parseAirlines('Code,Name,ICAO,IATA\nTHY,Turkish Airlines,THY,TK')).toThrow(
+      'VRS airlines.csv is missing columns: PositioningFlightPattern, CharterFlightPattern',
+    )
+    expect(() => parseAirlines('')).toThrow(VrsSchemaError)
+    // Sütun sırası önemli değildir; BOM ve fazladan sütun kabul edilir.
+    const { rows } = parseAirlines(
+      '\uFEFFCharterFlightPattern,PositioningFlightPattern,IATA,ICAO,Name,Code,Extra\n.*,,1I,NJE,NetJets Europe,NJE,x',
+    )
+    expect(rows).toMatchObject([{ code: 'NJE', charterFlightPattern: '.*', iata: '1I' }])
   })
 })

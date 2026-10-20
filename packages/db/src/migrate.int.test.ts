@@ -13,7 +13,7 @@ const adminUrl =
 const testDbName = 'app_test_db_pkg'
 const testUrl = adminUrl.replace(/\/[^/]*$/, `/${testDbName}`)
 const migrationsFolder = fileURLToPath(new URL('../drizzle', import.meta.url))
-/** Commit'li migration sayısı (drizzle günlüğü; 0005 veri migration'ı, 0006 ve 0007 dahil 8). */
+/** Commit'li migration sayısı (drizzle günlüğü; 0005 veri migration'ı, 0006, 0007 ve 0008 dahil 9). */
 const journalEntries = (
   JSON.parse(readFileSync(join(migrationsFolder, 'meta', '_journal.json'), 'utf8')) as {
     entries: unknown[]
@@ -43,7 +43,7 @@ describe('runMigrations', () => {
       const [ext] = await sql`select extversion from pg_extension where extname = 'postgis'`
       expect(ext?.extversion).toMatch(/^3\./)
       const applied = await sql`select count(*)::int as n from drizzle.__drizzle_migrations`
-      expect(journalEntries).toBe(8)
+      expect(journalEntries).toBe(9)
       expect(applied[0]?.n).toBe(journalEntries)
     } finally {
       await sql.end({ timeout: 5 })

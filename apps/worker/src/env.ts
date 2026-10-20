@@ -1,6 +1,6 @@
 import { existsSync } from 'node:fs'
 import { dirname, join } from 'node:path'
-import { parseReceiverUrls, ReceiverConfigError } from '@havayolu/providers'
+import { parseReceiverUrls, ReceiverConfigError, type LiveScope } from '@havayolu/providers'
 import { DEFAULT_APP_NAME, withoutEnvPlaceholders } from '@havayolu/shared'
 import { z } from 'zod'
 
@@ -134,6 +134,12 @@ const EnvSchema = z.object({
   ADSBLOL_API_KEY_HEADER: z.preprocess(emptyToUndefined, z.string().optional()),
   LOCAL_RECEIVER_URLS: receiverUrls,
   WATCH_HEX_LIST: watchHexList,
+  /**
+   * Canlı uçak yayın kapsamı (D-115): `airline` | `all`. Enum değildir: üretimde hiçbir değer
+   * worker'ı düşürmez, `effectiveLiveScope` her değeri `airline` sayar (kalıcı kural). Geliştirme ve
+   * testte geçersiz değer açılışta hata verir (`parseEnv`).
+   */
+  LIVE_AIRCRAFT_SCOPE: z.preprocess(emptyToUndefined, z.string().optional()),
 })
 
 export type Env = z.infer<typeof EnvSchema>
@@ -172,8 +178,44 @@ export function parseEnv(source: NodeJS.ProcessEnv): Env {
   if (result.data.APP_ENV === 'production') {
     const missing = (['REDIS_QUEUE_URL', 'DATABASE_URL'] as const).filter((k) => !result.data[k])
     if (missing.length > 0) throw new EnvError(missing.map((k) => `${k}: üretimde zorunlu`))
+  } else {
+    const scope = requestedScope(result.data.LIVE_AIRCRAFT_SCOPE)
+    if (scope !== undefined && scope !== 'airline' && scope !== 'all') {
+      throw new EnvError(['LIVE_AIRCRAFT_SCOPE: airline ya da all olmalı'])
+    }
   }
   return result.data
+}
+
+const requestedScope = (value: string | undefined) => value?.trim().toLowerCase() || undefined
+
+export interface EffectiveLiveScope {
+  scope: LiveScope
+  /** Üretimde `airline` dışındaki bir değer yok sayıldı (bir kez uyarı yazılır). */
+  warning: 'production_forces_airline' | null
+  /** Uyarı için güvenli biçim: değer `^[a-z_-]{1,16}$` ise kendisi, değilse '(invalid)'. */
+  requested: string | null
+}
+
+/**
+ * Uygulanacak yayın kapsamı (D-115, aşamalı açılış 1. aşama). Üretimde her zaman `airline`:
+ * başka bir değer bir uyarıyla yok sayılır (açık kalmaz, worker düşmez). Geliştirme ve testte
+ * boşsa `all` (worker entegrasyon testleri ve havayolu tablosu boş yerel veritabanı), doluysa
+ * verilen değer (`parseEnv` geçersizini reddeder).
+ */
+export function effectiveLiveScope(
+  env: Pick<Env, 'APP_ENV' | 'LIVE_AIRCRAFT_SCOPE'>,
+): EffectiveLiveScope {
+  const value = requestedScope(env.LIVE_AIRCRAFT_SCOPE)
+  const requested = value === undefined ? null : /^[a-z_-]{1,16}$/.test(value) ? value : '(invalid)'
+  if (env.APP_ENV === 'production') {
+    return {
+      scope: 'airline',
+      warning: value === undefined || value === 'airline' ? null : 'production_forces_airline',
+      requested,
+    }
+  }
+  return { scope: value === 'airline' ? 'airline' : 'all', warning: null, requested }
 }
 
 /** Geliştirmede kökteki .env (varsa) ve .env.example'ı yükler; üretimde hiçbir şey yüklemez. */

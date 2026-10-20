@@ -10,6 +10,7 @@ import {
   type CoverageList,
 } from './arrival-coverage'
 import { getServerEnv } from './env'
+import { LIVE_LAYER_API_PATH, LiveLayerSchema, type LiveLayerState } from './live-layer'
 
 /** Yönetici oturum token'ının tutulduğu çerez (httpOnly; yalnızca /admin altında gönderilir). */
 export const ADMIN_COOKIE = 'hy_admin'
@@ -203,4 +204,76 @@ export async function fetchCoverageMarkdown(
   } catch {
     return { ok: false, reason: 'unavailable' }
   }
+}
+
+// ---------------------------------------------------------------------------------------------
+// Canlı katman anahtarı (Parça 1 M7d.1, D-115): `/v1/admin/live-layer`
+
+/** `no_database`: API'de veritabanı bağlı değil (503); anahtar kullanılamaz. */
+export type LiveLayerFailure = 'unauthorized' | 'no_database' | 'unavailable'
+
+async function liveLayerResult(
+  response: Response | null,
+): Promise<
+  { ok: true; layer: LiveLayerState } | { ok: false; reason: LiveLayerFailure | 'invalid' }
+> {
+  if (response === null) return { ok: false, reason: 'unavailable' }
+  if (response.status === 401) return { ok: false, reason: 'unauthorized' }
+  if (response.status === 400) return { ok: false, reason: 'invalid' }
+  if (response.status === 503) return { ok: false, reason: 'no_database' }
+  if (!response.ok) return { ok: false, reason: 'unavailable' }
+  const parsed = LiveLayerSchema.safeParse(await response.json().catch(() => null))
+  return parsed.success ? { ok: true, layer: parsed.data } : { ok: false, reason: 'unavailable' }
+}
+
+/** Anahtarın durumu, son değişikliği ve son 20 işlem. */
+export async function fetchLiveLayer(
+  token: string,
+  forwarded: ForwardHeaders,
+): Promise<{ ok: true; layer: LiveLayerState } | { ok: false; reason: LiveLayerFailure }> {
+  let response: Response | null
+  try {
+    response = await fetch(apiUrl(LIVE_LAYER_API_PATH), {
+      headers: { ...forwarded, authorization: `Bearer ${token}` },
+      cache: 'no-store',
+      signal: AbortSignal.timeout(TIMEOUT_MS),
+    })
+  } catch {
+    response = null
+  }
+  const result = await liveLayerResult(response)
+  if (result.ok) return result
+  // GET 400 dönmez; dönerse beklenmeyen yanıttır.
+  return { ok: false, reason: result.reason === 'invalid' ? 'unavailable' : result.reason }
+}
+
+/** Katmanı açar ya da kapatır; `reason` temizlenmiş olmalı (`parseLiveLayerReason`). */
+export async function setLiveLayer(
+  token: string,
+  forwarded: ForwardHeaders,
+  body: { enabled: boolean; reason: string | null },
+): Promise<
+  { ok: true; layer: LiveLayerState } | { ok: false; reason: LiveLayerFailure | 'invalid' }
+> {
+  let response: Response | null
+  try {
+    response = await fetch(apiUrl(LIVE_LAYER_API_PATH), {
+      method: 'PUT',
+      headers: {
+        ...forwarded,
+        authorization: `Bearer ${token}`,
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify(
+        body.reason === null
+          ? { enabled: body.enabled }
+          : { enabled: body.enabled, reason: body.reason },
+      ),
+      cache: 'no-store',
+      signal: AbortSignal.timeout(TIMEOUT_MS),
+    })
+  } catch {
+    response = null
+  }
+  return liveLayerResult(response)
 }

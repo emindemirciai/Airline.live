@@ -100,7 +100,7 @@ Durum geçişleri `provider_health`'e yazılır.
   - lat/lon 60 sn'den eskiyse gelmez; yerine `lastPosition {lat, lon, nic, rc, seen_pos}` gelir. Bu yalnızca bayat uçağı göstermek içindir, **olay tespitinde kullanılmaz**. `rr_lat`/`rr_lon` atılır.
   - `type` konum kaynağını söyler: `adsb_icao`, `adsb_icao_nt`, `mlat`, `tisb_*`, `adsr_*`, `adsc`, `mode_s`, `other`.
   - `squawk` string'dir.
-  - `dbFlags` yoksa 0'dır; bitler 1 askeri, 2 ilginç, 4 PIA, 8 LADD (ör. 3 = askeri + ilginç). Bit testiyle okunur.
+  - `dbFlags` yoksa 0'dır; bitler 1 askeri, 2 ilginç, 4 PIA, 8 LADD (ör. 3 = askeri + ilginç). Bit testiyle okunur. Kalıcı yayın kuralıyla (D-115) worker bayrağı bilinmeyen ya da 1, 2, 4 veya 8 bitinden biri set olan uçağı hiç yazmaz; API'deki gizleme ikinci hattır.
 - **Ek alanlar** (Uzman görünüm ve motor için): `ias`, `tas`, `mach`, `wd`, `ws`, `oat`, `tat`, `nav_qnh` (hPa), `nav_altitude_mcp`, `nav_modes` (ör. `approach`), `baro_rate`, `geom_rate`, `track`, `true_heading`, `category`, `emergency`.
 
 ## 2. Kendi alıcı (opsiyonel; kullanıcı şu an kurmuyor, D-006)
@@ -135,6 +135,7 @@ Durum geçişleri `provider_health`'e yazılır.
   - `airlines.csv`: Code, Name, ICAO, IATA, PositioningFlightPattern, CharterFlightPattern. AJet (TKJ/VF) dahil güncel.
   - `routes/schema-01`: Callsign, Code, Number, AirlineCode, AirportCodes. AirportCodes tireyle ayrılmış ICAO listesidir ve ara durak içerebilir.
 - **İçe aktarım:** Havayolları Parça 1 M2'de (sefer no araması için), rotalar Parça 2'de gelir. İkisi de günlük, ETag ile.
+- **Canlı yayın kuralı (D-115):** ICAO kodu geçerli her havayolu satırı (fixture'da 5.904 kod; IATA şartı yok) çağrı kodu kuralının işletmeci kodudur; VRS'te olmayan kod yayınlanmaz. `CharterFlightPattern` ya da `PositioningFlightPattern` tam olarak `.*` olan işletmeci (bütün uçuşları charter ya da konumlandırma: iş jeti, şirket uçuş birimi, okul, ambulans; fixture'da 287) havayolu sayılmaz; yolcu uçağıyla tatil uçuşu yapan 10 charter ve ACMI havayolu izin listesindedir (ENT, EVE, EZZ, HST, AAE, BUC, VAW, EAF, OTF, KRP; sonrasında 277). Uçuşların bir kısmını kapsayan desenler yok sayılır. Herkese açık reddedilen kodlar (askerî, devlet, polis ve sınır, uçuş kontrolü, ambulans ve kurtarma, iş jeti ve VIP; 284) ve iş jeti tip kodları (83) kodda durur: `packages/providers/src/live-scope-designators.ts`. Worker tabloyu açılışta ve 6 sa'te bir (boşken 10 sn'de bir) okur; tablo boşken hiçbir şey yayınlanmaz. Beklenen sütunlardan biri eksik ya da adı değişmiş dosya içe aktarılmaz; `non_airline` sayısı üretimde 200'ün ya da son iyi tablonun %80'inin altına düşen tablo worker'da kabul edilmez (D-115).
 - **Rota uygunluğu:** yerelde hesaplanır. Konum, her bacağın büyük daire hattına en fazla max(50 NM, bacak uzunluğunun %20'si) uzaklıkta olmalıdır. Uymayan rota düşük güvenli sayılır. Sonuç her yerde "tahmini" gösterilir.
 - **IATA kodları tekil değildir.** TK1985 → THY1985 dönüşümünde **şu an uçan** havayolunun ICAO kodu tercih edilir. Belirsizlik admin düzeltme tablosuyla ya da canlı çağrı kodu kanıtıyla çözülür.
 - **Kapsam dışı ve atıf:** Telsiz çağrı adları (TURKISH, SUNTURK) v1'de yoktur. **OpenFlights kullanılmaz:** 2017'den beri güncellenmiyor ve ODbL share-alike yükü getiriyor. CC0 atıf gerektirmez; yine de ATTRIBUTION.md'de nezaketen anılır.

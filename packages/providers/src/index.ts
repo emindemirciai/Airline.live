@@ -1,5 +1,6 @@
 export * from './aircraft'
 export * from './license'
+export * from './live-scope'
 export * from './live/adsblol'
 export * from './live/local-receiver'
 export * from './live/response'

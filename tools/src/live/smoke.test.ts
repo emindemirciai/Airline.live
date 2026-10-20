@@ -129,6 +129,10 @@ const STATS: IngestStats = {
   rps: 0.1,
   circuit: 'closed',
   rowsDropped: 0,
+  scope: 'airline',
+  layer: 'on',
+  published: 2900,
+  dropped: { no_callsign: 40, pia_ladd: 3 },
 }
 
 function health(overrides: Partial<ProviderSummary> = {}): ProviderSummary {
@@ -350,6 +354,7 @@ describe('smokeEnvSource', () => {
       LOCAL_RECEIVER_URLS: '',
       WATCH_HEX_LIST: '',
       WEB_HOST: '',
+      LIVE_AIRCRAFT_SCOPE: 'airline',
       DATABASE_URL:
         'postgres://havayolu:havayolu_dev_only@localhost:45432/app_smoke_live?sslmode=disable',
       REDIS_LIVE_URL: 'redis://:live_dev_only@localhost:46380/7',
@@ -367,6 +372,11 @@ describe('smokeEnvSource', () => {
       { databaseName: 'app_test_tools_smoke', liveDbIndex: 4 },
     )
     expect(out.WEB_HOST).toBe('havayolu.example')
+    // Kullanıcının .env'indeki kapsam ne olursa olsun smoke yalnız havayolu uçaklarını yayınlar.
+    expect(
+      smokeEnvSource({ LIVE_AIRCRAFT_SCOPE: 'all' }, { databaseName: 'x', liveDbIndex: 1 })
+        .LIVE_AIRCRAFT_SCOPE,
+    ).toBe('airline')
     expect(out.REDIS_LIVE_URL).toBe('redis://localhost:46380/4')
     expect(out.DATABASE_URL).toBe('not a url')
     expect(

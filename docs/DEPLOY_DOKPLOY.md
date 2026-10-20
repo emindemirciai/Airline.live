@@ -139,7 +139,7 @@ Compose servisinin Domains sekmesinde her satır için HTTPS açık, sertifika L
 - `LEGACY_API_HOSTS` (yeni satır): `api.havayolu.live`
 - `ANALYZE_URL`: `https://analiz.havayolu.live` → `https://analiz.airline.live`
 - `ANALYZE_SITE_ID`: `havayolu.live` → `airline.live`
-- sonra, ayrı adımda ((b2) doğrulandıktan sonra): `CONTACT_EMAIL=info@airline.live`
+- sonra, ayrı adımda ((b2) doğrulandıktan sonra ve ACTIVATION 2. adımdaki açılış kapısı tamamlanınca, D-115): `CONTACT_EMAIL=info@airline.live`
 
 Aynen kalanlar (dokunma):
 
@@ -258,6 +258,12 @@ Bundan sonra her birleşen PR aynı yolu kendiliğinden izler.
   ```
 
   - SHA, `main`'de deploy işinin imaj derlediği bir commit olmalı (PR dalındaki bir commit değil). İmajlardan biri yoksa hiçbir etiket taşınmaz, iş kırmızı biter.
+  - **Canlı uçak süzgeci ve canlı katman (D-115):** v0.28.0'dan eski imajlar yalnız-havayolu süzgecini, worker'daki engel listesini ve canlı katman anahtarını (`live_layer_state`) tanımaz. `CONTACT_EMAIL` girildiyse bütün uçakları yayınlar (özel, devlet, VIP, PIA/LADD; API yalnız askerî biti ve engel listesini uygular), panelde kapatılmış katmanı sessizce açar ve admin'de Canlı katman sayfası olmaz. Doğrulama yine yeşil biterdi; bu yüzden iş hedefi **etiketleri taşımadan önce** denetler (`scripts/rollback-guard.mts`): sürüm v0.28.0'dan eskiyse, okunamıyorsa ya da süzgeç dosyaları yoksa iş kırmızı biter ve canlıda hiçbir şey değişmez. İş Dokploy'daki env'i göremez. Daha eskiye dönmek kaçınılmazsa:
+    1. Dokploy → `havayolu` Compose → Environment'ta `CONTACT_EMAIL`'i boşalt, kaydet, yeniden deploy et (worker veri çekmez; harita en geç 120 sn'de boşalır).
+    2. Geri almayı izinle çalıştır: `gh workflow run rollback.yml --repo emindemirciai/havayolu --ref main -f sha=<7> -f allow_pre_live_gate=true`. Girdi, 1. adımın yapıldığının beyanıdır; iş uyarı yazar.
+    3. `CONTACT_EMAIL`'i ancak en az v0.28.0 yeniden yayındayken ve canlı katman panelde istenen durumdayken geri gir.
+
+    Canlı uçaklar hiç açılmadıysa (`CONTACT_EMAIL` hiç girilmediyse) 1. adım gerekmez, girdi yine gerekir.
   - Seçilen imajlar `:main` olur ve aynı doğrulama yapılır.
   - Veritabanı şeması geri alınmaz; şema değişiklikleri geriye uyumludur.
   - **Eski alan adları (D-112):** `LEGACY_*_HOSTS` girildikten sonra v0.25.0'dan eski bir SHA'ya dönmek eski alan adlarının 308'lerini kapatır (eski imaj listeyi tanımaz, doğrulama yine yeşildir). Mümkünse en az v0.25.0'a geri al; daha eskiye dönmek gerekirse en az v0.25.0 yeniden yayına çıkana kadar eski adresler yönlendirmesiz sunulur (§11'deki dört `curl -sI` satırıyla denetle).

@@ -41,9 +41,10 @@ export function providerHealth(status: LiveStatus): ProviderState | 'none' {
 }
 
 /**
- * Gösterilecek uyarılar, öncelik sırasıyla: bağlantı sorunu, sağlayıcı yok / kapalı / sorunlu,
- * kapsama dışı alan, harita altlığı. Bağlantı açık değilken eldeki durum bayat olduğundan
- * sağlayıcı ve kapsama uyarıları gösterilmez.
+ * Gösterilecek uyarılar, öncelik sırasıyla: bağlantı sorunu, canlı katman kapalı (D-115),
+ * sağlayıcı yok / kapalı / sorunlu, kapsama dışı alan, harita altlığı. Bağlantı açık değilken
+ * eldeki durum bayat olduğundan katman, sağlayıcı ve kapsama uyarıları gösterilmez. Katman
+ * kapalıyken haritada hiçbir uçak olmadığından sağlayıcı ve kapsama uyarıları da gösterilmez.
  */
 export function summarizeStatus(
   status: LiveStatus | null,
@@ -56,6 +57,9 @@ export function summarizeStatus(
   if (connection !== 'open') {
     notices.push(connection)
     tone = connection === 'offline' ? 'down' : 'warn'
+  } else if (status?.layer === 'off') {
+    notices.push('layerOff')
+    tone = 'down'
   } else {
     const health = status ? providerHealth(status) : 'ok'
     if (health === 'none') {

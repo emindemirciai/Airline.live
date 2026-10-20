@@ -50,7 +50,9 @@ export function isLiveStatus(value: unknown): value is LiveStatus {
       return false
     }
   }
-  return isNumberOrNull(value.primaryAgeS) && isNumberOrNull(value.newestAgeS)
+  // `layer` (D-115): yoksa (eski API) açık sayılır; başka değer bozuk mesajdır.
+  const layerOk = value.layer === undefined || value.layer === 'on' || value.layer === 'off'
+  return layerOk && isNumberOrNull(value.primaryAgeS) && isNumberOrNull(value.newestAgeS)
 }
 
 /** `PublicAircraft` alanlarının hepsi tipine uygun mu (enlem ve boylam aralıkta)? */

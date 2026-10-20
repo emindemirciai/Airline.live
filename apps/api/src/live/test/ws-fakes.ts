@@ -4,8 +4,8 @@ import type {
   Bbox,
   CoverageState,
   LiveSource,
-  LiveStatus,
   PublicAircraft,
+  ServedLiveStatus,
   TickDiff,
 } from '../types'
 
@@ -48,7 +48,12 @@ export class FakeLiveSource implements LiveSource {
   private readonly history: TickDiff[] = []
   private readonly listeners = new Set<(diff: TickDiff) => void>()
   historyLimit = 120
-  liveStatus: LiveStatus = { providers: { adsbLol: 'ok' }, primaryAgeS: 4, newestAgeS: 1 }
+  liveStatus: ServedLiveStatus = {
+    providers: { adsbLol: 'ok' },
+    primaryAgeS: 4,
+    newestAgeS: 1,
+    layer: 'on',
+  }
   coverageState: CoverageState = 'full'
 
   constructor(initial: readonly PublicAircraft[] = [], seq = 0) {
@@ -80,7 +85,7 @@ export class FakeLiveSource implements LiveSource {
     return this.history.filter((diff) => diff.seq > afterSeq)
   }
 
-  status(): LiveStatus {
+  status(): ServedLiveStatus {
     return this.liveStatus
   }
 
@@ -97,12 +102,22 @@ export class FakeLiveSource implements LiveSource {
     return this.listeners.size
   }
 
-  /** Değişiklikleri tek tur olarak uygular; değişiklik yoksa seq artmaz ve null döner. */
+  /**
+   * Değişiklikleri tek tur olarak uygular; değişiklik yoksa seq artmaz ve null döner.
+   * `statusChanged` (canlı katman, D-115): fark boş olsa da tur sayılır.
+   */
   tick(change: {
     upsert?: readonly PublicAircraft[]
     remove?: readonly string[]
+    statusChanged?: boolean
   }): TickDiff | null {
-    const diff: TickDiff = { seq: this.current + 1, added: [], updated: [], removed: [] }
+    const diff: TickDiff = {
+      seq: this.current + 1,
+      added: [],
+      updated: [],
+      removed: [],
+      ...(change.statusChanged ? { statusChanged: true as const } : {}),
+    }
     for (const ac of change.upsert ?? []) {
       ;(this.state.has(ac.hex) ? diff.updated : diff.added).push(ac)
       this.state.set(ac.hex, ac)
@@ -113,7 +128,8 @@ export class FakeLiveSource implements LiveSource {
       diff.removed.push({ hex, lat: previous.lat, lon: previous.lon })
       this.state.delete(hex)
     }
-    if (diff.added.length + diff.updated.length + diff.removed.length === 0) return null
+    const empty = diff.added.length + diff.updated.length + diff.removed.length === 0
+    if (empty && !change.statusChanged) return null
     this.current = diff.seq
     this.history.push(diff)
     while (this.history.length > this.historyLimit) this.history.shift()

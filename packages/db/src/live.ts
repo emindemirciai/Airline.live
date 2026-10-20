@@ -98,14 +98,19 @@ function assertPipeline(results: PipelineResult): void {
 /**
  * Bir turun uçaklarını tek pipeline'da yazar. Uçak başına sıra `seen` → `geo` → hash → stream'dir:
  * eşzamanlı bir süpürme `seen` skoru eskiyken araya girerse üç kaydı birlikte siler, ardından bu
- * komutlar hepsini yeniden kurar; hash'in silinip indekste kalması olmaz. Liste boşsa bir şey
- * yazılmaz. `d` alanına verilen tam nesne (ör. `AircraftState`) yazılır.
+ * komutlar hepsini yeniden kurar; hash'in silinip indekste kalması olmaz. `d` alanına verilen tam
+ * nesne (ör. `AircraftState`) yazılır.
+ *
+ * `remove`: yayından çekilen hex'ler (D-115; kuralı artık tutmayan uçak). Aynı pipeline'da
+ * güncellemelerden sonra `seen`, `geo` ve hash'ten silinir; bekleyen bir yazım onu yeniden
+ * ekleyemez. İki liste de boşsa bir şey yazılmaz.
  */
 export async function writeLiveUpdates<T extends LiveAircraftInput>(
   redis: Redis,
   list: readonly T[],
+  remove: readonly string[] = [],
 ): Promise<void> {
-  if (list.length === 0) return
+  if (list.length === 0 && remove.length === 0) return
   const pipeline = redis.pipeline()
   const compact: CompactAircraft[] = []
   for (const aircraft of list) {
@@ -130,10 +135,17 @@ export async function writeLiveUpdates<T extends LiveAircraftInput>(
       JSON.stringify(tuple),
     )
   }
-  pipeline.expire(LIVE_KEYS.geo, LIVE_INDEX_TTL_SECONDS)
-  pipeline.expire(LIVE_KEYS.seen, LIVE_INDEX_TTL_SECONDS)
-  pipeline.expire(LIVE_KEYS.updates, LIVE_INDEX_TTL_SECONDS)
-  pipeline.publish(LIVE_KEYS.batch, JSON.stringify(compact))
+  if (list.length > 0) {
+    pipeline.expire(LIVE_KEYS.geo, LIVE_INDEX_TTL_SECONDS)
+    pipeline.expire(LIVE_KEYS.seen, LIVE_INDEX_TTL_SECONDS)
+    pipeline.expire(LIVE_KEYS.updates, LIVE_INDEX_TTL_SECONDS)
+    pipeline.publish(LIVE_KEYS.batch, JSON.stringify(compact))
+  }
+  if (remove.length > 0) {
+    pipeline.zrem(LIVE_KEYS.seen, ...remove)
+    pipeline.zrem(LIVE_KEYS.geo, ...remove)
+    pipeline.del(...remove.map((hex) => LIVE_KEYS.aircraft(hex)))
+  }
   assertPipeline(await pipeline.exec())
 }
 
@@ -171,6 +183,25 @@ export async function sweepLive(redis: Redis, now: number): Promise<number> {
     cutoff,
     LIVE_KEYS.aircraft(''),
   )
+  return Number(removed)
+}
+
+/**
+ * Canlı katman kapatıldı ya da worker'ın ingest'i açılıyor (D-115): bütün canlı uçakları siler
+ * (`seen`, `geo`, her `hy:ac:{hex}` hash'i ve `hy:ac:updates` stream'i). Sağlayıcı durumu, bölge tazeliği, kapsama planı ve
+ * yapılandırılmış sağlayıcılar kalır (admin ve `/durum` doğru kalsın). Silinen uçak sayısını
+ * döndürür; küme boşsa ucuzdur (kapalıyken her turda yeniden çağrılır).
+ */
+export async function clearLiveAircraft(redis: Redis): Promise<number> {
+  const removed = await redis.eval(
+    SWEEP_SCRIPT,
+    2,
+    LIVE_KEYS.seen,
+    LIVE_KEYS.geo,
+    '+inf',
+    LIVE_KEYS.aircraft(''),
+  )
+  await redis.del(LIVE_KEYS.updates)
   return Number(removed)
 }
 

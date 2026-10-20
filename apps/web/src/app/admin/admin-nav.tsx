@@ -1,10 +1,12 @@
 import Link from 'next/link'
 
-export type AdminSection = 'services' | 'coverage'
+export type AdminSection = 'services' | 'coverage' | 'live'
 
 const SECTIONS: { id: AdminSection; href: string }[] = [
   { id: 'services', href: '/admin' },
   { id: 'coverage', href: '/admin/kapsama' },
+  // Canlı katman anahtarı (D-115).
+  { id: 'live', href: '/admin/canli-katman' },
 ]
 
 /** Yönetim sayfaları arasındaki gezinme (yalnızca Türkçe, D-076); açık sayfa `aria-current`. */

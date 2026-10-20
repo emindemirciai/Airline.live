@@ -62,6 +62,28 @@ export interface LiveStatus {
   primaryAgeS: number | null
   /** Önbellekteki en yeni örneğin yaşı, sn; uçak yoksa null. */
   newestAgeS: number | null
+  /**
+   * Canlı katman anahtarı (D-115): `off` iken yönetici katmanı kapatmıştır ve hiçbir uçak
+   * sunulmaz. API her zaman gönderir; yoksa (eski API) açık sayılır.
+   */
+  layer?: 'on' | 'off'
+}
+
+/**
+ * Canlı uçak verisinin lisansı ve atfı (D-115, ODbL 4.3): canlı uçak taşıyan her REST yanıtında
+ * ve WS tam görüntüsünde gider. Kaynak `@havayolu/providers` `PROVIDER_LICENSES.adsbLol`'dur
+ * (API'deki test ikisinin ayrışmadığını denetler).
+ */
+export interface LiveDataLicense {
+  license: 'ODbL-1.0'
+  licenseUrl: string
+  attribution: 'ADSB.lol'
+}
+
+export const LIVE_DATA_LICENSE: LiveDataLicense = {
+  license: 'ODbL-1.0',
+  licenseUrl: 'https://opendatacommons.org/licenses/odbl/1-0/',
+  attribution: 'ADSB.lol',
 }
 
 /**
@@ -78,7 +100,7 @@ export interface LiveSubscribeMessage {
 }
 
 /** Görünümdeki uçakların tamamı: istemci eldeki kümeyi bununla değiştirir. */
-export interface LiveSnapshotMessage {
+export interface LiveSnapshotMessage extends Partial<LiveDataLicense> {
   type: 'snapshot'
   seq: number
   coverage: CoverageState
@@ -125,7 +147,7 @@ export type LiveServerMessage =
   LiveSnapshotMessage | LiveDiffMessage | LiveReconnectMessage | LiveErrorMessage
 
 /** `GET /v1/live?bbox=`: kutudaki anlık görüntü (WS snapshot'ı ile aynı alanlar). */
-export interface LiveResponse {
+export interface LiveResponse extends Partial<LiveDataLicense> {
   /** Önbellek sayacı (WS `lastSeq` ile aynı). */
   seq: number
   coverage: CoverageState
@@ -137,7 +159,7 @@ export interface LiveResponse {
 export type SearchKind = 'hex' | 'registration' | 'flight' | 'callsign' | 'none'
 
 /** `GET /v1/search?q=`: canlı önbellekte arama (en fazla 20 sonuç). */
-export interface SearchResponse {
+export interface SearchResponse extends Partial<LiveDataLicense> {
   kind: SearchKind
   results: PublicAircraft[]
   status: LiveStatus
