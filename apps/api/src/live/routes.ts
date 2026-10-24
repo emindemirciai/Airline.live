@@ -87,11 +87,15 @@ const aircraftSchema = {
   },
 } as const
 
-const providerState = { type: 'string', enum: ['ok', 'degraded', 'down'] } as const
+const providerState = {
+  type: 'string',
+  enum: ['ok', 'limited', 'degraded', 'down'],
+  description: 'limited: kaynak günlük istek bütçesiyle seyrek sorgulanıyor (D-122)',
+} as const
 
 const statusSchema = {
   type: 'object',
-  required: ['providers', 'primaryAgeS', 'newestAgeS', 'layer'],
+  required: ['providers', 'primaryAgeS', 'newestAgeS', 'layer', 'maxAgeS'],
   properties: {
     providers: {
       type: 'object',
@@ -103,6 +107,10 @@ const statusSchema = {
       type: 'string',
       enum: ['on', 'off'],
       description: 'Canlı katman anahtarı; off iken hiçbir uçak sunulmaz (D-115)',
+    },
+    maxAgeS: {
+      type: 'number',
+      description: 'Uçakların sunulduğu yaş penceresi, sn; 120 sn üstü seyrek veridir (D-122)',
     },
   },
 } as const

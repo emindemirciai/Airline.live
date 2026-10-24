@@ -340,8 +340,12 @@ const percent = (ratio: number | null, digits: number): number | null =>
 const ageSec = (now: number, at: Date | null): number | null =>
   at === null ? null : Math.max(0, Math.round((now - at.getTime()) / 1000))
 
-/** Worker'ın hesapladığı durum (data-sources.md tanımı); bilinmeyen değer çalışmıyor sayılır. */
+/**
+ * Worker'ın hesapladığı durum (data-sources.md tanımı); bilinmeyen değer çalışmıyor sayılır.
+ * `limited` (günlük bütçeyle seyrek sorgu, D-122) yönetim panelinde sorunlu görünür.
+ */
 function providerState(status: string): ServiceState {
+  if (status === 'limited') return 'degraded'
   return status === 'ok' || status === 'degraded' ? status : 'down'
 }
 

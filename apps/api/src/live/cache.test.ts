@@ -1,9 +1,17 @@
-import type { CoverageCircle } from '@havayolu/db'
+import { LIVE_TTL_MAX_SECONDS, LIVE_TTL_SECONDS, type CoverageCircle } from '@havayolu/db'
 import type { AircraftState } from '@havayolu/providers'
+import { LIVE_DEFAULT_MAX_AGE_S, LIVE_MAX_AGE_LIMIT_S } from '@havayolu/shared'
 import type { Redis } from 'ioredis'
 import { describe, expect, it, vi } from 'vitest'
 import { aircraftState, testAirlineCodes } from '../test/helpers'
-import { AUX_REFRESH_MS, LiveCache, PROVIDER_STALE_MS, type LiveReaders } from './cache'
+import {
+  AUX_REFRESH_MS,
+  LIVE_CACHE_DEFAULTS,
+  LIVE_MAX_AGE_LIMIT_MS,
+  LiveCache,
+  PROVIDER_STALE_MS,
+  type LiveReaders,
+} from './cache'
 import type { TickDiff } from './types'
 
 const T0 = Date.UTC(2026, 8, 28, 12, 0, 0)
@@ -339,6 +347,7 @@ describe('LiveCache hata ve durum', () => {
       primaryAgeS: null,
       newestAgeS: null,
       layer: 'on',
+      maxAgeS: 120,
     })
     live.put(thy, pgt)
     await cache.tick()
@@ -347,6 +356,7 @@ describe('LiveCache hata ve durum', () => {
       primaryAgeS: 13.5,
       newestAgeS: 2,
       layer: 'on',
+      maxAgeS: 120,
     })
     clock.t += 3_000
     expect(cache.status()).toMatchObject({ primaryAgeS: 16.5, newestAgeS: 5 })
@@ -390,6 +400,7 @@ describe('LiveCache hata ve durum', () => {
       primaryAgeS: 188,
       newestAgeS: null,
       layer: 'on',
+      maxAgeS: 120,
     })
     // Worker dönünce yeniden ok.
     live.providers.set('adsbLol', { status: 'ok', primaryAgeS: '2', updatedAt: String(clock.t) })
@@ -409,6 +420,7 @@ describe('LiveCache hata ve durum', () => {
       primaryAgeS: null,
       newestAgeS: null,
       layer: 'on',
+      maxAgeS: 120,
     })
   })
 
@@ -571,5 +583,110 @@ describe('LiveCache canlı katman (D-115)', () => {
     expect(diff?.statusChanged).toBe(true)
     expect(hexesOf(diff?.added ?? [])).toEqual(['4bb1a2'])
     expect(cache.status().layer).toBe('on')
+  })
+})
+
+describe('LiveCache seyrek veri (D-122)', () => {
+  /** Bütçe kipindeki worker'ın kaydı: durum limited, ömür 660 sn. */
+  const budgetRecord = (at: number, extra: Record<string, string> = {}) => ({
+    status: 'limited',
+    primaryAgeS: '150',
+    liveTtlS: '660',
+    mode: 'budget',
+    updatedAt: String(at),
+    ...extra,
+  })
+
+  it('db ve shared sabitleri aynıdır: varsayılan pencere ve üst sınır', () => {
+    expect(LIVE_DEFAULT_MAX_AGE_S).toBe(LIVE_TTL_SECONDS)
+    expect(LIVE_MAX_AGE_LIMIT_S).toBe(LIVE_TTL_MAX_SECONDS)
+    expect(LIVE_CACHE_DEFAULTS.maxAgeMs).toBe(LIVE_TTL_SECONDS * 1_000)
+    expect(LIVE_MAX_AGE_LIMIT_MS).toBe(LIVE_TTL_MAX_SECONDS * 1_000)
+  })
+
+  it('limited durumu olduğu gibi geçer (down sayılmaz); yaş penceresi kayıttaki ömürdür', async () => {
+    const { cache, live } = setup()
+    live.providers.set('adsbLol', budgetRecord(T0))
+    live.providers.set('localReceiver', { status: 'ok', updatedAt: String(T0) })
+    await cache.tick()
+    expect(cache.status()).toEqual({
+      providers: { adsbLol: 'limited', localReceiver: 'ok' },
+      primaryAgeS: 150,
+      newestAgeS: null,
+      layer: 'on',
+      maxAgeS: 660,
+    })
+  })
+
+  it('iki sorgu arasında uçak düşmez: 300 sn önceki örnek ömür boyunca sunulur, sonra budanır', async () => {
+    const { cache, live, clock } = setup()
+    live.providers.set('adsbLol', budgetRecord(T0))
+    const old = aircraftState({ hex: '4bb1a7', callsign: 'THY7', sampleTime: T0 - 300_000 })
+    live.put(old)
+    // İlk tur pencereyi henüz bilmez (kayıt aynı turda okunur); sonraki tur 660 sn'yi kullanır.
+    await cache.tick()
+    clock.t += 1_000
+    const diff = await cache.tick()
+    expect(diff?.added.map((a) => a.hex)).toEqual(['4bb1a7'])
+    expect(live.state.sinceArgs.at(-1)).toBe(clock.t - 660_000)
+    // Sonraki sorgu gelene kadar (180 sn) ve bir sorgu kaçsa da (360 sn) uçak görünür kalır.
+    for (const at of [T0 + 180_000, T0 + 359_000]) {
+      clock.t = at
+      live.providers.set('adsbLol', budgetRecord(at))
+      await cache.tick()
+      expect(cache.get('4bb1a7'), String(at)).toBeDefined()
+    }
+    // Örnek 660 sn'yi geçince budanır.
+    clock.t = T0 + 361_000
+    expect((await cache.tick())?.removed.map((r) => r.hex)).toEqual(['4bb1a7'])
+  })
+
+  it('ömür tabanla 1.800 sn arasına kırpılır; alan yoksa ya da bozuksa taban', async () => {
+    const { cache, live, clock } = setup()
+    const cases: [Record<string, string>, number][] = [
+      [{ liveTtlS: '7200' }, LIVE_MAX_AGE_LIMIT_S],
+      [{ liveTtlS: '30' }, LIVE_DEFAULT_MAX_AGE_S],
+      [{ liveTtlS: '660' }, 660],
+      [{ liveTtlS: 'abc' }, LIVE_DEFAULT_MAX_AGE_S],
+      [{ liveTtlS: '' }, LIVE_DEFAULT_MAX_AGE_S],
+    ]
+    for (const [extra, expected] of cases) {
+      live.providers.set('adsbLol', budgetRecord(clock.t, extra))
+      await cache.tick()
+      expect(cache.status().maxAgeS, JSON.stringify(extra)).toBe(expected)
+      clock.t += AUX_REFRESH_MS
+    }
+    // Eski worker alanı hiç yazmaz: taban.
+    live.providers.set('adsbLol', { status: 'ok', updatedAt: String(clock.t) })
+    await cache.tick()
+    expect(cache.status().maxAgeS).toBe(LIVE_DEFAULT_MAX_AGE_S)
+  })
+
+  it('kayıt kaybolursa son pencere kalır (uçaklar birden düşmez); okuma hatasında da', async () => {
+    const { cache, live, clock } = setup()
+    live.providers.set('adsbLol', budgetRecord(T0))
+    live.put(aircraftState({ hex: '4bb1a7', sampleTime: T0 - 300_000 }))
+    await cache.tick()
+    clock.t += 1_000
+    await cache.tick()
+    expect(cache.get('4bb1a7')).toBeDefined()
+    live.providers.delete('adsbLol')
+    clock.t += AUX_REFRESH_MS
+    await cache.tick()
+    expect(cache.status()).toMatchObject({ providers: { adsbLol: 'down' }, maxAgeS: 660 })
+    expect(cache.get('4bb1a7')).toBeDefined()
+    live.state.fail = true
+    clock.t += AUX_REFRESH_MS
+    await cache.tick()
+    expect(cache.status().maxAgeS).toBe(660)
+    expect(cache.get('4bb1a7')).toBeDefined()
+  })
+
+  it('yerel alıcı ya da kayıtsız kurulumda pencere 120 sn kalır', async () => {
+    const { cache, live } = setup()
+    live.providers.set('localReceiver', { status: 'ok', liveTtlS: '900', updatedAt: String(T0) })
+    await cache.tick()
+    expect(cache.status().maxAgeS).toBe(120)
+    expect(live.state.sinceArgs.at(-1)).toBe(T0 - 120_000)
   })
 })

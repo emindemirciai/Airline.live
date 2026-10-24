@@ -300,6 +300,55 @@ describe('StatusStrip', () => {
     expect(providerHealth({ ...ok, providers: { adsbLol: 'down', localReceiver: 'down' } })).toBe(
       'down',
     )
+    // Seyrek veri (D-122): yalnızca daha kötüsü yoksa limited.
+    expect(providerHealth({ ...ok, providers: { adsbLol: 'limited' } })).toBe('limited')
+    expect(providerHealth({ ...ok, providers: { adsbLol: 'limited', localReceiver: 'ok' } })).toBe(
+      'limited',
+    )
+    expect(
+      providerHealth({ ...ok, providers: { adsbLol: 'limited', localReceiver: 'degraded' } }),
+    ).toBe('degraded')
+    expect(
+      providerHealth({ ...ok, providers: { adsbLol: 'limited', localReceiver: 'down' } }),
+    ).toBe('degraded')
+  })
+
+  it('seyrek veri (D-122): dürüst not yalnızca limited iken, ton warn', () => {
+    const limited: LiveStatus = { ...ok, providers: { adsbLol: 'limited' }, maxAgeS: 660 }
+    expect(summarizeStatus(limited, 'full', 'open', false)).toEqual({
+      tone: 'warn',
+      notices: ['providerLimited'],
+    })
+    expect(summarizeStatus(limited, 'partial', 'open', true)).toEqual({
+      tone: 'warn',
+      notices: ['providerLimited', 'coveragePartial', 'basemapFailed'],
+    })
+    // Başka hiçbir durumda gösterilmez.
+    const others: LiveStatus[] = [
+      ok,
+      { ...ok, maxAgeS: 660 },
+      { ...ok, providers: { adsbLol: 'degraded' } },
+      { ...ok, providers: { adsbLol: 'down' } },
+      { ...ok, providers: {} },
+      { ...limited, layer: 'off' },
+    ]
+    for (const status of others) {
+      expect(
+        summarizeStatus(status, 'full', 'open', false).notices,
+        JSON.stringify(status),
+      ).not.toContain('providerLimited')
+    }
+    expect(summarizeStatus(limited, 'full', 'reconnecting', false).notices).toEqual([
+      'reconnecting',
+    ])
+    // Veri yaşı mesajlar arasında ilerler (besleme seyrek).
+    expect(dataAgeSeconds({ ...limited, primaryAgeS: 100 }, 60_000)).toBe(160)
+    const html = render({ status: limited })
+    expect(html).toContain(tr.status.providerLimited)
+    expect(html).toContain('data-tone="warn"')
+    expect(tr.status.providerLimited).toBe(
+      'Canlı veri şu an seyrek: konumlar birkaç dakikada bir güncellenir, aradaki hareket tahminidir.',
+    )
   })
 
   it('uyarılar öncelik sırasıyla; bağlantı yokken bayat durum uyarısı gösterilmez', () => {

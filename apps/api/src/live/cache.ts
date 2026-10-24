@@ -7,6 +7,7 @@ import {
   type AirlineCodes,
   type CoverageCircle,
 } from '@havayolu/db'
+import { LIVE_DEFAULT_MAX_AGE_S, LIVE_MAX_AGE_LIMIT_S } from '@havayolu/shared'
 import type { Redis } from 'ioredis'
 import { coverageOf, inBbox } from './bbox'
 import { toPublicAircraft } from './record'
@@ -20,7 +21,13 @@ import type {
   TickDiff,
 } from './types'
 
-export const LIVE_CACHE_DEFAULTS = { pollMs: 1_000, maxAgeMs: 120_000, historyTicks: 120 } as const
+export const LIVE_CACHE_DEFAULTS = {
+  pollMs: 1_000,
+  maxAgeMs: LIVE_DEFAULT_MAX_AGE_S * 1_000,
+  historyTicks: 120,
+} as const
+/** Yaş penceresinin üst sınırı (bütçe kipinde worker'ın yazdığı ömür bundan öteye açılmaz, D-122). */
+export const LIVE_MAX_AGE_LIMIT_MS = LIVE_MAX_AGE_LIMIT_S * 1_000
 /** Sağlayıcı durumu ve kapsama planı bu aralıkla yeniden okunur. */
 export const AUX_REFRESH_MS = 5_000
 /**
@@ -39,7 +46,7 @@ export const READ_TIMEOUT_MS = 5_000
 const WARN_INTERVAL_MS = 60_000
 const LIVE_PROVIDERS = ['adsbLol', 'localReceiver'] as const
 type LiveProviderId = (typeof LIVE_PROVIDERS)[number]
-const PROVIDER_STATES = new Set<string>(['ok', 'degraded', 'down'])
+const PROVIDER_STATES = new Set<string>(['ok', 'limited', 'degraded', 'down'])
 
 export interface LiveCacheLog {
   debug(fields: object, message: string): void
@@ -92,7 +99,11 @@ export interface LiveCacheOptions {
   log: LiveCacheLog
   now?: () => number
   pollMs?: number
-  /** Bu süreden eski örnek önbellekten budanır (D-074: silinme bununla anlaşılır). */
+  /**
+   * Yaş penceresinin tabanı: bu süreden eski örnek önbellekten budanır (D-074: silinme bununla
+   * anlaşılır). adsb.lol kaydı daha uzun bir ömür yazarsa (`liveTtlS`, bütçe kipi, D-122) pencere o
+   * kadar açılır, `LIVE_MAX_AGE_LIMIT_MS`'i aşmaz; tabanın altına inmez.
+   */
   maxAgeMs?: number
   /** `diffsSince` için tutulan son değişen tur sayısı. */
   historyTicks?: number
@@ -126,16 +137,21 @@ const round1 = (value: number) => Math.round(value * 10) / 10
 /**
  * API'nin bellekteki canlı önbelleği (D-074). REST, arama ve WebSocket buradan okur.
  *
- * Her tur `hy:ac:seen`'den son `maxAgeMs` içindeki bütün uçakları skorlarıyla okur ve yalnızca
+ * Her tur `hy:ac:seen`'den yaş penceresi içindeki bütün uçakları skorlarıyla okur ve yalnızca
  * skoru değişenlerin hash'ini çeker. Pencere son yoklama zamanına göre değil yaşa göredir: adsb.lol
  * örneğinin `sampleTime`'ı yazıldığı andan saniyeler önce olabilir (`seen_pos`, çekim aralığı);
  * "son yoklamadan beri" penceresi böyle geç gelen örnekleri kaçırırdı.
  *
+ * Yaş penceresi tabanda 120 sn'dir. Worker bütçe kipindeyken (D-122) adsb.lol'ü birkaç dakikada bir
+ * sorgular ve `redis-live` kaydının ömrünü uzatır; ömrü sağlayıcı kaydına yazar (`liveTtlS`) ve
+ * pencere ona göre açılır. Böylece uçak iki sorgu arasında haritadan düşmez. Pencere `status()`'ta
+ * `maxAgeS` olarak gider; istemci budamayı ve tahmini buna göre yapar.
+ *
  * Görünür küme = canlı katman açıkken geçerli, gizli olmayan, engel listesinde olmayan ve
- * `maxAgeMs`'ten yeni kayıtlar (katman kapalıyken boş, D-115).
+ * yaş penceresinden yeni kayıtlar (katman kapalıyken boş, D-115).
  * Bir önceki tura göre fark (eklenen, `t`'si değişen, çıkan) boş değilse `seq` artar, fark geçmişe
  * eklenir ve dinleyicilere bildirilir. Redis hatasında son durum sunulmaya devam eder (uyarı
- * dakikada bir); yaş budaması yine çalışır, 120 sn'den eski konum canlı diye sunulmaz.
+ * dakikada bir); yaş budaması yine çalışır, pencereden eski konum canlı diye sunulmaz.
  */
 export class LiveCache implements LiveSource {
   private readonly redis: Redis
@@ -145,7 +161,13 @@ export class LiveCache implements LiveSource {
   private readonly log: LiveCacheLog
   private readonly now: () => number
   private readonly pollMs: number
-  private readonly maxAgeMs: number
+  /** Yaş penceresinin tabanı (`maxAgeMs` seçeneği). */
+  private readonly baseMaxAgeMs: number
+  /**
+   * Geçerli yaş penceresi: adsb.lol kaydındaki `liveTtlS`, tabanla `LIVE_MAX_AGE_LIMIT_MS` arasına
+   * kırpılır. Kayıt yoksa son değer kalır; kayıtta alan yoksa (eski worker) taban.
+   */
+  private liveMaxAgeMs: number
   private readonly historyTicks: number
   private readonly read: LiveReaders
 
@@ -186,7 +208,8 @@ export class LiveCache implements LiveSource {
     this.log = options.log
     this.now = options.now ?? Date.now
     this.pollMs = options.pollMs ?? LIVE_CACHE_DEFAULTS.pollMs
-    this.maxAgeMs = options.maxAgeMs ?? LIVE_CACHE_DEFAULTS.maxAgeMs
+    this.baseMaxAgeMs = options.maxAgeMs ?? LIVE_CACHE_DEFAULTS.maxAgeMs
+    this.liveMaxAgeMs = this.baseMaxAgeMs
     this.historyTicks = options.historyTicks ?? LIVE_CACHE_DEFAULTS.historyTicks
     const base = options.seqBase ?? 0
     this.seqValue = Number.isSafeInteger(base) && base >= 0 ? base : 0
@@ -252,7 +275,7 @@ export class LiveCache implements LiveSource {
     let present: Map<string, number>
     let fetched: Map<string, unknown>
     try {
-      const changes = await this.read.changedSince(this.redis, t - this.maxAgeMs)
+      const changes = await this.read.changedSince(this.redis, t - this.liveMaxAgeMs)
       present = new Map(changes.map((change) => [change.hex, change.sampleTime]))
       const stale = changes
         .filter((change) => this.known.get(change.hex)?.score !== change.sampleTime)
@@ -289,7 +312,7 @@ export class LiveCache implements LiveSource {
     for (const [hex, entry] of this.known) {
       const aircraft = entry.aircraft
       const next =
-        layerOn && aircraft !== null && !blocked.has(hex) && t - aircraft.t <= this.maxAgeMs
+        layerOn && aircraft !== null && !blocked.has(hex) && t - aircraft.t <= this.liveMaxAgeMs
           ? aircraft
           : null
       const previous = this.visible.get(hex)
@@ -363,6 +386,10 @@ export class LiveCache implements LiveSource {
           const next = new Map<LiveProviderId, ProviderRecord>()
           let primary = this.primary
           for (const [id, fields] of records) {
+            // Yaş penceresi kaydın durumundan bağımsızdır: worker kaydı hangi ömürle yazdıysa o.
+            if (id === 'adsbLol' && fields !== null) {
+              this.liveMaxAgeMs = this.maxAgeFromTtl(fields.liveTtlS)
+            }
             if (fields === null || fields.status === undefined) continue
             if (!PROVIDER_STATES.has(fields.status)) continue
             const updatedAt = Number(fields.updatedAt)
@@ -390,6 +417,17 @@ export class LiveCache implements LiveSource {
         }
       })(),
     ])
+  }
+
+  /**
+   * adsb.lol kaydındaki ömürden (`liveTtlS`, sn) yaş penceresi: tabanla `LIVE_MAX_AGE_LIMIT_MS`
+   * arasına kırpılır; alan yoksa ya da sayı değilse taban.
+   */
+  private maxAgeFromTtl(raw: string | undefined): number {
+    const ttlS = raw === undefined || raw.trim() === '' ? Number.NaN : Number(raw)
+    if (!Number.isFinite(ttlS)) return this.baseMaxAgeMs
+    const limit = Math.max(this.baseMaxAgeMs, LIVE_MAX_AGE_LIMIT_MS)
+    return Math.min(Math.max(ttlS * 1_000, this.baseMaxAgeMs), limit)
   }
 
   private warnThrottled(key: string, fields: object, message: string): void {
@@ -438,7 +476,8 @@ export class LiveCache implements LiveSource {
   /**
    * Sağlayıcı durumu o anki saate göre: kaydı 30 sn'den eski, kaydı kaybolmuş ya da kayıtları
    * 30 sn'dir okunamayan (daha önce görülmüş) sağlayıcı `down`. Hiç görülmemiş sağlayıcı yer almaz.
-   * `layer`: son turda uygulanan katman durumu (ilk turdan önce anahtarın kendisi).
+   * `layer`: son turda uygulanan katman durumu (ilk turdan önce anahtarın kendisi). `maxAgeS`:
+   * geçerli yaş penceresi, sn (D-122).
    */
   status(): ServedLiveStatus {
     const t = this.now()
@@ -460,6 +499,7 @@ export class LiveCache implements LiveSource {
           : round1(this.primary.ageS + Math.max(0, t - this.primary.at) / 1000),
       newestAgeS: this.newestT === null ? null : round1(Math.max(0, t - this.newestT) / 1000),
       layer: (this.appliedLayer ?? this.layer()) ? 'on' : 'off',
+      maxAgeS: Math.round(this.liveMaxAgeMs / 1_000),
     }
   }
 

@@ -339,6 +339,22 @@ describe('collectServices: canlı veri sağlayıcıları', () => {
     expect(r.overall).toBe('degraded')
   })
 
+  it('limited (günlük bütçe, D-122) yönetim panelinde sorunlu görünür; ayrıntılar kalır', async () => {
+    const r = await report([
+      fakeProviderSummary({
+        status: 'limited',
+        rps: 1 / 180,
+        lastError: 'rate_limit: HTTP 429',
+        lastErrorAt: secondsAgo(4_000),
+      }),
+    ])
+    expect(byId(r, 'provider:adsbLol')).toMatchObject({
+      state: 'degraded',
+      detail: { rps: 0.006, circuit: 'closed', error: 'rate_limit: HTTP 429' },
+    })
+    expect(r.overall).toBe('degraded')
+  })
+
   it('durum ok iken eski hata metni gösterilmez', async () => {
     const r = await report([
       fakeProviderSummary({ lastError: 'server: HTTP 502', lastErrorAt: secondsAgo(900) }),

@@ -3,9 +3,10 @@
  * bağımsızdır; çizim döngüsü (map-controller.ts) her ~66 ms'de bir `MotionTracker.update` çağırır.
  *
  * Konum, örneğin alındığı anın istemci saatindeki tahmininden (`sampledAt`) bu yana yer hızı ve
- * yönle ileri taşınır (örnekten en fazla 10 sn). Yeni örnek gelince simge sıçramaz: gösterilen
- * konumdan yeni tahmine 1 sn'de geçer. Çok uzağa düşen örnekte (uzun kesintiden sonra) geçiş
- * yapılmaz, simge doğrudan yeni yerine konur.
+ * yönle ileri taşınır (örnekten en fazla 10 sn; seyrek veride havadaki uçak 180 sn, D-122). Yeni
+ * örnek gelince simge sıçramaz: gösterilen konumdan yeni tahmine 1 sn'de geçer. Çok uzağa düşen
+ * örnekte (uzun kesintiden sonra) geçiş yapılmaz, simge doğrudan yeni yerine konur. Seyrek veride son
+ * örneği eskiyen simge budanana kadar adım adım soluklaşır (`staleOpacity`).
  *
  * Kaynağa yükleme (`setData`) ekranda görünür bir hareket olunca yapılır: son yüklemeden bu yana en
  * çok kayan simge `MIN_UPLOAD_SHIFT_PX`'e ulaşmadıkça (düşük yakınlaştırmada saniyeler sürer) yükleme
@@ -22,7 +23,14 @@ import {
   type Airport,
   type TrailFeatureProperties,
 } from '@havayolu/shared'
-import { BLEND_MS, blend, predictPosition } from '../../lib/live/interpolate'
+import {
+  BLEND_MS,
+  blend,
+  NORMAL_MOTION_POLICY,
+  predictPosition,
+  staleOpacity,
+  type MotionPolicy,
+} from '../../lib/live/interpolate'
 import type { TrackedAircraft, TrailPoint } from '../../lib/live/store'
 
 /** Bu kadar dereceden uzağa düşen yeni örnekte geçiş yapılmaz (~50 km). */
@@ -85,6 +93,8 @@ interface MotionState {
   from: LatLon
   blendStart: number
   current: LatLon
+  /** Simgenin saydamlığı (`staleOpacity` adımı). */
+  opacity: number
   /** Son yüklemedeki (`commit`) konum; yoksa henüz yüklenmedi. */
   committed: LatLon | null
 }
@@ -93,15 +103,23 @@ export class MotionTracker {
   private readonly states = new Map<string, MotionState>()
 
   /**
-   * `now` anındaki gösterim konumları. Listede olmayan uçakların durumu atılır. Dönen değer: küme
-   * değişti mi (uçak eklendi ya da düştü). Konum kaymaları `largestShiftPx` ile ölçülür.
+   * `now` anındaki gösterim konumları ve saydamlıkları; tahmin ufku ve soluklaşma `policy`'den
+   * (interpolate.ts `motionPolicy`). Listede olmayan uçakların durumu atılır. Dönen değer: küme ya da
+   * çizim değişti mi (uçak eklendi, düştü ya da bir simgenin saydamlık adımı değişti). Konum kaymaları
+   * `largestShiftPx` ile ölçülür.
    */
-  update(aircraft: readonly TrackedAircraft[], now: number): boolean {
+  update(
+    aircraft: readonly TrackedAircraft[],
+    now: number,
+    policy: Readonly<MotionPolicy> = NORMAL_MOTION_POLICY,
+  ): boolean {
     let changed = false
     const seen = new Set<string>()
     for (const ac of aircraft) {
       seen.add(ac.hex)
-      const target = predictPosition(ac, ac.sampledAt, now)
+      const horizon = ac.gnd ? policy.groundHorizonMs : policy.airborneHorizonMs
+      const target = predictPosition(ac, ac.sampledAt, now, horizon)
+      const opacity = staleOpacity(now - ac.sampledAt, policy)
       let state = this.states.get(ac.hex)
       if (!state) {
         state = {
@@ -111,11 +129,16 @@ export class MotionTracker {
           from: target,
           blendStart: -Infinity,
           current: target,
+          opacity,
           committed: null,
         }
         this.states.set(ac.hex, state)
         changed = true
         continue
+      }
+      if (state.opacity !== opacity) {
+        state.opacity = opacity
+        changed = true
       }
       if (
         state.receivedAt !== ac.receivedAt ||
@@ -168,6 +191,11 @@ export class MotionTracker {
   position(hex: string): LatLon | undefined {
     return this.states.get(hex)?.current
   }
+
+  /** Son `update`'teki saydamlık (0,35–1). */
+  opacity(hex: string): number | undefined {
+    return this.states.get(hex)?.opacity
+  }
 }
 
 /** İz yönü [0, 360); bilinmiyorsa 0 (kuzey). */
@@ -194,6 +222,7 @@ export function aircraftCollection(
         icon: aircraftIconId(aircraftCategory(ac.cat, ac.type), variant),
         trk: heading(ac.trk),
         sort: aircraftSortKey(variant),
+        opacity: motion.opacity(ac.hex) ?? 1,
       },
     })
   }

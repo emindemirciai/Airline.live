@@ -8,21 +8,22 @@
  * - `receivedAt`: o örneğin (`t`) istemciye ilk ulaştığı an.
  * - `sampledAt`: örneğin alındığı anın istemci saatindeki tahmini. Sunucu saati her mesajdan
  *   tahmin edilir (`ServerClock`); örneğin yaşı sunucu saatindeki iki değerin farkıdır, saat
- *   kayması etkilemez. Sunucu önbelleği uçağı son örnekten 120 sn sonrasına kadar tuttuğundan
- *   görünüme ilk kez giren bir uçağın örneği dakikalık olabilir; "son görülme", tahminin ufku ve
- *   budama buna dayanır (D-075).
+ *   kayması etkilemez. Sunucu önbelleği uçağı son örnekten 120 sn (seyrek veride yaş penceresi
+ *   `status.maxAgeS`, D-122) sonrasına kadar tuttuğundan görünüme ilk kez giren bir uçağın örneği
+ *   dakikalık olabilir; "son görülme", tahminin ufku ve budama buna dayanır (D-075).
  *
  * Aynı örnek yeniden gelirse (görünüm değişince gelen tam görüntü, hücre değiştiren uçağın sil-ekle
  * çifti) iki zaman korunur; böylece tahmini konum geri sıçramaz. Sunucu saati tahmini iyileştikçe
  * `sampledAt` yalnızca geriye (daha doğru yaşa) düzelir. Eldekinden eski bir örnek (arama sonucu
  * yoldayken gelen yeni fark) yok sayılır.
  */
-import type {
-  CoverageState,
-  LiveDiffMessage,
-  LiveSnapshotMessage,
-  LiveStatus,
-  PublicAircraft,
+import {
+  LIVE_DEFAULT_MAX_AGE_S,
+  type CoverageState,
+  type LiveDiffMessage,
+  type LiveSnapshotMessage,
+  type LiveStatus,
+  type PublicAircraft,
 } from '@havayolu/shared'
 import { ServerClock } from './clock'
 
@@ -44,8 +45,11 @@ export interface TrailPoint {
 /** Uçak başına tutulan en fazla iz noktası (D-075: yalnızca sayfa açıldığından beri, istemcide). */
 export const TRAIL_MAX_POINTS = 600
 
-/** Örneği bundan eski uçak düşer; sunucu önbelleğinin sınırıyla aynı (120 sn). */
-export const STORE_MAX_AGE_MS = 120_000
+/**
+ * Örneği bundan eski uçak düşer; sunucu önbelleğinin varsayılan sınırıyla aynı (120 sn). Seyrek
+ * veride (D-122) çağıran API'nin yaş penceresini verir (interpolate.ts `liveMaxAgeMs`).
+ */
+export const STORE_MAX_AGE_MS = LIVE_DEFAULT_MAX_AGE_S * 1_000
 
 /**
  * Aynı örnek yeniden gelince `sampledAt` ancak sunucu saati tahmini bundan fazla ilerlemişse

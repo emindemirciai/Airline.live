@@ -628,14 +628,21 @@ function nextVerticalRate(
 }
 
 /**
- * Gösterilecek durum: yaklaşmada ya da inişteki uçağın son örneği 30 sn'den eskiyse, yerden yüksekliği
- * < 3.000 ft (+300) ve havalimanı merkezine ≤ 20 km ise "Alçakta sinyal kaybı" (domain LOW_ALT_LOST).
- * `sampledAt` ve `now` aynı saattedir (istemcinin geri gitmeyen saati, lib/live/clock.ts).
+ * Gösterilecek durum: yaklaşmada ya da inişteki uçağın son örneği `lostAfterMs`'ten (30 sn) eskiyse,
+ * yerden yüksekliği < 3.000 ft (+300) ve havalimanı merkezine ≤ 20 km ise "Alçakta sinyal kaybı"
+ * (domain LOW_ALT_LOST). `sampledAt` ve `now` aynı saattedir (istemcinin geri gitmeyen saati,
+ * lib/live/clock.ts). Seyrek veride (D-122) örnekler birkaç dakikada bir geldiğinden yaş sinyal
+ * kaybını göstermez; çağıran `Infinity` verir ve bu durum hiç gösterilmez.
  */
-export function displayPhase(info: PhaseInfo, sampledAt: number, now: number): FlightPhase {
+export function displayPhase(
+  info: PhaseInfo,
+  sampledAt: number,
+  now: number,
+  lostAfterMs: number = LOW_ALT_LOST_AFTER_MS,
+): FlightPhase {
   if (
     (info.phase === 'approaching' || info.phase === 'landing') &&
-    now - sampledAt > LOW_ALT_LOST_AFTER_MS &&
+    now - sampledAt > lostAfterMs &&
     info.aglFt !== null &&
     info.aglFt < LOW_ALT_LOST_AGL_FT + BARO_TOLERANCE_FT &&
     info.distanceKm !== null &&

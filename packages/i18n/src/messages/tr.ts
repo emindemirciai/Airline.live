@@ -1013,6 +1013,9 @@ export const tr = {
       layerOff: 'Canlı uçak katmanı şu an kapalı; haritada uçak gösterilmiyor.',
       noProvider: 'Canlı veri kaynağı şu an kapalı; haritada uçak görünmüyor.',
       providerDegraded: 'Canlı veri kaynağında yavaşlama var; konumlar gecikmeli gelebilir.',
+      /** Kaynak günlük istek bütçesiyle seyrek sorgulanıyor (D-122). */
+      providerLimited:
+        'Canlı veri şu an seyrek: konumlar birkaç dakikada bir güncellenir, aradaki hareket tahminidir.',
       providerDown:
         'Canlı veri kaynağından yanıt alınamıyor; haritadaki konumlar güncel olmayabilir.',
       coverageNone: 'Bu bölge kapsama alanının dışında; burada uçak görünmez.',

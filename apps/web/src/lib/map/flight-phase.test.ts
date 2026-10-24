@@ -373,6 +373,10 @@ describe('FlightPhaseTracker: durum kuralları (D-085)', () => {
     expect(displayPhase(cruise, sampledAt, sampledAt + 90_000)).toBe('enRoute')
     const highApproach = classifyOnce(sample(fromIst(180, 25), { alt: 9000, vr: -1500, trk: 0 }))
     expect(displayPhase(highApproach, sampledAt, sampledAt + 90_000)).toBe('approaching')
+    // Seyrek veride (D-122) çağıran Infinity verir: örnek dakikalarca eski olsa da sinyal kaybı yok.
+    expect(displayPhase(landing, sampledAt, sampledAt + 600_000, Infinity)).toBe('landing')
+    expect(displayPhase(landing, sampledAt, sampledAt + 31_000, 60_000)).toBe('landing')
+    expect(displayPhase(landing, sampledAt, sampledAt + 61_000, 60_000)).toBe('lowAltLost')
   })
 
   it('15. irtifası bilinmeyen havadaki uçak: yalnızca konum', () => {

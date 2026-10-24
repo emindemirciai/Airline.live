@@ -31,17 +31,18 @@ type TableMessages = Messages['map']['table']
 /**
  * Hücrenin metinleri. `info` izleyicinin durumudur (`FlightPhaseTracker.get`); uçak henüz
  * izlenmediyse ya da havalimanı yüklenmediyse konum koordinattır. `now` depodaki zamanlarla aynı
- * saattir (`useNow`); son örneği eskiyen alçaktaki uçak "Alçakta sinyal kaybı" olur.
+ * saattir (`useNow`); son örneği `lowAltLostAfterMs`'ten (varsayılan 30 sn) eskiyen alçaktaki uçak
+ * "Alçakta sinyal kaybı" olur. Seyrek veride (D-122) çağıran `Infinity` verir.
  */
 export function aircraftPlace(
   ac: Pick<TrackedAircraft, 'lat' | 'lon' | 'gnd' | 'sampledAt'>,
   info: PhaseInfo | undefined,
   now: number,
   messages: TableMessages,
-  opts: { locale: Locale; units: UnitSystem },
+  opts: { locale: Locale; units: UnitSystem; lowAltLostAfterMs?: number },
 ): AircraftPlaceView {
   const phase: FlightPhase = info
-    ? displayPhase(info, ac.sampledAt, now)
+    ? displayPhase(info, ac.sampledAt, now, opts.lowAltLostAfterMs)
     : ac.gnd
       ? 'onGround'
       : 'enRoute'

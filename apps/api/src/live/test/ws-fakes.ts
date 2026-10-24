@@ -53,6 +53,7 @@ export class FakeLiveSource implements LiveSource {
     primaryAgeS: 4,
     newestAgeS: 1,
     layer: 'on',
+    maxAgeS: 120,
   }
   coverageState: CoverageState = 'full'
 

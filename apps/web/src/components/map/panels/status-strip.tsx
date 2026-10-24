@@ -28,7 +28,8 @@ export interface StatusSummary {
 
 /**
  * Sağlayıcıların birleşik durumu (data-sources.md → Sağlayıcı durumu). Yapılandırılmış sağlayıcı
- * yoksa `none`; hepsi `down` ise `down`; biri bile `down` ya da `degraded` ise `degraded`.
+ * yoksa `none`; hepsi `down` ise `down`; biri bile `down` ya da `degraded` ise `degraded`; değilse
+ * biri `limited` ise (günlük bütçeyle seyrek sorgu, D-122) `limited`; hepsi `ok` ise `ok`.
  */
 export function providerHealth(status: LiveStatus): ProviderState | 'none' {
   const states = Object.values(status.providers).filter(
@@ -36,13 +37,14 @@ export function providerHealth(status: LiveStatus): ProviderState | 'none' {
   )
   if (states.length === 0) return 'none'
   if (states.every((state) => state === 'down')) return 'down'
-  if (states.some((state) => state !== 'ok')) return 'degraded'
+  if (states.some((state) => state === 'down' || state === 'degraded')) return 'degraded'
+  if (states.some((state) => state === 'limited')) return 'limited'
   return 'ok'
 }
 
 /**
  * Gösterilecek uyarılar, öncelik sırasıyla: bağlantı sorunu, canlı katman kapalı (D-115),
- * sağlayıcı yok / kapalı / sorunlu, kapsama dışı alan, harita altlığı. Bağlantı açık değilken
+ * sağlayıcı yok / kapalı / sorunlu / seyrek (D-122), kapsama dışı alan, harita altlığı. Bağlantı açık değilken
  * eldeki durum bayat olduğundan katman, sağlayıcı ve kapsama uyarıları gösterilmez. Katman
  * kapalıyken haritada hiçbir uçak olmadığından sağlayıcı ve kapsama uyarıları da gösterilmez.
  */
@@ -71,6 +73,9 @@ export function summarizeStatus(
     } else if (health === 'degraded') {
       notices.push('providerDegraded')
       tone = 'warn'
+    } else if (health === 'limited') {
+      notices.push('providerLimited')
+      tone = 'warn'
     }
     if (coverage === 'none') notices.push('coverageNone')
     else if (coverage === 'partial') notices.push('coveragePartial')
@@ -86,8 +91,8 @@ export function summarizeStatus(
  * Sunucu yalnızca görünümde bir değişiklik olunca mesaj gönderir. Son durumda sağlayıcılar `ok` ise
  * (data-sources.md → Sağlayıcı durumu: son 60 sn'de başarılı yanıt, istasyon tazeliği hedefte) besleme
  * işliyor demektir; mesaj gelmemesi yalnızca görünümde hareket olmadığını gösterir ve yaş olduğu gibi
- * gösterilir (sakin bölgede sayaç yanıltıcı biçimde artmaz). Sağlayıcı sorunluysa ya da yoksa besleme
- * gecikiyor demektir; mesajdan bu yana geçen süre eklenir. Durumun bayat kalmaması için uzun
+ * gösterilir (sakin bölgede sayaç yanıltıcı biçimde artmaz). Sağlayıcı sorunluysa, seyrekse (`limited`)
+ * ya da yoksa besleme gecikiyor demektir; mesajdan bu yana geçen süre eklenir. Durumun bayat kalmaması için uzun
  * sessizlikte abonelik yenilenir (use-live.ts, `SILENCE_REFRESH_MS`).
  */
 export function dataAgeSeconds(status: LiveStatus | null, elapsedMs: number): number | null {

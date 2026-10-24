@@ -284,6 +284,29 @@ describe('LiveHub', () => {
     expect(empty.socket.frames.length).toBe(count)
   })
 
+  it('seyrek veri (D-122): diff ve tam görüntü limited durumunu ve yaş penceresini taşır', () => {
+    const { source, connect, subscribe } = setup()
+    source.liveStatus = {
+      ...source.liveStatus,
+      providers: { adsbLol: 'limited' },
+      primaryAgeS: 200,
+      maxAgeS: 660,
+    }
+    const c = connect()
+    subscribe(c)
+    expect(c.socket.last()).toMatchObject({
+      type: 'snapshot',
+      status: { providers: { adsbLol: 'limited' }, maxAgeS: 660 },
+    })
+    vi.advanceTimersByTime(1_000)
+    source.tick({ upsert: [{ ...a1, lat: 41.1 }] })
+    expect(c.socket.last()).toMatchObject({
+      type: 'diff',
+      seq: 11,
+      status: { providers: { adsbLol: 'limited' }, primaryAgeS: 200, maxAgeS: 660 },
+    })
+  })
+
   it('diff yalnızca görünümle kesişen hücreleri taşır; değişiklik yoksa mesaj gitmez', () => {
     const { source, connect, subscribe } = setup()
     const ist = connect('203.0.113.1')
@@ -606,6 +629,7 @@ describe('LiveHub', () => {
       primaryAgeS: 1_900,
       newestAgeS: null,
       layer: 'on',
+      maxAgeS: 120,
     }
     vi.advanceTimersByTime(30 * 60_000)
     const current = connect('203.0.113.2')

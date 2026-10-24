@@ -1,6 +1,18 @@
 import { distanceKm, initialBearing } from '@havayolu/geo'
+import type { LiveStatus } from '@havayolu/shared'
 import { describe, expect, it } from 'vitest'
-import { blend, MAX_EXTRAPOLATION_MS, predictPosition } from './interpolate'
+import {
+  blend,
+  liveMaxAgeMs,
+  MAX_EXTRAPOLATION_MS,
+  motionPolicy,
+  NORMAL_MOTION_POLICY,
+  OPACITY_STEP,
+  predictPosition,
+  SPARSE_MAX_EXTRAPOLATION_MS,
+  STALE_MIN_OPACITY,
+  staleOpacity,
+} from './interpolate'
 
 const start = { lat: 41, lon: 29 }
 
@@ -59,5 +71,82 @@ describe('blend', () => {
     const result = blend(from, to, 1)
     expect(result).not.toBe(to)
     expect(from).toEqual({ lat: 40, lon: 28 })
+  })
+})
+
+describe('seyrek veri (D-122): yaş penceresi, tahmin ufku ve soluklaşma', () => {
+  const status = (maxAgeS?: number): LiveStatus => ({
+    providers: { adsbLol: maxAgeS === undefined ? 'ok' : 'limited' },
+    primaryAgeS: 10,
+    newestAgeS: 5,
+    ...(maxAgeS === undefined ? {} : { maxAgeS }),
+  })
+  const s = (seconds: number) => seconds * 1_000
+
+  it('yaş penceresi 120 sn ile 1.800 sn arasına kırpılır; alan yoksa 120 sn', () => {
+    expect(liveMaxAgeMs(null)).toBe(s(120))
+    expect(liveMaxAgeMs(status())).toBe(s(120))
+    expect(liveMaxAgeMs(status(660))).toBe(s(660))
+    expect(liveMaxAgeMs(status(30))).toBe(s(120))
+    expect(liveMaxAgeMs(status(7_200))).toBe(s(1_800))
+    expect(liveMaxAgeMs({ maxAgeS: Number.NaN })).toBe(s(120))
+  })
+
+  it('sık veride kural değişmez: ufuklar 10 sn, soluklaşma yok', () => {
+    expect(motionPolicy(status())).toBe(NORMAL_MOTION_POLICY)
+    expect(motionPolicy(null)).toBe(NORMAL_MOTION_POLICY)
+    expect(motionPolicy(status(120))).toBe(NORMAL_MOTION_POLICY)
+    expect(NORMAL_MOTION_POLICY).toEqual({
+      airborneHorizonMs: MAX_EXTRAPOLATION_MS,
+      groundHorizonMs: MAX_EXTRAPOLATION_MS,
+      fadeStartMs: s(120),
+      maxAgeMs: s(120),
+      sparse: false,
+    })
+    for (const age of [0, s(60), s(120), s(600)]) {
+      expect(staleOpacity(age, NORMAL_MOTION_POLICY), String(age)).toBe(1)
+    }
+  })
+
+  it('seyrek veride havadaki uçak 180 sn ileri taşınır, yerdeki 10 sn; pencere kısaysa pencereye kadar', () => {
+    expect(motionPolicy(status(660))).toEqual({
+      airborneHorizonMs: SPARSE_MAX_EXTRAPOLATION_MS,
+      groundHorizonMs: MAX_EXTRAPOLATION_MS,
+      fadeStartMs: s(180),
+      maxAgeMs: s(660),
+      sparse: true,
+    })
+    expect(SPARSE_MAX_EXTRAPOLATION_MS).toBe(s(180))
+    expect(motionPolicy(status(150))).toMatchObject({
+      airborneHorizonMs: s(150),
+      fadeStartMs: s(150),
+      maxAgeMs: s(150),
+      sparse: true,
+    })
+    // 360 kt ≈ 0,185 km/sn: 180 sn'de 33,3 km; sonrasında simge donar.
+    const ac = { lat: 41, lon: 29, gs: 360, trk: 90 }
+    const policy = motionPolicy(status(660))
+    const at180 = predictPosition(ac, 0, s(180), policy.airborneHorizonMs)
+    expect(distanceKm(ac, at180)).toBeCloseTo(33.336, 2)
+    expect(predictPosition(ac, 0, s(500), policy.airborneHorizonMs)).toEqual(at180)
+  })
+
+  it('soluklaşma: 180 sn’ye kadar opak, 660 sn’de 0,35; 0,05’lik adımlarla iner', () => {
+    const policy = motionPolicy(status(660))
+    expect(staleOpacity(0, policy)).toBe(1)
+    expect(staleOpacity(s(180), policy)).toBe(1)
+    expect(staleOpacity(s(420), policy)).toBe(0.65)
+    expect(staleOpacity(s(660), policy)).toBe(STALE_MIN_OPACITY)
+    expect(staleOpacity(s(1_000), policy)).toBe(STALE_MIN_OPACITY)
+    expect(staleOpacity(Number.NaN, policy)).toBe(1)
+    let previous = 1
+    for (let age = s(180); age <= s(660); age += 1_000) {
+      const opacity = staleOpacity(age, policy)
+      expect(opacity).toBeLessThanOrEqual(previous)
+      expect(Math.abs(opacity / OPACITY_STEP - Math.round(opacity / OPACITY_STEP))).toBeLessThan(
+        1e-9,
+      )
+      previous = opacity
+    }
   })
 })

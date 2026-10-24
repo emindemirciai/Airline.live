@@ -1,6 +1,13 @@
-import type { Airport } from '@havayolu/shared'
+import type { Airport, LiveStatus } from '@havayolu/shared'
 import { describe, expect, it } from 'vitest'
-import { BLEND_MS, MAX_EXTRAPOLATION_MS, predictPosition } from '../../lib/live/interpolate'
+import {
+  BLEND_MS,
+  MAX_EXTRAPOLATION_MS,
+  motionPolicy,
+  predictPosition,
+  SPARSE_MAX_EXTRAPOLATION_MS,
+  STALE_MIN_OPACITY,
+} from '../../lib/live/interpolate'
 import type { TrackedAircraft, TrailPoint } from '../../lib/live/store'
 import {
   MIN_UPLOAD_SHIFT_PX,
@@ -11,6 +18,14 @@ import {
   screenShiftPx,
   trailCollection,
 } from './motion'
+
+/** Bütçe kipindeki API'nin durumu: kaynak limited, yaş penceresi 660 sn. */
+const SPARSE: LiveStatus = {
+  providers: { adsbLol: 'limited' },
+  primaryAgeS: 100,
+  newestAgeS: 60,
+  maxAgeS: 660,
+}
 
 function aircraft(overrides: Partial<TrackedAircraft> = {}): TrackedAircraft {
   return {
@@ -130,6 +145,54 @@ describe('MotionTracker', () => {
   })
 })
 
+describe('MotionTracker: seyrek veri (D-122)', () => {
+  it('havadaki uçak iki sorgu arasında 180 sn ileri taşınır, sonra donar; yerdeki 10 sn', () => {
+    const motion = new MotionTracker()
+    const policy = motionPolicy(SPARSE)
+    const air = aircraft()
+    const ground = aircraft({ hex: 'abcdef', gnd: true, gs: 15, alt: null })
+    const frozen = predictPosition(air, 0, SPARSE_MAX_EXTRAPOLATION_MS, Infinity)
+    for (const now of [10_000 + 90_000, 10_000 + 180_000, 10_000 + 400_000]) {
+      motion.update([air, ground], now, policy)
+      const ahead = Math.min(now - air.sampledAt, SPARSE_MAX_EXTRAPOLATION_MS)
+      expect(motion.position(air.hex), String(now)).toEqual(
+        predictPosition(air, 0, ahead, Infinity),
+      )
+      expect(motion.position(ground.hex), String(now)).toEqual(
+        predictPosition(ground, 0, MAX_EXTRAPOLATION_MS, Infinity),
+      )
+    }
+    expect(motion.position(air.hex)).toEqual(frozen)
+  })
+
+  it('sık veride (varsayılan kural) havadaki uçak da 10 sn’de durur', () => {
+    const motion = new MotionTracker()
+    const air = aircraft()
+    motion.update([air], 10_000 + 90_000)
+    expect(motion.position(air.hex)).toEqual(
+      predictPosition(air, 0, MAX_EXTRAPOLATION_MS, Infinity),
+    )
+  })
+
+  it('saydamlık adımı değişince değişiklik bildirilir; aynı adımda bildirilmez', () => {
+    const motion = new MotionTracker()
+    const policy = motionPolicy(SPARSE)
+    const ac = aircraft({ gs: 0 })
+    motion.update([ac], 10_000, policy)
+    expect(motion.opacity(ac.hex)).toBe(1)
+    // 180 sn'ye kadar opak: duran uçakta değişiklik yok.
+    expect(motion.update([ac], 10_000 + 180_000, policy)).toBe(false)
+    // Pencerenin ortası (420 sn): adım değişti.
+    expect(motion.update([ac], 10_000 + 420_000, policy)).toBe(true)
+    expect(motion.opacity(ac.hex)).toBe(0.65)
+    expect(motion.update([ac], 10_000 + 420_100, policy)).toBe(false)
+    // Yeni örnek gelince yeniden opak.
+    const next = aircraft({ gs: 0, t: 2_000, receivedAt: 430_000, sampledAt: 430_000 })
+    expect(motion.update([next], 430_000, policy)).toBe(true)
+    expect(motion.opacity(ac.hex)).toBe(1)
+  })
+})
+
 describe('ekran ölçüsü', () => {
   it('yakınlaştırma 0’da dünya 512 px; her düzey iki katı', () => {
     expect(pixelsPerDegree(0)).toBeCloseTo(512 / 360, 12)
@@ -169,9 +232,9 @@ describe('aircraftCollection', () => {
     const data = aircraftCollection([thy, other, unknown], motion, '3c6444')
     expect(data.type).toBe('FeatureCollection')
     expect(data.features.map((f) => f.properties)).toEqual([
-      { hex: '4bb26c', icon: 'hy-ac-heavy-thy', trk: 90, sort: 1 },
-      { hex: '3c6444', icon: 'hy-ac-jet-selected', trk: 330, sort: 2 },
-      { hex: '~a1b2c3', icon: 'hy-ac-unknown-other', trk: 0, sort: 0 },
+      { hex: '4bb26c', icon: 'hy-ac-heavy-thy', trk: 90, sort: 1, opacity: 1 },
+      { hex: '3c6444', icon: 'hy-ac-jet-selected', trk: 330, sort: 2, opacity: 1 },
+      { hex: '~a1b2c3', icon: 'hy-ac-unknown-other', trk: 0, sort: 0, opacity: 1 },
     ])
     expect(data.features[0]?.geometry).toEqual({ type: 'Point', coordinates: [29, 41] })
   })
@@ -179,6 +242,17 @@ describe('aircraftCollection', () => {
   it('gösterim konumu yoksa örneğin konumunu kullanır', () => {
     const data = aircraftCollection([aircraft()], new MotionTracker(), null)
     expect(data.features[0]?.geometry.coordinates).toEqual([29, 41])
+    expect(data.features[0]?.properties.opacity).toBe(1)
+  })
+
+  it('seyrek veride eskiyen uçağın saydamlığı özelliğe yazılır (D-122)', () => {
+    const motion = new MotionTracker()
+    const policy = motionPolicy(SPARSE)
+    const fresh = aircraft()
+    const old = aircraft({ hex: 'abcdef', sampledAt: 10_000 - 660_000 })
+    motion.update([fresh, old], 10_000, policy)
+    const data = aircraftCollection([fresh, old], motion, null)
+    expect(data.features.map((f) => f.properties.opacity)).toEqual([1, STALE_MIN_OPACITY])
   })
 })
 
