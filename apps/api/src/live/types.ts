@@ -12,8 +12,11 @@ export type {
   PublicAircraft,
 } from '@havayolu/shared'
 
-/** API'nin her yanıtta ve WS mesajında gönderdiği durum: `layer` her zaman vardır (D-115). */
-export type ServedLiveStatus = LiveStatus & { layer: 'on' | 'off' }
+/**
+ * API'nin her yanıtta ve WS mesajında gönderdiği durum: `layer` (D-115) ve `maxAgeS` (D-122) her
+ * zaman vardır.
+ */
+export type ServedLiveStatus = LiveStatus & { layer: 'on' | 'off'; maxAgeS: number }
 
 /** Bir önbellek turunun farkı. `seq` her değişen turda bir artar. */
 export interface TickDiff {

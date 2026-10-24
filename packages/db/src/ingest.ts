@@ -385,9 +385,10 @@ export async function loadTrailingGroundStart(
 // ---------------------------------------------------------------------------------------------
 // Sağlayıcı sağlığı
 
-export type ProviderStatus = 'ok' | 'degraded' | 'down'
+/** `limited`: adsb.lol günlük bütçe modunda çalışıyor, veri seyrek (D-122). */
+export type ProviderStatus = 'ok' | 'limited' | 'degraded' | 'down'
 export type CircuitState = 'closed' | 'open' | 'half_open' | 'config'
-export const PROVIDER_STATUSES: readonly ProviderStatus[] = ['ok', 'degraded', 'down']
+export const PROVIDER_STATUSES: readonly ProviderStatus[] = ['ok', 'limited', 'degraded', 'down']
 export const CIRCUIT_STATES: readonly CircuitState[] = ['closed', 'open', 'half_open', 'config']
 
 export interface ProviderHealthSnapshot {

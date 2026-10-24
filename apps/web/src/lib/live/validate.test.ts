@@ -38,6 +38,21 @@ describe('isLiveStatus', () => {
     expect(isLiveStatus({ providers: {}, primaryAgeS: '1', newestAgeS: null })).toBe(false)
   })
 
+  it('seyrek veri (D-122): limited durumu ve yaş penceresi kabul edilir', () => {
+    const base = { providers: { adsbLol: 'limited' }, primaryAgeS: 200, newestAgeS: 150 }
+    expect(isLiveStatus(base)).toBe(true)
+    expect(isLiveStatus({ ...base, maxAgeS: 660 })).toBe(true)
+    expect(isLiveStatus({ ...base, maxAgeS: 120 })).toBe(true)
+    for (const bad of [0, -5, Number.POSITIVE_INFINITY, '660', null]) {
+      expect(isLiveStatus({ ...base, maxAgeS: bad }), String(bad)).toBe(false)
+    }
+    // limited taşıyan fark atılmaz (eski istemci bunu reddediyordu, uçaklar görünmüyordu).
+    const message = parseServerMessage(
+      text({ type: 'diff', seq: 3, status: { ...base, maxAgeS: 660 }, cells: [] }),
+    )
+    expect(message).toEqual({ type: 'diff', seq: 3, status: { ...base, maxAgeS: 660 }, cells: [] })
+  })
+
   it('canlı katman (D-115): yok, on ve off kabul edilir; başka değer reddedilir', () => {
     const base = { providers: {}, primaryAgeS: null, newestAgeS: null }
     expect(isLiveStatus(base)).toBe(true)

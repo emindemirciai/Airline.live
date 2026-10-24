@@ -133,6 +133,8 @@ const STATS: IngestStats = {
   layer: 'on',
   published: 2900,
   dropped: { no_callsign: 40, pia_ladd: 3 },
+  // Smoke uyarlanır modda koşar (D-122).
+  budget: null,
 }
 
 function health(overrides: Partial<ProviderSummary> = {}): ProviderSummary {
@@ -355,6 +357,7 @@ describe('smokeEnvSource', () => {
       WATCH_HEX_LIST: '',
       WEB_HOST: '',
       LIVE_AIRCRAFT_SCOPE: 'airline',
+      ADSBLOL_DAILY_BUDGET: '0',
       DATABASE_URL:
         'postgres://havayolu:havayolu_dev_only@localhost:45432/app_smoke_live?sslmode=disable',
       REDIS_LIVE_URL: 'redis://:live_dev_only@localhost:46380/7',
@@ -377,6 +380,11 @@ describe('smokeEnvSource', () => {
       smokeEnvSource({ LIVE_AIRCRAFT_SCOPE: 'all' }, { databaseName: 'x', liveDbIndex: 1 })
         .LIVE_AIRCRAFT_SCOPE,
     ).toBe('airline')
+    // Kullanıcının .env'indeki bütçe ne olursa olsun smoke uyarlanır modu ölçer (D-122).
+    expect(
+      smokeEnvSource({ ADSBLOL_DAILY_BUDGET: '480' }, { databaseName: 'x', liveDbIndex: 1 })
+        .ADSBLOL_DAILY_BUDGET,
+    ).toBe('0')
     expect(out.REDIS_LIVE_URL).toBe('redis://localhost:46380/4')
     expect(out.DATABASE_URL).toBe('not a url')
     expect(

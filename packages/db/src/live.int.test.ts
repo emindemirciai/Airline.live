@@ -7,7 +7,9 @@ import {
   COVERAGE_TTL_SECONDS,
   LIVE_INDEX_TTL_SECONDS,
   LIVE_KEYS,
+  liveIndexTtlSeconds,
   LIVE_STREAM_MAXLEN,
+  LIVE_TTL_MAX_SECONDS,
   LIVE_TTL_SECONDS,
   readConfiguredProviders,
   readCoverage,
@@ -115,6 +117,30 @@ describe('writeLiveUpdates', () => {
     expect(await readLiveAircraft(redis, 'polar1')).toMatchObject({ lat: 86.5 })
   })
 
+  it('ttlSeconds: uçak kaydı verilen TTL ile, indeks anahtarları en az TTL + 120 sn ile yazılır (D-122)', async () => {
+    await redis.flushdb()
+    await writeLiveUpdates(redis, [aircraft('4bb480', T0)], [], 660)
+    const ttl = await redis.ttl(LIVE_KEYS.aircraft('4bb480'))
+    expect(ttl).toBeGreaterThan(655)
+    expect(ttl).toBeLessThanOrEqual(660)
+    expect(liveIndexTtlSeconds(660)).toBe(780)
+    expect(liveIndexTtlSeconds()).toBe(LIVE_INDEX_TTL_SECONDS)
+    for (const key of [LIVE_KEYS.geo, LIVE_KEYS.seen, LIVE_KEYS.updates]) {
+      const indexTtl = await redis.ttl(key)
+      expect(indexTtl, key).toBeGreaterThanOrEqual(ttl + 120)
+      expect(indexTtl, key).toBeLessThanOrEqual(780)
+    }
+    // Varsayılan yine 120 sn; aralık dışı TTL çağıranın hatasıdır, hiçbir şey yazılmaz.
+    await writeLiveUpdates(redis, [aircraft('4bb481', T0)])
+    expect(await redis.ttl(LIVE_KEYS.aircraft('4bb481'))).toBeLessThanOrEqual(LIVE_TTL_SECONDS)
+    for (const bad of [0, 1.5, LIVE_TTL_MAX_SECONDS + 1]) {
+      await expect(writeLiveUpdates(redis, [aircraft('4bb482', T0)], [], bad)).rejects.toThrow(
+        RangeError,
+      )
+    }
+    expect(await redis.exists(LIVE_KEYS.aircraft('4bb482'))).toBe(0)
+  })
+
   it('boş liste hiçbir şey yazmaz', async () => {
     const before = await redis.xlen(LIVE_KEYS.updates)
     await writeLiveUpdates(redis, [])
@@ -155,6 +181,24 @@ describe('sweepLive', () => {
     expect(await redis.exists(LIVE_KEYS.aircraft('old001'), LIVE_KEYS.aircraft('old002'))).toBe(0)
     expect(await readLiveAircraft(redis, 'new001')).not.toBeNull()
     expect(await sweepLive(redis, now)).toBe(0)
+  })
+
+  it('ttlSeconds ile süpürür: 660 sn’de 300 sn’lik örnek kalır, 661 sn’lik gider (D-122)', async () => {
+    await redis.flushdb()
+    const now = T0 + 3_600_000
+    await writeLiveUpdates(
+      redis,
+      [aircraft('ttl300', now - 300_000), aircraft('ttl661', now - 661_000)],
+      [],
+      660,
+    )
+    // Varsayılan 120 sn ikisini de süpürürdü.
+    expect(await sweepLive(redis, now, 660)).toBe(1)
+    expect(await redis.zrange(LIVE_KEYS.seen, '0', '-1')).toEqual(['ttl300'])
+    expect(await readLiveAircraft(redis, 'ttl300')).not.toBeNull()
+    expect(await readLiveAircraft(redis, 'ttl661')).toBeNull()
+    expect(await sweepLive(redis, now)).toBe(1)
+    await expect(sweepLive(redis, now, 0)).rejects.toThrow(RangeError)
   })
 
   it('bir seferde çok sayıda uçağı süpürür (Lua parçaları)', async () => {

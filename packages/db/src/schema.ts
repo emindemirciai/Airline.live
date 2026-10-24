@@ -254,7 +254,7 @@ export const trackPointsFine = trackPoints('track_points_fine')
 /** Sağlayıcıların anlık sağlık durumu (admin Servisler paneli ve kesinti bastırma). */
 export const providerHealth = pgTable('provider_health', {
   provider: text('provider').primaryKey(),
-  /** 'ok' | 'degraded' | 'down' (data-sources.md) */
+  /** 'ok' | 'limited' | 'degraded' | 'down' (data-sources.md; 'limited' bütçe kipi, D-122) */
   status: text('status').notNull(),
   lastSuccessAt: timestamp('last_success_at', { withTimezone: true }),
   lastErrorAt: timestamp('last_error_at', { withTimezone: true }),
@@ -298,7 +298,10 @@ export const providerHealthHourly = pgTable(
   (t) => [primaryKey({ columns: [t.provider, t.hour] })],
 )
 
-/** Sağlayıcı durum geçişleri ('ok' | 'degraded' | 'down'); ilk kayıtta `from_status` null'dır. */
+/**
+ * Sağlayıcı durum geçişleri ('ok' | 'limited' | 'degraded' | 'down'); ilk kayıtta `from_status`
+ * null'dır.
+ */
 export const providerStatusChanges = pgTable(
   'provider_status_changes',
   {

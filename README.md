@@ -2,7 +2,7 @@
 
 **[Türkçe](#türkçe) · [English](#english)**
 
-![sürüm](https://img.shields.io/badge/s%C3%BCr%C3%BCm-v0.28.0-blue) ![lisans](https://img.shields.io/badge/lisans-MIT-green) ![durum](https://img.shields.io/badge/durum-geli%C5%9Ftirme-yellow)
+![sürüm](https://img.shields.io/badge/s%C3%BCr%C3%BCm-v0.28.1-blue) ![lisans](https://img.shields.io/badge/lisans-MIT-green) ![durum](https://img.shields.io/badge/durum-geli%C5%9Ftirme-yellow)
 
 ---
 
@@ -14,7 +14,7 @@ Herkese açık, uluslararası sivil havacılık uçuş takip platformu; birincil
 
 > **Bilinen sınır:** Kendi ADS-B alıcımız olmadığı için İstanbul Havalimanı'nda iniş anı çoğunlukla doğrudan görülmez. İniş bildirimi çoğu uçuşta "muhtemelen indi (tahmini saat)" olarak ve son sinyalden 1–1,5 dk sonra gelir. Bazı uçuşlarda yalnızca "iniş verisi alınamadı" denebilir.
 
-### Durum — v0.28.0
+### Durum — v0.28.1
 | Alan | Durum |
 |---|---|
 | Yol haritası, veri kaynakları, mimari | ✅ Hazır ve doğrulandı |
@@ -58,6 +58,7 @@ Herkese açık, uluslararası sivil havacılık uçuş takip platformu; birincil
 | 5. halkanın ölçek hazırlığı: havalimanı listesi sunucu belleğinde, daha küçük harita verisi (`include=map`), 180. meridyende doğru çizim, METAR/TAF kaydı tarayıcıda, daha hızlı harita ve havalimanı sayfaları (D-111) | ✅ Parça 1 · M6j.2 (v0.26.0) |
 | 5. halka: dünyanın geri kalanından 2.026 havalimanı daha, ABD dahil (toplam 3.266, 232 ülke; New York, Sidney, Honolulu, Santiago…); Türkçe ve İngilizce adlar, eski kodlardan yönlendirme | ✅ Parça 1 · M6j.3 (v0.27.0) |
 | Canlı uçaklar açıldı: yalnız bilinen bir havayolu çağrı koduyla uçan uçaklar; askerî, devlet, özel (iş jetleri dahil) ve kimliği belirsiz uçaklar gösterilmez. Yönetici için tek dokunuşla kapatma düğmesi ve işlem kaydı, API'de ODbL bildirimi, geri alma koruması (D-115) | ✅ Parça 1 · M7d.1 (v0.28.0) |
+| adsb.lol günlük bütçesi: kaynak IP başına günde 500 istek kabul ediyor; worker günde en çok 480 istekle iki geniş çemberi sırayla sorgular, uçaklar güncellemeler arasında haritada kalır ve tahmini konumda ilerler, durum satırında "veri seyrek" notu (D-122) | ✅ Parça 1 · M7e (v0.28.1) |
 | Canlı araçlar: `pnpm smoke:live` (5 dk gerçek ingest ölçümü) ve `pnpm record` (oynatılabilir kayıt) | ✅ Parça 1 · M7a (kod hazır; canlı çalıştırma [ACTIVATION](docs/ACTIVATION.md) adımlarından sonra, kendi terminalinde) |
 | Kapsama ölçümü: iz tablolarında konum gecikmesi (`seen_pos`) ve barometrik alçalma hızı | ✅ Parça 1 · M7b.1 (rapor M7b.2 ile gelir) |
 | Kapsama raporu: admin → Kapsama (istasyon başına varış, yerde görülme oranı, güven aralığı, karar kuralları, indirilebilir rapor); gece 7 günlük oran; `pnpm coverage:report` (yerel) | ✅ Parça 1 · M7b.2 (gerçek rapor üretim ingest'inden sonra) |
@@ -73,7 +74,7 @@ Sürüm geçmişi için [CHANGELOG.md](CHANGELOG.md) dosyasına ya da [GitHub Re
 - **Parça 2A'dan itibaren:** Android'de Chrome ile, iPhone'da Safari'de "Ana Ekrana Ekle" yaptıktan sonra (iOS 16.4+) bildirim alırsın. Apple ya da Google geliştirici hesabı gerekmez.
 - **Parça 4A:** Android uygulaması gelir. APK doğrudan kurulabilir; mağaza için Play hesabı (25 $) gerekir.
 - **Parça 4B:** iOS uygulaması gelir. Apple Developer Program (99 $/yıl) gerekir.
-- **Tazelik:** Haritadaki konumlar İstanbul çevresinde ~20 sn, diğer istasyonlarda ~30 sn, Doğu Türkiye'de ~90 sn gecikmeli olabilir (ücretsiz veri kaynağının hız sınırı).
+- **Tazelik:** Ücretsiz veri kaynağının günlük istek sınırı yüzünden (D-122) konumlar şimdilik Batı Türkiye'de (İstanbul dahil) ~3–6 dk'da, Doğu Türkiye'de ~9 dk'da bir güncellenir; aradaki hareket tahminidir. API anahtarı ya da daha yüksek sınır alınırsa İstanbul çevresinde ~20 sn, diğer istasyonlarda ~30 sn, Doğu Türkiye'de ~90 sn'ye döner.
 
 ### Yerelde çalıştırma
 Gereken: Node 24, pnpm 12.6 (`npm i -g pnpm@12.6.0`).
@@ -92,23 +93,23 @@ pnpm dev
 - `docs/DEPLOY_DOKPLOY.md`: sunucu (Dokploy) kurulumu, bir kez
 - `docs/DECISIONS.md`: kararlar ve gerekçeleri
 
-### İstatistik (v0.28.0)
-Git'te 749 dosya, **174.508 satır**. Bunun 161.409 satırı kod (TypeScript, TSX, CSS, JS), 9.482 satırı belgedir. Lockfile, `docs/research/` ve elle yazılmayan veri (fixture CSV ve JSON dosyaları, drizzle şema snapshot'ları) hariç tutulur. Güncel değer için `pnpm stats` çalıştır.
+### İstatistik (v0.28.1)
+Git'te 756 dosya, **177.955 satır**. Bunun 164.659 satırı kod (TypeScript, TSX, CSS, JS), 9.670 satırı belgedir. Lockfile, `docs/research/` ve elle yazılmayan veri (fixture CSV ve JSON dosyaları, drizzle şema snapshot'ları) hariç tutulur. Güncel değer için `pnpm stats` çalıştır.
 
 | Alan | Satır |
 |---|---|
-| apps/web | 46.100 |
-| packages/shared | 30.348 |
-| apps/worker | 18.345 |
-| tools | 16.240 |
-| apps/api | 17.267 |
-| packages/db | 13.040 |
-| docs | 7.213 |
-| packages/i18n | 4.777 |
-| packages/providers | 5.926 |
+| apps/web | 46.520 |
+| packages/shared | 30.415 |
+| apps/worker | 19.872 |
+| tools | 16.252 |
+| apps/api | 17.504 |
+| packages/db | 13.680 |
+| docs | 7.373 |
+| packages/i18n | 4.783 |
+| packages/providers | 6.267 |
 | scripts | 2.579 |
 | packages/geo | 786 |
-| diğer (kök, deploy, .claude, .github) | 11.887 |
+| diğer (kök, deploy, .claude, .github) | 11.924 |
 
 ### Lisans, veri ve atıflar
 - Kod [MIT lisansı](LICENSE) ile lisanslanmıştır: © 2026 [emindemirciai](https://github.com/emindemirciai). Kodun tüm kopyaları ya da önemli bölümleri telif bildirimini ve lisans metnini içermek zorundadır; bunlar olmadan kopyalamak ya da dağıtmak lisans ve telif hakkı ihlalidir. **Airline.live** adı ve logosu MIT kapsamında değildir, hakları saklıdır. Aynı bildirim sitenin sayfa kaynağında da yer alır.
@@ -128,7 +129,7 @@ A public, international civil aviation flight tracker with Istanbul Airport (IST
 
 > **Known limitation:** Without our own ADS-B receiver, the moment of touchdown at Istanbul Airport is usually not observed directly. For most flights the landing alert says "probably landed (estimated time)" and arrives 1–1.5 minutes after the last signal. For some flights it can only say "landing data unavailable".
 
-### Status — v0.28.0
+### Status — v0.28.1
 | Area | Status |
 |---|---|
 | Roadmap, data sources, architecture | ✅ Done and verified |
@@ -172,6 +173,7 @@ A public, international civil aviation flight tracker with Istanbul Airport (IST
 | Ring-5 scale work: airport list kept in server memory, a smaller map payload (`include=map`), correct drawing across the 180th meridian, METAR/TAF log in the browser, faster map and airport pages (D-111) | ✅ Part 1 · M6j.2 (v0.26.0) |
 | Ring 5: 2,026 more airports from the rest of the world, the US included (3,266 in total, 232 countries; New York, Sydney, Honolulu, Santiago…); Turkish and English names, redirects from old codes | ✅ Part 1 · M6j.3 (v0.27.0) |
 | Live aircraft are on: only aircraft flying under a known airline callsign; military, state, private (business jets included) and unidentified aircraft are never shown. One-tap kill switch and action log for admins, ODbL notice in the API, rollback guard (D-115) | ✅ Part 1 · M7d.1 (v0.28.0) |
+| adsb.lol daily budget: the source accepts 500 requests a day per IP; the worker polls two wide circles in turn with at most 480 requests a day, aircraft stay on the map between updates and move to an estimated position, a "data is sparse" notice in the status line (D-122) | ✅ Part 1 · M7e (v0.28.1) |
 | Live tools: `pnpm smoke:live` (5-minute real ingest check) and `pnpm record` (replayable recording) | ✅ Part 1 · M7a (code ready; live runs after the [ACTIVATION](docs/ACTIVATION.md) steps, from your own terminal) |
 | Coverage measurement: position age (`seen_pos`) and barometric descent rate stored with tracks | ✅ Part 1 · M7b.1 (the report comes with M7b.2) |
 | Coverage report: admin → Kapsama (per-station arrivals, ground-seen share with confidence interval, decision rules, downloadable report); nightly 7-day ratio; `pnpm coverage:report` (local) | ✅ Part 1 · M7b.2 (the real report after production ingest) |
@@ -187,7 +189,7 @@ See [CHANGELOG.md](CHANGELOG.md) or [GitHub Releases](https://github.com/emindem
 - **From Part 2A:** alerts on Android via Chrome, and on iPhone via Safari after "Add to Home Screen" (iOS 16.4+). No Apple or Google developer account is needed.
 - **Part 4A:** the Android app. The APK can be installed directly; the store needs a Play account ($25).
 - **Part 4B:** the iOS app. It needs the Apple Developer Program ($99/year).
-- **Freshness:** positions may lag by ~20 s around Istanbul, ~30 s at other stations and ~90 s over eastern Türkiye (rate limit of the free data source).
+- **Freshness:** because of the free data source’s daily request limit (D-122), positions update every ~3–6 min over western Türkiye (Istanbul included) and every ~9 min over eastern Türkiye for now; the movement in between is estimated. With an API key or a higher limit this returns to ~20 s around Istanbul, ~30 s at other stations and ~90 s over eastern Türkiye.
 
 ### Run locally
 Requires Node 24 and pnpm 12.6 (`npm i -g pnpm@12.6.0`).
@@ -206,8 +208,8 @@ Then open `http://localhost:3100/` (live map), `/havalimanlari`, `/istasyon/LTFM
 - `docs/DEPLOY_DOKPLOY.md`: one-time server (Dokploy) setup
 - `docs/DECISIONS.md`: decisions and rationale
 
-### Stats (v0.28.0)
-749 files and **174,508 lines** in git: 161,409 lines of code (TypeScript, TSX, CSS, JS) and 9,482 lines of documentation. The lockfile, `docs/research/` and generated data (fixture CSV and JSON files, drizzle schema snapshots) are excluded. Run `pnpm stats` for current numbers.
+### Stats (v0.28.1)
+756 files and **177,955 lines** in git: 164,659 lines of code (TypeScript, TSX, CSS, JS) and 9,670 lines of documentation. The lockfile, `docs/research/` and generated data (fixture CSV and JSON files, drizzle schema snapshots) are excluded. Run `pnpm stats` for current numbers.
 
 ### License, data and attribution
 - Code is licensed under the [MIT License](LICENSE): © 2026 [emindemirciai](https://github.com/emindemirciai). All copies or substantial portions of the code must include the copyright notice and license text; copying or distributing without them infringes the license and the copyright. The **Airline.live** name and logo are not covered by the MIT License; rights reserved. The same notice appears in the page source of the site.

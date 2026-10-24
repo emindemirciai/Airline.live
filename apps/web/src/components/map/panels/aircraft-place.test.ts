@@ -146,6 +146,18 @@ describe('aircraftPlace: "Konum ve durum" hücresi (D-085)', () => {
     }
   })
 
+  it('seyrek veride (D-122) eskiyen alçaktaki uçak "Alçakta sinyal kaybı" olmaz', () => {
+    const ac = aircraft(destinationPoint(T35L, B35L + 180, 5), { alt: 1218, vr: -700, trk: B35L })
+    const late = SAMPLED_AT + 300_000
+    expect(cell(ac, 'tr', late).phase).toBe('lowAltLost')
+    const sparse = aircraftPlace(ac, infoOf(ac), late, tr, {
+      locale: 'tr',
+      units: 'metric',
+      lowAltLostAfterMs: Infinity,
+    })
+    expect(sparse).toMatchObject({ phase: 'landing', badge: 'İnişte', text: 'IST, pist 35L' })
+  })
+
   it('havacılık birimleri: uzaklık NM ile', () => {
     const ac = aircraft(destinationPoint(IST_ARP, 0, 18), { alt: 35000, vr: 0, trk: 90 })
     const view = aircraftPlace(ac, infoOf(ac), SAMPLED_AT, en, { locale: 'en', units: 'aviation' })

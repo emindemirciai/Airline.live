@@ -1,5 +1,12 @@
 import { assertProvidersAllowed, PROVIDER_LICENSES, type DataUsageMode } from '../license'
-import { BodyTooLargeError, headersAreValid, parseRetryAfter, readTextCapped } from './http'
+import {
+  BodyTooLargeError,
+  headersAreValid,
+  parseRateLimitHeaders,
+  parseRetryAfter,
+  readTextCapped,
+  type RateLimitInfo,
+} from './http'
 import { parseLiveResponse, ResponseFormatError, type ParsedResponse } from './response'
 
 /**
@@ -10,7 +17,9 @@ import { parseLiveResponse, ResponseFormatError, type ParsedResponse } from './r
  *   Retry-After taşımaz; varsa kullanılır (en fazla 300 sn).
  * - Yönlendirme izlenmez (anahtar başlığı başka adrese gitmesin); yanıt boyutu sınırlıdır; yanıtın
  *   saati bizimkinden 60 sn'den fazla saparsa yanıt reddedilir.
- * - Hız sınırı burada değil, çağıranın AIMD kovasındadır (M4): istemci her çağrıda tek istek atar.
+ * - Hız sınırı burada değil, çağıranın AIMD kovasında ve günlük bütçesindedir (M4, D-122): istemci
+ *   her çağrıda tek istek atar. `x-ratelimit-*` başlıkları okunur, sonuçla ya da hatayla döner.
+ *   `beforeRequest` her isteğin hemen öncesinde çağrılır; fırlatırsa istek gönderilmez.
  */
 
 export const ADSBLOL_BASE_URL = 'https://api.adsb.lol'
@@ -44,6 +53,8 @@ export class AdsbLolError extends Error {
     readonly status: number | null = null,
     /** Yalnızca yanıt Retry-After taşıyorsa (saniye, en fazla 300). */
     readonly retryAfterSec: number | null = null,
+    /** Yanıt geldiyse hız sınırı başlıkları; yanıt yoksa (ağ hatası, gönderilmemiş istek) null. */
+    readonly rateLimit: RateLimitInfo | null = null,
   ) {
     super(message)
     this.name = 'AdsbLolError'
@@ -83,11 +94,18 @@ export interface AdsbLolOptions extends UserAgentInput {
   timeoutMs?: number
   /** Saat (yanıtın saat kayması denetimi için); testte sabitlenir. */
   now?: () => number
+  /**
+   * Her istek gönderilmeden hemen önce (sorgu doğrulandıktan sonra) çağrılır. Fırlatırsa istek
+   * gönderilmez ve hata olduğu gibi çağırana gider (günlük bütçe izni, D-122).
+   */
+  beforeRequest?: () => void
 }
 
 export interface AdsbLolResult extends ParsedResponse {
   /** İsteğin gövde dahil süresi (ms). */
   latencyMs: number
+  /** Yanıtın hız sınırı başlıkları; yoksa ya da bozuksa null. */
+  rateLimit: RateLimitInfo | null
 }
 
 /** Değerlerde izin verilen karakterler (data-sources.md). */
@@ -172,6 +190,8 @@ export function createAdsbLolClient(options: AdsbLolOptions) {
     if (url.length > MAX_URL_LENGTH) {
       throw new AdsbLolError('request', `URL ${MAX_URL_LENGTH} karakteri aşıyor`)
     }
+    // Bütçe izni (D-122): fırlatırsa istek gönderilmez.
+    options.beforeRequest?.()
     const started = performance.now()
     let response: Response
     try {
@@ -185,6 +205,10 @@ export function createAdsbLolClient(options: AdsbLolOptions) {
       throw new AdsbLolError('network', `adsb.lol'e ulaşılamadı: ${(error as Error).name}`)
     }
     const { status } = response
+    // Yanıt geldiyse (durum ne olursa olsun) hız sınırı başlıkları hatayla da döner.
+    const rateLimit = parseRateLimitHeaders(response.headers, now())
+    const fail = (kind: AdsbLolErrorKind, message: string, retryAfterSec: number | null = null) =>
+      new AdsbLolError(kind, message, status, retryAfterSec, rateLimit)
     if (status !== 200) {
       // Gövde HTML ya da düz metin olabilir; JSON olarak okunmaz, yalnızca başı okunur.
       const snippet = (await readTextCapped(response, 4096).catch(() => ''))
@@ -193,47 +217,39 @@ export function createAdsbLolClient(options: AdsbLolOptions) {
       const retryAfterSec = parseRetryAfter(response.headers.get('retry-after'), now())
       const detail = `HTTP ${status}${snippet ? `: ${snippet}` : ''}`
       if (status === 401 || status === 403) {
-        throw new AdsbLolError('config', `adsb.lol isteği reddetti (${detail})`, status)
+        throw fail('config', `adsb.lol isteği reddetti (${detail})`)
       }
       if (status === 429 || status === 420) {
-        throw new AdsbLolError(
-          'rate_limit',
-          `adsb.lol hız sınırı (${detail})`,
-          status,
-          retryAfterSec,
-        )
+        throw fail('rate_limit', `adsb.lol hız sınırı (${detail})`, retryAfterSec)
       }
-      if (status >= 500)
-        throw new AdsbLolError('server', `adsb.lol sunucu hatası (${detail})`, status)
-      throw new AdsbLolError('request', `adsb.lol beklenmedik yanıt (${detail})`, status)
+      if (status >= 500) throw fail('server', `adsb.lol sunucu hatası (${detail})`)
+      throw fail('request', `adsb.lol beklenmedik yanıt (${detail})`)
     }
     let text: string
     try {
       text = await readTextCapped(response, MAX_RESPONSE_BYTES)
     } catch (error) {
       if (error instanceof BodyTooLargeError) {
-        throw new AdsbLolError('response', `adsb.lol yanıtı çok büyük (${error.message})`, status)
+        throw fail('response', `adsb.lol yanıtı çok büyük (${error.message})`)
       }
       // Gövde okunurken zaman aşımı ya da bağlantı kopması: ağ hatası.
-      throw new AdsbLolError(
-        'network',
-        `adsb.lol yanıtı okunamadı: ${(error as Error).name}`,
-        status,
-      )
+      throw fail('network', `adsb.lol yanıtı okunamadı: ${(error as Error).name}`)
     }
     const latencyMs = Math.round(performance.now() - started)
     let body: unknown
     try {
       body = JSON.parse(text)
     } catch {
-      throw new AdsbLolError('response', 'adsb.lol yanıtı JSON değil', status)
+      throw fail('response', 'adsb.lol yanıtı JSON değil')
     }
     try {
-      return { ...parseLiveResponse(body, 'adsbLol', { receivedAt: now() }), latencyMs }
-    } catch (error) {
-      if (error instanceof ResponseFormatError) {
-        throw new AdsbLolError('response', error.message, status)
+      return {
+        ...parseLiveResponse(body, 'adsbLol', { receivedAt: now() }),
+        latencyMs,
+        rateLimit,
       }
+    } catch (error) {
+      if (error instanceof ResponseFormatError) throw fail('response', error.message)
       throw error
     }
   }
