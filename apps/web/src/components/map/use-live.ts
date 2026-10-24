@@ -4,6 +4,7 @@ import type { Bbox, LiveServerMessage } from '@havayolu/shared'
 import { useCallback, useEffect, useState, useSyncExternalStore } from 'react'
 import { monotonicNow } from '../../lib/live/clock'
 import { LiveConnection, type ConnectionState } from '../../lib/live/connection'
+import { liveMaxAgeMs } from '../../lib/live/interpolate'
 import { AircraftStore } from '../../lib/live/store'
 import { SubscriptionPlanner } from '../../lib/live/subscription'
 
@@ -202,8 +203,8 @@ export class ViewportRelay {
 
 /**
  * Canlı veri: `AircraftStore` ve `/v1/ws` bağlantısı. Görünüm aboneliği hücre ızgarasına
- * yuvarlanır ve kutu değişince `moveend`'den 250 ms sonra gönderilir; eski uçaklar 5 sn'de bir
- * atılır; 30 sn mesaj gelmeyen açık bağlantıda abonelik yenilenir. Bileşen sökülünce bağlantı ve
+ * yuvarlanır ve kutu değişince `moveend`'den 250 ms sonra gönderilir; örneği API'nin yaş
+ * penceresinden (`status.maxAgeS`, varsayılan 120 sn) eski uçaklar 5 sn'de bir atılır; 30 sn mesaj gelmeyen açık bağlantıda abonelik yenilenir. Bileşen sökülünce bağlantı ve
  * zamanlayıcılar durur.
  */
 export function useLive(wsUrl: string): LiveData {
@@ -228,7 +229,8 @@ export function useLive(wsUrl: string): LiveData {
     relay.attach(live)
     const prune = setInterval(() => {
       const now = monotonicNow()
-      store.prune(now)
+      // Yaş penceresi API'nin durumundan (D-122): seyrek veride uçak iki sorgu arasında düşmez.
+      store.prune(now, liveMaxAgeMs(store.status))
       watchdog.check(now, live.state === 'open')
     }, PRUNE_INTERVAL_MS)
     return () => {

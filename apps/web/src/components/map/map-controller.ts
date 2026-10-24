@@ -44,6 +44,7 @@ import {
 } from '@havayolu/shared'
 import type * as Maplibre from 'maplibre-gl'
 import { monotonicNow } from '../../lib/live/clock'
+import { motionPolicy } from '../../lib/live/interpolate'
 import type { AircraftStore } from '../../lib/live/store'
 import type { ScreenRect } from '../../lib/map/label-layout'
 import { sameLabelSettings, type LabelSettings } from '../../lib/map/label-settings'
@@ -757,16 +758,18 @@ export class MapController {
   }
 
   /**
-   * Gösterim konumları, kaynak verileri ve "Uçağı ortala". Kaynak yalnızca küme, depo sürümü ya da
-   * çizimi etkileyen durum değişince ya da bir simge ekranda en az `MIN_UPLOAD_SHIFT_PX` kayınca
-   * yeniden yüklenir; düşük yakınlaştırmada seyirdeki uçak saniyelerce bir pikseli aşmaz.
+   * Gösterim konumları, kaynak verileri ve "Uçağı ortala". Kaynak yalnızca küme, depo sürümü,
+   * çizimi etkileyen durum ya da bir simgenin saydamlık adımı değişince (seyrek veri, D-122) ya da
+   * bir simge ekranda en az `MIN_UPLOAD_SHIFT_PX` kayınca yeniden yüklenir; düşük yakınlaştırmada
+   * seyirdeki uçak saniyelerce bir pikseli aşmaz. Tahmin ufku ve soluklaşma API'nin yaş
+   * penceresinden gelir (`motionPolicy`).
    */
   private tick(now: number): void {
     const map = this.map
     if (!map || !this.overlaysReady) return
     const { store } = this.options
     const aircraft = store.list()
-    const setChanged = this.motion.update(aircraft, now)
+    const setChanged = this.motion.update(aircraft, now, motionPolicy(store.status))
     const version = store.version
     const pxPerDegree = pixelsPerDegree(map.getZoom())
     if (

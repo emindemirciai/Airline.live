@@ -36,7 +36,12 @@ import {
 export const CALLSIGN_MEMORY_MS = 600_000
 /** Tescil, tip ve kategori hafızası: `LatestStore`'un bayrak hafızasıyla aynı (24 sa). */
 export const AIRCRAFT_MEMORY_MS = 24 * 3_600_000
-/** Yayınlananlar kümesinin budama yaşı: canlı durum TTL'i (120 sn) ile aynı. */
+/**
+ * Yayınlananlar kümesinin varsayılan budama yaşı: canlı durum TTL'i (120 sn) ile aynı. Gizlilik
+ * kuralı: budama yaşı canlı TTL'den kısa olamaz; yoksa canlıda duran bir uçak kümeden düşer ve kural
+ * tutmayınca yayından çekilemez. Bütçe modunda (D-122) worker canlı TTL'i (`prune`'un `maxAgeMs`'i)
+ * verir.
+ */
 export const PUBLISHED_MAX_AGE_MS = 120_000
 
 export type GateCounterKey = DropReason | 'layer_off'
@@ -197,13 +202,16 @@ export class PublishGate {
     return { publish, withdraw }
   }
 
-  /** Hafıza süresi dolan çağrı kodlarını ve 120 sn'dir yayınlanmamış hex'leri siler. */
-  prune(now: number): void {
+  /**
+   * Hafıza süresi dolan çağrı kodlarını ve `maxAgeMs`'dir (varsayılan 120 sn; canlı TTL'den kısa
+   * olamaz) yayınlanmamış hex'leri siler.
+   */
+  prune(now: number, maxAgeMs: number = PUBLISHED_MAX_AGE_MS): void {
     for (const [hex, entry] of this.callsigns) {
       if (entry.sampleTime < now - this.callsignMemoryMs) this.callsigns.delete(hex)
     }
     for (const [hex, at] of this.published) {
-      if (at < now - PUBLISHED_MAX_AGE_MS) this.published.delete(hex)
+      if (at < now - maxAgeMs) this.published.delete(hex)
     }
     for (const [hex, known] of this.aircraft) {
       if (known.seenAt < now - this.aircraftMemoryMs) this.aircraft.delete(hex)

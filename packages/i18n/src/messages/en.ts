@@ -824,6 +824,9 @@ export const en: Messages = {
       noProvider:
         'The live data source is switched off right now; no aircraft are shown on the map.',
       providerDegraded: 'The live data source is slow; positions may arrive late.',
+      /** Kaynak günlük istek bütçesiyle seyrek sorgulanıyor (D-122). */
+      providerLimited:
+        'Live data is sparse right now: positions update every few minutes, and the movement in between is estimated.',
       providerDown:
         'The live data source is not responding; positions on the map may be out of date.',
       coverageNone: 'This area is outside our coverage; no aircraft appear here.',

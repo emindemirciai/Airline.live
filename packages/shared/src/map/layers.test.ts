@@ -143,6 +143,12 @@ describe('katmanlar', () => {
     ])
   })
 
+  it('uçak katmanı: saydamlık özellikten (seyrek veride eskiyen uçak soluklaşır, D-122)', () => {
+    expect(AIRCRAFT_LAYER.paint).toEqual({ 'icon-opacity': ['get', 'opacity'] })
+    // Havalimanı pinleri hep opaktır.
+    expect(AIRPORT_LAYER.paint).toBeUndefined()
+  })
+
   it('havalimanı katmanı: kırmızı pin, ucu noktada (alt kenar + pay), hep çizilir, yakınlaştıkça büyür', () => {
     expect(AIRPORT_LAYER.type).toBe('symbol')
     expect(AIRPORT_LAYER.layout).toMatchObject({

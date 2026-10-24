@@ -8,7 +8,35 @@
 
 ---
 
-## v0.28.0 — 2026-10-20
+## v0.28.1 — 2026-10-24
+
+### Türkçe
+**Canlı uçaklar haritada kalıyor**
+
+- Canlı uçaklar artık haritadan kaybolmuyor. Veri kaynağımız ADSB.lol günde sınırlı sayıda istek kabul ediyor; isteklerimizi güne eşit yayıyoruz ve uçaklar iki güncelleme arasında haritada kalıyor.
+- Konumlar şimdilik birkaç dakikada bir güncelleniyor. Aradaki sürede havadaki uçaklar hızlarına ve yönlerine göre tahmini konumda ilerliyor; yeni konum 3 dakika içinde gelmezse simge duruyor ve soluklaşıyor.
+- Alçakta uçan ve tırmanmayan uçaklar (yaklaşma, iniş) tahmini konumda yalnız birkaç saniye ilerliyor; simge pistin ötesine kaymıyor.
+- Uçak listesinde “Yaklaşmada”, “İnişte” ve “Yerde” durumları seyrek veride de ilk güncellemeyle gösteriliyor.
+- Veri seyrekken haritanın durum satırı bunu açıkça yazıyor: “Canlı veri şu an seyrek: konumlar birkaç dakikada bir güncellenir, aradaki hareket tahminidir.”
+- API: canlı uçak yanıtlarının `status` alanı kaynağın seyrek sorgulandığını (`limited`) ve verinin en çok kaç saniyelik olabileceğini (`maxAgeS`) de yazıyor.
+
+Dene: [Canlı harita](/)
+
+### English
+**Live aircraft stay on the map**
+
+- Live aircraft no longer disappear from the map. Our data source, ADSB.lol, accepts a limited number of requests per day; we now spread our requests evenly over the day, and aircraft stay on the map between updates.
+- Positions update every few minutes for now. In between, aircraft in flight move to an estimated position based on their speed and heading; if no new position arrives within 3 minutes, the icon stops and fades.
+- Aircraft flying low and not climbing (approach, landing) move to an estimated position for only a few seconds; the icon no longer slides past the runway.
+- In the aircraft list, “Approaching”, “Landing” and “On ground” are shown from the first update, even when data is sparse.
+- When data is sparse, the map’s status line says so: “Live data is sparse right now: positions update every few minutes, and the movement in between is estimated.”
+- API: the `status` field of live aircraft responses now also shows when the source is polled sparsely (`limited`) and how old the data can be, in seconds (`maxAgeS`).
+
+Try it: [Live map](/)
+
+---
+
+## v0.28.0 — 2026-10-20 09:51 (UTC+3)
 
 ### Türkçe
 **Canlı uçaklar haritada: yalnız havayolu uçakları**

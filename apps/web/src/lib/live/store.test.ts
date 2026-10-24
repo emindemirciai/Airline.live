@@ -1,6 +1,7 @@
 import type { LiveDiffCell, LiveDiffMessage, LiveSnapshotMessage } from '@havayolu/shared'
 import { describe, expect, it, vi } from 'vitest'
-import { AircraftStore, TRAIL_MAX_POINTS, serverLowerBound } from './store'
+import { liveMaxAgeMs } from './interpolate'
+import { AircraftStore, STORE_MAX_AGE_MS, TRAIL_MAX_POINTS, serverLowerBound } from './store'
 import { aircraft, STATUS } from './test/fakes'
 
 function snapshot(seq: number, list = [aircraft()]): LiveSnapshotMessage {
@@ -248,6 +249,27 @@ describe('AircraftStore — budama ve bildirim', () => {
     expect(store.trail('4bb1c5')).toEqual([])
     store.prune(70_001, 10_000)
     expect(store.size).toBe(0)
+  })
+
+  it('seyrek veride (D-122) API penceresiyle budar: 300 sn önceki örnek 660 sn kalır', () => {
+    const store = new AircraftStore()
+    // En yeni örneğin yaşı 0: örnek istemci saatinde tam 0 anında alınmış sayılır.
+    const sparse = {
+      ...STATUS,
+      providers: { adsbLol: 'limited' as const },
+      newestAgeS: 0,
+      maxAgeS: 660,
+    }
+    store.applySnapshot({ ...snapshot(1), status: sparse }, 0)
+    expect(store.get('4bb1c5')?.sampledAt).toBe(0)
+    store.prune(300_000, liveMaxAgeMs(store.status))
+    store.prune(660_000, liveMaxAgeMs(store.status))
+    expect(store.size).toBe(1)
+    store.prune(660_001, liveMaxAgeMs(store.status))
+    expect(store.size).toBe(0)
+    // Eski API (alan yok) ve sık veri: varsayılan 120 sn.
+    expect(liveMaxAgeMs(STATUS)).toBe(STORE_MAX_AGE_MS)
+    expect(liveMaxAgeMs(null)).toBe(STORE_MAX_AGE_MS)
   })
 
   it('her değişiklikten sonra bildirir ve sürümü artırır; boş budama bildirmez', () => {

@@ -340,8 +340,12 @@ const percent = (ratio: number | null, digits: number): number | null =>
 const ageSec = (now: number, at: Date | null): number | null =>
   at === null ? null : Math.max(0, Math.round((now - at.getTime()) / 1000))
 
-/** Worker'ın hesapladığı durum (data-sources.md tanımı); bilinmeyen değer çalışmıyor sayılır. */
+/**
+ * Worker'ın hesapladığı durum (data-sources.md tanımı); bilinmeyen değer çalışmıyor sayılır.
+ * `limited` (günlük bütçeyle seyrek sorgu, D-122) yönetim panelinde sorunlu görünür.
+ */
 function providerState(status: string): ServiceState {
+  if (status === 'limited') return 'degraded'
   return status === 'ok' || status === 'degraded' ? status : 'down'
 }
 
@@ -375,8 +379,13 @@ async function providerStatuses(
     if (!row) return { ...status, state: 'not_configured' }
     const lastSuccessAgeSec = ageSec(now, row.lastSuccessAt)
     // Son bilinen hata yalnızca sağlayıcı sorunluyken gösterilir; düzelmiş eski hata yanıltır.
-    const error: Record<string, string> =
-      row.status !== 'ok' && row.lastError ? { error: row.lastError } : {}
+    // Bütçe kipinde (`limited`, D-122) durum hep `ok` dışıdır: hata ancak son başarıdan yeniyse
+    // gösterilir.
+    const errorAfterSuccess =
+      row.lastErrorAt !== null &&
+      (row.lastSuccessAt === null || row.lastErrorAt.getTime() > row.lastSuccessAt.getTime())
+    const showError = row.status === 'limited' ? errorAfterSuccess : row.status !== 'ok'
+    const error: Record<string, string> = showError && row.lastError ? { error: row.lastError } : {}
     const staleMs = now - row.updatedAt.getTime()
     if (staleMs > PROVIDER_HEALTH_STALE_MS) {
       return {

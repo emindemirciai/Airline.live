@@ -190,6 +190,26 @@ describe('PublishGate', () => {
     expect(fresh.split([silent], T0 + CALLSIGN_MEMORY_MS + 2).publish).toEqual([])
   })
 
+  it('prune maxAgeMs: canlı TTL 660 sn iken 300 sn önce yayınlanan uçak kümede kalır ve kural tutmayınca yayından çekilir (D-122)', () => {
+    const liveTtlMs = 660_000
+    const gate = airlineGate()
+    gate.split([state('4baa64')], T0)
+    // Varsayılan 120 sn ile budansaydı uçak kümeden düşer, canlıda 660 sn'ye kadar kalırdı.
+    gate.prune(T0 + 300_000, liveTtlMs)
+    const later = T0 + 300_001
+    expect(
+      gate.split([state('4baa64', { dbFlags: 4, sampleTime: later })], later).withdraw,
+    ).toEqual(['4baa64'])
+    // Canlı TTL dolunca kümeden düşer (canlı kayıt da süpürülmüştür).
+    const other = airlineGate()
+    other.split([state('4baa65')], T0)
+    other.prune(T0 + liveTtlMs + 1, liveTtlMs)
+    const end = T0 + liveTtlMs + 2
+    expect(other.split([state('4baa65', { dbFlags: 4, sampleTime: end })], end).withdraw).toEqual(
+      [],
+    )
+  })
+
   it('all kapsamı: bayrağı bilinmeyen ve tescil çağrı kodlu uçak yayınlanır, askerî yayınlanmaz', () => {
     const gate = new PublishGate({ scope: 'all' })
     gate.setBlocklist(new Set())

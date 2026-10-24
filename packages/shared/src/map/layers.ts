@@ -67,6 +67,10 @@ export interface SymbolLayerStyle extends LayerStyleBase {
     'icon-ignore-placement'?: boolean
     'symbol-sort-key'?: StyleValue<number>
   }
+  paint?: {
+    /** İkonun saydamlığı, 0–1. */
+    'icon-opacity'?: StyleValue<number>
+  }
 }
 
 /**
@@ -152,11 +156,17 @@ export interface AircraftFeatureProperties {
   trk: number
   /** `aircraftSortKey(...)`: seçili 2, THY 1, diğer 0; büyük olan üstte çizilir. */
   sort: number
+  /**
+   * İkonun saydamlığı, 0,35–1 (D-122): seyrek veride son örneği eskiyen uçak, budanana kadar adım
+   * adım soluklaşır. Sık veride hep 1'dir.
+   */
+  opacity: number
 }
 
 /**
  * Uçaklar: tek symbol katmanı. İkon harita düzleminde iz yönüne döner, çakışsa da hep çizilir
- * (etiketler ayrı tuvalde yerleştirilir). Boyut z4'te 0,55'ten z10'da 1'e büyür.
+ * (etiketler ayrı tuvalde yerleştirilir). Boyut z4'te 0,55'ten z10'da 1'e büyür. Saydamlık
+ * özellikten gelir (seyrek veride eskiyen uçak soluklaşır, D-122).
  */
 export const AIRCRAFT_LAYER: SymbolLayerStyle = {
   id: AIRCRAFT_LAYER_ID,
@@ -172,6 +182,7 @@ export const AIRCRAFT_LAYER: SymbolLayerStyle = {
     'symbol-sort-key': ['get', 'sort'],
     'icon-size': ['interpolate', ['linear'], ['zoom'], 4, 0.55, 10, 1],
   },
+  paint: { 'icon-opacity': ['get', 'opacity'] },
 }
 
 export const AIRPORT_SOURCE_ID = 'hy-airports'

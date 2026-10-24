@@ -52,7 +52,23 @@ export interface Bbox {
 /** İstenen alanın kapsama çemberleriyle ilişkisi; çemberler bilinmiyorsa `unknown`. */
 export type CoverageState = 'full' | 'partial' | 'none' | 'unknown'
 
-export type ProviderState = 'ok' | 'degraded' | 'down'
+/**
+ * Sağlayıcının durumu (data-sources.md → Sağlayıcı durumu). `limited`: kaynak çalışıyor ama günlük
+ * istek bütçesiyle seyrek sorgulanıyor (D-122); konumlar birkaç dakikada bir yenilenir.
+ */
+export type ProviderState = 'ok' | 'limited' | 'degraded' | 'down'
+
+/**
+ * Canlı uçağın varsayılan yaş penceresi, sn: API bu süreden eski örneği sunmaz, istemci budar.
+ * Worker'ın `redis-live` ömrüyle (`@havayolu/db` `LIVE_TTL_SECONDS`) aynıdır; API testi denetler.
+ */
+export const LIVE_DEFAULT_MAX_AGE_S = 120
+
+/**
+ * Yaş penceresinin üst sınırı, sn. Bütçe kipinde (D-122) worker kaydın ömrünü sorgu aralığına göre
+ * uzatır; API ve istemci pencereyi bundan öteye açmaz (`@havayolu/db` `LIVE_TTL_MAX_SECONDS`).
+ */
+export const LIVE_MAX_AGE_LIMIT_S = 1_800
 
 /** Her yanıtta ve her WS mesajında giden veri tazeliği ve sağlayıcı durumu. */
 export interface LiveStatus {
@@ -67,6 +83,12 @@ export interface LiveStatus {
    * sunulmaz. API her zaman gönderir; yoksa (eski API) açık sayılır.
    */
   layer?: 'on' | 'off'
+  /**
+   * API'nin uçakları sunduğu yaş penceresi, sn (D-122). `LIVE_DEFAULT_MAX_AGE_S`'ten büyükse veri
+   * seyrektir (adsb.lol günlük bütçesi): örnekler birkaç dakikada bir yenilenir, istemci uçağı bu
+   * süre boyunca tutar. API her zaman gönderir; yoksa (eski API) varsayılan sayılır.
+   */
+  maxAgeS?: number
 }
 
 /**

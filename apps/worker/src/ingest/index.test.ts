@@ -7,10 +7,14 @@ import {
   type AircraftState,
 } from '@havayolu/providers'
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import { BUDGET_STORE_RETRY_MS, BudgetPacer, type BudgetStore } from './budget'
 import {
   adsbLolConfigProblem,
   adsbLolErrorText,
   bounded,
+  boundedBudgetStore,
+  BUDGET_STORE_MISSING,
+  budgetModeOf,
   coverageCircles,
   LIVE_WRITE_TIMEOUT_MS,
   LiveTimeoutError,
@@ -119,6 +123,50 @@ describe('adsbLolConfigProblem', () => {
     )
     expect(header.code).toBe('invalid_header')
     expect(header.text).not.toMatch(/gizli/)
+  })
+})
+
+describe('budgetModeOf (D-122)', () => {
+  it('yalnız dış istekler açık ve bütçe > 0 iken; sayaç yoksa sabit yapılandırma metni', () => {
+    expect(budgetModeOf({ EXTERNAL_PROVIDERS_DISABLED: false, ADSBLOL_DAILY_BUDGET: 480 })).toBe(
+      true,
+    )
+    expect(budgetModeOf({ EXTERNAL_PROVIDERS_DISABLED: false, ADSBLOL_DAILY_BUDGET: 0 })).toBe(
+      false,
+    )
+    expect(budgetModeOf({ EXTERNAL_PROVIDERS_DISABLED: true, ADSBLOL_DAILY_BUDGET: 480 })).toBe(
+      false,
+    )
+    expect(BUDGET_STORE_MISSING).toEqual({
+      code: 'budget_store_missing',
+      text: 'adsb.lol günlük bütçe sayacı için REDIS_QUEUE_URL gerekli',
+    })
+  })
+
+  it('yanıtsız sayaç çağrısı süre dolunca hata olur: adım istek izni vermez, 5 sn sonra yeniden sorar', async () => {
+    vi.useFakeTimers()
+    try {
+      const never = () => new Promise<never>(() => undefined)
+      const hanging: BudgetStore = {
+        reserve: never,
+        rateLimited: never,
+        serverLimit: never,
+        read: never,
+      }
+      const store = boundedBudgetStore(hanging, 100)
+      const pacer = new BudgetPacer(store)
+      const step = pacer.step(T0)
+      await vi.advanceTimersByTimeAsync(100)
+      const result = await step
+      expect(result.kind).toBe('error')
+      if (result.kind === 'error') expect(result.error).toBeInstanceOf(LiveTimeoutError)
+      expect(pacer.nextAttemptAt()).toBe(T0 + BUDGET_STORE_RETRY_MS)
+      const write = store.rateLimited(T0, 1_000).catch((e: unknown) => e)
+      await vi.advanceTimersByTimeAsync(100)
+      expect(await write).toBeInstanceOf(LiveTimeoutError)
+    } finally {
+      vi.useRealTimers()
+    }
   })
 })
 
@@ -406,6 +454,59 @@ describe('LiveWriter.remove (D-115)', () => {
       { updates: [], removals: ['aa0004'] },
       { updates: ['aa0004'], removals: [] },
     ])
+  })
+
+  it('başarısız silme sonraki yazıma eklenir; o arada yeniden gelen hex silinmez (D-122)', async () => {
+    const calls: { updates: string[]; removals: string[] }[] = []
+    let failNext = true
+    const errors: number[] = []
+    const writer = new LiveWriter<AircraftState>(
+      async (updates, removals) => {
+        calls.push({ updates: updates.map((s) => s.hex), removals: [...removals] })
+        if (failNext) {
+          failNext = false
+          throw new Error('connection refused')
+        }
+      },
+      (_error, count) => errors.push(count),
+    )
+    writer.remove(['aa0007', 'aa0008'])
+    await writer.drain()
+    expect(errors).toEqual([2])
+    // Yeniden deneme kendi başına yazım başlatmaz (kesintide sıkı döngü olmaz).
+    expect(calls).toHaveLength(1)
+    expect(writer.backlog()).toBe(2)
+    // aa0008 kuralı yeniden tuttu: silinmez; aa0007'nin silmesi sonraki yazımla gider.
+    writer.push([state('aa0008'), state('aa0009')])
+    await writer.drain()
+    expect(calls[1]).toEqual({ updates: ['aa0008', 'aa0009'], removals: ['aa0007'] })
+    expect(writer.backlog()).toBe(0)
+  })
+
+  it('silme yazımı sürerken gelen push ya da remove yeniden denemeye girmez', async () => {
+    const calls: { updates: string[]; removals: string[] }[] = []
+    const releases: ((error?: Error) => void)[] = []
+    const writer = new LiveWriter<AircraftState>(
+      (updates, removals) => {
+        calls.push({ updates: updates.map((s) => s.hex), removals: [...removals] })
+        return new Promise<void>((resolve, reject) =>
+          releases.push((error) => (error ? reject(error) : resolve())),
+        )
+      },
+      () => undefined,
+      60_000,
+    )
+    writer.remove(['aa0010', 'aa0011'])
+    await tick()
+    writer.push([state('aa0010')])
+    writer.remove(['aa0011'])
+    releases.shift()?.(new Error('connection refused'))
+    await tick()
+    await tick()
+    expect(calls[1]).toEqual({ updates: ['aa0010'], removals: ['aa0011'] })
+    releases.shift()?.()
+    await writer.drain()
+    expect(writer.backlog()).toBe(0)
   })
 
   it('hata sayısı güncelleme ve silmeleri birlikte sayar', async () => {

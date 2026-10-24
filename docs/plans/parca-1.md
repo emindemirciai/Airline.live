@@ -54,6 +54,7 @@ Durumlar: `[ ]` başlamadı, `[~]` sürüyor, `[k]` kod bitti ve kullanıcı do�
 | M6i.3 | Savaş nedeniyle kapalı havalimanları: 23 havalimanı listeye girer (1.240), 35 havalimanında not, Krasnodar, Gelencik, Elista'nın notu kalkar (yama; D-110) | `p1/map-war-closures` | [k] yayında: PR #45 (b14561d), Release v0.25.1 2026-10-15 04:25:20 UTC; yayın doğrulaması kullanıcıda (ACTIVATION M6i.3) | — |
 | M6j.2 | 5. halkanın ölçeği (halka 4'te kalır): web belleğinde havalimanı listesi, API gövde önbelleği, `include=map`, 180. meridyen, istek üzerine pist uçları, METAR/TAF kaydı yalnız tarayıcıda, paylaşım görseli sınırı, toplu havada `format=raw` zorunlu, AWC ilk çalışma, llms.txt belleği (D-109) | `p1/m6j2-ring5-scale` | [k] yayında: PR #48 (1ee30ce), v0.26.0 (`releasedAt` 2026-10-18T00:33:53Z); yayın doğrulaması kullanıcıda (ACTIVATION M6j.2) | #48 |
 | M6j.3 | 5. halka (dünyanın geri kalanı, ABD dahil; 2.026 havalimanı, 3.266 listelenen; D-110'la): adlar, tek ad parçası, arama dilimleri, halkanın açılması, ülke adları, düşük yakınlaştırmada küçük pinler, metinler, e2e (D-109, D-118) | `p1/m6j3-ring5` | [~] kod bitti (2026-10-19), inceleme düzeltmeleri yapıldı: `ENABLED_AIRPORT_RING` 5, 3.266 listelenen; birim testleri (3.191), lint, typecheck, build yeşil, `/` ilk yükleme +275 B gzip, tek ad parçası 109.189 B gzip (ilk yüklemede değil); entegrasyon, e2e, `ci:full` ve tarifesiz 5. halka sayımı birleştiricide; sürüm 0.27.0, README yayın adımında | — |
+| M7e | adsb.lol günlük bütçesi (D-122, yama v0.28.1): worker günde en çok ~480 istekle çalışır; geniş iki daire aralıklı sorgulanır, aradaki hareket tahmini konumla gösterilir, sitede "veri seyrek" notu | `p1/m7e-adsblol-budget` | [~] kod, belgeler ve yerel kontroller bitti (2026-10-24; 815249f, da70c1f ve sürüm commit'i), v0.28.1; yayın adımı (PR, CI, deploy) ve 24 saatlik doğrulama (ACTIVATION "M7e yayın doğrulaması") bekliyor; anahtar e-postası kullanıcıda | — |
 | M7c | Kapsama ölçümü yedek yolu (`coverage:probe`) | `p1/m7c-coverage-probe` | [ ] | — |
 | M7d.1 | Aşamalı canlı açılış, 1. aşama: yalnız havayolu (D-115): kaynakta süzme (worker), canlı katman anahtarı ve işlem kaydı, kullanım koşullarının mutlak olmayan gizlilik cümlesi, API'de ODbL | `p1/m7d1-live-airline-only` | [~] kod ve yerel kontroller bitti (2026-10-15), filtre sıkılaştırıldı ve `origin/main` (v0.27.0) birleştirildi (2026-10-19), inceleme bulguları kapatıldı (2026-10-19), v0.28.0; orkestratörün yayın adımı (README, PR, CI) ve kullanıcı doğrulaması (ACTIVATION "M7d.1 yayın doğrulaması", 2. adımdaki açılış kapısı) bekliyor | — |
 | M7d.2 | Künye, gizlilik ve gizleme talebi | `p1/m7d2-kunye-gizlilik` | [ ] | — |
@@ -2572,3 +2573,58 @@ Onay: M7d.1 ile aynı (2026-10-15; künye adresi "Önce avukata soracağım", av
 - **Admin hex engel listesi sayfası** (telefon; ekle, çıkar, listele; bugün liste yalnız API'den yönetilir, RUNBOOK "API ile"). VIP listesi ve gizleme talepleri için gerekir; ACTIVATION 2. adım (b) onu açılış kapısına koyar (2026-10-19 incelemesinde "önerilen"den kapsama alındı, D-115).
 
 **Kabul komutları (taslak):** M7d.1'deki yerel kontroller; künye env'i yokken sayfanın kapalı kalması; e2e'de alt bilgi bağlantısı.
+
+## M7e — adsb.lol günlük bütçesi (D-122)
+Onay: 2026-10-24. Kullanıcının yazdığı:
+- "uçaklar bir geliyor bir gidiyor. çoğu zaman gözükmüyor. hatalarını analiz et ve projeyi geliştirmeye devam et."
+- Seçimi: "Bütçeye uy ve anahtar isteyelim" (DUR-SOR 3).
+
+**Bulgu (2026-10-24 01:46–01:50 UTC):**
+- Üretimde uçak sayısı 0'dı. `status.providers.adsbLol` "down" gösteriyordu, `primaryAgeS` 350 sn'den 534 sn'ye çıkıyordu.
+- adsb.lol'e tanıtıcı User-Agent'la tek bir tanılama isteği atıldı (`/v2/point/41.2753/28.7519/40`). Yanıt: 200 OK, 18 uçak.
+- Yanıt başlığı: `x-ratelimit-limit: 4, 4;w=1, 60;w=60, 500;w=86400`. Yani saniyede 4, dakikada 60, **günde 500** istek.
+- Worker ~0,1 istek/sn ile günde ~8.600 istek atıyor. 500'lük hak ~80 dakikada bitiyor; günün geri kalanı 429 beklemeleriyle geçiyor. Uçakların gelip gitmesi buradan.
+- adsblol/api README'si: sınırlar sunucu yüküne göre değişir; ileride API anahtarı gerekecek; anahtar adsb.lol'e veri besleyerek alınır (https://adsb.lol/feed).
+- Worker 429'da hızını düşürüyor (AIMD), ama `x-ratelimit-*` başlıklarını okumuyor.
+
+**Sürüm ve dal:** yama v0.28.1; dal `p1/m7e-adsblol-budget`, `main` 3131748'in (v0.28.0) üstünden; çalışma kopyası `C:/PROJELER/Airline.live2/budget`. Bekleyen v0.29.0 (M7d.2'nin 1. yayını) ve v0.30.0 (M6p.1) bu yamanın üstüne birleşir.
+
+**Kapsam:**
+- **Bütçe:** `ADSBLOL_DAILY_BUDGET`, varsayılan 480. Kalıcı ve kayan 24 saatlik sayaç redis-queue'dadır; yeniden başlatma sayacı sıfırlamaz. İstekler güne eşit yayılır, ~180 sn'de bir.
+  - `x-ratelimit-*` başlıkları okunur ve loglanır.
+  - 429 gelirse sayaç kaynağın sınırına göre ayarlanır.
+  - `0` sınırsız eski davranıştır, yalnız anahtar gelince açılır.
+- **Sorgu planı:** bütçe modunda yalnız iki geniş daire sorgulanır. Batı (IST önceliği) doğudan iki kat sık sorgulanır, istasyon daireleri atlanır.
+- **Yaşam süreleri:** canlı uçak kaydının ömrü (`redis-live`) sorgu aralığına göre uzar, uçak iki sorgu arasında kaybolmaz.
+- **Durum:** kaynak "kısıtlı" (`limited`) olarak gösterilir, "down" değil. API ve WS durum alanı bunu taşır.
+- **Arayüz:**
+  - Uçaklar iki güncelleme arasında hız ve yönle tahmini konumda hareket eder; sınırlı bir süre sonra donar ve soluklaşır.
+  - Durum şeridinde dürüst not: "Canlı veri şu an seyrek: konumlar birkaç dakikada bir güncellenir, aradaki hareket tahminidir."
+- **E-posta:** adsb.lol'e Airline.live için API anahtarı ya da yüksek sınır isteği. Taslağı ajan hazırlar, kullanıcı info@airline.live'dan gönderir (ACTIVATION).
+
+**Kabul komutları:**
+- `pnpm --filter @havayolu/worker test`, `--filter @havayolu/providers test`, `--filter @havayolu/api test`, `--filter @havayolu/web test`, `--filter @havayolu/shared test`. Bütçe sayacı sahte saatle test edilir: 24 saatte 480'i hiç aşmaz, yeniden başlatmada da aşmaz.
+- `pnpm lint`, `pnpm typecheck`, `pnpm format`, `pnpm check:eol`, `pnpm test:integration` (redis-queue sayacı), `pnpm test:e2e` (replay yolu etkilenmez)
+- **Kullanıcıya bağlı (`[k]`):** üretimde 24 saat boyunca uçaklar kaybolmadan görünür; `status.providers.adsbLol` "limited" ya da "ok", 429 sayısı ~0.
+
+**Çıktı kaydı (2026-10-24, yerel, ağ yok):**
+- **Kod (iki paket, aynı dal):** `815249f` "fix(map): keep aircraft between sparse updates and say the data is sparse (v0.28.1)": shared (`limited`, `maxAgeS`, iki sabit, `icon-opacity`), API (yaş penceresi `liveTtlS`'den, REST şeması ve WS, admin `limited` → "Sorunlu"), web (tahmin ve soluklaşma, durum şeridi, doğrulama), i18n (`map.status.providerLimited`). `da70c1f` "fix(worker): keep adsb.lol within its daily request budget (v0.28.1)": providers (sınır başlıkları, `beforeRequest`), db (redis-queue sayacı, canlı TTL parametresi, `limited`), worker (`ADSBLOL_DAILY_BUDGET`, bütçe döngüsü, B B D, 660 sn, `limited`, yayından çekmenin yeniden denenmesi), env şablonları, smoke (`0`). İki paket arasında kırık yoktu; birleşik ağaçta bütün testler yeşil. Bu turda yalnız `packages/db/src/schema.ts`'in iki yorumu `limited`'ı da sayar (migration yok, `db:check` boş fark).
+- **Belgeler:** D-122 (DECISIONS, 2026-10-24 bölümü). data-sources.md §1: 2026-10-24 gözlemi (başlıklar var, günde 500; 2026-09-25 gözleminin "RateLimit-* yok" maddesi eskidi), "Hız kontrolü" günlük bütçe ve uyarlanır hız olarak ikiye ayrıldı, canlı araçlarda bütçe notu, "Sağlayıcı durumu"na `limited`, kapsama planına "Bütçe kipinde". domain.md "v1 sınırları"na bütçe paragrafı. RUNBOOK: yeni "adsb.lol sınırları değişti (günlük bütçe, D-122)" bölümü (belirti, otomatik davranış, salt okunur sayaç komutları, kota düşünce ve yükselince, anahtar gelince, daraltılmış sınırı elle sıfırlama); "Sağlayıcı kesintisi ve 429 fırtınası" bütçe kipine göre; iki "120 sn" cümlesi canlı kayıt ömrüyle (660 sn). ACTIVATION: "M7e yayın doğrulaması" ve "adsb.lol'e API anahtarı isteği (e-posta)" satırları, `info@airline.live` e-posta listesinde 4. madde. E-posta taslağı (İngilizce): `docs/research/2026-10-24-adsblol-anahtar-eposta.md`.
+- **Sürüm:** kök `package.json` 0.28.1. Changelog: 0.28.1 (2026-10-24, `releasedAt` yok; uçaklar kaybolmuyor, aradaki konum tahmini, seyrek veri notu, API `limited` ve `maxAgeS`); 0.28.0'a `releasedAt` 2026-10-20T06:51:27Z. `pnpm changelog` → "CHANGELOG.md yazıldı (v0.28.1, 51 sürüm)."; `pnpm changelog:check` → "✓ Changelog tutarlı (v0.28.1)."
+- **README:** sürüm rozeti ve iki "Durum" başlığı v0.28.1; M7e satırı (TR, EN); "Tazelik" maddesi bütçeye göre (Batı ~3–6 dk, Doğu ~9 dk, aradaki hareket tahmini); istatistik.
+- **Komutlar:**
+  - `pnpm turbo run test --force --continue` → 9/9: db 88, providers 174, geo 36, i18n 103, shared 769, worker 351, web 1074, api 352, tools 385 (toplam 3.332; v0.28.0'da 3.281).
+  - `pnpm test:integration` (Docker altyapısı 45432/46379/46380; testlerin kendi veritabanları ve Redis numaraları) → 6/6 görev: db 128 (bütçe sayacı redis-queue DB 9: 48 saatte her 24 saatlik pencerede en çok 480 izin, 180 sn aralık, yeniden başlatmada fazladan izin yok, 20 paralel istekte tek izin, saat geri gidince erken izin yok, 429'da 432 ve 200 sn, 24 saat sonra geri büyüme, kota 500 → 480, anahtar TTL'leri), worker 26 (bütçe ingest'i: ilk yol `/v2/point/39.5/29.5/250`, 180 sn'den önce istek yok, 3. istek Doğu, yeniden başlatmada istek yok, `hy:ac` TTL ~660 sn, 300 sn'lik örnek süpürmede kalır, sağlayıcı kaydı `limited` ve `liveTtlS` 660, kapsama yalnız Batı ve Doğu), api 31, tools 14.
+  - `pnpm lint` (9/9), `pnpm typecheck` (9/9), `pnpm typecheck:scripts`, `pnpm typecheck:e2e`, `pnpm lint:e2e`, `pnpm format:check` ("All matched files use Prettier code style!"), `pnpm check:eol` ("✓ Satır sonları LF."), `pnpm db:check` ("No schema changes"), `pnpm compose:guard` ("✓ Compose kuralları tamam (8 servis); üretim env şablonu 69 anahtar."), `pnpm test:scripts` (51/51) → yeşil.
+  - `pnpm stats` → Git'te 756 dosya, 177.955 satır, 164.659 satırı kod, 9.670 satırı Markdown (v0.28.0: 749 dosya, 174.508 satır); alanlar: apps/web 46.520, packages/shared 30.415, apps/worker 19.872, apps/api 17.504, tools 16.252, packages/db 13.680, (kök) 11.264, docs 7.373, packages/providers 6.267, packages/i18n 4.783, scripts 2.579, packages/geo 786, .github 482, .claude 178.
+- **Çalıştırılmayanlar (kurallar):** `pnpm test:e2e` (replay yolu etkilenmez: adsb.lol kaydı yokken `maxAgeS` 120 kalır), `pnpm dev`, `pnpm dev:replay`, `pnpm ci:full`, `pnpm test:migration-upgrade`, `smoke:live`, `record`, `coverage:probe`, `gh`; canlı istek yok, push yok.
+- **Kullanıcıya bağlı:** ACTIVATION "M7e yayın doğrulaması" (24 saat: uçaklar kaybolmaz, `limited` ya da `ok`, 429 ~0) ve "adsb.lol'e API anahtarı isteği (e-posta)".
+
+**İnceleme düzeltmeleri (2026-10-24, aynı dal, "fix: apply the M7e review findings (v0.28.1)"):**
+- **Sert sınır daraltmasız** (`packages/db/src/adsblol-budget.ts`, bellek içi test deposu): penceredeki izin sayısı min(yapılandırılan, ⌊kota × 0,96⌋) ile sınırlanır; 429 daraltması yalnız aralığı uzatır. Eskiden pencere 480 izinle doluyken tek bir 429 sert sınırı 432'ye indiriyor, engel bitince ~2,4 sa istek gitmiyordu (harita boş, kaynak `down`). Yeni testler: redis-queue'da 30 saat kararlı durum + 429 → ilk izin engel sonunda, sonra 200 sn arayla, hiçbir 24 saat 480'i aşmaz; bütçe döngüsü benzetiminde aynısı.
+- **Kota her yanıtta yazılır** (worker `noteRateLimitHeaders`): bellekteki tekilleştirme kalktı; RUNBOOK 4. adımdaki `DEL hy:adsblol:budget:state` sonrası kota sonraki yanıtla geri gelir (ingest entegrasyon testi).
+- **Açılış payı** (worker `status.ts`, `adsbLolView`): yeniden başlayan süreç ilk iznini beklerken pencerede istek yoksa açılıştan bir durum penceresi (420 sn) sonrasına kadar `limited`; önceki süreçten kalan `blocked`/`cap`/`no_cap` bu payı almaz, açık devre `down` kalır.
+- **Admin:** `limited` satırında son hata yalnız son başarıdan yeniyse yazılır.
+- **Web:** seyrek veride 10.000 ft altındaki (ya da irtifası bilinmeyen) ve +300 ft/dk'dan hızlı tırmanmayan uçak 10 sn'de durur (`airborneHorizonMs`), pistin ötesine kaymaz; durum izleyicisi önceki örnekten 30 sn'den uzun süre sonra gelen örnekte 5 sn'lik onayı beklemez (`CONFIRM_MAX_GAP_MS`).
+- **Belgeler:** D-122, data-sources.md, domain.md, RUNBOOK, ACTIVATION "M7e yayın doğrulaması"; changelog 0.28.1'e iki madde (`pnpm changelog` → "CHANGELOG.md yazıldı (v0.28.1, 51 sürüm).").
+- **Komutlar:** `pnpm turbo run test --force --continue` → 9/9: db 88, providers 174, geo 36, i18n 103, shared 769, worker 353, web 1077, api 353, tools 385 (toplam 3.338). `pnpm test:integration` → 6/6: db 129, api 31, worker 26, tools 14. `pnpm lint` 9/9, `pnpm typecheck` 9/9, `pnpm format` ve `format:check` ("All matched files use Prettier code style!"), `pnpm changelog:check` ("✓ Changelog tutarlı (v0.28.1)."), `pnpm check:eol` ("✓ Satır sonları LF.") → yeşil. Çalıştırılmayanlar yukarıdakiyle aynı.

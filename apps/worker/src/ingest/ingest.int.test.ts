@@ -4,6 +4,7 @@ import type { AddressInfo } from 'node:net'
 import { fileURLToPath } from 'node:url'
 import {
   activeStationsWithArp,
+  ADSBLOL_BUDGET_KEYS,
   addToBlocklist,
   createDb,
   createFlight,
@@ -389,6 +390,8 @@ describe('ingest (gerçek PostgreSQL + redis-live)', () => {
       EXTERNAL_PROVIDERS_DISABLED: 'false',
       CONTACT_EMAIL: 'ops@example.org',
       ADSBLOL_RPS: '0.2',
+      // Uyarlanır mod (D-073; bütçe modu ayrı testte, D-122).
+      ADSBLOL_DAILY_BUDGET: '0',
       WORKER_SERVICE_NAME: 'worker-test',
     })
     try {
@@ -719,6 +722,7 @@ describe('ingest (gerçek PostgreSQL + redis-live)', () => {
     const env = parseEnv({
       APP_ENV: 'test',
       EXTERNAL_PROVIDERS_DISABLED: 'false',
+      ADSBLOL_DAILY_BUDGET: '0',
       WORKER_SERVICE_NAME: 'worker-test',
     })
     let called = 0
@@ -1018,5 +1022,214 @@ describe('yayın kuralı ve canlı katman (D-115)', () => {
     } finally {
       await receiver.close()
     }
+  })
+})
+
+describe('adsb.lol günlük bütçe modu (D-122; sahte sunucu, redis-queue sayacı)', () => {
+  let queue: Redis
+  const RATE_LIMIT_HEADERS = {
+    'x-ratelimit-limit': '4, 4;w=1, 60;w=60, 500;w=86400',
+    'x-ratelimit-remaining': '3',
+    'x-ratelimit-reset': '1',
+  }
+
+  beforeAll(async () => {
+    queue = createRedis(queueUrl(), { name: 'test-worker-ingest-budget' })
+  })
+
+  beforeEach(async () => {
+    await queue.flushdb()
+    await database.sql`truncate live_layer_state, admin_actions`
+  })
+
+  afterAll(async () => {
+    await queue?.flushdb().catch(() => undefined)
+    await queue?.quit().catch(() => undefined)
+  })
+
+  /** Bekler ve sahte sunucuya bu sürede yeni istek gitmediğini söyler. */
+  const quietFor = async (requests: readonly string[], ms = 1_500) => {
+    const before = requests.length
+    await new Promise((resolve) => setTimeout(resolve, ms))
+    return requests.length === before
+  }
+
+  it('Batı ile başlar, 180 sn’den önce istek yok, B B D; ömür 660 sn, durum limited; yeniden başlatma ve 429 bütçeyi aşmaz', async () => {
+    const clock = testClock()
+    const fixture = JSON.parse(readFileSync(fixtureFile, 'utf8')) as Record<string, unknown>
+    const requests: string[] = []
+    let reply429 = false
+    const stub = await serve((req, res) => {
+      requests.push(req.url ?? '')
+      const now = clock.now()
+      if (reply429) {
+        res
+          .writeHead(429, { 'content-type': 'text/html', ...RATE_LIMIT_HEADERS })
+          .end('<html><head><title>429 Too Many Requests</title></head></html>')
+        return
+      }
+      // Yalnız ilk yanıt uçak getirir; sonrakiler boş (eski örnekler yaşlanır).
+      const body = { ...fixture, ...(requests.length > 1 ? { ac: [] } : {}), now, ctime: now }
+      res
+        .writeHead(200, { 'content-type': 'application/json', ...RATE_LIMIT_HEADERS })
+        .end(JSON.stringify(body))
+    })
+    const { log, lines } = captureLog()
+    const env = parseEnv({
+      APP_ENV: 'test',
+      EXTERNAL_PROVIDERS_DISABLED: 'false',
+      CONTACT_EMAIL: 'ops@example.org',
+      WORKER_SERVICE_NAME: 'worker-test',
+    })
+    expect(env.ADSBLOL_DAILY_BUDGET).toBe(480)
+    const deps = {
+      env,
+      log,
+      now: clock.now,
+      random: () => 0,
+      fetch: localOnlyFetch,
+      adsbLolBaseUrl: stub.url,
+      timers: FAST_TIMERS,
+      redisQueue: queue,
+    }
+    const WEST = '/v2/point/39.5/29.5/250'
+    const EAST = '/v2/point/39.2/38.8/250'
+    try {
+      await withIngest(deps, async (ingest) => {
+        await waitFor('first request', () => requests.length === 1)
+        expect(requests[0]).toBe(WEST)
+        await waitFor('aircraft in redis', async () => {
+          return (await redis.exists(LIVE_KEYS.aircraft('4b8750'))) === 1
+        })
+        const ttl = await redis.ttl(LIVE_KEYS.aircraft('4b8750'))
+        expect(ttl).toBeGreaterThan(650)
+        expect(ttl).toBeLessThanOrEqual(660)
+        await waitFor('provider hash limited', async () => {
+          const live = await redis.hgetall(LIVE_KEYS.provider('adsbLol'))
+          return live.status === 'limited' && live.reason === 'budget'
+        })
+        expect(await redis.hgetall(LIVE_KEYS.provider('adsbLol'))).toMatchObject({
+          liveTtlS: '660',
+          mode: 'budget',
+          budgetCap: '480',
+          budgetUsed24h: '1',
+          budgetSlotS: '180',
+          rps: '0.005556',
+        })
+        await waitFor('coverage plan', async () => (await readCoverage(redis)) !== null)
+        expect((await readCoverage(redis))?.map((c) => c.id)).toEqual(['west', 'east'])
+        await waitFor('server quota stored', async () => {
+          return (await queue.hget(ADSBLOL_BUDGET_KEYS.state, 'serverDaily')) === '500'
+        })
+        // Operatör durum anahtarını siler (RUNBOOK 4. adım): kota sonraki yanıtla geri yazılır.
+        await queue.del(ADSBLOL_BUDGET_KEYS.state)
+
+        // 180 sn dolmadan istek yok (saat 170 sn ileri; gerçek zaman da akar).
+        clock.advance(170_000)
+        expect(await quietFor(requests)).toBe(true)
+        clock.advance(10_000)
+        await waitFor('second request', () => requests.length === 2)
+        expect(requests[1]).toBe(WEST)
+        await waitFor('server quota stored again after the state was deleted', async () => {
+          return (await queue.hget(ADSBLOL_BUDGET_KEYS.state, 'serverDaily')) === '500'
+        })
+
+        // İkinci yanıt boş: ilk yanıtın örnekleri ~300 sn yaşında, 660 sn'lik süpürmede kalır.
+        clock.advance(120_000)
+        expect(await quietFor(requests)).toBe(true)
+        expect(await redis.exists(LIVE_KEYS.aircraft('4b8750'))).toBe(1)
+        expect(await redis.zscore(LIVE_KEYS.seen, '4b8750')).not.toBeNull()
+        expect(ingest.stats().aircraft).toBeGreaterThan(10)
+
+        clock.advance(60_000)
+        await waitFor('third request', () => requests.length === 3)
+        expect(requests[2]).toBe(EAST)
+        expect(ingest.stats()).toMatchObject({
+          requests: 3,
+          rateLimited: 0,
+          budget: { cap: 480, slotS: 180, liveTtlS: 660 },
+        })
+      })
+
+      // Yeniden başlatma aynı anda: sayaç redis-queue'da sürer, istek gitmez.
+      await redis.del(LIVE_KEYS.provider('adsbLol'))
+      await withIngest(deps, async (ingest) => {
+        expect(await quietFor(requests, 2_000)).toBe(true)
+        expect(requests).toHaveLength(3)
+        expect(ingest.stats().requests).toBe(0)
+        // İlk izni beklerken kaynak `down` değil `limited` görünür (açılış payı).
+        await waitFor('provider hash after the restart', async () => {
+          return (await redis.exists(LIVE_KEYS.provider('adsbLol'))) === 1
+        })
+        expect(await redis.hgetall(LIVE_KEYS.provider('adsbLol'))).toMatchObject({
+          status: 'limited',
+          reason: 'budget',
+        })
+        // Sıra sürer: dördüncü izin Batı. Bu istek 429 alır.
+        reply429 = true
+        clock.advance(180_000)
+        await waitFor('fourth request', () => requests.length === 4)
+        expect(requests[3]).toBe(WEST)
+        await waitFor('rate limited', () => ingest.stats().rateLimited === 1)
+        await waitFor('budget narrowed', async () => {
+          return (await queue.hget(ADSBLOL_BUDGET_KEYS.state, 'cap')) === '432'
+        })
+        const blockedUntil = Number(await queue.hget(ADSBLOL_BUDGET_KEYS.state, 'blockedUntil'))
+        // En az 2 slot (360 sn) beklenir.
+        expect(blockedUntil - clock.now()).toBeGreaterThan(350_000)
+        reply429 = false
+        // Daralmış sınırın aralığı (200 sn) dolsa da engel sürüyor: istek yok.
+        clock.advance(200_000)
+        expect(await quietFor(requests)).toBe(true)
+        clock.advance(170_000)
+        await waitFor('request after the block', () => requests.length === 5)
+        await waitFor('cap and ttl follow the narrowed budget', () => {
+          const budget = ingest.stats().budget
+          return budget?.cap === 432 && budget.slotS === 200 && budget.liveTtlS === 720
+        })
+      })
+    } finally {
+      await stub.close()
+    }
+    expect(await queue.zcard(ADSBLOL_BUDGET_KEYS.requests)).toBe(5)
+    expect(await queue.get(ADSBLOL_BUDGET_KEYS.seq)).toBe('5')
+    const logged = lines.join('\n')
+    expect(logged).toContain('adsblol rate limit headers')
+    expect(logged).toContain('adsblol budget narrowed after a rate limit signal')
+    expect(logged).not.toContain('127.0.0.1')
+    expect(logged).not.toContain('ops@example.org')
+  })
+
+  it('sayaç deposu yoksa (REDIS_QUEUE_URL boş) hiç istek atılmaz; admin satırı down/config', async () => {
+    const { log, lines } = captureLog()
+    const env = parseEnv({
+      APP_ENV: 'test',
+      EXTERNAL_PROVIDERS_DISABLED: 'false',
+      CONTACT_EMAIL: 'ops@example.org',
+      WORKER_SERVICE_NAME: 'worker-test',
+    })
+    let called = 0
+    const neverFetch: typeof fetch = async () => {
+      called += 1
+      throw new Error('must not be called')
+    }
+    await withIngest(
+      { env, log, fetch: neverFetch, adsbLolBaseUrl: 'http://127.0.0.1:9', timers: FAST_TIMERS },
+      async (ingest) => {
+        await waitFor('config row', async () => {
+          const rows = await database.sql<
+            { status: string; circuit: string; last_error: string | null }[]
+          >`select status, circuit, last_error from provider_health where provider = 'adsbLol'`
+          return (
+            rows[0]?.status === 'down' &&
+            rows[0].circuit === 'config' &&
+            rows[0].last_error === 'adsb.lol günlük bütçe sayacı için REDIS_QUEUE_URL gerekli'
+          )
+        })
+        expect(ingest.stats()).toMatchObject({ adsbLol: 'enabled', circuit: 'config', requests: 0 })
+      },
+    )
+    expect(called).toBe(0)
+    expect(lines.join('\n')).toContain('"reason":"budget_store_missing"')
   })
 })

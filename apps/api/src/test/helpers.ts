@@ -258,6 +258,7 @@ export class FakeLiveSource implements LiveSource {
     primaryAgeS: 4.2,
     newestAgeS: 1.5,
     layer: 'on',
+    maxAgeS: 120,
   }
 
   constructor(list: readonly PublicAircraft[] = []) {

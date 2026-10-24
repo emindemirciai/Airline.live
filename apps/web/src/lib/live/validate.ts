@@ -26,7 +26,12 @@ const isNumberOrNull = (value: unknown) => value === null || isFiniteNumber(valu
 const isStringOrNull = (value: unknown) => value === null || typeof value === 'string'
 
 const COVERAGE: readonly CoverageState[] = ['full', 'partial', 'none', 'unknown']
-const PROVIDER_STATES: readonly string[] = ['ok', 'degraded', 'down'] satisfies ProviderState[]
+const PROVIDER_STATES: readonly string[] = [
+  'ok',
+  'limited',
+  'degraded',
+  'down',
+] satisfies ProviderState[]
 const PROVIDERS: readonly string[] = ['adsbLol', 'localReceiver'] satisfies LiveProviderId[]
 const SEARCH_KINDS: readonly SearchKind[] = ['hex', 'registration', 'flight', 'callsign', 'none']
 const AIRPORT_TYPES: readonly Airport['type'][] = [
@@ -52,7 +57,12 @@ export function isLiveStatus(value: unknown): value is LiveStatus {
   }
   // `layer` (D-115): yoksa (eski API) açık sayılır; başka değer bozuk mesajdır.
   const layerOk = value.layer === undefined || value.layer === 'on' || value.layer === 'off'
-  return layerOk && isNumberOrNull(value.primaryAgeS) && isNumberOrNull(value.newestAgeS)
+  // `maxAgeS` (D-122): yoksa (eski API) varsayılan pencere; varsa sıfırdan büyük sonlu sayı.
+  const maxAgeOk =
+    value.maxAgeS === undefined || (isFiniteNumber(value.maxAgeS) && value.maxAgeS > 0)
+  return (
+    layerOk && maxAgeOk && isNumberOrNull(value.primaryAgeS) && isNumberOrNull(value.newestAgeS)
+  )
 }
 
 /** `PublicAircraft` alanlarının hepsi tipine uygun mu (enlem ve boylam aralıkta)? */

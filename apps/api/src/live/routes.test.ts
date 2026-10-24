@@ -49,7 +49,13 @@ describe('GET /v1/live', () => {
     expect(res.json()).toEqual({
       seq: 42,
       coverage: 'full',
-      status: { providers: { adsbLol: 'ok' }, primaryAgeS: 4.2, newestAgeS: 1.5, layer: 'on' },
+      status: {
+        providers: { adsbLol: 'ok' },
+        primaryAgeS: 4.2,
+        newestAgeS: 1.5,
+        layer: 'on',
+        maxAgeS: 120,
+      },
       aircraft: [istanbul],
       license: 'ODbL-1.0',
       licenseUrl: 'https://opendatacommons.org/licenses/odbl/1-0/',
@@ -87,6 +93,23 @@ describe('GET /v1/live', () => {
       const res = await app.inject({ method: 'GET', url })
       expect(res.statusCode, url).toBe(400)
       expect(res.json(), url).toEqual(LIVE_ERRORS.badBbox)
+    }
+  })
+
+  it('seyrek veri (D-122): limited durumu ve yaş penceresi REST yanıtında korunur', async () => {
+    const previous = source.statusValue
+    source.statusValue = { ...previous, providers: { adsbLol: 'limited' }, maxAgeS: 660 }
+    try {
+      const live = await app.inject({ method: 'GET', url: '/v1/live?bbox=28.5,41,29,41.5' })
+      expect(live.json()).toMatchObject({
+        status: { providers: { adsbLol: 'limited' }, maxAgeS: 660 },
+      })
+      const search = await app.inject({ method: 'GET', url: '/v1/search?q=TK974' })
+      expect(search.json()).toMatchObject({
+        status: { providers: { adsbLol: 'limited' }, maxAgeS: 660 },
+      })
+    } finally {
+      source.statusValue = previous
     }
   })
 

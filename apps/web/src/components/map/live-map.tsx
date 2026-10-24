@@ -9,9 +9,11 @@ import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from '
 import { whenIdle } from '../../lib/idle'
 import { fetchSearch } from '../../lib/live/api'
 import { monotonicNow } from '../../lib/live/clock'
+import { motionPolicy } from '../../lib/live/interpolate'
 import type { TrackedAircraft } from '../../lib/live/store'
 import { visibleAircraft } from '../../lib/live/visible'
 import type { MapConfig } from '../../lib/map-config'
+import { LOW_ALT_LOST_AFTER_MS } from '../../lib/map/flight-phase'
 import {
   SHARED_LINK_DONE,
   afterSearch,
@@ -481,8 +483,14 @@ export function LiveMap({
     }
   }, [cardOpen, popupOpen])
   const { rows, total } = visibleAircraft(store.list(), viewport.bounds, viewport.center)
+  // Seyrek veride (D-122) son örneğin yaşı sinyal kaybı demek değildir: "Alçakta sinyal kaybı" yok.
+  const lowAltLostAfterMs = motionPolicy(store.status).sparse ? Infinity : LOW_ALT_LOST_AFTER_MS
   const placeOf = (ac: TrackedAircraft) =>
-    aircraftPlace(ac, phases.get(ac.hex), now, messages.table, { locale, units })
+    aircraftPlace(ac, phases.get(ac.hex), now, messages.table, {
+      locale,
+      units,
+      lowAltLostAfterMs,
+    })
   const showLoading = webgl !== false && !mapReady
   // Atıf, harita çizildiğinde MapLibre'nin atıf kutusundadır; harita yokken (yükleniyor, WebGL2
   // yok, kurulamadı) panellerdeki canlı veri için aynı atıf sayfada gösterilir.

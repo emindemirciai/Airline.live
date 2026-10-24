@@ -161,6 +161,10 @@ describe('providerStatusSpans', () => {
     expect(providerStatusSpans({ status: 'weird' }, [], 0, 5)).toEqual([
       { status: 'unknown', from: 0, to: 5 },
     ])
+    // Bütçe modu (D-122): seyrek veri, raporda degraded sayılır.
+    expect(
+      providerStatusSpans({ status: 'limited' }, [{ at: 3, status: 'degraded' }], 0, 5),
+    ).toEqual([{ status: 'degraded', from: 0, to: 5 }])
     expect(providerStatusSpans(null, [], 5, 5)).toEqual([])
   })
 })

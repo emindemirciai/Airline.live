@@ -10,7 +10,7 @@ import {
   MAX_HEX_PER_CALL,
   providerUserAgent,
 } from './adsblol'
-import { MAX_RETRY_AFTER_SEC, parseRetryAfter } from './http'
+import { dailyQuota, MAX_RETRY_AFTER_SEC, parseRetryAfter } from './http'
 import { createLocalReceiverClient, parseReceiverUrls, ReceiverConfigError } from './local-receiver'
 
 // Stub HTTP sunucusu (yerel); canlı adsb.lol'e istek atılmaz.
@@ -172,6 +172,84 @@ describe('adsb.lol istemcisi', () => {
     headers = { 'retry-after': new Date(FIXTURE_NOW + 45_000).toUTCString() }
     expect(await retryAfter()).toBe(45)
     expect(parseRetryAfter('yarın', FIXTURE_NOW)).toBeNull()
+  })
+
+  it('hız sınırı başlıkları: 200 sonucunda ve 429 hatasında döner; ağ hatasında null (D-122)', async () => {
+    const limit = '4, 4;w=1, 60;w=60, 500;w=86400'
+    let reply: Reply = { status: 200 }
+    const server = await stub(() => reply)
+    const client = createAdsbLolClient({ ...identity, baseUrl: server.base })
+    reply = {
+      status: 200,
+      body: gzipSync(pointFixture),
+      headers: {
+        'content-type': 'application/json',
+        'content-encoding': 'gzip',
+        'x-ratelimit-limit': limit,
+        'x-ratelimit-remaining': '3',
+        'x-ratelimit-reset': '1',
+      },
+    }
+    const result = await client.point(41.2749, 28.7321, 40)
+    expect(result.rateLimit).toEqual({
+      limit: 4,
+      policies: [
+        { quota: 4, windowS: 1 },
+        { quota: 60, windowS: 60 },
+        { quota: 500, windowS: 86_400 },
+      ],
+      remaining: 3,
+      resetS: 1,
+    })
+    expect(dailyQuota(result.rateLimit)).toBe(500)
+
+    reply = {
+      status: 429,
+      body: '<html>429</html>',
+      headers: {
+        'x-ratelimit-limit': limit,
+        'x-ratelimit-remaining': '0',
+        'x-ratelimit-reset': '7200',
+        'retry-after': '30',
+      },
+    }
+    const limited = (await client.point(41, 29, 10).catch((e: unknown) => e)) as AdsbLolError
+    expect(limited).toMatchObject({ kind: 'rate_limit', status: 429, retryAfterSec: 30 })
+    expect(limited.rateLimit).toMatchObject({ remaining: 0, resetS: 7200 })
+
+    // Başlıksız yanıt ve başlıksız hata: null.
+    reply = json(pointFixture)
+    expect((await client.point(41, 29, 10)).rateLimit).toBeNull()
+    reply = { status: 502, body: 'bad gateway' }
+    expect(
+      ((await client.point(41, 29, 10).catch((e: unknown) => e)) as AdsbLolError).rateLimit,
+    ).toBeNull()
+    const offline = createAdsbLolClient({ ...identity, baseUrl: await closedPort() })
+    const network = (await offline.point(41, 29, 10).catch((e: unknown) => e)) as AdsbLolError
+    expect(network).toMatchObject({ kind: 'network', rateLimit: null })
+  })
+
+  it('beforeRequest her istekten hemen önce çağrılır; fırlatırsa istek gönderilmez (D-122)', async () => {
+    const server = await stub(() => json(pointFixture))
+    let permits = 1
+    let calls = 0
+    const client = createAdsbLolClient({
+      ...identity,
+      baseUrl: server.base,
+      beforeRequest: () => {
+        calls += 1
+        if (permits <= 0) throw new Error('no budget permit')
+        permits -= 1
+      },
+    })
+    await client.point(41.2749, 28.7321, 40)
+    expect(server.seen).toHaveLength(1)
+    await expect(client.point(41.2749, 28.7321, 40)).rejects.toThrow('no budget permit')
+    await expect(client.hex(['4b8750'])).rejects.toThrow('no budget permit')
+    expect(server.seen).toHaveLength(1)
+    // Geçersiz sorgu izin harcamaz: doğrulama izinden önce yapılır.
+    await expect(client.point(41, 29, 251)).rejects.toMatchObject({ kind: 'request' })
+    expect(calls).toBe(3)
   })
 
   it('ağ: kapalı port, yanıtsız sunucu ve gövdesi bitmeyen yanıt ağ hatasıdır (zaman aşımı)', async () => {
