@@ -32,6 +32,7 @@ import {
   chunkHexes,
   createAdsbLolClient,
   createLocalReceiverClient,
+  dailyQuota,
   LIVE_SOURCE_IDS,
   parseReceiverUrls,
   ProviderLicenseError,
@@ -39,15 +40,32 @@ import {
   trackSourceCode,
   type AdsbLolClient,
   type AdsbLolErrorKind,
+  type AdsbLolResult,
   type AircraftState,
   type DropReason,
   type LiveScope,
   type LiveSourceId,
   type LocalReceiverClient,
+  type RateLimitInfo,
 } from '@havayolu/providers'
 import type { Redis } from 'ioredis'
 import type { Logger } from 'pino'
 import { effectiveLiveScope, type Env } from '../env'
+import {
+  BUDGET_STATUS_RETAIN_MS,
+  budgetCircle,
+  BudgetPacer,
+  BudgetPermit,
+  BudgetPermitError,
+  budgetPlan,
+  budgetSlotMs,
+  budgetStatusWindowMs,
+  createRedisBudgetStore,
+  LIVE_TTL_MIN_MS,
+  liveTtlMsForSlot,
+  rateLimitWaitMs,
+  type BudgetStore,
+} from './budget'
 import {
   continueFlight,
   decideFlight,
@@ -83,7 +101,12 @@ import { isDataError, TrackWriter } from './writer'
  * anlık durumu, PostgreSQL'e uçuş kaydını ve izi yazar, sağlayıcı sağlığını tutar.
  *
  * Döngüler (her biri kendinden öncekini bekler, üst üste binmez; kapanışta hemen durur):
- * - adsb.lol: AIMD kovası izin verdikçe zamanlayıcının seçtiği çember ya da takip listesi isteği
+ * - adsb.lol, günlük bütçe modu (`ADSBLOL_DAILY_BUDGET` > 0, varsayılan; D-122): redis-queue'daki
+ *   sayaç izin verdikçe (~180 sn'de bir) Batı ya da Doğu çemberi (B B D). İzinsiz istek gönderilmez
+ *   (`BudgetPermit`); sayaç yoksa (REDIS_QUEUE_URL boş) hiç istek atılmaz. Takip listesi
+ *   (`/v2/hex`) bu modda çekilmez; canlı kayıt ömrü sorgu aralığına göre uzar (480 → 660 sn).
+ * - adsb.lol, uyarlanır mod (`ADSBLOL_DAILY_BUDGET=0`, yalnız API anahtarıyla): AIMD kovası izin
+ *   verdikçe zamanlayıcının seçtiği çember ya da takip listesi isteği
  * - yerel alıcı: her alıcı kendi döngüsünde saniyede bir
  * - tik: birincil tazelik örneği, canlı süpürme, bellek budama, eski uçuşların kapatılması
  * - yazma: iz ve uçuş tamponu (1,5 sn)
@@ -180,6 +203,19 @@ export interface IngestStats {
   published: number
   /** Nedene göre yayınlanmayan örnekler (açılıştan beri, yalnızca sıfır olmayanlar; anonim). */
   dropped: Readonly<Partial<Record<DropReason | 'layer_off', number>>>
+  /** adsb.lol günlük bütçesi (D-122); uyarlanır modda ya da adsb.lol kapalıyken null. */
+  budget: IngestBudgetStats | null
+}
+
+export interface IngestBudgetStats {
+  /** Uygulanan günlük sınır. */
+  cap: number
+  /** Son 24 saatte verilen izinler (son sayaç yanıtına göre; henüz yoksa null). */
+  used24h: number | null
+  /** İki istek arası (sn). */
+  slotS: number
+  /** Canlı kayıt ömrü (sn). */
+  liveTtlS: number
 }
 
 export interface IngestHandle {
@@ -213,9 +249,34 @@ export function adsbLolErrorText(kind: AdsbLolErrorKind, status: number | null):
 
 export interface ConfigProblem {
   /** Log için İngilizce kod. */
-  code: 'license' | 'contact_email_missing' | 'api_key_header_missing' | 'invalid_header' | 'other'
+  code:
+    | 'license'
+    | 'contact_email_missing'
+    | 'api_key_header_missing'
+    | 'invalid_header'
+    | 'budget_store_missing'
+    | 'other'
   /** Admin panelinde gösterilen sabit metin. */
   text: string
+}
+
+/**
+ * Günlük bütçe açık ama sayacın deposu (redis-queue) yok (D-122): kapalı varsayım, adsb.lol'e hiç
+ * istek atılmaz. Üretimde REDIS_QUEUE_URL zorunludur; bu yalnız elle kurulmuş ortamda olur.
+ */
+export const BUDGET_STORE_MISSING: ConfigProblem = {
+  code: 'budget_store_missing',
+  text: 'adsb.lol günlük bütçe sayacı için REDIS_QUEUE_URL gerekli',
+}
+
+/**
+ * Bütçe modu (D-122) açık mı: adsb.lol yapılandırılmış ve `ADSBLOL_DAILY_BUDGET` > 0. Dış istekler
+ * kapalıyken (yerel geliştirme, replay, testler) uyarlanır mod ve 120 sn'lik canlı TTL kalır.
+ */
+export function budgetModeOf(
+  env: Pick<Env, 'EXTERNAL_PROVIDERS_DISABLED' | 'ADSBLOL_DAILY_BUDGET'>,
+): boolean {
+  return !env.EXTERNAL_PROVIDERS_DISABLED && env.ADSBLOL_DAILY_BUDGET > 0
 }
 
 /** adsb.lol istemcisi kurulamadıysa nedeni (değer ya da ham ileti taşımadan). */
@@ -444,11 +505,16 @@ export async function bounded<T>(promise: Promise<T>, ms: number): Promise<T> {
  *
  * `remove` (D-115): yayından çekilen hex'ler. O hex'in bekleyen güncellemesi atılır; silme bir
  * sonraki yazımda güncellemelerden sonra gider. Sonra gelen `push` silmeyi geri alır (uçak kuralı
- * yeniden tuttu). Başarısız silme yeniden denenmez: kayıt 120 sn'de süpürülür.
+ * yeniden tuttu). Başarısız silme, o arada hex yeniden gelmediyse bir sonraki yazıma eklenir
+ * (D-122: bütçe modunda canlı kayıt 660 sn yaşar; kaçan bir silme o kadar sürmesin). Yeniden
+ * deneme kendi başına yazım başlatmaz (Redis kesintisinde sıkı döngü olmaz); sonraki `push` ya da
+ * `remove` onu da götürür.
  */
 export class LiveWriter<T extends { hex: string }> {
   private pending = new Map<string, T>()
   private removals = new Set<string>()
+  /** Yazımı başarısız olan silmeler; bir sonraki yazıma eklenir. */
+  private retryRemovals = new Set<string>()
   private running: Promise<void> | null = null
 
   constructor(
@@ -461,6 +527,7 @@ export class LiveWriter<T extends { hex: string }> {
     for (const item of list) {
       this.pending.set(item.hex, item)
       this.removals.delete(item.hex)
+      this.retryRemovals.delete(item.hex)
     }
     this.pump()
   }
@@ -468,14 +535,15 @@ export class LiveWriter<T extends { hex: string }> {
   remove(hexes: readonly string[]): void {
     for (const hex of hexes) {
       this.pending.delete(hex)
+      this.retryRemovals.delete(hex)
       this.removals.add(hex)
     }
     this.pump()
   }
 
-  /** Yazılmayı bekleyen uçak sayısı (güncelleme ve silme). */
+  /** Yazılmayı bekleyen uçak sayısı (güncelleme, silme ve yeniden denenecek silme). */
   backlog(): number {
-    return this.pending.size + this.removals.size
+    return this.pending.size + this.removals.size + this.retryRemovals.size
   }
 
   /** Yoldaki ve bekleyen yazımlar bitene (ya da süreleri dolana) kadar bekler. */
@@ -486,9 +554,10 @@ export class LiveWriter<T extends { hex: string }> {
   private pump(): void {
     if (this.running !== null || (this.pending.size === 0 && this.removals.size === 0)) return
     const batch = [...this.pending.values()]
-    const removed = [...this.removals]
+    const removed = [...new Set([...this.removals, ...this.retryRemovals])]
     this.pending = new Map()
     this.removals = new Set()
+    this.retryRemovals = new Set()
     this.running = this.run(batch, removed).finally(() => {
       this.running = null
       this.pump()
@@ -503,7 +572,30 @@ export class LiveWriter<T extends { hex: string }> {
       )
     } catch (error) {
       this.onError(error, batch.length + removed.length)
+      // O arada yeniden gelen (`push`) ya da yeniden çekilen (`remove`) hex'in son kararı geçerlidir.
+      for (const hex of removed) {
+        if (!this.pending.has(hex) && !this.removals.has(hex)) this.retryRemovals.add(hex)
+      }
     }
+  }
+}
+
+/** Bütçe sayacı çağrısının beklenebileceği en uzun süre (redis-queue yanıtsızsa döngü takılmasın). */
+export const BUDGET_STORE_TIMEOUT_MS = 2_000
+
+/**
+ * Bütçe deposunun çağrıları en fazla `BUDGET_STORE_TIMEOUT_MS` beklenir. Süresi dolan izin
+ * arkada verilmiş olabilir; o izinle istek gönderilmez (sayılmış ama kullanılmamış: temkinli taraf).
+ */
+export function boundedBudgetStore(
+  inner: BudgetStore,
+  ms: number = BUDGET_STORE_TIMEOUT_MS,
+): BudgetStore {
+  return {
+    reserve: (t) => bounded(inner.reserve(t), ms),
+    rateLimited: (t, waitMs) => bounded(inner.rateLimited(t, waitMs), ms),
+    serverLimit: (t, quota) => bounded(inner.serverLimit(t, quota), ms),
+    read: (t) => bounded(inner.read(t), ms),
   }
 }
 
@@ -572,6 +664,18 @@ export async function startIngest(deps: IngestDeps): Promise<IngestHandle> {
   const gate = new PublishGate({ scope: scoped.scope })
   const redisQueue = deps.redisQueue ?? null
 
+  // 0b. adsb.lol günlük bütçesi (D-122). Canlı kayıt ömrü bütçe modunda son sayaç yanıtındaki
+  // sınırdan türer; redis-live TTL'i, süpürme, bellek ve yayın kümesi budaması hep aynı değeri
+  // kullanır (yayın kümesi canlı kayıttan önce düşerse yayından çekme kaçardı).
+  const budgetMode = budgetModeOf(env)
+  const configuredBudget = env.ADSBLOL_DAILY_BUDGET
+  let budgetCap = configuredBudget
+  let budgetUsed: number | null = null
+  let budgetBlockedUntil: number | null = null
+  const slotMs = () => budgetSlotMs(budgetCap)
+  let liveTtlMs = budgetMode ? liveTtlMsForSlot(slotMs()) : LIVE_TTL_MIN_MS
+  const liveTtlS = () => Math.round(liveTtlMs / 1000)
+
   // 1. Günün ve ilerideki günlerin partition'ları (bakım işi de açar; burada yalnızca güvence).
   try {
     const ensured = await ensureTrackPartitions(sql, new Date(now()))
@@ -588,6 +692,8 @@ export async function startIngest(deps: IngestDeps): Promise<IngestHandle> {
   let stationByIcao = new Map<string, StationArp>()
   let primaryIcao: string | null = null
   let scheduler: RequestScheduler | null = null
+  /** Bütçe modunun sorgu planı (Batı ve Doğu); istasyon yokken boştur. */
+  let budgetCircles: PlannedCircle[] = []
   /** Güncel planın çemberleri; istasyon yokken boştur (API'de kapsama `none`). */
   let coverage: CoverageCircle[] = []
   let fineCtx: FineContext = { stations: [], watch }
@@ -608,6 +714,7 @@ export async function startIngest(deps: IngestDeps): Promise<IngestHandle> {
     }
     if (list.length === 0) {
       scheduler = null
+      budgetCircles = []
       coverage = []
       log.warn(
         { retrySec: STATIONS_RETRY_MS / 1000 },
@@ -618,12 +725,16 @@ export async function startIngest(deps: IngestDeps): Promise<IngestHandle> {
     // Zamanlayıcı plan değişince yeniden kurulur (durum taşımaz; ilk turda birincil öne geçer).
     const plan = coveragePlan(list)
     scheduler = new RequestScheduler(plan)
-    coverage = coverageCircles(plan)
+    budgetCircles = budgetPlan(plan)
+    // API kapsamayı bu çemberlerle hesaplar: bütçe modunda yalnız gerçekten sorgulananlar.
+    const fetched = budgetMode ? budgetCircles : plan
+    coverage = coverageCircles(fetched)
     log.info(
       {
         stations: list.map((s) => s.icao),
         primary: primaryIcao,
-        circles: plan.map((c) => `${c.id}:${c.radiusNm}`),
+        circles: fetched.map((c) => `${c.id}:${c.radiusNm}`),
+        mode: budgetMode ? 'budget' : 'adaptive',
       },
       'coverage plan ready',
     )
@@ -768,6 +879,16 @@ export async function startIngest(deps: IngestDeps): Promise<IngestHandle> {
   }
   let adsbLolClient: AdsbLolClient | null = null
   let configErrorLogged = false
+  const configProblem = (problem: ConfigProblem) => {
+    log.error({ reason: problem.code }, 'adsblol config error')
+    configErrorLogged = true
+    rate.record('config')
+    adsb.lastErrorAt = now()
+    adsb.lastError = problem.text
+  }
+  // Bütçe modunda her istek bir izin harcar (D-122): izni yalnız bütçe döngüsü verir; izinsiz bir
+  // çağrı yolu istemcide durur (`BudgetPermitError`), adsb.lol'e gitmez.
+  const permit = new BudgetPermit()
   if (adsbLolConfigured) {
     try {
       adsbLolClient = createAdsbLolClient({
@@ -781,15 +902,34 @@ export async function startIngest(deps: IngestDeps): Promise<IngestHandle> {
         baseUrl: deps.adsbLolBaseUrl,
         fetch: deps.fetch,
         now,
+        beforeRequest: budgetMode ? () => permit.consume() : undefined,
       })
     } catch (error) {
-      const problem = adsbLolConfigProblem(env, error)
-      log.error({ reason: problem.code }, 'adsblol config error')
-      configErrorLogged = true
-      rate.record('config')
-      adsb.lastErrorAt = now()
-      adsb.lastError = problem.text
+      configProblem(adsbLolConfigProblem(env, error))
     }
+  }
+  // Bütçe sayacı yoksa kapalı varsayım: hiç istek atılmaz (üretimde REDIS_QUEUE_URL zorunludur).
+  let budgetStore: BudgetStore | null = null
+  if (budgetMode && adsbLolClient !== null) {
+    if (redisQueue === null) {
+      adsbLolClient = null
+      configProblem(BUDGET_STORE_MISSING)
+    } else {
+      budgetStore = boundedBudgetStore(createRedisBudgetStore(redisQueue, configuredBudget))
+    }
+  }
+  const pacer = budgetStore === null ? null : new BudgetPacer(budgetStore)
+  /** adsb.lol hızı: bütçe modunda slottan (istek/sn), uyarlanır modda AIMD'nin güncel hızı. */
+  const currentRps = () => (budgetMode ? Math.round(1e9 / slotMs()) / 1e6 : rate.rps())
+  const budgetStats = (): IngestBudgetStats | null =>
+    budgetMode
+      ? { cap: budgetCap, used24h: budgetUsed, slotS: slotMs() / 1000, liveTtlS: liveTtlS() }
+      : null
+  if (budgetMode && watchList.length > 0) {
+    log.warn(
+      { watch: watchList.length },
+      'WATCH_HEX_LIST ignored in adsb.lol budget mode: no /v2/hex requests are sent',
+    )
   }
 
   // 5. Yerel alıcılar (adresler env'de doğrulandı). Her alıcının kendi istemcisi ve döngüsü
@@ -837,7 +977,10 @@ export async function startIngest(deps: IngestDeps): Promise<IngestHandle> {
   }
 
   // 6. Bileşenler.
-  const adsbStatus = new ProviderStatusTracker()
+  // Bütçe modunda durum penceresi sorgu aralığıyla uzar; olaylar 1 saat tutulur.
+  const adsbStatus = new ProviderStatusTracker(
+    budgetMode ? { retainMs: BUDGET_STATUS_RETAIN_MS } : undefined,
+  )
   const receiverStatus = new ProviderStatusTracker()
   const freshness = new FreshnessTracker()
   const hourly: Record<LiveSourceId, HourlyCounter> = {
@@ -923,9 +1066,10 @@ export async function startIngest(deps: IngestDeps): Promise<IngestHandle> {
   }
 
   // Anlık durum beklenmeden yazılır: harita veritabanı yavaşlasa da güncel kalır, Redis
-  // kesintisi de veritabanı yazımını ve kaynak döngülerini yavaşlatmaz.
+  // kesintisi de veritabanı yazımını ve kaynak döngülerini yavaşlatmaz. TTL yazım anındaki canlı
+  // kayıt ömrüdür (bütçe modunda sorgu aralığına göre, D-122).
   const liveWriter = new LiveWriter<AircraftState>(
-    (list, removals) => writeLiveUpdates(redis, list, removals),
+    (list, removals) => writeLiveUpdates(redis, list, removals, liveTtlS()),
     (error, count) =>
       warnThrottled(
         'live-write',
@@ -1083,6 +1227,87 @@ export async function startIngest(deps: IngestDeps): Promise<IngestHandle> {
     }
   }
 
+  /** Başlıklardan okunan günlük kota: değişince loglanır (info) ve bütçe sayacına yazılır. */
+  let loggedServerDaily: number | null = null
+  let storedServerDaily: number | null = null
+  const noteRateLimitHeaders = async (rateLimit: RateLimitInfo | null) => {
+    const quota = dailyQuota(rateLimit)
+    if (rateLimit === null || quota === null) return
+    if (quota !== loggedServerDaily) {
+      loggedServerDaily = quota
+      log.info(
+        {
+          limit: rateLimit.limit,
+          policies: rateLimit.policies.map((p) => `${p.quota};w=${p.windowS}`),
+          dailyQuota: quota,
+          remaining: rateLimit.remaining,
+          resetS: rateLimit.resetS,
+        },
+        'adsblol rate limit headers',
+      )
+    }
+    // Kota 0 yazılmaz: sayaç hiç izin vermez, yeni başlık da okunamazdı (429 yolu zaten daraltır).
+    if (budgetStore === null || quota < 1 || quota === storedServerDaily) return
+    try {
+      await budgetStore.serverLimit(now(), quota)
+      storedServerDaily = quota
+    } catch (error) {
+      warnThrottled('budget-store', { err: error }, 'adsblol budget store could not be updated')
+    }
+  }
+
+  /** Bütçe sayacının yanıtı: sınır değişince canlı kayıt ömrü yeniden hesaplanır. */
+  const applyBudget = (
+    r: { used: number | null; cap: number; blockedUntil: number | null } | null,
+  ) => {
+    if (r === null) return
+    budgetUsed = r.used
+    budgetBlockedUntil = r.blockedUntil
+    if (r.cap < 1 || r.cap === budgetCap) return
+    budgetCap = r.cap
+    liveTtlMs = liveTtlMsForSlot(slotMs())
+    log.info(
+      { cap: budgetCap, slotS: slotMs() / 1000, liveTtlS: liveTtlS() },
+      'adsblol budget cap changed',
+    )
+  }
+
+  /**
+   * Bütçe modunda 429/420 ya da tükenmek üzere kota (`remaining` ≤ 1): sayaçta engel ve %10
+   * daraltma (D-122). Sayaç yazılamasa da bu süreç bekler (`holdUntil`).
+   */
+  const budgetAfterResponse = async (
+    kind: OutcomeKind,
+    retryAfterSec: number | null,
+    rateLimit: RateLimitInfo | null,
+  ) => {
+    if (budgetStore === null || pacer === null) return
+    const remaining = rateLimit?.remaining ?? null
+    const exhausted = remaining !== null && remaining <= 1
+    if (kind !== 'rate_limit' && !exhausted) return
+    const t = now()
+    const waitMs = rateLimitWaitMs({
+      retryAfterSec,
+      resetS: rateLimit?.resetS ?? null,
+      slotMs: slotMs(),
+    })
+    pacer.holdUntil(t + waitMs)
+    try {
+      const narrowed = await budgetStore.rateLimited(t, waitMs)
+      applyBudget({ used: budgetUsed, ...narrowed })
+      log.warn(
+        { kind, remaining, waitS: Math.round(waitMs / 1000), cap: narrowed.cap },
+        'adsblol budget narrowed after a rate limit signal',
+      )
+    } catch (error) {
+      warnThrottled(
+        'budget-store',
+        { err: error },
+        'adsblol budget store could not be updated; this process still waits',
+      )
+    }
+  }
+
   const requestLabel = (req: PlannedRequest | null) =>
     req === null ? null : req.kind === 'circle' ? req.circle.id : 'watch'
 
@@ -1091,50 +1316,11 @@ export async function startIngest(deps: IngestDeps): Promise<IngestHandle> {
   /** Son başarılı `/v2/hex` isteği (zamanlayıcı plan değişince yeniden kurulsa da korunur). */
   let lastWatchAt: number | null = null
 
-  const runAdsbLolRequest = async (client: AdsbLolClient, current: RequestScheduler) => {
-    let req: PlannedRequest | null = null
-    let result: Awaited<ReturnType<AdsbLolClient['point']>>
-    try {
-      const t = now()
-      const slotMs = 1000 / rate.rps()
-      const need = watchNeed(watchList, (hex) => store.get(hex), t, {
-        circles: current.watchCircles(),
-        seenInCircleAt: (hex) => watchSeenInCircle.get(hex),
-        unseenSince: lastWatchAt ?? startedAt,
-      })
-      req = current.next(t, slotMs, need.dueAt)
-      result =
-        req.kind === 'circle'
-          ? await client.point(req.circle.center.lat, req.circle.center.lon, req.circle.radiusNm)
-          : await client.hex(chunkHexes(need.hexes)[0] ?? [])
-    } catch (error) {
-      const kind = error instanceof AdsbLolError ? error.kind : 'network'
-      const status = error instanceof AdsbLolError ? error.status : null
-      recordAdsbLol(kind, status, error instanceof AdsbLolError ? error.retryAfterSec : null)
-      log.warn(
-        { kind, status, request: requestLabel(req), rps: rate.rps() },
-        'adsblol request failed',
-      )
-      return
-    }
-    recordAdsbLol('success', 200)
-    const at = now()
-    current.served(req, at)
-    if (req.kind === 'circle') {
-      for (const [region, time] of Object.entries(
-        regionDataTimes(req.circle, result, stationByIcao),
-      )) {
-        regionTimes.set(region, time)
-      }
-      if (watch.size > 0) {
-        for (const a of result.aircraft) if (watch.has(a.hex)) watchSeenInCircle.set(a.hex, at)
-      }
-    } else {
-      lastWatchAt = at
-    }
+  /** Başarılı yanıtın örnekleri işlenir (tek sıra). */
+  const processResult = async (label: string, result: AdsbLolResult) => {
     log.debug(
       {
-        request: requestLabel(req),
+        request: label,
         aircraft: result.aircraft.length,
         rejected: result.rejected.length,
         latencyMs: result.latencyMs,
@@ -1148,7 +1334,93 @@ export async function startIngest(deps: IngestDeps): Promise<IngestHandle> {
     }
   }
 
-  const adsbLolLoop = async (client: AdsbLolClient) => {
+  /** Başarılı çember yanıtı: bölge veri zamanları, takip listesi kapsaması ve örnekler. */
+  const handleCircleResult = async (circle: PlannedCircle, result: AdsbLolResult, at: number) => {
+    for (const [region, time] of Object.entries(regionDataTimes(circle, result, stationByIcao))) {
+      regionTimes.set(region, time)
+    }
+    if (watch.size > 0) {
+      for (const a of result.aircraft) if (watch.has(a.hex)) watchSeenInCircle.set(a.hex, at)
+    }
+    await processResult(circle.id, result)
+  }
+
+  const failure = (error: unknown) => ({
+    kind: error instanceof AdsbLolError ? error.kind : ('network' as const),
+    status: error instanceof AdsbLolError ? error.status : null,
+    retryAfterSec: error instanceof AdsbLolError ? error.retryAfterSec : null,
+    rateLimit: error instanceof AdsbLolError ? error.rateLimit : null,
+  })
+
+  const runAdsbLolRequest = async (client: AdsbLolClient, current: RequestScheduler) => {
+    let req: PlannedRequest | null = null
+    let result: AdsbLolResult
+    try {
+      const t = now()
+      const adaptiveSlotMs = 1000 / rate.rps()
+      const need = watchNeed(watchList, (hex) => store.get(hex), t, {
+        circles: current.watchCircles(),
+        seenInCircleAt: (hex) => watchSeenInCircle.get(hex),
+        unseenSince: lastWatchAt ?? startedAt,
+      })
+      req = current.next(t, adaptiveSlotMs, need.dueAt)
+      result =
+        req.kind === 'circle'
+          ? await client.point(req.circle.center.lat, req.circle.center.lon, req.circle.radiusNm)
+          : await client.hex(chunkHexes(need.hexes)[0] ?? [])
+    } catch (error) {
+      const f = failure(error)
+      recordAdsbLol(f.kind, f.status, f.retryAfterSec)
+      await noteRateLimitHeaders(f.rateLimit)
+      log.warn(
+        { kind: f.kind, status: f.status, request: requestLabel(req), rps: rate.rps() },
+        'adsblol request failed',
+      )
+      return
+    }
+    recordAdsbLol('success', 200)
+    await noteRateLimitHeaders(result.rateLimit)
+    const at = now()
+    current.served(req, at)
+    if (req.kind === 'circle') {
+      await handleCircleResult(req.circle, result, at)
+    } else {
+      lastWatchAt = at
+      await processResult('watch', result)
+    }
+  }
+
+  /** Bütçe modunun tek isteği: izin bu çağrı için verilir, sonunda (kullanılmadıysa) geri alınır. */
+  const runBudgetRequest = async (client: AdsbLolClient, circle: PlannedCircle) => {
+    let result: AdsbLolResult
+    permit.grant()
+    try {
+      result = await client.point(circle.center.lat, circle.center.lon, circle.radiusNm)
+    } catch (error) {
+      if (error instanceof BudgetPermitError) {
+        log.error({ request: circle.id }, 'adsblol request without a budget permit was blocked')
+        return
+      }
+      const f = failure(error)
+      recordAdsbLol(f.kind, f.status, f.retryAfterSec)
+      await noteRateLimitHeaders(f.rateLimit)
+      await budgetAfterResponse(f.kind, f.retryAfterSec, f.rateLimit)
+      log.warn(
+        { kind: f.kind, status: f.status, request: circle.id, mode: 'budget' },
+        'adsblol request failed',
+      )
+      return
+    } finally {
+      permit.revoke()
+    }
+    recordAdsbLol('success', 200)
+    await noteRateLimitHeaders(result.rateLimit)
+    await budgetAfterResponse('success', null, result.rateLimit)
+    await handleCircleResult(circle, result, now())
+  }
+
+  /** Uyarlanır mod (`ADSBLOL_DAILY_BUDGET=0`): AIMD kovası ve zamanlayıcı (D-073). */
+  const adaptiveLoop = async (client: AdsbLolClient) => {
     while (!stop.signal.aborted) {
       try {
         // 401/403: süreç yeniden başlayana kadar istek atılmaz (D-073).
@@ -1176,6 +1448,54 @@ export async function startIngest(deps: IngestDeps): Promise<IngestHandle> {
     }
   }
 
+  /**
+   * Bütçe modu (D-122): her istekten önce redis-queue'daki sayaçtan izin alınır. AIMD beklemesi ve
+   * devre kesici sürer; sayacın reddinde `retryAt`'e kadar, sayaç erişilemezse 5 sn beklenir ve o
+   * arada istek gönderilmez. Bir izin en fazla bir istek gönderir.
+   */
+  const budgetLoop = async (client: AdsbLolClient, budgetPacer: BudgetPacer) => {
+    while (!stop.signal.aborted) {
+      try {
+        if (rate.state().circuit === 'config') return
+        if (budgetCircles.length === 0) {
+          await pause(MAX_SLEEP_STEP_MS)
+          continue
+        }
+        const t = now()
+        const allowedAt = Math.max(rate.nextAllowedAt(), budgetPacer.nextAttemptAt())
+        if (allowedAt > t) {
+          await pause(Math.min(allowedAt - t, MAX_SLEEP_STEP_MS))
+          continue
+        }
+        const step = await budgetPacer.step(t)
+        if (step.kind === 'error') {
+          warnThrottled(
+            'budget-store',
+            { err: step.error },
+            'adsblol budget store unavailable; no request sent',
+          )
+          continue
+        }
+        if (step.kind === 'wait') {
+          // Yalnız sayacın yanıtı uygulanır (yerel beklemede son yanıt eskidir).
+          if (step.decision !== 'local') applyBudget(budgetPacer.last())
+          continue
+        }
+        applyBudget(step.reservation)
+        const circle = budgetCircle(step.reservation.seq, budgetCircles)
+        // İzin harcandı ama istek atılmaz (temkinli taraf): çember yok ya da kova izin vermiyor.
+        if (circle === null || !rate.tryAcquire()) continue
+        await runBudgetRequest(client, circle)
+      } catch (error) {
+        warnThrottled('loop:adsblol', { err: error }, 'ingest loop iteration failed')
+        await pause(MAX_SLEEP_STEP_MS)
+      }
+    }
+  }
+
+  const adsbLolLoop = (client: AdsbLolClient) =>
+    pacer === null ? adaptiveLoop(client) : budgetLoop(client, pacer)
+
   // --- Yerel alıcı ---------------------------------------------------------------------------
   /** Tek alıcının turu; her alıcı kendi döngüsünde okunur ve sonucu gelir gelmez işlenir. */
   const receiverRound = async (client: LocalReceiverClient) => {
@@ -1197,12 +1517,15 @@ export async function startIngest(deps: IngestDeps): Promise<IngestHandle> {
       const dataTime = regionTimes.get(primaryIcao)
       freshness.sample(t, dataTime === undefined ? null : t - dataTime)
     }
-    await liveCall('sweep', {}, 'live sweep failed', () => sweepLive(redis, t))
+    // Süpürme, bellek ve yayın kümesi budaması aynı canlı kayıt ömrünü kullanır (D-122): yayın
+    // kümesi canlı kayıttan önce budanırsa kural tutmayan uçak yayından çekilemezdi.
+    const ttlS = liveTtlS()
+    await liveCall('sweep', {}, 'live sweep failed', () => sweepLive(redis, t, ttlS))
     if (t - lastPruneAt >= PRUNE_EVERY_MS) {
       lastPruneAt = t
       await exclusive(async () => {
-        for (const hex of store.prune(t)) cursors.delete(hex)
-        gate.prune(t)
+        for (const hex of store.prune(t, ttlS * 1000)) cursors.delete(hex)
+        gate.prune(t, ttlS * 1000)
       })
     }
     if (t - lastFlightSweepAt >= FLIGHT_SWEEP_EVERY_MS) {
@@ -1250,11 +1573,15 @@ export async function startIngest(deps: IngestDeps): Promise<IngestHandle> {
     const counters = adsbStatus.counters(t)
     const p95 = freshness.p95(t)
     const primaryData = primaryIcao === null ? undefined : regionTimes.get(primaryIcao)
+    // Bütçe modu (D-122): pencere sorgu aralığına göre, sağlıklı kaynak `limited`; hız slottan.
+    const slot = slotMs()
     const { status, reason } = adsbStatus.status(t, {
       circuitOpen: state.circuit === 'open' || state.circuit === 'config',
       primaryFreshnessMs: p95,
+      ...(budgetMode ? { budgetWindowMs: budgetStatusWindowMs(slot) } : {}),
     })
     const freshnessP95S = p95 === null ? null : p95 / 1000
+    const rps = currentRps()
     return {
       id: 'adsbLol',
       status,
@@ -1266,7 +1593,7 @@ export async function startIngest(deps: IngestDeps): Promise<IngestHandle> {
         lastErrorAt: toDate(adsb.lastErrorAt),
         lastError: adsb.lastError,
         consecutiveFailures: adsb.consecutiveFailures,
-        rps: state.rps,
+        rps,
         circuit: state.circuit,
         backoffUntil: toDate(state.backoffUntil),
         freshnessP95S,
@@ -1276,7 +1603,7 @@ export async function startIngest(deps: IngestDeps): Promise<IngestHandle> {
       live: {
         status,
         reason,
-        rps: state.rps,
+        rps,
         circuit: state.circuit,
         backoffUntil: state.backoffUntil,
         consecutiveFailures: adsb.consecutiveFailures,
@@ -1288,6 +1615,13 @@ export async function startIngest(deps: IngestDeps): Promise<IngestHandle> {
         errorRatio60s: counters.errorRatio,
         requests60s: counters.requests,
         rateLimited60s: counters.rateLimited,
+        // API'nin uçak yaş penceresi bu değerdir; worker'ın TTL'i, süpürmesi ve budamasıyla aynı.
+        liveTtlS: liveTtlS(),
+        mode: budgetMode ? 'budget' : 'adaptive',
+        budgetCap: budgetMode ? budgetCap : null,
+        budgetUsed24h: budgetMode ? budgetUsed : null,
+        budgetSlotS: budgetMode ? slot / 1000 : null,
+        budgetBlockedUntil: budgetMode ? budgetBlockedUntil : null,
         updatedAt: t,
       },
     }
@@ -1453,7 +1787,8 @@ export async function startIngest(deps: IngestDeps): Promise<IngestHandle> {
           aircraft: store.size(),
           activeFlights: flights.size,
           providers: Object.fromEntries(list.map((v) => [v.id, v.status])),
-          rps: configured.adsbLol ? rate.rps() : null,
+          rps: configured.adsbLol ? currentRps() : null,
+          budget: budgetStats(),
           requests: totals.requests,
           rateLimited: totals.rateLimited,
           rowsSampled: totals.rowsSampled,
@@ -1506,7 +1841,9 @@ export async function startIngest(deps: IngestDeps): Promise<IngestHandle> {
   log.info(
     {
       adsbLol: adsbLolMode,
-      rps: env.ADSBLOL_RPS,
+      mode: budgetMode ? 'budget' : 'adaptive',
+      rps: budgetMode ? currentRps() : env.ADSBLOL_RPS,
+      budget: budgetStats(),
       localReceivers: receivers.length,
       stations: [...stationByIcao.keys()],
       activeFlights: flights.size,
@@ -1526,13 +1863,14 @@ export async function startIngest(deps: IngestDeps): Promise<IngestHandle> {
     rowsFine: totals.rowsFine,
     adsbLol: adsbLolConfigured ? 'enabled' : 'disabled',
     localReceivers: receivers.length,
-    rps: adsbLolConfigured ? rate.rps() : null,
+    rps: adsbLolConfigured ? currentRps() : null,
     circuit: adsbLolConfigured ? rate.state().circuit : null,
     rowsDropped: writer.dropped(),
     scope: gate.scope,
     layer: gate.layerOn() ? 'on' : 'off',
     published: gate.counters().published,
     dropped: gate.droppedNonZero(),
+    budget: budgetStats(),
   })
 
   const shutdown = async () => {

@@ -124,6 +124,54 @@ describe('ProviderStatusTracker', () => {
     })
   })
 
+  it('bütçe modu (D-122): 420 sn pencere; başarı varsa limited, tazelik kuralı yok', () => {
+    const budget = (primaryFreshnessMs: number | null) => ({
+      circuitOpen: false,
+      primaryFreshnessMs,
+      budgetWindowMs: 420_000,
+    })
+    const t = new ProviderStatusTracker({ retainMs: 3_600_000 })
+    t.record(T0, 'success')
+    // 60 sn'lik pencerede başarı yok sayılırdı (down); bütçe penceresinde var.
+    expect(t.status(T0 + 180_000, healthy)).toEqual({ status: 'down', reason: 'no_success' })
+    expect(t.status(T0 + 180_000, budget(360_000))).toEqual({ status: 'limited', reason: 'budget' })
+    expect(t.status(T0 + 419_999, budget(null))).toEqual({ status: 'limited', reason: 'budget' })
+    expect(t.status(T0 + 420_000, budget(null))).toEqual({ status: 'down', reason: 'no_success' })
+    expect(t.counters(T0 + 180_000, 420_000)).toMatchObject({ requests: 1, successes: 1 })
+    expect(t.counters(T0 + 180_000)).toMatchObject({ requests: 0 })
+  })
+
+  it('bütçe modu: devre açık down, pencerede hata oranı > %20 degraded', () => {
+    const budget = { circuitOpen: false, primaryFreshnessMs: null, budgetWindowMs: 420_000 }
+    const t = new ProviderStatusTracker({ retainMs: 3_600_000 })
+    t.record(T0, 'success')
+    t.record(T0 + 180_000, 'success')
+    expect(t.status(T0 + 200_000, { ...budget, circuitOpen: true })).toEqual({
+      status: 'down',
+      reason: 'circuit_open',
+    })
+    t.record(T0 + 360_000, 'rate_limit')
+    // 1/3 > %20.
+    expect(t.status(T0 + 370_000, budget)).toEqual({ status: 'degraded', reason: 'error_ratio' })
+    // Pencere kayınca ilk başarı düşer: 1 başarı + 1 429 = %50, hâlâ degraded.
+    expect(t.status(T0 + 430_000, budget)).toEqual({ status: 'degraded', reason: 'error_ratio' })
+    t.record(T0 + 540_000, 'success')
+    t.record(T0 + 720_000, 'success')
+    t.record(T0 + 900_000, 'success')
+    // Pencere (T0 + 481 sn, T0 + 901 sn]: 429 çıktı, yalnız 3 başarı kaldı.
+    expect(t.status(T0 + 901_000, budget)).toEqual({ status: 'limited', reason: 'budget' })
+  })
+
+  it('olaylar tutma süresi kadar saklanır; tutma pencereden kısa olamaz', () => {
+    const t = new ProviderStatusTracker({ retainMs: 600_000 })
+    t.record(T0, 'success')
+    expect(t.counters(T0 + 599_999, 3_600_000)).toMatchObject({ requests: 1 })
+    expect(t.counters(T0 + 600_000, 3_600_000)).toMatchObject({ requests: 0 })
+    const short = new ProviderStatusTracker({ windowMs: 60_000, retainMs: 1_000 })
+    short.record(T0, 'success')
+    expect(short.status(T0 + 59_999, healthy)).toEqual({ status: 'ok', reason: null })
+  })
+
   it('sıra dışı gelen kayıt doğru yere yerleşir', () => {
     const t = new ProviderStatusTracker()
     t.record(T0 + 50_000, 'success')

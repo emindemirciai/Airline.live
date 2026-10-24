@@ -1,6 +1,20 @@
 import { describe, expect, it } from 'vitest'
 import { effectiveLiveScope, EnvError, parseEnv } from './env'
 
+describe('ADSBLOL_DAILY_BUDGET (D-122)', () => {
+  it('üretimde de varsayılan 480: şablonda değer yoksa bütçe açıktır', () => {
+    const production = parseEnv({
+      APP_ENV: 'production',
+      REDIS_QUEUE_URL: 'redis://localhost:46379',
+      DATABASE_URL: 'postgres://localhost:45432/app',
+    })
+    expect(production.ADSBLOL_DAILY_BUDGET).toBe(480)
+    expect(parseEnv({ ADSBLOL_DAILY_BUDGET: '0' }).ADSBLOL_DAILY_BUDGET).toBe(0)
+    expect(() => parseEnv({ ADSBLOL_DAILY_BUDGET: '-5' })).toThrow(EnvError)
+    expect(() => parseEnv({ ADSBLOL_DAILY_BUDGET: '0.5' })).toThrow(EnvError)
+  })
+})
+
 describe('LIVE_AIRCRAFT_SCOPE (D-115)', () => {
   it('üretimde her değer airline sayılır; airline dışındaki değer bir uyarı üretir', () => {
     const long = 'a'.repeat(80)

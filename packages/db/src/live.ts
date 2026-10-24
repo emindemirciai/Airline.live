@@ -2,14 +2,15 @@ import type { Redis } from 'ioredis'
 
 /**
  * `redis-live` anlık durum anahtarları (D-073). Kalıcı değildir; her tur yeniden kurulur.
- * - `hy:ac:{hex}` hash: `d` = uçağın tam durumu (JSON), `t` = `sampleTime`; TTL 120 sn
+ * - `hy:ac:{hex}` hash: `d` = uçağın tam durumu (JSON), `t` = `sampleTime`; TTL varsayılan 120 sn,
+ *   adsb.lol günlük bütçe modunda sorgu aralığına göre uzar (D-122; en fazla 1800 sn)
  * - `hy:ac:geo` (GEO) ve `hy:ac:seen` (skor = `sampleTime`): süpürme `seen` ile yapılır
  * - `hy:ac:updates` stream'i (`MAXLEN ~ 50000`), `hy:ac:batch` pub/sub kanalı
  * - `hy:provider:{id}` sağlayıcı anlık durumu, `hy:ingest:regions` bölge tazeliği
  * - `hy:ingest:coverage` kapsama planının çemberleri (JSON, TTL 600 sn; D-074)
  * - `hy:ingest:providers` worker'ın yapılandırdığı sağlayıcılar (JSON dizi, TTL 7 gün; D-074)
- * İndeks anahtarlarına her turda 600 sn TTL verilir; `volatile-ttl` bellek dolunca onları atsa
- * da sonraki tur yeniden kurar.
+ * İndeks anahtarlarına her turda en az 600 sn (canlı TTL + 120 sn'den kısa değil) TTL verilir;
+ * `volatile-ttl` bellek dolunca onları atsa da sonraki tur yeniden kurar.
  */
 export const LIVE_KEYS = {
   aircraft: (hex: string) => `hy:ac:${hex}`,
@@ -24,8 +25,28 @@ export const LIVE_KEYS = {
 } as const
 
 export const LIVE_TTL_SECONDS = 120
+/**
+ * Canlı TTL'in üst sınırı (D-122). `@havayolu/shared` `LIVE_MAX_AGE_LIMIT_S` ile aynıdır; paket
+ * çalışma alanı bağımlılığı almadığı için değer bilerek yinelenir (API testi eşitliği denetler).
+ */
+export const LIVE_TTL_MAX_SECONDS = 1800
 export const LIVE_STREAM_MAXLEN = 50_000
 export const LIVE_INDEX_TTL_SECONDS = 600
+/** İndeks anahtarlarının TTL'i canlı TTL'den en az bu kadar uzundur (indeks kayıtlardan önce düşmesin). */
+export const LIVE_INDEX_TTL_MARGIN_SECONDS = 120
+
+/** Canlı TTL'i (sn) doğrular: 1..1800 tamsayı; dışındaki değer çağıranın hatasıdır. */
+function liveTtl(ttlSeconds: number): number {
+  if (!Number.isInteger(ttlSeconds) || ttlSeconds < 1 || ttlSeconds > LIVE_TTL_MAX_SECONDS) {
+    throw new RangeError(`live TTL must be an integer in 1..${LIVE_TTL_MAX_SECONDS}: ${ttlSeconds}`)
+  }
+  return ttlSeconds
+}
+
+/** İndeks anahtarlarının TTL'i: en az 600 sn, canlı TTL + 120 sn'den kısa değil. */
+export function liveIndexTtlSeconds(ttlSeconds: number = LIVE_TTL_SECONDS): number {
+  return Math.max(LIVE_INDEX_TTL_SECONDS, liveTtl(ttlSeconds) + LIVE_INDEX_TTL_MARGIN_SECONDS)
+}
 export const PROVIDER_LIVE_TTL_SECONDS = 180
 export const COVERAGE_TTL_SECONDS = 600
 /**
@@ -104,13 +125,19 @@ function assertPipeline(results: PipelineResult): void {
  * `remove`: yayından çekilen hex'ler (D-115; kuralı artık tutmayan uçak). Aynı pipeline'da
  * güncellemelerden sonra `seen`, `geo` ve hash'ten silinir; bekleyen bir yazım onu yeniden
  * ekleyemez. İki liste de boşsa bir şey yazılmaz.
+ *
+ * `ttlSeconds`: uçak kaydının TTL'i (varsayılan 120 sn; bütçe modunda daha uzun, D-122). İndeks
+ * anahtarları en az bunun 120 sn fazlası yaşar.
  */
 export async function writeLiveUpdates<T extends LiveAircraftInput>(
   redis: Redis,
   list: readonly T[],
   remove: readonly string[] = [],
+  ttlSeconds: number = LIVE_TTL_SECONDS,
 ): Promise<void> {
+  const ttl = liveTtl(ttlSeconds)
   if (list.length === 0 && remove.length === 0) return
+  const indexTtl = liveIndexTtlSeconds(ttl)
   const pipeline = redis.pipeline()
   const compact: CompactAircraft[] = []
   for (const aircraft of list) {
@@ -124,7 +151,7 @@ export async function writeLiveUpdates<T extends LiveAircraftInput>(
       pipeline.zrem(LIVE_KEYS.geo, aircraft.hex)
     }
     pipeline.hset(key, 'd', JSON.stringify(aircraft), 't', String(aircraft.sampleTime))
-    pipeline.expire(key, LIVE_TTL_SECONDS)
+    pipeline.expire(key, ttl)
     pipeline.xadd(
       LIVE_KEYS.updates,
       'MAXLEN',
@@ -136,9 +163,9 @@ export async function writeLiveUpdates<T extends LiveAircraftInput>(
     )
   }
   if (list.length > 0) {
-    pipeline.expire(LIVE_KEYS.geo, LIVE_INDEX_TTL_SECONDS)
-    pipeline.expire(LIVE_KEYS.seen, LIVE_INDEX_TTL_SECONDS)
-    pipeline.expire(LIVE_KEYS.updates, LIVE_INDEX_TTL_SECONDS)
+    pipeline.expire(LIVE_KEYS.geo, indexTtl)
+    pipeline.expire(LIVE_KEYS.seen, indexTtl)
+    pipeline.expire(LIVE_KEYS.updates, indexTtl)
     pipeline.publish(LIVE_KEYS.batch, JSON.stringify(compact))
   }
   if (remove.length > 0) {
@@ -150,8 +177,9 @@ export async function writeLiveUpdates<T extends LiveAircraftInput>(
 }
 
 /**
- * `seen` skoru `now − 120 sn`'den eski uçakları `seen` ve `geo`'dan çıkarır, hash'lerini siler.
- * Atomiktir (Lua): arada gelen bir güncelleme ya tamamen önce ya tamamen sonra işlenir.
+ * `seen` skoru `now − ttlSeconds`'tan (varsayılan 120 sn) eski uçakları `seen` ve `geo`'dan
+ * çıkarır, hash'lerini siler. Atomiktir (Lua): arada gelen bir güncelleme ya tamamen önce ya
+ * tamamen sonra işlenir.
  */
 const SWEEP_SCRIPT = `
 local hexes = redis.call('ZRANGEBYSCORE', KEYS[1], '-inf', ARGV[1])
@@ -173,8 +201,12 @@ return n
 `
 
 /** Süpürülen uçak sayısını döndürür. */
-export async function sweepLive(redis: Redis, now: number): Promise<number> {
-  const cutoff = `(${now - LIVE_TTL_SECONDS * 1000}`
+export async function sweepLive(
+  redis: Redis,
+  now: number,
+  ttlSeconds: number = LIVE_TTL_SECONDS,
+): Promise<number> {
+  const cutoff = `(${now - liveTtl(ttlSeconds) * 1000}`
   const removed = await redis.eval(
     SWEEP_SCRIPT,
     2,

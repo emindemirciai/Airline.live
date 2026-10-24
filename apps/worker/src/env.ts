@@ -129,6 +129,20 @@ const EnvSchema = z.object({
       .max(0.2, ADSBLOL_RPS_MESSAGE)
       .default(0.1),
   ),
+  /**
+   * adsb.lol günlük istek bütçesi (D-122): kayan 24 saatte en fazla bu kadar istek, güne eşit
+   * yayılır (480 → ~180 sn'de bir); sayaç redis-queue'dadır. 0 eski uyarlanır hızdır (yalnız API
+   * anahtarı gelince).
+   */
+  ADSBLOL_DAILY_BUDGET: z.preprocess(
+    emptyToUndefined,
+    z.coerce
+      .number('sayı olmalı')
+      .int('tamsayı olmalı')
+      .min(0, '0–100000 arasında olmalı')
+      .max(100_000, '0–100000 arasında olmalı')
+      .default(480),
+  ),
   /** İkisi birlikte verilir; tutarlılığı adsb.lol istemcisi denetler (ingest yapılandırma hatası). */
   ADSBLOL_API_KEY: z.preprocess(emptyToUndefined, z.string().optional()),
   ADSBLOL_API_KEY_HEADER: z.preprocess(emptyToUndefined, z.string().optional()),

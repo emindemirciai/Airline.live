@@ -155,8 +155,9 @@ function redisIndexOf(raw: string | undefined): number | null {
 
 /**
  * Smoke'un worker env kaynağı: dış sağlayıcılar açık, yerel alıcı ve takip listesi boş; yerel
- * `WEB_HOST` boşaltılır (User-Agent `(+mailto:…)` olur); veritabanı ve redis-live hedefleri smoke'un
- * kendi veritabanı ve indeksidir. Kaynak değiştirilmez.
+ * `WEB_HOST` boşaltılır (User-Agent `(+mailto:…)` olur); adsb.lol günlük bütçesi kapalıdır (uyarlanır
+ * mod, D-122); veritabanı ve redis-live hedefleri smoke'un kendi veritabanı ve indeksidir. Kaynak
+ * değiştirilmez.
  */
 export function smokeEnvSource(
   source: Record<string, string | undefined>,
@@ -171,6 +172,9 @@ export function smokeEnvSource(
     // Üretimin 1. aşaması gibi yalnız havayolu uçakları (D-115); VRS fixture'ı ingest'ten önce
     // içe aktarılır, işletmeci kodları hazırdır.
     LIVE_AIRCRAFT_SCOPE: 'airline',
+    // Smoke 20 sn'lik p95 yolunu (uyarlanır mod) ölçer ve redis-queue kullanmaz: günlük bütçe
+    // kapalı (D-122). ~30 isteklik tek koşu, kullanıcının kendi IP'sinden.
+    ADSBLOL_DAILY_BUDGET: '0',
   }
   const database = present(source.DATABASE_URL)
   if (database !== null) {

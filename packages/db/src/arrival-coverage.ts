@@ -854,8 +854,16 @@ export interface ProviderWindowStats {
   spans: ProviderStatusSpanRow[]
 }
 
+/**
+ * Raporun durum değeri. `limited` (adsb.lol günlük bütçe modu, D-122) veri seyrek olduğundan
+ * `degraded` sayılır: o aralıktaki kaçırılan varışlar kaynağın kısıtına yazılır.
+ */
 const asSpanStatus = (value: string | null | undefined): ArrivalProviderStatusValue =>
-  value === 'ok' || value === 'degraded' || value === 'down' ? value : 'unknown'
+  value === 'limited'
+    ? 'degraded'
+    : value === 'ok' || value === 'degraded' || value === 'down'
+      ? value
+      : 'unknown'
 
 /**
  * Durum geçişlerinden [from, to) aralığının durum dilimleri. Pencere başındaki durum, başlangıçtan

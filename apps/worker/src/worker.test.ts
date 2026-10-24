@@ -84,6 +84,22 @@ describe('env', () => {
     expect(() => parseEnv({ ADSBLOL_RPS: 'hızlı' })).toThrow(/ADSBLOL_RPS: sayı olmalı/)
   })
 
+  it('ADSBLOL_DAILY_BUDGET: varsayılan 480, 0 kabul edilir; negatif, kesirli ve sayı olmayan reddedilir (D-122)', () => {
+    expect(parseEnv({}).ADSBLOL_DAILY_BUDGET).toBe(480)
+    expect(parseEnv({ ADSBLOL_DAILY_BUDGET: ' ' }).ADSBLOL_DAILY_BUDGET).toBe(480)
+    expect(parseEnv({ ADSBLOL_DAILY_BUDGET: '0' }).ADSBLOL_DAILY_BUDGET).toBe(0)
+    expect(parseEnv({ ADSBLOL_DAILY_BUDGET: '100000' }).ADSBLOL_DAILY_BUDGET).toBe(100_000)
+    for (const value of ['-1', '480.5', '100001']) {
+      expect(() => parseEnv({ ADSBLOL_DAILY_BUDGET: value }), value).toThrow(
+        /ADSBLOL_DAILY_BUDGET: /,
+      )
+    }
+    expect(() => parseEnv({ ADSBLOL_DAILY_BUDGET: 'bol' })).toThrow(
+      /ADSBLOL_DAILY_BUDGET: sayı olmalı/,
+    )
+    expect(() => parseEnv({ ADSBLOL_DAILY_BUDGET: '480.5' })).toThrow(/tamsayı olmalı/)
+  })
+
   it('WATCH_HEX_LIST küçük harfe çevrilir ve tekilleşir; hata değeri değil sırayı söyler', () => {
     expect(parseEnv({ WATCH_HEX_LIST: ' 4B8750, 4b8750 ,abcdef,' }).WATCH_HEX_LIST).toEqual([
       '4b8750',
