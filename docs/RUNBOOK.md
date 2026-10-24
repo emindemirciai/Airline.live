@@ -5,7 +5,7 @@
 ## adsb.lol API anahtarı istemeye başladı (401/403)
 **Belirti:** admin Servisler'de "Canlı veri · adsb.lol" satırı "Çalışmıyor"; devre "yapılandırma hatası". hy-worker-rt logunda `adsblol config error` satırı var.
 
-**Ne olur:** 401/403 kısıtlama değil politika ya da yapılandırma hatasıdır. Worker devreyi kalıcı açar ve süreç yeniden başlayana kadar adsb.lol'e istek atmaz (D-073). Harita son veriyi 120 sn tutar, sonra boşalır.
+**Ne olur:** 401/403 kısıtlama değil politika ya da yapılandırma hatasıdır. Worker devreyi kalıcı açar ve süreç yeniden başlayana kadar adsb.lol'e istek atmaz (D-073). Harita son veriyi canlı kayıt ömrü kadar tutar (günlük bütçe kipinde 660 sn, `ADSBLOL_DAILY_BUDGET=0` iken 120 sn; D-122), sonra boşalır.
 
 1. **Duyuruyu kontrol et:** https://status.adsb.lol ve https://github.com/adsblol/api. Anahtar zorunluluğu mu geldi, yoksa User-Agent'ımız mı reddediliyor?
 2. **User-Agent:** Dokploy Environment'ta `CONTACT_EMAIL` dolu mu? User-Agent `Airline.live/<sürüm> (+https://airline.live; <CONTACT_EMAIL>)` biçiminde gider (`APP_NAME` ve `WEB_HOST`'tan; D-112). Boş ya da `node` UA 403 alır.
@@ -20,10 +20,13 @@ Başka bir canlı kaynağa geçmek DUR-SOR'dur (lisans kaydı, data-sources.md).
 ## Sağlayıcı kesintisi ve 429 fırtınası
 **Belirti:** admin satırı "Sorunlu" (429/5xx oranı > %20 ya da tazelik > 40 sn) ya da "Çalışmıyor" (60 sn boyunca başarılı yanıt yok). "429 oranı (1 sa)" yükseliyor.
 
+**Günlük bütçe kipinde (D-122, üretimin bugünkü kipi):** "Sorunlu" olağandır: durum `limited`'dır (kaynak çalışıyor, istekler ~180 sn'de bir), haritada "Canlı veri şu an seyrek …" notu görünür. Sorun işaretleri: "429 oranı (1 sa)" 0'dan büyük, "Çalışmıyor" (420 sn boyunca başarılı yanıt yok ya da devre açık), haritada "Canlı veri kaynağından yanıt alınamıyor …" ya da "… yavaşlama var …". 429'da sınır kendiliğinden daralır; ayrıntı aşağıdaki "adsb.lol sınırları değişti" bölümündedir.
+
 **Ne olur (otomatik):**
-- 429/420'de istek hızı yarıya iner (alt sınır 0,05 istek/sn) ve üstel bekleme (15 → 300 sn) başlar.
+- Bütçe kipinde sayaç (redis-queue) istekleri sınırın altında tutar; 429/420'de süreçler en az 2 slot bekler ve günlük sınır %10 daralır (aşağıdaki bölüm). Üstel bekleme ve devre kesici aşağıdaki gibi yine çalışır.
+- `ADSBLOL_DAILY_BUDGET=0` iken 429/420'de istek hızı yarıya iner (alt sınır 0,05 istek/sn) ve üstel bekleme (15 → 300 sn) başlar.
 - 5xx ve ağ hatası 5 kez üst üste gelirse devre 60 sn açılır, sonra tek deneme yapılır.
-- Temiz geçen her 10 dk'da hız %10 toparlanır (üst sınır 0,2).
+- `ADSBLOL_DAILY_BUDGET=0` iken temiz geçen her 10 dk'da hız %10 toparlanır (üst sınır 0,2).
 - Olay motoru geldiğinde (Parça 2), muhtemel iniş tespiti kesinti boyunca bastırılır (domain.md → Kesinti bastırma).
 
 **Kontrol:**
@@ -34,9 +37,43 @@ Başka bir canlı kaynağa geçmek DUR-SOR'dur (lisans kaydı, data-sources.md).
    curl -s -o /dev/null -w '%{http_code}' -A 'Airline.live/test (+https://airline.live)' https://api.adsb.lol/v2/point/41.27/28.73/5
    ```
 
-   Bu canlı bir istektir; yalnızca kullanıcı çalıştırır.
-3. **Süreklilik:** 429 oranı saatlerce %20'nin üstünde kalırsa `ADSBLOL_RPS` düşürülebilir (en az 0,05); Dokploy env'i değişir ve worker yeniden başlar. Hızı 0,2'nin üstüne çıkarmak yalnızca 24 saatlik ölçüm ve DECISIONS kaydıyla yapılır (data-sources.md).
+   Bu canlı bir istektir; yalnızca kullanıcı çalıştırır. Sınır IP başınadır: aynı ağdan gelen istek o IP'nin günlük hakkından düşer, VPS'in hakkını etkilemez.
+3. **Süreklilik:** bütçe kipinde aşağıdaki "adsb.lol sınırları değişti" bölümü. `ADSBLOL_DAILY_BUDGET=0` iken 429 oranı saatlerce %20'nin üstünde kalırsa `ADSBLOL_RPS` düşürülebilir (en az 0,05) ya da bütçe kipine dönülür; Dokploy env'i değişir ve worker yeniden başlar. Hızı 0,2'nin üstüne çıkarmak yalnızca 24 saatlik ölçüm ve DECISIONS kaydıyla yapılır (data-sources.md).
 4. **Kapsama raporu:** Kesinti uzarsa M7 kapsama raporu o saatleri ayrı gösterir; iniş kalitesi yorumlanırken dikkate alınır.
+
+## adsb.lol sınırları değişti (günlük bütçe, D-122)
+adsb.lol sınırları sunucu yüküne göre değiştirir ve her yanıtta yazar (2026-10-24: `x-ratelimit-limit: 4, 4;w=1, 60;w=60, 500;w=86400`, IP başına günde 500). Worker kayan 24 saatte en çok `ADSBLOL_DAILY_BUDGET` (480) istek atar; sayaç redis-queue'dadır, yeniden başlatma ve deploy onu sıfırlamaz.
+
+**Belirti:**
+- hy-worker-rt logunda `adsblol rate limit headers` (info; açılıştan sonraki ilk yanıtta ve kota her değiştiğinde): `dailyQuota` ve `policies` (`500;w=86400` gibi) bilinen değerden farklı.
+- `adsblol budget narrowed after a rate limit signal` (warn): 429/420 ya da kalan hak (`remaining`) ≤ 1 geldi; `cap` yeni günlük sınır, `waitS` bekleme.
+- `adsblol budget cap changed` (info): sınır değişti; `slotS` iki istek arası, `liveTtlS` canlı kayıt ömrü.
+- `adsblol budget store unavailable; no request sent` (warn): redis-queue'ya ulaşılamıyor; o arada adsb.lol'e istek gitmez, harita boşalır. redis-queue'yu düzelt (admin Servisler → "Redis (kuyruk)").
+- admin Servisler "Canlı veri · adsb.lol": bütçe kipinde olağan görünüm "Sorunlu", "Hız (istek/sn)" ~0,006 (480/gün), "429 oranı (1 sa)" %0. 429 oranı yükseliyorsa ya da hız düştüyse sınır daralmıştır.
+
+**Ne olur (otomatik):**
+- **Kota düşerse** (ör. 300/gün): başlıklardaki kota sayaca yazılır, sınır ⌊300 × 0,96⌋ = 288'e iner; iki istek arası (300 sn) ve canlı kayıt ömrü (1.020 sn) kendiliğinden uzar. Env değiştirmek gerekmez.
+- **Kota yükselirse:** sınır `ADSBLOL_DAILY_BUDGET`'ı aşmaz; daha sık sorgu için env yükseltilir (aşağıda 3. adım).
+- **429/420:** worker en az 2 slot (Retry-After ya da sıfırlama başlığı daha uzunsa o kadar, en çok 24 sa) bekler; engel sayaçtadır, yeniden başlatma ve deploy onu kısaltmaz; sınır %10 daralır (480 → 432 → …, taban 96). 24 sa 429 gelmezse sınır 6 saatte bir 24 artar, 480'e döner.
+- **Deploy'dan hemen sonra 429:** eski sürüm (v0.28.0) o günün hakkını tüketmiş olabilir. Sınır 432'ye iner ve kota açılınca kendiliğinden çalışır; 24 saat 429 gelmezse 456'ya, 6 saat sonra 480'e döner.
+
+**Adımlar** (kullanıcı yapar; üretimin redis-queue'suna bağlanmak DUR-SOR 4'tür):
+1. **Durumu oku** (VPS'te SSH, salt okunur; `redis-cli` parolayı konteynerin `REDISCLI_AUTH`'undan alır):
+
+   ```bash
+   Q=$(docker ps -qf name=hy-redis-queue)
+   docker exec "$Q" redis-cli HGETALL hy:adsblol:budget:state    # cap, serverDaily, blockedUntil (ms), lastRateLimitAt
+   docker exec "$Q" redis-cli ZCARD hy:adsblol:budget:requests   # son ~24 saatin izinleri (eskiler bir sonraki izinde silinir)
+   docker exec "$Q" redis-cli GET hy:adsblol:budget:seq          # izin sırası; 3'e bölünen sıra Doğu çemberidir
+   ```
+
+   `blockedUntil` milisaniyedir (`date -d @$((<değer>/1000))`). Logda son `adsblol rate limit headers` satırına bak (Dokploy → hy-worker-rt → Logs).
+2. **Kota düştü ya da 429 sürüyor:** genel kesinti var mı (https://status.adsb.lol)? VPS'teki başka bir proje adsb.lol'ü çağırıyor mu (sınır IP başınadır)? Sınır kendiliğinden daralır, ek iş gerekmez. 429 saatlerce sürerse `ADSBLOL_DAILY_BUDGET`'ı başlıklardaki kotanın %80'ine indir (500 → 400) ve yeniden deploy et.
+3. **Kota yükseldi ya da API anahtarı geldi:** anahtar geldiyse Dokploy'a `ADSBLOL_API_KEY` ve `ADSBLOL_API_KEY_HEADER` girilir. `ADSBLOL_DAILY_BUDGET` en çok ⌊yeni kota × 0,96⌋ olur (2.000 → 1.920: istek 45 sn'de bir, ömür 5 dk). Kaydet, yeniden deploy et; ilk yanıttan sonra `adsblol rate limit headers` satırında yeni kotayı doğrula. Anahtarlı yanıtlarda sınır başlığı hiç yoksa sayaçta kayıtlı eski kota (`serverDaily`, 500) sınırı 480'de tutmaya devam eder: o zaman 4. adımdaki gibi `hy:adsblol:budget:state`'i sil. `0` (bütçesiz uyarlanır hız, en çok 0,2 istek/sn = günde 17.280; istasyon çemberleri, takip listesi ve 20 sn tazelik geri gelir) yalnız kota en az 17.280 ise ya da anahtarlı yanıtlarda sınır başlığı yoksa girilir. `0` iken sayaç kullanılmaz; 429'u AIMD karşılar (yukarıdaki bölüm). Kararı DECISIONS'a yaz (D-122'nin devamı).
+4. **Daraltılmış sınırı elle sıfırlamak** (yalnız 429'un nedeni kalktıysa, ör. aynı IP'deki başka proje durduysa; 429 sürüyorsa yapma): `docker exec "$Q" redis-cli DEL hy:adsblol:budget:state`. Bu daraltılmış sınırı, kaydedilmiş kotayı ve engeli siler; son 24 saatin izinleri kalır, sert sınır ve aralık geçerlidir. `hy:adsblol:budget:requests` silinmez: silinirse o gün bütçe aşılabilir.
+5. **Doğrula:** 10 dk içinde logdaki `ingest summary` satırlarında `aircraft` 0'dan büyük ve `providers.adsbLol` `limited`, yeni `adsblol budget narrowed …` uyarısı yok; admin "429 oranı (1 sa)" düşer; haritada uçaklar sorgular arasında kaybolmaz.
+
+Daha yüksek sınır ya da anahtar için adsb.lol'e yazılır: ACTIVATION "adsb.lol'e API anahtarı isteği (e-posta)".
 
 ## aviationweather.gov 403 ya da 429 (hava durumu)
 **Belirti:** admin Servisler'de "Hava durumu · aviationweather.gov" satırı "Sorunlu" (429 engeli, son denetimden yeni hata ya da taze gözlemli istasyon yok) ya da "Çalışmıyor" (METAR denetimi 2 sa'ten eski ya da 403 engeli). Ayrıntıda hata ve engelin bitiş saati yazar. hy-worker-bg logunda `weather` satırları var.
@@ -153,7 +190,7 @@ Bu Next 16'nın iç davranışıdır (`next/dist/server/lib/router-server.js` �
 5. Durum veritabanındadır (`live_layer_state`); yeniden başlatmalarda ve deploy'larda korunur. `admin_actions` 30 günden uzun tutulmaz (K7, D-115).
 6. **Panel açılmıyorsa:**
    - **Site ya da panel çalışmıyor, API ve veritabanı çalışıyor** (`curl -s https://api.airline.live/ready | jq '{postgres: .checks.postgres.ok, redisQueue: .checks.redisQueue.ok}'` → ikisi de `true`; HTTP kodu önemli değil: redis-live çalışmıyorken `/ready` 503 döner ama anahtar yine çalışır. `/health` bunu söylemez, yalnız sürecin ayakta olduğunu gösterir): anahtarı API'den kapat (aşağıdaki "API ile" bölümü, `PUT /v1/admin/live-layer`). Bu kalıcıdır: durum veritabanına yazılır. PUT `{"enabled": null, …}` dönerse ya da sonraki `status.layer` birkaç saniye sonra da `"off"` değilse bir sonraki maddeye geç.
-   - **API, veritabanı ya da redis-queue çalışmıyor** (yukarıdaki komut hata verir, boş döner ya da `false` gösterir; redis-queue giriş oturumları içindir): Dokploy'da `hy-worker-rt`'yi durdur (Stop); harita en geç 120 sn'de boşalır. Bu **geçicidir**: durdurulan servis bir sonraki deploy'da (`main`'e her kod birleşmesi, Dokploy'da Deploy ya da Reload, `rollback.yml`) yeniden başlar ve anahtar veritabanında açık kaldığı için yayına döner. Kalıcı olması için hemen ardından Dokploy Environment'ta `CONTACT_EMAIL`'i boşalt ve yeniden deploy et: adsb.lol çekimi durur ve deploy'lardan sonra da durmuş kalır.
+   - **API, veritabanı ya da redis-queue çalışmıyor** (yukarıdaki komut hata verir, boş döner ya da `false` gösterir; redis-queue giriş oturumları içindir): Dokploy'da `hy-worker-rt`'yi durdur (Stop); harita en geç canlı kayıt ömrü kadar sonra boşalır (günlük bütçe kipinde 660 sn, ~11 dk; `ADSBLOL_DAILY_BUDGET=0` iken 120 sn; D-122). Aşağıdaki yeniden deploy'la açılan worker kalan uçakları ilk iş olarak siler. Bu **geçicidir**: durdurulan servis bir sonraki deploy'da (`main`'e her kod birleşmesi, Dokploy'da Deploy ya da Reload, `rollback.yml`) yeniden başlar ve anahtar veritabanında açık kaldığı için yayına döner. Kalıcı olması için hemen ardından Dokploy Environment'ta `CONTACT_EMAIL`'i boşalt ve yeniden deploy et: adsb.lol çekimi durur ve deploy'lardan sonra da durmuş kalır.
    - Worker yalnız durdurulmuşken (`CONTACT_EMAIL` henüz boşaltılmadan) birleştirme, deploy ve geri alma yapılmaz; ajana da söyle.
    - Panel ya da API yeniden çalışınca önce katmanı nedeniyle kapat, sonra `CONTACT_EMAIL`'i geri gir ya da worker'ı başlat. Kalıcı olan tek durum veritabanındaki anahtardır.
    - Veritabanına elle yazmak DUR-SOR 4'tür ve kullanıcı izni ister.

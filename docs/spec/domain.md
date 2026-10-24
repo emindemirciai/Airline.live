@@ -208,6 +208,8 @@ ADS-B yalnızca konum, irtifa, hız ve kimlik verir. Tarife verisi olmadığınd
 
 Canlı uçak verisi şimdilik yalnızca Türkiye ve çevresinden çekilir (kapsama planı: data-sources.md §1, D-073); bu alanın dışında haritada yalnızca takip listesindeki uçaklar görünebilir (P1, `/v2/hex`, data-sources.md §1). Site metinleri ürünü Türkiye ile sınırlamaz, birincil istasyon İstanbul Havalimanı'dır; sınır kapsama metinlerinde (/hakkinda, /havalimanlari, havalimanı sayfaları, haritanın durum satırı) söylenir (D-106).
 
+adsb.lol IP başına günde 500 istek kabul eder (D-122, v0.28.1). Worker bu bütçeyle Batı Türkiye'yi ~3–6 dk'da, Doğu Türkiye'yi ~9 dk'da bir sorgular; takip listesi (`/v2/hex`) bu kipte çekilmez. Harita aradaki hareketi tahmini konumla gösterir ve durum şeridinde "Canlı veri şu an seyrek …" yazar. Yukarıdaki olay kuralları (10 km yaklaşma, `LOW_ALT_LOST`, pas geçme, `probable_landing`) sık veriye göre yazıldı; bütçe kipinde güvenilir değildir (D-122 "API anahtarı ya da yüksek sınır gelince").
+
 Tahmini varış yalnızca havadaki uçak için konumdan hesaplanır ve "tahmini" etiketi taşır. Rota tahmini (VRS standing-data) de her yerde "tahmini" olarak gösterilir. Kendi alıcı olmadığı için inişlerin çoğu "muhtemelen indi" olarak ve son sinyalden 1–1,5 dk sonra bildirilir.
 
 ## Saklama

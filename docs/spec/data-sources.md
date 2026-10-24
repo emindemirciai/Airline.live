@@ -42,22 +42,31 @@ Doğrulama tarihi: **2026-09-25**. Canlı istekler ve kaynak kodu/doküman okuma
   - `POST /api/0/routeset`: Referer kontrolü yapar; üçüncü tarafa 201 + boş gövde döner.
   - Gizli `GET /api/0/route/...`: önbellekte olmayan çağrı kodlarında 500 döner ve verilen konumu yok sayar.
 
-**Hız limiti** (belgelenmemiş, "dinamik"; 2026-09-25 ölçümleri)
-- **Gözlem:**
-  - 429 yanıtı nginx HTML gövdesiyle gelir ve **Retry-After taşımaz**; RateLimit-* başlığı da yoktur.
+**Hız limiti** (belgelenmemiş, "dinamik"; sunucu yüküne göre değişir)
+- **Gözlem (2026-10-24, üretimden tek tanı isteği; D-122):**
+  - 200 yanıtı sınır başlıklarını taşır: `x-ratelimit-limit: 4, 4;w=1, 60;w=60, 500;w=86400`. Yani istemci IP'si başına saniyede 4, dakikada 60, **günde 500** istek. Aşağıdaki 2026-09-25 gözleminin "RateLimit-* başlığı yoktur" maddesi artık geçerli değildir.
+  - Worker o güne kadar ~0,1 istek/sn ile günde ~8.600 istek atıyordu; günlük hak ~80 dakikada bitiyor, kalan saatler 429'la geçiyordu.
+- **Gözlem (2026-09-25 ölçümleri):**
+  - 429 yanıtı nginx HTML gövdesiyle gelir ve **Retry-After taşımaz**; o gün RateLimit-* başlığı da yoktu.
   - Bir kez gövdesiz 420 görüldü (doğrulanamadı); 420 de 429 gibi ele alınır.
   - 10 sn'de bir istekte bile 429 görüldü. Güvenli varsayım: tek IP'den **10 sn'de bir istek ya da daha yavaş**.
   - VPS'in veri merkezi IP'si ölçülmedi; daha sert sınırlanabilir.
-- **Hız kontrolü (AIMD):**
-  - Başlangıç `ADSBLOL_RPS=0.1`, alt sınır 0,05, üst sınır 0,2. Üst sınır ancak VPS'ten yapılan 24 saatlik ölçümde 429 oranı %5'in altındaysa ve DECISIONS kaydıyla yükseltilir.
-  - 429 ya da 420 gelince hız yarıya iner ve tam jitter'lı üstel bekleme uygulanır (15 → 30 → 60 … en fazla 300 sn). `Retry-After` yalnızca varsa kullanılır.
-  - Temiz geçen her 10 dk'da hız %10 artar.
-  - 5xx'te jitter'lı geri çekilme ve devre kesici devreye girer.
+- **Hız kontrolü:**
+  - **Günlük bütçe (varsayılan, D-122):** `ADSBLOL_DAILY_BUDGET=480` (500'ün %96'sı). Kayan 24 saatte en fazla bu kadar istek atılır ve istekler güne eşit yayılır: ⌈24 sa / sınır⌉, 480 → ~180 sn'de bir.
+    - Sayaç redis-queue'dadır (`hy:adsblol:budget:*`, tek Lua betiği, atomik). Yeniden başlatma, deploy ve aynı anda çalışan iki süreç sayacı paylaşır; sert sınır aralıktan bağımsızdır. Her istek izin ister; izin yoksa istek gönderilmez. redis-queue yoksa adsb.lol'e hiç istek atılmaz.
+    - Başlıklar (`x-ratelimit-limit`, `-remaining`, `-reset`; yoksa `ratelimit-*`) her yanıtta okunur. Günlük kota politikaların ⌊kota × 86.400 / pencere⌋ değerlerinin en küçüğüdür (bugün 500); değişince `adsblol rate limit headers` satırı (info) yazılır ve sınır ⌊kota × 0,96⌋'yi aşmaz.
+    - 429/420 ya da `remaining` ≤ 1 gelince süreçler en az 2 slot bekler (Retry-After ve sıfırlama başlığı daha uzunsa o kadar, en çok 24 sa) ve sınır %10 daralır (taban yapılandırılanın %20'si, 480 → 96). 24 sa 429 gelmezse sınır 6 saatte bir yapılandırılanın %5'i kadar geri büyür.
+    - Sorgu planı ve canlı kayıt ömrü bütçeye göredir: aşağıda "Kapsama planı ve öncelikler" → "Bütçe kipinde".
+  - **Uyarlanır hız (AIMD; `ADSBLOL_DAILY_BUDGET=0`, yalnız API anahtarı ya da yüksek sınır gelince):**
+    - Başlangıç `ADSBLOL_RPS=0.1`, alt sınır 0,05, üst sınır 0,2 (günde 4.320–17.280 istek). Üst sınır ancak VPS'ten yapılan 24 saatlik ölçümde 429 oranı %5'in altındaysa ve DECISIONS kaydıyla yükseltilir. `0`, başlıklardaki günlük kota en az 17.280 değilse girilmez (RUNBOOK "adsb.lol sınırları değişti").
+    - Temiz geçen her 10 dk'da hız %10 artar; 429 ya da 420 gelince yarıya iner.
+  - **İki kipte de:** 429 ya da 420 gelince tam jitter'lı üstel bekleme uygulanır (15 → 30 → 60 … en fazla 300 sn). `Retry-After` yalnızca varsa kullanılır. 5xx'te jitter'lı geri çekilme ve devre kesici devreye girer.
   - **401/403 kısıtlama değildir; politika ya da yapılandırma hatasıdır.** Devre açılır, döngüde yeniden denenmez, ADMIN_EMAIL'e uyarı gider → RUNBOOK "adsb.lol API anahtarı istemeye başladı (401/403)".
 - **Yanıt işleme:** Hata gövdesi HTML ya da düz metin olabilir. JSON ayrıştırmadan önce durum kodu kontrol edilir.
 - **Canlı araçlar (M7a, D-094):** `pnpm smoke:live` (gerçek ingest, 5 dk) ve `pnpm record` (tek istasyonun `/v2/point` kareleri, en çok 60 dk) geliştirici denetimleridir.
   - **Kim çalıştırır:** yalnızca kullanıcı, kendi terminalinde, `--confirm` ile ve ara sıra. Ajan oturumunda, CI'da ve kabukta `EXTERNAL_PROVIDERS_DISABLED=true` iken canlı istek atmazlar. Önce 1. ACTIVATION adımı (info@adsb.lol) yapılır.
   - **Aynı kurallar:** istemci worker'ınkidir (`createAdsbLolClient`). Hız kovası `AdaptiveRateController`'dır (başlangıç `ADSBLOL_RPS`, en çok 0,2 istek/sn); smoke'ta ingest'in kendi kovası çalışır. 429/420, 5xx ve 401/403 kuralları yukarıdaki gibidir; 401/403'te araç hemen durur.
+  - **Günlük bütçe (D-122):** smoke bütçeyi `0`'a zorlar (uyarlanır kip, ~30 istek; 20 sn'lik tazelik yolunu ölçer, redis-queue kullanmaz). `record` bütçe sayacını kullanmaz: 0,1–0,2 istek/sn ile 60 dk 360–720 istektir ve aynı IP'nin günlük 500'ünü aşabilir. Ev bağlantısının IP'si VPS'inkinden ayrıdır, kendi 500'ü vardır: `record`'u 0,1 istek/sn ile en çok ~60 dk (≈ 360 istek) çalıştır ve aynı gün ikinci kez çalıştırma (smoke ile birlikte ≈ 390 istek).
   - **Ek bekçi:** yalnızca `GET /v2/point/...`, yönlendirme izlenmez, User-Agent zorunludur. İki isteğin başlangıcı arası en az 5 sn'dir (250 ms saat payıyla). İhlal aracı durdurur.
   - **User-Agent:** ürün adı ve iletişim adresi üretimdekiyle aynıdır. Kullanıcının `.env`'indeki `WEB_HOST` genel bir host ise duyurulan biçim kullanılır (`(+https://<host>; <CONTACT_EMAIL>)`); yerelse `(+mailto:<CONTACT_EMAIL>)` gider.
   - **İkinci IP:** bu denetimler kullanıcının ev bağlantısından, yani VPS'ten farklı ikinci bir IP'den gelebilir (≤ 0,2 istek/sn, smoke 5 dk, `record` ≤ 60 dk). Bu, 1. ACTIVATION adımındaki e-postada belirtilir. M7c'nin kapsama ölçümü (`coverage:probe`, henüz yok; D-098) de aynı IP'den gelebilir: bir kez, ≈24,5 saat, sabit 0,1 istek/sn, aynı UA ve yalnızca üretim ingest'i kapalıyken (iki IP aynı anda çekmez); e-posta taslağı bunu da söyler.
@@ -66,6 +75,10 @@ Doğrulama tarihi: **2026-09-25**. Canlı istekler ve kaynak kodu/doküman okuma
 - `ok`: son 60 sn'de en az bir başarılı yanıt var ve birincil istasyon tazeliği ≤ hedef × 2.
 - `degraded`: son 60 sn'de 429/420/5xx oranı > %20 ya da birincil istasyon tazeliği > hedef × 2.
 - `down`: 60 sn boyunca başarılı yanıt yok ya da devre açık (401/403 dahil).
+- **Günlük bütçe kipinde (D-122)** pencere 2 slot + 60 sn'dir (480 → 420 sn) ve tazelik kuralı yoktur:
+  - `down`: devre açık ya da pencerede başarılı yanıt yok
+  - `degraded`: pencerede 429/420/5xx oranı > %20
+  - `limited`: diğer durumlar (kaynak çalışıyor, veri seyrek; neden `budget`). Harita durum şeridinde "veri seyrek" notunu gösterir; admin Servisler onu "Sorunlu" gösterir; kapsama raporu `degraded` sayar.
 
 Durum geçişleri `provider_health`'e yazılır.
 
@@ -84,6 +97,10 @@ Durum geçişleri `provider_health`'e yazılır.
   Gerçekleşen tazelik `provider_health`'e yazılır ve arayüzde gösterilir.
 - **P1 karşılama:** Takip listesi önce kapsama çemberlerinden karşılanır. Kapsama dışındakiler 30 sn'de bir toplu `/v2/hex/...` ile çekilir. Takip listesindeki her uçak en geç 30 sn'de bir güncellenir.
 - **Bütçe yetmezse:** önce P3, sonra Doğu çemberi, sonra diğer istasyonların tazeliği düşer. Birincil istasyon ve P1 en son etkilenir.
+- **Bütçe kipinde (D-122, `ADSBLOL_DAILY_BUDGET` > 0; üretimin bugünkü kipi):**
+  - Yalnız P2'nin Batı ve Doğu çemberleri sorgulanır; P0 istasyon çemberleri, birincil istasyonun 40 NM çemberi ve P1 (`/v2/hex`, `WATCH_HEX_LIST`) yoktur. Tohum istasyonlarının hepsi Batı çemberindedir. API'nin kapsama hesabı da bu iki çemberle yapılır.
+  - Sıra B B D (izin sırası redis-queue'da, yeniden başlatmada sürer): 480'de Batı 180 ya da 360 sn'de, Doğu 540 sn'de bir sorgulanır. Yukarıdaki tazelik hedefleri bu kipte geçerli değildir.
+  - Canlı kaydın ömrü (`redis-live`, API'nin yaş penceresi `status.maxAgeS`): ⌈(3 · slot + 120 sn) / 60 sn⌉ dk, 120–1.800 sn (480 → 660 sn). Uçak iki sorgu arasında haritadan düşmez; istemci havadaki uçağı son örnekten 180 sn'ye kadar hız ve yönle tahmini konumda gösterir, sonra simgeyi soluklaştırır.
 
 **Yanıt biçimi** (readsb `jv2` / ADSBx v2 uyumlu)
 - **Zarf:** `{ ac: [], msg, now, total, ctime, ptime }`. **`now` epoch milisaniyedir (tamsayı).**
