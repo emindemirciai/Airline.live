@@ -54,6 +54,7 @@ Durumlar: `[ ]` başlamadı, `[~]` sürüyor, `[k]` kod bitti ve kullanıcı do�
 | M6i.3 | Savaş nedeniyle kapalı havalimanları: 23 havalimanı listeye girer (1.240), 35 havalimanında not, Krasnodar, Gelencik, Elista'nın notu kalkar (yama; D-110) | `p1/map-war-closures` | [k] yayında: PR #45 (b14561d), Release v0.25.1 2026-10-15 04:25:20 UTC; yayın doğrulaması kullanıcıda (ACTIVATION M6i.3) | — |
 | M6j.2 | 5. halkanın ölçeği (halka 4'te kalır): web belleğinde havalimanı listesi, API gövde önbelleği, `include=map`, 180. meridyen, istek üzerine pist uçları, METAR/TAF kaydı yalnız tarayıcıda, paylaşım görseli sınırı, toplu havada `format=raw` zorunlu, AWC ilk çalışma, llms.txt belleği (D-109) | `p1/m6j2-ring5-scale` | [k] yayında: PR #48 (1ee30ce), v0.26.0 (`releasedAt` 2026-10-18T00:33:53Z); yayın doğrulaması kullanıcıda (ACTIVATION M6j.2) | #48 |
 | M6j.3 | 5. halka (dünyanın geri kalanı, ABD dahil; 2.026 havalimanı, 3.266 listelenen; D-110'la): adlar, tek ad parçası, arama dilimleri, halkanın açılması, ülke adları, düşük yakınlaştırmada küçük pinler, metinler, e2e (D-109, D-118) | `p1/m6j3-ring5` | [~] kod bitti (2026-10-19), inceleme düzeltmeleri yapıldı: `ENABLED_AIRPORT_RING` 5, 3.266 listelenen; birim testleri (3.191), lint, typecheck, build yeşil, `/` ilk yükleme +275 B gzip, tek ad parçası 109.189 B gzip (ilk yüklemede değil); entegrasyon, e2e, `ci:full` ve tarifesiz 5. halka sayımı birleştiricide; sürüm 0.27.0, README yayın adımında | — |
+| M7e | adsb.lol günlük bütçesi (D-122, yama v0.28.1): worker günde en çok ~480 istekle çalışır; geniş iki daire aralıklı sorgulanır, aradaki hareket tahmini konumla gösterilir, sitede "veri seyrek" notu | `p1/m7e-adsblol-budget` | [~] | — |
 | M7c | Kapsama ölçümü yedek yolu (`coverage:probe`) | `p1/m7c-coverage-probe` | [ ] | — |
 | M7d.1 | Aşamalı canlı açılış, 1. aşama: yalnız havayolu (D-115): kaynakta süzme (worker), canlı katman anahtarı ve işlem kaydı, kullanım koşullarının mutlak olmayan gizlilik cümlesi, API'de ODbL | `p1/m7d1-live-airline-only` | [~] kod ve yerel kontroller bitti (2026-10-15), filtre sıkılaştırıldı ve `origin/main` (v0.27.0) birleştirildi (2026-10-19), inceleme bulguları kapatıldı (2026-10-19), v0.28.0; orkestratörün yayın adımı (README, PR, CI) ve kullanıcı doğrulaması (ACTIVATION "M7d.1 yayın doğrulaması", 2. adımdaki açılış kapısı) bekliyor | — |
 | M7d.2 | Künye, gizlilik ve gizleme talebi | `p1/m7d2-kunye-gizlilik` | [ ] | — |
@@ -2572,3 +2573,36 @@ Onay: M7d.1 ile aynı (2026-10-15; künye adresi "Önce avukata soracağım", av
 - **Admin hex engel listesi sayfası** (telefon; ekle, çıkar, listele; bugün liste yalnız API'den yönetilir, RUNBOOK "API ile"). VIP listesi ve gizleme talepleri için gerekir; ACTIVATION 2. adım (b) onu açılış kapısına koyar (2026-10-19 incelemesinde "önerilen"den kapsama alındı, D-115).
 
 **Kabul komutları (taslak):** M7d.1'deki yerel kontroller; künye env'i yokken sayfanın kapalı kalması; e2e'de alt bilgi bağlantısı.
+
+## M7e — adsb.lol günlük bütçesi (D-122)
+Onay: 2026-10-24. Kullanıcının yazdığı:
+- "uçaklar bir geliyor bir gidiyor. çoğu zaman gözükmüyor. hatalarını analiz et ve projeyi geliştirmeye devam et."
+- Seçimi: "Bütçeye uy ve anahtar isteyelim" (DUR-SOR 3).
+
+**Bulgu (2026-10-24 01:46–01:50 UTC):**
+- Üretimde uçak sayısı 0'dı. `status.providers.adsbLol` "down" gösteriyordu, `primaryAgeS` 350 sn'den 534 sn'ye çıkıyordu.
+- adsb.lol'e tanıtıcı User-Agent'la tek bir tanılama isteği atıldı (`/v2/point/41.2753/28.7519/40`). Yanıt: 200 OK, 18 uçak.
+- Yanıt başlığı: `x-ratelimit-limit: 4, 4;w=1, 60;w=60, 500;w=86400`. Yani saniyede 4, dakikada 60, **günde 500** istek.
+- Worker ~0,1 istek/sn ile günde ~8.600 istek atıyor. 500'lük hak ~80 dakikada bitiyor; günün geri kalanı 429 beklemeleriyle geçiyor. Uçakların gelip gitmesi buradan.
+- adsblol/api README'si: sınırlar sunucu yüküne göre değişir; ileride API anahtarı gerekecek; anahtar adsb.lol'e veri besleyerek alınır (https://adsb.lol/feed).
+- Worker 429'da hızını düşürüyor (AIMD), ama `x-ratelimit-*` başlıklarını okumuyor.
+
+**Sürüm ve dal:** yama v0.28.1; dal `p1/m7e-adsblol-budget`, `main` 3131748'in (v0.28.0) üstünden; çalışma kopyası `C:/PROJELER/Airline.live2/budget`. Bekleyen v0.29.0 (M7d.2'nin 1. yayını) ve v0.30.0 (M6p.1) bu yamanın üstüne birleşir.
+
+**Kapsam:**
+- **Bütçe:** `ADSBLOL_DAILY_BUDGET`, varsayılan 480. Kalıcı ve kayan 24 saatlik sayaç redis-queue'dadır; yeniden başlatma sayacı sıfırlamaz. İstekler güne eşit yayılır, ~180 sn'de bir.
+  - `x-ratelimit-*` başlıkları okunur ve loglanır.
+  - 429 gelirse sayaç kaynağın sınırına göre ayarlanır.
+  - `0` sınırsız eski davranıştır, yalnız anahtar gelince açılır.
+- **Sorgu planı:** bütçe modunda yalnız iki geniş daire sorgulanır. Batı (IST önceliği) doğudan iki kat sık sorgulanır, istasyon daireleri atlanır.
+- **Yaşam süreleri:** canlı uçak kaydının ömrü (`redis-live`) sorgu aralığına göre uzar, uçak iki sorgu arasında kaybolmaz.
+- **Durum:** kaynak "kısıtlı" (`limited`) olarak gösterilir, "down" değil. API ve WS durum alanı bunu taşır.
+- **Arayüz:**
+  - Uçaklar iki güncelleme arasında hız ve yönle tahmini konumda hareket eder; sınırlı bir süre sonra donar ve soluklaşır.
+  - Durum şeridinde dürüst not: "Canlı veri şu an seyrek: konumlar birkaç dakikada bir güncellenir, aradaki hareket tahminidir."
+- **E-posta:** adsb.lol'e Airline.live için API anahtarı ya da yüksek sınır isteği. Taslağı ajan hazırlar, kullanıcı info@airline.live'dan gönderir (ACTIVATION).
+
+**Kabul komutları:**
+- `pnpm --filter @havayolu/worker test`, `--filter @havayolu/providers test`, `--filter @havayolu/api test`, `--filter @havayolu/web test`, `--filter @havayolu/shared test`. Bütçe sayacı sahte saatle test edilir: 24 saatte 480'i hiç aşmaz, yeniden başlatmada da aşmaz.
+- `pnpm lint`, `pnpm typecheck`, `pnpm format`, `pnpm check:eol`, `pnpm test:integration` (redis-queue sayacı), `pnpm test:e2e` (replay yolu etkilenmez)
+- **Kullanıcıya bağlı (`[k]`):** üretimde 24 saat boyunca uçaklar kaybolmadan görünür; `status.providers.adsbLol` "limited" ya da "ok", 429 sayısı ~0.
