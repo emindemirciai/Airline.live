@@ -1121,6 +1121,8 @@ describe('adsb.lol günlük bütçe modu (D-122; sahte sunucu, redis-queue sayac
         await waitFor('server quota stored', async () => {
           return (await queue.hget(ADSBLOL_BUDGET_KEYS.state, 'serverDaily')) === '500'
         })
+        // Operatör durum anahtarını siler (RUNBOOK 4. adım): kota sonraki yanıtla geri yazılır.
+        await queue.del(ADSBLOL_BUDGET_KEYS.state)
 
         // 180 sn dolmadan istek yok (saat 170 sn ileri; gerçek zaman da akar).
         clock.advance(170_000)
@@ -1128,6 +1130,9 @@ describe('adsb.lol günlük bütçe modu (D-122; sahte sunucu, redis-queue sayac
         clock.advance(10_000)
         await waitFor('second request', () => requests.length === 2)
         expect(requests[1]).toBe(WEST)
+        await waitFor('server quota stored again after the state was deleted', async () => {
+          return (await queue.hget(ADSBLOL_BUDGET_KEYS.state, 'serverDaily')) === '500'
+        })
 
         // İkinci yanıt boş: ilk yanıtın örnekleri ~300 sn yaşında, 660 sn'lik süpürmede kalır.
         clock.advance(120_000)
@@ -1147,10 +1152,19 @@ describe('adsb.lol günlük bütçe modu (D-122; sahte sunucu, redis-queue sayac
       })
 
       // Yeniden başlatma aynı anda: sayaç redis-queue'da sürer, istek gitmez.
+      await redis.del(LIVE_KEYS.provider('adsbLol'))
       await withIngest(deps, async (ingest) => {
         expect(await quietFor(requests, 2_000)).toBe(true)
         expect(requests).toHaveLength(3)
         expect(ingest.stats().requests).toBe(0)
+        // İlk izni beklerken kaynak `down` değil `limited` görünür (açılış payı).
+        await waitFor('provider hash after the restart', async () => {
+          return (await redis.exists(LIVE_KEYS.provider('adsbLol'))) === 1
+        })
+        expect(await redis.hgetall(LIVE_KEYS.provider('adsbLol'))).toMatchObject({
+          status: 'limited',
+          reason: 'budget',
+        })
         // Sıra sürer: dördüncü izin Batı. Bu istek 429 alır.
         reply429 = true
         clock.advance(180_000)

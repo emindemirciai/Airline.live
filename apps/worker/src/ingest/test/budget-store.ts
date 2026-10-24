@@ -58,6 +58,8 @@ export class MemoryBudgetStore implements BudgetStore {
       )
       st.lastCapChangeAt = now
     }
+    // Sert sınır daraltmasızdır; 429 daraltması yalnız aralığı genişletir (betikle aynı).
+    const hardCap = effectiveAdsbLolCap(this.configured, null, st.serverDaily)
     const cap = effectiveAdsbLolCap(this.configured, st.cap, st.serverDaily)
     const count = this.requests.length
     const blocked = st.blockedUntil > now ? st.blockedUntil : null
@@ -72,7 +74,9 @@ export class MemoryBudgetStore implements BudgetStore {
     })
     if (cap < 1) return deny(now + 3_600_000, 'no_cap')
     if (st.blockedUntil > now) return deny(st.blockedUntil, 'blocked')
-    if (count >= cap) return deny((this.requests[count - cap] as number) + window, 'cap')
+    if (count >= hardCap) {
+      return deny((this.requests[count - hardCap] as number) + window, 'cap')
+    }
     const spacing = Math.floor(window / cap)
     const newest = this.requests.at(-1)
     if (newest !== undefined && now < newest + spacing) return deny(newest + spacing, 'spacing')

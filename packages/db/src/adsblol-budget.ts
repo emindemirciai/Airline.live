@@ -18,10 +18,15 @@ import type { Redis } from 'ioredis'
  * 1. 24 saatten eski izinler silinir.
  * 2. Son 429'dan 24 sa ve son sınır değişiminden 6 sa geçtiyse daraltılmış sınır yapılandırılanın
  *    %5'i kadar büyür (yapılandırılanı aşmaz).
- * 3. Sınır = min(yapılandırılan, daraltılmış, ⌊sunucu günlük kotası × 0,96⌋).
+ * 3. Sert sınır = min(yapılandırılan, ⌊sunucu günlük kotası × 0,96⌋); uygulanan sınır =
+ *    min(sert sınır, daraltılmış).
  * 4. Engel süresi sürüyorsa ret (`blocked`).
- * 5. Penceredeki izin sayısı sınıra ulaştıysa ret (`cap`): bu, aralıktan bağımsız sert sınırdır.
- * 6. Son izinden bu yana ⌊24 sa / sınır⌋ geçmediyse ret (`spacing`): istekler güne eşit yayılır.
+ * 5. Penceredeki izin sayısı sert sınıra ulaştıysa ret (`cap`): bu, aralıktan bağımsız sert
+ *    sınırdır. 429 daraltması burada sayılmaz, yalnız aralığı genişletir: penceredeki izinler sert
+ *    sınırı zaten aşmaz, pencereyi daraltılmış sınıra kadar boşaltmak gerekmez (boşaltma tek bir
+ *    429'dan sonra saatlerce istek keserdi).
+ * 6. Son izinden bu yana ⌊24 sa / uygulanan sınır⌋ geçmediyse ret (`spacing`): istekler güne eşit
+ *    yayılır.
  * 7. Değilse izin eklenir, sıra artar.
  *
  * Zaman çağırandan gelir (`Date.now()`; bütün konteynerler sunucunun saatini paylaşır). Saat geri
@@ -99,10 +104,11 @@ if stateCap and stateCap < configured and now - lastRateLimitAt >= raiseQuiet an
   redis.call('HSET', KEYS[3], 'cap', stateCap, 'lastCapChangeAt', now)
   redis.call('PEXPIRE', KEYS[3], stateTtl)
 end
-local cap = configured
-if stateCap then cap = math.min(cap, stateCap) end
-if serverDaily then cap = math.min(cap, math.floor(serverDaily * serverShare / 100)) end
-cap = math.floor(cap)
+local hardCap = configured
+if serverDaily then hardCap = math.min(hardCap, math.floor(serverDaily * serverShare / 100)) end
+hardCap = math.floor(hardCap)
+local cap = hardCap
+if stateCap then cap = math.floor(math.min(cap, stateCap)) end
 local count = redis.call('ZCARD', KEYS[1])
 local seq = tonumber(redis.call('GET', KEYS[2])) or 0
 if cap < 1 then
@@ -111,8 +117,8 @@ end
 if blockedUntil > now then
   return {0, blockedUntil, count, cap, seq, 1, blockedUntil}
 end
-if count >= cap then
-  local index = count - cap
+if count >= hardCap then
+  local index = count - hardCap
   local entry = redis.call('ZRANGE', KEYS[1], index, index, 'WITHSCORES')
   return {0, tonumber(entry[2]) + window, count, cap, seq, 2, blockedUntil}
 end
@@ -255,7 +261,11 @@ export async function recordAdsbLolServerLimit(
   }
 }
 
-/** Uygulanan sınır: min(yapılandırılan, daraltılmış, ⌊sunucu kotası × 0,96⌋); betikle aynı kural. */
+/**
+ * Uygulanan sınır: min(yapılandırılan, daraltılmış, ⌊sunucu kotası × 0,96⌋); betikle aynı kural,
+ * aralık bundan çıkar. Sert sınır (penceredeki izin sayısı) daraltmasızdır:
+ * `effectiveAdsbLolCap(configured, null, serverDaily)`.
+ */
 export function effectiveAdsbLolCap(
   configured: number,
   stateCap: number | null,

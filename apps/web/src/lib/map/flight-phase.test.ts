@@ -8,6 +8,7 @@ import {
 import type { PublicAircraft } from '@havayolu/shared'
 import { describe, expect, it, vi } from 'vitest'
 import {
+  CONFIRM_MAX_GAP_MS,
   CONFIRM_MS,
   displayPhase,
   FlightPhaseTracker,
@@ -358,6 +359,40 @@ describe('FlightPhaseTracker: durum kuralları (D-085)', () => {
       'approaching',
       'approaching',
       'approaching',
+      'approaching',
+      'enRoute',
+    ])
+  })
+
+  it('13b. seyrek veri (D-122, örnekler 180 sn arayla): yeni durum tek örnekle gösterilir', () => {
+    expect(CONFIRM_MAX_GAP_MS).toBe(30_000)
+    const arrival = run(tracker(), [
+      sample(fromIst(0, 45), { alt: 35000, vr: 0, trk: 90, t: 0 }),
+      sample(fromIst(180, 25), { alt: 9000, vr: -1500, trk: 0, t: 180_000 }),
+      sample(onFinal(5), { alt: 1218, vr: -700, trk: B35L, t: 360_000 }),
+      sample(fromIst(90, 1), { gnd: true, gs: 15, t: 540_000 }),
+    ])
+    expect(arrival.map((info) => info.phase)).toEqual([
+      'enRoute',
+      'approaching',
+      'landing',
+      'onGround',
+    ])
+    expect(arrival[2]).toMatchObject({ runway: '35L', airport: { icao: 'LTFM' } })
+    // Kalkış: ilk havadaki örnek (25 km, tırmanıyor) "Yerde" kalmaz.
+    const departure = run(tracker(), [
+      sample(fromIst(90, 1), { gnd: true, gs: 15, t: 0 }),
+      sample(fromIst(0, 25), { alt: 6000, vr: 2500, trk: 0, t: 180_000 }),
+    ])
+    expect(departure.map((info) => info.phase)).toEqual(['onGround', 'enRoute'])
+    // Sınırda: 30 sn aralık hâlâ onay ister, 30 sn'den uzun aralık istemez.
+    const near = (t: number) => sample(fromIst(90, 15), { alt: 5000, vr: -1000, trk: 270, t })
+    const far = (t: number) => sample(fromIst(90, 40), { alt: 5000, vr: -1000, trk: 270, t })
+    expect(run(tracker(), [near(0), far(30_000)]).map((i) => i.phase)).toEqual([
+      'approaching',
+      'approaching',
+    ])
+    expect(run(tracker(), [near(0), far(30_001)]).map((i) => i.phase)).toEqual([
       'approaching',
       'enRoute',
     ])

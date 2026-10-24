@@ -28,6 +28,14 @@ export const CHANGELOG: readonly ChangelogEntry[] = [
         en: 'Positions update every few minutes for now. In between, aircraft in flight move to an estimated position based on their speed and heading; if no new position arrives within 3 minutes, the icon stops and fades.',
       },
       {
+        tr: 'Alçakta uçan ve tırmanmayan uçaklar (yaklaşma, iniş) tahmini konumda yalnız birkaç saniye ilerliyor; simge pistin ötesine kaymıyor.',
+        en: 'Aircraft flying low and not climbing (approach, landing) move to an estimated position for only a few seconds; the icon no longer slides past the runway.',
+      },
+      {
+        tr: 'Uçak listesinde “Yaklaşmada”, “İnişte” ve “Yerde” durumları seyrek veride de ilk güncellemeyle gösteriliyor.',
+        en: 'In the aircraft list, “Approaching”, “Landing” and “On ground” are shown from the first update, even when data is sparse.',
+      },
+      {
         tr: 'Veri seyrekken haritanın durum satırı bunu açıkça yazıyor: “Canlı veri şu an seyrek: konumlar birkaç dakikada bir güncellenir, aradaki hareket tahminidir.”',
         en: 'When data is sparse, the map’s status line says so: “Live data is sparse right now: positions update every few minutes, and the movement in between is estimated.”',
       },

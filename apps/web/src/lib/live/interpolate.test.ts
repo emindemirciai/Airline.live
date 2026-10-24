@@ -2,6 +2,7 @@ import { distanceKm, initialBearing } from '@havayolu/geo'
 import type { LiveStatus } from '@havayolu/shared'
 import { describe, expect, it } from 'vitest'
 import {
+  airborneHorizonMs,
   blend,
   liveMaxAgeMs,
   MAX_EXTRAPOLATION_MS,
@@ -9,6 +10,8 @@ import {
   NORMAL_MOTION_POLICY,
   OPACITY_STEP,
   predictPosition,
+  SPARSE_CLIMB_VR_FPM,
+  SPARSE_LOW_ALT_FT,
   SPARSE_MAX_EXTRAPOLATION_MS,
   STALE_MIN_OPACITY,
   staleOpacity,
@@ -129,6 +132,40 @@ describe('seyrek veri (D-122): yaş penceresi, tahmin ufku ve soluklaşma', () =
     const at180 = predictPosition(ac, 0, s(180), policy.airborneHorizonMs)
     expect(distanceKm(ac, at180)).toBeCloseTo(33.336, 2)
     expect(predictPosition(ac, 0, s(500), policy.airborneHorizonMs)).toEqual(at180)
+  })
+
+  it('seyrek veride alçaktaki tırmanmayan uçak 10 sn’de durur (yaklaşma, pist turu); yüksekteki ya da tırmanan 180 sn', () => {
+    const sparse = motionPolicy(status(660))
+    expect(SPARSE_LOW_ALT_FT).toBe(10_000)
+    expect(SPARSE_CLIMB_VR_FPM).toBe(300)
+    const horizon = (alt: number | null, vr: number | null) =>
+      airborneHorizonMs({ alt, vr }, sparse)
+    // Yaklaşmada alçalan: 10 sn; 180 sn sonraki konum 10 sn sonrakiyle aynı (pistin ötesine
+    // gitmez).
+    expect(horizon(3_000, -700)).toBe(MAX_EXTRAPOLATION_MS)
+    const approach = { lat: 41, lon: 29, gs: 150, trk: 350 }
+    expect(predictPosition(approach, 0, s(180), horizon(3_000, -700))).toEqual(
+      predictPosition(approach, 0, s(10), horizon(3_000, -700)),
+    )
+    // Alçakta düz uçuş ya da bekleme, irtifası bilinmeyen: 10 sn.
+    expect(horizon(5_000, 0)).toBe(MAX_EXTRAPOLATION_MS)
+    expect(horizon(5_000, null)).toBe(MAX_EXTRAPOLATION_MS)
+    expect(horizon(null, null)).toBe(MAX_EXTRAPOLATION_MS)
+    expect(horizon(9_999, SPARSE_CLIMB_VR_FPM)).toBe(MAX_EXTRAPOLATION_MS)
+    // Yüksekte (alçalıyor olsa da) ya da alçakta tırmanıyor: tam ufuk.
+    expect(horizon(35_000, 0)).toBe(SPARSE_MAX_EXTRAPOLATION_MS)
+    expect(horizon(10_000, -1_500)).toBe(SPARSE_MAX_EXTRAPOLATION_MS)
+    expect(horizon(5_000, 2_000)).toBe(SPARSE_MAX_EXTRAPOLATION_MS)
+    expect(horizon(null, SPARSE_CLIMB_VR_FPM + 1)).toBe(SPARSE_MAX_EXTRAPOLATION_MS)
+    // Sık veride kural değişmez: hep 10 sn.
+    for (const [alt, vr] of [
+      [3_000, -700],
+      [35_000, 0],
+      [5_000, 2_000],
+      [null, null],
+    ] as const) {
+      expect(airborneHorizonMs({ alt, vr }, NORMAL_MOTION_POLICY)).toBe(MAX_EXTRAPOLATION_MS)
+    }
   })
 
   it('soluklaşma: 180 sn’ye kadar opak, 660 sn’de 0,35; 0,05’lik adımlarla iner', () => {

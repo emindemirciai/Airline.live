@@ -3,8 +3,9 @@
  * bağımsızdır; çizim döngüsü (map-controller.ts) her ~66 ms'de bir `MotionTracker.update` çağırır.
  *
  * Konum, örneğin alındığı anın istemci saatindeki tahmininden (`sampledAt`) bu yana yer hızı ve
- * yönle ileri taşınır (örnekten en fazla 10 sn; seyrek veride havadaki uçak 180 sn, D-122). Yeni
- * örnek gelince simge sıçramaz: gösterilen konumdan yeni tahmine 1 sn'de geçer. Çok uzağa düşen
+ * yönle ileri taşınır (örnekten en fazla 10 sn; seyrek veride havadaki uçak 180 sn, D-122;
+ * alçaktaki tırmanmayan uçak yine 10 sn, interpolate.ts `airborneHorizonMs`). Yeni örnek gelince
+ * simge sıçramaz: gösterilen konumdan yeni tahmine 1 sn'de geçer. Çok uzağa düşen
  * örnekte (uzun kesintiden sonra) geçiş yapılmaz, simge doğrudan yeni yerine konur. Seyrek veride son
  * örneği eskiyen simge budanana kadar adım adım soluklaşır (`staleOpacity`).
  *
@@ -24,6 +25,7 @@ import {
   type TrailFeatureProperties,
 } from '@havayolu/shared'
 import {
+  airborneHorizonMs,
   BLEND_MS,
   blend,
   NORMAL_MOTION_POLICY,
@@ -117,7 +119,7 @@ export class MotionTracker {
     const seen = new Set<string>()
     for (const ac of aircraft) {
       seen.add(ac.hex)
-      const horizon = ac.gnd ? policy.groundHorizonMs : policy.airborneHorizonMs
+      const horizon = ac.gnd ? policy.groundHorizonMs : airborneHorizonMs(ac, policy)
       const target = predictPosition(ac, ac.sampledAt, now, horizon)
       const opacity = staleOpacity(now - ac.sampledAt, policy)
       let state = this.states.get(ac.hex)

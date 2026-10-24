@@ -82,6 +82,11 @@ export const LOW_ALT_LOST_RADIUS_KM = 20
 export const OVERHEAD_KM = 3
 /** Yeni durum ya da havalimanı, örnek zamanıyla bu kadar sürünce gösterilir, ms. */
 export const CONFIRM_MS = 5_000
+/**
+ * Ardışık iki örnek bundan uzak aralıklıysa (seyrek veri, D-122) yeni durum ya da havalimanı tek
+ * örnekle gösterilir, ms.
+ */
+export const CONFIRM_MAX_GAP_MS = 30_000
 
 /** Yakın havalimanı ön elemesi: enlem ve (cos ile) boylam farkı, derece (~39 km ≥ 35 km). */
 const NEARBY_DEG = 0.35
@@ -439,7 +444,9 @@ interface Entry {
  *
  * Kararlılık: yeni durum ya da havalimanı, örnek zamanıyla 5 sn sürünce gösterilir; o süre içinde
  * gösterilen durum korunur, uzaklığı ve yerden yüksekliği yeni örnekle güncellenir. Yeni görülen
- * uçağın ilk durumu beklemeden gösterilir.
+ * uçağın ilk durumu beklemeden gösterilir. Önceki örnekten 30 sn'den uzun süre sonra gelen örnekte
+ * (seyrek veri, D-122: örnekler 3–9 dk arayla) onay beklenmez, yeni durum hemen gösterilir: yoksa
+ * her geçiş iki sorgu sürer, tek sorguluk "Yaklaşmada" ve "İnişte" hiç görünmezdi.
  *
  * İstek üzerine pist uçları (D-111): listesi uçları taşımayan bir havalimanının (haritanın listesinde
  * 4. halkadan itibaren) 35 km'sine (`APPROACH_EXIT_RADIUS_KM`, pist hizasının arandığı yarıçap)
@@ -578,7 +585,7 @@ export class FlightPhaseTracker {
       return { t: ac.t, ...motion, shown: { ...candidate, runway }, pending: null }
     }
     const pending = entry.pending?.key === key ? entry.pending : { key, since: ac.t }
-    if (ac.t - pending.since >= CONFIRM_MS) {
+    if (ac.t - pending.since >= CONFIRM_MS || ac.t - entry.t > CONFIRM_MAX_GAP_MS) {
       return { t: ac.t, ...motion, shown: candidate, pending: null }
     }
     return { t: ac.t, ...motion, shown: this.refresh(entry.shown, ac), pending }

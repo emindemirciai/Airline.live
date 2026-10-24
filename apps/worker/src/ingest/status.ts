@@ -13,6 +13,9 @@ import type { OutcomeKind } from './rate'
  * - `down`: devre açık ya da pencerede başarılı yanıt yok
  * - `degraded`: pencerede hata oranı > %20
  * - `limited`: diğer durumlar (kaynak çalışıyor, veri seyrek)
+ * Açılışta süreç ilk iznini beklerken (en çok bir durum penceresi, `graceUntil`) pencerede hiç
+ * istek yoksa da `limited`'dır: her deploy'da kaynak bir slot boyunca yanlışlıkla `down`
+ * görünmesin.
  *
  * Saf modüldür: zaman her çağrıda dışarıdan verilir ve azalmayan kabul edilir.
  */
@@ -153,14 +156,27 @@ export class ProviderStatusTracker {
   /**
    * `budgetWindowMs` verilirse bütçe modu kuralları (D-122) uygulanır: pencere odur, tazelik
    * kuralı yoktur ve sağlıklı kaynak `limited`'dır.
+   *
+   * `graceUntil` (yalnız bütçe modunda): açılıştan sonra süreç ilk izni beklerken (sayaç bir
+   * önceki sürecin son isteğinden bir slot sonrasını bekletir) pencerede hiç istek yoksa bu ana
+   * kadar `limited` döner, `down` değil. Pencerede bir istek olunca ya da süre dolunca kurallar
+   * olağandır; açık devre her zaman `down`'dur.
    */
   status(
     now: number,
-    ctx: { circuitOpen: boolean; primaryFreshnessMs: number | null; budgetWindowMs?: number },
+    ctx: {
+      circuitOpen: boolean
+      primaryFreshnessMs: number | null
+      budgetWindowMs?: number
+      graceUntil?: number
+    },
   ): { status: ProviderStatus; reason: ProviderStatusReason | null } {
     const budget = ctx.budgetWindowMs !== undefined
     const c = this.counters(now, ctx.budgetWindowMs ?? this.windowMs)
     if (ctx.circuitOpen) return { status: 'down', reason: 'circuit_open' }
+    if (budget && c.requests === 0 && ctx.graceUntil !== undefined && now < ctx.graceUntil) {
+      return { status: 'limited', reason: 'budget' }
+    }
     if (c.successes === 0) return { status: 'down', reason: 'no_success' }
     if (c.errorRatio !== null && c.errorRatio > this.degradedErrorRatio) {
       return { status: 'degraded', reason: 'error_ratio' }

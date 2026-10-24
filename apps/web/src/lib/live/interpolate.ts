@@ -8,7 +8,10 @@
  * Seyrek veride (D-122: adsb.lol günlük bütçesi, API'nin yaş penceresi `maxAgeS` 120 sn'den uzun)
  * örnekler birkaç dakikada bir gelir. Havadaki uçak o zaman örnekten 180 sn sonrasına kadar ileri
  * taşınır, sonra donar; son örneği eskidikçe simge yaş penceresinin sonuna kadar adım adım
- * soluklaşır (`motionPolicy`, `staleOpacity`). Yerdeki uçağın ufku değişmez.
+ * soluklaşır (`motionPolicy`, `staleOpacity`). Yerdeki uçağın ufku değişmez. İstisna: alçaktaki
+ * (10.000 ft altı ya da irtifası bilinmeyen) ve tırmanmayan uçak 10 sn'de durur
+ * (`airborneHorizonMs`): yaklaşma, pist turu ya da bekleme sırasında düz çizgide 180 sn taşımak
+ * onu pistin kilometrelerce ötesine götürürdü.
  */
 import { destinationPoint, ktToKmh, type LatLon } from '@havayolu/geo'
 import { LIVE_DEFAULT_MAX_AGE_S, LIVE_MAX_AGE_LIMIT_S, type LiveStatus } from '@havayolu/shared'
@@ -21,6 +24,15 @@ export const MAX_EXTRAPOLATION_MS = 10_000
  * simge donar ve soluklaşır.
  */
 export const SPARSE_MAX_EXTRAPOLATION_MS = 180_000
+
+/**
+ * Seyrek veride bu barometrik irtifanın (ft) altındaki, tırmanmayan uçak havalimanı yakınında
+ * sayılır (yaklaşma, pist turu, bekleme) ve uzun ufku almaz.
+ */
+export const SPARSE_LOW_ALT_FT = 10_000
+
+/** Bu dikey hızın (ft/dk) üstündeki uçak tırmanıyor sayılır. */
+export const SPARSE_CLIMB_VR_FPM = 300
 
 /** Soluklaşan simgenin en düşük saydamlığı (yaş penceresinin sonunda). */
 export const STALE_MIN_OPACITY = 0.35
@@ -103,8 +115,9 @@ export function liveMaxAgeMs(status: Pick<LiveStatus, 'maxAgeS'> | null): number
 
 /**
  * Duruma göre tahmin ve soluklaşma kuralı. Pencere 120 sn'den uzunsa veri seyrektir: havadaki
- * uçak 180 sn'ye (pencereden kısaysa pencereye) kadar ileri taşınır, yerdeki 10 sn; simge 180
- * sn'den pencerenin sonuna kadar soluklaşır. Değilse `NORMAL_MOTION_POLICY`.
+ * uçak 180 sn'ye (pencereden kısaysa pencereye) kadar ileri taşınır (alçaktaki tırmanmayan uçak
+ * hariç, `airborneHorizonMs`), yerdeki 10 sn; simge 180 sn'den pencerenin sonuna kadar soluklaşır.
+ * Değilse `NORMAL_MOTION_POLICY`.
  */
 export function motionPolicy(status: Pick<LiveStatus, 'maxAgeS'> | null): Readonly<MotionPolicy> {
   const maxAgeMs = liveMaxAgeMs(status)
@@ -117,6 +130,22 @@ export function motionPolicy(status: Pick<LiveStatus, 'maxAgeS'> | null): Readon
     maxAgeMs,
     sparse: true,
   }
+}
+
+/**
+ * Havadaki uçağın tahmin ufku: seyrek veride alçaktaki (irtifası bilinmeyen dahil) ve tırmanmayan
+ * uçak 10 sn'lik ufku korur; diğerleri `policy.airborneHorizonMs`. Sık veride her zaman o.
+ */
+export function airborneHorizonMs(
+  ac: { alt: number | null; vr: number | null },
+  policy: Readonly<MotionPolicy>,
+): number {
+  if (!policy.sparse) return policy.airborneHorizonMs
+  const low = ac.alt === null || !Number.isFinite(ac.alt) || ac.alt < SPARSE_LOW_ALT_FT
+  const climbing = ac.vr !== null && Number.isFinite(ac.vr) && ac.vr > SPARSE_CLIMB_VR_FPM
+  return low && !climbing
+    ? Math.min(MAX_EXTRAPOLATION_MS, policy.airborneHorizonMs)
+    : policy.airborneHorizonMs
 }
 
 /**

@@ -55,7 +55,7 @@ Doğrulama tarihi: **2026-09-25**. Canlı istekler ve kaynak kodu/doküman okuma
   - **Günlük bütçe (varsayılan, D-122):** `ADSBLOL_DAILY_BUDGET=480` (500'ün %96'sı). Kayan 24 saatte en fazla bu kadar istek atılır ve istekler güne eşit yayılır: ⌈24 sa / sınır⌉, 480 → ~180 sn'de bir.
     - Sayaç redis-queue'dadır (`hy:adsblol:budget:*`, tek Lua betiği, atomik). Yeniden başlatma, deploy ve aynı anda çalışan iki süreç sayacı paylaşır; sert sınır aralıktan bağımsızdır. Her istek izin ister; izin yoksa istek gönderilmez. redis-queue yoksa adsb.lol'e hiç istek atılmaz.
     - Başlıklar (`x-ratelimit-limit`, `-remaining`, `-reset`; yoksa `ratelimit-*`) her yanıtta okunur. Günlük kota politikaların ⌊kota × 86.400 / pencere⌋ değerlerinin en küçüğüdür (bugün 500); değişince `adsblol rate limit headers` satırı (info) yazılır ve sınır ⌊kota × 0,96⌋'yi aşmaz.
-    - 429/420 ya da `remaining` ≤ 1 gelince süreçler en az 2 slot bekler (Retry-After ve sıfırlama başlığı daha uzunsa o kadar, en çok 24 sa) ve sınır %10 daralır (taban yapılandırılanın %20'si, 480 → 96). 24 sa 429 gelmezse sınır 6 saatte bir yapılandırılanın %5'i kadar geri büyür.
+    - 429/420 ya da `remaining` ≤ 1 gelince süreçler en az 2 slot bekler (Retry-After ve sıfırlama başlığı daha uzunsa o kadar, en çok 24 sa) ve sınır %10 daralır (taban yapılandırılanın %20'si, 480 → 96). Daraltma yalnız aralığı uzatır; sert sınır (kayan 24 saatteki izin sayısı) min(`ADSBLOL_DAILY_BUDGET`, ⌊kota × 0,96⌋) kalır, engel bitince istekler hemen sürer. 24 sa 429 gelmezse sınır 6 saatte bir yapılandırılanın %5'i kadar geri büyür.
     - Sorgu planı ve canlı kayıt ömrü bütçeye göredir: aşağıda "Kapsama planı ve öncelikler" → "Bütçe kipinde".
   - **Uyarlanır hız (AIMD; `ADSBLOL_DAILY_BUDGET=0`, yalnız API anahtarı ya da yüksek sınır gelince):**
     - Başlangıç `ADSBLOL_RPS=0.1`, alt sınır 0,05, üst sınır 0,2 (günde 4.320–17.280 istek). Üst sınır ancak VPS'ten yapılan 24 saatlik ölçümde 429 oranı %5'in altındaysa ve DECISIONS kaydıyla yükseltilir. `0`, başlıklardaki günlük kota en az 17.280 değilse girilmez (RUNBOOK "adsb.lol sınırları değişti").
@@ -78,7 +78,8 @@ Doğrulama tarihi: **2026-09-25**. Canlı istekler ve kaynak kodu/doküman okuma
 - **Günlük bütçe kipinde (D-122)** pencere 2 slot + 60 sn'dir (480 → 420 sn) ve tazelik kuralı yoktur:
   - `down`: devre açık ya da pencerede başarılı yanıt yok
   - `degraded`: pencerede 429/420/5xx oranı > %20
-  - `limited`: diğer durumlar (kaynak çalışıyor, veri seyrek; neden `budget`). Harita durum şeridinde "veri seyrek" notunu gösterir; admin Servisler onu "Sorunlu" gösterir; kapsama raporu `degraded` sayar.
+  - `limited`: diğer durumlar (kaynak çalışıyor, veri seyrek; neden `budget`). Harita durum şeridinde "veri seyrek" notunu gösterir; admin Servisler onu "Sorunlu" gösterir ve son hatayı yalnız son başarıdan yeniyse yazar; kapsama raporu `degraded` sayar.
+  - Açılış payı: yeniden başlayan worker ilk iznini beklerken (sayaç bir önceki sürecin son isteğinden bir slot sonrasını bekletir) pencerede hiç istek yoksa, açılıştan bir pencere sonrasına kadar `limited`'dır. Önceki süreçten kalan engel ya da dolu pencere bu payı almaz; ilk istek hata alırsa ya da pay biterse kurallar olağandır.
 
 Durum geçişleri `provider_health`'e yazılır.
 
@@ -100,7 +101,7 @@ Durum geçişleri `provider_health`'e yazılır.
 - **Bütçe kipinde (D-122, `ADSBLOL_DAILY_BUDGET` > 0; üretimin bugünkü kipi):**
   - Yalnız P2'nin Batı ve Doğu çemberleri sorgulanır; P0 istasyon çemberleri, birincil istasyonun 40 NM çemberi ve P1 (`/v2/hex`, `WATCH_HEX_LIST`) yoktur. Tohum istasyonlarının hepsi Batı çemberindedir. API'nin kapsama hesabı da bu iki çemberle yapılır.
   - Sıra B B D (izin sırası redis-queue'da, yeniden başlatmada sürer): 480'de Batı 180 ya da 360 sn'de, Doğu 540 sn'de bir sorgulanır. Yukarıdaki tazelik hedefleri bu kipte geçerli değildir.
-  - Canlı kaydın ömrü (`redis-live`, API'nin yaş penceresi `status.maxAgeS`): ⌈(3 · slot + 120 sn) / 60 sn⌉ dk, 120–1.800 sn (480 → 660 sn). Uçak iki sorgu arasında haritadan düşmez; istemci havadaki uçağı son örnekten 180 sn'ye kadar hız ve yönle tahmini konumda gösterir, sonra simgeyi soluklaştırır.
+  - Canlı kaydın ömrü (`redis-live`, API'nin yaş penceresi `status.maxAgeS`): ⌈(3 · slot + 120 sn) / 60 sn⌉ dk, 120–1.800 sn (480 → 660 sn). Uçak iki sorgu arasında haritadan düşmez; istemci havadaki uçağı son örnekten 180 sn'ye kadar hız ve yönle tahmini konumda gösterir (10.000 ft altındaki ya da irtifası bilinmeyen, tırmanmayan uçak 10 sn), sonra simgeyi soluklaştırır.
 
 **Yanıt biçimi** (readsb `jv2` / ADSBx v2 uyumlu)
 - **Zarf:** `{ ac: [], msg, now, total, ctime, ptime }`. **`now` epoch milisaniyedir (tamsayı).**

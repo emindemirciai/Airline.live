@@ -339,7 +339,7 @@ describe('collectServices: canlı veri sağlayıcıları', () => {
     expect(r.overall).toBe('degraded')
   })
 
-  it('limited (günlük bütçe, D-122) yönetim panelinde sorunlu görünür; ayrıntılar kalır', async () => {
+  it('limited (günlük bütçe, D-122) yönetim panelinde sorunlu görünür; ayrıntılar kalır, son başarıdan eski hata gösterilmez', async () => {
     const r = await report([
       fakeProviderSummary({
         status: 'limited',
@@ -348,11 +348,35 @@ describe('collectServices: canlı veri sağlayıcıları', () => {
         lastErrorAt: secondsAgo(4_000),
       }),
     ])
-    expect(byId(r, 'provider:adsbLol')).toMatchObject({
-      state: 'degraded',
-      detail: { rps: 0.006, circuit: 'closed', error: 'rate_limit: HTTP 429' },
-    })
+    const row = byId(r, 'provider:adsbLol')
+    expect(row).toMatchObject({ state: 'degraded', detail: { rps: 0.006, circuit: 'closed' } })
+    // Hata son başarıdan (8 sn önce) eski: düzelmiş, gösterilmez.
+    expect(row?.detail).not.toHaveProperty('error')
     expect(r.overall).toBe('degraded')
+  })
+
+  it('limited: son başarıdan yeni hata gösterilir; hiç başarı yoksa da', async () => {
+    const recent = await report([
+      fakeProviderSummary({
+        status: 'limited',
+        lastError: 'network: ECONNRESET',
+        lastErrorAt: secondsAgo(5),
+      }),
+    ])
+    expect(byId(recent, 'provider:adsbLol')?.detail).toMatchObject({
+      error: 'network: ECONNRESET',
+    })
+    const never = await report([
+      fakeProviderSummary({
+        status: 'limited',
+        lastSuccessAt: null,
+        lastError: 'rate_limit: HTTP 429',
+        lastErrorAt: secondsAgo(30),
+      }),
+    ])
+    expect(byId(never, 'provider:adsbLol')?.detail).toMatchObject({
+      error: 'rate_limit: HTTP 429',
+    })
   })
 
   it('durum ok iken eski hata metni gösterilmez', async () => {

@@ -162,6 +162,33 @@ describe('ProviderStatusTracker', () => {
     expect(t.status(T0 + 901_000, budget)).toEqual({ status: 'limited', reason: 'budget' })
   })
 
+  it('bütçe modu açılış payı: istek yokken graceUntil’e kadar limited, sonra down; açık devre ve ilk hata payı bitirir', () => {
+    const budget = {
+      circuitOpen: false,
+      primaryFreshnessMs: null,
+      budgetWindowMs: 420_000,
+      graceUntil: T0 + 420_000,
+    }
+    const t = new ProviderStatusTracker({ retainMs: 3_600_000 })
+    expect(t.status(T0, budget)).toEqual({ status: 'limited', reason: 'budget' })
+    expect(t.status(T0 + 419_999, budget)).toEqual({ status: 'limited', reason: 'budget' })
+    expect(t.status(T0 + 420_000, budget)).toEqual({ status: 'down', reason: 'no_success' })
+    expect(t.status(T0 + 1_000, { ...budget, circuitOpen: true })).toEqual({
+      status: 'down',
+      reason: 'circuit_open',
+    })
+    // Pay yalnız bütçe modundadır.
+    const adaptive = { circuitOpen: false, primaryFreshnessMs: null, graceUntil: T0 + 420_000 }
+    expect(t.status(T0 + 1_000, adaptive)).toEqual({ status: 'down', reason: 'no_success' })
+    // İlk istek hata alırsa pay biter: pencerede istek var, başarı yok.
+    t.record(T0 + 180_000, 'network')
+    expect(t.status(T0 + 181_000, budget)).toEqual({ status: 'down', reason: 'no_success' })
+    // İlk istek başarılıysa olağan kural: limited.
+    const ok = new ProviderStatusTracker({ retainMs: 3_600_000 })
+    ok.record(T0 + 180_000, 'success')
+    expect(ok.status(T0 + 181_000, budget)).toEqual({ status: 'limited', reason: 'budget' })
+  })
+
   it('olaylar tutma süresi kadar saklanır; tutma pencereden kısa olamaz', () => {
     const t = new ProviderStatusTracker({ retainMs: 600_000 })
     t.record(T0, 'success')

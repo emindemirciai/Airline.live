@@ -164,6 +164,48 @@ describe('reserveAdsbLolRequest (sahte saat)', () => {
     expect((await reserve(quiet + 12 * HOUR)).cap).toBe(CONFIGURED)
   })
 
+  it('kararlı durumda (pencere dolu) 429: engel bitince istek sürer, aralık 200 sn; pencere boşaltılmaz, hiçbir 24 saat 480’i aşmaz', async () => {
+    // Worker gibi: her ret `retryAt`'te yeniden sorulur. 30 saat 180 sn arayla (pencerede 480
+    // izin).
+    const grants: number[] = []
+    let t = T0
+    while (t < T0 + 30 * HOUR) {
+      const r = await reserve(t)
+      if (r.granted) grants.push(t)
+      t = Math.max(r.retryAt, t + 1_000)
+    }
+    const t429 = grants.at(-1) as number
+    expect(await redis.zcard(ADSBLOL_BUDGET_KEYS.requests)).toBe(CONFIGURED)
+    const limited = await recordAdsbLolRateLimit(redis, {
+      now: t429,
+      configured: CONFIGURED,
+      waitMs: 360_000,
+    })
+    expect(limited).toEqual({ cap: 432, blockedUntil: t429 + 360_000 })
+
+    // 429'dan sonraki 24 saat (sonra sınır geri büyümeye başlar).
+    const after: number[] = []
+    t = t429 + 1_000
+    while (t < t429 + DAY) {
+      const r = await reserve(t)
+      if (r.granted) {
+        after.push(t)
+        expect(r.cap).toBe(432)
+      } else {
+        expect(r.decision, `@${t - t429}`).not.toBe('cap')
+      }
+      t = Math.max(r.retryAt, t + 1_000)
+    }
+    // Engel sonunda ilk izin, sonra 200 sn arayla; boşaltma yok (eskiden ~2,4 sa istek yoktu).
+    expect(after[0]).toBe(t429 + 360_000)
+    expect(after[1]).toBe(t429 + 560_000)
+    expect(minGap(after)).toBe(200_000)
+    expect(Math.max(...after.slice(1).map((x, i) => x - (after[i] as number)))).toBe(200_000)
+    expect(maxInWindow([...grants, ...after])).toBeLessThanOrEqual(CONFIGURED)
+    // Daralmış sınır sürerken 429'dan sonraki 24 saat 432 izinle sınırlıdır.
+    expect(maxInWindow(after)).toBeLessThanOrEqual(432)
+  }, 120_000)
+
   it('429 daraltması yapılandırılanın %20’sinin (96) altına inmez', async () => {
     let cap = CONFIGURED
     for (let i = 0; i < 40; i += 1) {

@@ -1227,9 +1227,12 @@ export async function startIngest(deps: IngestDeps): Promise<IngestHandle> {
     }
   }
 
-  /** Başlıklardan okunan günlük kota: değişince loglanır (info) ve bütçe sayacına yazılır. */
+  /**
+   * Başlıklardan okunan günlük kota: değişince loglanır (info); bütçe sayacına her yanıtta yazılır
+   * (bellekte tekilleştirilmez). Durum anahtarı elle silinirse (RUNBOOK) ya da süresi dolarsa kota
+   * sonraki yanıtla geri gelir; yazım günde en çok bütçe kadardır.
+   */
   let loggedServerDaily: number | null = null
-  let storedServerDaily: number | null = null
   const noteRateLimitHeaders = async (rateLimit: RateLimitInfo | null) => {
     const quota = dailyQuota(rateLimit)
     if (rateLimit === null || quota === null) return
@@ -1247,10 +1250,9 @@ export async function startIngest(deps: IngestDeps): Promise<IngestHandle> {
       )
     }
     // Kota 0 yazılmaz: sayaç hiç izin vermez, yeni başlık da okunamazdı (429 yolu zaten daraltır).
-    if (budgetStore === null || quota < 1 || quota === storedServerDaily) return
+    if (budgetStore === null || quota < 1) return
     try {
       await budgetStore.serverLimit(now(), quota)
-      storedServerDaily = quota
     } catch (error) {
       warnThrottled('budget-store', { err: error }, 'adsblol budget store could not be updated')
     }
@@ -1575,10 +1577,22 @@ export async function startIngest(deps: IngestDeps): Promise<IngestHandle> {
     const primaryData = primaryIcao === null ? undefined : regionTimes.get(primaryIcao)
     // Bütçe modu (D-122): pencere sorgu aralığına göre, sağlıklı kaynak `limited`; hız slottan.
     const slot = slotMs()
+    const statusWindowMs = budgetStatusWindowMs(slot)
+    // Açılışta ilk izni beklerken (sayaç aralık yüzünden bekletiyor) bir pencere boyunca `limited`.
+    // Önceki süreçten kalan engel ya da dolu pencere (`blocked`, `cap`, `no_cap`) bu payı almaz.
+    const lastDecision = pacer?.last()?.decision ?? null
+    const waitingForSlot =
+      pacer !== null &&
+      (lastDecision === null || lastDecision === 'spacing' || lastDecision === 'granted')
     const { status, reason } = adsbStatus.status(t, {
       circuitOpen: state.circuit === 'open' || state.circuit === 'config',
       primaryFreshnessMs: p95,
-      ...(budgetMode ? { budgetWindowMs: budgetStatusWindowMs(slot) } : {}),
+      ...(budgetMode
+        ? {
+            budgetWindowMs: statusWindowMs,
+            ...(waitingForSlot ? { graceUntil: startedAt + statusWindowMs } : {}),
+          }
+        : {}),
     })
     const freshnessP95S = p95 === null ? null : p95 / 1000
     const rps = currentRps()

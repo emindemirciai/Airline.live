@@ -265,6 +265,32 @@ describe('bütçe döngüsü benzetimi (sahte saat, bellek içi sayaç)', () => 
     expect(maxInWindow(nextDay.map((g) => g.at))).toBeLessThanOrEqual(432)
   })
 
+  it('kararlı durumda (pencere dolu) tek 429: 2 slot sonra istek sürer, 200 sn arayla; pencere boşaltılmaz', async () => {
+    const store = new MemoryBudgetStore(480)
+    let limited = false
+    const grants = await simulate({
+      store,
+      hours: 40,
+      // 30. saatte pencerede 480 izin var; o saatteki ilk istek 429 alır.
+      respond: (at) => {
+        if (!limited && at >= T0 + 30 * HOUR) {
+          limited = true
+          return 'rate_limit'
+        }
+        return 'success'
+      },
+    })
+    const first429 = grants.find((g) => g.at >= T0 + 30 * HOUR)
+    expect(first429?.at).toBe(T0 + 30 * HOUR)
+    const after = grants.filter((g) => g.at > (first429?.at ?? 0))
+    expect((after[0]?.at ?? 0) - (first429?.at ?? 0)).toBe(360_000)
+    expect(after.every((g) => g.cap === 432)).toBe(true)
+    // Eskiden sert sınır daraltılmış sınırla sayılırdı: pencere 432'ye inene kadar ~2,4 sa istek
+    // yoktu.
+    expect(Math.max(...gaps(after.map((g) => g.at)))).toBe(200_000)
+    expect(maxInWindow(grants.map((g) => g.at))).toBeLessThanOrEqual(480)
+  })
+
   it('sayaç erişilemezse istek yok; 5 sn sonra yeniden sorulur', async () => {
     const store = new MemoryBudgetStore(480)
     const pacer = new BudgetPacer(store)

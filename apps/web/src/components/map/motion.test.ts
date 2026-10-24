@@ -165,6 +165,21 @@ describe('MotionTracker: seyrek veri (D-122)', () => {
     expect(motion.position(air.hex)).toEqual(frozen)
   })
 
+  it('alçalan, alçaktaki uçak (yaklaşma) seyrek veride de 10 sn’de durur; tırmanan alçaktaki uçak 180 sn', () => {
+    const motion = new MotionTracker()
+    const policy = motionPolicy(SPARSE)
+    const landing = aircraft({ alt: 3_000, vr: -700, gs: 150, trk: 350 })
+    const departing = aircraft({ hex: 'abcdef', alt: 5_000, vr: 2_000, gs: 220, trk: 170 })
+    const now = 10_000 + 180_000
+    motion.update([landing, departing], now, policy)
+    expect(motion.position(landing.hex)).toEqual(
+      predictPosition(landing, 0, MAX_EXTRAPOLATION_MS, Infinity),
+    )
+    expect(motion.position(departing.hex)).toEqual(
+      predictPosition(departing, 0, SPARSE_MAX_EXTRAPOLATION_MS, Infinity),
+    )
+  })
+
   it('sık veride (varsayılan kural) havadaki uçak da 10 sn’de durur', () => {
     const motion = new MotionTracker()
     const air = aircraft()
